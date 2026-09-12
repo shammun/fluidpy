@@ -60,9 +60,10 @@ def lint_text(path: Path, html: str) -> list[str]:
                       (r"XMLHttpRequest", "XMLHttpRequest"), (r"<img[^>]+src=\"https?:", "remote <img>")]:
         if re.search(pat, rest):
             msgs.append(f"external resource: {what}")
-    for section in ("tour:", "equations:", "selftest:"):
-        if section not in js:
-            msgs.append(f"no {section[:-1]} section")
+    for section in ("tour:", "equations:", "selftest:", "calc:", "code:", "check:"):
+        if not re.search(r"\b" + section, js):
+            msgs.append(f"no {section[:-1]} section" + (" (required: Step-by-step working)" if section == "calc:" else
+                                                          " (required: the Python behind the picture)" if section == "code:" else ""))
     if "equations:" in js and "ref:" not in js:
         msgs.append("equations carry no ref: 'Eq. (N.M)' (cite the book's equation numbers)")
     if in_chapter and "selftest:" in js and not re.search(r"\bpy\s*:", js):

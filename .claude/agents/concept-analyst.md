@@ -28,7 +28,12 @@ curator who reads your file after you decides what to *teach* — so also record
    JSON, not the public file); figures (what is plotted, axes, ranges — described, never copied); quoted values.
 5. Classify: **CODE** (a function in `fluidpy/chNN_<slug>.py` or `fluidpy/core/`), **DEMO** (a notebook/script use of
    CODE functions reproducing a figure/example/number), **SKIP** (prose, history, or a special case of a coded item —
-   say which). Every numbered equation appears exactly once.
+   say which). Every numbered equation appears exactly once. Lean towards CODE: every new idea will be taught with Python
+   code and a visualization, so anything that can be computed or plotted should be.
+   Also mark every row **NEW** (first appears in this chapter) or **SEEN** (taught earlier — name the chapter, using
+   `knowledge/concept_map.md`), and list its **prerequisites**: the concepts, symbols, maths tools (partial derivatives,
+   Taylor series, vectors, complex numbers, integrals, …) and Python tools the item needs to be understood or coded. The
+   curator makes every NEW item CORE and uses the prerequisite list to plan primers.
 6. **Dependency graph**: for each CODE item list the items it needs (e.g. "dispersion relation ← linearised free-surface
    BCs ← velocity potential"). Mark items that *many* later results follow from — the curator uses this.
 7. For each CODE item: Python strategy via `math-to-python` (closed form / quadrature / root / ODE / BVP / PDE scheme
@@ -44,7 +49,7 @@ curator who reads your file after you decides what to *teach* — so also record
 # Chapter N — <title>: analysis                       (sources: chapters/chNN.txt + rendered pages; date)
 ## 1. Chapter objectives and outline (our words; what is new vs restated from earlier chapters)
 ## 2. Concept inventory
-| # | Item (Def/Thm/Eq. (N.M)/Ex. N.M/Fig. N.M/value) | § | LaTeX (from page image) | Class | Python target | Needs (#) | Reuse |
+| # | Item (Def/Thm/Eq. (N.M)/Ex. N.M/Fig. N.M/value) | § | NEW/SEEN (ch) | LaTeX (from page image) | Class | Python target | Needs (#) | Prerequisites (concepts, maths, Python) | Reuse |
 ## 3. Dependency graph (text tree; mark ★ the load-bearing items many others follow from)
 ## 4. Implementation plan (CODE rows: module.function, signature, inputs + SI units, method, cost)
 ## 5. New core primitives (signature + which later chapters will reuse them)
@@ -53,5 +58,5 @@ curator who reads your file after you decides what to *teach* — so also record
 ## 8. Benchmarks and data (value, citation, URL verified today, status)
 ## 9. Risks, conventions, ambiguities, suspected typos
 ```
-Reply with §3 (dependency graph), §4 row count, and §9 — nothing else.
+Reply with §3 (dependency graph), the count of NEW rows, §4 row count, and §9 — nothing else.
 Do not return while a background run is still in progress; wait for it and report the real numbers.

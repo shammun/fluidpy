@@ -168,7 +168,8 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
             fails.append(f"[{name}] window.VIZ never became ready: {exc}")
             ctx.close()
             continue
-        info = page.evaluate("() => ({tabs: VIZ.tabs, steps: VIZ.steps, meta: VIZ.meta(), katex: !!window.katex})")
+        info = page.evaluate("() => ({tabs: VIZ.tabs, steps: VIZ.steps, meta: VIZ.meta(), katex: !!window.katex, features: VIZ.features || {}, nCheck: (VIZ.app.cfg.check || []).length})")
+        rep["features"], rep["n_check"] = info["features"], info["nCheck"]
         meta = info["meta"]
         srep = {"viewport": [w, h], "load_s": round(time.perf_counter() - t0, 2), "katex": info["katex"], "views": []}
         for tab in info["tabs"]:
@@ -215,6 +216,21 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
         fails.append(f"walkthrough has {steps} steps (need 4-8)")
     if "equations" not in rep.get("tabs", []):
         fails.append("no Equations tab (every explainer shows and explains its equations)")
+    # quality floor modelled on the reference explainers (skill interactive-viz §4)
+    feats = rep.get("features") or {}
+    if not feats.get("calc"):
+        fails.append("no Step-by-step tab (calc): show the working with the reader's own numbers")
+    if not feats.get("code"):
+        fails.append("no Code tab: show the Python behind the picture, synced to the walkthrough")
+    depth = [k for k in ("transport", "presets", "status", "terms", "inspect", "notes", "modes") if feats.get(k)]
+    if (feats.get("views") or 0) >= 2:
+        depth.append("views")
+    if len(depth) < 2:
+        fails.append(f"only {len(depth)} depth feature(s) {depth}: use at least 2 of linked views, transport, presets, "
+                     "status, terms, inspector, notes, modes")
+    rep["depth_features"] = depth
+    if rep.get("n_check", 0) < 3:
+        fails.append(f"{rep.get('n_check', 0)} check-yourself questions (need at least 3)")
     rows = rep.get("selftest_js") or []
     if not rows:
         fails.append("selftest() returned no rows (parity with fluidpy is required)")

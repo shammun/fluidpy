@@ -1,6 +1,6 @@
 ---
 name: teaching-style
-description: Shammunul's educational style for fluidpy notebooks and explainers - plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
+description: Shammunul's educational style for fluidpy notebooks and explainers - every new idea taught in full and nothing used unexplained (CORE blocks, recaps, primers), plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
 ---
 
 # teaching-style — make it click for a first-time reader
@@ -25,6 +25,20 @@ Distilled from Shammunul's own annotated notebooks (`fast.ai/shammunul-fastai-no
 5. **Code** — short cells that call the tested `fluidpy` function; every line commented for a novice.
 6. **What the output shows** — never leave a figure or number uninterpreted.
 
+## 1b. Nothing unexplained (the self-contained rule)
+Every new idea of the chapter is a CORE block with code and a visualization. Beyond that, **every concept, term, symbol,
+mathematical tool and Python function/idiom is explained no later than the cell where it is first used** — by its own
+CORE block, by a 🔁 recap of an earlier chapter, or by a 📎 primer right there. Typical primer candidates:
+- maths: partial derivatives, gradient/divergence/curl, the chain rule in several variables, Taylor expansion, complex
+  exponentials, Fourier modes, eigenvalues, integrals over surfaces and volumes, order-of-magnitude estimates, logarithmic axes;
+- physics vocabulary: control volume, steady vs unsteady, inviscid, incompressible, boundary condition, dimensionless group;
+- Python: numpy broadcasting, `np.meshgrid`, vectorised `np.where`, `scipy.integrate.solve_ivp`, `scipy.optimize.brentq`,
+  `matplotlib` contour/quiver/streamplot, f-strings, `lambda`, `assert np.allclose`.
+Primer format (`nb.primer(term, text, code)`): one or two plain sentences, what it means *here*, and for maths or Python a
+2–4-line runnable demo with easy numbers. If an earlier chapter already primed it (`knowledge/primers.md`), write one
+reminder sentence and name the chapter instead of repeating the primer. When unsure whether the reader knows something,
+prime it — a two-line primer costs less than a lost reader.
+
 ## 2. Recurring blocks (use these exact headings — readers learn to scan for them)
 - `**What is this section about?**` — 2–4 sentences at the top of a big section.
 - `**What does the code above do?**` — after any non-trivial code cell: a numbered list of what each part does, in the
@@ -36,7 +50,8 @@ Distilled from Shammunul's own annotated notebooks (`fast.ai/shammunul-fastai-no
 - `### ✏️ Tiny example: …` · `### 🎮 Interactive: <what it makes clear>` followed by `**What to try:**` bullets, each an
   action + what to watch for ("Drag H down to 1 m and watch the orbits flatten into ellipses").
 - `> ⚠️ Common confusion:` callouts for misconceptions (phase vs group velocity, ν vs μ, streamline vs pathline).
-- `## ✅ What should have clicked` at the end: 3–7 bullets, each a sentence the reader could now explain to a friend.
+- `### 🧩 <CORE idea>` opens every new idea; `> 📎 **Primer — term.**` and `> 🔁 **Recap — idea** (Ch. N §N.M).` blocks explain prerequisites where they are needed.
+- `## ✅ What should have clicked` at the end: one bullet per CORE idea, each a sentence the reader could now explain to a friend.
 
 ## 3. Code comments (novice-grade, never noise)
 ```python

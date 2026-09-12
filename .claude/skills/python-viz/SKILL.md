@@ -13,7 +13,7 @@ description: Figures, animations and Python-side interactive plots for fluidpy n
 | watch something evolve in time (surface, particles, profile diffusing) | `animate` + `show_animation(player="video")` | yes |
 | step through discrete stages (time steps of a scheme, iterations) | `show_animation(player="frames")` or `animate_figure` (plotly) | yes |
 | explore 2+ parameters freely | `live(...)` ipywidgets, **plus** a slider_figure for the page | kernel only (page shows a note) |
-| manipulate a phenomenon with a guided story | an HTML explainer (skill `interactive-viz`) — max 5 per chapter | yes |
+| manipulate a phenomenon with a guided story | an HTML explainer (skill `interactive-viz`) — 4–5 per chapter | yes |
 
 ## 2. House style (`fluidpy.core.style`)
 - The setup cell calls `setup_notebook()` → `use_style()` (palette shared with the explainers: purple `#6c5ce7`, teal,

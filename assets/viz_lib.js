@@ -5,20 +5,34 @@
 
      const app = Viz.app({
        title, subtitle,
-       params:    { k: {label, min, max, step, value, unit, help, log, fmt}, deep: {type:'toggle', ...},
-                    mode: {type:'select', options:[['a','Label A'], ...], value} },
-       readouts:  [ {id, label, unit, value: s => number, fmt?, tone?: s => 'pos'|'neg'|''} ],
-       stage:     { setup(g), draw(g, s), animate: true|false, onPointer(g, ev, s) },
-       explore:   { intro: 'html with $inline tex$', controls: ['k','deep'], callouts: [{kind:'try'|'key'|'watch'|'warn', html}] },
-       tour:      [ {title, text, set:{k:1}, controls:['k'], eq:'disp', highlight:['readout:c'], enter(app)} ],
+       params:    { k: {label, min, max, step, value, unit, help, log, fmt, optional}, deep: {type:'toggle', ...},
+                    mode: {type:'select', options:[['a','Label A'], ...], value, display:'chips'?}, kick: {type:'button', action} },
+       readouts:  [ {id, label, unit, value: s => number, fmt?, tone?: v => 'pos'|'neg'|''} ],
+       stage:     { animate, setup(g), step(g, s, dt), draw(g, s), reset(g, s), onPointer(g, ev, s),
+                    views: [ {id, title: s => html, row: 0, flex: 1, hidePortrait?, draw(v, s, app)?, onPointer(v, ev, s, app)?} ],
+                    rows: [1.2, 1] },                               // linked views sharing one state and one clock
+       transport: { param:'t', min:0, max:6.28, rate: 1, end:'hold'|'loop'|'stop', hold: 2, step },  // ▶ ⏮ ⏭ ↺ scrubber speed
+       modes:     { param:'system', options:[['wheel','Rotating wheel'], ['spring','Spring–mass']] },   // same idea, other system
+       presets:   [ {label:'ω = 1', set:{w:1}, title} ],             // one-click special cases (chips above the stage)
+       status:    s => ({text:'🎯 resonance', tone:'good'|'warn'|'bad'|'info'}),
+       explore:   { intro, controls:['k','deep'], readouts:['c'], callouts:[{kind:'try'|'key'|'watch'|'warn', html}] },
+       terms:     { title, items:[{id, label, color, value: s => number}], total:{label}, unit },  // click a term to focus it
+       inspect:   (s, app) => html | null,                           // click-to-trace exact arithmetic (state set by onPointer)
+       notes:     (s, app) => html,                                  // "Right now": regime-dependent interpretation
+       calc:      { title, html: (s, app) => Viz.work.line(...)+..., live: (s, app) => ({name: value}) },   // Step by step tab
+       tour:      [ {title, text, set, play, controls:['k'], readouts:['c'], eq:'disp', code:{id, lines:[3,4]},
+                     terms:true, inspect:true, notes:true, callout:{kind, html}, highlight:['readout:c'], enter(app)} ],
        equations: [ {id, title, ref:'Eq. (7.27)', tex, live: s => tex, note, symbols:[[tex, meaning, unit]]} ],
+       code:      [ {id, title, ref, src:'python with {{live}} placeholders', live: s => ({live: value}), note} ],  // Code tab
        check:     [ {q, a, set?:{...}} ],
        panels:    [ {id, label, short, render(el, app)} ],          // optional extra tabs
        selftest:  () => [ {name, js, py?, expect?, rtol?, atol?} ], // parity with fluidpy (py) or JS-only (expect)
        onChange(s, key, app)
      });
+   Helpers: Plot (g.plot / v.plot), Viz.field (grid, contours, heatmap, streamline, quiver, particles), Viz.num,
+   Viz.work (head, line, result, table), Viz.live(name), Viz.three(view, opt) → three.js scene with orbit + pick.
 
-   Layout: header (title | tabs | actions) + main (stage | side panel of the active tab).
+   Layout: header (title | tabs | actions) + main (stage [top strip · views · transport] | side panel of the active tab).
    Fit algorithm (Viz.fit): choose data-layout (wide | portrait | landscape) from the box size → raise data-dense
    0..3 until nothing overflows → paginate long lists (equations, questions, controls) into pages → if anything
    still overflows, console.warn('VIZ-OVERFLOW', …) so tools/shot.py fails the build.
@@ -77,7 +91,7 @@
     if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—';
     if (typeof v !== 'number') return String(v) + unit;
     if (!isFinite(v)) return (v > 0 ? '∞' : '−∞') + unit;
-    if (v === 0) return '0' + unit;
+    if (v === 0 || (Math.abs(v) < 1e-12 && !opt.keepTiny)) return '0' + unit;   // round-off (sin π) is not information
     var a = Math.abs(v), s;
     if (a >= 1e-3 && a < 1e5) {
       s = Number(v.toPrecision(sig)).toString();
@@ -93,7 +107,7 @@
   function tnum(v, sig) {
     sig = sig || 3;
     if (typeof v !== 'number' || !isFinite(v)) return '\\text{' + fmt(v) + '}';
-    if (v === 0) return '0';
+    if (v === 0 || Math.abs(v) < 1e-12) return '0';
     var a = Math.abs(v);
     if (a >= 1e-3 && a < 1e5) return Number(v.toPrecision(sig)).toString();
     var e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
@@ -536,14 +550,121 @@
   Viz.ICON = ICON;
 
   /* ------------------------------------------------------------------------------------------------
+     6b. Python syntax colouring for the Code tab ({{name}} placeholders become live values)
+     ------------------------------------------------------------------------------------------------ */
+  var PY_KW = /^(def|return|import|from|as|for|in|if|elif|else|while|and|or|not|None|True|False|lambda|class|with|yield|try|except|raise|pass|break|continue|is|global|assert)$/;
+  function liveSpan(name) { return '<span class="viz-code-live" data-code-live="' + esc(name) + '">…</span>'; }
+  function withLive(escaped) { return escaped.replace(/\{\{\s*([\w.]+)\s*\}\}/g, function (_, n) { return liveSpan(n); }); }
+  function highlightPy(line) {
+    var out = '', i = 0, n = line.length, m;
+    while (i < n) {
+      var ch = line.charAt(i), rest = line.slice(i);
+      if (rest.slice(0, 2) === '{{' && (m = /^\{\{\s*([\w.]+)\s*\}\}/.exec(rest))) { out += liveSpan(m[1]); i += m[0].length; continue; }
+      if (ch === '#') { out += '<span class="cm">' + withLive(esc(rest)) + '</span>'; break; }
+      if (ch === '"' || ch === "'") {
+        var q = rest.slice(0, 3) === ch + ch + ch ? ch + ch + ch : ch, j = rest.indexOf(q, q.length);
+        var s = j < 0 ? rest : rest.slice(0, j + q.length);
+        out += '<span class="st">' + withLive(esc(s)) + '</span>'; i += s.length; continue;
+      }
+      if ((m = /^\d*\.?\d+(?:[eE][-+]?\d+)?/.exec(rest)) && !/[A-Za-z_]/.test(line.charAt(i - 1) || '')) { out += '<span class="num">' + m[0] + '</span>'; i += m[0].length; continue; }
+      if ((m = /^[A-Za-z_]\w*/.exec(rest))) {
+        var word = m[0], after = line.slice(i + word.length).replace(/^\s+/, '');
+        if (PY_KW.test(word)) out += '<span class="kw">' + word + '</span>';
+        else if (after.charAt(0) === '(') out += '<span class="fn">' + word + '</span>';
+        else out += word;
+        i += word.length; continue;
+      }
+      out += esc(ch); i++;
+    }
+    return out || ' ';
+  }
+  Viz.highlightPy = highlightPy;
+
+  /** Builders for the "Step by step" tab: every line = formula = numbers substituted = result, with a short why.
+      Put values that change with time in live spans (Viz.live('x')) and return them from calc.live(s). */
+  Viz.work = {
+    head: function (text) { return '<div class="viz-work-h">' + text + '</div>'; },
+    line: function (formula, value, why) { return '<div class="viz-work-ln">' + formula + (value !== undefined && value !== '' ? ' = <b>' + value + '</b>' : '') + (why ? '<span class="viz-work-why">' + why + '</span>' : '') + '</div>'; },
+    result: function (html, tone) { return '<div class="viz-work-res' + (tone ? ' ' + tone : '') + '">' + html + '</div>'; },
+    table: function (headers, rows, current) {
+      return '<table class="viz-work-table"><tr>' + headers.map(function (x) { return '<th>' + x + '</th>'; }).join('') + '</tr>' +
+        rows.map(function (r, i) { return '<tr' + (i === current ? ' class="cur"' : '') + '>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+    },
+    note: function (html) { return '<p>' + html + '</p>'; }
+  };
+  Viz.live = function (name) { return '<b data-live="' + esc(name) + '">…</b>'; };
+
+  /* ------------------------------------------------------------------------------------------------
+     6c. 3-D views with three.js (loaded on demand from a CDN; drag = orbit, wheel = zoom, click = pick)
+     ------------------------------------------------------------------------------------------------ */
+  var threePromise = null;
+  Viz.loadThree = function () {
+    if (threePromise) return threePromise;
+    threePromise = new Promise(function (resolve) {
+      if (global.THREE) { resolve(global.THREE); return; }
+      var srcs = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'];
+      var i = 0, done = false, timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, 10000);
+      (function attempt() {
+        if (i >= srcs.length) { if (!done) { done = true; clearTimeout(timer); resolve(null); } return; }
+        var s = h('script', { src: srcs[i++] });
+        s.onload = function () { if (!done) { done = true; clearTimeout(timer); resolve(global.THREE || null); } };
+        s.onerror = function () { s.remove(); attempt(); };
+        doc.head.appendChild(s);
+      })();
+    });
+    return threePromise;
+  };
+  /** Turn a stage view into a 3-D scene. Resolves to {THREE, scene, camera, renderer, render(), pick(ev, objs), project(v3)}
+      or null (offline: a friendly fallback note is shown). The view's 2-D canvas stays on top for labels. */
+  Viz.three = function (view, opt) {
+    opt = opt || {};
+    return Viz.loadThree().then(function (THREE) {
+      var holder = view.holder;
+      if (!THREE) { holder.appendChild(h('div', { class: 'viz-3d-fallback', html: opt.fallback || 'The 3-D view needs an internet connection (three.js loads from a CDN). Everything else in this explainer still works.' })); return null; }
+      var canvas = h('canvas', { class: 'viz-3d-canvas' });
+      holder.insertBefore(canvas, holder.firstChild);
+      view.canvas.style.pointerEvents = 'none';
+      var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(global.devicePixelRatio || 1, 2));
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(opt.fov || 40, 1, 0.01, 2000);
+      var target = new THREE.Vector3().fromArray(opt.target || [0, 0, 0]);
+      var orb = { r: opt.distance || 10, theta: opt.theta === undefined ? 0.8 : opt.theta, phi: opt.phi === undefined ? 1.1 : opt.phi };
+      scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+      var dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(5, 10, 7); scene.add(dl);
+      function place() { var sp = Math.sin(orb.phi); camera.position.set(target.x + orb.r * sp * Math.cos(orb.theta), target.y + orb.r * Math.cos(orb.phi), target.z + orb.r * sp * Math.sin(orb.theta)); camera.lookAt(target); }
+      function size() { var w = holder.clientWidth, hh = holder.clientHeight; if (w && hh) { renderer.setSize(w, hh, false); canvas.style.width = w + 'px'; canvas.style.height = hh + 'px'; camera.aspect = w / hh; camera.updateProjectionMatrix(); } }
+      var drag = null, moved = 0, ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+      var T = {
+        THREE: THREE, scene: scene, camera: camera, renderer: renderer, orbit: orb, target: target,
+        render: function () { size(); renderer.render(scene, camera); if (isFn(opt.onRender)) opt.onRender(T); },
+        pick: function (e, objects) { var r = canvas.getBoundingClientRect(); mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1; mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1; ray.setFromCamera(mouse, camera); var hits = ray.intersectObjects(objects || scene.children, true); return hits[0] || null; },
+        project: function (v3) { var p = v3.clone().project(camera); return { x: (p.x + 1) / 2 * holder.clientWidth, y: (1 - p.y) / 2 * holder.clientHeight }; }
+      };
+      canvas.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, y: e.clientY, t: orb.theta, p: orb.phi }; moved = 0; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
+      canvas.addEventListener('pointermove', function (e) { if (!drag) return; var dx = e.clientX - drag.x, dy = e.clientY - drag.y; moved = Math.max(moved, Math.abs(dx) + Math.abs(dy)); orb.theta = drag.t + dx * 0.008; orb.phi = clamp(drag.p - dy * 0.008, 0.08, Math.PI - 0.08); place(); T.render(); });
+      canvas.addEventListener('pointerup', function (e) { var click = drag && moved < 5; drag = null; if (click && isFn(opt.onPick)) opt.onPick(T.pick(e), e); });
+      canvas.addEventListener('wheel', function (e) { e.preventDefault(); orb.r = clamp(orb.r * (1 + Math.sign(e.deltaY) * 0.08), opt.minDistance || 1, opt.maxDistance || 200); place(); T.render(); }, { passive: false });
+      canvas.style.touchAction = 'none';
+      place();
+      if ('ResizeObserver' in global) new ResizeObserver(function () { T.render(); }).observe(holder);
+      T.render();
+      return T;
+    });
+  };
+
+  /* ------------------------------------------------------------------------------------------------
      7. the application shell
      ------------------------------------------------------------------------------------------------ */
   var DEFAULT_TABS = [
     { id: 'tour', label: 'Walkthrough', short: 'Guide' },
     { id: 'explore', label: 'Explore', short: 'Play' },
+    { id: 'calc', label: 'Step by step', short: 'Calc' },
     { id: 'equations', label: 'Equations', short: 'Math' },
+    { id: 'code', label: 'Code', short: 'Code' },
     { id: 'check', label: 'Check yourself', short: 'Quiz' }
   ];
+  var CALLOUT_LABEL = { key: 'Key idea', watch: 'Watch', try: 'Try', warn: 'Careful' };
 
   function parseHash() {
     var out = {};
@@ -557,15 +678,23 @@
       global.history.replaceState(null, '', '#' + s);
     } catch (e) { /* about:srcdoc and sandboxed frames refuse; harmless */ }
   }
+  function now() { return (global.performance && global.performance.now) ? global.performance.now() : Date.now(); }
 
   Viz.app = function (cfg) {
-    var app = { cfg: cfg, state: {}, defaults: {}, tab: null, step: 0, playing: false, t: 0, controls: {}, _hl: [] };
+    var app = { cfg: cfg, state: {}, defaults: {}, tab: null, step: 0, playing: false, holding: false, t: 0, controls: {}, _hl: [] };
     var mount = doc.getElementById(cfg.mount || 'app') || doc.body.appendChild(h('div', { id: 'app' }));
     mount.classList.add('viz-mount');
-    var params = cfg.params || {};
+    var params = Object.assign({}, cfg.params || {});
+    var tr = cfg.transport || null;
+    if (tr) {
+      if (!params[tr.param]) params[tr.param] = { label: tr.label || 'time $t$', min: tr.min || 0, max: tr.max, step: 'any', value: tr.value === undefined ? (tr.min || 0) : tr.value, unit: tr.unit || 's', optional: true };
+      if (!params.speed) params.speed = { label: 'speed', min: 0.1, max: 3, step: 0.05, value: tr.speed || 1, optional: true, fmt: function (v) { return fmt(v, { sig: 2 }) + '×'; } };
+    }
+    if (cfg.modes && !params[cfg.modes.param]) params[cfg.modes.param] = { type: 'select', label: cfg.modes.label || 'System', options: cfg.modes.options, value: cfg.modes.value === undefined ? cfg.modes.options[0][0] : cfg.modes.value, optional: true };
+    app.params = params;
     Object.keys(params).forEach(function (k) { var p = params[k]; app.defaults[k] = p.value; app.state[k] = p.value; });
+    var animated = !!(cfg.stage && (cfg.stage.animate || tr));
 
-    // theme
     var theme = (STORE && STORE.getItem('viz-theme')) || cfg.theme || 'light';
     doc.documentElement.setAttribute('data-theme', theme);
 
@@ -573,7 +702,9 @@
     var tabsDef = DEFAULT_TABS.filter(function (t) {
       if (t.id === 'tour') return cfg.tour && cfg.tour.length;
       if (t.id === 'explore') return true;
+      if (t.id === 'calc') return !!cfg.calc;
       if (t.id === 'equations') return cfg.equations && cfg.equations.length;
+      if (t.id === 'code') return cfg.code && cfg.code.length;
       if (t.id === 'check') return cfg.check && cfg.check.length;
       return false;
     });
@@ -597,23 +728,12 @@
       h('div', { class: 'viz-titlebox' }, h('h1', { class: 'viz-title', html: mathify(cfg.title || doc.title) }), cfg.subtitle ? h('p', { class: 'viz-subtitle', html: mathify(cfg.subtitle) }) : null),
       nav, h('div', { class: 'viz-actions' }, resetBtn, themeBtn, fullBtn, helpBtn));
 
-    /* ---------- stage ---------- */
-    var canvas = h('canvas', { class: 'viz-canvas', role: 'img', 'aria-label': cfg.stageLabel || cfg.title || 'visualisation' });
-    var badge = h('div', { class: 'viz-stage-badge' });
-    var playBtn = h('button', { class: 'viz-icon-btn viz-play', type: 'button', title: 'Play / pause (space)', 'aria-label': 'Play or pause', html: ICON.play });
-    var stageBar = h('div', { class: 'viz-stage-bar' }, playBtn);
-    var stageEl = h('section', { class: 'viz-stage' }, canvas, badge, (cfg.stage && cfg.stage.animate) ? stageBar : null);
-    var side = h('aside', { class: 'viz-side' });
-    var main = h('main', { class: 'viz-main' }, stageEl, side);
-    var help = h('div', { class: 'viz-help', role: 'dialog', 'aria-label': 'Help' });
-    var root = h('div', { class: 'viz-app', 'data-layout': 'wide', 'data-dense': '0' }, header, main, help);
-    mount.appendChild(root);
-    app.root = root; app.stageEl = stageEl; app.canvas = canvas; app.badge = badge;
-
-    /* ---------- controls (a param can be rendered in several panels; all copies stay in sync) ---------- */
+    /* ---------- controls (a param can be rendered in several places; all copies stay in sync) ---------- */
     function sliderPos(p, v) { return p.log ? Math.log10(v) : v; }
-    function sliderVal(p, x) { var v = p.log ? Math.pow(10, x) : x; if (!p.log && p.step) v = Math.round(v / p.step) * p.step; return Number(v.toPrecision(12)); }
-    function control(key) {
+    function sliderVal(p, x) { var v = p.log ? Math.pow(10, x) : x; if (!p.log && p.step && p.step !== 'any') v = Math.round(v / p.step) * p.step; return Number(v.toPrecision(12)); }
+    function register(key, el, sync) { (app.controls[key] = app.controls[key] || []).push({ el: el, sync: sync }); }
+    function control(key, opt) {
+      opt = opt || {};
       var p = params[key]; if (!p) throw new Error('Viz: unknown param "' + key + '"');
       var type = p.type || 'range', wrap, input, valEl;
       if (type === 'toggle') {
@@ -621,38 +741,101 @@
         input.checked = !!app.state[key];
         input.addEventListener('change', function () { app.set(key, input.checked); });
         wrap = h('label', { class: 'viz-chip-toggle' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key, title: p.help || '' }, input, h('span', { html: mathify(p.label) }));
-        (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.checked = !!v; } });
+        register(key, wrap, function (v) { input.checked = !!v; });
+        return wrap;
+      }
+      if (type === 'select' && (p.display === 'chips' || opt.chips)) {
+        wrap = h('div', { class: 'viz-seg', role: 'radiogroup', 'aria-label': p.label.replace(/\$/g, ''), 'data-viz-key': 'param:' + key },
+          (p.options || []).map(function (o) { return h('button', { class: 'viz-seg-btn', type: 'button', 'data-value': String(o[0]), html: mathify(o[1]), onclick: function () { app.set(key, o[0]); } }); }));
+        var syncSeg = function (v) { Array.prototype.forEach.call(wrap.children, function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-value') === String(v) ? 'true' : 'false'); }); };
+        syncSeg(app.state[key]); register(key, wrap, syncSeg);
         return wrap;
       }
       if (type === 'select') {
-        input = h('select', {}, (p.options || []).map(function (o) { return h('option', { value: String(o[0]), text: o[1] }); }));
+        input = h('select', {}, (p.options || []).map(function (o) { return h('option', { value: String(o[0]), text: o[1].replace(/\$/g, '') }); }));
         input.value = String(app.state[key]);
         input.addEventListener('change', function () { var o = (p.options || []).filter(function (x) { return String(x[0]) === input.value; })[0]; app.set(key, o ? o[0] : input.value); });
         wrap = h('label', { class: 'viz-select' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key }, h('span', { html: mathify(p.label) }), input);
-        (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.value = String(v); } });
+        register(key, wrap, function (v) { input.value = String(v); });
         return wrap;
       }
       if (type === 'button') {
-        wrap = h('button', { class: 'viz-btn' + (p.primary ? ' primary' : '') + (p.optional ? ' viz-optional' : ''), type: 'button', 'data-viz-key': 'param:' + key, html: mathify(p.label), onclick: function () { if (isFn(p.action)) p.action(app); } });
-        return wrap;
+        return h('button', { class: 'viz-btn' + (p.primary ? ' primary' : '') + (p.optional ? ' viz-optional' : ''), type: 'button', 'data-viz-key': 'param:' + key, html: mathify(p.label), onclick: function () { if (isFn(p.action)) p.action(app); } });
       }
       input = h('input', { type: 'range', min: sliderPos(p, p.min), max: sliderPos(p, p.max), step: p.log ? 'any' : (p.step || 'any'), 'aria-label': p.label.replace(/\$/g, '') });
       input.value = sliderPos(p, app.state[key]);
       valEl = h('output', { class: 'viz-control-value' });
-      function show(v) { valEl.textContent = p.fmt ? p.fmt(v) : fmt(v, { sig: p.sig || 3, unit: p.unit }); }
+      var show = function (v) { valEl.textContent = p.fmt ? p.fmt(v) : fmt(v, { sig: p.sig || 3, unit: p.unit }); };
       show(app.state[key]);
-      input.addEventListener('input', function () { app.set(key, sliderVal(p, Number(input.value))); });
-      wrap = h('div', { class: 'viz-control' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key },
+      input.addEventListener('input', function () { if (tr && key === tr.param) app.play(false); app.set(key, sliderVal(p, Number(input.value))); });
+      wrap = h('div', { class: 'viz-control' + (p.optional && !opt.keep ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key },
         h('span', { class: 'viz-control-label', html: mathify(p.label) }), valEl, input,
-        p.help ? h('span', { class: 'viz-control-help', html: mathify(p.help) }) : null);
-      (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.value = sliderPos(p, v); show(v); } });
+        p.help && !opt.compact ? h('span', { class: 'viz-control-help', html: mathify(p.help) }) : null);
+      register(key, wrap, function (v) { input.value = sliderPos(p, v); show(v); });
       return wrap;
     }
     app.control = control;
 
+    /* ---------- stage: top strip (modes · presets · status) + linked views + transport ---------- */
+    var viewsCfg = (cfg.stage && cfg.stage.views && cfg.stage.views.length) ? cfg.stage.views : [{ id: 'main', bare: true }];
+    var multi = viewsCfg.length > 1 || !viewsCfg[0].bare;
+    var views = [], viewById = {};
+    var rowsEl = h('div', { class: 'viz-views' });
+    var rowIds = [];
+    viewsCfg.forEach(function (vc) { var r = vc.row || 0; if (rowIds.indexOf(r) < 0) rowIds.push(r); });
+    rowIds.sort(function (a, b) { return a - b; });
+    rowIds.forEach(function (r, ri) {
+      var weight = (cfg.stage && cfg.stage.rows && cfg.stage.rows[ri]) || 1;
+      var rowEl = h('div', { class: 'viz-row', style: { flex: weight + ' 1 0' } });
+      viewsCfg.filter(function (vc) { return (vc.row || 0) === r; }).forEach(function (vc) {
+        var canvas = h('canvas', { class: 'viz-canvas', role: 'img', 'aria-label': (vc.label || vc.id || cfg.title || 'visualisation').replace(/<[^>]+>/g, '') });
+        var holder = h('div', { class: 'viz-view-holder' }, canvas);
+        var titleEl = vc.title ? h('div', { class: 'viz-view-title' }) : null;
+        var el = h('div', { class: 'viz-view' + (vc.bare ? ' bare' : '') + (vc.hidePortrait ? ' viz-hide-portrait' : ''), 'data-view': vc.id, style: { flex: (vc.flex || 1) + ' 1 0' } }, titleEl, holder);
+        rowEl.appendChild(el);
+        var v = { id: vc.id, cfg: vc, el: el, holder: holder, canvas: canvas, ctx: canvas.getContext('2d'), titleEl: titleEl, w: 0, h: 0, dpr: 1, pointer: { x: 0, y: 0, down: false, inside: false } };
+        v.plot = function (opt) { return Plot(v, opt); };
+        v.clear = function (color) { v.ctx.save(); v.ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0); if (color) { v.ctx.fillStyle = color; v.ctx.fillRect(0, 0, v.w, v.h); } else v.ctx.clearRect(0, 0, v.w, v.h); v.ctx.restore(); };
+        views.push(v); viewById[vc.id] = v;
+      });
+      rowsEl.appendChild(rowEl);
+    });
+    var badge = h('div', { class: 'viz-stage-badge' });
+    views[0].holder.appendChild(badge);
+    var playBtn = h('button', { class: 'viz-icon-btn viz-play', type: 'button', title: 'Play / pause (space)', 'aria-label': 'Play or pause', html: ICON.play });
+
+    var topEl = null, statusEl = null, presetsEl = null;
+    if (cfg.modes || (cfg.presets && cfg.presets.length) || cfg.status) {
+      topEl = h('div', { class: 'viz-stage-top' });
+      if (cfg.modes) topEl.appendChild(control(cfg.modes.param, { chips: true }));
+      if (cfg.presets && cfg.presets.length) {
+        presetsEl = h('div', { class: 'viz-presets', 'aria-label': 'Presets' }, h('span', { class: 'viz-presets-label', text: cfg.presetsLabel || 'Try' }),
+          cfg.presets.map(function (pr) { return h('button', { class: 'viz-preset', type: 'button', title: (pr.title || '').replace(/\$/g, ''), html: mathify(pr.label), onclick: function () { app.set(pr.set || {}); if (isFn(pr.action)) pr.action(app); } }); }));
+        topEl.appendChild(presetsEl);
+      }
+      if (cfg.status) { statusEl = h('div', { class: 'viz-status', role: 'status' }); topEl.appendChild(statusEl); }
+    }
+    var transportEl = null;
+    if (tr) {
+      var restartBtn = h('button', { class: 'viz-icon-btn', type: 'button', title: 'Restart', 'aria-label': 'Restart', html: ICON.reset, onclick: function () { app.holding = false; holdLeft = 0; app.set(tr.param, params[tr.param].min); app.play(true); } });
+      var stepBack = h('button', { class: 'viz-icon-btn viz-optional', type: 'button', title: 'Step back', 'aria-label': 'Step back', text: '⏮', onclick: function () { app.play(false); app.set(tr.param, app.state[tr.param] - (tr.step || (params[tr.param].max - params[tr.param].min) / 50)); } });
+      var stepFwd = h('button', { class: 'viz-icon-btn viz-optional', type: 'button', title: 'Step forward', 'aria-label': 'Step forward', text: '⏭', onclick: function () { app.play(false); app.set(tr.param, app.state[tr.param] + (tr.step || (params[tr.param].max - params[tr.param].min) / 50)); } });
+      var scrub = control(tr.param, { keep: true, compact: true }); scrub.classList.add('viz-scrub');
+      var speedCtl = control('speed', { compact: true }); speedCtl.classList.add('viz-speed', 'viz-hide-portrait');
+      transportEl = h('div', { class: 'viz-transport' }, playBtn, stepBack, stepFwd, restartBtn, scrub, speedCtl);
+    }
+    var stageEl = h('section', { class: 'viz-stage' + (multi ? ' multi' : ''), 'data-views': String(views.length) }, topEl, rowsEl, transportEl);
+    if (animated && !tr) views[0].holder.appendChild(h('div', { class: 'viz-stage-bar' }, playBtn));
+    var side = h('aside', { class: 'viz-side' });
+    var main = h('main', { class: 'viz-main' }, stageEl, side);
+    var help = h('div', { class: 'viz-help', role: 'dialog', 'aria-label': 'Help' });
+    var root = h('div', { class: 'viz-app', 'data-layout': 'wide', 'data-dense': '0' }, header, main, help);
+    mount.appendChild(root);
+    app.root = root; app.stageEl = stageEl; app.canvas = views[0].canvas; app.badge = badge; app.views = views;
+
     /* ---------- readouts ---------- */
     var readoutEls = [];
-    function readoutsCard(ids) {
+    function readoutsGrid(ids) {
       var list = (cfg.readouts || []).filter(function (r) { return !ids || ids.indexOf(r.id) >= 0; });
       if (!list.length) return null;
       var grid = h('div', { class: 'viz-readouts' });
@@ -664,57 +847,109 @@
       return grid;
     }
 
+    /* ---------- dynamic cards: terms · inspector · notes ---------- */
+    var termEls = [];
+    function termsBlock() {
+      var tc = cfg.terms; if (!tc) return null;
+      var box = h('div', { class: 'viz-terms' });
+      tc.items.forEach(function (it) {
+        var val = h('span', { class: 'viz-term-val' }), fill = h('span', { class: 'viz-term-fill', style: { background: it.color || Viz.color('accent') } });
+        var row = h('button', { class: 'viz-term', type: 'button', 'data-viz-key': 'term:' + it.id, title: (it.help || '').replace(/\$/g, ''), onclick: function () { app.set('focus', app.state.focus === it.id ? null : it.id); } },
+          h('span', { class: 'viz-term-head' }, h('span', { class: 'viz-term-label', html: mathify(it.label) }), val), h('span', { class: 'viz-term-track' }, fill));
+        row.style.setProperty('--term-color', it.color || Viz.color('accent'));
+        termEls.push({ it: it, row: row, val: val, fill: fill }); box.appendChild(row);
+      });
+      if (tc.total) { var tv = h('span', { class: 'viz-term-val' }); box.appendChild(h('div', { class: 'viz-term-total' }, h('span', { html: mathify(tc.total.label) }), tv)); termEls.push({ total: true, val: tv }); }
+      return box;
+    }
+    function updateTerms() {
+      var tc = cfg.terms; if (!tc || !termEls.length) return;
+      var vals = tc.items.map(function (it) { try { return it.value(app.state, app); } catch (e) { return NaN; } });
+      var total = tc.total ? (isFn(tc.total.value) ? tc.total.value(app.state, app) : vals.reduce(function (a, b) { return a + (isFinite(b) ? b : 0); }, 0)) : null;
+      var mx = Math.max.apply(null, vals.map(Math.abs).concat(total === null ? [] : [Math.abs(total)]).filter(isFinite).concat([1e-300]));
+      termEls.forEach(function (o, i) {
+        if (o.total) { o.val.textContent = fmt(total, { sig: tc.sig || 3, unit: tc.unit }); return; }
+        var v = vals[i];
+        o.val.textContent = fmt(v, { sig: tc.sig || 3, unit: tc.unit });
+        o.fill.style.width = (isFinite(v) ? Math.abs(v) / mx * 100 : 0) + '%';
+        o.row.classList.toggle('neg', v < 0);
+        o.row.setAttribute('aria-pressed', app.state.focus === o.it.id ? 'true' : 'false');
+      });
+    }
+    var inspectBody = null, notesBody = null, lastNotes = null, lastInspect = null;
+    function updateInspectNotes() {
+      if (inspectBody && isFn(cfg.inspect)) {
+        var html; try { html = cfg.inspect(app.state, app); } catch (e) { html = null; }
+        html = html || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point: its exact arithmetic appears here.') + '</span>';
+        if (html !== lastInspect) { lastInspect = html; inspectBody.innerHTML = mathify(html); typeset(inspectBody); }
+      }
+      if (notesBody && isFn(cfg.notes)) {
+        var nh; try { nh = cfg.notes(app.state, app); } catch (e) { nh = ''; }
+        if (nh !== lastNotes) { lastNotes = nh; notesBody.innerHTML = mathify(nh); typeset(notesBody); if (explorePager && app.tab === 'explore') explorePager.layout(); }
+      }
+    }
+
     /* ---------- pager: packs children into pages that fit the box (no scrollbars, ever) ---------- */
-    function Pager(title, items) {
+    function Pager(title, items, headEl, extraClass) {
       var body = h('div', { class: 'viz-pages' }), label = h('span', { class: 'viz-pager-label' });
       var prev = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Previous page', text: '‹' });
       var next = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Next page', text: '›' });
       var pager = h('span', { class: 'viz-pager', hidden: true }, prev, label, next);
-      var card = h('div', { class: 'viz-card grow viz-paged' }, h('div', { class: 'viz-card-title' }, h('span', { html: title }), pager), body);
-      items.forEach(function (it) { body.appendChild(it); });
+      var card = h('div', { class: 'viz-card grow viz-paged' + (extraClass ? ' ' + extraClass : '') }, h('div', { class: 'viz-card-title' }, headEl || h('span', { html: mathify(title) }), pager), body);
       var pages = [0], page = 0;
       function show(p) {
         page = clamp(p, 0, pages.length - 1);
-        items.forEach(function (it, i) { it.style.display = (it._vizPage === page) ? '' : 'none'; });
+        items.forEach(function (it) { it.style.display = (it._vizPage === page) ? '' : 'none'; });
         label.textContent = (page + 1) + ' / ' + pages.length; prev.disabled = page === 0; next.disabled = page === pages.length - 1;
       }
       prev.onclick = function () { show(page - 1); }; next.onclick = function () { show(page + 1); };
       var P = {
         card: card, body: body,
+        setItems: function (list) { items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); page = 0; },
         layout: function () {
           items.forEach(function (it) { it.style.display = ''; it._vizPage = 0; });
           var avail = body.clientHeight; if (avail <= 0) return;
           var top0 = body.getBoundingClientRect().top, pageStart = 0, pg = 0; pages = [0];
-          items.forEach(function (it) {
+          items.forEach(function (it, i) {
             var r = it.getBoundingClientRect(), top = r.top - top0, bottom = r.bottom - top0;
-            if (bottom - pageStart > avail + 0.5 && top > pageStart + 0.5) { pg += 1; pageStart = top; pages.push(pg); }
+            if (bottom - pageStart > avail + 0.5 && top > pageStart + 0.5) {
+              // keep a sub-heading together with the item that follows it
+              var prevIt = items[i - 1];
+              if (prevIt && prevIt.classList.contains('viz-subhead') && prevIt._vizPage === pg && prevIt.getBoundingClientRect().top - top0 > pageStart + 0.5) { pg += 1; pageStart = prevIt.getBoundingClientRect().top - top0; prevIt._vizPage = pg; }
+              else { pg += 1; pageStart = top; }
+              pages.push(pg);
+            }
             it._vizPage = pg;
           });
+          pages = []; for (var q = 0; q <= pg; q++) pages.push(q);
           pager.hidden = pages.length < 2; show(Math.min(page, pages.length - 1));
-        },
-        goToItem: function (it) { if (it && it._vizPage !== undefined) show(it._vizPage); }
+        }
       };
+      items.forEach(function (it) { body.appendChild(it); });
       return P;
     }
     var pagers = [];
+    function subhead(text) { return h('div', { class: 'viz-subhead', html: mathify(text) }); }
 
     /* ---------- panels ---------- */
     var panels = {};
     function panel(id) { var p = h('div', { class: 'viz-panel', role: 'tabpanel', 'data-panel': id }); side.appendChild(p); panels[id] = p; return p; }
 
-    // Explore
+    // Explore: one pager so it always fits — intro · controls · presets · live numbers · terms · inspector · right now · callouts
+    var explorePager = null;
     (function () {
-      var p = panel('explore'), ex = cfg.explore || {};
-      if (ex.intro) p.appendChild(h('div', { class: 'viz-card viz-intro', html: mathify(ex.intro) }));
-      var keys = ex.controls || Object.keys(params);
-      if (keys.length) {
-        var items = keys.map(function (k) { var c = control(k); return c; });
-        var pg = Pager('Controls', items); pagers.push(pg); p.appendChild(pg.card);
-        pg.card.querySelector('.viz-pages').classList.add('viz-controls');
-      }
-      var ro = readoutsCard(ex.readouts);
-      if (ro) p.appendChild(h('div', { class: 'viz-card' }, h('div', { class: 'viz-card-title', text: 'Live numbers' }), ro));
-      (ex.callouts || []).forEach(function (c) { p.appendChild(h('div', { class: 'viz-callout ' + (c.kind || 'key') + (c.optional === false ? '' : ' viz-optional') }, h('b', { class: 'k', text: { key: 'Key idea', watch: 'Watch', try: 'Try', warn: 'Careful' }[c.kind || 'key'] }), h('span', { html: mathify(c.html) }))); });
+      var p = panel('explore'), ex = cfg.explore || {}, items = [];
+      if (ex.intro) items.push(h('div', { class: 'viz-intro', html: mathify(ex.intro) }));
+      var keys = (ex.controls || Object.keys(params)).filter(function (k) { return !(tr && (k === tr.param || k === 'speed')) && !(cfg.modes && k === cfg.modes.param); });
+      if (keys.length) { items.push(subhead('Controls')); keys.forEach(function (k) { items.push(control(k)); }); }
+      var ro = readoutsGrid(ex.readouts);
+      if (ro) { items.push(subhead('Live numbers')); items.push(ro); }
+      var tb = termsBlock();
+      if (tb) { items.push(subhead(cfg.terms.title || 'Term by term')); items.push(tb); }
+      if (isFn(cfg.inspect)) { inspectBody = h('div', { class: 'viz-inspect-body' }); items.push(subhead(cfg.inspectTitle || 'Inspector')); items.push(h('div', { class: 'viz-inspect' }, inspectBody)); }
+      if (isFn(cfg.notes)) { notesBody = h('div', { class: 'viz-notes-body' }); items.push(subhead(cfg.notesTitle || 'Right now')); items.push(h('div', { class: 'viz-notes' }, notesBody)); }
+      (ex.callouts || []).forEach(function (c) { items.push(h('div', { class: 'viz-callout ' + (c.kind || 'key') + (c.optional === false ? '' : ' viz-optional') }, h('b', { class: 'k', text: CALLOUT_LABEL[c.kind || 'key'] }), h('span', { html: mathify(c.html) }))); });
+      explorePager = Pager(ex.title || 'Explore', items); pagers.push(explorePager); p.appendChild(explorePager.card);
     })();
 
     // Walkthrough
@@ -723,14 +958,40 @@
       var p = panel('tour');
       var chips = h('div', { class: 'viz-steps-chips', role: 'tablist', 'aria-label': 'Steps' }, cfg.tour.map(function (s, i) { return h('button', { class: 'viz-step-chip', type: 'button', text: String(i + 1), title: s.title.replace(/\$/g, ''), onclick: function () { app.goStep(i); } }); }));
       var count = h('div', { class: 'viz-step-count' }), title = h('h2', { class: 'viz-step-title' }), text = h('div', { class: 'viz-step-text' });
-      var extras = h('div', { class: 'viz-step-extras' });
       var prev = h('button', { class: 'viz-btn', type: 'button', text: '← Back', onclick: function () { app.goStep(app.step - 1); } });
       var next = h('button', { class: 'viz-btn primary', type: 'button', text: 'Next →', onclick: function () { app.goStep(app.step + 1); } });
-      var card = h('div', { class: 'viz-card grow viz-step-card' }, h('div', { class: 'viz-step-head' }, count, chips), title, text, extras);
-      p.appendChild(card);
+      // the step card is a pager: on small screens a step's extras (controls, equation, code…) continue on "›"
+      var tourPager = Pager('', [title, text], h('div', { class: 'viz-step-head' }, count, chips), 'viz-step-card');
+      pagers.push(tourPager);
+      p.appendChild(tourPager.card);
       p.appendChild(h('div', { class: 'viz-step-nav' }, prev, next));
-      tourEls = { chips: chips, count: count, title: title, text: text, extras: extras, prev: prev, next: next, card: card };
+      tourEls = { chips: chips, count: count, title: title, text: text, extras: h('div'), prev: prev, next: next, card: tourPager.card, pager: tourPager };
     })();
+
+    // Step by step (live working)
+    var calcPager = null, calcHtml = null, calcLive = [];
+    if (cfg.calc) (function () {
+      var p = panel('calc');
+      calcPager = Pager(cfg.calc.title || 'Step by step · with your numbers', []); pagers.push(calcPager); p.appendChild(calcPager.card);
+    })();
+    function updateCalc(structural) {
+      if (!calcPager) return;
+      if (structural) {
+        var html; try { html = (isFn(cfg.calc) ? cfg.calc : cfg.calc.html)(app.state, app); } catch (e) { html = '<p>—</p>'; reportError(e); }
+        if (html !== calcHtml) {
+          calcHtml = html;
+          var tmp = h('div', { html: mathify(html) });
+          var items = Array.prototype.slice.call(tmp.children);
+          calcPager.setItems(items); typeset(calcPager.body);
+          calcLive = Array.prototype.slice.call(calcPager.body.querySelectorAll('[data-live]'));
+          if (app.tab === 'calc') calcPager.layout();
+        }
+      }
+      if (cfg.calc.live && calcLive.length) {
+        var vals; try { vals = cfg.calc.live(app.state, app) || {}; } catch (e) { vals = {}; }
+        calcLive.forEach(function (el) { var v = vals[el.getAttribute('data-live')]; if (v !== undefined) { v = typeof v === 'number' ? fmt(v, { sig: 4 }) : String(v); if (el.textContent !== v) el.textContent = v; } });
+      }
+    }
 
     // Equations
     var eqEls = {};
@@ -752,6 +1013,37 @@
       var pg = Pager('Equations · live with your numbers', items); pagers.push(pg); p.appendChild(pg.card); eqEls._pager = pg;
     })();
 
+    // Code
+    var codeCfg = {};
+    function codeLines(c) { return String(c.src).replace(/^\n+|\s+$/g, '').split('\n'); }
+    function codeBlock(c, from, to, hl) {
+      var lines = codeLines(c), pre = h('div', { class: 'viz-code', 'data-code': c.id });
+      from = from === undefined ? 0 : Math.max(0, from); to = to === undefined ? lines.length - 1 : Math.min(lines.length - 1, to);
+      for (var i = from; i <= to; i++) {
+        var on = hl && hl[0] <= i + 1 && i + 1 <= hl[1];
+        pre.appendChild(h('div', { class: 'viz-code-ln' + (on ? ' cur' : ''), html: '<span class="viz-code-no">' + (i + 1) + '</span>' + highlightPy(lines[i]) }));
+      }
+      return pre;
+    }
+    if (cfg.code && cfg.code.length) (function () {
+      var p = panel('code'), items = [];
+      cfg.code.forEach(function (c) {
+        codeCfg[c.id] = c;
+        // title, then the code in chunks of 5 lines, so a long listing pages instead of overflowing
+        items.push(h('div', { class: 'viz-code-title viz-subhead-like', 'data-viz-key': 'code:' + c.id }, h('span', { html: mathify(c.title || c.id) }), c.ref ? h('span', { class: 'viz-eq-ref', text: c.ref }) : null));
+        var n = codeLines(c).length;
+        for (var k = 0; k < n; k += 5) items.push(codeBlock(c, k, Math.min(n - 1, k + 4)));
+        if (c.note) items.push(h('div', { class: 'viz-eq-note', html: mathify(c.note) }));
+      });
+      var pg = Pager(cfg.codeTitle || 'The Python behind the picture', items); pagers.push(pg); p.appendChild(pg.card);
+    })();
+    function updateCodeLive() {
+      var els = root.querySelectorAll('[data-code-live]'); if (!els.length) return;
+      var vals = {};
+      Object.keys(codeCfg).forEach(function (id) { var c = codeCfg[id]; if (isFn(c.live)) { try { Object.assign(vals, c.live(app.state, app) || {}); } catch (e) { /* ignore */ } } });
+      Array.prototype.forEach.call(els, function (el) { var v = vals[el.getAttribute('data-code-live')]; if (v !== undefined) { v = typeof v === 'number' ? fmt(v, { sig: 4 }) : String(v); if (el.textContent !== v) el.textContent = v; } });
+    }
+
     // Check yourself
     if (cfg.check && cfg.check.length) (function () {
       var p = panel('check');
@@ -768,67 +1060,78 @@
       var pg = Pager('Check yourself', items); pagers.push(pg); p.appendChild(pg.card);
     })();
 
-    // custom panels
     (cfg.panels || []).forEach(function (pc) { var p = panel(pc.id); if (isFn(pc.render)) pc.render(p, app); });
 
-    // help overlay
     help.innerHTML = '<h2>How to use this explainer</h2><ul>' +
       (cfg.tour && cfg.tour.length ? '<li><b>Walkthrough</b> tells the story step by step: press <kbd>Next →</kbd> or use <kbd>←</kbd>/<kbd>→</kbd>. Each step sets up the picture for you.</li>' : '') +
       '<li><b>Explore</b> hands you the controls: drag a slider and watch the picture and the live numbers respond.</li>' +
-      (cfg.equations && cfg.equations.length ? '<li><b>Equations</b> shows the formulas behind the picture, with your current numbers substituted.</li>' : '') +
+      (cfg.presets && cfg.presets.length ? '<li>The chips above the picture jump to special cases worth seeing.</li>' : '') +
+      (cfg.calc ? '<li><b>Step by step</b> works the formulas out with your current numbers, line by line.</li>' : '') +
+      (cfg.equations && cfg.equations.length ? '<li><b>Equations</b> shows the formulas behind the picture, with your numbers substituted.</li>' : '') +
+      (cfg.code && cfg.code.length ? '<li><b>Code</b> shows the Python that computes the picture; live values appear in the comments.</li>' : '') +
       (cfg.check && cfg.check.length ? '<li><b>Check yourself</b> asks questions you can answer by experimenting.</li>' : '') +
-      (cfg.stage && cfg.stage.animate ? '<li><kbd>Space</kbd> plays or pauses the animation.</li>' : '') +
+      (animated ? '<li><kbd>Space</kbd> plays or pauses' + (tr ? '; drag the time slider to scrub.' : '.') + '</li>' : '') +
       '<li>Reset (↺) restores the starting values. ' + (canFull ? 'Full screen (⤢) gives the picture more room.' : '') + '</li>' +
       (cfg.help ? '<li>' + mathify(cfg.help) + '</li>' : '') + '</ul>';
     typeset(help);
 
-    /* ---------- stage graphics context ---------- */
-    var g = { canvas: canvas, ctx: canvas.getContext('2d'), w: 0, h: 0, dpr: 1, t: 0, dt: 0, app: app, pointer: { x: 0, y: 0, down: false, inside: false } };
-    g.plot = function (opt) { return Plot(g, opt); };
-    g.clear = function (color) { g.ctx.save(); g.ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); if (color) { g.ctx.fillStyle = color; g.ctx.fillRect(0, 0, g.w, g.h); } else g.ctx.clearRect(0, 0, g.w, g.h); g.ctx.restore(); };
+    /* ---------- graphics context (g = first view; g.view(id) for the others) ---------- */
+    var g = views[0];
+    g.app = app; g.t = 0; g.dt = 0; g.views = views;
+    g.view = function (id) { return viewById[id] || views[0]; };
     app.g = g;
     function resizeCanvas() {
-      var dpr = Math.min(global.devicePixelRatio || 1, 2.5);
-      var w = Math.max(1, Math.floor(stageEl.clientWidth)), hh = Math.max(1, Math.floor(stageEl.clientHeight));
-      if (w !== g.w || hh !== g.h || dpr !== g.dpr) {
-        g.w = w; g.h = hh; g.dpr = dpr; canvas.width = Math.round(w * dpr); canvas.height = Math.round(hh * dpr);
-        canvas.style.width = w + 'px'; canvas.style.height = hh + 'px';
-        g.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        if (cfg.stage && isFn(cfg.stage.resize)) cfg.stage.resize(g, app.state);
-        return true;
-      }
-      return false;
+      var changed = false, dpr = Math.min(global.devicePixelRatio || 1, 2.5);
+      views.forEach(function (v) {
+        var w = Math.max(1, Math.floor(v.holder.clientWidth)), hh = Math.max(1, Math.floor(v.holder.clientHeight));
+        if (w !== v.w || hh !== v.h || dpr !== v.dpr) {
+          v.w = w; v.h = hh; v.dpr = dpr; v.canvas.width = Math.round(w * dpr); v.canvas.height = Math.round(hh * dpr);
+          v.canvas.style.width = w + 'px'; v.canvas.style.height = hh + 'px';
+          v.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); changed = true;
+        }
+      });
+      if (changed && cfg.stage && isFn(cfg.stage.resize)) cfg.stage.resize(g, app.state);
+      return changed;
     }
     var drawQueued = false;
-    app.draw = function () {
-      if (drawQueued) return; drawQueued = true;
-      global.requestAnimationFrame(function () { drawQueued = false; drawNow(); });
-    };
+    app.draw = function () { if (drawQueued) return; drawQueued = true; global.requestAnimationFrame(function () { drawQueued = false; drawNow(); }); };
     function drawNow() {
-      if (!cfg.stage || !isFn(cfg.stage.draw)) return;
-      g.ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
-      try { cfg.stage.draw(g, app.state); }
-      catch (e) { reportError(e); }
+      if (!cfg.stage) return;
+      views.forEach(function (v) { v.ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0); });
+      try {
+        if (isFn(cfg.stage.draw)) cfg.stage.draw(g, app.state);
+        views.forEach(function (v) { if (isFn(v.cfg.draw)) v.cfg.draw(v, app.state, app); });
+      } catch (e) { reportError(e); }
     }
-    function pointer(ev) {
-      var r = canvas.getBoundingClientRect(); g.pointer.x = ev.clientX - r.left; g.pointer.y = ev.clientY - r.top;
-      if (ev.type === 'pointerdown') { g.pointer.down = true; try { canvas.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ } }
-      if (ev.type === 'pointerup' || ev.type === 'pointercancel') g.pointer.down = false;
-      g.pointer.inside = ev.type !== 'pointerleave';
-      if (cfg.stage && isFn(cfg.stage.onPointer)) { var redraw = cfg.stage.onPointer(g, ev, app.state); if (redraw !== false) app.draw(); }
-    }
-    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { canvas.addEventListener(t, pointer); });
-    if (cfg.stage && isFn(cfg.stage.onPointer)) canvas.style.touchAction = 'none';
+    views.forEach(function (v) {
+      function pointer(ev) {
+        var r = v.canvas.getBoundingClientRect(); v.pointer.x = ev.clientX - r.left; v.pointer.y = ev.clientY - r.top;
+        if (ev.type === 'pointerdown') { v.pointer.down = true; try { v.canvas.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ } }
+        if (ev.type === 'pointerup' || ev.type === 'pointercancel') v.pointer.down = false;
+        v.pointer.inside = ev.type !== 'pointerleave';
+        g.pointer = Object.assign({}, v.pointer, { view: v.id });
+        ev.viewId = v.id; ev.view = v;
+        var redraw;
+        if (isFn(v.cfg.onPointer)) redraw = v.cfg.onPointer(v, ev, app.state, app);
+        else if (cfg.stage && isFn(cfg.stage.onPointer)) redraw = cfg.stage.onPointer(g, ev, app.state);
+        else return;
+        if (redraw !== false) { updateDynamic(true); app.draw(); }
+      }
+      ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { v.canvas.addEventListener(t, pointer); });
+      if (isFn(v.cfg.onPointer) || (cfg.stage && isFn(cfg.stage.onPointer))) v.canvas.style.touchAction = 'none';
+    });
 
-    /* ---------- animation loop (pauses when hidden or scrolled out of view) ---------- */
-    var visible = true, last = null, raf = null;
+    /* ---------- animation loop + transport (pauses when hidden or scrolled out of view) ---------- */
+    var visible = true, last = null, raf = null, holdLeft = 0, lastDyn = 0;
     app.play = function (on) {
-      if (!(cfg.stage && cfg.stage.animate)) return;
+      if (!animated) return;
       app.playing = on === undefined ? !app.playing : !!on;
+      if (app.playing && tr && app.state[tr.param] >= params[tr.param].max - 1e-12 && tr.end !== 'loop') { app.holding = false; holdLeft = 0; setInternal(tr.param, params[tr.param].min); }
       playBtn.innerHTML = app.playing ? ICON.pause : ICON.play;
       playBtn.setAttribute('aria-pressed', app.playing ? 'true' : 'false');
       last = null; if (app.playing) loop(); else if (raf) { global.cancelAnimationFrame(raf); raf = null; }
     };
+    function setInternal(key, v) { app._fromLoop = true; try { app.set(key, v); } finally { app._fromLoop = false; } }
     function loop() {
       if (raf) return;
       raf = global.requestAnimationFrame(function (ts) {
@@ -838,7 +1141,21 @@
           var dt = last === null ? 0 : Math.min(0.05, (ts - last) / 1000); last = ts;
           var speed = app.state.speed !== undefined ? app.state.speed : 1;
           g.dt = dt * speed; g.t += g.dt; app.t = g.t;
-          if (isFn(cfg.stage.step)) { try { cfg.stage.step(g, app.state, g.dt); } catch (e) { reportError(e); app.play(false); return; } }
+          if (tr) {
+            var P = params[tr.param], v = app.state[tr.param];
+            if (holdLeft > 0) { holdLeft -= dt; if (holdLeft <= 0) { app.holding = false; setInternal(tr.param, P.min); } }
+            else {
+              v += dt * speed * (tr.rate || (P.max - P.min) / 10);
+              if (v >= P.max) {
+                if (tr.end === 'loop') v = P.min + (v - P.max);
+                else if (tr.end === 'stop') { v = P.max; setInternal(tr.param, v); app.play(false); return; }
+                else { v = P.max; holdLeft = tr.hold === undefined ? 2 : tr.hold; app.holding = true; }
+              }
+              setInternal(tr.param, v);
+            }
+          }
+          if (cfg.stage && isFn(cfg.stage.step)) { try { cfg.stage.step(g, app.state, g.dt); } catch (e) { reportError(e); app.play(false); return; } }
+          if (ts - lastDyn > 110) { lastDyn = ts; updateDynamic(false); }
           drawNow();
         } else last = null;
         loop();
@@ -848,10 +1165,10 @@
     if ('IntersectionObserver' in global) new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(root);
 
     /* ---------- state changes ---------- */
-    var liveQueued = false;
+    var liveQueued = false, lastLive = 0;
     app.set = function (key, value) {
       var changes = {};
-      if (typeof key === 'object') changes = key; else changes[key] = value;
+      if (typeof key === 'object' && key !== null) changes = key; else changes[key] = value;
       var changed = [];
       Object.keys(changes).forEach(function (k) {
         var p = params[k], v = changes[k];
@@ -861,11 +1178,15 @@
         (app.controls[k] || []).forEach(function (c) { c.sync(v); });
       });
       if (!changed.length) return app;
+      if (tr && !app._fromLoop && changed.indexOf(tr.param) >= 0) { app.holding = false; holdLeft = 0; }
       changed.forEach(function (k) { if (isFn(cfg.onChange)) { try { cfg.onChange(app.state, k, app); } catch (e) { reportError(e); } } });
-      updateReadouts(); queueLive(); app.draw(); saveHash();
+      var onlyTime = tr && changed.length === 1 && changed[0] === tr.param;
+      updateReadouts();
+      if (!app._fromLoop) updateDynamic(true, !onlyTime);
+      queueLive(); if (!app._fromLoop) app.draw(); saveHash();
       return app;
     };
-    app.reset = function () { app.set(Object.assign({}, app.defaults)); g.t = 0; app.t = 0; if (cfg.stage && isFn(cfg.stage.reset)) cfg.stage.reset(g, app.state); app.draw(); };
+    app.reset = function () { app.holding = false; holdLeft = 0; app.set(Object.assign({}, app.defaults)); g.t = 0; app.t = 0; if (cfg.stage && isFn(cfg.stage.reset)) cfg.stage.reset(g, app.state); app.draw(); };
     resetBtn.onclick = function () { app.reset(); };
     function updateReadouts() {
       readoutEls.forEach(function (o) {
@@ -874,14 +1195,45 @@
         var tone = isFn(o.r.tone) ? o.r.tone(v, app.state) : ''; o.el.classList.toggle('pos', tone === 'pos'); o.el.classList.toggle('neg', tone === 'neg');
       });
     }
+    /** Everything derived from the state that is not a canvas: status, presets, view titles, terms, inspector, notes,
+        step-by-step working, code values. `structural` rebuilds HTML that depends on parameters (not on time). */
+    function updateDynamic(force, structural) {
+      if (statusEl) {
+        var st; try { st = cfg.status(app.state, app); } catch (e) { st = null; }
+        if (typeof st === 'string') st = { text: st };
+        statusEl.hidden = !st || !st.text;
+        if (st && st.text) { var sh = mathify(st.text); if (statusEl._h !== sh) { statusEl._h = sh; statusEl.innerHTML = sh; typeset(statusEl); } statusEl.setAttribute('data-tone', st.tone || 'info'); }
+      }
+      if (presetsEl) Array.prototype.forEach.call(presetsEl.querySelectorAll('.viz-preset'), function (b, i) {
+        var set = cfg.presets[i].set || {}, on = Object.keys(set).length > 0 && Object.keys(set).every(function (k) { var a = app.state[k], bb = set[k]; return typeof a === 'number' && typeof bb === 'number' ? Math.abs(a - bb) < 1e-9 * Math.max(1, Math.abs(bb)) : a === bb; });
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      views.forEach(function (v) {
+        if (!v.titleEl) return;
+        var t = isFn(v.cfg.title) ? v.cfg.title(app.state, app) : v.cfg.title;
+        if (v.titleEl._h !== t) { v.titleEl._h = t; v.titleEl.innerHTML = mathify(t); typeset(v.titleEl); }
+      });
+      updateTerms();
+      updateInspectNotes();
+      updateCalc(structural !== false);
+      updateCodeLive();
+      if (tourEls.card && force !== false) refreshStepExtras();
+    }
+    function refreshStepExtras() {
+      var ins = tourEls.card.querySelector('.viz-step-inspect'); if (ins && isFn(cfg.inspect)) { var hh = cfg.inspect(app.state, app) || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point.') + '</span>'; if (ins._h !== hh) { ins._h = hh; ins.innerHTML = mathify(hh); typeset(ins); } }
+      var nt = tourEls.card.querySelector('.viz-step-notes'); if (nt && isFn(cfg.notes)) { var nh = cfg.notes(app.state, app); if (nt._h !== nh) { nt._h = nh; nt.innerHTML = mathify(nh); typeset(nt); } }
+    }
     function queueLive() {
       if (liveQueued) return; liveQueued = true;
-      global.requestAnimationFrame(function () {
-        liveQueued = false;
-        Object.keys(eqEls).forEach(function (id) { var e = eqEls[id]; if (!e || !e.live || !e.cfg.live) return; try { renderTex(e.live, e.cfg.live(app.state, app), true); } catch (err) { e.live.textContent = '—'; } scaleEq(e.live); });
-        var tourEq = tourEls.extras && tourEls.extras.querySelectorAll('[data-live-eq]');
-        if (tourEq) for (var i = 0; i < tourEq.length; i++) { var ec = eqEls[tourEq[i].getAttribute('data-live-eq')]; if (ec && ec.cfg.live) { renderTex(tourEq[i], ec.cfg.live(app.state, app), true); scaleEq(tourEq[i]); } }
-      });
+      var wait = app.playing ? Math.max(0, 180 - (now() - lastLive)) : 0;
+      setTimeout(function () {
+        global.requestAnimationFrame(function () {
+          liveQueued = false; lastLive = now();
+          Object.keys(eqEls).forEach(function (id) { var e = eqEls[id]; if (!e || !e.live || !e.cfg.live) return; if (app.tab !== 'equations') return; try { renderTex(e.live, e.cfg.live(app.state, app), true); } catch (err) { e.live.textContent = '—'; } scaleEq(e.live); });
+          var tourEq = tourEls.card && tourEls.card.querySelectorAll('[data-live-eq]');
+          if (tourEq && app.tab === 'tour') for (var i = 0; i < tourEq.length; i++) { var ec = eqEls[tourEq[i].getAttribute('data-live-eq')]; if (ec && ec.cfg.live) { renderTex(tourEq[i], ec.cfg.live(app.state, app), true); scaleEq(tourEq[i]); } }
+        });
+      }, wait);
     }
     function scaleEq(inner) {
       if (!inner || !inner.parentNode) return;
@@ -899,6 +1251,7 @@
       Object.keys(panels).forEach(function (k) { panels[k].classList.toggle('is-active', k === id); });
       clearHighlights();
       if (id === 'tour') applyStepHighlights();
+      queueLive();
       app.fit(); saveHash();
       return app;
     };
@@ -917,31 +1270,39 @@
       tourEls.count.textContent = 'Step ' + (i + 1) + ' of ' + cfg.tour.length;
       tourEls.title.innerHTML = mathify(s.title);
       tourEls.text.innerHTML = mathify(s.text);
-      tourEls.extras.innerHTML = '';
-      (s.controls || []).forEach(function (k) { tourEls.extras.appendChild(control(k)); });
-      if (s.readouts && s.readouts.length) { var ro = readoutsCard(s.readouts); if (ro) tourEls.extras.appendChild(ro); }
+      var X = tourEls.extras; X.innerHTML = '';
+      (s.controls || []).forEach(function (k) { X.appendChild(control(k, { keep: true })); });
+      if (s.readouts && s.readouts.length) { var ro = readoutsGrid(s.readouts); if (ro) X.appendChild(ro); }
+      if (s.terms && cfg.terms) { var tb = termsBlock(); if (tb) X.appendChild(tb); }
       if (s.eq && eqEls[s.eq]) {
         var e = eqEls[s.eq].cfg;
         var box = h('div', { class: 'viz-eq viz-step-eq' }, h('div', { class: 'viz-eq-head' }, h('span', { html: mathify(e.title) }), e.ref ? h('span', { class: 'viz-eq-ref', text: e.ref }) : null));
         var b1 = h('div', { class: 'viz-eq-body' }, h('div', { class: 'viz-eq-inner' })); renderTex(b1.firstChild, e.tex, true); box.appendChild(b1);
-        if (e.live) { var b2 = h('div', { class: 'viz-eq-live' }, h('div', { class: 'viz-eq-inner', 'data-live-eq': e.id })); box.appendChild(b2); }
-        tourEls.extras.appendChild(box);
+        if (e.live) box.appendChild(h('div', { class: 'viz-eq-live' }, h('div', { class: 'viz-eq-inner', 'data-live-eq': e.id })));
+        X.appendChild(box);
       }
-      if (s.callout) tourEls.extras.appendChild(h('div', { class: 'viz-callout ' + (s.callout.kind || 'try') }, h('b', { class: 'k', text: { key: 'Key idea', watch: 'Watch', try: 'Try', warn: 'Careful' }[s.callout.kind || 'try'] }), h('span', { html: mathify(s.callout.html) })));
+      if (s.code && codeCfg[s.code.id || s.code]) {
+        var sc = typeof s.code === 'string' ? { id: s.code } : s.code, cc = codeCfg[sc.id], ln = sc.lines || [1, 1], ctxN = sc.context === undefined ? 1 : sc.context;
+        X.appendChild(h('div', { class: 'viz-code-card viz-step-code' }, codeBlock(cc, ln[0] - 1 - ctxN, ln[1] - 1 + ctxN, ln)));
+      }
+      if (s.inspect && isFn(cfg.inspect)) X.appendChild(h('div', { class: 'viz-inspect viz-step-inspect' }));
+      if (s.notes && isFn(cfg.notes)) X.appendChild(h('div', { class: 'viz-notes viz-step-notes' }));
+      if (s.callout) X.appendChild(h('div', { class: 'viz-callout ' + (s.callout.kind || 'try') }, h('b', { class: 'k', text: CALLOUT_LABEL[s.callout.kind || 'try'] }), h('span', { html: mathify(s.callout.html) })));
+      tourEls.pager.setItems([tourEls.title, tourEls.text].concat(Array.prototype.slice.call(X.children)));
       typeset(tourEls.card);
       Array.prototype.forEach.call(tourEls.chips.children, function (c, k) { c.classList.toggle('done', k < i); if (k === i) c.setAttribute('aria-current', 'step'); else c.removeAttribute('aria-current'); });
       tourEls.prev.disabled = i === 0;
       tourEls.next.textContent = i === cfg.tour.length - 1 ? 'Explore →' : 'Next →';
       tourEls.next.onclick = i === cfg.tour.length - 1 ? function () { app.setTab('explore'); } : function () { app.goStep(app.step + 1); };
-      updateReadouts(); queueLive();
+      updateReadouts(); updateDynamic(true, true); queueLive();
       clearHighlights(); applyStepHighlights();
-      if (isFn(s.enter)) { try { s.enter(app); } catch (e) { reportError(e); } }
+      if (isFn(s.enter)) { try { s.enter(app); } catch (err) { reportError(err); } }
       app.draw(); app.fit(); saveHash();
       return app;
     };
 
     function saveHash() {
-      if (!app._ready) return;
+      if (!app._ready || app._fromLoop) return;
       var o = { tab: app.tab };
       if (app.tab === 'tour') o.step = app.step + 1;
       writeHash(o);
@@ -953,7 +1314,7 @@
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (ev.key === 'ArrowRight' && app.tab === 'tour') { app.goStep(app.step + 1); ev.preventDefault(); }
       else if (ev.key === 'ArrowLeft' && app.tab === 'tour') { app.goStep(app.step - 1); ev.preventDefault(); }
-      else if (ev.key === ' ' && cfg.stage && cfg.stage.animate) { app.play(); ev.preventDefault(); }
+      else if (ev.key === ' ' && animated) { app.play(); ev.preventDefault(); }
       else if (ev.key === '?') { help.classList.toggle('open'); }
       else if (ev.key === 'Escape') { help.classList.remove('open'); }
     });
@@ -975,11 +1336,12 @@
       if (rr.bottom > global.innerHeight + 1 || rr.right > global.innerWidth + 1) bad.push({ el: 'app-exceeds-window', h: Math.round(rr.bottom), H: global.innerHeight, w: Math.round(rr.right), W: global.innerWidth });
       if (rr.height < global.innerHeight - 2) bad.push({ el: 'app-does-not-fill-window', h: Math.round(rr.height), H: global.innerHeight });
       if (de.scrollHeight > global.innerHeight + 1 || de.scrollWidth > global.innerWidth + 1) bad.push({ el: 'document', h: de.scrollHeight, H: global.innerHeight, w: de.scrollWidth, W: global.innerWidth });
-      var els = root.querySelectorAll('.viz-header, .viz-panel.is-active, .viz-panel.is-active .viz-card, .viz-panel.is-active .viz-pages, .viz-panel.is-active .viz-step-extras, .viz-stage');
+      var els = root.querySelectorAll('.viz-header, .viz-panel.is-active, .viz-panel.is-active .viz-card, .viz-panel.is-active .viz-pages, .viz-stage, .viz-stage-top, .viz-transport');
       for (var i = 0; i < els.length; i++) {
         var e = els[i]; if (!e.offsetParent && e.className.indexOf('viz-stage') < 0) continue;
         if (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1) bad.push({ el: (e.className || e.tagName).split(' ').slice(0, 2).join('.'), h: e.scrollHeight, H: e.clientHeight, w: e.scrollWidth, W: e.clientWidth });
       }
+      views.forEach(function (v) { if (v.el.offsetParent && v.holder.clientHeight < 60) bad.push({ el: 'view-too-small:' + v.id, h: v.holder.clientHeight }); });
       Array.prototype.forEach.call(root.querySelectorAll('.viz-panel.is-active .viz-eq-too-wide'), function (e) { bad.push({ el: 'equation-too-wide', w: e.firstChild ? e.firstChild.scrollWidth : 0, W: e.clientWidth }); });
       return bad;
     }
@@ -989,7 +1351,6 @@
       root.setAttribute('data-layout', layout);
       root.classList.toggle('short-tabs', false);
       root.classList.toggle('compact-title', W < 420);
-      // short tab labels if the tab strip does not fit
       if (nav.scrollWidth > nav.clientWidth + 1 || header.scrollWidth > header.clientWidth + 1) root.classList.add('short-tabs');
       var bad = [];
       for (var d = 0; d <= 3; d++) {
@@ -1007,7 +1368,7 @@
     var fitQueued = false;
     function queueFit() { if (fitQueued) return; fitQueued = true; global.requestAnimationFrame(function () { fitQueued = false; app.fit(); }); }
     global.addEventListener('resize', queueFit);
-    if ('ResizeObserver' in global) new ResizeObserver(function () { if (resizeCanvas()) drawNow(); }).observe(stageEl);
+    if ('ResizeObserver' in global) { var ro2 = new ResizeObserver(function () { if (resizeCanvas()) drawNow(); }); views.forEach(function (v) { ro2.observe(v.holder); }); }
 
     /* ---------- errors ---------- */
     function reportError(e) {
@@ -1019,14 +1380,14 @@
     /* ---------- boot ---------- */
     var hash = parseHash();
     Object.keys(params).forEach(function (k) { if (hash[k] !== undefined && hash[k] !== '') { var p = params[k]; var v = (p.type || 'range') === 'range' ? Number(hash[k]) : (p.type === 'toggle' ? hash[k] === '1' || hash[k] === 'true' : hash[k]); if (!(typeof v === 'number' && isNaN(v))) app.state[k] = v; } });
-    try { if (cfg.stage && isFn(cfg.stage.setup)) { resizeCanvas(); cfg.stage.setup(g, app.state); } } catch (e) { reportError(e); }
+    try { resizeCanvas(); if (cfg.stage && isFn(cfg.stage.setup)) cfg.stage.setup(g, app.state); } catch (e) { reportError(e); }
     typeset(root);
-    updateReadouts();
+    updateReadouts(); updateDynamic(true, true);
     var firstTab = hash.tab && app.tabs.indexOf(hash.tab) >= 0 ? hash.tab : (cfg.startTab || app.tabs[0]);
     if (cfg.tour && cfg.tour.length) app.goStep(hash.step ? Number(hash.step) - 1 : 0);
     app.setTab(firstTab);
     queueLive();
-    if (cfg.stage && cfg.stage.animate && cfg.autoplay !== false) app.play(true); else app.draw();
+    if (animated && cfg.autoplay !== false) app.play(true); else app.draw();
 
     app.ready = loadKatex().then(function (ok) {
       app.katex = ok; retypesetPending(); queueLive();
@@ -1040,17 +1401,20 @@
       var rows; try { rows = cfg.selftest(app); } catch (e) { return [{ name: 'selftest() threw', ok: false, error: String(e) }]; }
       (rows || []).forEach(function (r) {
         var row = { name: r.name, js: r.js, py: r.py || null, rtol: r.rtol === undefined ? 1e-6 : r.rtol, atol: r.atol === undefined ? 0 : r.atol };
-        if (r.expect !== undefined) { var d = Math.abs(r.js - r.expect); row.expect = r.expect; row.ok = d <= row.atol + row.rtol * Math.abs(r.expect); }
+        if (r.expect !== undefined) { var dd = Math.abs(r.js - r.expect); row.expect = r.expect; row.ok = dd <= row.atol + row.rtol * Math.abs(r.expect); }
         out.push(row);
       });
       return out;
     };
     global.VIZ = {
       app: app, ready: app.ready, tabs: app.tabs, steps: (cfg.tour || []).length,
+      features: { views: views.length, calc: !!cfg.calc, code: !!(cfg.code && cfg.code.length), terms: !!cfg.terms, inspect: isFn(cfg.inspect), notes: isFn(cfg.notes), presets: (cfg.presets || []).length, transport: !!tr, modes: !!cfg.modes, status: !!cfg.status },
       audit: function () { return app.fit(); },
       selftest: function () { return app.selftest(); },
       setTab: function (id) { app.setTab(id); return app.fit(); },
       goStep: function (i) { app.goStep(i); return app.fit(); },
+      play: function (on) { app.play(on); return app.playing; },
+      set: function (o) { app.set(o); return app.fit(); },
       meta: function () { var m = {}; Array.prototype.forEach.call(doc.querySelectorAll('meta[name^="viz:"]'), function (x) { m[x.getAttribute('name').slice(4)] = x.getAttribute('content'); }); return m; }
     };
     return app;

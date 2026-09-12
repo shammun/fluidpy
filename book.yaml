@@ -13,6 +13,7 @@ project:
   site_url: https://shammun.github.io/fluidpy
   site_title: "Fluid Mechanics (Kundu, Cohen & Dowling, 5th ed.) — worked in Python, with interactive explainers"
   author: "Shammunul Islam"
+  min_explainers_per_chapter: 4      # every chapter integrates 4–5 interactive explainers
   max_explainers_per_chapter: 5
   max_parallel_viz: 3                # viz-builder agents running at once (each runs a headless browser audit)
 

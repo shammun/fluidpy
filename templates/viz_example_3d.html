@@ -1,30 +1,25 @@
 <!DOCTYPE html>
 <!--
-  REFERENCE EXPLAINER (rich) for the viz-builder agent. It uses every feature of assets/viz_lib.js that the quality bar
-  asks for (see .claude/skills/interactive-viz/SKILL.md §4 "What a great explainer has"):
-    linked views sharing one clock (system animation · phase portrait · x(t) graph with a faint full curve and a bold
-    part up to now) · transport (play / step / restart / time scrubber / speed / hold at the end) · presets · a live
-    status verdict · term-by-term energy bars · click-to-inspect exact arithmetic · "Right now" interpretation ·
-    a Step-by-step tab with live working · a Code tab whose lines light up in the walkthrough · equations with live
-    substitutions · check-yourself questions · selftest parity rows.
-  The physics is generic (a damped mass–spring oscillator released from rest), so the pattern can be copied without
-  borrowing any chapter's content. The field-tools pattern (streamlines, particles, heatmap) is templates/viz_example_field.html.
-  Run:  .venv/Scripts/python.exe tools/viz_inline.py templates/viz_example.html
-        .venv/Scripts/python.exe tools/shot.py templates/viz_example.html
+  REFERENCE EXPLAINER (3-D) for the viz-builder agent: a three.js view (drag to orbit, wheel to zoom, click to pick)
+  linked to a 2-D cross-section view and a transport. Uses Viz.three(view, opts); when three.js cannot load (offline)
+  the 3-D view shows a fallback note and everything else keeps working. Generic physics: a standing wave on a square
+  membrane, z = A sin(m π x) sin(n π y) cos(ω t).
+  Run:  .venv/Scripts/python.exe tools/viz_inline.py templates/viz_example_3d.html
+        .venv/Scripts/python.exe tools/shot.py templates/viz_example_3d.html
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why does a damped spring stop ringing?</title>
+<title>A drum skin in 3-D: where does it never move?</title>
 <meta name="viz:chapter" content="_example">
-<meta name="viz:slug" content="viz_example">
-<meta name="viz:order" content="1">
-<meta name="viz:title" content="Why does a damped spring stop ringing?">
-<meta name="viz:summary" content="Release a mass on a spring with friction: watch the motion, the phase portrait and the energy budget share one clock, and see why the damping ratio decides everything.">
-<meta name="viz:concept" content="damped oscillation; damping ratio; energy dissipation">
+<meta name="viz:slug" content="viz_example_3d">
+<meta name="viz:order" content="2">
+<meta name="viz:title" content="A drum skin in 3-D: where does it never move?">
+<meta name="viz:summary" content="Orbit a vibrating square membrane, pick any point, and find the nodal lines that stay still.">
+<meta name="viz:concept" content="standing waves; nodal lines; separation of variables">
 <meta name="viz:sections" content="(example)">
-<meta name="viz:equations" content="(E.1), (E.2), (E.3)">
+<meta name="viz:equations" content="(E.1)">
 <meta name="viz:fluidpy" content="(example: pure math expressions)">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
@@ -417,8 +412,6 @@ button, input, select { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* VIZ_BASE_CSS:END */
-</style>
-<style>
 </style>
 </head>
 <body>
@@ -1808,196 +1801,111 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* PHYSICS (m = 1) ----------------------------------------------------------------------------------
-   x'' + 2 ζ ω0 x' + ω0² x = 0,  x(0) = x0,  x'(0) = 0                                          (E.1)
-   ζ < 1:  x = x0 e^{-ζω0 t} [cos ωd t + (ζω0/ωd) sin ωd t],  ωd = ω0 √(1−ζ²)                    (E.2)
-   ζ = 1:  x = x0 e^{-ω0 t} (1 + ω0 t);   ζ > 1: x = x0 (r2 e^{r1 t} − r1 e^{r2 t}) / (r2 − r1)
-   Energy per unit mass: E = v²/2 + ω0² x²/2 ;  dE/dt = −2 ζ ω0 v² ≤ 0                           (E.3)
-   --------------------------------------------------------------------------------------------------- */
-function position(t, s) {
-  const w0 = s.omega0, z = s.zeta, x0 = s.x0;
-  if (Math.abs(z - 1) < 1e-9) return x0 * Math.exp(-w0 * t) * (1 + w0 * t);
-  if (z < 1) { const wd = w0 * Math.sqrt(1 - z * z); return x0 * Math.exp(-z * w0 * t) * (Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t)); }
-  const q = Math.sqrt(z * z - 1), r1 = -w0 * (z - q), r2 = -w0 * (z + q);
-  return x0 * (r2 * Math.exp(r1 * t) - r1 * Math.exp(r2 * t)) / (r2 - r1);
+/* z(x, y, t) = A sin(m π x) sin(n π y) cos(ω t),  0 ≤ x, y ≤ 1                                     (E.1) */
+const height = (x, y, t, s) => s.A * Math.sin(s.m * Math.PI * x) * Math.sin(s.n * Math.PI * y) * Math.cos(2 * Math.PI * t);
+const N = 40;
+let T3 = null, mesh = null, marker = null;
+
+function buildMesh(s) {
+  if (!T3) return;
+  const THREE = T3.THREE;
+  if (mesh) { T3.scene.remove(mesh); mesh.geometry.dispose(); }
+  const geo = new THREE.PlaneGeometry(4, 4, N, N);
+  geo.rotateX(-Math.PI / 2);
+  mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x6c5ce7, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.05, flatShading: false }));
+  T3.scene.add(mesh);
+  if (!marker) { marker = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), new THREE.MeshStandardMaterial({ color: 0xf97316 })); T3.scene.add(marker); }
 }
-function velocity(t, s) { const hh = 1e-5; return (position(t + hh, s) - position(Math.max(0, t - hh), s)) / (t > hh ? 2 * hh : hh); }
-function energy(t, s) {
-  const x = position(t, s), v = velocity(t, s), E0 = 0.5 * s.omega0 * s.omega0 * s.x0 * s.x0;
-  const K = 0.5 * v * v, U = 0.5 * s.omega0 * s.omega0 * x * x;
-  return { K, U, D: Math.max(0, E0 - K - U), E0 };
+function updateMesh(s) {
+  if (!T3 || !mesh) return;
+  const pos = mesh.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const X = pos.getX(i), Z = pos.getZ(i), x = (X + 2) / 4, y = (Z + 2) / 4;
+    pos.setY(i, height(x, y, s.t, s));
+  }
+  pos.needsUpdate = true; mesh.geometry.computeVertexNormals();
+  const px = s.px === undefined ? 0.25 : s.px, py = s.py === undefined ? 0.25 : s.py;
+  marker.position.set(px * 4 - 2, height(px, py, s.t, s) + 0.05, py * 4 - 2);
+  T3.render();
 }
-function regime(z) { return z === 0 ? 'undamped' : z < 1 ? 'underdamped' : Math.abs(z - 1) < 1e-9 ? 'critically damped' : 'overdamped'; }
-const TMAX = 20;
-const f2 = v => Viz.fmt(v, { sig: 3 });
 
 const app = Viz.app({
-  title: 'Why does a damped spring stop ringing?',
-  subtitle: 'One clock, three views: the mass, its phase portrait and its position over time',
+  title: 'A drum skin in 3-D: where does it never move?',
+  subtitle: 'Drag to orbit · scroll to zoom · click the skin to pick a point',
   params: {
-    omega0: { label: 'Natural frequency $\\omega_0$', min: 0.5, max: 3, step: 0.05, value: 1.5, unit: 'rad/s', help: 'stiffer spring → larger ω₀' },
-    zeta:   { label: 'Damping ratio $\\zeta$', min: 0, max: 2.5, step: 0.01, value: 0.15, help: 'friction measured against the spring' },
-    x0:     { label: 'Release position $x_0$', min: 0.2, max: 1, step: 0.05, value: 0.8, unit: 'm', optional: true },
-    ghost:  { type: 'toggle', label: 'Show the undamped curve', value: true, optional: true }
+    m: { label: 'Mode $m$ (across $x$)', min: 1, max: 4, step: 1, value: 2 },
+    n: { label: 'Mode $n$ (across $y$)', min: 1, max: 4, step: 1, value: 1 },
+    A: { label: 'Amplitude $A$', min: 0.2, max: 1, step: 0.05, value: 0.6, unit: 'm', optional: true }
   },
-  transport: { param: 't', min: 0, max: TMAX, rate: 2.5, end: 'hold', hold: 1.5, label: 'time $t$', unit: 's' },
-  presets: [
-    { label: '$\\zeta = 0$', set: { zeta: 0 }, title: 'no friction: rings forever' },
-    { label: 'light', set: { zeta: 0.15 }, title: 'ζ = 0.15' },
-    { label: 'critical', set: { zeta: 1 }, title: 'ζ = 1: fastest return without overshoot' },
-    { label: 'heavy', set: { zeta: 2 }, title: 'ζ = 2: creeps back' }
-  ],
-  status: s => {
-    const r = regime(s.zeta);
-    return { text: r === 'undamped' ? '🔁 undamped' : r === 'underdamped' ? '〰️ underdamped: rings' : r === 'critically damped' ? '🎯 critical' : '🐢 overdamped: creeps', tone: r === 'critically damped' ? 'good' : r === 'overdamped' ? 'warn' : 'info' };
-  },
-  readouts: [
-    { id: 'x', label: 'Position $x$', unit: 'm', value: s => position(s.t, s) },
-    { id: 'E', label: 'Energy left', unit: '%', value: s => { const e = energy(s.t, s); return 100 * (e.K + e.U) / e.E0; }, fmt: v => Viz.fmt(v, { sig: 3 }) + ' %' }
-  ],
+  transport: { param: 't', min: 0, max: 4, rate: 0.5, end: 'loop', unit: 's' },
+  presets: [{ label: '(1,1)', set: { m: 1, n: 1 } }, { label: '(2,1)', set: { m: 2, n: 1 } }, { label: '(2,2)', set: { m: 2, n: 2 } }, { label: '(3,2)', set: { m: 3, n: 2 } }],
+  status: s => ({ text: `${(s.m - 1) + (s.n - 1)} nodal line${(s.m + s.n - 2) === 1 ? '' : 's'}`, tone: 'info' }),
   stage: {
-    rows: [1.05, 1],
+    rows: [1],
     views: [
-      { id: 'system', row: 0, flex: 1, title: s => `<b>The mass</b> · x = ${f2(position(s.t, s))} m` },
-      { id: 'phase', row: 0, flex: 1, hidePortrait: true, title: '<b>Phase portrait</b> · velocity against position' },
-      { id: 'graph', row: 1, flex: 1, title: s => `<b>x(t)</b> · faint = whole run, bold = so far · click to inspect a time` }
+      { id: 'scene', row: 0, flex: 1.4, title: '<b>The membrane</b> · orange ball = your point' },
+      { id: 'cut', row: 0, flex: 1, hidePortrait: true, title: s => `<b>Cross-section</b> at y = ${Viz.fmt(s.py === undefined ? 0.25 : s.py)}` }
     ],
-    draw(g, s) {
-      const x = position(s.t, s), v = velocity(s.t, s), A = s.x0;
-      // --- system view: wall, spring, mass ------------------------------------------------------
-      const vs = g.view('system'); vs.clear();
-      const ctx = vs.ctx, W = vs.w, H = vs.h, cy = H * 0.5, wall = 14, rest = W * 0.55, scale = (W * 0.36) / 1.05;
-      ctx.fillStyle = Viz.alpha(Viz.color('muted'), 0.25); ctx.fillRect(0, cy - 34, wall, 68);
-      const mx = rest + x * scale, mw = Math.min(46, W * 0.14);
-      ctx.strokeStyle = Viz.color('text'); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(wall, cy);
-      const n = 12, end = mx - mw / 2, seg = (end - wall - 10) / n;
-      ctx.lineTo(wall + 5, cy); for (let i = 0; i < n; i++) ctx.lineTo(wall + 5 + seg * (i + 0.5), cy + (i % 2 ? 9 : -9)); ctx.lineTo(end, cy); ctx.stroke();
-      ctx.setLineDash([4, 4]); ctx.strokeStyle = Viz.color('border'); ctx.beginPath(); ctx.moveTo(rest, cy - 40); ctx.lineTo(rest, cy + 40); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = Viz.color('teal'); ctx.fillRect(mx - mw / 2, cy - mw / 2, mw, mw);
-      ctx.fillStyle = Viz.color('muted'); ctx.font = '12px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'center';
-      ctx.fillText('rest position', rest, cy + 54);
-      // velocity arrow
-      if (Math.abs(v) > 1e-3) { const P = vs.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] }); P.arrow(mx, cy - mw / 2 - 12, v * scale * 0.35, 0, { color: Viz.color('orange'), width: 2.5 }); }
-      // --- phase portrait -------------------------------------------------------------------------
-      const vp = g.view('phase'); vp.clear();
-      if (vp.w > 60) {
-        const vmax = s.omega0 * A * 1.1;
-        const P = vp.plot({ xlim: [-A * 1.1, A * 1.1], ylim: [-vmax, vmax], xlabel: 'x [m]', ylabel: 'v [m/s]' }).axes();
-        const ts = Viz.num.linspace(0, TMAX, 500);
-        P.line(ts.map(t => position(t, s)), ts.map(t => velocity(t, s)), { color: Viz.alpha(Viz.color('accent'), 0.3), width: 1.5 });
-        const upto = ts.filter(t => t <= s.t);
-        P.line(upto.map(t => position(t, s)), upto.map(t => velocity(t, s)), { color: Viz.color('accent'), width: 2.5 });
-        P.dot(x, v, 5, { color: Viz.color('orange'), stroke: '#fff', strokeWidth: 2 });
-      }
-      // --- x(t) graph ---------------------------------------------------------------------------------
-      const vg = g.view('graph'); vg.clear();
-      const P = vg.plot({ xlim: [0, TMAX], ylim: [-1.05, 1.05], xlabel: 't [s]', ylabel: 'x [m]' }).axes();
-      if (s.ghost) P.fn(t => s.x0 * Math.cos(s.omega0 * t), { color: Viz.alpha(Viz.color('muted'), 0.5), width: 1.2, dash: [5, 4], n: 600 });
-      if (s.zeta > 0 && s.zeta < 1) { P.fn(t => s.x0 * Math.exp(-s.zeta * s.omega0 * t), { color: Viz.alpha(Viz.color('rose'), 0.5), width: 1, dash: [2, 3] }); P.fn(t => -s.x0 * Math.exp(-s.zeta * s.omega0 * t), { color: Viz.alpha(Viz.color('rose'), 0.5), width: 1, dash: [2, 3] }); }
-      P.fn(t => position(t, s), { color: Viz.alpha(Viz.color('teal'), 0.3), width: 1.6, n: 600 });
-      P.fn(t => position(t, s), { color: Viz.color('teal'), width: 2.6, x0: 0, x1: Math.max(1e-6, s.t), n: 400 });
-      P.dot(s.t, x, 5, { color: Viz.color('orange'), stroke: '#fff', strokeWidth: 2 });
-      if (s.probeT !== undefined && s.probeT !== null) { P.line([s.probeT, s.probeT], [-1.05, 1.05], { color: Viz.color('accent'), width: 1, dash: [3, 3] }); P.dot(s.probeT, position(s.probeT, s), 4, { color: Viz.color('accent') }); }
-      if (g.app.holding) P.text(TMAX / 2, 0.8, `after ${TMAX} s: ${Viz.fmt(100 * (energy(TMAX, s).K + energy(TMAX, s).U) / energy(TMAX, s).E0, { sig: 2 })} % of the energy is left`, { align: 'center', weight: 650, color: Viz.color('accent') });
+    setup(g, s) {
+      Viz.three(g.view('scene'), {
+        distance: 7.5, phi: 0.95, theta: 0.7,
+        onPick: hit => { if (!hit || !mesh || hit.object !== mesh) return; g.app.set({ px: (hit.point.x + 2) / 4, py: (hit.point.z + 2) / 4 }); }
+      }).then(T => { T3 = T; if (T) { buildMesh(g.app.state); updateMesh(g.app.state); } });
     },
-    onPointer(g, ev, s) {
-      if (ev.viewId !== 'graph' || ev.type !== 'pointerdown') return false;
-      const P = ev.view.plot({ xlim: [0, TMAX], ylim: [-1.05, 1.05] });
-      g.app.set('probeT', Math.max(0, Math.min(TMAX, P.ix(ev.view.pointer.x))));
-      return true;
+    draw(g, s) {
+      updateMesh(s);
+      const v = g.view('cut'); v.clear();
+      if (v.w < 60) return;
+      const py = s.py === undefined ? 0.25 : s.py;
+      const P = v.plot({ xlim: [0, 1], ylim: [-1.05, 1.05], xlabel: 'x', ylabel: 'z [m]' }).axes();
+      P.fn(x => s.A * Math.sin(s.m * Math.PI * x) * Math.sin(s.n * Math.PI * py), { color: Viz.alpha(Viz.color('muted'), 0.5), width: 1, dash: [4, 4] });
+      P.fn(x => -s.A * Math.sin(s.m * Math.PI * x) * Math.sin(s.n * Math.PI * py), { color: Viz.alpha(Viz.color('muted'), 0.5), width: 1, dash: [4, 4] });
+      P.fn(x => height(x, py, s.t, s), { color: Viz.color('accent'), width: 2.5 });
+      for (let k = 1; k < s.m; k++) P.dot(k / s.m, 0, 4, { color: Viz.color('rose') });
+      const px = s.px === undefined ? 0.25 : s.px;
+      P.dot(px, height(px, py, s.t, s), 5, { color: Viz.color('orange'), stroke: '#fff', strokeWidth: 2 });
     }
   },
-  explore: {
-    intro: 'Press ▶ and watch all three views move together. Then change $\\zeta$ with the chips above the picture.',
-    controls: ['zeta', 'omega0', 'x0', 'ghost'],
-    readouts: ['x', 'E'],
-    callouts: [{ kind: 'try', html: 'Find the smallest $\\zeta$ for which the mass never crosses the rest line.' }]
-  },
-  terms: {
-    title: 'Energy budget (per kg)',
-    unit: 'J/kg',
-    items: [
-      { id: 'K', label: 'kinetic $\\tfrac12 v^2$', color: '#f97316', value: s => energy(s.t, s).K },
-      { id: 'U', label: 'spring $\\tfrac12\\omega_0^2 x^2$', color: '#0fa39c', value: s => energy(s.t, s).U },
-      { id: 'D', label: 'lost to friction', color: '#e11d6a', value: s => energy(s.t, s).D }
-    ],
-    total: { label: 'total = starting energy', value: s => energy(s.t, s).E0 }
-  },
+  explore: { intro: 'Red dots on the cross-section are nodes: points that never move.', controls: ['m', 'n', 'A'] },
   inspect: s => {
-    if (s.probeT === undefined || s.probeT === null) return null;
-    const t = s.probeT, w0 = s.omega0, z = s.zeta;
-    if (z >= 1) return `At $t = ${f2(t)}$ s: $x = ${f2(position(t, s))}$ m (no oscillation for $\\zeta \\ge 1$).`;
-    const wd = w0 * Math.sqrt(1 - z * z), env = Math.exp(-z * w0 * t), osc = Math.cos(wd * t) + (z * w0 / wd) * Math.sin(wd * t);
-    return `At $t = ${f2(t)}$ s:<br>envelope $e^{-\\zeta\\omega_0 t} = e^{-${f2(z * w0)}\\times${f2(t)}} = ${f2(env)}$<br>` +
-      `wiggle $\\cos\\omega_d t + \\tfrac{\\zeta\\omega_0}{\\omega_d}\\sin\\omega_d t = ${f2(osc)}$<br>` +
-      `$x = ${f2(s.x0)} \\times ${f2(env)} \\times ${f2(osc)} = \\mathbf{${f2(s.x0 * env * osc)}}$ m`;
+    if (s.px === undefined) return null;
+    const a = Math.sin(s.m * Math.PI * s.px), b = Math.sin(s.n * Math.PI * s.py), c = Math.cos(2 * Math.PI * s.t);
+    return `$z = A\\,\\sin(m\\pi x)\\,\\sin(n\\pi y)\\,\\cos\\omega t = ${Viz.tnum(s.A)} \\times ${Viz.tnum(a)} \\times ${Viz.tnum(b)} \\times ${Viz.tnum(c)} = \\mathbf{${Viz.tnum(s.A * a * b * c)}}$ m`;
   },
-  inspectHint: 'Click the x(t) graph to trace the value at any time, factor by factor.',
-  notes: s => {
-    const r = regime(s.zeta);
-    if (r === 'undamped') return '<p>$\\zeta = 0$: nothing removes energy, so the kinetic and spring bars just trade places forever and the phase portrait is a closed ellipse.</p>';
-    if (r === 'underdamped') return `<p>$\\zeta = ${f2(s.zeta)} < 1$: friction is weaker than the spring, so the mass overshoots and rings. Each swing is smaller by the factor $e^{-2\\pi\\zeta/\\sqrt{1-\\zeta^2}} = ${f2(Math.exp(-2 * Math.PI * s.zeta / Math.sqrt(1 - s.zeta * s.zeta)))}$, and the phase portrait spirals in.</p>`;
-    if (r === 'critically damped') return '<p>$\\zeta = 1$: the return is as fast as possible without overshooting — the design target for car suspensions and door closers.</p>';
-    return `<p>$\\zeta = ${f2(s.zeta)} > 1$: friction dominates; the mass creeps back without crossing zero, and more slowly the larger $\\zeta$ gets.</p>`;
-  },
+  inspectHint: 'Click the membrane to pick a point.',
+  tour: [
+    { title: 'A vibrating skin', text: 'Every point moves up and down, but not all by the same amount. Some never move at all.', set: { m: 1, n: 1 }, play: true },
+    { title: 'Add a node', text: 'With $m = 2$ the skin splits into two halves moving in opposite directions. The line between them stays still.', set: { m: 2, n: 1 } },
+    { title: 'Pick a point', text: 'Click anywhere on the skin; the inspector multiplies the three factors for you.', inspect: true, set: { px: 0.5, py: 0.3 } },
+    { title: 'Your turn', text: 'How many nodal lines does mode $(3, 2)$ have? Predict, then press the preset.', controls: ['m', 'n'] }
+  ],
+  equations: [{ id: 'z', title: 'Standing wave on a square membrane', ref: '(E.1)', tex: 'z = A\\sin(m\\pi x)\\,\\sin(n\\pi y)\\,\\cos\\omega t' }],
   calc: {
-    html: s => {
-      const w0 = s.omega0, z = s.zeta, W = Viz.work;
-      let out = W.head('From the controls to the motion') +
-        W.line('$\\omega_0$', f2(w0) + ' rad/s', 'how fast the undamped spring would swing') +
-        W.line('decay rate $\\zeta\\omega_0 = ' + f2(z) + '\\times' + f2(w0) + '$', f2(z * w0) + ' 1/s', 'how fast the envelope shrinks');
-      if (z < 1) {
-        const wd = w0 * Math.sqrt(1 - z * z);
-        out += W.line('$\\omega_d = \\omega_0\\sqrt{1-\\zeta^2} = ' + f2(w0) + '\\sqrt{1-' + f2(z * z) + '}$', f2(wd) + ' rad/s', 'friction slows the ringing slightly') +
-          W.line('period $T_d = 2\\pi/\\omega_d$', f2(2 * Math.PI / wd) + ' s');
-      }
-      out += W.head('Right now') +
-        W.line('$t$', Viz.live('t') + ' s') +
-        W.line('$x(t)$', Viz.live('x') + ' m') +
-        W.line('energy left $(K+U)/E_0$', Viz.live('left') + ' %') +
-        W.result(`Regime: <b>${regime(z)}</b> because $\\zeta ${z < 1 ? '<' : z === 1 ? '=' : '>'} 1$.`);
-      return out;
-    },
-    live: s => { const e = energy(s.t, s); return { t: s.t.toFixed(2), x: position(s.t, s).toFixed(3), left: (100 * (e.K + e.U) / e.E0).toFixed(1) }; }
+    html: s => Viz.work.head('Nodal lines of mode (' + s.m + ', ' + s.n + ')') +
+      Viz.work.line('$\\sin(m\\pi x) = 0$ at $x = k/m$', Array.from({ length: s.m - 1 }, (_, k) => Viz.fmt((k + 1) / s.m, { sig: 2 })).join(', ') || 'none inside', 'lines parallel to y') +
+      Viz.work.line('$\\sin(n\\pi y) = 0$ at $y = j/n$', Array.from({ length: s.n - 1 }, (_, j) => Viz.fmt((j + 1) / s.n, { sig: 2 })).join(', ') || 'none inside', 'lines parallel to x') +
+      Viz.work.head('Right now') + Viz.work.line('$\\cos\\omega t$', Viz.live('c')) +
+      Viz.work.result('Nodal lines never move because one sine factor is zero there, whatever the time.'),
+    live: s => ({ c: Math.cos(2 * Math.PI * s.t).toFixed(3) })
   },
   code: [
-    { id: 'pos', title: 'The position formula in Python', ref: '(E.2)',
+    { id: 'z', title: 'The surface in Python', ref: '(E.1)',
       src: `
 import numpy as np
 
-def damped_x(t, x0, omega0, zeta):
-    """Position of a damped oscillator released from rest (zeta < 1)."""
-    omega_d = omega0 * np.sqrt(1 - zeta**2)      # ringing frequency = {{wd}} rad/s
-    envelope = np.exp(-zeta * omega0 * t)       # shrinking amplitude = {{env}}
-    wiggle = np.cos(omega_d * t) + (zeta * omega0 / omega_d) * np.sin(omega_d * t)
-    return x0 * envelope * wiggle               # x = {{x}} m at t = {{t}} s`,
-      live: s => { const z = Math.min(s.zeta, 0.999), wd = s.omega0 * Math.sqrt(1 - z * z); return { wd: wd.toFixed(3), env: Math.exp(-z * s.omega0 * s.t).toFixed(3), x: position(s.t, s).toFixed(3), t: s.t.toFixed(2) }; } }
-  ],
-  tour: [
-    { title: 'Pull, release, watch', text: 'A mass on a spring, with a little friction. Press play: it swings, but each swing is smaller. <b>Why does it stop, and what decides how?</b>', set: { zeta: 0.15, t: 0 }, play: true },
-    { title: 'Two things fight', text: 'The spring pulls the mass back; friction resists motion. Their ratio is one number, the damping ratio $\\zeta$.', eq: 'ode', set: { zeta: 0.15 } },
-    { title: 'Ringing inside an envelope', text: 'For $\\zeta < 1$ the motion is a cosine squeezed by a shrinking exponential. Here is the same formula in Python — watch the live values.', code: { id: 'pos', lines: [6, 9] }, set: { zeta: 0.15 } },
-    { title: 'Where the energy goes', text: 'Kinetic and spring energy trade back and forth, while the friction bar only grows. The total never changes.', terms: true, set: { zeta: 0.3 }, play: true },
-    { title: 'Check any instant', text: 'Click the x(t) graph at any time: the inspector multiplies the factors for you.', inspect: true, set: { zeta: 0.15, probeT: 3 } },
-    { title: 'Your turn', text: 'Try the presets above the picture. Predict first: which one returns to rest fastest without overshooting?', notes: true, callout: { kind: 'key', html: 'Everything about the motion is decided by $\\zeta$; $\\omega_0$ only sets the time scale.' } }
-  ],
-  equations: [
-    { id: 'ode', title: 'Equation of motion', ref: '(E.1)', tex: '\\ddot x + 2\\zeta\\omega_0\\,\\dot x + \\omega_0^2\\,x = 0',
-      live: s => `\\ddot x + ${Viz.tnum(2 * s.zeta * s.omega0)}\\,\\dot x + ${Viz.tnum(s.omega0 * s.omega0)}\\,x = 0`,
-      symbols: [['\\zeta', 'damping ratio', '–'], ['\\omega_0', 'natural frequency', 'rad/s']] },
-    { id: 'sol', title: 'Underdamped solution', ref: '(E.2)', tex: 'x = x_0\\,e^{-\\zeta\\omega_0 t}\\left(\\cos\\omega_d t + \\frac{\\zeta\\omega_0}{\\omega_d}\\sin\\omega_d t\\right)',
-      note: 'with $\\omega_d = \\omega_0\\sqrt{1-\\zeta^2}$' },
-    { id: 'energy', title: 'Energy always decreases', ref: '(E.3)', tex: '\\frac{dE}{dt} = -2\\zeta\\omega_0\\,v^2 \\le 0' }
+x, y = np.meshgrid(np.linspace(0, 1, 41), np.linspace(0, 1, 41))   # grid over the skin
+z = A * np.sin(m * np.pi * x) * np.sin(n * np.pi * y) * np.cos(2 * np.pi * t)
+# mode ({{m}}, {{n}}) at t = {{t}} s: largest height {{zmax}} m`,
+      live: s => ({ m: s.m, n: s.n, t: s.t.toFixed(2), zmax: (s.A * Math.abs(Math.cos(2 * Math.PI * s.t))).toFixed(3) }) }
   ],
   check: [
-    { q: 'With $\\zeta = 0$, what does the phase portrait look like, and why?', a: 'A closed ellipse: no energy is lost, so the state returns to where it started every period.', set: { zeta: 0 } },
-    { q: 'Does doubling $\\omega_0$ change whether the motion overshoots?', a: 'No. Overshoot depends only on $\\zeta$; $\\omega_0$ just speeds everything up.', set: { omega0: 3 } },
-    { q: 'When is the friction bar growing fastest?', a: 'When the mass moves fastest (crossing the rest line), because $dE/dt = -2\\zeta\\omega_0 v^2$.' }
+    { q: 'Where are the nodal lines of mode $(m, n)$?', a: 'At $x = k/m$ and $y = j/n$ for whole numbers $k, j$ — that is $(m-1) + (n-1)$ lines.', set: { m: 3, n: 2 } },
+    { q: 'Does the pattern of nodal lines change with time?', a: 'No: time only enters through $\\cos\\omega t$, which scales every point by the same factor.' },
+    { q: 'Two neighbouring cells of mode (2, 2): do they move together or opposite?', a: 'Opposite: crossing a nodal line flips the sign of one sine factor.', set: { m: 2, n: 2 } }
   ],
   selftest: () => [
-    { name: 'x at t=1 (underdamped)', js: position(1, { omega0: 1.5, zeta: 0.15, x0: 0.8 }), py: '0.8*math.exp(-0.225)*(math.cos(1.5*math.sqrt(1-0.0225)) + 0.225/(1.5*math.sqrt(1-0.0225))*math.sin(1.5*math.sqrt(1-0.0225)))', rtol: 1e-10 },
-    { name: 'x at t=2 (critical)', js: position(2, { omega0: 1.5, zeta: 1, x0: 0.8 }), py: '0.8*math.exp(-3.0)*(1+3.0)', rtol: 1e-10 },
-    { name: 'energy conserved when zeta=0', js: (() => { const e = energy(7.3, { omega0: 1.2, zeta: 0, x0: 0.5 }); return (e.K + e.U) / e.E0; })(), expect: 1, rtol: 1e-6 }
+    { name: 'z at (0.25, 0.25, t=0) for mode (2,1), A=0.6', js: height(0.25, 0.25, 0, { m: 2, n: 1, A: 0.6 }), py: '0.6*math.sin(2*math.pi*0.25)*math.sin(math.pi*0.25)', rtol: 1e-12 },
+    { name: 'node at x = 0.5 for m = 2', js: height(0.5, 0.3, 0.1, { m: 2, n: 1, A: 1 }), expect: 0, atol: 1e-12 }
   ]
 });
 </script>

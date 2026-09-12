@@ -1,7 +1,7 @@
 """Integration gate: are a chapter's explainers built, current, lint-clean and embedded exactly once?
 
 Checks for chapter ``chNN``:
-  1. ``viz/chNN/*.html`` holds 1–5 explainers (``book.yaml → project.max_explainers_per_chapter``);
+  1. ``viz/chNN/*.html`` holds 4–5 explainers (``book.yaml → project.min/max_explainers_per_chapter``);
   2. each is inlined with the current ``assets/viz_lib.js`` + ``viz_base.css`` (``tools/viz_inline.py --check``) and
      passes ``tools/viz_lint.py``;
   3. the notebook ``notebooks/chNN_<slug>.ipynb`` calls ``show_viz("chNN", "<slug>")`` exactly once per explainer,
@@ -32,14 +32,15 @@ def check(chapter: str) -> list[str]:
 
     book = yaml.safe_load((ROOT / "book.yaml").read_text(encoding="utf-8"))
     limit = int(book.get("project", {}).get("max_explainers_per_chapter", 5))
+    minimum = int(book.get("project", {}).get("min_explainers_per_chapter", 4))
     row = next((c for c in book["chapters"] if c["id"] == chapter), None)
     if row is None:
         return [f"{chapter} not in book.yaml"]
     problems: list[str] = []
     files = sorted(p for p in (ROOT / "viz" / chapter).glob("*.html") if p.name != "index.html")
     slugs = [p.stem for p in files]
-    if not files:
-        problems.append(f"no explainers in viz/{chapter}/")
+    if len(files) < minimum:
+        problems.append(f"{len(files)} explainers in viz/{chapter}/ (need at least {minimum})")
     if len(files) > limit:
         problems.append(f"{len(files)} explainers in viz/{chapter}/ (limit {limit})")
 

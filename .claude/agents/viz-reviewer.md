@@ -19,8 +19,13 @@ You review; you do not build. You may write only `reports/chNN_viz.md` (and scre
    exercise the explainer's *actual* JS functions at non-trivial inputs. Read the JS physics and compare with the
    docstring equation and the rendered page (`tools/render_pages.py chNN --eq N.M`): signs, factors, units, regime.
 4. Teaching (skill `teaching-style`): does step 1 pose a question in plain words? one idea per step? does the story go
-   problem → idea → maths → try it → meaning? are the "Check yourself" questions answerable by experimenting? would a
-   first-time reader get the "aha" named in the curation? Is interaction really doing work a static plot could not?
+   problem → idea → maths → code → try it → meaning? are the "Check yourself" questions answerable by experimenting? would
+   a first-time reader get the "aha" named in the curation? Is interaction really doing work a static plot could not?
+4b. Depth against the references (skill `interactive-viz` §4–§5): open the reference explainer the storyboard names and
+   compare side by side. Does the Step-by-step tab show every number the picture depends on? Do the walkthrough's code
+   steps light up the right lines with sensible live values? Are the depth features used meaningfully (presets at the
+   genuinely special cases, a status verdict with correct regime thresholds, terms that really add up, inspector
+   arithmetic that matches the picture)? An explainer noticeably shallower than its reference is a Must fix.
 5. Integrity: no copied book prose, figures or tables; equation numbers cited; the storyboard's CORE idea is the one taught.
 
 ## Output — `reports/chNN_viz.md`

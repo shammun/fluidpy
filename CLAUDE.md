@@ -9,17 +9,21 @@ Turn each chapter of the book into **one learning package** that makes the chapt
 | `notebooks/chNN_<slug>.ipynb` | The teaching notebook, **executed**: plain words → step-by-step maths → tiny worked example → commented Python → figure → how to read it; Python animations, plotly slider figures, live widgets; the chapter's explainers embedded |
 | `notebooks/chNN_<slug>_colab.ipynb` | The same notebook for Google Colab (outputs stripped; its setup cell clones this repo; explainers load from GitHub Pages) |
 | `notebooks/chNN_<slug>.html` | The published page: executed notebook, every explainer a **full-window block** (100 % width × 100 % height), Open-in-Colab button, prev/next, contents |
-| `viz/chNN/<slug>.html` (**≤ 5**) | Self-contained vanilla-JS explainers: phenomenon + controls + guided walkthrough + live equations + quiz, fitting any window with **no scrolling** |
+| `viz/chNN/<slug>.html` (**4–5**) | Self-contained vanilla-JS explainers at the depth of Shammunul's reference explainers: linked views of the phenomenon, controls and presets, guided walkthrough, step-by-step working with your numbers, synced code, live equations, quiz — fitting any window with **no scrolling** |
 
 Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the physics as tested functions), `tests/`,
 `reports/`, `knowledge/`. Site: `index.html` (chapters) and `viz/index.html` (explainer gallery), served at
 `https://shammun.github.io/fluidpy/` (all URLs derive from `book.yaml → project`).
 
-**Cover everything; go deep where it clicks.** Every book section appears in the notebook. The `concept-curator` tiers
-every definition, theorem and numbered equation: **CORE** ideas (roughly one per substantial section, no fixed cap) get
-the full treatment; **SUPPORT** a short explanation with code; **NOTE** a paragraph with the equation shown; **SKIP**
-(history, repeats, exercises, material deferred to a later chapter) still gets a one-line pointer to where the idea is
-covered. The ≤ 5 interactive explainers are chosen from the CORE ideas where interaction teaches most.
+**Every new idea taught in full; nothing used unexplained.** Every book section appears in the notebook. The
+`concept-curator` gives every definition, theorem and numbered equation an ID and a tier: **CORE** (`C01…`) = every idea
+that is new at this point of the book — plain words, step-by-step maths, tiny example, commented Python **and at least one
+visualization** (early chapters have dozens); **RECAP** (`R01…`) = taught in an earlier chapter, reminded where needed;
+**NOTE** (`N01…`) = a restatement or special case shown inside its CORE block; **SKIP** (`S01…`) = history, exercises,
+bibliography, deferred material — one pointer line. Every concept, symbol, maths tool and Python function is explained
+where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 4–5 interactive explainers
+are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`, `tools/coverage_check.py`, the
+`lesson-reviewer` and `tools/shot.py` enforce all of this.
 
 ## One command
 `/do-chapter N` runs the whole pipeline for chapter N (10 phases, parallel where safe, resumable with `--from PHASE`).
@@ -31,7 +35,7 @@ covered. The ≤ 5 interactive explainers are chosen from the CORE ideas where i
 | 2 | curate | `concept-curator` | `analysis/chNN_curation.md` |
 | 3 | design ∥ 4 implement | `lesson-designer` ∥ `concept-implementer` | `analysis/chNN_design.md` ∥ `fluidpy/`, `scripts/` |
 | 5 | verify | `math-verifier` (⟲ implementer, ≤ 3 loops) | `tests/`, `reference/`, `reports/chNN_verification.md` |
-| 6 | review ∥ 7 viz ∥ 8 notebook | `derivation-reviewer` ∥ `viz-builder` ×≤5 → `viz-reviewer` ∥ `notebook-builder` | `reports/chNN_review.md` ∥ `viz/chNN/`, `reports/chNN_viz.md` ∥ `notebooks/` |
+| 6 | review ∥ 7 viz ∥ 8 notebook | `derivation-reviewer` ∥ `viz-builder` ×4–5 → `viz-reviewer` ∥ `notebook-builder` → `lesson-reviewer` | `reports/chNN_review.md` ∥ `viz/chNN/`, `reports/chNN_viz.md` ∥ `notebooks/`, `reports/chNN_lesson.md` |
 | 9 | knowledge ∥ 10 publish | `knowledge-keeper` ∥ `site-publisher` | `knowledge/` ∥ pages, Colab twin, index, gallery |
 
 ## Where things live
@@ -40,15 +44,15 @@ covered. The ≤ 5 interactive explainers are chosen from the CORE ideas where i
 | `*.pdf` (repo root) | the book — read-only, never modified | **never** |
 | `book.yaml` | project config + chapter map (exact PDF pages from the outline, sections, explainer seeds) | yes |
 | `chapters/chNN.{pdf,txt}`, `chapters/pages/` | split chapter, extracted text, rendered page images | **never** |
-| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory · tiers for every item + section coverage + ≤5 explainer picks · storyboards | yes |
+| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory (NEW/SEEN, prerequisites) · IDs + tiers + section coverage + 4–5 explainers · storyboards + prerequisite ledger | yes |
 | `fluidpy/core/` | primitives: `project`, `embed` (show_viz), `anim`, `interact` (plotly sliders), `style`, `units`, `refdata`, + physics reused by ≥2 chapters | yes |
 | `fluidpy/chNN_<slug>.py`, `scripts/chNN_*.py` | chapter physics + runnable demos | yes |
 | `viz/chNN/<slug>.html` | explainers (library inlined from `assets/viz_lib.js` + `assets/viz_base.css` by `tools/viz_inline.py`) | yes |
 | `tests/test_chNN.py`, `reference/chNN/` | evidence (+ cited public benchmark data) | yes |
-| `reports/chNN_{verification,review,viz}.md` | verdicts | yes |
+| `reports/chNN_{verification,review,viz,lesson}.md` | verdicts | yes |
 | `reports/viz/**` | screenshots + audit JSON from `tools/shot.py` | no |
 | `notebooks/build_chNN.py` → `chNN_<slug>.ipynb` (+ `_colab.ipynb`, `.html`) | builder (uses `tools/nbkit.py`) and its products | yes |
-| `knowledge/` | `CUMULATIVE.md`, `concept_map.md`, `notation.md`, `viz_patterns.md`, `chNN.md` | yes |
+| `knowledge/` | `CUMULATIVE.md`, `concept_map.md`, `notation.md`, `primers.md`, `viz_patterns.md`, `chNN.md` | yes |
 | `progress.json` | phase status per chapter | yes |
 | `outputs/` | figures, GIFs, self-test pages | no |
 
@@ -59,19 +63,24 @@ covered. The ≤ 5 interactive explainers are chosen from the CORE ideas where i
 2. **Equations come from page images.** `chapters/chNN.txt` garbles maths (`¼` is `=`, `ð…Þ` are parentheses, a minus
    vanishes, ω prints as `u`). Render the defining page (`.venv/Scripts/python.exe tools/render_pages.py chNN --eq 7.27`)
    and read the PNG before transcribing, coding or displaying an equation. Never code an equation from memory.
-3. **Teach in Shammunul's style** (skill `teaching-style`): plain words first; *problem → idea → maths → code → what the
-   output shows*; a tiny example with easy numbers traced step by step; every code line commented for a novice; every
-   figure followed by *what you see / how to read it / what would change if…*; "What does the code above do?" blocks.
-4. **At most 5 interactive explainers per chapter**, each attached to a CORE concept and justified by "why interaction
-   beats a static figure here". Each fits the window with **no scrolling** at 360×640 … 1920×1080 and in a notebook
-   frame, shows and explains its equations, has a 4–8-step walkthrough. Content that does not fit becomes a tab or a
-   page — never a scrollbar, never text below 12 px. Enforced by `tools/viz_lint.py` + `tools/shot.py` and judged by eye
-   by the `viz-reviewer`.
+3. **Teach in Shammunul's style** (skill `teaching-style`): every new idea is a CORE block with plain words first,
+   *problem → idea → maths → code → what the output shows*, a tiny example with easy numbers traced step by step, every
+   code line commented for a novice, **at least one visualization**, and *what you see / how to read it / what would
+   change if…*; nothing (concept, symbol, maths tool, Python function) is used before it is explained — CORE block,
+   recap or 📎 primer.
+4. **4–5 interactive explainers per chapter** (plus a backup idea), each attached to CORE ideas and justified by "why
+   interaction beats a static figure here", built to the depth of the reference explainers (skill `interactive-viz`
+   §4–§5): required Step-by-step working and synced Code tabs plus at least two depth features (linked views, transport,
+   presets, status, term bars, inspector, notes, modes, 3-D). Each fits the window with **no scrolling** at 360×640 …
+   1920×1080 and in a notebook frame, shows and explains its equations, has a 4–8-step walkthrough and ≥ 3 check
+   questions. Content that does not fit becomes a tab or a page — never a scrollbar, never text below 12 px. Enforced by
+   `tools/viz_lint.py` + `tools/shot.py` and judged by eye by the `viz-reviewer`.
 5. **Traceable physics.** Every `fluidpy` function's docstring cites book section + equation number(s), lists symbols
    with SI units and assumptions, and carries its validation label. Explainer JS physics mirrors a `fluidpy` function
    and proves it with `selftest()` parity rows (`py:` expressions evaluated by `tools/shot.py`).
-6. **Evidence, proportional to importance** (skill `verify-implementation`): CORE items ≥ 2 independent evidence levels
-   (one of V1 analytic / V2 symbolic / V3 convergence / V5 benchmark); SUPPORT ≥ 1. Never loosen a tolerance to pass;
+6. **Evidence, proportional to importance** (skill `verify-implementation`): computable CORE items ≥ 2 independent
+   evidence levels (one of V1 analytic / V2 symbolic / V3 convergence / V5 benchmark); coded NOTE items and every
+   function the notebook or explainers call ≥ 1. Never loosen a tolerance to pass;
    fix the physics or report the discrepancy. Max 3 fix loops, then stop and tell the user.
 7. **Subagents do the work; the main session orchestrates** and keeps its context small. Agents never commit — the
    orchestrator commits after each phase (`chNN: <phase> — <one line>`). Never run two agents that write the same

@@ -6,10 +6,12 @@ description: How to prove that Python written from a textbook's equations is act
 # verify-implementation — evidence that the physics is right
 
 The book ships no code, so there is nothing to diff against. Correctness is established by making the mathematics test
-itself. Evidence is proportional to the curation tier (`analysis/chNN_curation.md` §2): every **CORE** item needs
-**at least two independent evidence levels**, at least one of them V1, V2, V3 or V5; every **SUPPORT** item at least
-one; every function the notebook or an explainer calls (design Part C) at least a smoke test with a physical sanity
-assertion. (NOTE items that are coded get a smoke test; SKIP items are not coded.)
+itself. Evidence is proportional to the curation tier (`analysis/chNN_curation.md` §2): every computable **CORE** item
+(every new idea of the chapter) needs **at least two independent evidence levels**, at least one of them V1, V2, V3 or
+V5; a conceptual CORE item with no computable output gets a demonstration test (the notebook's code for it runs and
+asserts its point); coded **NOTE** items at least one level; every function the notebook or an explainer calls (design
+Part C) at least a smoke test with a physical sanity assertion. RECAP items were tested in their own chapter; SKIP
+items are not coded.
 "Independent" means a bug that fools one level must not fool the other: an analytic check and a symbolic check of the
 *same* wrong equation are not independent; an analytic check plus a conservation check are.
 

@@ -14,25 +14,31 @@ from nbkit import ChapterNotebook
 
 nb = ChapterNotebook("ch07")
 nb.title(big_idea="…", roadmap=["…", "…"], prerequisites=["Bernoulli (Ch. 4)", "potential flow (Ch. 6)"])
-nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed, depth effect")])
+nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed"), …])   # 4–5 rows
 nb.setup()                                          # ⚙️ setup markdown + the setup code cell (tag: setup)
 nb.section("7.2", "Linear surface waves", intro="**What is this section about?** …")   # one per book section
-nb.note("Surface tension matters only for ripples shorter than a few cm …", equation=r"…", ref="7.xx")  # NOTE tier
-nb.pointer("Nonlinear shallow-water waves are only mentioned here; Ch. 13 returns to shallow water.")  # SKIP tier
-nb.md("### The problem in plain words\n…")
+nb.recap("R02", "Bernoulli's equation", "…one paragraph…", where="Ch. 4 §4.9")        # RECAP tier
+nb.core("C03", "The dispersion relation", question="Why do long waves travel faster than short ones?")   # CORE block
+nb.md("#### The problem in plain words\n…")
+nb.primer("tanh(x)", "A smooth step: ≈ x for small x, → 1 for large x. Here it switches between shallow and deep water.",
+          code="import numpy as np                 # numbers\nprint(np.tanh([0.1, 1, 5]))          # [0.0997 0.7616 0.9999]")
 nb.worked_example("a 10 m wave in 2 m of water", "1. k = 2π/10 ≈ 0.63 m⁻¹ …")
 nb.code("""
 from fluidpy import ch07_gravity_waves as ch07      # the tested chapter module
 omega = ch07.omega(k, H)                            # Eq. (7.36): frequency for wavenumber k in depth H
 """, explain="1. … 2. …")
-nb.figure_notes(see="…", read="…", change="…")
+nb.figure("…plotting code, every line commented…", see="…", read="…", change="…")   # at least one visual per CORE block
 nb.explainer("dispersion_relation", heading="Why long waves outrun short ones", why="…", tries=["Drag H…", "…"])
+nb.note("The deep-water limit is the same relation with tanh → 1.", equation=r"\omega^2 = gk", ref="7.xx")   # NOTE
 nb.animation("…"); nb.plotly("…"); nb.live("…"); nb.check_agree("…")
-nb.summary(clicked=["…"], feeds_forward=["…"], left_out=["… (why safe)"])
+nb.pointer("Nonlinear shallow-water waves are only mentioned here; Ch. 13 returns to shallow water.")  # SKIP
+nb.summary(clicked=["one line per CORE idea"], feeds_forward=["…"], left_out=["… (where to find it)"])
 nb.save()                                           # → notebooks/ch07_gravity_waves.ipynb (no outputs)
 ```
-`save()` refuses to write the notebook if any section listed in `book.yaml → sections` has no `nb.section(...)`: the
-notebook covers the whole chapter, with depth set by the curation tiers.
+`save()` refuses to write the notebook when a book section has no `nb.section(...)`, a CORE/RECAP id from the curation
+has no block, a CORE block has no code or no visual, or the explainer count is outside 4–5. After executing,
+`tools/coverage_check.py chNN --nb outputs/chNN/executed.ipynb` repeats the checks on real outputs and checks the
+prerequisite ledger (design Part E).
 Markdown is our own words; equations in LaTeX with their book numbers. Physics lives in `fluidpy/`, never only in a cell.
 
 ## 2. The setup cell (written by `nb.setup()`; identical in every chapter)

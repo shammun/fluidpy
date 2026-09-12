@@ -49,7 +49,7 @@ def test_show_viz_srcdoc_and_placeholder(tmp_path):
 
     (tmp_path / "viz" / "ch99").mkdir(parents=True)
     (tmp_path / "book.yaml").write_text((ROOT / "book.yaml").read_text(encoding="utf-8"), encoding="utf-8")
-    src = (ROOT / "templates" / "viz_example.html").read_text(encoding="utf-8")
+    src = (ROOT / "templates" / "viz_example_field.html").read_text(encoding="utf-8")
     (tmp_path / "viz" / "ch99" / "demo.html").write_text(src, encoding="utf-8")
     html = embed.viz_html("ch99", "demo", root=tmp_path)
     assert "srcdoc=" in html and embed.embedded_keys(html) == ["ch99/demo"]
@@ -82,15 +82,31 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     monkeypatch.setattr(nbkit, "ROOT", tmp_path)
     (tmp_path / "book.yaml").write_text((ROOT / "book.yaml").read_text(encoding="utf-8"), encoding="utf-8")
     monkeypatch.setattr(nbkit, "_book", lambda: yaml.safe_load((ROOT / "book.yaml").read_text(encoding="utf-8")))
+    # a curation with two CORE items and one RECAP item
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "analysis" / "ch07_curation.md").write_text(
+        "## 2. Tiers\n| ID | Item | § | Tier | Why | Treatment |\n|---|---|---|---|---|---|\n"
+        "| C01 | dispersion relation | 7.2 | CORE | new | full |\n| C02 | group velocity | 7.5 | CORE | new | full |\n"
+        "| R01 | Bernoulli | 7.2 | RECAP | Ch. 4 | reminder |\n", encoding="utf-8")
     nb = nbkit.ChapterNotebook("ch07")
     nb.title(big_idea="Waves.", roadmap=["one", "two"]).setup().section("7.2", "Linear waves")
-    nb.code("x = 1  # one", explain="Sets x.").figure_notes("a", "b", "c")
+    nb.recap("R01", "Bernoulli", "Pressure and speed trade off.", where="Ch. 4 §4.9")
+    nb.core("C01", "The dispersion relation", question="Why do long waves travel faster?")
+    nb.primer("tanh", "A smooth step from 0 to 1.", code="import numpy as np  # numbers\nprint(np.tanh(1.0))  # 0.76")
+    nb.code("x = 1  # one", explain="Sets x.")
     nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
     with pytest.raises(ValueError):
         nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
     nb.note("Short waves ride on long ones.", equation=r"c = \sqrt{gH}", ref="7.x").pointer("Covered in Ch. 13.")
-    with pytest.raises(ValueError, match="7.3"):              # every book section must appear
+    nb.core("C02", "Group velocity")
+    nb.code("y = 2  # two")
+    with pytest.raises(ValueError) as err:
         nb.save()
+    msg = str(err.value)
+    assert "7.3" in msg and "C02" in msg and "no visual" in msg and "explainers embedded" in msg
+    nb.figure("import matplotlib.pyplot as plt  # plotting\nplt.plot([0, 1])  # a line", see="a", read="b", change="c")
+    for slug in ("e2", "e3", "e4"):
+        nb.explainer(slug, heading="h", why="w", tries=["t"])
     for sec in nb.missing_sections():
         nb.section(sec, "…")
     path = nb.save()
@@ -98,8 +114,24 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     assert any("\\sqrt{gH}" in c.source and "(7.x)" in c.source for c in book.cells)
     assert book.cells[0].source.startswith("# Chapter 7")
     assert not book.cells[0].source.splitlines()[2].startswith("    ")          # no accidental code-block indent
-    assert nbkit.explainer_calls(path) == ["dispersion_relation"]
+    assert nbkit.explainer_calls(path) == ["dispersion_relation", "e2", "e3", "e4"]
     assert any("setup" in c.metadata.get("tags", []) for c in book.cells)
+    assert book.metadata["fluidpy"]["cores"] == ["C01", "C02"] and book.metadata["fluidpy"]["primers"] == ["tanh"]
+    assert any(c.metadata.get("fluidpy", {}).get("core") == "C02" and "figure" in c.metadata.get("tags", []) for c in book.cells)
+
+    # the coverage gate on the same notebook: clean, then a ledger row pointing at an unknown id is an error
+    import coverage_check
+
+    monkeypatch.setattr(coverage_check, "ROOT", tmp_path)
+    (tmp_path / "analysis" / "ch07_design.md").write_text(
+        "## Part E — prerequisite ledger\n| Concept | First used in | Explained by |\n|---|---|---|\n"
+        "| tanh | C01 | primer (in C01) |\n| dispersion | C01 | C01 |\n", encoding="utf-8")
+    errors, warns = coverage_check.check("ch07", nb_path=path)
+    assert errors == [], errors
+    (tmp_path / "analysis" / "ch07_design.md").write_text(
+        "## Part E\n| Concept | First used in | Explained by |\n|---|---|---|\n| vorticity | C01 | C09 |\n", encoding="utf-8")
+    errors, _ = coverage_check.check("ch07", nb_path=path)
+    assert any("C09" in e for e in errors)
 
 
 def test_publish_transform_page_and_ipynb():

@@ -88,7 +88,7 @@ def write_index(rows: list[dict]) -> Path:
 <h1>{E(book.get('title', 'Fluid Mechanics'))} — learned through Python</h1>
 <p class="lead">Every chapter of <em>{E(book.get('title', ''))}</em> ({E(book.get('edition', ''))} ed., {E(', '.join(book.get('authors', [])))},
 {E(str(book.get('year', '')))}) turned into one learning package: a teaching notebook with plain-words explanations,
-step-by-step mathematics, tested Python, figures and animations — plus up to five full-window interactive explainers
+step-by-step mathematics, tested Python, figures and animations — plus four or five full-window interactive explainers
 for the ideas that are easier to <em>feel</em> than to read.</p>
 <div class="fp-actions"><a class="fp-btn primary" href="viz/index.html">&#127918; All interactive explainers</a>
 <a class="fp-btn" href="{E(repo_url(ROOT))}">Source code on GitHub</a></div>

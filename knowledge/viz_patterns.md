@@ -23,3 +23,9 @@ Read by the curator, designer, viz-builders and viz-reviewer before any explaine
 
 ## Ideas for later chapters
 (seeded from `book.yaml → viz_seeds`; the curator decides)
+
+## Reference explainers (the depth to match)
+See skill `interactive-viz` §4–§5: Shammunul's MIT-mathlet re-implementations (angular frequency explorer; amplitude and
+phase, second order II) and the fast.ai labs (FID formula lab, forward noising lab, pixels as parameters, random copy,
+overfitting curves, stride & padding playground, 3-D U-Net and ResNet). Passing in-repo templates that use every engine
+feature: `templates/viz_example.html`, `templates/viz_example_field.html`, `templates/viz_example_3d.html`.

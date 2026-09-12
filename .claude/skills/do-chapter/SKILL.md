@@ -1,6 +1,6 @@
 ---
 name: do-chapter
-description: Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate, design, implement, verify, review, interactive explainers, notebook, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult
+description: Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate (every new idea is CORE with code and a visual), design, implement, verify, review, 4–5 interactive explainers, notebook with lesson review, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult
 disable-model-invocation: true
 ---
 
@@ -51,18 +51,25 @@ Brief: header + the output format lives in the agent definition; add the chapter
 (§3) exists; CODE rows have validation plans. One send-back allowed. → `analyze: pass`, commit.
 
 ## 2. CURATE — `concept-curator` → `analysis/chNN_curation.md`
-Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + the note that ≤ `project.max_explainers_per_chapter`
-explainers are allowed and fewer excellent ones beat more.
-**Gate**: every inventory row tiered (CORE/SUPPORT/NOTE/SKIP); the spine scales with the chapter (≈ one CORE idea per
-substantial section — no fixed cap; send back once if a section with new physics or numbered equations has no CORE or
-SUPPORT item); the §3 section-coverage table has **one row for every section in `book.yaml → sections` and none is
-empty**; every SKIP has a reason and a pointer line (§8); ≤ 5 explainers, each with CORE idea + why-interactive +
-mirrored fluidpy function. Print the spine, the count per tier and the explainer list (slug + aha) to the user.
+Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + "4–5 explainers plus one backup".
+**Gate** (send back once on any failure):
+- every inventory row has an ID and a tier (CORE `C..` / RECAP `R..` / NOTE `N..` / SKIP `S..`);
+- **every row the analyst marked NEW is CORE** (NOTE only when a parent CORE ID is named; SKIP only for history,
+  exercises, bibliography or explicitly deferred material) — count NEW rows in `analysis/chNN.md` and compare;
+- every SEEN row is RECAP (or NOTE inside a CORE block);
+- the §3 section-coverage table has one row for every section in `book.yaml → sections`, none empty;
+- §4 lists the prerequisites needing primers; §5 has 4–5 explainers + 1 backup, each with CORE IDs, why-interactive,
+  mirrored fluidpy function, depth features (calc + code + ≥ 2 more) and a named reference explainer.
+Print the counts per tier, the teaching order (one line per CORE item, grouped by section) and the explainer list
+(slug + aha) to the user.
 With `--consult`: stop here and ask the user to approve/edit the shortlist (`blocked`). → `curate: pass`, commit.
 
 ## 3 ∥ 4. DESIGN ∥ IMPLEMENT (launch both agents in ONE message)
-- `lesson-designer` → `analysis/chNN_design.md` (brief: header; storyboards for every shortlisted explainer with headings
-  `### E<k> · <slug>` exactly; Part C = function contract).
+- `lesson-designer` → `analysis/chNN_design.md` (brief: header; a storyboard block for EVERY CORE ID with code and a
+  visual; storyboards for every explainer with headings `### E<k> · <slug>` and the backup `### B1 · <slug>`; Part C =
+  function contract; Part E = prerequisite ledger).
+  **Design gate**: the number of CORE blocks in Part A equals the curation's CORE count; Part E exists and every row has
+  an "Explained by"; every explainer storyboard lists calc, code and ≥ 2 depth features. One send-back allowed.
 - `concept-implementer` → `fluidpy/`, `scripts/` (brief: header; implement analysis §4 + curation §9; "the lesson-designer
   is writing analysis/chNN_design.md in parallel — if Part C appears before you finish, honour its names and signatures").
 **Merge gate** (after both return): every Part C function exists with a compatible signature
@@ -80,21 +87,28 @@ Never accept a relaxed tolerance as a fix. → `verify: pass`, commit.
 - `viz-builder` — **one agent per explainer**, each brief naming its single `viz/chNN/<slug>.html`, its storyboard
   heading, its mirrored function and the order number. On a laptop launch at most `project.max_parallel_viz`
   (default 3) at a time; start the next as one finishes.
-- `notebook-builder` (brief: header + design Part A + list of explainer slugs + "explainers are being built in
-  parallel; embed by slug").
+- `notebook-builder` (brief: header + design Parts A/C/E + list of explainer slugs + "explainers are being built in
+  parallel; embed by slug; run tools/run_notebook.py and tools/coverage_check.py until clean").
 Folders never overlap: reviewer writes nothing, each viz-builder one file, notebook-builder `notebooks/`.
+
+**When the notebook-builder returns**: `lesson-reviewer` → `reports/chNN_lesson.md` (reads the executed notebook as a
+first-time learner: coverage, CORE blocks complete with code + visual, nothing used before it is explained, style,
+correctness). Must-fix → re-brief `notebook-builder` with the report (max 2 rounds), then `lesson-reviewer` again.
 
 **When the reviewer returns**: write `reports/chNN_review.md` yourself from its reply (Must fix / Should fix / Verified).
 Must-fix code items → `concept-implementer` (fluidpy only; signatures stable), then `.venv/Scripts/python.exe -m pytest
 tests/test_chNN.py -q` and, if tests had to change, `math-verifier` for those tests. Doc findings you fix yourself.
 **When all viz-builders return**: `viz-reviewer` → `reports/chNN_viz.md`. Must-fix items → re-brief the specific
 `viz-builder` with its list (max 2 rounds per explainer), then `viz-reviewer` again. An explainer that still fails is
-removed from the chapter (delete the file, remove its `nb.explainer` call via the notebook-builder, note it in
-`knowledge/viz_patterns.md` as a failed idea) — never publish a failing explainer.
-**Merge gate** (all three done):
+removed (delete the file, note it in `knowledge/viz_patterns.md` as a failed idea) and — if fewer than 4 remain — the
+**backup** (`### B1`) is built by a `viz-builder` and reviewed the same way; the notebook-builder swaps the embed. Never
+publish a failing explainer and never publish fewer than 4.
+**Merge gate** (all done):
 `.venv/Scripts/python.exe -m pytest -q` (full) · `.venv/Scripts/python.exe tools/shot.py --chapter chNN --quick`
-(parity after any physics fix) · `.venv/Scripts/python.exe tools/run_notebook.py chNN` · `.venv/Scripts/python.exe
-tools/embed_check.py chNN`. All clean → `review: pass`, `viz: pass` (+ `explainers: [slugs]`), `notebook: pass`, commit.
+(parity after any physics fix) · `.venv/Scripts/python.exe tools/run_notebook.py chNN --save` ·
+`.venv/Scripts/python.exe tools/coverage_check.py chNN --nb outputs/chNN/executed.ipynb` · `.venv/Scripts/python.exe
+tools/embed_check.py chNN` (4–5 explainers, each embedded once) · `reports/chNN_lesson.md` and `reports/chNN_viz.md`
+Verdict PASS. All clean → `review: pass`, `viz: pass` (+ `explainers: [slugs]`), `notebook: pass`, commit.
 
 ## 9 ∥ 10. KNOWLEDGE ∥ PUBLISH (launch together)
 - `knowledge-keeper` (brief: header + report paths + "library/skill promotion is NOT allowed in this run; list
@@ -120,7 +134,7 @@ allowed" (serial; it re-inlines and re-audits).
 ---------------------------------------------------------------------------------------------------------------------
 ## Final report to the user (≤ 18 lines)
 - Verdict + validation counts per label; convergence orders; benchmarks used.
-- Teaching spine (one line each) and the explainers (slug · aha · shot PASS).
+- Counts per tier (CORE / RECAP / NOTE / SKIP) and primers; the CORE items (one line each, grouped by section); the explainers (slug · aha · shot PASS · depth features).
 - Notebook runtime; page size; animations and interactive figures count.
 - URLs: chapter page, explainer gallery, Colab.
 - Open items / things the user should look at first (the 2 best screenshots under `reports/viz/`).

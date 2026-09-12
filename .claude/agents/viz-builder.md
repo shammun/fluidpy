@@ -12,9 +12,12 @@ If the library lacks something, write a small local helper inside your file and 
 it into `assets/viz_lib.js` later).
 
 ## Read first
-Your storyboard (`### E? · <slug>` in `analysis/chNN_design.md`), the curation entry for it, the `interactive-viz` skill,
-`knowledge/viz_patterns.md`, `templates/viz_example.html` (a complete, passing explainer — copy its structure),
-the header comment of `assets/viz_lib.js` (the API), and the Python function your physics mirrors
+Your storyboard (`### E? · <slug>` in `analysis/chNN_design.md`), the curation entry for it, the `interactive-viz` skill
+(§4 quality bar and §5 reference explainers — open the reference your storyboard names and at least one other, and
+match their depth), `knowledge/viz_patterns.md`, the three passing templates (`templates/viz_example.html` — linked views,
+transport, presets, status, terms, inspector, notes, step-by-step working, synced code; `templates/viz_example_field.html`
+— flow-field tools; `templates/viz_example_3d.html` — three.js view), the header comment of `assets/viz_lib.js` (the
+API), and the Python function your physics mirrors
 (`fluidpy/chNN_<slug>.py` — its docstring cites the equation; render the page with
 `.venv/Scripts/python.exe tools/render_pages.py chNN --eq N.M` and check your JS against the image, not memory).
 
@@ -37,11 +40,20 @@ the header comment of `assets/viz_lib.js` (the API), and the Python function you
 6. Stop when lint + shot PASS and the screenshots look right. Maximum 6 build–audit rounds; if still failing, report
    exactly what fails.
 
-## Quality bar
-The stage shows the *phenomenon* (particles, surfaces, arrows, fields — not only line plots); motion when the physics
-moves; colours from `Viz.color()` tokens; every number a reader sees has a unit; the walkthrough makes one idea click
-per step and ends by handing over the controls; equations are the book's (numbered) with symbols explained; nothing
-from the book's prose or figures is copied.
+## Quality bar (the level of Shammunul's reference explainers — `tools/shot.py` enforces the floor, the reviewer the rest)
+- The stage shows the *phenomenon* (particles, surfaces, bodies, arrows, fields — not only line plots), and when possible
+  **linked views** of it: the physical picture + a graph + a second representation (phase plane, profile, response
+  curve), all driven by one state and one clock. Faint full curve + bold "so far" part; a ghost reference curve to compare.
+- **Show the numbers**: the Step-by-step tab works the formulas out with the reader's current values (formula =
+  substitution = result — why), and the Code tab shows the Python with live values in the comments; walkthrough steps
+  light up the relevant code lines.
+- At least two more **depth features**: transport (play / step / scrub / speed / hold), presets for the special cases,
+  a live status verdict naming the regime, term-by-term bars that add up, click-to-inspect exact arithmetic, "Right now"
+  notes that interpret the regime, modes (the same idea in another physical system), a 3-D view.
+- Colours from `Viz.color()` tokens and consistent meaning (the same colour for the same quantity in text, bars, curves);
+  every number a reader sees has a unit; the walkthrough makes one idea click per step and ends by handing over the
+  controls with a prediction; ≥ 3 check-yourself questions answerable by experimenting; equations are the book's
+  (numbered) with symbols explained; nothing from the book's prose or figures is copied.
 
 ## Reply
 `PASS/FAIL` from shot.py with the counts (sizes, views, steps, selftest rows) · the selftest parity table (name, js, py,

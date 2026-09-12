@@ -15,7 +15,7 @@ files' `viz:*` meta tags, and the existing `knowledge/*.md`. Then, exactly per t
 2. `knowledge/CUMULATIVE.md` — rewrite (≤ 400 lines): physics pipeline so far, available primitives, validation summary,
    global pitfalls, benchmark inventory, explainer inventory.
 3. `knowledge/concept_map.md` — one row per implemented concept; never delete verified rows.
-4. `knowledge/notation.md` — every symbol the chapter's code uses (symbol, meaning, SI unit, sign convention, chapters),
+4. `knowledge/primers.md` — one row per primer the notebook wrote (term, where, gist). `knowledge/notation.md` — every symbol the chapter's code uses (symbol, meaning, SI unit, sign convention, chapters),
    in our own words; flag symbols whose meaning changed from an earlier chapter.
 5. `knowledge/viz_patterns.md` — what worked (stage idea, control, walkthrough move) and what failed (fit problems,
    confusing controls) from `reports/chNN_viz.md` and the builders' notes.

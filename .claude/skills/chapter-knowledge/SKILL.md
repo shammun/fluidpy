@@ -7,7 +7,7 @@ description: How knowledge is captured and carried forward between chapters in f
 
 ## Read at chapter start (every agent, in this order)
 1. `knowledge/CUMULATIVE.md` — physics pipeline so far, primitives, validation summary, pitfalls, explainer inventory.
-2. `knowledge/notation.md` — symbol → meaning → SI unit → sign convention → chapters (our words, not the book's table).
+2. `knowledge/notation.md` — symbol → meaning → SI unit → sign convention → chapters (our words, not the book's table); `knowledge/primers.md` — concepts and tools already explained (reuse, do not repeat).
 3. `knowledge/viz_patterns.md` — explainer stage ideas, controls and walkthrough moves that worked; ideas that failed.
 4. `knowledge/concept_map.md` — every implemented concept with its function and validation label.
 5. `knowledge/ch<N-1>.md` → "Feeds forward".
@@ -38,6 +38,10 @@ Never delete a verified row; superseded rows say "superseded chNN".
 ## Update `knowledge/notation.md`
 `| Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |` — add every symbol the chapter's code uses; flag
 symbols whose meaning changes between chapters (e.g. ω angular frequency in Ch. 7, vorticity magnitude in Ch. 5).
+
+## Update `knowledge/primers.md`
+One row per primer the chapter's notebook wrote (`metadata.fluidpy.primers`, design Part E):
+`| Term | Explained in (chNN · § · CORE id) | One-line gist |`. Later chapters point here instead of re-priming.
 
 ## Update `knowledge/viz_patterns.md`
 Sections: *Patterns that worked* (stage, control, walkthrough move — with the explainer that proved it) · *Failures and
