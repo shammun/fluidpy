@@ -15,8 +15,11 @@ Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the phy
 `reports/`, `knowledge/`. Site: `index.html` (chapters) and `viz/index.html` (explainer gallery), served at
 `https://shammun.github.io/fluidpy/` (all URLs derive from `book.yaml → project`).
 
-**Clicking beats coverage.** A chapter has a handful of ideas that, once understood, make dozens of smaller results
-obvious. The `concept-curator` picks them and writes down what it leaves out and why that is safe.
+**Cover everything; go deep where it clicks.** Every book section appears in the notebook. The `concept-curator` tiers
+every definition, theorem and numbered equation: **CORE** ideas (roughly one per substantial section, no fixed cap) get
+the full treatment; **SUPPORT** a short explanation with code; **NOTE** a paragraph with the equation shown; **SKIP**
+(history, repeats, exercises, material deferred to a later chapter) still gets a one-line pointer to where the idea is
+covered. The ≤ 5 interactive explainers are chosen from the CORE ideas where interaction teaches most.
 
 ## One command
 `/do-chapter N` runs the whole pipeline for chapter N (10 phases, parallel where safe, resumable with `--from PHASE`).
@@ -37,7 +40,7 @@ obvious. The `concept-curator` picks them and writes down what it leaves out and
 | `*.pdf` (repo root) | the book — read-only, never modified | **never** |
 | `book.yaml` | project config + chapter map (exact PDF pages from the outline, sections, explainer seeds) | yes |
 | `chapters/chNN.{pdf,txt}`, `chapters/pages/` | split chapter, extracted text, rendered page images | **never** |
-| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory · teaching spine + ≤5 explainer picks · storyboards | yes |
+| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory · tiers for every item + section coverage + ≤5 explainer picks · storyboards | yes |
 | `fluidpy/core/` | primitives: `project`, `embed` (show_viz), `anim`, `interact` (plotly sliders), `style`, `units`, `refdata`, + physics reused by ≥2 chapters | yes |
 | `fluidpy/chNN_<slug>.py`, `scripts/chNN_*.py` | chapter physics + runnable demos | yes |
 | `viz/chNN/<slug>.html` | explainers (library inlined from `assets/viz_lib.js` + `assets/viz_base.css` by `tools/viz_inline.py`) | yes |

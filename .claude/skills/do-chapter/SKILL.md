@@ -53,14 +53,17 @@ Brief: header + the output format lives in the agent definition; add the chapter
 ## 2. CURATE — `concept-curator` → `analysis/chNN_curation.md`
 Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + the note that ≤ `project.max_explainers_per_chapter`
 explainers are allowed and fewer excellent ones beat more.
-**Gate**: spine of 3–7 ideas; every inventory row tiered; ≤ 5 explainers, each with CORE idea + why-interactive +
-mirrored fluidpy function; §7 left-out list present. Print the spine and the explainer list (slug + aha) to the user.
+**Gate**: every inventory row tiered (CORE/SUPPORT/NOTE/SKIP); the spine scales with the chapter (≈ one CORE idea per
+substantial section — no fixed cap; send back once if a section with new physics or numbered equations has no CORE or
+SUPPORT item); the §3 section-coverage table has **one row for every section in `book.yaml → sections` and none is
+empty**; every SKIP has a reason and a pointer line (§8); ≤ 5 explainers, each with CORE idea + why-interactive +
+mirrored fluidpy function. Print the spine, the count per tier and the explainer list (slug + aha) to the user.
 With `--consult`: stop here and ask the user to approve/edit the shortlist (`blocked`). → `curate: pass`, commit.
 
 ## 3 ∥ 4. DESIGN ∥ IMPLEMENT (launch both agents in ONE message)
 - `lesson-designer` → `analysis/chNN_design.md` (brief: header; storyboards for every shortlisted explainer with headings
   `### E<k> · <slug>` exactly; Part C = function contract).
-- `concept-implementer` → `fluidpy/`, `scripts/` (brief: header; implement analysis §4 + curation §8; "the lesson-designer
+- `concept-implementer` → `fluidpy/`, `scripts/` (brief: header; implement analysis §4 + curation §9; "the lesson-designer
   is writing analysis/chNN_design.md in parallel — if Part C appears before you finish, honour its names and signatures").
 **Merge gate** (after both return): every Part C function exists with a compatible signature
 (`grep -n "def <name>" fluidpy/`). Missing → one short follow-up brief to the implementer with just those functions.

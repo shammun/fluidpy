@@ -8,7 +8,8 @@
              roadmap=["7.2 linear waves", "7.5 group velocity", ...])
     nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones"), ...])
     nb.setup()
-    nb.section("7.2", "Linear liquid-surface gravity waves")
+    nb.section("7.2", "Linear liquid-surface gravity waves")   # one per book section; save() checks all are present
+    nb.note("…", equation=r"c = \sqrt{gH}", ref="7.xx")  # NOTE tier;  nb.pointer("…") for a SKIP item
     nb.md("### The problem in plain words\n...")
     nb.code("...", explain="**What does the code above do?** ...")
     nb.figure_notes(see="...", read="...", change="...")
@@ -97,6 +98,7 @@ class ChapterNotebook:
         self.cells = self.nb.cells
         self.explainers: list[str] = []
         self._has_setup = False
+        self.covered: set[str] = set()
 
     # ---- primitives -------------------------------------------------------------------------------------------------
     def md(self, text: str, tags: list[str] | None = None) -> "ChapterNotebook":
@@ -167,7 +169,23 @@ class ChapterNotebook:
         return self
 
     def section(self, number: str, title: str, intro: str = "") -> "ChapterNotebook":
+        """A notebook section for one book section ("7.2") or two merged short ones ("7.3–7.4" / "7.3, 7.4")."""
+        self.covered.update(re.findall(r"\d+\.\d+", number))
         self.md(f"---\n\n## {number} {title}\n\n{textwrap.dedent(intro).strip()}")
+        return self
+
+    def note(self, text: str, equation: str | None = None, ref: str | None = None) -> "ChapterNotebook":
+        """A NOTE-tier item: a short paragraph in our words, optionally the equation displayed with its book number."""
+        body = textwrap.dedent(text).strip()
+        if equation:
+            tag = f"\\qquad \\text{{({ref})}}" if ref else ""
+            body += f"\n\n$$ {equation.strip()} {tag} $$"
+        self.cells.append(nbf.v4.new_markdown_cell(f"> 📝 **Note.** {body}" if "\n" not in body else f"📝 **Note.** {body}"))
+        return self
+
+    def pointer(self, text: str) -> "ChapterNotebook":
+        """A SKIP-tier item: one line saying where the idea is covered instead."""
+        self.cells.append(nbf.v4.new_markdown_cell(f"*↪ {textwrap.dedent(text).strip()}*"))
         return self
 
     def worked_example(self, title: str, steps_md: str) -> "ChapterNotebook":
@@ -216,9 +234,19 @@ class ChapterNotebook:
         return self
 
     # ---- output -------------------------------------------------------------------------------------------------------
-    def save(self) -> Path:
+    def missing_sections(self) -> list[str]:
+        """Book sections (from book.yaml) that have no ``section(...)`` in this notebook yet."""
+        numbers = [re.match(r"\s*(\d+\.\d+)", s).group(1) for s in self.row.get("sections", []) if re.match(r"\s*\d+\.\d+", s)]
+        return [n for n in numbers if n not in self.covered]
+
+    def save(self, allow_missing: list[str] | None = None) -> Path:
+        """Write the notebook. Refuses if the setup cell is missing or a book section is not covered (every section of
+        the chapter must appear — CORE/SUPPORT in depth, NOTE briefly, SKIP as a pointer line)."""
         if not self._has_setup:
             raise ValueError("call .setup() — every notebook needs the setup cell")
+        missing = [n for n in self.missing_sections() if n not in (allow_missing or [])]
+        if missing:
+            raise ValueError(f"book sections with no nb.section(...): {missing} — every section must appear in the notebook")
         self.nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
         self.nb.metadata["language_info"] = {"name": "python"}
         self.nb.metadata["fluidpy"] = {"chapter": self.chapter, "explainers": self.explainers}

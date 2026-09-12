@@ -16,9 +16,14 @@ the `teaching-style`, `interactive-viz` and `python-viz` skills. For every equat
 rendered page (`tools/render_pages.py chNN --eq N.M`) — the builders copy your LaTeX.
 
 ## Part A — notebook storyboard
-The notebook follows the chapter's teaching spine (not necessarily every book section). Use `tools/nbkit.py` vocabulary
-so the builder can map each row to one call: `title`, `explainer_index`, `setup`, `section`, `md`, `worked_example`,
-`code(explain=…)`, `figure_notes`, `explainer`, `animation`, `plotly`, `live`, `check_agree`, `summary`.
+The notebook **covers every book section**, in book order (use the curation's §3 section-coverage table; one
+`nb.section(...)` per book section, merging two only when the book's sections are very short). Depth follows the tiers:
+CORE ideas get the full sequence below; SUPPORT items get plain words + the equation explained + code (+ a figure if it
+helps); NOTE items get a short paragraph in our words with the equation displayed and its number; each SKIP item gets its
+one-line pointer from curation §8 inside the section it belongs to. The teaching spine sets the story told across the
+sections (the title road map lists it). Use `tools/nbkit.py` vocabulary so the builder can map each row to one call:
+`title`, `explainer_index`, `setup`, `section`, `md`, `note`, `worked_example`, `code(explain=…)`, `figure_notes`,
+`explainer`, `animation`, `plotly`, `live`, `check_agree`, `summary`.
 For every CORE idea the sequence is:
 1. **The problem in plain words** (why anyone cares; an everyday or climate example).
 2. **The idea** (one picture in words; an ASCII sketch if it helps).
@@ -28,7 +33,8 @@ For every CORE idea the sequence is:
 6. **From-scratch check** where the curation asks for it (hand-written version, `assert np.allclose`).
 7. **Figure / animation / plotly slider** + What you see / How to read it / What would change if….
 8. **🎮 Interactive explainer** (if one is attached) with "What to try" bullets.
-Give each row: cell kind, a draft of the markdown (your own words, short), the code intent with the exact fluidpy
+Before Part A, add a one-line check per book section ("§7.3 → NOTE ×2, SKIP ×1 — cells 41–44") so the builder and the
+orchestrator can see nothing is missing. Give each row: cell kind, a draft of the markdown (your own words, short), the code intent with the exact fluidpy
 function and arguments, and the expected output (numbers to sanity-check).
 
 ## Part B — one storyboard per explainer (`### E1 · <slug>` exactly — `tools/embed_check.py` parses these headings)

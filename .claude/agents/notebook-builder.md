@@ -18,7 +18,9 @@ check the rendered page (`tools/render_pages.py chNN --eq N.M`) — display equa
 
 ## Build
 1. `notebooks/build_chNN.py` uses `ChapterNotebook("chNN")`: `title` → `explainer_index` → `setup` → one block per
-   spine idea exactly as storyboarded → `summary(clicked, feeds_forward, left_out)` → `save()`.
+   book section exactly as storyboarded (every section of the chapter appears; CORE ideas in full, SUPPORT short, NOTE
+   items via `nb.note(...)`, SKIP pointers as one line in their section) → `summary(clicked, feeds_forward, left_out)`
+   → `save()` (it fails if any book section from `book.yaml` has no `nb.section(...)`).
 2. Markdown in **your own words** (never the book's prose). Maths step by step, one move per line, with a reason.
    Tiny worked example with easy numbers *before* the general code.
 3. Code cells: short, every line commented for a novice; call `fluidpy` functions; for the curated from-scratch moments

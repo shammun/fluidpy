@@ -88,8 +88,14 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
     with pytest.raises(ValueError):
         nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
+    nb.note("Short waves ride on long ones.", equation=r"c = \sqrt{gH}", ref="7.x").pointer("Covered in Ch. 13.")
+    with pytest.raises(ValueError, match="7.3"):              # every book section must appear
+        nb.save()
+    for sec in nb.missing_sections():
+        nb.section(sec, "…")
     path = nb.save()
     book = nbformat.read(path, as_version=4)
+    assert any("\\sqrt{gH}" in c.source and "(7.x)" in c.source for c in book.cells)
     assert book.cells[0].source.startswith("# Chapter 7")
     assert not book.cells[0].source.splitlines()[2].startswith("    ")          # no accidental code-block indent
     assert nbkit.explainer_calls(path) == ["dispersion_relation"]

@@ -20,8 +20,10 @@ tools, founders, visual resources) are reference only.
 ## What is different about this project
 - The book has **no code**: every function is new; the chapter text and its equation *images* are the only specification.
 - Correctness comes from mathematics and physics (`verify-implementation`), not from matching an author's output.
-- We teach selectively: the `concept-curator` tiers every item CORE / SUPPORT / NOTE / SKIP; CORE ideas get the full
-  treatment (and possibly an explainer), SKIP items are listed with the reason it is safe to skip them.
+- We cover every book section and vary the depth: the `concept-curator` tiers every item CORE / SUPPORT / NOTE / SKIP.
+  CORE ideas (≈ one per substantial section, no cap) get the full treatment (and possibly an explainer); SUPPORT a short
+  explanation with code; NOTE a paragraph with the equation shown; SKIP (history, repeats, exercises, deferred material)
+  a one-line pointer to where it is covered. No section of the chapter is absent from the notebook.
 
 ## File naming
 - Chapter ids: `ch01` … `ch16`; slug from `book.yaml` (`ch07` → `gravity_waves`).
@@ -65,13 +67,15 @@ def phase_speed(k: float | np.ndarray, H: float, g: float = 9.81) -> np.ndarray:
 private) · `qualitative` (must appear in Open items) · `unverified` (blocks PASS unless justified).
 
 ## What "done" means for a chapter
-1. `analysis/chNN.md` (inventory + dependency graph), `analysis/chNN_curation.md` (spine, tiers, ≤5 explainers),
+1. `analysis/chNN.md` (inventory + dependency graph), `analysis/chNN_curation.md` (spine, tiers for every item, a
+   section-coverage table with no empty section, ≤5 explainers),
    `analysis/chNN_design.md` (storyboards).
 2. `fluidpy/chNN_<slug>.py` implements every CORE/SUPPORT item and every function in design Part C; scripts run.
 3. `tests/test_chNN.py` passes; CORE ≥ 2 evidence levels, SUPPORT ≥ 1; `reports/chNN_verification.md` PASS;
    `reports/chNN_review.md` has no open Must-fix.
 4. `viz/chNN/*.html` (≤ 5) pass lint + shot at every size with parity rows; `reports/chNN_viz.md` PASS.
-5. The notebook executes headlessly with 0 errors; it follows the teaching style and embeds every explainer once.
+5. The notebook covers every book section, executes headlessly with 0 errors, follows the teaching style and embeds
+   every explainer once.
 6. `knowledge/` updated; `progress.json` all `pass`/`done`; published: page, Colab twin, gallery and index live,
    `tools/check_public.py` clean.
 

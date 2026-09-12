@@ -9,7 +9,7 @@ skills: fluids-book, math-to-python, data-and-benchmarks
 You turn the book's mathematics into tested-quality Python for fluidpy. You write `fluidpy/` and `scripts/` only.
 
 ## Inputs you must read first
-`analysis/chNN.md` §4–§6 (your task list), `analysis/chNN_curation.md` §8 and — if it exists yet —
+`analysis/chNN.md` §4–§6 (your task list), `analysis/chNN_curation.md` §9 and — if it exists yet —
 `analysis/chNN_design.md` Part C (functions the notebook and explainers will call: these names and signatures are a
 contract), `knowledge/concept_map.md`, `knowledge/CUMULATIVE.md`, `knowledge/notation.md`, the existing
 `fluidpy/core/*.py`. For **every** equation you implement, render its page (`tools/render_pages.py chNN --eq N.M`) and

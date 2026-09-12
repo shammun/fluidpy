@@ -16,7 +16,9 @@ nb = ChapterNotebook("ch07")
 nb.title(big_idea="…", roadmap=["…", "…"], prerequisites=["Bernoulli (Ch. 4)", "potential flow (Ch. 6)"])
 nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed, depth effect")])
 nb.setup()                                          # ⚙️ setup markdown + the setup code cell (tag: setup)
-nb.section("7.2", "Linear surface waves", intro="**What is this section about?** …")
+nb.section("7.2", "Linear surface waves", intro="**What is this section about?** …")   # one per book section
+nb.note("Surface tension matters only for ripples shorter than a few cm …", equation=r"…", ref="7.xx")  # NOTE tier
+nb.pointer("Nonlinear shallow-water waves are only mentioned here; Ch. 13 returns to shallow water.")  # SKIP tier
 nb.md("### The problem in plain words\n…")
 nb.worked_example("a 10 m wave in 2 m of water", "1. k = 2π/10 ≈ 0.63 m⁻¹ …")
 nb.code("""
@@ -29,6 +31,8 @@ nb.animation("…"); nb.plotly("…"); nb.live("…"); nb.check_agree("…")
 nb.summary(clicked=["…"], feeds_forward=["…"], left_out=["… (why safe)"])
 nb.save()                                           # → notebooks/ch07_gravity_waves.ipynb (no outputs)
 ```
+`save()` refuses to write the notebook if any section listed in `book.yaml → sections` has no `nb.section(...)`: the
+notebook covers the whole chapter, with depth set by the curation tiers.
 Markdown is our own words; equations in LaTeX with their book numbers. Physics lives in `fluidpy/`, never only in a cell.
 
 ## 2. The setup cell (written by `nb.setup()`; identical in every chapter)

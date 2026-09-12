@@ -39,9 +39,21 @@ The **kit** that produces them:
 (the *orchestrator*) only coordinates, so a 70-page chapter never floods one context. Everything important is on disk,
 so any session can resume.
 
-**Clicking beats coverage.** The analyst lists *everything* in the chapter; the curator then picks the 3–7 ideas that
-make the rest obvious, tiers every item (CORE / SUPPORT / NOTE / SKIP) and writes down what it leaves out and why that
-is safe. Explainers are reserved for CORE ideas where manipulation or motion teaches what a static figure cannot.
+**Cover everything; go deep where it clicks.** The analyst lists *everything* in the chapter (every definition,
+theorem, numbered equation, example and figure). The curator then decides the depth of each item — the notebook covers
+**every book section**:
+
+| Tier | Who gets it | Treatment in the notebook |
+|---|---|---|
+| **CORE** | the load-bearing ideas — roughly one per substantial section, **no fixed cap** (≈6 for Ch. 2, 10–14 for Ch. 4 or 13) | plain words → maths step by step → tiny example with easy numbers → commented code → figure/animation/plotly slider → possibly an explainer; ≥ 2 kinds of test evidence |
+| **SUPPORT** | ideas a CORE idea needs, or important in their own right | short explanation, the equation explained, code, a figure if it helps; ≥ 1 test |
+| **NOTE** | everything else worth knowing | a short paragraph in our words with the equation displayed and its number |
+| **SKIP** | only history, pure repeats, exercises, material the book defers to a later chapter | still one line in its section saying where the idea is covered |
+
+A section-coverage table in `analysis/chNN_curation.md` shows every book section and where it is taught; the
+orchestrator refuses a curation with an empty section, and the notebook kit refuses to save a notebook that misses one.
+The ≤ 5 explainers are chosen from the CORE ideas where manipulation or motion teaches what a static figure cannot; the
+other CORE and SUPPORT ideas get figures, animations and plotly sliders.
 
 **Correctness without an answer key.** The book has no code, so each function proves itself: V1 analytic solutions ·
 V2 symbolic re-derivation and units · V3 convergence order · V4 conservation · V5 cited benchmarks · V6 the book's own
@@ -129,7 +141,7 @@ Useful options:
 | # | Phase (agent) | Reads | Writes | Look at |
 |---|---|---|---|---|
 | 1 | **analyze** (`concept-analyst`) | chapter text, rendered equation pages, knowledge | `analysis/chNN.md` | the dependency graph (§3) and the risks (§9) |
-| 2 | **curate** (`concept-curator`) | analysis, `viz_seeds`, viz patterns | `analysis/chNN_curation.md` | the teaching spine, the explainer shortlist with each "aha", the left-out list |
+| 2 | **curate** (`concept-curator`) | analysis, `viz_seeds`, viz patterns | `analysis/chNN_curation.md` | the teaching spine, the count per tier, the section-coverage table, the explainer shortlist with each "aha", the SKIP list with pointers |
 | 3 | **design** (`lesson-designer`) ∥ | curation | `analysis/chNN_design.md` | explainer storyboards (steps, controls, equations) |
 | 4 | **implement** (`concept-implementer`) ∥ | analysis, curation, rendered pages | `fluidpy/chNN_<slug>.py`, `scripts/` | docstrings cite section + equation + units |
 | 5 | **verify** (`math-verifier` ⟲ implementer) | code, tiers | `tests/test_chNN.py`, `reports/chNN_verification.md` | Verdict, labels, convergence orders, Open items |
@@ -139,7 +151,7 @@ Useful options:
 | 9 | **knowledge** (`knowledge-keeper`) ∥ | everything | `knowledge/*` | "Feeds forward" |
 | 10 | **publish** (`site-publisher` + orchestrator) | notebook, explainers | executed `.ipynb`, `_colab.ipynb`, `.html`, index, gallery | the live page on your phone |
 
-Gates: analysis covers every numbered equation · ≤ 5 explainers with reasons · every design function exists · tests
+Gates: analysis covers every numbered equation · every item tiered and every book section covered (no empty section) · ≤ 5 explainers with reasons · every design function exists · tests
 PASS (≤ 3 fix loops, never by loosening a tolerance) · no open Must-fix · every explainer passes lint + browser audit at
 8 sizes + parity + visual review (≤ 2 rebuild rounds, else it is dropped, never published broken) · notebook executes
 with 0 errors · embed check (every explainer embedded exactly once) · public-repo check · page audit (explainers
@@ -276,7 +288,7 @@ _colab.ipynb by re-running tools/publish_notebook.py, commit, run tools/check_pu
 | Agent | Job | Writes |
 |---|---|---|
 | concept-analyst | full inventory from text + page images, dependency graph, validation plan | `analysis/chNN.md` |
-| concept-curator | teaching spine, tiers, ≤5 explainers, animations, interactives, left-out list | `analysis/chNN_curation.md` |
+| concept-curator | tiers for every item, teaching spine, section coverage, ≤5 explainers, animations, interactives, SKIP pointers | `analysis/chNN_curation.md` |
 | lesson-designer | notebook storyboard + explainer storyboards + function contract | `analysis/chNN_design.md` |
 | concept-implementer | physics as documented functions; fixes | `fluidpy/`, `scripts/` |
 | math-verifier | tests on the evidence ladder; report | `tests/`, `reference/`, `reports/chNN_verification.md` |
