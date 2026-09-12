@@ -1,0 +1,146 @@
+{
+  "pdf_pages": 919,
+  "printed_offset": 27,
+  "chapters": {
+    "ch01": {
+      "title": "Introduction",
+      "pdf_start": 28,
+      "pdf_end": 65,
+      "printed_start": 1,
+      "printed_end": 38
+    },
+    "ch02": {
+      "title": "Cartesian Tensors",
+      "pdf_start": 66,
+      "pdf_end": 91,
+      "printed_start": 39,
+      "printed_end": 64
+    },
+    "ch03": {
+      "title": "Kinematics",
+      "pdf_start": 92,
+      "pdf_end": 121,
+      "printed_start": 65,
+      "printed_end": 94
+    },
+    "ch04": {
+      "title": "Conservation Laws",
+      "pdf_start": 122,
+      "pdf_end": 197,
+      "printed_start": 95,
+      "printed_end": 170
+    },
+    "ch05": {
+      "title": "Vorticity Dynamics",
+      "pdf_start": 198,
+      "pdf_end": 223,
+      "printed_start": 171,
+      "printed_end": 196
+    },
+    "ch06": {
+      "title": "Ideal Flow",
+      "pdf_start": 224,
+      "pdf_end": 279,
+      "printed_start": 197,
+      "printed_end": 252
+    },
+    "ch07": {
+      "title": "Gravity Waves",
+      "pdf_start": 280,
+      "pdf_end": 335,
+      "printed_start": 253,
+      "printed_end": 308
+    },
+    "ch08": {
+      "title": "Laminar Flow",
+      "pdf_start": 336,
+      "pdf_end": 387,
+      "printed_start": 309,
+      "printed_end": 360
+    },
+    "ch09": {
+      "title": "Boundary Layers and Related Topics",
+      "pdf_start": 388,
+      "pdf_end": 447,
+      "printed_start": 361,
+      "printed_end": 420
+    },
+    "ch10": {
+      "title": "Computational Fluid Dynamics",
+      "pdf_start": 448,
+      "pdf_end": 499,
+      "printed_start": 421,
+      "printed_end": 472
+    },
+    "ch11": {
+      "title": "Instability",
+      "pdf_start": 500,
+      "pdf_end": 567,
+      "printed_start": 473,
+      "printed_end": 540
+    },
+    "ch12": {
+      "title": "Turbulence",
+      "pdf_start": 568,
+      "pdf_end": 647,
+      "printed_start": 541,
+      "printed_end": 620
+    },
+    "ch13": {
+      "title": "Geophysical Fluid Dynamics",
+      "pdf_start": 648,
+      "pdf_end": 717,
+      "printed_start": 621,
+      "printed_end": 690
+    },
+    "ch14": {
+      "title": "Aerodynamics",
+      "pdf_start": 718,
+      "pdf_end": 755,
+      "printed_start": 691,
+      "printed_end": 728
+    },
+    "ch15": {
+      "title": "Compressible Flow",
+      "pdf_start": 756,
+      "pdf_end": 805,
+      "printed_start": 729,
+      "printed_end": 778
+    },
+    "ch16": {
+      "title": "Introduction to Biofluid Mechanics",
+      "pdf_start": 806,
+      "pdf_end": 879,
+      "printed_start": 779,
+      "printed_end": 852
+    },
+    "appA": {
+      "title": "Appendix A \u2014 Conversion Factors, Constants, and Fluid Properties",
+      "pdf_start": 880,
+      "pdf_end": 883,
+      "printed_start": null,
+      "printed_end": null
+    },
+    "appB": {
+      "title": "Appendix B \u2014 Mathematical Tools and Resources",
+      "pdf_start": 884,
+      "pdf_end": 895,
+      "printed_start": null,
+      "printed_end": null
+    },
+    "appC": {
+      "title": "Appendix C \u2014 Founders of Modern Fluid Dynamics",
+      "pdf_start": 896,
+      "pdf_end": 899,
+      "printed_start": null,
+      "printed_end": null
+    },
+    "appD": {
+      "title": "Appendix D \u2014 Visual Resources",
+      "pdf_start": 900,
+      "pdf_end": 901,
+      "printed_start": null,
+      "printed_end": null
+    }
+  }
+}

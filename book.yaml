@@ -1,0 +1,485 @@
+# Chapter map for Kundu, Cohen & Dowling, *Fluid Mechanics*, 5th ed. (Academic Press, 2012).
+# GENERATED from the PDF's own bookmark outline (exact PDF page numbers) by tools/detect_chapters.py, then annotated.
+#   pdf_start/pdf_end : 1-based PDF page numbers, inclusive (tools/split_pdf.py uses these: no offset guessing)
+#   printed_start/end : page numbers printed in the book (pdf = printed + 27 for chapters 1-16)
+#   sections          : the numbered sections exactly as printed (from the outline)
+#   viz_seeds         : a PRIOR shortlist of interactive-explainer ideas for the concept-curator, not a decision
+#   do_chapter        : false = skipped by /do-chapter (appendices are reference material only)
+
+project:
+  package: fluidpy
+  repo: shammun/fluidpy              # GitHub user/repo (public). Change it here only: every tool reads this block.
+  branch: main
+  site_url: https://shammun.github.io/fluidpy
+  site_title: "Fluid Mechanics (Kundu, Cohen & Dowling, 5th ed.) — worked in Python, with interactive explainers"
+  author: "Shammunul Islam"
+  max_explainers_per_chapter: 5
+  max_parallel_viz: 3                # viz-builder agents running at once (each runs a headless browser audit)
+
+book:
+  title: "Fluid Mechanics"
+  edition: "5th"
+  authors: ["Pijush K. Kundu", "Ira M. Cohen", "David R. Dowling"]
+  publisher: "Academic Press (Elsevier)"
+  year: 2012
+  pdf: auto                          # the single *.pdf in the repo root
+  pdf_pages: 919
+  printed_offset: 27                 # pdf_page = printed_page + 27
+  nomenclature_pdf_pages: [23, 27]   # the book's symbol list: agents may READ it (private); knowledge/notation.md is written in our own words
+
+chapters:
+  - id: ch01
+    number: 1
+    title: "Introduction"
+    slug: introduction
+    pdf_start: 28
+    pdf_end: 65
+    printed_start: 1
+    printed_end: 38
+    do_chapter: true
+    blurb: "Continuum, molecular transport, statics, thermodynamics of a perfect gas, stratification and dimensional analysis: the vocabulary of the whole book."
+    sections:
+      - "1.1 Fluid Mechanics"
+      - "1.2 Units of Measurement"
+      - "1.3 Solids, Liquids, and Gases"
+      - "1.4 Continuum Hypothesis"
+      - "1.5 Molecular Transport Phenomena"
+      - "1.6 Surface Tension"
+      - "1.7 Fluid Statics"
+      - "1.8 Classical Thermodynamics"
+      - "1.9 Perfect Gas"
+      - "1.10 Stability of Stratified Fluid Media"
+      - "1.11 Dimensional Analysis"
+    viz_seeds:
+      - "continuum hypothesis: measured density vs averaging-volume size (molecular noise -> plateau -> macroscopic variation)"
+      - "viscosity as momentum diffusion: fluid sheared between plates, Newton's law of viscosity"
+      - "hydrostatic pressure, manometers and buoyancy"
+      - "static stability of a stratified fluid: displaced parcel, buoyancy frequency N, potential temperature"
+      - "Buckingham Pi machine: choose variables, watch the dimension matrix yield the Pi groups (pendulum, drag)"
+  - id: ch02
+    number: 2
+    title: "Cartesian Tensors"
+    slug: cartesian_tensors
+    pdf_start: 66
+    pdf_end: 91
+    printed_start: 39
+    printed_end: 64
+    do_chapter: true
+    blurb: "Index notation, rotation of axes, stress as a tensor, symmetric and antisymmetric parts, eigenvectors, Gauss and Stokes theorems."
+    sections:
+      - "2.1 Scalars, Vectors, Tensors, Notation"
+      - "2.2 Rotation of Axes: Formal Definition of a Vector"
+      - "2.3 Multiplication of Matrices"
+      - "2.4 Second-Order Tensors"
+      - "2.5 Contraction and Multiplication"
+      - "2.6 Force on a Surface"
+      - "2.7 Kronecker Delta and Alternating Tensor"
+      - "2.8 Vector, Dot, and Cross Products"
+      - "2.9 Gradient, Divergence, and Curl"
+      - "2.10 Symmetric and Antisymmetric Tensors"
+      - "2.11 Eigenvalues and Eigenvectors of a Symmetric Tensor"
+      - "2.12 Gauss' Theorem"
+      - "2.13 Stokes' Theorem"
+      - "2.14 Comma Notation"
+    viz_seeds:
+      - "rotation of axes: the same vector/tensor, components changing with the direction-cosine matrix"
+      - "Cauchy stress: traction on a plane of any orientation; principal stresses as eigenvectors"
+      - "symmetric + antisymmetric split of a velocity-gradient tensor (strain vs rotation)"
+      - "Gauss divergence theorem: flux out of a box equals the integrated divergence"
+      - "Stokes theorem: circulation around a loop equals the flux of the curl"
+  - id: ch03
+    number: 3
+    title: "Kinematics"
+    slug: kinematics
+    pdf_start: 92
+    pdf_end: 121
+    printed_start: 65
+    printed_end: 94
+    do_chapter: true
+    blurb: "Lagrangian vs Eulerian descriptions, streamlines/pathlines/streaklines, material derivative, strain and rotation rates, Reynolds transport theorem."
+    sections:
+      - "3.1 Introduction and Coordinate Systems"
+      - "3.2 Particle and Field Descriptions of Fluid Motion"
+      - "3.3 Flow Lines, Fluid Acceleration, and Galilean Transformation"
+      - "3.4 Strain and Rotation Rates"
+      - "3.5 Kinematics of Simple Plane Flows"
+      - "3.6 Reynolds Transport Theorem"
+    viz_seeds:
+      - "streamlines vs pathlines vs streaklines in an unsteady flow (identical only when steady)"
+      - "material derivative: local + advective change seen by a probe riding with the flow"
+      - "deformation of a fluid element: extension, shear strain and rotation"
+      - "solid-body rotation vs irrotational vortex (the paddle-wheel test)"
+      - "Reynolds transport theorem on a moving control volume"
+  - id: ch04
+    number: 4
+    title: "Conservation Laws"
+    slug: conservation_laws
+    pdf_start: 122
+    pdf_end: 197
+    printed_start: 95
+    printed_end: 170
+    do_chapter: true
+    blurb: "Mass, momentum and energy conservation; stream function; Newtonian constitutive law; Navier-Stokes; rotating frames; Bernoulli; Boussinesq; boundary conditions; dynamic similarity."
+    sections:
+      - "4.1 Introduction"
+      - "4.2 Conservation of Mass"
+      - "4.3 Stream Functions"
+      - "4.4 Conservation of Momentum"
+      - "4.5 Constitutive Equation for a Newtonian Fluid"
+      - "4.6 Navier-Stokes Momentum Equation"
+      - "4.7 Noninertial Frame of Reference"
+      - "4.8 Conservation of Energy"
+      - "4.9 Special Forms of the Equations"
+      - "4.10 Boundary Conditions"
+      - "4.11 Dimensionless Forms of the Equations and Dynamic Similarity"
+    viz_seeds:
+      - "control-volume mass and momentum budget (jet striking a plate, nozzle thrust)"
+      - "stream function: contours are streamlines, their spacing gives the speed"
+      - "Newtonian constitutive law: stress from strain rate and pressure"
+      - "which Bernoulli equation applies where (steady / irrotational / unsteady)"
+      - "Coriolis and centrifugal forces in a rotating frame"
+      - "dynamic similarity: Reynolds, Froude and Rossby numbers; when a model matches the prototype"
+  - id: ch05
+    number: 5
+    title: "Vorticity Dynamics"
+    slug: vorticity_dynamics
+    pdf_start: 198
+    pdf_end: 223
+    printed_start: 171
+    printed_end: 196
+    do_chapter: true
+    blurb: "Circulation and Kelvin's theorem, Helmholtz vortex theorems, vorticity equation (stretching, tilting, baroclinic), Biot-Savart, vortex interactions and sheets."
+    sections:
+      - "5.1 Introduction"
+      - "5.2 Kelvin’s Circulation Theorem"
+      - "5.3 Helmholtz’s Vortex Theorems"
+      - "5.4 Vorticity Equation in a Nonrotating Frame"
+      - "5.5 Velocity Induced by a Vortex Filament: Law of Biot and Savart"
+      - "5.6 Vorticity Equation in a Rotating Frame"
+      - "5.7 Interaction of Vortices"
+      - "5.8 Vortex Sheet"
+    viz_seeds:
+      - "Kelvin's circulation theorem: material loop in barotropic inviscid flow vs baroclinic generation"
+      - "vortex stretching and tilting terms of the vorticity equation"
+      - "Biot-Savart: velocity induced by a vortex filament and by point vortices"
+      - "point-vortex interactions: co-rotating pair, translating counter-rotating pair, image vortex near a wall"
+      - "vortex-sheet roll-up"
+  - id: ch06
+    number: 6
+    title: "Ideal Flow"
+    slug: ideal_flow
+    pdf_start: 224
+    pdf_end: 279
+    printed_start: 197
+    printed_end: 252
+    do_chapter: true
+    blurb: "Irrotational constant-density flow: stream function and potential, elementary flows and superposition, complex potential, forces, conformal mapping, panel methods, axisymmetric and 3-D potential flow, apparent mass."
+    sections:
+      - "6.1 Relevance of Irrotational Constant-Density Flow Theory"
+      - "6.2 Two-Dimensional Stream Function and Velocity Potential"
+      - "6.3 Construction of Elementary Flows in Two Dimensions"
+      - "6.4 Complex Potential"
+      - "6.5 Forces on a Two-Dimensional Body"
+      - "6.6 Conformal Mapping"
+      - "6.7 Numerical Solution Techniques in Two Dimensions"
+      - "6.8 Axisymmetric Ideal Flow"
+      - "6.9 Three-Dimensional Potential Flow and Apparent Mass"
+      - "6.10 Concluding Remarks"
+    viz_seeds:
+      - "superposition sandbox: uniform flow + source/sink/doublet/vortex -> Rankine oval, cylinder, lifting cylinder"
+      - "cylinder with circulation: stagnation points move, lift = rho U Gamma, zero drag (d'Alembert)"
+      - "complex potential and conformal mapping of a circle"
+      - "source-panel method: discretise a body and watch Cp converge to the exact result"
+      - "apparent (added) mass of an accelerating body"
+  - id: ch07
+    number: 7
+    title: "Gravity Waves"
+    slug: gravity_waves
+    pdf_start: 280
+    pdf_end: 335
+    printed_start: 253
+    printed_end: 308
+    do_chapter: true
+    blurb: "Linear surface gravity waves: dispersion, particle orbits, deep/shallow limits, capillarity, standing waves, group velocity and energy flux, nonlinear waves, interfacial and internal waves."
+    sections:
+      - "7.1 Introduction"
+      - "7.2 Linear Liquid-Surface Gravity Waves"
+      - "7.3 Influence of Surface Tension"
+      - "7.4 Standing Waves"
+      - "7.5 Group Velocity, Energy Flux, and Dispersion"
+      - "7.6 Nonlinear Waves in Shallow and Deep Water"
+      - "7.7 Waves on a Density Interface"
+      - "7.8 Internal Waves in a Continuously Stratified Fluid"
+    viz_seeds:
+      - "dispersion relation omega^2 = g k tanh(k H): phase speed vs wavelength, deep vs shallow"
+      - "particle orbits under a progressive wave: circles in deep water, flattened ellipses in shallow water"
+      - "group vs phase velocity: crests moving through a wave-packet envelope"
+      - "capillary-gravity waves and the minimum phase speed"
+      - "internal waves in a stratified fluid: frequency sets the propagation angle (omega = N cos theta)"
+  - id: ch08
+    number: 8
+    title: "Laminar Flow"
+    slug: laminar_flow
+    pdf_start: 336
+    pdf_end: 387
+    printed_start: 309
+    printed_end: 360
+    do_chapter: true
+    blurb: "Exact viscous solutions (Couette, Poiseuille, pipe), lubrication, similarity solutions for unsteady flow, oscillating plate, low-Reynolds-number flow past a sphere."
+    sections:
+      - "8.1 Introduction"
+      - "8.2 Exact Solutions for Steady Incompressible Viscous Flow"
+      - "8.3 Elementary Lubrication Theory"
+      - "8.4 Similarity Solutions for Unsteady Incompressible Viscous Flow"
+      - "8.5 Flow Due to an Oscillating Plate"
+      - "8.6 Low Reynolds Number Viscous Flow Past a Sphere"
+      - "8.7 Final Remarks"
+    viz_seeds:
+      - "Couette-Poiseuille superposition with pressure gradient and wall speed (backflow)"
+      - "lubrication: pressure build-up under a slider bearing"
+      - "Stokes' first problem: impulsively started plate and the similarity collapse eta = y / (2 sqrt(nu t))"
+      - "Stokes' second problem: oscillating plate, penetration depth and phase lag"
+      - "creeping flow past a sphere: Stokes drag and fore-aft symmetric streamlines"
+  - id: ch09
+    number: 9
+    title: "Boundary Layers and Related Topics"
+    slug: boundary_layers
+    pdf_start: 388
+    pdf_end: 447
+    printed_start: 361
+    printed_end: 420
+    do_chapter: true
+    blurb: "Boundary-layer approximation, thickness definitions, Blasius and Falkner-Skan similarity, momentum integral, Thwaites' method, transition and separation, flow past cylinders and spheres, jets, secondary flows."
+    sections:
+      - "9.1 Introduction"
+      - "9.2 Boundary-Layer Thickness Definitions"
+      - "9.3 Boundary Layer on a Flat Plate: Blasius Solution"
+      - "9.4 Falkner-Skan Similarity Solutions of the Laminar Boundary-Layer Equations"
+      - "9.5 Von Karman Momentum Integral Equation"
+      - "9.6 Thwaites’ Method"
+      - "9.7 Transition, Pressure Gradients, and Boundary-Layer Separation"
+      - "9.8 Flow Past a Circular Cylinder"
+      - "9.9 Flow Past a Sphere and the Dynamics of Sports Balls"
+      - "9.10 Two-Dimensional Jets"
+      - "9.11 Secondary Flows"
+    viz_seeds:
+      - "boundary-layer growth and the three thicknesses (delta_99, displacement, momentum)"
+      - "Blasius similarity collapse: profiles at different x fall on one curve"
+      - "Falkner-Skan family: favourable vs adverse pressure gradient and separation"
+      - "flow past a circular cylinder vs Reynolds number: separation, wake, shedding, drag crisis"
+      - "laminar two-dimensional jet spreading"
+  - id: ch10
+    number: 10
+    title: "Computational Fluid Dynamics"
+    slug: computational_fluid_dynamics
+    pdf_start: 448
+    pdf_end: 499
+    printed_start: 421
+    printed_end: 472
+    do_chapter: true
+    blurb: "Finite differences (accuracy, stability, von Neumann analysis), finite elements, incompressible Navier-Stokes solvers on staggered grids, worked examples."
+    sections:
+      - "10.1 Introduction"
+      - "10.2 Finite-Difference Method"
+      - "10.3 Finite-Element Method"
+      - "10.4 Incompressible Viscous Fluid Flow"
+      - "10.5 Three Examples"
+      - "10.6 Concluding Remarks"
+    viz_seeds:
+      - "finite-difference stencils and truncation error: observed order on a log-log plot"
+      - "von Neumann stability: CFL / diffusion-number slider, amplification factor and blow-up"
+      - "numerical diffusion and dispersion: upwind vs central advection"
+      - "projection method with a pressure Poisson solve on a staggered grid (lid-driven cavity)"
+      - "finite-element hat functions assembling a 1-D solution"
+  - id: ch11
+    number: 11
+    title: "Instability"
+    slug: instability
+    pdf_start: 500
+    pdf_end: 567
+    printed_start: 473
+    printed_end: 540
+    do_chapter: true
+    blurb: "Normal modes, Kelvin-Helmholtz, Rayleigh-Benard, double diffusion, Taylor-Couette, stratified shear flows, Squire and Orr-Sommerfeld, inviscid criteria, transition, deterministic chaos."
+    sections:
+      - "11.1 Introduction"
+      - "11.2 Method of Normal Modes"
+      - "11.3 Kelvin-Helmholtz Instability"
+      - "11.4 Thermal Instability: The Bénard Problem"
+      - "11.5 Double-Diffusive Instability"
+      - "11.6 Centrifugal Instability: Taylor Problem"
+      - "11.7 Instability of Continuously Stratified Parallel Flows"
+      - "11.8 Squire’s Theorem and the Orr-Sommerfeld Equation"
+      - "11.9 Inviscid Stability of Parallel Flows"
+      - "11.10 Results for Parallel and Nearly Parallel Viscous Flows"
+      - "11.11 Experimental Verification of Boundary-Layer Instability"
+      - "11.12 Comments on Nonlinear Effects"
+      - "11.13 Transition"
+      - "11.14 Deterministic Chaos"
+    viz_seeds:
+      - "method of normal modes: growth rate vs wavenumber, which wavelengths grow"
+      - "Kelvin-Helmholtz instability with gravity and surface tension: the stability boundary"
+      - "Rayleigh-Benard: neutral curve Ra(k), onset near Ra_c = 1708, convection rolls"
+      - "stratified shear flow: Richardson-number criterion Ri < 1/4"
+      - "Lorenz system: sensitive dependence and the strange attractor"
+  - id: ch12
+    number: 12
+    title: "Turbulence"
+    slug: turbulence
+    pdf_start: 568
+    pdf_end: 647
+    printed_start: 541
+    printed_end: 620
+    do_chapter: true
+    blurb: "Statistics and Reynolds decomposition, correlations and spectra, averaged equations and Reynolds stress, isotropic turbulence, energy cascade, free shear flows, wall turbulence, modelling, stratified turbulence, Taylor dispersion."
+    sections:
+      - "12.1 Introduction"
+      - "12.2 Historical Notes"
+      - "12.3 Nomenclature and Statistics for Turbulent Flow"
+      - "12.4 Correlations and Spectra"
+      - "12.5 Averaged Equations of Motion"
+      - "12.6 Homogeneous Isotropic Turbulence"
+      - "12.7 Turbulent Energy Cascade and Spectrum"
+      - "12.8 Free Turbulent Shear Flows"
+      - "12.9 Wall-Bounded Turbulent Shear Flows"
+      - "12.10 Turbulence Modeling"
+      - "12.11 Turbulence in a Stratified Medium"
+      - "12.12 Taylor’s Theory of Turbulent Dispersion"
+      - "12.13 Concluding Remarks"
+    viz_seeds:
+      - "Reynolds decomposition of a signal: mean, fluctuation, averaging window, autocorrelation"
+      - "energy cascade and the Kolmogorov -5/3 spectrum: inertial range and dissipation scale vs Re"
+      - "law of the wall: viscous sublayer, buffer and log layers in wall units"
+      - "mixing-length / eddy-viscosity closure vs a laminar profile"
+      - "Taylor dispersion: spread ~ t^2 at short times, ~ t at long times"
+  - id: ch13
+    number: 13
+    title: "Geophysical Fluid Dynamics"
+    slug: geophysical_fluid_dynamics
+    pdf_start: 648
+    pdf_end: 717
+    printed_start: 621
+    printed_end: 690
+    do_chapter: true
+    blurb: "Stratification, equations on a rotating sphere, geostrophy, Ekman layers, shallow-water equations, gravity waves with rotation, Kelvin waves, potential vorticity, internal and Rossby waves, barotropic and baroclinic instability, geostrophic turbulence."
+    sections:
+      - "13.1 Introduction"
+      - "13.2 Vertical Variation of Density in the Atmosphere and Ocean"
+      - "13.3 Equations of Motion"
+      - "13.4 Approximate Equations for a Thin Layer on a Rotating Sphere"
+      - "13.5 Geostrophic Flow"
+      - "13.6 Ekman Layer at a Free Surface"
+      - "13.7 Ekman Layer on a Rigid Surface"
+      - "13.8 Shallow-Water Equations"
+      - "13.9 Normal Modes in a Continuously Stratified Layer"
+      - "13.10 High- and Low-Frequency Regimes in Shallow-Water Equations"
+      - "13.11 Gravity Waves with Rotation"
+      - "13.12 Kelvin Wave"
+      - "13.13 Potential Vorticity Conservation in Shallow-Water Theory"
+      - "13.14 Internal Waves"
+      - "13.15 Rossby Wave"
+      - "13.16 Barotropic Instability"
+      - "13.17 Baroclinic Instability"
+      - "13.18 Geostrophic Turbulence"
+    viz_seeds:
+      - "geostrophic balance and adjustment: pressure gradient vs Coriolis, flow along isobars (Rossby number)"
+      - "Ekman spiral and Ekman transport 90 degrees to the wind"
+      - "Kelvin wave trapped against a coast, decaying over the Rossby radius"
+      - "Rossby waves: westward phase propagation from potential-vorticity conservation on a beta plane"
+      - "baroclinic instability: Eady growth rate vs wavenumber"
+  - id: ch14
+    number: 14
+    title: "Aerodynamics"
+    slug: aerodynamics
+    pdf_start: 718
+    pdf_end: 755
+    printed_start: 691
+    printed_end: 728
+    do_chapter: true
+    blurb: "Airfoil geometry and characteristics, Zhukhovsky transformation, Kutta condition and lift, lifting-line theory and induced drag, lift and drag characteristics, animal propulsion, sailing."
+    sections:
+      - "14.1 Introduction"
+      - "14.2 Aircraft Terminology"
+      - "14.3 Characteristics of Airfoil Sections"
+      - "14.4 Conformal Transformation for Generating Airfoil Shapes"
+      - "14.5 Lift of a Zhukhovsky Airfoil"
+      - "14.6 Elementary Lifting Line Theory for Wings of Finite Span"
+      - "14.7 Lift and Drag Characteristics of Airfoils"
+      - "14.8 Propulsive Mechanisms of Fish and Birds"
+      - "14.9 Sailing against the Wind"
+    viz_seeds:
+      - "Zhukhovsky transformation: circle offsets set the airfoil's camber and thickness"
+      - "Kutta condition and the starting vortex: choosing the circulation that makes flow leave the trailing edge"
+      - "lift coefficient vs angle of attack (2 pi alpha) and stall"
+      - "lifting-line theory: elliptic loading, downwash and induced drag vs aspect ratio"
+      - "sailing against the wind: force decomposition"
+  - id: ch15
+    number: 15
+    title: "Compressible Flow"
+    slug: compressible_flow
+    pdf_start: 756
+    pdf_end: 805
+    printed_start: 729
+    printed_end: 778
+    do_chapter: true
+    blurb: "Acoustics, 1-D compressible flow, stagnation and sonic reference states, area-velocity relation, normal shocks, nozzles at different back pressures, Fanno and Rayleigh flow, planar pressure waves, supersonic thin airfoils."
+    sections:
+      - "15.1 Introduction"
+      - "15.2 Acoustics"
+      - "15.3 Basic Equations for One-Dimensional Flow"
+      - "15.4 Reference Properties in Compressible Flow"
+      - "15.5 Area-Velocity Relationship in One-Dimensional Isentropic Flow"
+      - "15.6 Normal Shock Waves"
+      - "15.7 Operation of Nozzles at Different Back Pressures"
+      - "15.8 Effects of Friction and Heating in Constant-Area Ducts"
+      - "15.9 Pressure Waves in Planar Compressible Flow"
+      - "15.10 Thin Airfoil Theory in Supersonic Flow"
+    viz_seeds:
+      - "area-Mach relation: why a nozzle must converge then diverge to go supersonic"
+      - "converging-diverging nozzle at different back pressures: choking and the normal-shock position"
+      - "normal-shock jump conditions vs upstream Mach number (entropy rise)"
+      - "Fanno and Rayleigh flow: friction and heating drive the flow toward M = 1"
+      - "oblique shock and Prandtl-Meyer expansion around a corner; the Mach cone"
+  - id: ch16
+    number: 16
+    title: "Introduction to Biofluid Mechanics"
+    slug: biofluid_mechanics
+    pdf_start: 806
+    pdf_end: 879
+    printed_start: 779
+    printed_end: 852
+    do_chapter: true
+    blurb: "The circulatory system, blood rheology, pulsatile flow in arteries, waves in elastic tubes, collapsible tubes and microcirculation, fluid mechanics of plants."
+    sections:
+      - "16.1 Introduction"
+      - "16.2 The Circulatory System in the Human Body"
+      - "16.3 Modeling of Flow in Blood Vessels"
+      - "16.4 Introduction to the Fluid Mechanics of Plants"
+    viz_seeds:
+      - "Womersley pulsatile flow: profile shape vs Womersley number (parabolic -> plug, phase lag)"
+      - "pressure-pulse propagation in an elastic artery (Moens-Korteweg speed) and reflections"
+      - "non-Newtonian blood: shear-thinning / Casson yield stress vs Newtonian profile"
+      - "Murray's law for branching vessels"
+      - "xylem ascent: transpiration, capillarity and cohesion-tension"
+
+appendices:   # reference only (constants, fluid properties, math tools): agents may read them; never published
+  - id: appA
+    title: "Appendix A — Conversion Factors, Constants, and Fluid Properties"
+    pdf_start: 880
+    pdf_end: 883
+    do_chapter: false
+  - id: appB
+    title: "Appendix B — Mathematical Tools and Resources"
+    pdf_start: 884
+    pdf_end: 895
+    do_chapter: false
+  - id: appC
+    title: "Appendix C — Founders of Modern Fluid Dynamics"
+    pdf_start: 896
+    pdf_end: 899
+    do_chapter: false
+  - id: appD
+    title: "Appendix D — Visual Resources"
+    pdf_start: 900
+    pdf_end: 901
+    do_chapter: false

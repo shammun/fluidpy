@@ -1,0 +1,3 @@
+# Only what Google Colab does not already have. Do NOT add numpy/scipy/matplotlib/plotly/ipywidgets/pandas/sympy:
+# re-pinning them makes pip upgrade Colab's copies and forces a runtime restart. Colab has ffmpeg on PATH.
+pint>=0.23

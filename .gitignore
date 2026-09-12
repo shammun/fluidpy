@@ -1,0 +1,28 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+*.log
+~$*
+~WRL*.tmp
+
+# local products
+outputs/
+reports/viz/
+notebooks/executed_*.ipynb
+data/online/*
+!data/online/SOURCES.md
+data/synthetic/
+
+# --- PUBLIC REPO: nothing derived from the copyrighted book may be committed (CLAUDE.md rule 9) ---
+*.pdf
+*.zip
+chapters/*
+!chapters/_page_map.json
+data/book/
+data/manual/
+tests/book_values_*.json
+reports/**/figures/
+_archive/
+prompt.docx

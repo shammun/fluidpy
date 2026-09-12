@@ -1,0 +1,1062 @@
+/* ======================================================================================================
+   viz_lib.js — the engine behind every fluidpy interactive explainer (viz/chNN/<slug>.html).
+
+   One call builds a whole explainer that FITS THE WINDOW (no page scroll, no panel scroll):
+
+     const app = Viz.app({
+       title, subtitle,
+       params:    { k: {label, min, max, step, value, unit, help, log, fmt}, deep: {type:'toggle', ...},
+                    mode: {type:'select', options:[['a','Label A'], ...], value} },
+       readouts:  [ {id, label, unit, value: s => number, fmt?, tone?: s => 'pos'|'neg'|''} ],
+       stage:     { setup(g), draw(g, s), animate: true|false, onPointer(g, ev, s) },
+       explore:   { intro: 'html with $inline tex$', controls: ['k','deep'], callouts: [{kind:'try'|'key'|'watch'|'warn', html}] },
+       tour:      [ {title, text, set:{k:1}, controls:['k'], eq:'disp', highlight:['readout:c'], enter(app)} ],
+       equations: [ {id, title, ref:'Eq. (7.27)', tex, live: s => tex, note, symbols:[[tex, meaning, unit]]} ],
+       check:     [ {q, a, set?:{...}} ],
+       panels:    [ {id, label, short, render(el, app)} ],          // optional extra tabs
+       selftest:  () => [ {name, js, py?, expect?, rtol?, atol?} ], // parity with fluidpy (py) or JS-only (expect)
+       onChange(s, key, app)
+     });
+
+   Layout: header (title | tabs | actions) + main (stage | side panel of the active tab).
+   Fit algorithm (Viz.fit): choose data-layout (wide | portrait | landscape) from the box size → raise data-dense
+   0..3 until nothing overflows → paginate long lists (equations, questions, controls) into pages → if anything
+   still overflows, console.warn('VIZ-OVERFLOW', …) so tools/shot.py fails the build.
+
+   Audit hooks for tools/shot.py: window.VIZ = { app, ready, audit(), selftest(), setTab(id), goStep(i), tabs, steps }.
+   URL hash deep links: #tab=equations&step=3&k=0.25
+
+   Inlined verbatim into each explainer by tools/viz_inline.py between the VIZ_LIB_JS markers — edit THIS file,
+   then run `python tools/viz_inline.py --all`. No dependencies; KaTeX is loaded from a CDN with a text fallback.
+   ====================================================================================================== */
+/* VIZ_LIB_JS:BEGIN */
+(function (global) {
+  'use strict';
+  var Viz = { version: '1.0.0' };
+  var doc = global.document;
+
+  /* ------------------------------------------------------------------------------------------------
+     0. small utilities
+     ------------------------------------------------------------------------------------------------ */
+  function h(tag, attrs) {
+    var el = doc.createElement(tag);
+    if (attrs) {
+      for (var k in attrs) {
+        if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
+        var v = attrs[k];
+        if (v === null || v === undefined || v === false) continue;
+        if (k === 'class') el.className = v;
+        else if (k === 'html') el.innerHTML = v;
+        else if (k === 'text') el.textContent = v;
+        else if (k.slice(0, 2) === 'on' && typeof v === 'function') el.addEventListener(k.slice(2), v);
+        else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+        else el.setAttribute(k, v === true ? '' : String(v));
+      }
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c === null || c === undefined || c === false) continue;
+      if (Array.isArray(c)) c.forEach(function (x) { if (x) el.appendChild(typeof x === 'string' ? doc.createTextNode(x) : x); });
+      else el.appendChild(typeof c === 'string' ? doc.createTextNode(c) : c);
+    }
+    return el;
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function isFn(f) { return typeof f === 'function'; }
+  function safeStorage() { try { var s = global.localStorage; s.setItem('__viz', '1'); s.removeItem('__viz'); return s; } catch (e) { return null; } }
+  var STORE = safeStorage();
+  Viz.h = h; Viz.esc = esc; Viz.clamp = clamp; Viz.lerp = lerp;
+
+  var SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  /** Format a number for humans: 3 significant figures, ×10ⁿ outside [1e-3, 1e5), optional unit. */
+  function fmt(v, opt) {
+    opt = opt || {};
+    var sig = opt.sig || 3, unit = opt.unit ? ' ' + opt.unit : '';
+    if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return '—';
+    if (typeof v !== 'number') return String(v) + unit;
+    if (!isFinite(v)) return (v > 0 ? '∞' : '−∞') + unit;
+    if (v === 0) return '0' + unit;
+    var a = Math.abs(v), s;
+    if (a >= 1e-3 && a < 1e5) {
+      s = Number(v.toPrecision(sig)).toString();
+      if (Math.abs(Number(s)) >= Math.pow(10, sig)) s = Math.round(v).toString();
+    } else {
+      var e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
+      if (Math.abs(Number(m.toPrecision(sig))) >= 10) { m /= 10; e += 1; }
+      s = Number(m.toPrecision(sig)).toString() + '×10' + String(e).split('').map(function (c) { return SUP[c]; }).join('');
+    }
+    return (opt.plus && v > 0 ? '+' : '') + s.replace('-', '−') + unit;
+  }
+  /** Same, as a TeX string (for live equations): 1.23\times10^{-4}. */
+  function tnum(v, sig) {
+    sig = sig || 3;
+    if (typeof v !== 'number' || !isFinite(v)) return '\\text{' + fmt(v) + '}';
+    if (v === 0) return '0';
+    var a = Math.abs(v);
+    if (a >= 1e-3 && a < 1e5) return Number(v.toPrecision(sig)).toString();
+    var e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
+    return Number(m.toPrecision(sig)).toString() + '\\times10^{' + e + '}';
+  }
+  Viz.fmt = fmt; Viz.tnum = tnum;
+
+  /* ------------------------------------------------------------------------------------------------
+     1. numerics (mirror numpy/scipy names so the parity with fluidpy is easy to read)
+     ------------------------------------------------------------------------------------------------ */
+  var num = {};
+  num.linspace = function (a, b, n) { var out = new Array(n); if (n === 1) { out[0] = a; return out; } for (var i = 0; i < n; i++) out[i] = a + (b - a) * i / (n - 1); return out; };
+  num.arange = function (a, b, step) { var out = []; for (var x = a; step > 0 ? x < b - 1e-12 : x > b + 1e-12; x += step) out.push(x); return out; };
+  num.sum = function (arr) { var s = 0; for (var i = 0; i < arr.length; i++) s += arr[i]; return s; };
+  num.max = function (arr) { var m = -Infinity; for (var i = 0; i < arr.length; i++) if (arr[i] > m) m = arr[i]; return m; };
+  num.min = function (arr) { var m = Infinity; for (var i = 0; i < arr.length; i++) if (arr[i] < m) m = arr[i]; return m; };
+  num.trapz = function (y, x) { var s = 0; for (var i = 1; i < y.length; i++) s += 0.5 * (y[i] + y[i - 1]) * (x[i] - x[i - 1]); return s; };
+  /** One classical RK4 step for y' = f(t, y); y is an array. */
+  num.rk4Step = function (f, t, y, dt) {
+    var n = y.length, k1 = f(t, y), y2 = new Array(n), y3 = new Array(n), y4 = new Array(n), i;
+    for (i = 0; i < n; i++) y2[i] = y[i] + 0.5 * dt * k1[i];
+    var k2 = f(t + 0.5 * dt, y2);
+    for (i = 0; i < n; i++) y3[i] = y[i] + 0.5 * dt * k2[i];
+    var k3 = f(t + 0.5 * dt, y3);
+    for (i = 0; i < n; i++) y4[i] = y[i] + dt * k3[i];
+    var k4 = f(t + dt, y4), out = new Array(n);
+    for (i = 0; i < n; i++) out[i] = y[i] + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+    return out;
+  };
+  /** Integrate y' = f(t, y) with fixed-step RK4 over the times ts (substeps per interval). Returns array of states. */
+  num.odeint = function (f, y0, ts, substeps) {
+    substeps = substeps || 4;
+    var ys = [y0.slice()], y = y0.slice();
+    for (var i = 1; i < ts.length; i++) {
+      var dt = (ts[i] - ts[i - 1]) / substeps, t = ts[i - 1];
+      for (var j = 0; j < substeps; j++) { y = num.rk4Step(f, t, y, dt); t += dt; }
+      ys.push(y.slice());
+    }
+    return ys;
+  };
+  /** Brent-style bracketing root finder (bisection + secant safeguard). Throws if not bracketed. */
+  num.brentq = function (f, a, b, tol, maxit) {
+    tol = tol || 1e-12; maxit = maxit || 200;
+    var fa = f(a), fb = f(b);
+    if (fa === 0) return a; if (fb === 0) return b;
+    if (fa * fb > 0) throw new Error('brentq: root not bracketed on [' + a + ', ' + b + ']');
+    var c = a, fc = fa, d = b - a, e = d;
+    for (var it = 0; it < maxit; it++) {
+      if (fb * fc > 0) { c = a; fc = fa; d = b - a; e = d; }
+      if (Math.abs(fc) < Math.abs(fb)) { a = b; b = c; c = a; fa = fb; fb = fc; fc = fa; }
+      var tol1 = 2 * 2.2e-16 * Math.abs(b) + 0.5 * tol, xm = 0.5 * (c - b);
+      if (Math.abs(xm) <= tol1 || fb === 0) return b;
+      if (Math.abs(e) >= tol1 && Math.abs(fa) > Math.abs(fb)) {
+        var s = fb / fa, p, q, r;
+        if (a === c) { p = 2 * xm * s; q = 1 - s; }
+        else { q = fa / fc; r = fb / fc; p = s * (2 * xm * q * (q - r) - (b - a) * (r - 1)); q = (q - 1) * (r - 1) * (s - 1); }
+        if (p > 0) q = -q; else p = -p;
+        if (2 * p < Math.min(3 * xm * q - Math.abs(tol1 * q), Math.abs(e * q))) { e = d; d = p / q; }
+        else { d = xm; e = d; }
+      } else { d = xm; e = d; }
+      a = b; fa = fb;
+      b += Math.abs(d) > tol1 ? d : (xm > 0 ? tol1 : -tol1);
+      fb = f(b);
+    }
+    return b;
+  };
+  /** erf with |error| < 1.2e-7 (Numerical Recipes erfc Chebyshev fit). Good for display; parity tests use rtol ≥ 1e-6. */
+  num.erfc = function (x) {
+    var z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+    var r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 +
+      t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+    return x >= 0 ? r : 2 - r;
+  };
+  num.erf = function (x) { return 1 - num.erfc(x); };
+  /** Complex numbers as [re, im] — for potential flow and conformal maps. */
+  num.C = {
+    add: function (a, b) { return [a[0] + b[0], a[1] + b[1]]; },
+    sub: function (a, b) { return [a[0] - b[0], a[1] - b[1]]; },
+    mul: function (a, b) { return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]; },
+    div: function (a, b) { var d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; },
+    scale: function (a, s) { return [a[0] * s, a[1] * s]; },
+    abs: function (a) { return Math.hypot(a[0], a[1]); },
+    arg: function (a) { return Math.atan2(a[1], a[0]); },
+    exp: function (a) { var e = Math.exp(a[0]); return [e * Math.cos(a[1]), e * Math.sin(a[1])]; },
+    log: function (a) { return [Math.log(Math.hypot(a[0], a[1])), Math.atan2(a[1], a[0])]; },
+    pow: function (a, p) { var r = Math.pow(Math.hypot(a[0], a[1]), p), t = Math.atan2(a[1], a[0]) * p; return [r * Math.cos(t), r * Math.sin(t)]; },
+    conj: function (a) { return [a[0], -a[1]]; }
+  };
+  /** "Nice" axis ticks between a and b (about n ticks). */
+  num.niceTicks = function (a, b, n) {
+    n = n || 5;
+    if (!(isFinite(a) && isFinite(b)) || a === b) return [a];
+    var lo = Math.min(a, b), hi = Math.max(a, b), span = hi - lo, raw = span / n;
+    var mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    var step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
+    var out = [], start = Math.ceil(lo / step - 1e-9) * step;
+    for (var x = start; x <= hi + step * 1e-9; x += step) out.push(Math.abs(x) < step * 1e-9 ? 0 : x);
+    return out;
+  };
+  Viz.num = num;
+
+  /* ------------------------------------------------------------------------------------------------
+     2. colours and colormaps
+     ------------------------------------------------------------------------------------------------ */
+  var CMAPS = {
+    viridis: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
+    coolwarm: ['#3b4cc0', '#6282ea', '#8db0fe', '#b8d0f9', '#dddcdc', '#f5c4ac', '#f39b7a', '#dc5d4a', '#b40426'],
+    blues: ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'],
+    ocean: ['#0b1d3a', '#12406b', '#176b95', '#2f97b3', '#6cc0c9', '#b4e3dc', '#effaf5']
+  };
+  function hex2rgb(hx) { var n = parseInt(hx.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  var CMAP_RGB = {};
+  /** Colormap lookup: returns [r,g,b] (0..255) for t in [0,1]. */
+  function cmap(name, t) {
+    var stops = CMAP_RGB[name] || (CMAP_RGB[name] = (CMAPS[name] || CMAPS.viridis).map(hex2rgb));
+    t = clamp(isFinite(t) ? t : 0, 0, 1) * (stops.length - 1);
+    var i = Math.min(Math.floor(t), stops.length - 2), f = t - i, a = stops[i], b = stops[i + 1];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  }
+  Viz.cmap = cmap; Viz.CMAPS = CMAPS;
+  /** Read a design token from viz_base.css, e.g. Viz.color('accent') → '#6c5ce7' (follows the theme). */
+  Viz.color = function (name) {
+    var v = getComputedStyle(doc.documentElement).getPropertyValue('--viz-' + name).trim();
+    return v || '#6c5ce7';
+  };
+  Viz.alpha = function (color, a) {
+    if (color.charAt(0) === '#') { var c = hex2rgb(color.length === 4 ? '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3] : color); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+    return color;
+  };
+
+  /* ------------------------------------------------------------------------------------------------
+     3. KaTeX (CDN, two mirrors, text fallback) and inline $…$ in HTML strings
+     ------------------------------------------------------------------------------------------------ */
+  var KATEX_VER = '0.16.11';
+  var KATEX_SRC = [
+    'https://cdn.jsdelivr.net/npm/katex@' + KATEX_VER + '/dist/',
+    'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/' + KATEX_VER + '/'
+  ];
+  var katexPromise = null;
+  function loadKatex() {
+    if (katexPromise) return katexPromise;
+    katexPromise = new Promise(function (resolve) {
+      if (global.katex) { resolve(true); return; }
+      var i = 0, done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(false); } }, 6000);
+      function attempt() {
+        if (i >= KATEX_SRC.length) { if (!done) { done = true; clearTimeout(timer); resolve(false); } return; }
+        var base = KATEX_SRC[i++];
+        var link = h('link', { rel: 'stylesheet', href: base + 'katex.min.css' });
+        doc.head.appendChild(link);
+        var s = h('script', { src: base + 'katex.min.js' });
+        s.onload = function () { if (!done && global.katex) { done = true; clearTimeout(timer); resolve(true); } };
+        s.onerror = function () { link.remove(); s.remove(); attempt(); };
+        doc.head.appendChild(s);
+      }
+      attempt();
+    });
+    return katexPromise;
+  }
+  function renderTex(el, tex, display) {
+    if (global.katex) {
+      try { global.katex.render(tex, el, { displayMode: !!display, throwOnError: false, strict: 'ignore', trust: false }); return; }
+      catch (e) { /* fall through */ }
+    }
+    el.innerHTML = '<span class="viz-tex-fallback">' + esc(tex) + '</span>';
+    el.setAttribute('data-tex-pending', '1');
+    el._vizTex = [tex, display];
+  }
+  /** Turn "$a+b$" and "$$…$$" inside an HTML string into math spans (rendered by Viz.typeset). */
+  function mathify(html) {
+    if (!html) return '';
+    return String(html)
+      .replace(/\$\$([\s\S]+?)\$\$/g, function (_, t) { return '<span class="viz-tex" data-display="1" data-tex="' + esc(t) + '"></span>'; })
+      .replace(/\$([^$\n]+?)\$/g, function (_, t) { return '<span class="viz-tex" data-tex="' + esc(t) + '"></span>'; });
+  }
+  function typeset(root) {
+    var spans = (root || doc).querySelectorAll('.viz-tex[data-tex]');
+    for (var i = 0; i < spans.length; i++) renderTex(spans[i], spans[i].getAttribute('data-tex'), spans[i].getAttribute('data-display') === '1');
+  }
+  function retypesetPending() {
+    var els = doc.querySelectorAll('[data-tex-pending]');
+    for (var i = 0; i < els.length; i++) { var p = els[i]._vizTex; els[i].removeAttribute('data-tex-pending'); if (p) renderTex(els[i], p[0], p[1]); }
+  }
+  Viz.loadKatex = loadKatex; Viz.renderTex = renderTex; Viz.mathify = mathify; Viz.typeset = typeset;
+
+  /* ------------------------------------------------------------------------------------------------
+     4. canvas + 2-D plotting in world coordinates
+     ------------------------------------------------------------------------------------------------ */
+  /** Axis-aligned plot in a pixel rectangle of the stage canvas. All drawing calls take WORLD coordinates. */
+  function Plot(g, opt) {
+    opt = opt || {};
+    var ctx = g.ctx, pad = Object.assign({ l: 48, r: 12, t: 12, b: 38 }, opt.pad || {});
+    var rect = opt.rect || { x: 0, y: 0, w: g.w, h: g.h };
+    if (g.w < 420) { pad.l = Math.min(pad.l, 40); pad.b = Math.min(pad.b, 34); }
+    var px0 = rect.x + pad.l, py0 = rect.y + pad.t, pw = Math.max(10, rect.w - pad.l - pad.r), ph = Math.max(10, rect.h - pad.t - pad.b);
+    var xl = (opt.xlim || [0, 1]).slice(), yl = (opt.ylim || [0, 1]).slice();
+    if (opt.equal) { // same scale on both axes: expand the shorter range
+      var sx = pw / (xl[1] - xl[0]), sy = ph / (yl[1] - yl[0]), s = Math.min(sx, sy);
+      var cx = (xl[0] + xl[1]) / 2, cy = (yl[0] + yl[1]) / 2;
+      xl = [cx - pw / s / 2, cx + pw / s / 2]; yl = [cy - ph / s / 2, cy + ph / s / 2];
+    }
+    var P = {
+      g: g, ctx: ctx, xlim: xl, ylim: yl, px: { x: px0, y: py0, w: pw, h: ph }, rect: rect,
+      X: function (x) { return px0 + (x - xl[0]) / (xl[1] - xl[0]) * pw; },
+      Y: function (y) { return py0 + ph - (y - yl[0]) / (yl[1] - yl[0]) * ph; },
+      ix: function (px) { return xl[0] + (px - px0) / pw * (xl[1] - xl[0]); },
+      iy: function (py) { return yl[0] + (py0 + ph - py) / ph * (yl[1] - yl[0]); },
+      sx: function (dx) { return dx / (xl[1] - xl[0]) * pw; },
+      sy: function (dy) { return dy / (yl[1] - yl[0]) * ph; },
+      inside: function (px, py) { return px >= px0 && px <= px0 + pw && py >= py0 && py <= py0 + ph; }
+    };
+    P.clip = function (fn) { ctx.save(); ctx.beginPath(); ctx.rect(px0, py0, pw, ph); ctx.clip(); try { fn(P); } finally { ctx.restore(); } };
+    P.frame = function () {
+      ctx.save(); ctx.strokeStyle = Viz.color('border'); ctx.lineWidth = 1; ctx.strokeRect(px0 + 0.5, py0 + 0.5, pw - 1, ph - 1); ctx.restore();
+    };
+    P.axes = function (o) {
+      o = Object.assign({ grid: true, xlabel: opt.xlabel, ylabel: opt.ylabel, xticks: null, yticks: null, zeroLines: true }, o || {});
+      var fs = g.w < 420 ? 11 : 12;
+      ctx.save();
+      ctx.font = fs + 'px ' + getComputedStyle(doc.body).fontFamily;
+      var xt = o.xticks || num.niceTicks(xl[0], xl[1], Math.max(2, Math.round(pw / 90)));
+      var yt = o.yticks || num.niceTicks(yl[0], yl[1], Math.max(2, Math.round(ph / 60)));
+      if (o.grid) {
+        ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1; ctx.beginPath();
+        xt.forEach(function (x) { var X = Math.round(P.X(x)) + 0.5; ctx.moveTo(X, py0); ctx.lineTo(X, py0 + ph); });
+        yt.forEach(function (y) { var Y = Math.round(P.Y(y)) + 0.5; ctx.moveTo(px0, Y); ctx.lineTo(px0 + pw, Y); });
+        ctx.stroke();
+      }
+      if (o.zeroLines) {
+        ctx.strokeStyle = Viz.alpha(Viz.color('axis'), 0.55); ctx.beginPath();
+        if (xl[0] < 0 && xl[1] > 0) { var X0 = Math.round(P.X(0)) + 0.5; ctx.moveTo(X0, py0); ctx.lineTo(X0, py0 + ph); }
+        if (yl[0] < 0 && yl[1] > 0) { var Y0 = Math.round(P.Y(0)) + 0.5; ctx.moveTo(px0, Y0); ctx.lineTo(px0 + pw, Y0); }
+        ctx.stroke();
+      }
+      P.frame();
+      ctx.fillStyle = Viz.color('axis');
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      xt.forEach(function (x) { ctx.fillText(fmt(x, { sig: 3 }), P.X(x), py0 + ph + 4); });
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      yt.forEach(function (y) { ctx.fillText(fmt(y, { sig: 3 }), px0 - 5, P.Y(y)); });
+      ctx.fillStyle = Viz.color('text-soft');
+      if (o.xlabel) { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(o.xlabel, px0 + pw / 2, rect.y + rect.h - 1); }
+      if (o.ylabel) { ctx.save(); ctx.translate(rect.x + 11, py0 + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.ylabel, 0, 0); ctx.restore(); }
+      ctx.restore();
+      return P;
+    };
+    function style(o) {
+      o = o || {};
+      ctx.strokeStyle = o.color || Viz.color('accent'); ctx.fillStyle = o.fill || o.color || Viz.color('accent');
+      ctx.lineWidth = o.width || 2; ctx.setLineDash(o.dash || []); ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    }
+    P.line = function (xs, ys, o) {
+      ctx.save(); style(o); ctx.beginPath(); var started = false;
+      for (var i = 0; i < xs.length; i++) {
+        var X = P.X(xs[i]), Y = P.Y(ys[i]);
+        if (!isFinite(X) || !isFinite(Y)) { started = false; continue; }
+        if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+      }
+      ctx.stroke(); ctx.restore(); return P;
+    };
+    P.poly = function (pts, o) { return P.line(pts.map(function (p) { return p[0]; }), pts.map(function (p) { return p[1]; }), o); };
+    P.fn = function (f, o) { o = o || {}; var n = o.n || Math.max(64, Math.round(pw)); var xs = num.linspace(o.x0 === undefined ? xl[0] : o.x0, o.x1 === undefined ? xl[1] : o.x1, n); return P.line(xs, xs.map(f), o); };
+    P.fillBetween = function (xs, y1, y2, o) {
+      ctx.save(); style(o); ctx.globalAlpha = o && o.alpha !== undefined ? o.alpha : 0.2; ctx.beginPath();
+      for (var i = 0; i < xs.length; i++) { var Y1 = P.Y(Array.isArray(y1) ? y1[i] : y1); if (i === 0) ctx.moveTo(P.X(xs[i]), Y1); else ctx.lineTo(P.X(xs[i]), Y1); }
+      for (var j = xs.length - 1; j >= 0; j--) ctx.lineTo(P.X(xs[j]), P.Y(Array.isArray(y2) ? y2[j] : y2));
+      ctx.closePath(); ctx.fill(); ctx.restore(); return P;
+    };
+    P.dot = function (x, y, r, o) { ctx.save(); style(o); ctx.beginPath(); ctx.arc(P.X(x), P.Y(y), r || 4, 0, 2 * Math.PI); ctx.fill(); if (o && o.stroke) { ctx.strokeStyle = o.stroke; ctx.lineWidth = o.strokeWidth || 1.5; ctx.stroke(); } ctx.restore(); return P; };
+    P.rectW = function (x, y, w, hh, o) { ctx.save(); style(o); var X = P.X(x), Y = P.Y(y + hh); if (o && o.fill) { ctx.fillRect(X, Y, P.sx(w), P.sy(hh)); } if (!o || o.stroke !== false) ctx.strokeRect(X, Y, P.sx(w), P.sy(hh)); ctx.restore(); return P; };
+    /** Arrow from (x,y) by (dx,dy) in world units; head size in px. */
+    P.arrow = function (x, y, dx, dy, o) {
+      o = o || {}; var X0 = P.X(x), Y0 = P.Y(y), X1 = P.X(x + dx), Y1 = P.Y(y + dy);
+      var L = Math.hypot(X1 - X0, Y1 - Y0); if (L < 0.5) return P;
+      var head = Math.min(o.head || 8, L * 0.6), ang = Math.atan2(Y1 - Y0, X1 - X0);
+      ctx.save(); style(o); ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1 - head * 0.7 * Math.cos(ang), Y1 - head * 0.7 * Math.sin(ang)); ctx.stroke();
+      ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(X1, Y1);
+      ctx.lineTo(X1 - head * Math.cos(ang - 0.42), Y1 - head * Math.sin(ang - 0.42));
+      ctx.lineTo(X1 - head * Math.cos(ang + 0.42), Y1 - head * Math.sin(ang + 0.42));
+      ctx.closePath(); ctx.fillStyle = o.color || Viz.color('accent'); ctx.fill(); ctx.restore(); return P;
+    };
+    P.text = function (x, y, str, o) {
+      o = o || {}; ctx.save();
+      ctx.font = (o.weight || 500) + ' ' + (o.size || 12.5) + 'px ' + getComputedStyle(doc.body).fontFamily;
+      ctx.fillStyle = o.color || Viz.color('text'); ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.baseline || 'middle';
+      var X = P.X(x) + (o.dx || 0), Y = P.Y(y) + (o.dy || 0);
+      if (o.halo !== false) { ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.85); ctx.strokeText(str, X, Y); }
+      ctx.fillText(str, X, Y); ctx.restore(); return P;
+    };
+    return P;
+  }
+  Viz.Plot = Plot;
+
+  /* ------------------------------------------------------------------------------------------------
+     5. flow-field tools
+     ------------------------------------------------------------------------------------------------ */
+  var field = {};
+  /** Sample f(x, y) on an nx × ny node grid spanning xlim × ylim. Returns {v: Float64Array (row-major, j*nx+i), nx, ny, xs, ys}. */
+  field.grid = function (f, xlim, ylim, nx, ny) {
+    var xs = num.linspace(xlim[0], xlim[1], nx), ys = num.linspace(ylim[0], ylim[1], ny), v = new Float64Array(nx * ny);
+    for (var j = 0; j < ny; j++) for (var i = 0; i < nx; i++) v[j * nx + i] = f(xs[i], ys[j]);
+    return { v: v, nx: nx, ny: ny, xs: xs, ys: ys };
+  };
+  /** Marching squares: line segments [[x1,y1,x2,y2], …] of the level set G = level. */
+  field.contour = function (G, level) {
+    var segs = [], nx = G.nx, ny = G.ny, v = G.v, xs = G.xs, ys = G.ys;
+    function interp(x1, y1, v1, x2, y2, v2) { var t = (level - v1) / (v2 - v1); return [x1 + t * (x2 - x1), y1 + t * (y2 - y1)]; }
+    for (var j = 0; j < ny - 1; j++) for (var i = 0; i < nx - 1; i++) {
+      var a = v[j * nx + i], b = v[j * nx + i + 1], c = v[(j + 1) * nx + i + 1], d = v[(j + 1) * nx + i];
+      if (!(isFinite(a) && isFinite(b) && isFinite(c) && isFinite(d))) continue;
+      var idx = (a > level ? 1 : 0) | (b > level ? 2 : 0) | (c > level ? 4 : 0) | (d > level ? 8 : 0);
+      if (idx === 0 || idx === 15) continue;
+      var x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1], e = [];
+      var bottom = function () { return interp(x0, y0, a, x1, y0, b); }, right = function () { return interp(x1, y0, b, x1, y1, c); };
+      var top = function () { return interp(x0, y1, d, x1, y1, c); }, left = function () { return interp(x0, y0, a, x0, y1, d); };
+      switch (idx) {
+        case 1: case 14: e = [bottom(), left()]; break;
+        case 2: case 13: e = [bottom(), right()]; break;
+        case 3: case 12: e = [left(), right()]; break;
+        case 4: case 11: e = [right(), top()]; break;
+        case 6: case 9: e = [bottom(), top()]; break;
+        case 7: case 8: e = [left(), top()]; break;
+        case 5: e = [bottom(), right(), left(), top()]; break;   // saddle: pick one resolution
+        case 10: e = [bottom(), left(), right(), top()]; break;
+      }
+      for (var k = 0; k + 1 < e.length; k += 2) segs.push([e[k][0], e[k][1], e[k + 1][0], e[k + 1][1]]);
+    }
+    return segs;
+  };
+  /** Draw contour lines of G at the given levels. o: {color | colorFn(level), width, dash}. */
+  field.drawContours = function (P, G, levels, o) {
+    o = o || {}; var ctx = P.ctx;
+    P.clip(function () {
+      levels.forEach(function (lev, n) {
+        var segs = field.contour(G, lev);
+        ctx.save(); ctx.strokeStyle = o.colorFn ? o.colorFn(lev, n) : (o.color || Viz.color('accent'));
+        ctx.lineWidth = o.width || 1.4; ctx.setLineDash(o.dash || []); ctx.beginPath();
+        for (var s = 0; s < segs.length; s++) { ctx.moveTo(P.X(segs[s][0]), P.Y(segs[s][1])); ctx.lineTo(P.X(segs[s][2]), P.Y(segs[s][3])); }
+        ctx.stroke(); ctx.restore();
+      });
+    });
+  };
+  /** Colour image of f(x,y) (or a grid G) behind a plot. o: {cmap, vmin, vmax, nx, ny, alpha}. */
+  field.heatmap = function (P, f, o) {
+    o = o || {}; var nx = o.nx || 120, ny = o.ny || Math.max(40, Math.round(nx * P.px.h / P.px.w));
+    var G = f.v ? f : field.grid(f, P.xlim, P.ylim, nx, ny);
+    var vmin = o.vmin, vmax = o.vmax;
+    if (vmin === undefined || vmax === undefined) { var lo = Infinity, hi = -Infinity; for (var q = 0; q < G.v.length; q++) { if (isFinite(G.v[q])) { lo = Math.min(lo, G.v[q]); hi = Math.max(hi, G.v[q]); } } if (vmin === undefined) vmin = lo; if (vmax === undefined) vmax = hi; }
+    var off = doc.createElement('canvas'); off.width = G.nx; off.height = G.ny;
+    var octx = off.getContext('2d'), img = octx.createImageData(G.nx, G.ny);
+    for (var j = 0; j < G.ny; j++) for (var i = 0; i < G.nx; i++) {
+      var val = G.v[j * G.nx + i], p = ((G.ny - 1 - j) * G.nx + i) * 4, c = cmap(o.cmap || 'viridis', (val - vmin) / (vmax - vmin || 1));
+      img.data[p] = c[0]; img.data[p + 1] = c[1]; img.data[p + 2] = c[2]; img.data[p + 3] = isFinite(val) ? 255 : 0;
+    }
+    octx.putImageData(img, 0, 0);
+    var ctx = P.ctx; ctx.save(); ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha; ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, P.X(G.xs[0]), P.Y(G.ys[G.ny - 1]), P.X(G.xs[G.nx - 1]) - P.X(G.xs[0]), P.Y(G.ys[0]) - P.Y(G.ys[G.ny - 1]));
+    ctx.restore();
+    return { vmin: vmin, vmax: vmax };
+  };
+  /** Streamline through (x0, y0) of the steady field vel(x, y) → [u, v]; RK4 in arc length, both directions. */
+  field.streamline = function (vel, x0, y0, o) {
+    o = o || {}; var ds = o.ds || 0.02, n = o.n || 600, b = o.bounds, pts = [[x0, y0]];
+    function unit(t, p) { var w = vel(p[0], p[1]), s = Math.hypot(w[0], w[1]); return s < 1e-12 ? [0, 0] : [w[0] / s, w[1] / s]; }
+    function run(sign) {
+      var p = [x0, y0], out = [];
+      for (var k = 0; k < n; k++) {
+        p = num.rk4Step(function (t, q) { var u = unit(t, q); return [sign * u[0], sign * u[1]]; }, 0, p, ds);
+        if (!isFinite(p[0]) || !isFinite(p[1])) break;
+        if (b && (p[0] < b[0] || p[0] > b[1] || p[1] < b[2] || p[1] > b[3])) break;
+        if (o.stop && o.stop(p[0], p[1])) break;
+        out.push(p.slice());
+      }
+      return out;
+    }
+    var fwd = run(1); if (o.both === false) return pts.concat(fwd);
+    return run(-1).reverse().concat(pts, fwd);
+  };
+  /** Arrow grid of vel(x, y). o: {nx, ny, scale (world units per unit speed; auto), color, maxLen px}. */
+  field.quiver = function (P, vel, o) {
+    o = o || {}; var nx = o.nx || 14, ny = o.ny || Math.max(4, Math.round(nx * P.px.h / P.px.w));
+    var xs = num.linspace(P.xlim[0], P.xlim[1], nx + 2).slice(1, -1), ys = num.linspace(P.ylim[0], P.ylim[1], ny + 2).slice(1, -1);
+    var smax = 0, W = [];
+    ys.forEach(function (y) { xs.forEach(function (x) { var w = vel(x, y); W.push([x, y, w[0], w[1]]); var s = Math.hypot(w[0], w[1]); if (isFinite(s)) smax = Math.max(smax, s); }); });
+    var cell = Math.min((P.xlim[1] - P.xlim[0]) / (nx + 1), (P.ylim[1] - P.ylim[0]) / (ny + 1));
+    var scale = o.scale || (smax > 0 ? 0.85 * cell / smax : 1);
+    P.clip(function () { W.forEach(function (a) { if (isFinite(a[2]) && isFinite(a[3])) P.arrow(a[0], a[1], a[2] * scale, a[3] * scale, { color: o.color || Viz.color('muted'), width: 1.3, head: 6 }); }); });
+    return scale;
+  };
+  /** Passive tracer particles advected by vel(x, y, t). o: {n, bounds:[x0,x1,y0,y1], spawn(i) → [x,y], life (s), trail}. */
+  field.particles = function (vel, o) {
+    o = o || {}; var n = o.n || 200, b = o.bounds || [0, 1, 0, 1], trail = o.trail || 0;
+    var rng = Viz.rng(o.seed || 1);
+    function spawn(i) { return o.spawn ? o.spawn(i, rng) : [lerp(b[0], b[1], rng()), lerp(b[2], b[3], rng())]; }
+    var P = [];
+    for (var i = 0; i < n; i++) { var s = spawn(i); P.push({ x: s[0], y: s[1], age: rng() * (o.life || 4), hist: [] }); }
+    return {
+      list: P,
+      step: function (dt, t) {
+        for (var i = 0; i < P.length; i++) {
+          var p = P[i];
+          var y = num.rk4Step(function (tt, q) { return vel(q[0], q[1], tt); }, t, [p.x, p.y], dt);
+          if (trail) { p.hist.push([p.x, p.y]); if (p.hist.length > trail) p.hist.shift(); }
+          p.x = y[0]; p.y = y[1]; p.age += dt;
+          if (!isFinite(p.x) || !isFinite(p.y) || p.x < b[0] || p.x > b[1] || p.y < b[2] || p.y > b[3] || (o.life && p.age > o.life) || (o.kill && o.kill(p.x, p.y))) {
+            var s = spawn(i); p.x = s[0]; p.y = s[1]; p.age = 0; p.hist = [];
+          }
+        }
+      },
+      draw: function (Pl, st) {
+        st = st || {}; var ctx = Pl.ctx;
+        Pl.clip(function () {
+          ctx.save(); ctx.fillStyle = st.color || Viz.color('blue'); ctx.strokeStyle = Viz.alpha(st.color || Viz.color('blue'), 0.35); ctx.lineWidth = 1;
+          for (var i = 0; i < P.length; i++) {
+            var p = P[i];
+            if (trail && p.hist.length > 1) { ctx.beginPath(); ctx.moveTo(Pl.X(p.hist[0][0]), Pl.Y(p.hist[0][1])); for (var k = 1; k < p.hist.length; k++) ctx.lineTo(Pl.X(p.hist[k][0]), Pl.Y(p.hist[k][1])); ctx.lineTo(Pl.X(p.x), Pl.Y(p.y)); ctx.stroke(); }
+            ctx.beginPath(); ctx.arc(Pl.X(p.x), Pl.Y(p.y), st.r || 1.8, 0, 2 * Math.PI); ctx.fill();
+          }
+          ctx.restore();
+        });
+      }
+    };
+  };
+  Viz.field = field;
+  /** Seeded PRNG (mulberry32) so every explainer looks the same on every load and in screenshots. */
+  Viz.rng = function (seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
+
+  /* ------------------------------------------------------------------------------------------------
+     6. icons
+     ------------------------------------------------------------------------------------------------ */
+  var ICON = {
+    help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.4-2.7 4.1"/><circle cx="12" cy="17.6" r=".6" fill="currentColor"/></svg>',
+    theme: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+    full: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4v6h6"/><path d="M5.5 15a7.5 7.5 0 1 0 1.8-7.8L4 10"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>'
+  };
+  Viz.ICON = ICON;
+
+  /* ------------------------------------------------------------------------------------------------
+     7. the application shell
+     ------------------------------------------------------------------------------------------------ */
+  var DEFAULT_TABS = [
+    { id: 'tour', label: 'Walkthrough', short: 'Guide' },
+    { id: 'explore', label: 'Explore', short: 'Play' },
+    { id: 'equations', label: 'Equations', short: 'Math' },
+    { id: 'check', label: 'Check yourself', short: 'Quiz' }
+  ];
+
+  function parseHash() {
+    var out = {};
+    try { (global.location.hash || '').replace(/^#/, '').split('&').forEach(function (kv) { if (!kv) return; var p = kv.split('='); out[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); } catch (e) { /* srcdoc */ }
+    return out;
+  }
+  function writeHash(obj) {
+    try {
+      var s = Object.keys(obj).filter(function (k) { return obj[k] !== undefined && obj[k] !== null && obj[k] !== ''; })
+        .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]); }).join('&');
+      global.history.replaceState(null, '', '#' + s);
+    } catch (e) { /* about:srcdoc and sandboxed frames refuse; harmless */ }
+  }
+
+  Viz.app = function (cfg) {
+    var app = { cfg: cfg, state: {}, defaults: {}, tab: null, step: 0, playing: false, t: 0, controls: {}, _hl: [] };
+    var mount = doc.getElementById(cfg.mount || 'app') || doc.body.appendChild(h('div', { id: 'app' }));
+    mount.classList.add('viz-mount');
+    var params = cfg.params || {};
+    Object.keys(params).forEach(function (k) { var p = params[k]; app.defaults[k] = p.value; app.state[k] = p.value; });
+
+    // theme
+    var theme = (STORE && STORE.getItem('viz-theme')) || cfg.theme || 'light';
+    doc.documentElement.setAttribute('data-theme', theme);
+
+    /* ---------- header ---------- */
+    var tabsDef = DEFAULT_TABS.filter(function (t) {
+      if (t.id === 'tour') return cfg.tour && cfg.tour.length;
+      if (t.id === 'explore') return true;
+      if (t.id === 'equations') return cfg.equations && cfg.equations.length;
+      if (t.id === 'check') return cfg.check && cfg.check.length;
+      return false;
+    });
+    (cfg.panels || []).forEach(function (p) { tabsDef.splice(p.index === undefined ? tabsDef.length : p.index, 0, { id: p.id, label: p.label, short: p.short || p.label, custom: p }); });
+    app.tabs = tabsDef.map(function (t) { return t.id; });
+
+    var tabBtns = {};
+    var nav = h('nav', { class: 'viz-tabs', role: 'tablist', 'aria-label': 'Sections' },
+      tabsDef.map(function (t) {
+        var b = h('button', { class: 'viz-tab', role: 'tab', type: 'button', 'aria-selected': 'false', 'data-tab': t.id, onclick: function () { app.setTab(t.id); } },
+          h('span', { class: 'viz-tab-long', text: t.label }), h('span', { class: 'viz-tab-short', text: t.short || t.label }));
+        tabBtns[t.id] = b; return b;
+      }));
+    var helpBtn = h('button', { class: 'viz-icon-btn', type: 'button', title: 'How to use this explainer', 'aria-label': 'Help', html: ICON.help });
+    var themeBtn = h('button', { class: 'viz-icon-btn viz-optional', type: 'button', title: 'Light / dark', 'aria-label': 'Toggle theme', html: ICON.theme });
+    var fullBtn = h('button', { class: 'viz-icon-btn', type: 'button', title: 'Full screen', 'aria-label': 'Full screen', html: ICON.full });
+    var resetBtn = h('button', { class: 'viz-icon-btn', type: 'button', title: 'Reset all controls', 'aria-label': 'Reset', html: ICON.reset });
+    var canFull = !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+    if (!canFull) fullBtn.hidden = true;
+    var header = h('header', { class: 'viz-header' },
+      h('div', { class: 'viz-titlebox' }, h('h1', { class: 'viz-title', html: mathify(cfg.title || doc.title) }), cfg.subtitle ? h('p', { class: 'viz-subtitle', html: mathify(cfg.subtitle) }) : null),
+      nav, h('div', { class: 'viz-actions' }, resetBtn, themeBtn, fullBtn, helpBtn));
+
+    /* ---------- stage ---------- */
+    var canvas = h('canvas', { class: 'viz-canvas', role: 'img', 'aria-label': cfg.stageLabel || cfg.title || 'visualisation' });
+    var badge = h('div', { class: 'viz-stage-badge' });
+    var playBtn = h('button', { class: 'viz-icon-btn viz-play', type: 'button', title: 'Play / pause (space)', 'aria-label': 'Play or pause', html: ICON.play });
+    var stageBar = h('div', { class: 'viz-stage-bar' }, playBtn);
+    var stageEl = h('section', { class: 'viz-stage' }, canvas, badge, (cfg.stage && cfg.stage.animate) ? stageBar : null);
+    var side = h('aside', { class: 'viz-side' });
+    var main = h('main', { class: 'viz-main' }, stageEl, side);
+    var help = h('div', { class: 'viz-help', role: 'dialog', 'aria-label': 'Help' });
+    var root = h('div', { class: 'viz-app', 'data-layout': 'wide', 'data-dense': '0' }, header, main, help);
+    mount.appendChild(root);
+    app.root = root; app.stageEl = stageEl; app.canvas = canvas; app.badge = badge;
+
+    /* ---------- controls (a param can be rendered in several panels; all copies stay in sync) ---------- */
+    function sliderPos(p, v) { return p.log ? Math.log10(v) : v; }
+    function sliderVal(p, x) { var v = p.log ? Math.pow(10, x) : x; if (!p.log && p.step) v = Math.round(v / p.step) * p.step; return Number(v.toPrecision(12)); }
+    function control(key) {
+      var p = params[key]; if (!p) throw new Error('Viz: unknown param "' + key + '"');
+      var type = p.type || 'range', wrap, input, valEl;
+      if (type === 'toggle') {
+        input = h('input', { type: 'checkbox' });
+        input.checked = !!app.state[key];
+        input.addEventListener('change', function () { app.set(key, input.checked); });
+        wrap = h('label', { class: 'viz-chip-toggle' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key, title: p.help || '' }, input, h('span', { html: mathify(p.label) }));
+        (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.checked = !!v; } });
+        return wrap;
+      }
+      if (type === 'select') {
+        input = h('select', {}, (p.options || []).map(function (o) { return h('option', { value: String(o[0]), text: o[1] }); }));
+        input.value = String(app.state[key]);
+        input.addEventListener('change', function () { var o = (p.options || []).filter(function (x) { return String(x[0]) === input.value; })[0]; app.set(key, o ? o[0] : input.value); });
+        wrap = h('label', { class: 'viz-select' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key }, h('span', { html: mathify(p.label) }), input);
+        (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.value = String(v); } });
+        return wrap;
+      }
+      if (type === 'button') {
+        wrap = h('button', { class: 'viz-btn' + (p.primary ? ' primary' : '') + (p.optional ? ' viz-optional' : ''), type: 'button', 'data-viz-key': 'param:' + key, html: mathify(p.label), onclick: function () { if (isFn(p.action)) p.action(app); } });
+        return wrap;
+      }
+      input = h('input', { type: 'range', min: sliderPos(p, p.min), max: sliderPos(p, p.max), step: p.log ? 'any' : (p.step || 'any'), 'aria-label': p.label.replace(/\$/g, '') });
+      input.value = sliderPos(p, app.state[key]);
+      valEl = h('output', { class: 'viz-control-value' });
+      function show(v) { valEl.textContent = p.fmt ? p.fmt(v) : fmt(v, { sig: p.sig || 3, unit: p.unit }); }
+      show(app.state[key]);
+      input.addEventListener('input', function () { app.set(key, sliderVal(p, Number(input.value))); });
+      wrap = h('div', { class: 'viz-control' + (p.optional ? ' viz-optional' : ''), 'data-viz-key': 'param:' + key },
+        h('span', { class: 'viz-control-label', html: mathify(p.label) }), valEl, input,
+        p.help ? h('span', { class: 'viz-control-help', html: mathify(p.help) }) : null);
+      (app.controls[key] = app.controls[key] || []).push({ el: wrap, sync: function (v) { input.value = sliderPos(p, v); show(v); } });
+      return wrap;
+    }
+    app.control = control;
+
+    /* ---------- readouts ---------- */
+    var readoutEls = [];
+    function readoutsCard(ids) {
+      var list = (cfg.readouts || []).filter(function (r) { return !ids || ids.indexOf(r.id) >= 0; });
+      if (!list.length) return null;
+      var grid = h('div', { class: 'viz-readouts' });
+      list.forEach(function (r) {
+        var v = h('div', { class: 'viz-readout-value' });
+        var el = h('div', { class: 'viz-readout' + (r.optional ? ' viz-optional' : ''), 'data-viz-key': 'readout:' + r.id, title: r.help || '' }, h('div', { class: 'viz-readout-label', html: mathify(r.label) }), v);
+        readoutEls.push({ r: r, el: el, v: v }); grid.appendChild(el);
+      });
+      return grid;
+    }
+
+    /* ---------- pager: packs children into pages that fit the box (no scrollbars, ever) ---------- */
+    function Pager(title, items) {
+      var body = h('div', { class: 'viz-pages' }), label = h('span', { class: 'viz-pager-label' });
+      var prev = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Previous page', text: '‹' });
+      var next = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Next page', text: '›' });
+      var pager = h('span', { class: 'viz-pager', hidden: true }, prev, label, next);
+      var card = h('div', { class: 'viz-card grow viz-paged' }, h('div', { class: 'viz-card-title' }, h('span', { html: title }), pager), body);
+      items.forEach(function (it) { body.appendChild(it); });
+      var pages = [0], page = 0;
+      function show(p) {
+        page = clamp(p, 0, pages.length - 1);
+        items.forEach(function (it, i) { it.style.display = (it._vizPage === page) ? '' : 'none'; });
+        label.textContent = (page + 1) + ' / ' + pages.length; prev.disabled = page === 0; next.disabled = page === pages.length - 1;
+      }
+      prev.onclick = function () { show(page - 1); }; next.onclick = function () { show(page + 1); };
+      var P = {
+        card: card, body: body,
+        layout: function () {
+          items.forEach(function (it) { it.style.display = ''; it._vizPage = 0; });
+          var avail = body.clientHeight; if (avail <= 0) return;
+          var top0 = body.getBoundingClientRect().top, pageStart = 0, pg = 0; pages = [0];
+          items.forEach(function (it) {
+            var r = it.getBoundingClientRect(), top = r.top - top0, bottom = r.bottom - top0;
+            if (bottom - pageStart > avail + 0.5 && top > pageStart + 0.5) { pg += 1; pageStart = top; pages.push(pg); }
+            it._vizPage = pg;
+          });
+          pager.hidden = pages.length < 2; show(Math.min(page, pages.length - 1));
+        },
+        goToItem: function (it) { if (it && it._vizPage !== undefined) show(it._vizPage); }
+      };
+      return P;
+    }
+    var pagers = [];
+
+    /* ---------- panels ---------- */
+    var panels = {};
+    function panel(id) { var p = h('div', { class: 'viz-panel', role: 'tabpanel', 'data-panel': id }); side.appendChild(p); panels[id] = p; return p; }
+
+    // Explore
+    (function () {
+      var p = panel('explore'), ex = cfg.explore || {};
+      if (ex.intro) p.appendChild(h('div', { class: 'viz-card viz-intro', html: mathify(ex.intro) }));
+      var keys = ex.controls || Object.keys(params);
+      if (keys.length) {
+        var items = keys.map(function (k) { var c = control(k); return c; });
+        var pg = Pager('Controls', items); pagers.push(pg); p.appendChild(pg.card);
+        pg.card.querySelector('.viz-pages').classList.add('viz-controls');
+      }
+      var ro = readoutsCard(ex.readouts);
+      if (ro) p.appendChild(h('div', { class: 'viz-card' }, h('div', { class: 'viz-card-title', text: 'Live numbers' }), ro));
+      (ex.callouts || []).forEach(function (c) { p.appendChild(h('div', { class: 'viz-callout ' + (c.kind || 'key') + (c.optional === false ? '' : ' viz-optional') }, h('b', { class: 'k', text: { key: 'Key idea', watch: 'Watch', try: 'Try', warn: 'Careful' }[c.kind || 'key'] }), h('span', { html: mathify(c.html) }))); });
+    })();
+
+    // Walkthrough
+    var tourEls = {};
+    if (cfg.tour && cfg.tour.length) (function () {
+      var p = panel('tour');
+      var chips = h('div', { class: 'viz-steps-chips', role: 'tablist', 'aria-label': 'Steps' }, cfg.tour.map(function (s, i) { return h('button', { class: 'viz-step-chip', type: 'button', text: String(i + 1), title: s.title.replace(/\$/g, ''), onclick: function () { app.goStep(i); } }); }));
+      var count = h('div', { class: 'viz-step-count' }), title = h('h2', { class: 'viz-step-title' }), text = h('div', { class: 'viz-step-text' });
+      var extras = h('div', { class: 'viz-step-extras' });
+      var prev = h('button', { class: 'viz-btn', type: 'button', text: '← Back', onclick: function () { app.goStep(app.step - 1); } });
+      var next = h('button', { class: 'viz-btn primary', type: 'button', text: 'Next →', onclick: function () { app.goStep(app.step + 1); } });
+      var card = h('div', { class: 'viz-card grow viz-step-card' }, h('div', { class: 'viz-step-head' }, count, chips), title, text, extras);
+      p.appendChild(card);
+      p.appendChild(h('div', { class: 'viz-step-nav' }, prev, next));
+      tourEls = { chips: chips, count: count, title: title, text: text, extras: extras, prev: prev, next: next, card: card };
+    })();
+
+    // Equations
+    var eqEls = {};
+    if (cfg.equations && cfg.equations.length) (function () {
+      var p = panel('equations');
+      var items = cfg.equations.map(function (e) {
+        var body = h('div', { class: 'viz-eq-body' }), inner = h('div', { class: 'viz-eq-inner' }); body.appendChild(inner);
+        var live = e.live ? h('div', { class: 'viz-eq-live' }, h('div', { class: 'viz-eq-inner' })) : null;
+        var sym = e.symbols && e.symbols.length ? h('div', { class: 'viz-symbols viz-optional' }, [].concat.apply([], e.symbols.map(function (r) {
+          return [h('span', { class: 'sym viz-tex', 'data-tex': r[0] }), h('span', { html: mathify(r[1]) }), h('span', { class: 'unit', text: r[2] || '' })];
+        }))) : null;
+        var el = h('div', { class: 'viz-eq', 'data-viz-key': 'eq:' + e.id },
+          h('div', { class: 'viz-eq-head' }, h('span', { html: mathify(e.title) }), e.ref ? h('span', { class: 'viz-eq-ref', text: e.ref }) : null),
+          body, live, e.note ? h('div', { class: 'viz-eq-note', html: mathify(e.note) }) : null, sym);
+        eqEls[e.id] = { cfg: e, el: el, inner: inner, live: live && live.firstChild };
+        renderTex(inner, e.tex, true);
+        return el;
+      });
+      var pg = Pager('Equations · live with your numbers', items); pagers.push(pg); p.appendChild(pg.card); eqEls._pager = pg;
+    })();
+
+    // Check yourself
+    if (cfg.check && cfg.check.length) (function () {
+      var p = panel('check');
+      var items = cfg.check.map(function (c, i) {
+        var q = h('div', { class: 'viz-q' });
+        q.appendChild(h('p', { class: 'viz-q-text', html: mathify((i + 1) + '. ' + c.q) }));
+        var row = h('div', { class: 'viz-btn-row' });
+        row.appendChild(h('button', { class: 'viz-btn viz-q-reveal', type: 'button', text: 'Show answer', onclick: function () { q.classList.add('revealed'); typeset(q); app.fit(); } }));
+        if (c.set) row.appendChild(h('button', { class: 'viz-btn', type: 'button', text: 'Try it on the picture', onclick: function () { app.set(c.set); } }));
+        q.appendChild(row);
+        q.appendChild(h('div', { class: 'viz-q-answer', html: mathify(c.a) }));
+        return q;
+      });
+      var pg = Pager('Check yourself', items); pagers.push(pg); p.appendChild(pg.card);
+    })();
+
+    // custom panels
+    (cfg.panels || []).forEach(function (pc) { var p = panel(pc.id); if (isFn(pc.render)) pc.render(p, app); });
+
+    // help overlay
+    help.innerHTML = '<h2>How to use this explainer</h2><ul>' +
+      (cfg.tour && cfg.tour.length ? '<li><b>Walkthrough</b> tells the story step by step: press <kbd>Next →</kbd> or use <kbd>←</kbd>/<kbd>→</kbd>. Each step sets up the picture for you.</li>' : '') +
+      '<li><b>Explore</b> hands you the controls: drag a slider and watch the picture and the live numbers respond.</li>' +
+      (cfg.equations && cfg.equations.length ? '<li><b>Equations</b> shows the formulas behind the picture, with your current numbers substituted.</li>' : '') +
+      (cfg.check && cfg.check.length ? '<li><b>Check yourself</b> asks questions you can answer by experimenting.</li>' : '') +
+      (cfg.stage && cfg.stage.animate ? '<li><kbd>Space</kbd> plays or pauses the animation.</li>' : '') +
+      '<li>Reset (↺) restores the starting values. ' + (canFull ? 'Full screen (⤢) gives the picture more room.' : '') + '</li>' +
+      (cfg.help ? '<li>' + mathify(cfg.help) + '</li>' : '') + '</ul>';
+    typeset(help);
+
+    /* ---------- stage graphics context ---------- */
+    var g = { canvas: canvas, ctx: canvas.getContext('2d'), w: 0, h: 0, dpr: 1, t: 0, dt: 0, app: app, pointer: { x: 0, y: 0, down: false, inside: false } };
+    g.plot = function (opt) { return Plot(g, opt); };
+    g.clear = function (color) { g.ctx.save(); g.ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); if (color) { g.ctx.fillStyle = color; g.ctx.fillRect(0, 0, g.w, g.h); } else g.ctx.clearRect(0, 0, g.w, g.h); g.ctx.restore(); };
+    app.g = g;
+    function resizeCanvas() {
+      var dpr = Math.min(global.devicePixelRatio || 1, 2.5);
+      var w = Math.max(1, Math.floor(stageEl.clientWidth)), hh = Math.max(1, Math.floor(stageEl.clientHeight));
+      if (w !== g.w || hh !== g.h || dpr !== g.dpr) {
+        g.w = w; g.h = hh; g.dpr = dpr; canvas.width = Math.round(w * dpr); canvas.height = Math.round(hh * dpr);
+        canvas.style.width = w + 'px'; canvas.style.height = hh + 'px';
+        g.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (cfg.stage && isFn(cfg.stage.resize)) cfg.stage.resize(g, app.state);
+        return true;
+      }
+      return false;
+    }
+    var drawQueued = false;
+    app.draw = function () {
+      if (drawQueued) return; drawQueued = true;
+      global.requestAnimationFrame(function () { drawQueued = false; drawNow(); });
+    };
+    function drawNow() {
+      if (!cfg.stage || !isFn(cfg.stage.draw)) return;
+      g.ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+      try { cfg.stage.draw(g, app.state); }
+      catch (e) { reportError(e); }
+    }
+    function pointer(ev) {
+      var r = canvas.getBoundingClientRect(); g.pointer.x = ev.clientX - r.left; g.pointer.y = ev.clientY - r.top;
+      if (ev.type === 'pointerdown') { g.pointer.down = true; try { canvas.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ } }
+      if (ev.type === 'pointerup' || ev.type === 'pointercancel') g.pointer.down = false;
+      g.pointer.inside = ev.type !== 'pointerleave';
+      if (cfg.stage && isFn(cfg.stage.onPointer)) { var redraw = cfg.stage.onPointer(g, ev, app.state); if (redraw !== false) app.draw(); }
+    }
+    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { canvas.addEventListener(t, pointer); });
+    if (cfg.stage && isFn(cfg.stage.onPointer)) canvas.style.touchAction = 'none';
+
+    /* ---------- animation loop (pauses when hidden or scrolled out of view) ---------- */
+    var visible = true, last = null, raf = null;
+    app.play = function (on) {
+      if (!(cfg.stage && cfg.stage.animate)) return;
+      app.playing = on === undefined ? !app.playing : !!on;
+      playBtn.innerHTML = app.playing ? ICON.pause : ICON.play;
+      playBtn.setAttribute('aria-pressed', app.playing ? 'true' : 'false');
+      last = null; if (app.playing) loop(); else if (raf) { global.cancelAnimationFrame(raf); raf = null; }
+    };
+    function loop() {
+      if (raf) return;
+      raf = global.requestAnimationFrame(function (ts) {
+        raf = null;
+        if (!app.playing) return;
+        if (visible && !doc.hidden) {
+          var dt = last === null ? 0 : Math.min(0.05, (ts - last) / 1000); last = ts;
+          var speed = app.state.speed !== undefined ? app.state.speed : 1;
+          g.dt = dt * speed; g.t += g.dt; app.t = g.t;
+          if (isFn(cfg.stage.step)) { try { cfg.stage.step(g, app.state, g.dt); } catch (e) { reportError(e); app.play(false); return; } }
+          drawNow();
+        } else last = null;
+        loop();
+      });
+    }
+    playBtn.onclick = function () { app.play(); };
+    if ('IntersectionObserver' in global) new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(root);
+
+    /* ---------- state changes ---------- */
+    var liveQueued = false;
+    app.set = function (key, value) {
+      var changes = {};
+      if (typeof key === 'object') changes = key; else changes[key] = value;
+      var changed = [];
+      Object.keys(changes).forEach(function (k) {
+        var p = params[k], v = changes[k];
+        if (p && (p.type || 'range') === 'range' && typeof v === 'number') v = clamp(v, p.min, p.max);
+        if (app.state[k] !== v) { app.state[k] = v; changed.push(k); }
+        if (app.controls[k]) app.controls[k] = app.controls[k].filter(function (c) { return c.el.isConnected; });
+        (app.controls[k] || []).forEach(function (c) { c.sync(v); });
+      });
+      if (!changed.length) return app;
+      changed.forEach(function (k) { if (isFn(cfg.onChange)) { try { cfg.onChange(app.state, k, app); } catch (e) { reportError(e); } } });
+      updateReadouts(); queueLive(); app.draw(); saveHash();
+      return app;
+    };
+    app.reset = function () { app.set(Object.assign({}, app.defaults)); g.t = 0; app.t = 0; if (cfg.stage && isFn(cfg.stage.reset)) cfg.stage.reset(g, app.state); app.draw(); };
+    resetBtn.onclick = function () { app.reset(); };
+    function updateReadouts() {
+      readoutEls.forEach(function (o) {
+        var v; try { v = o.r.value(app.state, app); } catch (e) { v = NaN; }
+        o.v.textContent = o.r.fmt ? o.r.fmt(v, app.state) : fmt(v, { sig: o.r.sig || 3, unit: o.r.unit });
+        var tone = isFn(o.r.tone) ? o.r.tone(v, app.state) : ''; o.el.classList.toggle('pos', tone === 'pos'); o.el.classList.toggle('neg', tone === 'neg');
+      });
+    }
+    function queueLive() {
+      if (liveQueued) return; liveQueued = true;
+      global.requestAnimationFrame(function () {
+        liveQueued = false;
+        Object.keys(eqEls).forEach(function (id) { var e = eqEls[id]; if (!e || !e.live || !e.cfg.live) return; try { renderTex(e.live, e.cfg.live(app.state, app), true); } catch (err) { e.live.textContent = '—'; } scaleEq(e.live); });
+        var tourEq = tourEls.extras && tourEls.extras.querySelectorAll('[data-live-eq]');
+        if (tourEq) for (var i = 0; i < tourEq.length; i++) { var ec = eqEls[tourEq[i].getAttribute('data-live-eq')]; if (ec && ec.cfg.live) { renderTex(tourEq[i], ec.cfg.live(app.state, app), true); scaleEq(tourEq[i]); } }
+      });
+    }
+    function scaleEq(inner) {
+      if (!inner || !inner.parentNode) return;
+      inner.style.transform = ''; var avail = inner.parentNode.clientWidth - 2, need = inner.scrollWidth;
+      if (avail > 0 && need > avail) inner.style.transform = 'scale(' + Math.max(0.78, avail / need) + ')';
+      inner.parentNode.classList.toggle('viz-eq-too-wide', avail > 0 && need * 0.78 > avail);
+    }
+    function scaleAllEq() { Array.prototype.forEach.call(root.querySelectorAll('.viz-eq-inner'), scaleEq); }
+
+    /* ---------- tabs and tour ---------- */
+    app.setTab = function (id) {
+      if (app.tabs.indexOf(id) < 0) id = app.tabs[0];
+      app.tab = id; root.setAttribute('data-tab', id);
+      Object.keys(tabBtns).forEach(function (k) { tabBtns[k].setAttribute('aria-selected', k === id ? 'true' : 'false'); });
+      Object.keys(panels).forEach(function (k) { panels[k].classList.toggle('is-active', k === id); });
+      clearHighlights();
+      if (id === 'tour') applyStepHighlights();
+      app.fit(); saveHash();
+      return app;
+    };
+    function clearHighlights() { app._hl.forEach(function (el) { el.classList.remove('viz-hl'); }); app._hl = []; }
+    function applyStepHighlights() {
+      var s = cfg.tour && cfg.tour[app.step]; if (!s || !s.highlight) return;
+      [].concat(s.highlight).forEach(function (key) { Array.prototype.forEach.call(root.querySelectorAll('[data-viz-key="' + key + '"]'), function (el) { el.classList.add('viz-hl'); app._hl.push(el); }); });
+    }
+    app.goStep = function (i) {
+      if (!cfg.tour || !cfg.tour.length) return app;
+      i = clamp(i, 0, cfg.tour.length - 1); app.step = i;
+      var s = cfg.tour[i];
+      if (app.tab !== 'tour') app.setTab('tour');
+      if (s.set) app.set(s.set);
+      if (s.play !== undefined) app.play(s.play);
+      tourEls.count.textContent = 'Step ' + (i + 1) + ' of ' + cfg.tour.length;
+      tourEls.title.innerHTML = mathify(s.title);
+      tourEls.text.innerHTML = mathify(s.text);
+      tourEls.extras.innerHTML = '';
+      (s.controls || []).forEach(function (k) { tourEls.extras.appendChild(control(k)); });
+      if (s.readouts && s.readouts.length) { var ro = readoutsCard(s.readouts); if (ro) tourEls.extras.appendChild(ro); }
+      if (s.eq && eqEls[s.eq]) {
+        var e = eqEls[s.eq].cfg;
+        var box = h('div', { class: 'viz-eq viz-step-eq' }, h('div', { class: 'viz-eq-head' }, h('span', { html: mathify(e.title) }), e.ref ? h('span', { class: 'viz-eq-ref', text: e.ref }) : null));
+        var b1 = h('div', { class: 'viz-eq-body' }, h('div', { class: 'viz-eq-inner' })); renderTex(b1.firstChild, e.tex, true); box.appendChild(b1);
+        if (e.live) { var b2 = h('div', { class: 'viz-eq-live' }, h('div', { class: 'viz-eq-inner', 'data-live-eq': e.id })); box.appendChild(b2); }
+        tourEls.extras.appendChild(box);
+      }
+      if (s.callout) tourEls.extras.appendChild(h('div', { class: 'viz-callout ' + (s.callout.kind || 'try') }, h('b', { class: 'k', text: { key: 'Key idea', watch: 'Watch', try: 'Try', warn: 'Careful' }[s.callout.kind || 'try'] }), h('span', { html: mathify(s.callout.html) })));
+      typeset(tourEls.card);
+      Array.prototype.forEach.call(tourEls.chips.children, function (c, k) { c.classList.toggle('done', k < i); if (k === i) c.setAttribute('aria-current', 'step'); else c.removeAttribute('aria-current'); });
+      tourEls.prev.disabled = i === 0;
+      tourEls.next.textContent = i === cfg.tour.length - 1 ? 'Explore →' : 'Next →';
+      tourEls.next.onclick = i === cfg.tour.length - 1 ? function () { app.setTab('explore'); } : function () { app.goStep(app.step + 1); };
+      updateReadouts(); queueLive();
+      clearHighlights(); applyStepHighlights();
+      if (isFn(s.enter)) { try { s.enter(app); } catch (e) { reportError(e); } }
+      app.draw(); app.fit(); saveHash();
+      return app;
+    };
+
+    function saveHash() {
+      if (!app._ready) return;
+      var o = { tab: app.tab };
+      if (app.tab === 'tour') o.step = app.step + 1;
+      writeHash(o);
+    }
+
+    /* ---------- keyboard ---------- */
+    doc.addEventListener('keydown', function (ev) {
+      var tag = (ev.target && ev.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (ev.key === 'ArrowRight' && app.tab === 'tour') { app.goStep(app.step + 1); ev.preventDefault(); }
+      else if (ev.key === 'ArrowLeft' && app.tab === 'tour') { app.goStep(app.step - 1); ev.preventDefault(); }
+      else if (ev.key === ' ' && cfg.stage && cfg.stage.animate) { app.play(); ev.preventDefault(); }
+      else if (ev.key === '?') { help.classList.toggle('open'); }
+      else if (ev.key === 'Escape') { help.classList.remove('open'); }
+    });
+    helpBtn.onclick = function () { help.classList.toggle('open'); };
+    themeBtn.onclick = function () {
+      var t = doc.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      doc.documentElement.setAttribute('data-theme', t); if (STORE) STORE.setItem('viz-theme', t); app.draw();
+    };
+    fullBtn.onclick = function () {
+      var el = doc.documentElement;
+      if (doc.fullscreenElement || doc.webkitFullscreenElement) (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+      else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    };
+
+    /* ---------- FIT: the no-scroll guarantee ---------- */
+    function overflowing() {
+      var bad = [];
+      var de = doc.documentElement, rr = root.getBoundingClientRect();
+      if (rr.bottom > global.innerHeight + 1 || rr.right > global.innerWidth + 1) bad.push({ el: 'app-exceeds-window', h: Math.round(rr.bottom), H: global.innerHeight, w: Math.round(rr.right), W: global.innerWidth });
+      if (rr.height < global.innerHeight - 2) bad.push({ el: 'app-does-not-fill-window', h: Math.round(rr.height), H: global.innerHeight });
+      if (de.scrollHeight > global.innerHeight + 1 || de.scrollWidth > global.innerWidth + 1) bad.push({ el: 'document', h: de.scrollHeight, H: global.innerHeight, w: de.scrollWidth, W: global.innerWidth });
+      var els = root.querySelectorAll('.viz-header, .viz-panel.is-active, .viz-panel.is-active .viz-card, .viz-panel.is-active .viz-pages, .viz-panel.is-active .viz-step-extras, .viz-stage');
+      for (var i = 0; i < els.length; i++) {
+        var e = els[i]; if (!e.offsetParent && e.className.indexOf('viz-stage') < 0) continue;
+        if (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1) bad.push({ el: (e.className || e.tagName).split(' ').slice(0, 2).join('.'), h: e.scrollHeight, H: e.clientHeight, w: e.scrollWidth, W: e.clientWidth });
+      }
+      Array.prototype.forEach.call(root.querySelectorAll('.viz-panel.is-active .viz-eq-too-wide'), function (e) { bad.push({ el: 'equation-too-wide', w: e.firstChild ? e.firstChild.scrollWidth : 0, W: e.clientWidth }); });
+      return bad;
+    }
+    app.fit = function () {
+      var W = global.innerWidth, H = global.innerHeight;
+      var layout = (W < 700 && H >= W * 0.9) || W < 520 ? 'portrait' : (H < 520 ? 'landscape' : 'wide');
+      root.setAttribute('data-layout', layout);
+      root.classList.toggle('short-tabs', false);
+      root.classList.toggle('compact-title', W < 420);
+      // short tab labels if the tab strip does not fit
+      if (nav.scrollWidth > nav.clientWidth + 1 || header.scrollWidth > header.clientWidth + 1) root.classList.add('short-tabs');
+      var bad = [];
+      for (var d = 0; d <= 3; d++) {
+        root.setAttribute('data-dense', String(d));
+        pagers.forEach(function (p) { if (p.card.offsetParent) p.layout(); });
+        scaleAllEq();
+        bad = overflowing();
+        if (!bad.length) break;
+      }
+      resizeCanvas(); drawNow();
+      app.lastAudit = { layout: layout, dense: Number(root.getAttribute('data-dense')), overflow: bad, W: W, H: H, tab: app.tab, step: app.step };
+      if (bad.length) console.warn('VIZ-OVERFLOW', JSON.stringify(app.lastAudit));
+      return app.lastAudit;
+    };
+    var fitQueued = false;
+    function queueFit() { if (fitQueued) return; fitQueued = true; global.requestAnimationFrame(function () { fitQueued = false; app.fit(); }); }
+    global.addEventListener('resize', queueFit);
+    if ('ResizeObserver' in global) new ResizeObserver(function () { if (resizeCanvas()) drawNow(); }).observe(stageEl);
+
+    /* ---------- errors ---------- */
+    function reportError(e) {
+      console.error('VIZ-ERROR', e && e.stack ? e.stack : e);
+      if (!root.querySelector('.viz-error')) stageEl.appendChild(h('div', { class: 'viz-error', text: 'Something went wrong drawing this picture: ' + (e && e.message ? e.message : e) }));
+    }
+    app.reportError = reportError;
+
+    /* ---------- boot ---------- */
+    var hash = parseHash();
+    Object.keys(params).forEach(function (k) { if (hash[k] !== undefined && hash[k] !== '') { var p = params[k]; var v = (p.type || 'range') === 'range' ? Number(hash[k]) : (p.type === 'toggle' ? hash[k] === '1' || hash[k] === 'true' : hash[k]); if (!(typeof v === 'number' && isNaN(v))) app.state[k] = v; } });
+    try { if (cfg.stage && isFn(cfg.stage.setup)) { resizeCanvas(); cfg.stage.setup(g, app.state); } } catch (e) { reportError(e); }
+    typeset(root);
+    updateReadouts();
+    var firstTab = hash.tab && app.tabs.indexOf(hash.tab) >= 0 ? hash.tab : (cfg.startTab || app.tabs[0]);
+    if (cfg.tour && cfg.tour.length) app.goStep(hash.step ? Number(hash.step) - 1 : 0);
+    app.setTab(firstTab);
+    queueLive();
+    if (cfg.stage && cfg.stage.animate && cfg.autoplay !== false) app.play(true); else app.draw();
+
+    app.ready = loadKatex().then(function (ok) {
+      app.katex = ok; retypesetPending(); queueLive();
+      return new Promise(function (res) { global.requestAnimationFrame(function () { global.requestAnimationFrame(function () { app._ready = true; app.fit(); res(app.lastAudit); }); }); });
+    });
+
+    /* ---------- audit + self-test API (used by tools/shot.py) ---------- */
+    app.selftest = function () {
+      var out = [];
+      if (!isFn(cfg.selftest)) return out;
+      var rows; try { rows = cfg.selftest(app); } catch (e) { return [{ name: 'selftest() threw', ok: false, error: String(e) }]; }
+      (rows || []).forEach(function (r) {
+        var row = { name: r.name, js: r.js, py: r.py || null, rtol: r.rtol === undefined ? 1e-6 : r.rtol, atol: r.atol === undefined ? 0 : r.atol };
+        if (r.expect !== undefined) { var d = Math.abs(r.js - r.expect); row.expect = r.expect; row.ok = d <= row.atol + row.rtol * Math.abs(r.expect); }
+        out.push(row);
+      });
+      return out;
+    };
+    global.VIZ = {
+      app: app, ready: app.ready, tabs: app.tabs, steps: (cfg.tour || []).length,
+      audit: function () { return app.fit(); },
+      selftest: function () { return app.selftest(); },
+      setTab: function (id) { app.setTab(id); return app.fit(); },
+      goStep: function (i) { app.goStep(i); return app.fit(); },
+      meta: function () { var m = {}; Array.prototype.forEach.call(doc.querySelectorAll('meta[name^="viz:"]'), function (x) { m[x.getAttribute('name').slice(4)] = x.getAttribute('content'); }); return m; }
+    };
+    return app;
+  };
+
+  global.addEventListener('error', function (e) { console.error('VIZ-ERROR', e.message, e.filename + ':' + e.lineno); });
+  global.Viz = Viz;
+})(window);
+/* VIZ_LIB_JS:END */
