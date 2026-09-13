@@ -83,7 +83,12 @@ const app = Viz.app({
   your numbers → Watch) · *the result* (whole chain, result, what it means right now, check). A step's `set` moves the
   picture to the case being derived; on phones only `view` (else the first view) stays visible. A walkthrough step quotes
   one step with `derive: {id, step}` and links to the full derivation. Deep link: `#tab=derive&d=1&ds=3`.
-- Formatting: `Viz.fmt(v, {sig, unit})`, `Viz.tnum(v)` in TeX (round-off below 1e-12 prints as 0). Colours:
+- Pixel-space canvas helpers (after ch01): `Viz.font(px, weight, mono)`, `Viz.roundRect(ctx, x, y, w, h, r)`,
+  `Viz.text(ctx, str, x, y, {size, weight, color, align, baseline, halo, bg, maxWidth})` (label on a solid box with
+  `bg: true`), `Viz.card(ctx, cx, cy, lines, {color, colors, maxWidth, align})` (end-of-run card, wraps and stays inside
+  the canvas).
+- Formatting: `Viz.fmt(v, {sig, unit, keepTiny})`, `Viz.tnum(v, sig, {keepTiny})` in TeX (round-off below 1e-12 prints
+  as 0 unless `keepTiny`), `Viz.fmtTime(seconds)` (µs … years). Colours:
   `Viz.color('accent'|'teal'|'orange'|'rose'|'blue'|'amber'|'muted'|'text')`, `Viz.alpha(c, a)`; coloured words in HTML
   with `<b class="c-teal">`. In JS strings double every TeX backslash.
 
@@ -178,3 +183,19 @@ height; ours must fit the window — take their *depth*, keep our layout.
   row of its own. On phones the Derivation tab keeps one view and hides the preset strip and transport.
 - (machinery) Derivation lines wider than the side panel of a 1000×700 notebook iframe fail `equation-too-wide`: keep a
   line to one relation; put definitions (`ω_d = …`) in their own step or in *why*.
+- (ch01) Never assign `ev.view` in a pointer handler (read-only `UIEvent` getter; it threw in every `onPointer`); use
+  `ev.viewId` / `ev.vizView`. `shot.py` does not click yet: run a click/drag pass over every view and count page errors.
+- (ch01) Two sign conventions: the status badge reads verdict word → the fluidpy criterion text in the chosen
+  convention → the other convention's bare relation, at every size; pin it with exact-text selftest rows (E4).
+- (ch01) A view hidden on portrait phones must not carry the step's key number: repeat it in a visible view's title or
+  a readout ("Kn(body) 0.064 → slip flow"), and never tell phone readers to use controls that are hidden there.
+- (ch01) A step that traces one sample's arithmetic sets the global parameter to that sample's value, and the badge,
+  equation card and inspector compute the same quantity on the same basis (mean vs crest count disagreed in E1).
+- (ch01) The Derivation tab has the notebook's step count and move titles; when either side splits a step, renumber
+  every walkthrough `derive: {id, step}` link in the same edit (reviewer compares `app.cfg.derivations` with the builder).
+- (ch01) Plain-text *why*/*watch* strings never contain raw TeX (write e^(±λt)); *why* ≤ 35 words.
+- (ch01) Narrow views (< 420 px): draw the rotated y title in its own strip (the library clamps the left pad to 40 px
+  and the title covers minus signs of ticks); move legends into the view title; below 60 px draw only the 0 tick.
+- (ch01) Use `Viz.card` for end-of-run cards (wraps inside the canvas; a one-line card clipped on phones), `Viz.text`
+  with `bg: true` for labels crossing curves, `Viz.fmtTime` for durations, `Viz.tnum(v, sig, {keepTiny: true})` for
+  molecular-scale numbers. Units inside TeX use `m^{3}`, not "m³" (KaTeX warns).

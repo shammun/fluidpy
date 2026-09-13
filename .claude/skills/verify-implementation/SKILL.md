@@ -186,6 +186,25 @@ applied at the node instead of the face (half-cell offset) · degrees vs radians
 per-unit-depth vs total force · a non-dimensionalisation that changed between book sections · an equation the book
 states for one regime being used in another.
 
+## Lessons (the knowledge-keeper appends; one line each, dated by chapter)
+- (ch01) Prove a test discriminates: copy `fluidpy/` to the scratchpad, patch in the most likely wrong variant (e.g.
+  divide by the environment instead of the parcel density), run the test, and record that it fails. Six ch01 parcel
+  tests passed on the wrong variant.
+- (ch01) An exact first integral (energy of the un-linearised ODE) or another invariant pins a factor that limits and
+  linearised solutions cannot see; measure it as ptp/scale with a tolerance well above the integrator's O(dt²).
+- (ch01) Labels mean what they say: V4 only for a conservation law or a state-function invariant; invariance under a
+  change of units or sign convention is V7; an algebraic identity (θρ_θ = p_ref/R) is V1; a closed form evaluated at
+  shrinking dz is V1, not V3.
+- (ch01) Statistical checks: seed the generator and set the tolerance at 5 standard errors of the estimator.
+- (ch01) Primary benchmark sources can carry errata (USSA-1976 Table 2's Sutherland S and r0 are corrected by the
+  errata sheet bound into the same PDF) and old unit conventions (EOS-80 in IPTS-68): read the whole document.
+- (ch01) Book worked examples (inputs or results) never go into the public test file — only into the private
+  `tests/book_values_chNN.json` V6 test; the public test uses its own inputs and the analytic formula.
+- (ch01) ★★★ symbolic checks re-run the derivation's own construction step by step (build the groups as step 9 says,
+  test step 12 for an arbitrary Gibbs function), not only the final identity.
+- (ch01) Docstring validation text goes stale after test changes ("not yet pinned", "benchmark pending"): grep for
+  such phrases before the verdict.
+
 ## Public-repo rule
 Benchmark tables are committed only with a citable public source. Book tables, page crops and figure comparisons stay
 local (`tests/book_values_*.json`, `reports/**/figures/` — both git-ignored). `tools/check_public.py` enforces it.

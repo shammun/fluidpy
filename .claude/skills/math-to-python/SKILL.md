@@ -90,4 +90,20 @@ description: How to turn textbook mathematics (definitions, theorems, derivation
   them as `chNN.fn(1.0, 10.0)`.
 
 ## 7. Lessons learned (append one line per new pitfall; the knowledge-keeper promotes chapter lessons here)
-- (none yet)
+- (ch01) A default that sits on a regime boundary is computed from the boundary function, never typed rounded: a
+  "neutral" −9.8e-3 K/m was steeper than Γ_a = −g/C_p = −9.7607e-3 and classified unstable.
+- (ch01) When the book and the field use opposite sign conventions, compute in the book's and ship a tested converter
+  that returns the verdict *and* the criterion text in either convention (`lapse_rate_convention`,
+  `lapse_rate_stability`); never convert silently inside a physics function.
+- (ch01) Exact rationals (`fractions.Fraction`) for exponent algebra (Π groups): the JS mirror reproduces them exactly
+  and ½ never prints as 0.49999. Wrap scalar results with `core._util.as_scalar_if_0d` so parity rows get floats.
+- (ch01) pint: kmol has a [substance] dimension — drop it consistently (with a warning) in dimensional matrices; °C is
+  an offset unit — kelvin inside functions, `delta_degC` for differences.
+- (ch01) Check the variable conventions of a reference formula before coding it: USSA-1976 uses geopotential altitude
+  (`geometric=True` converts), EOS-80 uses IPTS-68 temperature (t68 = 1.00024 t90).
+- (ch01) Unbounded ODE growth (N² < 0 parcels): stop `solve_ivp` with a terminal event at a cap and return NaN past it.
+- (ch01) Sibling functions must share argument order and tolerance bands (`irreversible_process(kind, T1, v1)` vs
+  `path_heat_work_totals(kind, v1, T1)`; neutral bands 1e-9 K/m vs 1e-12 s⁻²); where they do not, call by keyword and
+  exclude the band in sweeps.
+- (ch01) When a derivation divides by "the density", name whose: the parcel's own density (inertia of the displaced
+  body), not the environment's — only an exact invariant of the un-linearised law told the two apart.

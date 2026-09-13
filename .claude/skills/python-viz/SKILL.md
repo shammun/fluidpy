@@ -66,4 +66,11 @@ Whole notebook < 5 min on a laptop (use `FAST`), page < 15 MB, each animation < 
 data blobs other than figures/animations.
 
 ## 7. Lessons (the knowledge-keeper appends; one line each, dated by chapter)
-- (none yet)
+- (ch01) A `live` widget is always paired with a static figure or a `slider_figure` carrying the same idea (C51); the
+  published page freezes the widget.
+- (ch01) When a quantity has two sign conventions, put both values and both inequalities in the slider trace name or
+  legend ("dT/dz = −6.5 > −9.8 K/km ⇔ Γ_met = 6.5 < 9.8 K/km"), so they move together (C54).
+- (ch01) Look at every saved figure image before the review: arrows crossing long labels (book map), a label under a
+  curve (C36 "c → ∞"), unexplained point letters and a data range that contradicts its comment were all round-2 findings.
+- (ch01) `player="frames"` for processes the reader should stop at (zoom by decades, leg-by-leg routes); `"video"` for
+  smooth transients (diffusion, parcels); keep `dpi` ≤ 80 to stay inside the page budget.

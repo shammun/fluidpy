@@ -118,4 +118,28 @@ From-scratch versions: a transparent loop or formula next to the library call, t
   *in words*; add `live` (the line with the reader's numbers) on the step where numbers help most.
 
 ## 6. Lessons (the knowledge-keeper appends; one line each, dated by chapter)
-- (none yet)
+- (ch01) **Conventions, both on screen.** Lapse rate: compute with Kundu's Γ ≡ dT/dz (Γ_a ≈ −9.8 K/km, stable when
+  Γ > Γ_a) and always show the meteorology Γ ≡ −dT/dz (+9.8 K/km, stable when Γ < Γ_a) alongside — a two-row table, a
+  worked conversion (negate the number, flip the inequality, P48) and both forms in every slider legend and badge.
+- (ch01) **"Which p_o?" pattern** for any book-vs-field-vs-code convention difference: state each convention, give the
+  size of the difference in numbers (θ at the ground 287.07 vs 288.15 K), say which one the code uses and why — as a
+  `> ⚠️ Common confusion:` callout next to the first use.
+- (ch01) ★★★ sympy check cells re-run the derivation's own construction (build what step k builds, then test it), not
+  only the final result — the reader sees the moves verified, not just the answer.
+- (ch01) Make an approximation measurable: a small table of "linearised vs full" with the gap growing with amplitude
+  tells the reader when the assumption fails.
+- (ch01) Every number in prose is computed by a cell (or checked against one); after renumbering derivation steps,
+  check every "Dxx step N" pointer by script.
+- (ch01) A tool first used inside a derivation (∂, ∇, complex roots and cosh, the double root, Maxwell relations) gets
+  its 📎 primer *before* that derivation; forward pointers to a later block say "(worked with numbers in C70 below)".
+- (ch01) Figure annotations that the reading notes never mention (stray symbols, point letters) are removed or explained;
+  a comment's claimed range must match the plotted data.
+- (ch01) Reusable derivation moves (name them in *why*; recap by pointing to the chapter's D row):
+  divide Newton's second law by the body's **own** mass/density, then Taylor-expand the surroundings to first order
+  (D18) · eliminate a path function (dq) between two relations to leave state-function relations (D10) · set ds = 0 in
+  both Gibbs forms and divide them so the unknown cancels (D14) · introduce g = h − Ts to get a Maxwell relation that
+  trades an unmeasurable derivative for a measurable one (D19) · log-differentiate a product of powers into a sum of
+  relative rates (D36) · try e^{λt} to turn a linear ODE into algebra, and treat the double root separately (D18) ·
+  integrate pressure over a box's faces: sides cancel, top minus bottom is the net force (D05, D37) · "dimensionless ⇔
+  exponent vector in the null space", then rank–nullity counts the groups (D28) · Poisson variance = mean gives relative
+  scatter 1/√N (D35).
