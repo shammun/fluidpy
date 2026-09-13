@@ -10,7 +10,9 @@ Sign conventions (binding user decision, the book's own)
 * The **lapse rate is Γ ≡ dT/dz** (book §1.10). It is *negative* where temperature falls with height. Every
   environment lapse-rate argument is named ``dT_dz``. :func:`adiabatic_lapse_rate` returns Γ_a = −g α T / C_p, which
   is **negative** (≈ −9.8e-3 K/m for dry air). A layer is stable when dT/dz > Γ_a (equivalently dθ/dz > 0).
-  (Some meteorology texts quote the magnitude 9.8 K/km as a positive "lapse rate"; we never do.)
+  ⚠️ Most meteorology (including the lapse-rate-feedback literature) uses the opposite, standard convention
+  Γ ≡ −dT/dz: there Γ_a ≈ +9.8 K/km and a layer is stable when Γ < Γ_a. Same physics, flipped sign and inequality.
+  This module uses Kundu's sign only; convert with ``Gamma_met = -dT_dz``. See knowledge/notation.md.
 * ``p_ref`` (default 1.0e5 Pa) is the reference pressure p_o of (1.31)/(1.33); it is kept separate from the surface
   pressure ``p0`` of ``core.statics``.
 """
@@ -448,10 +450,13 @@ def lapse_rate(T, z):
 
 
 def adiabatic_lapse_rate(T=None, cp=CP_AIR, alpha=None, g=G0):
-    """Adiabatic temperature gradient Γ_a = dT_a/dz of a parcel moving isentropically through a hydrostatic fluid.
+    """Convention Γ ≡ dT/dz (Kundu's sign; NEGATIVE, ≈ −9.8 K/km in dry air; stable when dT/dz > Γ_a).
+
+    Adiabatic temperature gradient Γ_a = dT_a/dz of a parcel moving isentropically through a hydrostatic fluid.
 
     Book: §1.10, Eq. (1.30) ``dT_a/dz ≡ Γ_a = −g α T / C_p`` (derivation D19, Exercise 1.14). For a perfect gas
-    α = 1/T (1.28) and Γ_a = −g/C_p.
+    α = 1/T (1.28) and Γ_a = −g/C_p. Most meteorology uses Γ ≡ −dT/dz instead (Γ_a ≈ +9.8 K/km, stable when
+    Γ < Γ_a); to compare with that literature, negate this return value.
 
     Parameters
     ----------
@@ -468,7 +473,7 @@ def adiabatic_lapse_rate(T=None, cp=CP_AIR, alpha=None, g=G0):
     -------
     Gamma_a : float or ndarray
         dT/dz [K/m], **negative** (≈ −9.76e-3 K/m for dry air with C_p = 1004.7): the parcel cools as it rises.
-        Some texts quote the magnitude as a positive number; this function never does.
+        Under the meteorological convention Γ ≡ −dT/dz the same quantity is +9.76e-3 K/m.
 
     Notes
     -----

@@ -12,7 +12,8 @@ Conventions used throughout (recorded in ``knowledge/notation.md`` by the knowle
 -----------------------------------------------------------------------------------------
 * SI units, temperatures in kelvin inside every function (``celsius_to_kelvin`` at the boundary).
 * z positive upward (§1.7, §1.10); p0 = pressure at z = 0; ``p_ref`` = reference pressure of θ and rho_θ.
-* Lapse rate Γ ≡ dT/dz (book sign; negative when temperature falls with height). ``adiabatic_lapse_rate`` is negative.
+* Lapse rate Γ ≡ dT/dz (Kundu's sign; negative when temperature falls with height; stable when Γ > Γ_a).
+  ``adiabatic_lapse_rate`` is negative. Most meteorology uses Γ ≡ −dT/dz (Γ_a ≈ +9.8 K/km, stable when Γ < Γ_a).
 * First law: q = heat added to, w = work done on the system (per unit mass).
 * Example 1.1: the book's α is measured from the horizontal, so the vertical tension is σ sin α; α is the complement
   of the usual contact angle θ_c (sin α = cos θ_c). ``alpha_from_contact_angle`` converts.

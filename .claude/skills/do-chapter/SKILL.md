@@ -51,20 +51,32 @@ Brief: header + the output format lives in the agent definition; add the chapter
 (§3) exists; CODE rows have validation plans; §2b lists the derivations (with the moves the book skips). One send-back allowed. → `analyze: pass`, commit.
 
 ## 2. CURATE — `concept-curator` → `analysis/chNN_curation.md`
-Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + "4–5 explainers plus one backup".
+Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + `book.yaml → policy` (tier_a_full_treatment,
+coverage) + "4–5 explainers plus one backup".
+**Coverage is exhaustive, depth is tiered.** Every inventory row gets an ID and a depth in the §2 chapter map:
+**A** · full treatment (CORE `C..`: picture → question → step-by-step derivation → worked number → code → figure;
+`policy.tier_a_full_treatment` = [12, 18], 18 is a hard max, A is always the minority) · **B** · stated and explained
+inside the nearest A block (NOTE `N..` with its A parent: a paragraph, the equation, a number; no separate derivation) ·
+**C** · named in a sentence with a pointer to where it is used later (NOTE `N..` with its A parent). SEEN ideas are RECAP
+`R..` (depth B or C); exercises/bibliography/deferred material SKIP `S..` (depth C). A derivation is written out (a D
+row) **only if it belongs to an A item or the book never writes it out**; every other analysis §2b derivation is a B
+statement with the result given (§4c).
 **Gate** (send back once on any failure):
-- every inventory row has an ID and a tier (CORE `C..` / RECAP `R..` / NOTE `N..` / SKIP `S..`);
-- **every row the analyst marked NEW is CORE** (NOTE only when a parent CORE ID is named; SKIP only for history,
-  exercises, bibliography or explicitly deferred material) — count NEW rows in `analysis/chNN.md` and compare;
-- every SEEN row is RECAP (or NOTE inside a CORE block);
+- the §2 chapter map has every inventory row exactly once, each with an ID, a depth (A/B/C) and a tier word; every B/C
+  row names an A parent; count rows against `analysis/chNN.md` §2 — nothing silently dropped;
+- the A count is within `policy.tier_a_full_treatment` (≤ 18) and each A row has a one-line reason; the parser
+  (`tools/nbkit.py curation_items`) reports CORE = A count;
+- every SEEN row is RECAP (or a B/C NOTE inside an A block);
 - the §3 section-coverage table has one row for every section in `book.yaml → sections`, none empty;
-- §4 lists the prerequisites needing primers; §4b has a D row for every derivation in analysis §2b (none dropped
-  without a reason), each with its CORE parent, difficulty, step estimate and "Shown in"; every ★★★ derivation of a
-  CORE item that has an explainer is shown in that explainer;
-- §5 has 4–5 explainers + 1 backup, each with CORE IDs, why-interactive, mirrored fluidpy function, derivations (D ids
+- §4 lists the prerequisites needing primers; every analysis §2b derivation is either a §4b D row (A parent, or marked
+  "book never writes it out") with difficulty, step estimate and "Shown in", or a §4c statement row — none missing; no
+  §4b row belongs to a non-A item unless the book never writes it out; every ★★★ D row of an A item that has an
+  explainer is shown in that explainer;
+- §5 has 4–5 explainers + 1 backup, each with A IDs, why-interactive, mirrored fluidpy function, derivations (D ids
   or none), depth features (explain + code + ≥ 2 more) and a named reference explainer.
-Print the counts per tier, the derivations by difficulty, the teaching order (one line per CORE item, grouped by section) and the explainer list
-(slug + aha) to the user.
+Print the A list (one line each with its reason), the counts per depth (A/B/C/RECAP/SKIP), the derivations written out
+by difficulty and the number demoted, the teaching order (A items grouped by section) and the explainer list (slug +
+aha) to the user.
 With `--consult`: stop here and ask the user to approve/edit the shortlist (`blocked`). → `curate: pass`, commit.
 
 ## 3 ∥ 4. DESIGN ∥ IMPLEMENT (launch both agents in ONE message)

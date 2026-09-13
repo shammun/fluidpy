@@ -20,12 +20,15 @@ tools, founders, visual resources) are reference only.
 ## What is different about this project
 - The book has **no code**: every function is new; the chapter text and its equation *images* are the only specification.
 - Correctness comes from mathematics and physics (`verify-implementation`), not from matching an author's output.
-- We cover every book section and teach **every new idea in full**: the `concept-curator` gives every inventory item an
-  ID and a tier. **CORE** (`C01…`) = every idea new at this point of the book — plain words, step-by-step maths, tiny
-  example, commented code and at least one visualization (early chapters have dozens). **RECAP** (`R01…`) = taught in an
-  earlier chapter, reminded where needed. **NOTE** (`N01…`) = a restatement or special case shown inside its CORE block.
-  **SKIP** (`S01…`) = history, exercises, bibliography, deferred material — one pointer line. Every concept, symbol, maths
-  tool or Python function used is explained before (or where) it is first used: a CORE block, a recap or a 📎 primer.
+- We cover every book section with **exhaustive coverage and tiered depth** (`book.yaml → policy`): the
+  `concept-curator` gives every inventory item an ID and a depth in an auditable chapter map. **A** = **CORE** (`C01…`),
+  the 12–18 load-bearing ideas (hard max 18) — picture, question, step-by-step derivation, worked number, commented code
+  and at least one visualization. **B** = **NOTE** (`N01…`) stated and explained inside the nearest A block (paragraph,
+  equation, a number; result given, not derived). **C** = **NOTE** named in a sentence with a pointer to where it is used
+  later. **RECAP** (`R01…`) = taught in an earlier chapter, reminded where needed. **SKIP** (`S01…`) = exercises,
+  bibliography, deferred material — one pointer line. Derivations are written out only for A items or results the book
+  never writes out. Every concept, symbol, maths tool or Python function used is explained before (or where) it is first
+  used: an A or B item, a recap or a 📎 primer.
 - Every chapter has **4–5 interactive explainers**.
 
 ## File naming

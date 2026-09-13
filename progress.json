@@ -52,7 +52,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "curate approved by user: 76 CORE/3 RECAP/25 NOTE/2 SKIP, 37 D, explainers continuum_averaging_volume, viscosity_momentum_diffusion, heat_work_paths, parcel_stability, buckingham_pi_machine (+B1 pressure_in_still_fluid); lapse rate Gamma=dT/dz negative (user)",
+      "notes": "re-curated A/B/C (user): A 15 / B 70 / C 21 of 106 (tiers CORE 15, NOTE 86, RECAP 3, SKIP 2); derivations 12 written out (6*,4**,2***), 25 demoted to statements; 5 explainers + B1 unchanged; lapse rate Kundu dT/dz with meteorology -dT/dz shown alongside; design/implement reset to todo, WIP fluidpy committed; TODO knowledge phase (user): make tools/coverage_check.py fail loudly on a blank tier in the curation parser instead of relying on bold first cells",
       "updated": "2026-09-12"
     },
     "ch02": {

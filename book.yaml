@@ -17,6 +17,10 @@ project:
   max_explainers_per_chapter: 5
   max_parallel_viz: 3                # viz-builder agents running at once (each runs a headless browser audit)
 
+policy:                              # how deeply the concept-curator teaches each inventory item
+  tier_a_full_treatment: [12, 18]    # hard max; A is always the minority
+  coverage: exhaustive               # every item tiered, nothing silently dropped
+
 book:
   title: "Fluid Mechanics"
   edition: "5th"

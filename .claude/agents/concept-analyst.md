@@ -30,12 +30,15 @@ curator who reads your file after you decides what to *teach* — so also record
    JSON, not the public file); figures (what is plotted, axes, ranges — described, never copied); quoted values.
 5. Classify: **CODE** (a function in `fluidpy/chNN_<slug>.py` or `fluidpy/core/`), **DEMO** (a notebook/script use of
    CODE functions reproducing a figure/example/number), **SKIP** (prose, history, or a special case of a coded item —
-   say which). Every numbered equation appears exactly once. Lean towards CODE: every new idea will be taught with Python
-   code and a visualization, so anything that can be computed or plotted should be.
+   say which). Every numbered equation appears exactly once. Lean towards CODE for anything that can be computed or
+   plotted: the curator picks the 12–18 load-bearing ideas that get code and a visualization (depth A), and code for
+   the others is optional.
    Also mark every row **NEW** (first appears in this chapter) or **SEEN** (taught earlier — name the chapter, using
    `knowledge/concept_map.md`), and list its **prerequisites**: the concepts, symbols, maths tools (partial derivatives,
    Taylor series, vectors, complex numbers, integrals, …) and Python tools the item needs to be understood or coded. The
-   curator makes every NEW item CORE and uses the prerequisite list to plan primers.
+   curator gives every item a depth (A full treatment for the load-bearing 12–18, B stated, C named — nothing
+   dropped) and uses the prerequisite list to plan primers; mark load-bearing items clearly in §3 because A depth
+   follows them.
 6. **Dependency graph**: for each CODE item list the items it needs (e.g. "dispersion relation ← linearised free-surface
    BCs ← velocity potential"). Mark items that *many* later results follow from — the curator uses this.
 7. For each CODE item: Python strategy via `math-to-python` (closed form / quadrature / root / ODE / BVP / PDE scheme

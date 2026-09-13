@@ -39,17 +39,19 @@ The **kit** that produces them:
 (the *orchestrator*) only coordinates, so a 70-page chapter never floods one context. Everything important is on disk,
 so any session can resume.
 
-**Every new idea taught in full; nothing used unexplained.** The analyst lists *everything* in the chapter (every
+**Coverage exhaustive, depth tiered; nothing used unexplained.** The analyst lists *everything* in the chapter (every
 definition, theorem, numbered equation, example and figure), marks each as NEW or SEEN (taught in an earlier chapter) and
-lists what it needs to be understood. The curator gives every item an ID and a tier — the notebook covers **every book
-section**:
+lists what it needs to be understood. The curator gives every item an ID and a depth in an auditable chapter map
+(`book.yaml → policy`: `tier_a_full_treatment: [12, 18]`, `coverage: exhaustive`) — nothing is silently dropped and the
+notebook covers **every book section**, but only the load-bearing ideas get the full treatment:
 
-| Tier | Who gets it | Treatment in the notebook |
+| Depth · tier | Who gets it | Treatment in the notebook |
 |---|---|---|
-| **CORE** `C01…` | **every idea that is new at this point of the book** — early chapters have dozens | 🧩 block: plain words → the idea → maths step by step → tiny example with easy numbers → commented code → **at least one visualization** (figure, animation, plotly slider or explainer) → how to read it; ≥ 2 kinds of test evidence |
-| **RECAP** `R01…` | ideas taught in an earlier chapter that this chapter uses | 🔁 a short reminder where it is needed, with a pointer to where it was taught |
-| **NOTE** `N01…` | a restatement or special case of a CORE idea | 📝 inside its CORE block, with its equation (and a line of code or an overlay when cheap) |
-| **SKIP** `S01…` | only history, exercises, bibliography, material the book defers to a later chapter | one line in its section saying where the idea is covered |
+| **A** · **CORE** `C01…` | **the 12–18 ideas that drag the rest along** (hard max 18; always the minority) | 🧩 block: picture → question → derivation step by step → worked number → commented code → **at least one visualization** (figure, animation, plotly slider or explainer) → how to read it; ≥ 2 kinds of test evidence |
+| **B** · **NOTE** `N01…` | other new ideas, stated and explained | 📝 inside the nearest A block: a paragraph, the equation, a number where it helps; no separate derivation (the result is given) |
+| **C** · **NOTE** `N01…` | new ideas that only need naming | one sentence inside the nearest A block, with a pointer to where the idea is used later |
+| **RECAP** `R01…` (B or C) | ideas taught in an earlier chapter that this chapter uses | 🔁 a short reminder where it is needed, with a pointer to where it was taught |
+| **SKIP** `S01…` (C) | only exercises, bibliography, material the book defers to a later chapter | one line in its section saying where the idea is covered |
 
 **Hard maths is derived step by step, and explained.** Every result the chapter gets by manipulating equations is a
 **derivation** `D01…` with a difficulty (★ short · ★★ several ideas · ★★★ long or conceptually hard). The analyst notes
@@ -184,7 +186,7 @@ Useful options:
 | 9 | **knowledge** (`knowledge-keeper`) ∥ | everything | `knowledge/*` | "Feeds forward" |
 | 10 | **publish** (`site-publisher` + orchestrator) | notebook, explainers | executed `.ipynb`, `_colab.ipynb`, `.html`, index, gallery | the live page on your phone |
 
-Gates: analysis covers every numbered equation · every NEW item is CORE, every section covered, every derivation has a D row · 4–5 explainers + backup at reference depth · every CORE block has code + visual, every derivation is written out and checked, and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
+Gates: analysis covers every numbered equation · every item has an ID and a depth (A ≤ 18), every section covered, every derivation is a D row (A item or never written out by the book) or a stated result · 4–5 explainers + backup at reference depth · every CORE block has code + visual, every derivation is written out and checked, and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
 PASS (≤ 3 fix loops, never by loosening a tolerance) · no open Must-fix · every explainer passes lint + browser audit at
 8 sizes + parity + visual review (≤ 2 rebuild rounds, else it is dropped, never published broken) · notebook executes
 with 0 errors · embed check (every explainer embedded exactly once) · public-repo check · page audit (explainers

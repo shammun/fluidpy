@@ -15,15 +15,18 @@ Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the phy
 `reports/`, `knowledge/`. Site: `index.html` (chapters) and `viz/index.html` (explainer gallery), served at
 `https://shammun.github.io/fluidpy/` (all URLs derive from `book.yaml → project`).
 
-**Every new idea taught in full; nothing used unexplained.** Every book section appears in the notebook. The
-`concept-curator` gives every definition, theorem and numbered equation an ID and a tier: **CORE** (`C01…`) = every idea
-that is new at this point of the book — plain words, step-by-step maths, tiny example, commented Python **and at least one
-visualization** (early chapters have dozens); **RECAP** (`R01…`) = taught in an earlier chapter, reminded where needed;
-**NOTE** (`N01…`) = a restatement or special case shown inside its CORE block; **SKIP** (`S01…`) = history, exercises,
-bibliography, deferred material — one pointer line. Every result obtained by manipulating equations is a **DERIVATION**
-(`D01…`, ★–★★★): written out one small move per step (what we did · the line · why it is allowed · in words), the
-book's skipped moves filled in, then checked (units, limits, sympy for ★★★) and interpreted — in the notebook (hence
-Colab and the page) and in the Derivation tab of the explainer for that idea. Every concept, symbol, maths tool and
+**Coverage exhaustive, depth tiered; nothing used unexplained.** Every book section appears in the notebook. The
+`concept-curator` gives every inventory item (definition, theorem, numbered equation, example) an ID and a depth in an
+auditable chapter map (`book.yaml → policy`): **A · full treatment** = **CORE** (`C01…`), the 12–18 load-bearing ideas
+(hard max 18) — picture → question → step-by-step derivation → worked number → commented Python → **at least one
+visualization**; **B · stated and explained** = **NOTE** (`N01…`) inside the nearest A block — a paragraph, the equation,
+a number; **C · named** = **NOTE** with a sentence and a pointer to where it is used later; **RECAP** (`R01…`) = taught in
+an earlier chapter, reminded where needed; **SKIP** (`S01…`) = exercises, bibliography, deferred material — one pointer
+line. A result obtained by manipulating equations is written out as a **DERIVATION** (`D01…`, ★–★★★) only if it belongs
+to an A item or the book never writes it out (other results are stated, not derived): one small move per step (what we
+did · the line · why it is allowed · in words), the book's skipped moves filled in, then checked (units, limits, sympy
+for ★★★) and interpreted — in the notebook (hence Colab and the page) and in the Derivation tab of the explainer for that
+idea. Every concept, symbol, maths tool and
 Python function is explained where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 4–5 interactive explainers
 are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`, `tools/coverage_check.py`, the
 `lesson-reviewer` and `tools/shot.py` enforce all of this.
@@ -89,6 +92,9 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
    evidence levels (one of V1 analytic / V2 symbolic / V3 convergence / V5 benchmark); coded NOTE items and every
    function the notebook or explainers call ≥ 1. Never loosen a tolerance to pass;
    fix the physics or report the discrepancy. Max 3 fix loops, then stop and tell the user.
+   **Depth is tiered, coverage is exhaustive**: every inventory item gets an ID and a depth (A full treatment, 12–18 per
+   chapter, hard max 18 · B stated inside an A block · C named with a pointer); derivations are written out only for A
+   items or results the book never writes out (`book.yaml → policy`).
 7. **Subagents do the work; the main session orchestrates** and keeps its context small. Agents never commit — the
    orchestrator commits after each phase (`chNN: <phase> — <one line>`). Never run two agents that write the same
    folder at the same time (safe parallel groups are the ∥ rows above; viz-builders each write one file).
