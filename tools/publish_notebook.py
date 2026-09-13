@@ -157,10 +157,45 @@ LIVE_HTML = ('<div class="fp-live-note">&#9654;&#65039; <b>Live cell.</b> These 
              'they are frozen on this page. Press <b>Open in Colab</b> at the top (or run the notebook locally) to use them.</div>')
 
 
+# plotly's "notebook_connected" renderer repeats, in EVERY figure output, a MathJax 3 CDN script (which throws
+# "Cannot set property Package" next to the page's MathJax 2 and can race it), a module import of the plotly bundle
+# without ".js" (HTTP 403) and the full plotly.js <script> (4.6 MB parsed once per figure). On the page we keep the
+# first plotly.js include only and drop the other two, so the markdown maths and the figures load once, without errors.
+_PLOTLY_MATHJAX = re.compile(r'<script[^>]*src="https://cdnjs\.cloudflare\.com/ajax/libs/mathjax/3[^"]*"[^>]*>\s*</script>')
+_PLOTLY_MODULE = re.compile(r'<script type="module">\s*import "https://cdn\.plot\.ly/[^"]*"\s*</script>')
+_PLOTLY_JS = re.compile(r'<script[^>]*src="https://cdn\.plot\.ly/plotly-[^"]*\.js"[^>]*>\s*</script>')
+
+
+def _clean_plotly_outputs(nb) -> None:
+    """Page mode only: de-duplicate the plotly.js include and remove the conflicting MathJax 3 / broken module scripts."""
+    seen = False
+    for c in nb.cells:
+        if c.cell_type != "code":
+            continue
+        for o in c.get("outputs", []):
+            h = _html_of(o)
+            if not h or ("cdn.plot.ly" not in h and "mathjax/3" not in h):
+                continue
+            h = _PLOTLY_MATHJAX.sub("", h)
+            h = _PLOTLY_MODULE.sub("", h)
+
+            def keep_first(m: re.Match) -> str:
+                nonlocal seen
+                if seen:
+                    return ""
+                seen = True
+                return m.group(0)
+
+            h = _PLOTLY_JS.sub(keep_first, h)
+            o["data"]["text/html"] = h
+
+
 def transform(nb, mode: str) -> tuple[nbformat.NotebookNode, list[str]]:
-    """mode="page": explainer outputs → full-window blocks, live-only outputs → note.
+    """mode="page": explainer outputs → full-window blocks, live-only outputs → note, plotly includes de-duplicated.
     mode="ipynb": explainer outputs → static link cards (GitHub view); everything else unchanged."""
     nb = copy.deepcopy(nb)
+    if mode == "page":
+        _clean_plotly_outputs(nb)
     keys: list[str] = []
     for c in nb.cells:
         if c.cell_type != "code":

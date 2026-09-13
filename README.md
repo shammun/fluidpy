@@ -15,7 +15,7 @@ Read online: **https://shammun.github.io/fluidpy/** · all explainers: https://s
 <!-- INDEX_TABLE_START -->
 | Chapter | Read (HTML) | Notebook | Colab | Explainers |
 |---|---|---|---|---|
-| Ch. 1: Introduction | — | — | — | — |
+| Ch. 1: Introduction | [View](https://shammun.github.io/fluidpy/notebooks/ch01_introduction.html) | [.ipynb](notebooks/ch01_introduction.ipynb) | [Open](https://colab.research.google.com/github/shammun/fluidpy/blob/main/notebooks/ch01_introduction_colab.ipynb) | [When does 'density at a point' make sense?](https://shammun.github.io/fluidpy/viz/ch01/continuum_averaging_volume.html), [How does the fluid learn that a plate moved?](https://shammun.github.io/fluidpy/viz/ch01/viscosity_momentum_diffusion.html), [Same two states: what depends on the path?](https://shammun.github.io/fluidpy/viz/ch01/heat_work_paths.html), [Push a parcel up: does it come back?](https://shammun.github.io/fluidpy/viz/ch01/parcel_stability.html), [Why can 7 pipe variables shrink to 4 numbers?](https://shammun.github.io/fluidpy/viz/ch01/buckingham_pi_machine.html) |
 | Ch. 2: Cartesian Tensors | — | — | — | — |
 | Ch. 3: Kinematics | — | — | — | — |
 | Ch. 4: Conservation Laws | — | — | — | — |

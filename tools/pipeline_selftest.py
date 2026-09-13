@@ -160,7 +160,7 @@ def main() -> int:
             frames: document.querySelectorAll('.animation img, img[id^="_anim_img"]').length,
             toc: !!document.querySelector('.fp-toc-btn'),
             derivation: document.body.innerText.includes('Why we can do this') && document.body.innerText.includes('Step 2 of 2'),
-            math: document.querySelectorAll('mjx-container').length,
+            math: document.querySelectorAll('mjx-container, .MathJax_CHTML').length,   // MathJax 3 or the page's MathJax 2
             moved: !!document.querySelector('.ce-container > section.fp-viz, main > section.fp-viz, .jp-Notebook > section.fp-viz')
         })""")
         ctx.close()
