@@ -42,7 +42,7 @@
       "title": "Introduction",
       "slug": "introduction",
       "analyze": "pass",
-      "curate": "running",
+      "curate": "blocked",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -52,7 +52,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 40 eqs, 106 rows (103 NEW), 33 derivations (3 ***)",
+      "notes": "curate: 76 CORE/3 RECAP/25 NOTE/2 SKIP, 37 derivations, 5 explainers + backup; awaiting user approval (--consult); lapse rate Gamma=dT/dz negative (user)",
       "updated": "2026-09-12"
     },
     "ch02": {
