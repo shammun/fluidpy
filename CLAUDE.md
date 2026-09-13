@@ -69,7 +69,7 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
 2. **Equations come from page images.** `chapters/chNN.txt` garbles maths (`¼` is `=`, `ð…Þ` are parentheses, a minus
    vanishes, ω prints as `u`). Render the defining page (`.venv/Scripts/python.exe tools/render_pages.py chNN --eq 7.27`)
    and read the PNG before transcribing, coding or displaying an equation. Never code an equation from memory.
-3. **Teach in Shammunul's style** (skill `teaching-style`): every new idea is a CORE block with plain words first,
+3. **Teach in Shammunul's style** (skill `teaching-style`): every A-depth idea is a CORE block with plain words first (B ideas stated inside it, C ideas named),
    *problem → idea → maths → code → what the output shows*, a tiny example with easy numbers traced step by step, every
    code line commented for a novice, **at least one visualization**, and *what you see / how to read it / what would
    change if…*; nothing (concept, symbol, maths tool, Python function) is used before it is explained — CORE block,

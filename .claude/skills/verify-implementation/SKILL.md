@@ -7,7 +7,7 @@ description: How to prove that Python written from a textbook's equations is act
 
 The book ships no code, so there is nothing to diff against. Correctness is established by making the mathematics test
 itself. Evidence is proportional to the curation tier (`analysis/chNN_curation.md` §2): every computable **CORE** item
-(every new idea of the chapter) needs **at least two independent evidence levels**, at least one of them V1, V2, V3 or
+(every depth-A, load-bearing idea of the chapter) needs **at least two independent evidence levels**, at least one of them V1, V2, V3 or
 V5; a conceptual CORE item with no computable output gets a demonstration test (the notebook's code for it runs and
 asserts its point); coded **NOTE** items at least one level; every function the notebook or an explainer calls (design
 Part C) at least a smoke test with a physical sanity assertion. RECAP items were tested in their own chapter; SKIP

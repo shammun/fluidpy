@@ -1,6 +1,6 @@
 ---
 name: teaching-style
-description: Shammunul's educational style for fluidpy notebooks and explainers - every new idea taught in full and nothing used unexplained (CORE blocks, recaps, primers), derivations written out one small move per step with what-we-did / why-allowed / in-words and a check + interpretation, plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
+description: Shammunul's educational style for fluidpy notebooks and explainers - exhaustive coverage with tiered depth and nothing used unexplained (A/CORE blocks in full, B/C notes, recaps, primers), derivations written out one small move per step with what-we-did / why-allowed / in-words and a check + interpretation, plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
 ---
 
 # teaching-style — make it click for a first-time reader
@@ -26,7 +26,8 @@ Distilled from Shammunul's own annotated notebooks (`fast.ai/shammunul-fastai-no
 6. **What the output shows** — never leave a figure or number uninterpreted.
 
 ## 1b. Nothing unexplained (the self-contained rule)
-Every new idea of the chapter is a CORE block with code and a visualization. Beyond that, **every concept, term, symbol,
+Every A-depth (load-bearing) idea of the chapter is a CORE block with code and a visualization; B ideas are stated
+and explained inside the nearest CORE block, C ideas named with a pointer (`book.yaml → policy`). Beyond that, **every concept, term, symbol,
 mathematical tool and Python function/idiom is explained no later than the cell where it is first used** — by its own
 CORE block, by a 🔁 recap of an earlier chapter, or by a 📎 primer right there. Typical primer candidates:
 - maths: partial derivatives, gradient/divergence/curl, the chain rule in several variables, Taylor expansion, complex
@@ -80,7 +81,7 @@ reader already knows), it is a **derivation** (`D01…` in the curation) and is 
 - `### ✏️ Tiny example: …` · `### 🎮 Interactive: <what it makes clear>` followed by `**What to try:**` bullets, each an
   action + what to watch for ("Drag H down to 1 m and watch the orbits flatten into ellipses").
 - `> ⚠️ Common confusion:` callouts for misconceptions (phase vs group velocity, ν vs μ, streamline vs pathline).
-- `### 🧩 <CORE idea>` opens every new idea; `> 📎 **Primer — term.**` and `> 🔁 **Recap — idea** (Ch. N §N.M).` blocks explain prerequisites where they are needed.
+- `### 🧩 <CORE idea>` opens every A-depth idea (B/C items sit inside it as 📝 notes); `> 📎 **Primer — term.**` and `> 🔁 **Recap — idea** (Ch. N §N.M).` blocks explain prerequisites where they are needed.
 - `## ✅ What should have clicked` at the end: one bullet per CORE idea, each a sentence the reader could now explain to a friend.
 
 ## 3. Code comments (novice-grade, never noise)

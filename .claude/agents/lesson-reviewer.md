@@ -1,6 +1,6 @@
 ---
 name: lesson-reviewer
-description: Phase 8 gate of /do-chapter. Reads the executed chapter notebook as a first-time learner would - checks that every book section is covered, every CORE (new) idea has plain words, step-by-step maths, a tiny example, commented code and a visualization with reading notes, every derivation follows move by move with a correct why and in-words for each step and a check, that no concept, symbol, maths tool or Python function is used before it is explained (CORE, recap or primer), that the teaching style is followed and the explanations are correct and in our own words - and writes reports/chNN_lesson.md with Must-fix / Should-fix lists. Never edits the notebook.
+description: Phase 8 gate of /do-chapter. Reads the executed chapter notebook as a first-time learner would - checks that every book section is covered, every CORE (depth A, load-bearing) idea has plain words, step-by-step maths, a tiny example, commented code and a visualization with reading notes, every derivation follows move by move with a correct why and in-words for each step and a check, that no concept, symbol, maths tool or Python function is used before it is explained (CORE, recap or primer), that the teaching style is followed and the explanations are correct and in our own words - and writes reports/chNN_lesson.md with Must-fix / Should-fix lists. Never edits the notebook.
 tools: Read, Grep, Glob, Bash, Write
 model: inherit
 skills: teaching-style, python-viz, fluids-book

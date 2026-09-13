@@ -26,7 +26,7 @@ The **kit** that produces them:
 
 | Component | Role |
 |---|---|
-| `CLAUDE.md` | the rules Claude Code reads every session (sequential chapters, equations from page images, teaching style, every new idea in full, 4–5 explainers that fit the window, evidence, public-repo safety, Windows specifics) |
+| `CLAUDE.md` | the rules Claude Code reads every session (sequential chapters, equations from page images, teaching style, exhaustive coverage with tiered depth, 4–5 explainers that fit the window, evidence, public-repo safety, Windows specifics) |
 | `book.yaml` | chapter map with exact PDF pages (from the PDF's own outline), sections, blurbs, explainer seeds; project URLs |
 | `.claude/agents/` (12) | analyst · curator · lesson-designer · implementer · verifier · reviewer · viz-builder · viz-reviewer · notebook-builder · lesson-reviewer · knowledge-keeper · site-publisher |
 | `.claude/skills/` (17) | 8 commands (`/do-chapter`, `/status`, …) + 9 background skills (teaching style, explainer engine, Python viz, maths→Python, verification, …) |
@@ -349,7 +349,7 @@ _colab.ipynb by re-running tools/publish_notebook.py, commit, run tools/check_pu
 | Agent | Job | Writes |
 |---|---|---|
 | concept-analyst | full inventory from text + page images, dependency graph, validation plan | `analysis/chNN.md` |
-| concept-curator | IDs + tiers (every new idea CORE), derivations (D rows), teaching order, section coverage, primers needed, 4–5 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
+| concept-curator | IDs + depth (A 12–18 CORE / B / C, nothing dropped), derivations (D rows), teaching order, section coverage, primers needed, 4–5 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
 | lesson-designer | notebook storyboard + explainer storyboards + function contract + prerequisite ledger + every derivation step by step | `analysis/chNN_design.md` |
 | concept-implementer | physics as documented functions; fixes | `fluidpy/`, `scripts/` |
 | math-verifier | tests on the evidence ladder; report | `tests/`, `reference/`, `reports/chNN_verification.md` |
