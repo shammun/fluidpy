@@ -10,7 +10,9 @@ For learning, not for the pipeline. Work directly (no subagents unless the chapt
    `chapters/chNN.txt` for the concept; render the relevant page(s) with
    `.venv/Scripts/python.exe tools/render_pages.py chNN --eq N.M` (or `--find "<phrase>"`) and read them.
 2. Explain in the `teaching-style` chain: problem in plain words → the idea (ASCII sketch if useful) → maths step by step
-   with equation numbers → tiny example with easy numbers → Python (call the tested `fluidpy` function if it exists,
+   with equation numbers (for a derived result, the full `teaching-style` §1c derivation: goal, plan, then one move per
+   step with *what we did*, the line, *why we can do this*, *in words*; the book's skipped moves filled in; a sympy check
+   run from a scratch file for anything hard) → tiny example with easy numbers → Python (call the tested `fluidpy` function if it exists,
    plus a transparent from-scratch version; run it with `.venv/Scripts/python.exe` from a scratch file and show the real
    output) → what the output shows → a "⚠️ Common confusion" and "✅ What should click" line.
 3. Point to where it lives: notebook section (`notebooks/chNN_<slug>.ipynb`), explainer (`viz/chNN/<slug>.html` +

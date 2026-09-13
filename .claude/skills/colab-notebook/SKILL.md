@@ -22,6 +22,18 @@ nb.core("C03", "The dispersion relation", question="Why do long waves travel fas
 nb.md("#### The problem in plain words\n…")
 nb.primer("tanh(x)", "A smooth step: ≈ x for small x, → 1 for large x. Here it switches between shallow and deep water.",
           code="import numpy as np                 # numbers\nprint(np.tanh([0.1, 1, 5]))          # [0.0997 0.7616 0.9999]")
+nb.derivation("D03", "Where the dispersion relation comes from", ref="7.36",
+              goal="Find how the frequency of a small surface wave depends on its wavelength and the depth.",
+              start=(r"\nabla^2\phi = 0", "the flow under the wave has a velocity potential"),
+              plan=["Try a wave-shaped potential.", "Apply the bottom and surface conditions.", "Eliminate the amplitude."],
+              uses=["separation of variables (primer above)", "tanh (primer above)"],
+              steps=[dict(did="Try a wave-shaped potential", tex=r"\phi = f(z)\cos(kx - \omega t)",
+                          why="Allowed because Laplace's equation is linear; we choose this form because the surface is a travelling cosine.",
+                          plain="Every depth moves with the same wave shape, just with a different strength f(z)."),
+                     …],                                   # one small move per step, never "it can be shown"
+              result=(r"\omega^2 = gk\tanh kH", "long waves feel the bottom; short waves do not"),
+              interpret="…", check="units: both sides 1/s²; deep limit tanh → 1 gives ω² = gk",
+              check_src="import sympy as sp   # symbolic check of the last steps\n…")   # required for ★★★
 nb.worked_example("a 10 m wave in 2 m of water", "1. k = 2π/10 ≈ 0.63 m⁻¹ …")
 nb.code("""
 from fluidpy import ch07_gravity_waves as ch07      # the tested chapter module
@@ -36,7 +48,8 @@ nb.summary(clicked=["one line per CORE idea"], feeds_forward=["…"], left_out=[
 nb.save()                                           # → notebooks/ch07_gravity_waves.ipynb (no outputs)
 ```
 `save()` refuses to write the notebook when a book section has no `nb.section(...)`, a CORE/RECAP id from the curation
-has no block, a CORE block has no code or no visual, or the explainer count is outside 4–5. After executing,
+has no block, a CORE block has no code or no visual, a derivation (D id) is missing, sits in the wrong CORE block, has a
+step without why / in words, or is ★★★ without a sympy check, or the explainer count is outside 4–5. After executing,
 `tools/coverage_check.py chNN --nb outputs/chNN/executed.ipynb` repeats the checks on real outputs and checks the
 prerequisite ledger (design Part E).
 Markdown is our own words; equations in LaTeX with their book numbers. Physics lives in `fluidpy/`, never only in a cell.
@@ -48,7 +61,7 @@ restart). Local: walk up to the folder with `book.yaml`. Then `os.chdir(ROOT)`, 
 `setup_notebook`, `show_viz`, `show_animation`, and set `FAST = setup_notebook()` (env `FLUIDPY_FAST=1`).
 
 ## 3. Cell tags (honoured by the publish tool)
-`setup` · `explainer` (show_viz output → full-window block on the page, link card in the GitHub .ipynb) ·
+`setup` · `derivation` / `derivation-check` (step-by-step derivation and its sympy cell) · `explainer` (show_viz output → full-window block on the page, link card in the GitHub .ipynb) ·
 `live-only` (ipywidgets → "run it in Colab" note on the page) · `animation` · `plotly` · `from-scratch` · `slow`.
 
 ## 4. Execute headlessly = verification

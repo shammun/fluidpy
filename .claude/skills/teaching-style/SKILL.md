@@ -1,6 +1,6 @@
 ---
 name: teaching-style
-description: Shammunul's educational style for fluidpy notebooks and explainers - every new idea taught in full and nothing used unexplained (CORE blocks, recaps, primers), plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
+description: Shammunul's educational style for fluidpy notebooks and explainers - every new idea taught in full and nothing used unexplained (CORE blocks, recaps, primers), derivations written out one small move per step with what-we-did / why-allowed / in-words and a check + interpretation, plain words before symbols, the problem → idea → maths → code → output chain, tiny worked examples with easy numbers, every code line commented for a novice, "What does the code above do?" and "What you see / How to read it / What would change if" blocks, tables and ASCII sketches, emoji section markers, and the rules for walkthrough text. Load when writing or reviewing any notebook cell, explainer text, curation or design document.
 ---
 
 # teaching-style — make it click for a first-time reader
@@ -19,7 +19,7 @@ Distilled from Shammunul's own annotated notebooks (`fast.ai/shammunul-fastai-no
    ```
 3. **The maths, step by step** — one algebraic move per line, each with a short reason ("substitute (7.22) into the
    Laplace equation", "the sinh cancels"). Define every symbol with its unit the first time it appears. Cite the
-   book's equation number: *(Eq. 7.27)*.
+   book's equation number: *(Eq. 7.27)*. Anything longer than a line or two is a full **derivation** (§1c).
 4. **A tiny example with easy numbers** — traced by hand before any code: H = 1 m, k = 1 m⁻¹, g ≈ 10 m s⁻². Show the
    intermediate numbers. The reader should be able to check it on paper.
 5. **Code** — short cells that call the tested `fluidpy` function; every line commented for a novice.
@@ -39,6 +39,34 @@ Primer format (`nb.primer(term, text, code)`): one or two plain sentences, what 
 reminder sentence and name the chapter instead of repeating the primer. When unsure whether the reader knows something,
 prime it — a two-line primer costs less than a lost reader.
 
+## 1c. Derivations — every move shown, every move explained (hard maths made easy)
+Whenever a result is obtained by manipulating equations (more than one line of algebra or calculus from things the
+reader already knows), it is a **derivation** (`D01…` in the curation) and is written out in full — in the notebook
+(`nb.derivation`, so also in Colab and on the web page) and, when an explainer covers that idea, in the explainer's
+**Derivation** tab with the same steps.
+- **Say the goal first, in plain words**, and why we want it ("show that friction can only remove energy"). Then **the
+  plan** in 2–4 bullets ("multiply by the velocity; spot two exact derivatives; read off the sign"), then **the tools**
+  it uses (each already taught, recapped or primed — a tool first used inside a derivation gets its primer *before* it).
+- **One small move per step.** Never "it can be shown", "after some algebra", "similarly", "clearly". If a step needs
+  two moves, it is two steps. Hard derivations (★★★) may have 10–15 steps; that is fine.
+- **Every step has four parts**:
+  1. *What we did* — the move in a few words ("divide both sides by $m$", "integrate from the wall to $y$").
+  2. *The new line* — the equation after the move; keep it short enough for a phone (split long lines).
+  3. *Why we can do this* — why the move is allowed (name the rule: chain rule, product rule, divergence theorem,
+     $e^{rt} \neq 0$, "the pressure does not depend on $x$ here") **and** why we make it (what it is heading toward).
+  4. *In words* — what the new line says physically, in one sentence.
+- **Say every assumption the moment it is used** ("steady, so $\partial/\partial t = 0$"; "inviscid, so the viscous
+  term drops") and mark approximations with ≈ and the reason ("$kH \ll 1$, so $\tanh kH \approx kH$").
+- **Colour-code terms consistently**: the same term has the same colour in the derivation, the explainer's bars and
+  curves, and the figure legend (e.g. pressure orange, viscous rose, inertia teal).
+- **After the result: check it, then interpret it.** Units of both sides; one or two limits or special cases that the
+  reader knows ("$\zeta = 0$ gives energy conservation"); a sympy check cell for ★★★ derivations (`check_src`, every
+  line commented); a number with easy values; then **what it means** and when it fails.
+- **Link the derivation to the picture**: which curve, bar or readout shows the result, and one "try this" in the
+  explainer (a derivation step may `set` the explainer to the case being derived).
+- Avoid the classic traps: sign flips when moving terms, dropping a factor 2 from a square, differentiating a product
+  without the product rule, swapping the order of integration and differentiation without saying why it is allowed.
+
 ## 2. Recurring blocks (use these exact headings — readers learn to scan for them)
 - `**What is this section about?**` — 2–4 sentences at the top of a big section.
 - `**What does the code above do?**` — after any non-trivial code cell: a numbered list of what each part does, in the
@@ -47,6 +75,8 @@ prime it — a two-line primer costs less than a lost reader.
   ("512 = one mean per feature").
 - After every figure: `**What you see.**` · `**How to read it.**` · `**What would change if…**` (one concrete change
   and its predicted effect — ideally something the reader can try).
+- `#### 🧮 Derivation — <result> (Eq. N.M)` (written by `nb.derivation`): What we want to show · The plan · Tools we
+  use · We start from · Step k of n — <move> (line · *Why we can do this* · *In words*) · Result · What it means · Check it.
 - `### ✏️ Tiny example: …` · `### 🎮 Interactive: <what it makes clear>` followed by `**What to try:**` bullets, each an
   action + what to watch for ("Drag H down to 1 m and watch the orbits flatten into ellipses").
 - `> ⚠️ Common confusion:` callouts for misconceptions (phase vs group velocity, ν vs μ, streamline vs pathline).
@@ -79,6 +109,12 @@ From-scratch versions: a transparent loop or formula next to the library call, t
   numbers; the last step hands the controls over with a prediction challenge ("Predict first, then drag…").
 - Use "you" and imperatives: "Drag the depth slider…", "Watch the red dot…".
 - Check-yourself questions must be answerable by experimenting with the explainer, and the answer explains *why*.
+- **Explain tab** ("Explanation & interpretation", modelled on `forced_damped_vibrations.html`): numbered sections that
+  compute every number on the screen with the reader's settings (formula → numbers substituted → result, with a short
+  why), coloured words that match the curves, a hint for any view hidden on phones, the values at the current time, and
+  a regime-dependent **Reading the current setting** paragraph.
+- **Derivation tab**: the same steps as the notebook's derivation (§1c), each step ≤ 35 words of *why* and one sentence
+  *in words*; add `live` (the line with the reader's numbers) on the step where numbers help most.
 
 ## 6. Lessons (the knowledge-keeper appends; one line each, dated by chapter)
 - (none yet)

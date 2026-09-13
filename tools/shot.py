@@ -5,7 +5,9 @@ EXPLAINER mode — for each ``viz/chNN/<slug>.html`` (or any explainer path):
   * waits for ``window.VIZ.ready`` (KaTeX loaded or fallback), then visits EVERY tab and EVERY walkthrough step;
   * fails on: page or panel overflow (the no-scroll rule), console ``VIZ-OVERFLOW`` / ``VIZ-ERROR`` / JS errors,
     visible text below 12 px, tap targets below 24 px on phones, a walkthrough with < 4 or > 8 steps,
-    no equations tab, missing ``viz:*`` meta tags;
+    no equations tab, missing ``viz:*`` meta tags; visits every page of every derivation too;
+  * quality floor: Explain tab with >= 3 numbered sections + an interpretation, Code tab, >= 2 depth features,
+    >= 3 questions; every derivation listed in ``viz:derivations`` exists and each step has tex, did, why, plain;
   * runs ``selftest()``: rows with ``expect`` are checked in JS; rows with ``py`` are evaluated here in Python with the
     chapter's fluidpy module(s) importable as ``chNN`` (e.g. ``py: "ch07.phase_speed(0.5, 10.0)"``) plus ``np``,
     ``math``, ``fluidpy`` — this is the JS ↔ Python parity evidence;
@@ -55,7 +57,7 @@ SIZES: dict[str, tuple[int, int, bool]] = {
 }
 QUICK = ("phone-tall", "notebook", "desktop")
 SHOT_STEPS_AT = ("phone-tall", "desktop")   # every step is screenshotted at these sizes
-REQUIRED_META = ("chapter", "slug", "title", "summary", "concept", "sections", "equations", "fluidpy")
+REQUIRED_META = ("chapter", "slug", "title", "summary", "concept", "sections", "equations", "fluidpy", "derivations")
 
 JS_TEXT_AUDIT = r"""
 () => {
@@ -168,22 +170,27 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
             fails.append(f"[{name}] window.VIZ never became ready: {exc}")
             ctx.close()
             continue
-        info = page.evaluate("() => ({tabs: VIZ.tabs, steps: VIZ.steps, meta: VIZ.meta(), katex: !!window.katex, features: VIZ.features || {}, nCheck: (VIZ.app.cfg.check || []).length})")
+        info = page.evaluate("() => ({tabs: VIZ.tabs, steps: VIZ.steps, meta: VIZ.meta(), katex: !!window.katex, features: VIZ.features || {}, nCheck: (VIZ.app.cfg.check || []).length, derivations: VIZ.derivations || [], explain: VIZ.explainStats ? VIZ.explainStats() : null, derSteps: (VIZ.app.cfg.derivations || []).map(d => ({id: d.id, goal: !!d.goal, result: !!(d.result && (d.result.tex || d.result.plain)), steps: d.steps.map(x => ({tex: !!x.tex, did: !!x.did, why: (x.why || '').split(' ').filter(Boolean).length, plain: !!x.plain}))}))})")
         rep["features"], rep["n_check"] = info["features"], info["nCheck"]
+        rep["derivations"], rep["explain_stats"], rep["der_steps"] = info["derivations"], info["explain"], info["derSteps"]
         meta = info["meta"]
         srep = {"viewport": [w, h], "load_s": round(time.perf_counter() - t0, 2), "katex": info["katex"], "views": []}
         for tab in info["tabs"]:
             views = [(tab, None)]
             if tab == "tour":
                 views = [(tab, i) for i in range(info["steps"])]
+            if tab == "derive":                    # every page of every derivation (goal, steps, result)
+                views = [(tab, (di, si)) for di, d in enumerate(info["derivations"]) for si in range(d["pages"])]
             for tab_, step in views:
                 if step is None:
                     a = page.evaluate(f"() => VIZ.setTab({json.dumps(tab_)})")
+                elif tab_ == "derive":
+                    a = page.evaluate(f"() => VIZ.goDerive({step[0]}, {step[1]})")
                 else:
                     a = page.evaluate(f"() => VIZ.goStep({step})")
                 page.wait_for_timeout(120)
                 a = page.evaluate("() => VIZ.audit()")
-                label = f"{tab_}" + (f"-step{step + 1}" if step is not None else "")
+                label = f"{tab_}" + ("" if step is None else f"-d{step[0] + 1}p{step[1]}" if tab_ == "derive" else f"-step{step + 1}")
                 text = page.evaluate(JS_TEXT_AUDIT)
                 view = {"view": label, "layout": a["layout"], "dense": a["dense"], "overflow": a["overflow"],
                         "small_text": text["nSmall"]}
@@ -191,7 +198,7 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
                     fails.append(f"[{name}] {label}: overflow {a['overflow'][:3]}")
                 if text["nSmall"]:
                     fails.append(f"[{name}] {label}: {text['nSmall']} text item(s) below 12px, e.g. {text['small'][:3]}")
-                if phone and text["nTargets"] and step in (None, 0):
+                if phone and text["nTargets"] and step in (None, 0, (0, 1)):
                     view["small_targets"] = text["targets"]
                     fails.append(f"[{name}] {label}: {text['nTargets']} tap target(s) below 24px, e.g. {text['targets'][:3]}")
                 srep["views"].append(view)
@@ -218,8 +225,29 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
         fails.append("no Equations tab (every explainer shows and explains its equations)")
     # quality floor modelled on the reference explainers (skill interactive-viz §4)
     feats = rep.get("features") or {}
-    if not feats.get("calc"):
-        fails.append("no Step-by-step tab (calc): show the working with the reader's own numbers")
+    if not (feats.get("explain") or feats.get("calc")):
+        fails.append("no Explain tab (explain): compute every displayed number with the reader's settings, then interpret")
+    else:
+        ex = rep.get("explain_stats") or {}
+        if ex.get("sections", 0) < 3:
+            fails.append(f"Explain tab has {ex.get('sections', 0)} numbered sections (need >= 3: Viz.work.step(n, title))")
+        if ex.get("interpret", 0) < 1:
+            fails.append("Explain tab has no interpretation (Viz.work.interpret: what the current setting means)")
+    # derivations: meta viz:derivations lists the ids the storyboard asks for ("none" = no derivation-heavy idea here)
+    wanted = [x for x in re.split(r"[\s,;]+", meta.get("derivations", "")) if x and x.lower() != "none"]
+    have = {d.get("id") for d in rep.get("derivations") or []}
+    for w in wanted:
+        if w not in have:
+            fails.append(f"derivation '{w}' is listed in viz:derivations but not in derivations: [...]")
+    for d in rep.get("der_steps") or []:
+        if not d["goal"] or not d["result"]:
+            fails.append(f"derivation '{d['id']}': needs a goal and a result")
+        if len(d["steps"]) < 2:
+            fails.append(f"derivation '{d['id']}': {len(d['steps'])} step(s); show every move (>= 2 steps)")
+        for k, st in enumerate(d["steps"], 1):
+            miss = [f for f in ("tex", "did", "plain") if not st[f]] + (["why (>= 6 words)"] if st["why"] < 6 else [])
+            if miss:
+                fails.append(f"derivation '{d['id']}' step {k}: missing {', '.join(miss)}")
     if not feats.get("code"):
         fails.append("no Code tab: show the Python behind the picture, synced to the walkthrough")
     depth = [k for k in ("transport", "presets", "status", "terms", "inspect", "notes", "modes") if feats.get(k)]

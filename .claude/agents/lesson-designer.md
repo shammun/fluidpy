@@ -1,6 +1,6 @@
 ---
 name: lesson-designer
-description: Phase 3 of /do-chapter (runs in parallel with the implementer). Plans HOW every curated item is taught - a cell-by-cell notebook storyboard in Shammunul's style where every CORE (new) idea gets plain words, maths step by step, a tiny example, commented code and at least one visualization; a prerequisite ledger showing where every concept, symbol, maths tool and Python function used is explained (CORE, RECAP or a primer); and a detailed storyboard for each of the 4–5 explainers (+ backup) with its views, controls, walkthrough steps, step-by-step working, synced code, depth features and reference pattern. Writes only analysis/chNN_design.md.
+description: Phase 3 of /do-chapter (runs in parallel with the implementer). Plans HOW every curated item is taught - a cell-by-cell notebook storyboard in Shammunul's style where every CORE (new) idea gets plain words, maths step by step, a tiny example, commented code and at least one visualization; a prerequisite ledger showing where every concept, symbol, maths tool and Python function used is explained (CORE, RECAP or a primer); a detailed storyboard for each of the 4–5 explainers (+ backup) with its views, controls, walkthrough steps, live explanation & interpretation, derivation tab, synced code, depth features and reference pattern; and every derivation written out one small move per step (what we did, the line, why it is allowed, in words, check, meaning). Writes only analysis/chNN_design.md.
 tools: Read, Grep, Glob, Bash, Write
 model: inherit
 skills: fluids-book, teaching-style, interactive-viz, python-viz, colab-notebook
@@ -27,7 +27,8 @@ Map every row to one `nbkit` call: `section`, `core(id, title, question)`, `reca
 3. **Primers** for any prerequisite from Part E that is first used here (plain words + a 2–4-line numeric demo in code
    for maths tools and Python functions).
 4. **The maths step by step** — one algebraic move per line, each with a short reason; symbols defined with units; book
-   equation numbers.
+   equation numbers. Every `D` row of the curation that belongs to this block is an `nb.derivation("D03", …)` cell
+   storyboarded in **Part F**; place it here, after the primers its tools need.
 5. **Tiny example with easy numbers** traced by hand.
 6. **Code** calling the tested fluidpy function, every line commented, followed by "What does the code above do?".
 7. **From-scratch check** where the curation asks for it (`assert np.allclose`).
@@ -46,14 +47,23 @@ backup is `### B1 · <slug>`)
 - **Views** (1–3, linked, sharing one state and clock): id, title, what is drawn (axes, ranges with units, fields,
   particles, annotations), what animates, pointer interaction, what the portrait layout hides.
 - **Controls** (2–5): key, label with TeX, min/max/step/default/unit, one-line help; mark optional ones.
-- **Depth features** (the required `calc` + `code`, plus at least two of): transport (param, range, rate, end), presets
+- **Depth features** (the required `explain` + `code`, plus at least two of): transport (param, range, rate, end), presets
   (labels + values — the special cases worth seeing), status verdict (regimes and their thresholds), terms (which terms,
   colours), inspector (what a click traces, with the arithmetic lines), notes (regime-dependent interpretation text),
   modes (the other physical system), 3-D view.
-- **Step by step** (`calc`): the working lines "formula = substituted = result — why", which values are live.
+- **Explain** (`explain`, modelled on `forced_damped_vibrations.html` and `amplitude_phase_second_order_II_3.html`):
+  numbered sections — 0 what the views show and what each colour means; 1…n every displayed quantity computed from the
+  controls ("formula = substituted = result — why", results boxed); a section per optional view (or a hint to open it);
+  the values at the current time (live); **Reading the current setting** — the interpretation text for each regime and
+  its threshold. Write the section texts, not just their titles.
+- **Derivation tab** (`derivations`, when the curation's §5 lists D ids for this explainer): for each id, the view kept
+  on phones, what the picture is set to on the goal page and on each step (`set`), which step gets `live` numbers and
+  which gets a `watch` line, and the `interpret` text. The steps themselves are copied from Part F (the same wording as
+  the notebook), shortened only where a phone needs it.
 - **Code** (`code`): the Python listing (mirroring the fluidpy function, ≤ 20 lines) with `{{live}}` placeholders.
 - **Walkthrough** (4–8 steps): title, text (≤ 45 words, plain words first), `set:`, `play`, `controls`, `eq`, `code`
-  lines, `terms`/`inspect`/`notes` flags, highlight. Story: problem → idea → maths → code → try it → meaning.
+  lines, `derive: {id, step}` (quote the key step of a derivation), `terms`/`inspect`/`notes` flags, highlight. Story:
+  problem → idea → maths → code → try it → meaning.
 - **Equations** (2–5): id, title, `ref: 'Eq. (N.M)'`, TeX from the page image, live substitution, note, symbols.
 - **Check yourself** (≥ 3): question answerable by experimenting, answer, optional `set`.
 - **Selftest parity rows** (≥ 2): `{name, js expression, py: "chNN.<function>(…)", rtol}`.
@@ -80,7 +90,22 @@ explained — nothing may be left unexplained:
 "Explained by" is a CORE/RECAP ID of this chapter, or `primer (in Cxx)`, or `knowledge/primers.md: <term> (chNN)` when an
 earlier chapter's primer is reused (the notebook then shows a one-line reminder).
 
+## Part F — derivation storyboards (one per `D` row of the curation: `### D03 · <result>`)
+Write each derivation out in full — the builders copy it word for word into `nb.derivation(...)` and the explainer's
+`derivations: [...]`. Read the book's derivation from the rendered pages first, then **fill every gap the book leaves**
+(the book often jumps several moves; we never do). Follow `teaching-style` §1c:
+- **Goal** (plain words, why we want it) · **Start** (LaTeX + in words) · **Plan** (2–4 bullets) · **Tools** (each with
+  where it is explained: CORE / RECAP / primer — add missing ones to Part E) · **Assumptions** and where each enters.
+- **Steps**, one small move each, numbered: `did` (the move, ≤ 8 words) · `tex` (the new line, one relation, short
+  enough for a phone) · `why` (why the move is allowed + why we make it, ≤ 35 words, naming the rule) · `plain` (what the
+  line says, one sentence) · optional `live` (which numbers to substitute) and `set` (what the explainer shows then).
+- **Result** (LaTeX + in words) · **Check** (units, one or two limits, a number with easy values) · **sympy check
+  intent** for ★★★ (what is verified symbolically; `check_src` code sketched, every line commented) · **What it means**
+  and when it fails · **Traps** a novice falls into here.
+Read each step back as a first-time reader: if a line does not follow from the one above by the stated move alone,
+insert the missing step.
+
 ## Output — `analysis/chNN_design.md`
-Parts A–E. Reply with Part C, the `### E… · slug` / `### B1 · slug` headings, the number of primers planned, and the count
-of CORE blocks storyboarded (must equal the curation's CORE count).
+Parts A–F. Reply with Part C, the `### E… · slug` / `### B1 · slug` headings, the `### D… ·` headings with their step
+counts, the number of primers planned, and the count of CORE blocks storyboarded (must equal the curation's CORE count).
 Do not return while a background run is still in progress; wait for it and report the real numbers.

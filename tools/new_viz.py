@@ -6,7 +6,7 @@ Usage (repo root)::
         --title "Why long waves outrun short ones" \
         --summary "Drag the wavelength and depth; watch phase speed, group speed and particle orbits respond." \
         --concept "dispersion relation of linear surface gravity waves" \
-        --sections "7.2, 7.5" --equations "(7.27), (7.40)" --fluidpy "ch07_gravity_waves.omega"
+        --sections "7.2, 7.5" --equations "(7.27), (7.40)" --fluidpy "ch07_gravity_waves.omega" \n        --derivations "D03"
 
 Refuses to overwrite an existing file (use --force) and to create a sixth explainer in a chapter.
 """
@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sections", required=True)
     ap.add_argument("--equations", required=True)
     ap.add_argument("--fluidpy", required=True, help="module.function the JS physics mirrors")
+    ap.add_argument("--derivations", default="none",
+                    help="ids of the curation's derivations (D03 D04) this explainer steps through, or none")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args(argv)
 
@@ -58,7 +60,8 @@ def main(argv: list[str] | None = None) -> int:
     t = re.sub(r"<!--\s*\n\s*fluidpy interactive explainer — TEMPLATE.*?-->\n", "", t, count=1, flags=re.S)
     fill = {"__CHAPTER__": a.chapter, "__SLUG__": a.slug, "__ORDER__": a.order, "__TITLE__": a.title,
             "__SUMMARY__": a.summary, "__CONCEPT__": a.concept, "__SECTIONS__": a.sections,
-            "__EQUATIONS__": a.equations, "__FLUIDPY__": a.fluidpy}
+            "__EQUATIONS__": a.equations, "__FLUIDPY__": a.fluidpy,
+            "__DERIVATIONS__": a.derivations}
     for k, v in fill.items():
         t = t.replace(k, html.escape(v, quote=True) if k not in ("__TITLE__", "__SUMMARY__") else v.replace('"', "&quot;"))
     dest.write_text(t, encoding="utf-8")

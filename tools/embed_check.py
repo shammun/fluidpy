@@ -3,7 +3,7 @@
 Checks for chapter ``chNN``:
   1. ``viz/chNN/*.html`` holds 4–5 explainers (``book.yaml → project.min/max_explainers_per_chapter``);
   2. each is inlined with the current ``assets/viz_lib.js`` + ``viz_base.css`` (``tools/viz_inline.py --check``) and
-     passes ``tools/viz_lint.py``;
+     passes ``tools/viz_lint.py``; every id in its ``viz:derivations`` meta is a D row of the curation;
   3. the notebook ``notebooks/chNN_<slug>.ipynb`` calls ``show_viz("chNN", "<slug>")`` exactly once per explainer,
      and never for a slug that does not exist;
   4. the design document's explainer shortlist (``analysis/chNN_design.md``, lines like ``### E1 · <slug>``) matches
@@ -54,6 +54,14 @@ def check(chapter: str) -> list[str]:
                 problems.append(f"{f.name}: library copy is stale — run tools/viz_inline.py --all")
         for f, msgs in viz_lint.lint_files(files).items():
             problems += [f"{f.name}: {m}" for m in msgs if not m.startswith("WARN")]
+        # derivation ids in an explainer must be derivations the curation planned (D01… rows)
+        from nbkit import curation_items
+        planned_d = {k for k, v in curation_items(chapter).items() if v["tier"] == "DERIVATION"}
+        for f in files:
+            m = re.search(r'<meta\s+name="viz:derivations"\s+content="([^"]*)"', f.read_text(encoding="utf-8"))
+            for d in (re.split(r"[\s,;]+", m.group(1)) if m else []):
+                if d and d.lower() != "none" and d not in planned_d:
+                    problems.append(f"{f.name}: viz:derivations lists {d}, which is not a D row of analysis/{chapter}_curation.md")
 
     nb = ROOT / "notebooks" / f"{chapter}_{row['slug']}.ipynb"
     if not nb.exists():

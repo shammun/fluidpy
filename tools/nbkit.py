@@ -13,6 +13,9 @@ and the coverage rules are checked the moment the notebook is saved.
     nb.md("### The problem in plain words\n…")
     nb.primer("hyperbolic tangent tanh", "…plain words…", code="…3-line numeric demo…")   # any concept not taught elsewhere
     nb.worked_example("a 10 m wave in 2 m of water", "1. … 2. …")
+    nb.derivation("D02", "Where the dispersion relation comes from", ref="7.27", goal="…", start=(r"…", "in words"),
+                  steps=[dict(did="Substitute the wave form", tex=r"…", why="Allowed because …", plain="…"), …],
+                  result=(r"…", "in words"), check_src="…sympy, every line commented…")   # inside its CORE block
     nb.code("…", explain="…")                                  # every line commented
     nb.figure("…plotting code…", see="…", read="…", change="…")   # a visual + its three reading notes
     nb.animation("…"); nb.plotly("…"); nb.live("…"); nb.check_agree("…")
@@ -27,13 +30,16 @@ and the coverage rules are checked the moment the notebook is saved.
   * a book section from ``book.yaml`` has no ``section(...)``;
   * a CORE item listed in ``analysis/chNN_curation.md`` (IDs ``C01``, ``C02`` … in the tiers table) has no ``core(...)``
     block, or its block has no code cell or no visual (figure, animation, plotly figure or explainer);
+  * a DERIVATION listed in the curation (IDs ``D01``… in the derivations table) has no ``derivation(...)``, sits in
+    another CORE block, or is ★★★ (hard) without a sympy check;
   * the number of explainers is outside ``book.yaml → project.min/max_explainers_per_chapter`` (4–5).
 ``tools/coverage_check.py chNN`` repeats these checks on the executed notebook (real outputs) and checks the
 prerequisite ledger.
 
 Cell metadata written here (read by ``tools/publish_notebook.py`` and ``tools/coverage_check.py``):
   tags: ``setup`` · ``explainer`` · ``animation`` · ``plotly`` · ``figure`` · ``live-only`` · ``from-scratch`` · ``primer`` · ``recap``
-  ``metadata.fluidpy.core`` = the CORE id the cell belongs to
+        · ``derivation`` · ``derivation-check``
+  ``metadata.fluidpy.core`` = the CORE id the cell belongs to; ``metadata.fluidpy.derivation`` = the D id
 """
 from __future__ import annotations
 
@@ -103,17 +109,26 @@ LIVE_NOTE = ("> ▶️ **Live cell.** The widget below needs a running Python ke
 
 
 def curation_items(chapter: str) -> dict[str, dict]:
-    """Rows of the tiers table in ``analysis/chNN_curation.md``: ``{id: {"tier", "item", "section"}}``.
+    """Rows of the tiers and derivations tables in ``analysis/chNN_curation.md``: ``{id: {"tier", "item", "row"}}``.
 
     The table's first column is the ID (``C07``, ``R02``, ``N03``, ``S01``) and one column is the tier
-    (CORE / RECAP / NOTE / SKIP). Rows without an ID are ignored."""
+    (CORE / RECAP / NOTE / SKIP). Derivation rows (``D01``…) get tier ``DERIVATION`` plus ``core`` (the C id they belong
+    to), ``hard`` (★★★ or "hard" in the row) and ``explainers`` (backticked slugs in the LAST column). Rows without an
+    ID are ignored."""
     path = ROOT / "analysis" / f"{chapter}_curation.md"
     if not path.exists():
         return {}
     out: dict[str, dict] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or not re.fullmatch(r"`?[CRNS]\d{2,3}`?", cells[0]):
+        if len(cells) < 3 or not re.fullmatch(r"`?[CRNSD]\d{2,3}`?", cells[0]):
+            continue
+        key = cells[0].strip("`")
+        if key.startswith("D"):
+            core = next((m.group(0) for c in cells[1:] for m in [re.search(r"\bC\d{2,3}\b", c)] if m), "")
+            out[key] = {"tier": "DERIVATION", "item": cells[1], "row": cells, "core": core,
+                        "hard": any("★★★" in c or re.search(r"\bhard\b", c, re.I) is not None for c in cells[1:]),
+                        "explainers": re.findall(r"`([a-z0-9_]+)`", cells[-1])}
             continue
         tier = next((c.upper() for c in cells[1:] if c.strip("* ").upper() in {"CORE", "RECAP", "NOTE", "SKIP"}), "")
         out[cells[0].strip("`")] = {"tier": tier.strip("* "), "item": cells[1], "row": cells}
@@ -139,6 +154,7 @@ class ChapterNotebook:
         self.cores: dict[str, dict] = {}          # id -> {"title", "code": n, "visual": n}
         self.recaps: set[str] = set()
         self.primers: list[str] = []
+        self.derivations: dict[str, dict] = {}    # id -> {"core", "title", "steps", "check"}
 
     # ---- primitives -------------------------------------------------------------------------------------------------
     def _add(self, cell, tags: list[str] | None = None):
@@ -203,8 +219,9 @@ class ChapterNotebook:
         lines = ["## 🎮 Interactive explainers in this chapter", "", "| # | Explainer | What it makes clear |", "|---|---|---|"]
         lines += [f"| {i + 1} | **{t}** | {why} |" for i, (_s, t, why) in enumerate(items)]
         lines += ["", "Each one opens right where its idea is taught and fills the window (no scrolling). Start with the "
-                  "**Walkthrough**, then **Explore** with the sliders and presets, follow the **Step by step** working "
-                  "with your own numbers, read the **Equations** and the **Code**, and finish with **Check yourself**. On the "
+                  "**Walkthrough**, then **Explore** with the sliders and presets, read **Explain** (every number worked "
+                  "out with your settings, and what it means), step through the **Derivation** where there is one, read "
+                  "the **Equations** and the **Code**, and finish with **Check yourself**. On the "
                   "web page they are full-window; in Colab and Jupyter they appear in the cell output (use ⤢ *Full screen* "
                   "or *Open in new tab* for more room)."]
         self.cells.append(nbf.v4.new_markdown_cell("\n".join(lines)))
@@ -274,6 +291,73 @@ class ChapterNotebook:
     def worked_example(self, title: str, steps_md: str) -> "ChapterNotebook":
         """A tiny example with easy numbers, traced step by step (before the general code)."""
         self.md(f"#### ✏️ Tiny example: {title}\n\n{textwrap.dedent(steps_md).strip()}")
+        return self
+
+    def derivation(self, key: str, title: str, goal: str, start: str | tuple[str, str], steps: list,
+                   result: str | tuple[str, str], ref: str = "", plan: list[str] | None = None,
+                   uses: list[str] | None = None, interpret: str = "", check: str = "",
+                   check_src: str | None = None) -> "ChapterNotebook":
+        """A step-by-step derivation (``D03`` from the curation) inside the current CORE block.
+
+        One small move per step, never "it can be shown". Each step is ``dict(did=…, tex=…, why=…, plain=…)`` (or the
+        tuple ``(did, tex, why, plain)``): ``did`` = the move in a few words ("divide both sides by m"), ``tex`` = the new
+        line, ``why`` = why the move is allowed and why we make it (name the rule; a rule not taught yet needs a primer
+        first), ``plain`` = what the new line says in words. ``start``/``result`` are LaTeX or ``(tex, in words)``.
+        ``check_src`` = a code cell that verifies the result with sympy (required for ★★★ derivations; every line
+        commented). The same steps, word for word, drive the explainer's Derivation tab when one exists."""
+        if not re.fullmatch(r"D\d{2,3}", key):
+            raise ValueError(f"derivation ids look like D03 (got {key!r})")
+        if key in self.derivations:
+            raise ValueError(f"derivation {key} written twice")
+        if not self.current_core:
+            raise ValueError(f"derivation {key} must sit inside a CORE block (call nb.core(...) first)")
+        if not goal.strip():
+            raise ValueError(f"derivation {key}: say in plain words what we want to show (goal)")
+        norm = []
+        for i, st in enumerate(steps, 1):
+            d = dict(zip(("did", "tex", "why", "plain"), st)) if isinstance(st, (tuple, list)) else dict(st)
+            miss = [k for k in ("did", "tex", "why", "plain") if not str(d.get(k, "")).strip()]
+            if miss:
+                raise ValueError(f"derivation {key} step {i}: missing {miss}")
+            if len(str(d["why"]).split()) < 6:
+                raise ValueError(f"derivation {key} step {i}: 'why' is too short — say why the move is allowed and why we make it")
+            norm.append(d)
+        if len(norm) < 2:
+            raise ValueError(f"derivation {key}: {len(norm)} step(s) — show every move (at least 2 steps)")
+
+        def pair(x):
+            return (x, "") if isinstance(x, str) else (x[0], x[1] if len(x) > 1 else "")
+
+        def ded(t):
+            return textwrap.dedent(t).strip()
+
+        start_tex, start_plain = pair(start)
+        res_tex, res_plain = pair(result)
+        lines = [f"#### 🧮 Derivation — {title}" + (f" (Eq. {ref})" if ref else ""), "",
+                 f"**What we want to show.** {ded(goal)}", ""]
+        if plan:
+            lines += ["**The plan.**", ""] + [f"{i}. {ded(x)}" for i, x in enumerate(plan, 1)] + [""]
+        if uses:
+            lines += ["**Tools we use** (each explained before this point): " + " · ".join(uses), ""]
+        lines += ["**We start from**", "", f"$$ {start_tex.strip()} $$", ""]
+        if start_plain:
+            lines += [f"*In words:* {ded(start_plain)}", ""]
+        for i, d in enumerate(norm, 1):
+            lines += ["---", "", f"**Step {i} of {len(norm)} — {ded(d['did'])}.**", "", f"$$ {d['tex'].strip()} $$", "",
+                      f"- *Why we can do this:* {ded(d['why'])}", f"- *In words:* {ded(d['plain'])}", ""]
+        lines += ["---", "", "**Result**", "", f"$$ {res_tex.strip()} $$", ""]
+        if res_plain:
+            lines += [f"*In words:* {ded(res_plain)}", ""]
+        if interpret:
+            lines += [f"**What it means.** {ded(interpret)}", ""]
+        if check:
+            lines += [f"**Check it.** {ded(check)}", ""]
+        cell = self._add(nbf.v4.new_markdown_cell("\n".join(lines).rstrip()), ["derivation"])
+        cell.metadata.setdefault("fluidpy", {})["derivation"] = key
+        if check_src:
+            cc = self._add(nbf.v4.new_code_cell(textwrap.dedent(check_src).strip("\n")), ["derivation-check"])
+            cc.metadata.setdefault("fluidpy", {})["derivation"] = key
+        self.derivations[key] = {"core": self.current_core, "title": title, "steps": len(norm), "check": bool(check_src)}
         return self
 
     def figure_notes(self, see: str, read: str, change: str) -> "ChapterNotebook":
@@ -348,6 +432,15 @@ class ChapterNotebook:
                 problems.append(f"CORE {cid} from the curation ({row['item']}) has no nb.core('{cid}', …) block")
             if row["tier"] == "RECAP" and cid not in self.recaps:
                 problems.append(f"RECAP {cid} from the curation ({row['item']}) has no nb.recap('{cid}', …)")
+            if row["tier"] == "DERIVATION":
+                got = self.derivations.get(cid)
+                if not got:
+                    problems.append(f"DERIVATION {cid} from the curation ({row['item']}) has no nb.derivation('{cid}', …)")
+                else:
+                    if row.get("core") and got["core"] != row["core"]:
+                        problems.append(f"DERIVATION {cid} sits in {got['core']} but the curation puts it in {row['core']}")
+                    if row.get("hard") and not got["check"]:
+                        problems.append(f"DERIVATION {cid} is ★★★ (hard) but has no check_src (sympy verification cell)")
         lo, hi = explainer_limits(self.book)
         if not (lo <= len(self.explainers) <= hi) and "explainers" not in allow:
             problems.append(f"{len(self.explainers)} explainers embedded (need {lo}–{hi})")
@@ -364,7 +457,8 @@ class ChapterNotebook:
         self.nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
         self.nb.metadata["language_info"] = {"name": "python"}
         self.nb.metadata["fluidpy"] = {"chapter": self.chapter, "explainers": self.explainers,
-                                      "cores": sorted(self.cores), "recaps": sorted(self.recaps), "primers": self.primers}
+                                      "cores": sorted(self.cores), "recaps": sorted(self.recaps), "primers": self.primers,
+                                      "derivations": self.derivations}
         for i, c in enumerate(self.cells):           # stable, readable cell ids
             c["id"] = f"{self.chapter}-{i:03d}"
         nbf.validate(self.nb)

@@ -87,13 +87,28 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     (tmp_path / "analysis" / "ch07_curation.md").write_text(
         "## 2. Tiers\n| ID | Item | § | Tier | Why | Treatment |\n|---|---|---|---|---|---|\n"
         "| C01 | dispersion relation | 7.2 | CORE | new | full |\n| C02 | group velocity | 7.5 | CORE | new | full |\n"
-        "| R01 | Bernoulli | 7.2 | RECAP | Ch. 4 | reminder |\n", encoding="utf-8")
+        "| R01 | Bernoulli | 7.2 | RECAP | Ch. 4 | reminder |\n"
+        "## 2b. Derivations\n| ID | Result | For | Difficulty | Steps | Shown in |\n|---|---|---|---|---|---|\n"
+        "| D01 | dispersion relation (7.27) | C01 | ★★★ | 6 | notebook · `dispersion_relation` |\n", encoding="utf-8")
+    items = nbkit.curation_items("ch07")
+    assert items["D01"]["tier"] == "DERIVATION" and items["D01"]["core"] == "C01" and items["D01"]["hard"]
+    assert items["D01"]["explainers"] == ["dispersion_relation"]
     nb = nbkit.ChapterNotebook("ch07")
     nb.title(big_idea="Waves.", roadmap=["one", "two"]).setup().section("7.2", "Linear waves")
     nb.recap("R01", "Bernoulli", "Pressure and speed trade off.", where="Ch. 4 §4.9")
     nb.core("C01", "The dispersion relation", question="Why do long waves travel faster?")
     nb.primer("tanh", "A smooth step from 0 to 1.", code="import numpy as np  # numbers\nprint(np.tanh(1.0))  # 0.76")
     nb.code("x = 1  # one", explain="Sets x.")
+    good_steps = [dict(did="Divide by k", tex=r"\omega^2/k = g", why="k is never zero here, so dividing keeps the equation true.", plain="Speed squared times k is g."),
+                  ("Take the square root", r"c = \sqrt{g/k}", "Both sides are positive, so the positive root is the physical speed.", "Longer waves are faster.")]
+    with pytest.raises(ValueError, match="too short"):
+        nb.derivation("D01", "t", goal="g", start=r"\omega^2 = gk", steps=[dict(good_steps[0], why="obvious"), good_steps[1]], result="c")
+    with pytest.raises(ValueError, match="at least 2"):
+        nb.derivation("D01", "t", goal="g", start=r"\omega^2 = gk", steps=good_steps[:1], result="c")
+    nb.derivation("D01", "Deep-water phase speed", goal="Find c from the dispersion relation.", ref="7.x",
+                  start=(r"\omega^2 = gk", "frequency squared = g times wavenumber"), steps=good_steps,
+                  result=(r"c = \sqrt{g/k}", "long waves outrun short ones"),
+                  check_src="import sympy as sp  # symbols\ng, k = sp.symbols('g k', positive=True)  # positive symbols\nassert sp.simplify(sp.sqrt(g*k)/k - sp.sqrt(g/k)) == 0  # c = omega/k")
     nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
     with pytest.raises(ValueError):
         nb.explainer("dispersion_relation", heading="h", why="w", tries=["t"])
@@ -118,6 +133,9 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     assert any("setup" in c.metadata.get("tags", []) for c in book.cells)
     assert book.metadata["fluidpy"]["cores"] == ["C01", "C02"] and book.metadata["fluidpy"]["primers"] == ["tanh"]
     assert any(c.metadata.get("fluidpy", {}).get("core") == "C02" and "figure" in c.metadata.get("tags", []) for c in book.cells)
+    der = [c for c in book.cells if c.metadata.get("fluidpy", {}).get("derivation") == "D01"]
+    assert [c.cell_type for c in der] == ["markdown", "code"] and "Step 2 of 2" in der[0].source and "*Why we can do this:*" in der[0].source
+    assert book.metadata["fluidpy"]["derivations"]["D01"] == {"core": "C01", "title": "Deep-water phase speed", "steps": 2, "check": True}
 
     # the coverage gate on the same notebook: clean, then a ledger row pointing at an unknown id is an error
     import coverage_check
@@ -128,6 +146,12 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
         "| tanh | C01 | primer (in C01) |\n| dispersion | C01 | C01 |\n", encoding="utf-8")
     errors, warns = coverage_check.check("ch07", nb_path=path)
     assert errors == [], errors
+    assert any("dispersion_relation not built yet" in w for w in warns)
+    (tmp_path / "viz" / "ch07").mkdir(parents=True)
+    (tmp_path / "viz" / "ch07" / "dispersion_relation.html").write_text('<meta name="viz:derivations" content="none">', encoding="utf-8")
+    errors, _ = coverage_check.check("ch07", nb_path=path)
+    assert any("does not list it in viz:derivations" in e for e in errors)
+    (tmp_path / "viz" / "ch07" / "dispersion_relation.html").write_text('<meta name="viz:derivations" content="D01">', encoding="utf-8")
     (tmp_path / "analysis" / "ch07_design.md").write_text(
         "## Part E\n| Concept | First used in | Explained by |\n|---|---|---|\n| vorticity | C01 | C09 |\n", encoding="utf-8")
     errors, _ = coverage_check.check("ch07", nb_path=path)

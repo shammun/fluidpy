@@ -2,11 +2,12 @@
 
 Errors (fail):
   * missing or placeholder ``<meta name="viz:*">`` tags (chapter, slug, order, title, summary, concept, sections,
-    equations, fluidpy); ``viz:chapter``/``viz:slug`` must match the file's folder/name;
+    equations, fluidpy, derivations); ``viz:chapter``/``viz:slug`` must match the file's folder/name;
   * missing VIZ_BASE_CSS / VIZ_LIB_JS marker blocks, or no ``Viz.app(`` call;
   * external resources other than KaTeX (which viz_lib loads itself): ``<script src=``, ``<link href=``, ``@import``,
     ``fetch(``, ``XMLHttpRequest``, ``<img src="http``;
-  * no ``tour:``, ``equations:`` or ``selftest:`` section; no ``ref:`` (book equation number) in the equations;
+  * no ``tour:``, ``equations:``, ``explain:``, ``code:``, ``check:`` or ``selftest:`` section; a ``viz:derivations`` id
+    (``D03 D04`` or ``none``) without its ``derivations: [{id: 'D03', …}]`` entry; no ``ref:`` (book equation number) in the equations;
     no ``py:`` parity row in selftest (explainers in a chapter folder must mirror a fluidpy function);
   * chapter CSS that re-introduces scrolling (``overflow: auto|scroll``, ``overflow-y``) or tiny text
     (``font-size`` below 12px) or fixed pixel widths above 360px;
@@ -24,7 +25,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_META = ("chapter", "slug", "order", "title", "summary", "concept", "sections", "equations", "fluidpy")
+REQUIRED_META = ("chapter", "slug", "order", "title", "summary", "concept", "sections", "equations", "fluidpy", "derivations")
 MAX_BYTES = 600_000
 
 
@@ -60,10 +61,17 @@ def lint_text(path: Path, html: str) -> list[str]:
                       (r"XMLHttpRequest", "XMLHttpRequest"), (r"<img[^>]+src=\"https?:", "remote <img>")]:
         if re.search(pat, rest):
             msgs.append(f"external resource: {what}")
-    for section in ("tour:", "equations:", "selftest:", "calc:", "code:", "check:"):
+    for section in ("tour:", "equations:", "selftest:", "code:", "check:"):
         if not re.search(r"\b" + section, js):
-            msgs.append(f"no {section[:-1]} section" + (" (required: Step-by-step working)" if section == "calc:" else
-                                                          " (required: the Python behind the picture)" if section == "code:" else ""))
+            msgs.append(f"no {section[:-1]} section" + (" (required: the Python behind the picture)" if section == "code:" else ""))
+    if not re.search(r"\b(explain|calc)\s*:", js):
+        msgs.append("no explain: section (required: Explanation & interpretation with the reader's numbers)")
+    wanted = [x for x in re.split(r"[\s,;]+", meta.get("derivations", "")) if x and x.lower() != "none"]
+    if wanted and not re.search(r"\bderivations\s*:", js):
+        msgs.append(f"viz:derivations lists {wanted} but there is no derivations: [...] section")
+    for w in wanted:
+        if not re.search(r"id\s*:\s*['\"]" + re.escape(w) + r"['\"]", js):
+            msgs.append(f"derivation id '{w}' (from viz:derivations) not found in the script")
     if "equations:" in js and "ref:" not in js:
         msgs.append("equations carry no ref: 'Eq. (N.M)' (cite the book's equation numbers)")
     if in_chapter and "selftest:" in js and not re.search(r"\bpy\s*:", js):

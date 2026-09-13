@@ -1,6 +1,6 @@
 ---
 name: notebook-builder
-description: Phase 8 of /do-chapter (parallel with explainer building and review; also the fixer for lesson-review findings). Writes notebooks/build_chNN.py with tools/nbkit.py from the storyboard in analysis/chNN_design.md - a teaching notebook in Shammunul's style covering every book section, where every CORE (new) idea has plain words, maths step by step, a tiny example, commented code and a visualization, every prerequisite is explained (recaps and primers), with animations, plotly figures, live widgets and the 4–5 explainers embedded - then generates, executes and coverage-checks it until clean.
+description: Phase 8 of /do-chapter (parallel with explainer building and review; also the fixer for lesson-review findings). Writes notebooks/build_chNN.py with tools/nbkit.py from the storyboard in analysis/chNN_design.md - a teaching notebook in Shammunul's style covering every book section, where every CORE (new) idea has plain words, maths step by step (hard results as full derivations: one move per step with why and in words, plus a sympy check), a tiny example, commented code and a visualization, every prerequisite is explained (recaps and primers), with animations, plotly figures, live widgets and the 4–5 explainers embedded - then generates, executes and coverage-checks it until clean.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 skills: teaching-style, python-viz, colab-notebook, fluids-book, chapter-knowledge
@@ -11,7 +11,7 @@ else. The explainers are being built in parallel — embed them by slug from the
 placeholder until a file exists, and the publish gate checks they all exist later.
 
 ## Read first
-`analysis/chNN_design.md` Parts A (storyboard), C (functions) and E (prerequisite ledger), `analysis/chNN_curation.md`
+`analysis/chNN_design.md` Parts A (storyboard), C (functions), E (prerequisite ledger) and F (derivations), `analysis/chNN_curation.md`
 (tier IDs, section coverage), `fluidpy/chNN_<slug>.py` (real signatures and docstrings), `tools/nbkit.py` (the cell
 vocabulary and its save-time checks), `knowledge/primers.md` (reuse earlier primers by one-line reminder), the
 `teaching-style`, `python-viz` and `colab-notebook` skills, `knowledge/notation.md`. For every equation you display,
@@ -20,12 +20,16 @@ check the rendered page (`tools/render_pages.py chNN --eq N.M`) and show its boo
 ## Build
 1. `notebooks/build_chNN.py` uses `ChapterNotebook("chNN")`: `title` → `explainer_index` (4–5) → `setup` → for each book
    section: `section(...)`, its RECAPs, its CORE blocks `core("Cxx", title, question)` in the storyboard's order (each with
-   primers where Part E says so, step-by-step maths, tiny example, commented code, from-scratch check if planned, **at least
-   one visual** — `figure(...)`, `animation`, `plotly`, or `explainer` — and its NOTEs), its SKIP pointers →
+   primers where Part E says so, step-by-step maths, **its derivations** `derivation("Dxx", …)` copied from Part F (goal,
+   start, plan, tools, every step with did / tex / why / plain, result, what it means, check, and `check_src` — a sympy
+   verification with every line commented — for ★★★ ones), tiny example, commented code, from-scratch check if planned,
+   **at least one visual** — `figure(...)`, `animation`, `plotly`, or `explainer` — and its NOTEs), its SKIP pointers →
    `summary(clicked, feeds_forward, left_out)` → `save()`.
-   `save()` refuses a notebook with a missing section, a missing CORE/RECAP id, a CORE block without code or visual, or
-   fewer than 4 / more than 5 explainers — fix the notebook, never bypass (`allow_missing` only with a written reason the
-   orchestrator approved).
+   `save()` refuses a notebook with a missing section, a missing CORE/RECAP/DERIVATION id, a CORE block without code or
+   visual, a derivation step without its why/in-words, a ★★★ derivation without a sympy check, or fewer than 4 / more
+   than 5 explainers — fix the notebook, never bypass (`allow_missing` only with a written reason the orchestrator approved).
+   If a Part F step does not follow from the one above by its stated move alone, insert the missing step and list it in
+   your reply.
 2. Markdown in **your own words** (never the book's prose). No term, symbol, maths operation or Python function appears
    before it is explained (CORE block, recap, or primer) — follow Part E; if you need something Part E missed, add a
    primer and list it in your reply.
@@ -46,7 +50,7 @@ check the rendered page (`tools/render_pages.py chNN --eq N.M`) and show its boo
 When re-briefed with `reports/chNN_lesson.md` findings: fix each Must-fix, re-run steps 6–8, and reply with what changed.
 
 ## Reply
-Notebook path · CORE blocks / RECAPs / NOTEs / pointers / primers counts · cells by kind (md/code/figure/animation/plotly/
+Notebook path · CORE blocks / RECAPs / NOTEs / pointers / primers / derivations (steps each, sympy checks) counts · cells by kind (md/code/figure/animation/plotly/
 live/explainer) · runtime · coverage_check result · explainer slugs embedded · anything from the storyboard you could not
 do and why · primers you added beyond Part E.
 Do not return while a background run is still in progress; wait for it and report the real numbers.

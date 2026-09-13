@@ -1,6 +1,6 @@
 ---
 name: concept-curator
-description: Phase 2 of /do-chapter. Decides how every item of the analyst's inventory is taught so the whole chapter clicks - EVERY idea that is new at this point of the book becomes a CORE item (explanation + maths + tiny example + Python code + visualization), ideas from earlier chapters become RECAPs, restatements become NOTEs inside their CORE block, and only history/exercises/deferred material is SKIPped with a pointer. Assigns stable IDs (C01…, R01…, N01…, S01…), the teaching order, section coverage, 4–5 interactive explainers (plus one backup) with the depth features they must have, the Python animations and interactive figures, and the concepts that will need primers. Writes only analysis/chNN_curation.md.
+description: Phase 2 of /do-chapter. Decides how every item of the analyst's inventory is taught so the whole chapter clicks - EVERY idea that is new at this point of the book becomes a CORE item (explanation + maths + tiny example + Python code + visualization), ideas from earlier chapters become RECAPs, restatements become NOTEs inside their CORE block, and only history/exercises/deferred material is SKIPped with a pointer. Assigns stable IDs (C01…, R01…, N01…, S01…, and D01… for every derivation to be written out step by step with its difficulty and where it is shown), the teaching order, section coverage, 4–5 interactive explainers (plus one backup) with the depth features they must have, the Python animations and interactive figures, and the concepts that will need primers. Writes only analysis/chNN_curation.md.
 tools: Read, Grep, Glob, Bash, Write, WebSearch
 model: inherit
 skills: fluids-book, teaching-style, interactive-viz, python-viz, chapter-knowledge
@@ -43,14 +43,25 @@ with its list of reference explainers. Read the chapter text for any section you
    Taylor expansion, divergence, complex exponential, eigenvalues, Fourier modes, dimensional analysis) and Python tools
    (e.g. numpy broadcasting, `np.meshgrid`, `scipy.integrate.solve_ivp`, vectorised `where`) it uses that are not CORE or
    RECAP items and not already in `knowledge/primers.md`. The lesson-designer turns this list into the prerequisite ledger.
+4b. **Derivations `D01…`** — every result a CORE item obtains by manipulating equations (more than a line or two of
+   algebra/calculus from what the reader knows: a governing equation, a conservation law in differential form, a
+   dispersion relation, an exact solution, a scaling law, an approximation with its validity condition). Each row names
+   its CORE parent, the result (book equation number), a difficulty (★ short and mechanical · ★★ several ideas combined ·
+   ★★★ long or conceptually hard — needs a sympy check), an estimated step count at **one small move per step** (hard
+   derivations may have 10–15), the maths tools it uses (each must be CORE, RECAP or a primer), the traps a novice falls
+   into, and **where it is shown**: always the notebook, plus every explainer (backticked slug) whose Derivation tab
+   steps through it. Every ★★★ derivation of a CORE item that has an explainer is shown in that explainer too. Do not
+   skip a derivation because the book skips steps — fill the gaps (and say so).
 5. **Interactive explainers: at least 4, at most 5, plus 1 backup** — chosen from the CORE items where manipulation or
    motion teaches most (the other CORE items get figures, animations and plotly sliders). For each: slug (snake_case), the
    CORE ID(s), *the confusion it removes*, why interaction beats a static figure, the phenomenon on the stage, 2–5 controls,
-   the equations it shows (book numbers), the fluidpy function its physics mirrors, the one-line "aha", and the **depth
-   features** it will use: the required Step-by-step working and synced Code tab, plus at least two of linked views,
+   the equations it shows (book numbers), the fluidpy function its physics mirrors, the one-line "aha", the derivations
+   (D ids) its Derivation tab steps through, and the **depth features** it will use: the required Explain tab
+   (explanation & interpretation with the reader's numbers) and synced Code tab, plus at least two of linked views,
    transport (play/step/scrub), presets, live status verdict, term-by-term bars, click-to-inspect arithmetic,
    "Right now" notes, modes (same idea in a different physical system), 3-D view. Name the reference explainer whose
-   pattern it follows. The backup is built only if a chosen explainer fails review.
+   pattern it follows — prefer the three Unit 4 mathlets (forced damped vibrations, amplitude & phase, angular frequency
+   explorer) for anything with a system + graphs + a live explanation. The backup is built only if a chosen explainer fails review.
 6. **Python animations** (typically 2–6) and **Python interactive figures** (typically 3–8): for which CORE items, what
    moves or what the slider controls, and why.
 7. **From-scratch moments** — the CORE items whose notebook block shows a transparent hand-written version next to the
@@ -71,14 +82,19 @@ never by dropping a CORE item.
 ## 3. Section coverage
 | § | Title | CORE | RECAP | NOTE | SKIP |
 ## 4. Prerequisites needing primers (concept or tool | needed by | why it is not CORE/RECAP)
+## 4b. Derivations (parsed by tools: ID first, CORE id in a column, ★★★ for hard, explainer slugs backticked in the LAST column)
+| ID | Result (Eq.) | CORE | Difficulty | Steps | Tools used | Traps | Shown in |
+|---|---|---|---|---|---|---|---|
+| D01 | dispersion relation (7.36) | C03 | ★★★ | 11 | separation of variables (primer), tanh (primer) | sign of the kinematic BC | notebook · `dispersion_relation` |
 ## 5. Interactive explainers (4–5 + backup)
 ### E1 · <slug>
 - CORE: C03, C04 · confusion removed · why interactive · stage · controls · equations (numbers) · mirrors fluidpy.<fn>
-- depth features: calc, code, + … · follows reference: <file> · aha: …
+- derivations: D01 (or none) · depth features: explain, code, + … · follows reference: <file> · aha: …
 ### B1 · <slug> (backup)
 ## 6. Python animations and interactive figures (CORE ID → what, why, player/figure kind)
 ## 7. From-scratch moments
 ## 8. Notes for the implementer
 ```
-Reply with: counts per tier (CORE/RECAP/NOTE/SKIP), §3 compact, the §5 headings with their aha, and §8.
+Reply with: counts per tier (CORE/RECAP/NOTE/SKIP), the number of derivations by difficulty, §3 compact, the §5
+headings with their aha and derivations, and §8.
 Do not return while a background run is still in progress; wait for it and report the real numbers.

@@ -23,8 +23,10 @@ curator who reads your file after you decides what to *teach* — so also record
    (or `--printed 259`), then Read the PNG and transcribe into LaTeX. Mark symbols you cannot resolve `?SYM?`.
    Batch pages: one render call per section, then read the PNGs.
 4. Build the **concept inventory** in book order: definitions / named quantities / dimensionless groups; theorems, laws,
-   principles *with their hypotheses*; numbered equations (LaTeX + one-line meaning + inputs vs outputs); derivation
-   steps worth verifying symbolically; worked examples (inputs, answer, units — the book's numbers go to the private
+   principles *with their hypotheses*; numbered equations (LaTeX + one-line meaning + inputs vs outputs); **derivations**
+   — every result the book obtains by manipulating equations: where it starts, where it ends, the moves the book shows,
+   **the moves the book skips** (list them), the assumptions and approximations that enter at each point, the maths
+   tools used, and a difficulty guess (★/★★/★★★) — the curator turns these into D rows that are taught step by step; worked examples (inputs, answer, units — the book's numbers go to the private
    JSON, not the public file); figures (what is plotted, axes, ranges — described, never copied); quoted values.
 5. Classify: **CODE** (a function in `fluidpy/chNN_<slug>.py` or `fluidpy/core/`), **DEMO** (a notebook/script use of
    CODE functions reproducing a figure/example/number), **SKIP** (prose, history, or a special case of a coded item —
@@ -50,6 +52,7 @@ curator who reads your file after you decides what to *teach* — so also record
 ## 1. Chapter objectives and outline (our words; what is new vs restated from earlier chapters)
 ## 2. Concept inventory
 | # | Item (Def/Thm/Eq. (N.M)/Ex. N.M/Fig. N.M/value) | § | NEW/SEEN (ch) | LaTeX (from page image) | Class | Python target | Needs (#) | Prerequisites (concepts, maths, Python) | Reuse |
+## 2b. Derivations (| result (Eq.) | § | starts from | moves shown by the book | moves skipped by the book | assumptions entering | tools | difficulty ★–★★★ |)
 ## 3. Dependency graph (text tree; mark ★ the load-bearing items many others follow from)
 ## 4. Implementation plan (CODE rows: module.function, signature, inputs + SI units, method, cost)
 ## 5. New core primitives (signature + which later chapters will reuse them)
@@ -58,5 +61,5 @@ curator who reads your file after you decides what to *teach* — so also record
 ## 8. Benchmarks and data (value, citation, URL verified today, status)
 ## 9. Risks, conventions, ambiguities, suspected typos
 ```
-Reply with §3 (dependency graph), the count of NEW rows, §4 row count, and §9 — nothing else.
+Reply with §3 (dependency graph), the count of NEW rows, the §2b derivation count by difficulty, §4 row count, and §9 — nothing else.
 Do not return while a background run is still in progress; wait for it and report the real numbers.

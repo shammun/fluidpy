@@ -6,10 +6,10 @@ Turn each chapter of the book into **one learning package** that makes the chapt
 
 | Per chapter | What it is |
 |---|---|
-| `notebooks/chNN_<slug>.ipynb` | The teaching notebook, **executed**: plain words → step-by-step maths → tiny worked example → commented Python → figure → how to read it; Python animations, plotly slider figures, live widgets; the chapter's explainers embedded |
+| `notebooks/chNN_<slug>.ipynb` | The teaching notebook, **executed**: plain words → step-by-step maths (hard results as full **derivations**, one move per step, each explained) → tiny worked example → commented Python → figure → how to read it; Python animations, plotly slider figures, live widgets; the chapter's explainers embedded |
 | `notebooks/chNN_<slug>_colab.ipynb` | The same notebook for Google Colab (outputs stripped; its setup cell clones this repo; explainers load from GitHub Pages) |
 | `notebooks/chNN_<slug>.html` | The published page: executed notebook, every explainer a **full-window block** (100 % width × 100 % height), Open-in-Colab button, prev/next, contents |
-| `viz/chNN/<slug>.html` (**4–5**) | Self-contained vanilla-JS explainers at the depth of Shammunul's reference explainers: linked views of the phenomenon, controls and presets, guided walkthrough, step-by-step working with your numbers, synced code, live equations, quiz — fitting any window with **no scrolling** |
+| `viz/chNN/<slug>.html` (**4–5**) | Self-contained vanilla-JS explainers at the depth of Shammunul's reference explainers (preferred: the Unit 4 mathlets — forced damped vibrations, amplitude & phase, angular frequency explorer): linked views of the phenomenon, controls and presets, guided walkthrough, a live **Explain** tab (every number worked out with your settings + interpretation), a step-by-step **Derivation** tab for derivation-heavy ideas, synced code, live equations, quiz — fitting any window with **no scrolling** |
 
 Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the physics as tested functions), `tests/`,
 `reports/`, `knowledge/`. Site: `index.html` (chapters) and `viz/index.html` (explainer gallery), served at
@@ -20,8 +20,11 @@ Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the phy
 that is new at this point of the book — plain words, step-by-step maths, tiny example, commented Python **and at least one
 visualization** (early chapters have dozens); **RECAP** (`R01…`) = taught in an earlier chapter, reminded where needed;
 **NOTE** (`N01…`) = a restatement or special case shown inside its CORE block; **SKIP** (`S01…`) = history, exercises,
-bibliography, deferred material — one pointer line. Every concept, symbol, maths tool and Python function is explained
-where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 4–5 interactive explainers
+bibliography, deferred material — one pointer line. Every result obtained by manipulating equations is a **DERIVATION**
+(`D01…`, ★–★★★): written out one small move per step (what we did · the line · why it is allowed · in words), the
+book's skipped moves filled in, then checked (units, limits, sympy for ★★★) and interpreted — in the notebook (hence
+Colab and the page) and in the Derivation tab of the explainer for that idea. Every concept, symbol, maths tool and
+Python function is explained where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 4–5 interactive explainers
 are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`, `tools/coverage_check.py`, the
 `lesson-reviewer` and `tools/shot.py` enforce all of this.
 
@@ -44,7 +47,7 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
 | `*.pdf` (repo root) | the book — read-only, never modified | **never** |
 | `book.yaml` | project config + chapter map (exact PDF pages from the outline, sections, explainer seeds) | yes |
 | `chapters/chNN.{pdf,txt}`, `chapters/pages/` | split chapter, extracted text, rendered page images | **never** |
-| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory (NEW/SEEN, prerequisites) · IDs + tiers + section coverage + 4–5 explainers · storyboards + prerequisite ledger | yes |
+| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory (NEW/SEEN, prerequisites, derivations and the moves the book skips) · IDs + tiers + derivations (D rows) + section coverage + 4–5 explainers · storyboards + prerequisite ledger + derivations written out step by step | yes |
 | `fluidpy/core/` | primitives: `project`, `embed` (show_viz), `anim`, `interact` (plotly sliders), `style`, `units`, `refdata`, + physics reused by ≥2 chapters | yes |
 | `fluidpy/chNN_<slug>.py`, `scripts/chNN_*.py` | chapter physics + runnable demos | yes |
 | `viz/chNN/<slug>.html` | explainers (library inlined from `assets/viz_lib.js` + `assets/viz_base.css` by `tools/viz_inline.py`) | yes |
@@ -67,11 +70,15 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
    *problem → idea → maths → code → what the output shows*, a tiny example with easy numbers traced step by step, every
    code line commented for a novice, **at least one visualization**, and *what you see / how to read it / what would
    change if…*; nothing (concept, symbol, maths tool, Python function) is used before it is explained — CORE block,
-   recap or 📎 primer.
+   recap or 📎 primer. **Derivations are never skipped or compressed**: goal and plan in plain words, one small move
+   per step with *what we did*, *why we can do this* (the rule, the assumption) and *in words*, then a check and what
+   the result means (`teaching-style` §1c, `nb.derivation`).
 4. **4–5 interactive explainers per chapter** (plus a backup idea), each attached to CORE ideas and justified by "why
    interaction beats a static figure here", built to the depth of the reference explainers (skill `interactive-viz`
-   §4–§5): required Step-by-step working and synced Code tabs plus at least two depth features (linked views, transport,
-   presets, status, term bars, inspector, notes, modes, 3-D). Each fits the window with **no scrolling** at 360×640 …
+   §4–§5): a required live **Explain** tab ("Explanation & interpretation" in numbered sections, as in
+   `forced_damped_vibrations.html`), a **Derivation** tab for every derivation the curation assigns to it, a synced
+   Code tab, plus at least two depth features (linked views, transport, presets, status, term bars, inspector, notes,
+   modes, 3-D). Each fits the window with **no scrolling** at 360×640 …
    1920×1080 and in a notebook frame, shows and explains its equations, has a 4–8-step walkthrough and ≥ 3 check
    questions. Content that does not fit becomes a tab or a page — never a scrollbar, never text below 12 px. Enforced by
    `tools/viz_lint.py` + `tools/shot.py` and judged by eye by the `viz-reviewer`.

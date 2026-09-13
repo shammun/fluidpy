@@ -51,6 +51,32 @@ section**:
 | **NOTE** `N01…` | a restatement or special case of a CORE idea | 📝 inside its CORE block, with its equation (and a line of code or an overlay when cheap) |
 | **SKIP** `S01…` | only history, exercises, bibliography, material the book defers to a later chapter | one line in its section saying where the idea is covered |
 
+**Hard maths is derived step by step, and explained.** Every result the chapter gets by manipulating equations is a
+**derivation** `D01…` with a difficulty (★ short · ★★ several ideas · ★★★ long or conceptually hard). The analyst notes
+which moves the book skips; the designer writes every derivation out in full; the notebook shows it as a 🧮 block:
+
+```
+What we want to show (plain words) · The plan (2–4 bullets) · Tools we use (each already explained) · We start from
+Step k of n — <the move, e.g. "multiply every term by the velocity">
+    the new line (one relation)
+    • Why we can do this: the rule or assumption that allows it, and why we make this move
+    • In words: what the new line says physically
+Result · What it means · Check it (units, a limit, and a sympy cell for ★★★)
+```
+
+The explainer for that idea has a **Derivation** tab with the same steps: the line before (faded), the move, the new
+line (highlighted), *Why*, *In words*, the line with **your numbers**, and each step moves the picture to the case it is
+about; the last page shows the whole chain, the result and what it means right now. A walkthrough step can quote the key
+step with an "All steps →" button. Every explainer also has a live **Explain** tab ("Explanation & interpretation"),
+modelled on your `forced_damped_vibrations.html`: what each colour on screen is, every displayed number worked out from
+your current settings in numbered sections with boxed results, the values at the current time, and a paragraph
+interpreting the current regime (on a big screen, ↗ opens it in its own live browser tab).
+
+The notebook kit refuses to save a notebook where a planned derivation is missing, a step lacks its *why* or *in words*,
+or a ★★★ derivation has no sympy check; the browser audit visits every page of every derivation at 8 screen sizes; the
+`math-verifier` re-derives ★★/★★★ results symbolically; the `lesson-reviewer` and `viz-reviewer` work through every
+step and fail any line that does not follow from the one above by the stated move.
+
 **Nothing is used unexplained:** every concept, symbol, maths tool (partial derivatives, Taylor series, complex
 exponentials, …) and Python function (broadcasting, `np.meshgrid`, `solve_ivp`, …) the notebook uses is explained no later
 than where it is first used — by its own CORE block, a recap, or a 📎 **primer** (plain words + a tiny runnable demo).
@@ -147,18 +173,18 @@ Useful options:
 
 | # | Phase (agent) | Reads | Writes | Look at |
 |---|---|---|---|---|
-| 1 | **analyze** (`concept-analyst`) | chapter text, rendered equation pages, knowledge | `analysis/chNN.md` | the dependency graph (§3) and the risks (§9) |
-| 2 | **curate** (`concept-curator`) | analysis, `viz_seeds`, viz patterns | `analysis/chNN_curation.md` | the teaching spine, the count per tier, the section-coverage table, the explainer shortlist with each "aha", the SKIP list with pointers |
-| 3 | **design** (`lesson-designer`) ∥ | curation | `analysis/chNN_design.md` | explainer storyboards (steps, controls, equations) |
+| 1 | **analyze** (`concept-analyst`) | chapter text, rendered equation pages, knowledge | `analysis/chNN.md` | the dependency graph (§3), the derivations and the moves the book skips (§2b), the risks (§9) |
+| 2 | **curate** (`concept-curator`) | analysis, `viz_seeds`, viz patterns | `analysis/chNN_curation.md` | the teaching spine, the count per tier, the derivations table (difficulty, where shown), the section-coverage table, the explainer shortlist with each "aha", the SKIP list with pointers |
+| 3 | **design** (`lesson-designer`) ∥ | curation | `analysis/chNN_design.md` | explainer storyboards (steps, controls, Explain sections, equations) and Part F: every derivation written out step by step |
 | 4 | **implement** (`concept-implementer`) ∥ | analysis, curation, rendered pages | `fluidpy/chNN_<slug>.py`, `scripts/` | docstrings cite section + equation + units |
 | 5 | **verify** (`math-verifier` ⟲ implementer) | code, tiers | `tests/test_chNN.py`, `reports/chNN_verification.md` | Verdict, labels, convergence orders, Open items |
 | 6 | **review** (`derivation-reviewer`) ∥ | code vs page images | `reports/chNN_review.md` | Must-fix list and that each was fixed |
 | 7 | **viz** (`viz-builder` ×4–5 → `viz-reviewer`) ∥ | storyboards, fluidpy | `viz/chNN/*.html`, `reports/chNN_viz.md` | screenshots in `reports/viz/chNN/<slug>/` |
-| 8 | **notebook** (`notebook-builder` → `lesson-reviewer`) ∥ | design Parts A/C/E, fluidpy | `notebooks/build_chNN.py`, `.ipynb`, `reports/chNN_lesson.md` | every CORE idea with code + visual, nothing unexplained, runtime |
+| 8 | **notebook** (`notebook-builder` → `lesson-reviewer`) ∥ | design Parts A/C/E/F, fluidpy | `notebooks/build_chNN.py`, `.ipynb`, `reports/chNN_lesson.md` | every CORE idea with code + visual, every derivation step-by-step and audited, nothing unexplained, runtime |
 | 9 | **knowledge** (`knowledge-keeper`) ∥ | everything | `knowledge/*` | "Feeds forward" |
 | 10 | **publish** (`site-publisher` + orchestrator) | notebook, explainers | executed `.ipynb`, `_colab.ipynb`, `.html`, index, gallery | the live page on your phone |
 
-Gates: analysis covers every numbered equation · every NEW item is CORE, every section covered · 4–5 explainers + backup at reference depth · every CORE block has code + visual and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
+Gates: analysis covers every numbered equation · every NEW item is CORE, every section covered, every derivation has a D row · 4–5 explainers + backup at reference depth · every CORE block has code + visual, every derivation is written out and checked, and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
 PASS (≤ 3 fix loops, never by loosening a tolerance) · no open Must-fix · every explainer passes lint + browser audit at
 8 sizes + parity + visual review (≤ 2 rebuild rounds, else it is dropped, never published broken) · notebook executes
 with 0 errors · embed check (every explainer embedded exactly once) · public-repo check · page audit (explainers
@@ -207,6 +233,12 @@ make the group-velocity dot bigger on phones. Keep the walkthrough to 6 steps."
 /notebook-chapter 4 "Section 4.6: derive the Navier-Stokes viscous term one index step at a time, with a 2-D
 Couette example using easy numbers, and add a plotly slider for the pressure gradient."
 ```
+**A derivation is still too hard to follow:**
+```prompt
+/notebook-chapter 7 "D04 (the dispersion relation): step 5 jumps from the surface condition to the tanh. Split it into
+one move per step, say why each move is allowed and what each line means in words, add a sympy check of the
+intermediate line, and copy the same steps into the Derivation tab of dispersion_relation (/build-viz 7 dispersion_relation)."
+```
 **Weak label:**
 ```prompt
 In reports/ch06_verification.md the item "<name>" is labelled qualitative. Add a real assertion (exact solution,
@@ -230,26 +262,32 @@ knowledge/viz_patterns.md or knowledge/CUMULATIVE.md, and show me the diff.
 
 ### 5.1 How an explainer is built
 1. The curator picks 4–5 CORE ideas (plus a backup), says why interaction beats a static figure, which depth features it
-   needs and which **reference explainer** it follows — your own: the MIT-mathlet re-implementations
-   `angular_frequency_explorer_1.html` and `amplitude_phase_second_order_II_3.html`, and the fast.ai labs
-   `fid_formula_lab`, `forward_noising_lab`, `pixels_as_parameters`, `random_copy_lab`, `overfitting_curves`,
-   `stride_padding_playground`, `ddpm3_unet_3d`, `np_resnet_3d` (paths in skill `interactive-viz` §5).
-2. The lesson-designer storyboards it: linked views, controls, presets, status verdict, step-by-step working, code,
-   4–8 walkthrough steps, equations with book numbers and live substitutions, ≥ 3 questions, parity rows.
+   needs, which derivations it steps through, and which **reference explainer** it follows — your own, with the three
+   Unit 4 MIT-mathlet re-implementations preferred: `forced_damped_vibrations.html` (its live explanation panel is the
+   model for every Explain tab), `amplitude_phase_second_order_II_3.html` (a numbered derivation with live numbers) and
+   `angular_frequency_explorer_1.html` (linked views and modes); then the fast.ai labs `fid_formula_lab`,
+   `forward_noising_lab`, `pixels_as_parameters`, `random_copy_lab`, `overfitting_curves`, `stride_padding_playground`,
+   `ddpm3_unet_3d`, `np_resnet_3d` (paths in skill `interactive-viz` §5).
+2. The lesson-designer storyboards it: linked views, controls, presets, status verdict, the Explain sections and their
+   interpretation texts, the Derivation tab (what the picture shows at each step), code, 4–8 walkthrough steps,
+   equations with book numbers and live substitutions, ≥ 3 questions, parity rows.
 3. `tools/new_viz.py` scaffolds the file from `templates/viz_template.html`; the builder writes the physics and the
    `Viz.app({...})` configuration, copying patterns from the three passing references in `templates/`
-   (`viz_example.html` — linked views, transport, presets, status, energy-term bars, inspector, notes, step-by-step,
-   synced code; `viz_example_field.html` — flow fields and particles; `viz_example_3d.html` — a three.js scene).
+   (`viz_example.html` — linked views, transport, presets, status, energy-term bars, inspector, notes, Explain tab,
+   two derivations (why energy can only fall; where ω_d comes from), synced code; `viz_example_field.html` — flow fields and particles; `viz_example_3d.html` — a three.js scene).
 4. `tools/viz_lint.py` (static rules) and `tools/shot.py` (headless Edge at 360×640, 390×844, 844×390, 768×1024,
    1280×720, 1000×700, 1366×768, 1920×1080; every tab, every step): fails on any overflow, a window not filled, text
    below 12 px, small tap targets, JS errors, missing equations, parity mismatch with the Python function, and on the
-   **quality floor** — a Step-by-step tab, a Code tab, ≥ 2 depth features, ≥ 3 questions.
+   **quality floor** — an Explain tab with ≥ 3 numbered sections and an interpretation, a Derivation tab for every
+   derivation the storyboard lists (each step with its move, line, why and in-words), a Code tab, ≥ 2 depth features,
+   ≥ 3 questions.
 5. The builder and then the `viz-reviewer` *look at* the screenshots and compare with the reference. Nothing is
    published that fails; if one fails twice, the backup idea is built so the chapter still has at least 4.
 
 **What every explainer offers the reader** (tabs): Walkthrough · Explore (controls, presets, live numbers, term bars,
-inspector, "right now" interpretation) · Step by step (the formulas worked out with your current numbers) · Equations ·
-Code (the Python, with the walkthrough lighting up the lines) · Check yourself. Above the picture: presets and a live
+inspector, "right now" interpretation) · Explain (every number on screen worked out with your current settings, then
+what it means) · Derivation (the key formula built one move at a time, when the idea has one) · Equations · Code (the
+Python, with the walkthrough lighting up the lines) · Check yourself. Above the picture: presets and a live
 status verdict; below it: ▶ ⏮ ⏭ ↺, a time scrubber and speed.
 
 **Why it never needs scrolling:** the engine measures itself. It chooses a layout for the window's shape, tightens
@@ -309,15 +347,15 @@ _colab.ipynb by re-running tools/publish_notebook.py, commit, run tools/check_pu
 | Agent | Job | Writes |
 |---|---|---|
 | concept-analyst | full inventory from text + page images, dependency graph, validation plan | `analysis/chNN.md` |
-| concept-curator | IDs + tiers (every new idea CORE), teaching order, section coverage, primers needed, 4–5 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
-| lesson-designer | notebook storyboard + explainer storyboards + function contract | `analysis/chNN_design.md` |
+| concept-curator | IDs + tiers (every new idea CORE), derivations (D rows), teaching order, section coverage, primers needed, 4–5 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
+| lesson-designer | notebook storyboard + explainer storyboards + function contract + prerequisite ledger + every derivation step by step | `analysis/chNN_design.md` |
 | concept-implementer | physics as documented functions; fixes | `fluidpy/`, `scripts/` |
 | math-verifier | tests on the evidence ladder; report | `tests/`, `reference/`, `reports/chNN_verification.md` |
 | derivation-reviewer | fresh-eyes code-vs-book review (read-only) | → `reports/chNN_review.md` |
 | viz-builder | one explainer, iterated to PASS | `viz/chNN/<slug>.html` |
 | viz-reviewer | audits, screenshots, parity, teaching quality | `reports/chNN_viz.md` |
-| notebook-builder | teaching notebook via nbkit (CORE blocks, recaps, primers), executed, coverage-checked | `notebooks/build_chNN.py`, `.ipynb` |
-| lesson-reviewer | reads the executed notebook as a first-time learner: coverage, nothing unexplained, correctness, style | `reports/chNN_lesson.md` |
+| notebook-builder | teaching notebook via nbkit (CORE blocks, recaps, primers, derivations with sympy checks), executed, coverage-checked | `notebooks/build_chNN.py`, `.ipynb` |
+| lesson-reviewer | reads the executed notebook as a first-time learner: coverage, nothing unexplained, every derivation step follows, correctness, style | `reports/chNN_lesson.md` |
 | knowledge-keeper | memory + promotion of patterns and helpers | `knowledge/`, skill Lessons |
 | site-publisher | embed check, publish, page audit, public check | pages, Colab twin, index, gallery |
 

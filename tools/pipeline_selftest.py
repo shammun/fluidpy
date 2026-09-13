@@ -74,7 +74,25 @@ def build_notebook() -> Path:
     C.append(nbf.v4.new_markdown_cell("## 6 An interactive explainer\n\nText before the explainer."))
     C.append(nbf.v4.new_code_cell(
         f'show_viz("ch99", "viz_example", root=r"{ST.as_posix()}")', metadata={"tags": ["explainer"]}))
-    C.append(nbf.v4.new_markdown_cell("Text after the explainer.\n\n## 7 The end"))
+    C.append(nbf.v4.new_markdown_cell("Text after the explainer.\n\n## 7 A step-by-step derivation"))
+    dnb = nbkit.ChapterNotebook("ch01")                   # the real nb.derivation cells (markdown + sympy check)
+    dnb.core("C01", "self-test block")
+    dnb.derivation("D01", "Energy of a damped spring can only fall", ref="E.3",
+                   goal="Show that friction always removes energy.", start=(r"\ddot x + 2\zeta\omega_0\dot x + \omega_0^2 x = 0", "Newton per kg"),
+                   steps=[dict(did="Multiply by $\\dot x$", tex=r"\dot x\ddot x + 2\zeta\omega_0\dot x^2 + \omega_0^2 x\dot x = 0",
+                               why="Multiplying both sides by the same quantity keeps the equation true.", plain="Powers add to zero."),
+                          dict(did="Spot exact derivatives", tex=r"\frac{d}{dt}\Big(\tfrac12\dot x^2 + \tfrac12\omega_0^2x^2\Big) = -2\zeta\omega_0\dot x^2",
+                               why="The chain rule gives d/dt of half a square as the value times its rate.", plain="Energy falls at a rate set by friction.")],
+                   result=(r"\frac{dE}{dt} = -2\zeta\omega_0 v^2 \le 0", "never positive"),
+                   check_src="import sympy as sp  # symbolic maths\n"
+                             "t, z, w = sp.symbols('t zeta omega0', positive=True)  # time and parameters\n"
+                             "x = sp.Function('x')(t)  # the unknown position\n"
+                             "E = x.diff(t)**2/2 + w**2*x**2/2  # energy per kg\n"
+                             "xdd = -2*z*w*x.diff(t) - w**2*x  # the ODE solved for the acceleration\n"
+                             "assert sp.simplify(E.diff(t).subs(x.diff(t, 2), xdd) + 2*z*w*x.diff(t)**2) == 0  # dE/dt = -2 zeta w0 v^2\n"
+                             "print('derivation checked')  # reached only if the assertion holds")
+    C.extend(dnb.cells[-2:])
+    C.append(nbf.v4.new_markdown_cell("## 8 The end"))
     nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
     path = ST / "notebooks" / "selftest_page.ipynb"
     nbf.write(nb, path)
@@ -107,6 +125,9 @@ def main() -> int:
         fails.append("no frames (jshtml) animation player output")
     if not any("plotly" in h.lower() for h in htmls):
         fails.append("no plotly html output")
+    texts = ["".join(o.get("text", "")) for c in executed.cells if c.cell_type == "code" for o in c.outputs]
+    if not any("derivation checked" in t for t in texts):
+        fails.append("the derivation's sympy check cell did not print 'derivation checked'")
 
     page_nb, keys = pub.transform(executed, "page")
     row = {"id": "ch99", "number": 99, "title": "Self-test", "slug": "selftest_page", "blurb": "pipeline self-test"}
@@ -138,6 +159,8 @@ def main() -> int:
             video: document.querySelectorAll('video').length,
             frames: document.querySelectorAll('.animation img, img[id^="_anim_img"]').length,
             toc: !!document.querySelector('.fp-toc-btn'),
+            derivation: document.body.innerText.includes('Why we can do this') && document.body.innerText.includes('Step 2 of 2'),
+            math: document.querySelectorAll('mjx-container').length,
             moved: !!document.querySelector('.ce-container > section.fp-viz, main > section.fp-viz, .jp-Notebook > section.fp-viz')
         })""")
         ctx.close()
@@ -150,6 +173,10 @@ def main() -> int:
         fails.append("video animation missing on the page")
     if not checks["frames"]:
         fails.append("frames animation player missing on the page")
+    if not checks["derivation"]:
+        fails.append("the step-by-step derivation did not appear on the page")
+    if not checks["math"]:
+        fails.append("markdown maths (MathJax) did not render on the page")
     if not checks["moved"]:
         fails.append("explainer block was not moved out of its notebook cell")
 

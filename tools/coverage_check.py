@@ -10,7 +10,10 @@ Checks (exit 1 on any error):
   5. the prerequisite ledger in ``analysis/chNN_design.md`` (``## Part E`` table: ``| Concept | First used in | Explained by |``)
      — every row whose "Explained by" says ``primer`` has a primer cell naming that concept (warning if not found);
      rows that say ``C07``/``R02`` must point at an existing CORE/RECAP id (error);
-  6. no code cell is left uncommented: code cells with ≥ 4 non-blank lines need a comment on at least half of them
+  6. every DERIVATION row (``D01``… in the curation's derivations table) is derived step by step (``nb.derivation``)
+     — ★★★ rows also need a sympy check cell (no error when executed), and every explainer named in the row's last
+     column lists the id in its ``viz:derivations`` meta;
+  7. no code cell is left uncommented: code cells with ≥ 4 non-blank lines need a comment on at least half of them
      (warning — the lesson-reviewer judges quality; this catches the obvious case).
 
 Usage::
@@ -128,7 +131,34 @@ def check(chapter: str, nb_path: Path | None = None, executed: bool = False) -> 
     else:
         warns.append(f"analysis/{chapter}_design.md not found — ledger not checked")
 
-    # 6 comments
+    # 6 derivations: every D row is written out step by step inside its CORE block; ★★★ ones carry a sympy check;
+    #   an explainer named in the row lists the id in its viz:derivations meta (and so has the Derivation tab)
+    der_cells: dict[str, set[str]] = {}
+    for c in nb.cells:
+        did = c.metadata.get("fluidpy", {}).get("derivation")
+        if did:
+            der_cells.setdefault(did, set()).update(c.metadata.get("tags", []))
+            if c.cell_type == "code" and has_outputs and any(o.get("output_type") == "error" for o in c.get("outputs", [])):
+                errors.append(f"DERIVATION {did}: the sympy check cell raised an error")
+    for did, r in planned.items():
+        if r["tier"] != "DERIVATION":
+            continue
+        tags = der_cells.get(did)
+        if not tags or "derivation" not in tags:
+            errors.append(f"DERIVATION {did} ({r['item']}) is not derived step by step in the notebook")
+            continue
+        if r.get("hard") and "derivation-check" not in tags:
+            errors.append(f"DERIVATION {did} ({r['item']}) is ★★★ but has no sympy check cell")
+        for slug in r.get("explainers", []):
+            html = ROOT / "viz" / chapter / f"{slug}.html"
+            if not html.exists():
+                warns.append(f"DERIVATION {did}: explainer {slug} not built yet (its Derivation tab is not checked)")
+                continue
+            m = re.search(r'<meta\s+name="viz:derivations"\s+content="([^"]*)"', html.read_text(encoding="utf-8"))
+            if not m or did not in re.split(r"[\s,;]+", m.group(1)):
+                errors.append(f"DERIVATION {did}: explainer {slug} does not list it in viz:derivations (no Derivation tab for it)")
+
+    # 7 comments
     for i, c in enumerate(nb.cells):
         if c.cell_type != "code" or "setup" in c.metadata.get("tags", []):
             continue

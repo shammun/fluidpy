@@ -19,8 +19,12 @@
        terms:     { title, items:[{id, label, color, value: s => number}], total:{label}, unit },  // click a term to focus it
        inspect:   (s, app) => html | null,                           // click-to-trace exact arithmetic (state set by onPointer)
        notes:     (s, app) => html,                                  // "Right now": regime-dependent interpretation
-       calc:      { title, html: (s, app) => Viz.work.line(...)+..., live: (s, app) => ({name: value}) },   // Step by step tab
-       tour:      [ {title, text, set, play, controls:['k'], readouts:['c'], eq:'disp', code:{id, lines:[3,4]},
+       explain:   { title, html: (s, app) => Viz.work.step(1,'…')+Viz.work.line(...)+Viz.work.interpret(...), live: (s, app) => ({name: value}) },
+                                                                     // Explain tab ("Explanation & interpretation"; old name: calc)
+       derivations: [ {id, title, short, ref:'Eq. (7.27)', goal, start:{tex, plain}, plan:['…'], uses:['product rule'],
+                       steps:[ {tex, did:'divide by m', why:'…allowed because…', plain:'…in words…', live: s => tex, set, highlight, watch} ],
+                       result:{tex, plain, set}, interpret: (s, app) => html, check:'units / limit / sympy', picture: true} ],
+       tour:      [ {title, text, set, play, controls:['k'], readouts:['c'], eq:'disp', code:{id, lines:[3,4]}, derive:{id, step},
                      terms:true, inspect:true, notes:true, callout:{kind, html}, highlight:['readout:c'], enter(app)} ],
        equations: [ {id, title, ref:'Eq. (7.27)', tex, live: s => tex, note, symbols:[[tex, meaning, unit]]} ],
        code:      [ {id, title, ref, src:'python with {{live}} placeholders', live: s => ({live: value}), note} ],  // Code tab
@@ -37,8 +41,9 @@
    0..3 until nothing overflows → paginate long lists (equations, questions, controls) into pages → if anything
    still overflows, console.warn('VIZ-OVERFLOW', …) so tools/shot.py fails the build.
 
-   Audit hooks for tools/shot.py: window.VIZ = { app, ready, audit(), selftest(), setTab(id), goStep(i), tabs, steps }.
-   URL hash deep links: #tab=equations&step=3&k=0.25
+   Audit hooks for tools/shot.py: window.VIZ = { app, ready, audit(), selftest(), setTab(id), goStep(i), goDerive(i, s),
+   tabs, steps, derivations, explainStats(), features }.
+   URL hash deep links: #tab=equations&step=3&k=0.25   ·   #tab=derive&d=1&ds=4
 
    Inlined verbatim into each explainer by tools/viz_inline.py between the VIZ_LIB_JS markers — edit THIS file,
    then run `python tools/viz_inline.py --all`. No dependencies; KaTeX is loaded from a CDN with a text fallback.
@@ -580,7 +585,7 @@
   }
   Viz.highlightPy = highlightPy;
 
-  /** Builders for the "Step by step" tab: every line = formula = numbers substituted = result, with a short why.
+  /** Builders for the "Explain" tab: every line = formula = numbers substituted = result, with a short why.
       Put values that change with time in live spans (Viz.live('x')) and return them from calc.live(s). */
   Viz.work = {
     head: function (text) { return '<div class="viz-work-h">' + text + '</div>'; },
@@ -590,7 +595,14 @@
       return '<table class="viz-work-table"><tr>' + headers.map(function (x) { return '<th>' + x + '</th>'; }).join('') + '</tr>' +
         rows.map(function (r, i) { return '<tr' + (i === current ? ' class="cur"' : '') + '>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
     },
-    note: function (html) { return '<p>' + html + '</p>'; }
+    note: function (html) { return '<p>' + html + '</p>'; },
+    /* the "Explanation & interpretation" pattern of the reference mathlets (forced_damped_vibrations.html):
+       numbered sections that compute every displayed quantity with the reader's numbers, then say what it means */
+    step: function (n, title) { return '<div class="viz-work-h"><span class="viz-work-n">' + n + '</span>' + title + '</div>'; },
+    say: function (html) { return '<p class="viz-work-say">' + html + '</p>'; },
+    box: function (html) { return '<div class="viz-work-res teal">' + html + '</div>'; },
+    interpret: function (html, label) { return '<div class="viz-work-interp"><b class="k">' + (label || 'What this means') + '</b> ' + html + '</div>'; },
+    hint: function (html) { return '<p class="viz-work-hint">' + html + '</p>'; }
   };
   Viz.live = function (name) { return '<b data-live="' + esc(name) + '">…</b>'; };
 
@@ -659,7 +671,8 @@
   var DEFAULT_TABS = [
     { id: 'tour', label: 'Walkthrough', short: 'Guide' },
     { id: 'explore', label: 'Explore', short: 'Play' },
-    { id: 'calc', label: 'Step by step', short: 'Calc' },
+    { id: 'explain', label: 'Explain', short: 'Why' },
+    { id: 'derive', label: 'Derivation', short: 'Derive' },
     { id: 'equations', label: 'Equations', short: 'Math' },
     { id: 'code', label: 'Code', short: 'Code' },
     { id: 'check', label: 'Check yourself', short: 'Quiz' }
@@ -681,6 +694,7 @@
   function now() { return (global.performance && global.performance.now) ? global.performance.now() : Date.now(); }
 
   Viz.app = function (cfg) {
+    if (cfg.calc && !cfg.explain) cfg.explain = cfg.calc;          // `calc` is the old name of `explain`
     var app = { cfg: cfg, state: {}, defaults: {}, tab: null, step: 0, playing: false, holding: false, t: 0, controls: {}, _hl: [] };
     var mount = doc.getElementById(cfg.mount || 'app') || doc.body.appendChild(h('div', { id: 'app' }));
     mount.classList.add('viz-mount');
@@ -702,7 +716,8 @@
     var tabsDef = DEFAULT_TABS.filter(function (t) {
       if (t.id === 'tour') return cfg.tour && cfg.tour.length;
       if (t.id === 'explore') return true;
-      if (t.id === 'calc') return !!cfg.calc;
+      if (t.id === 'explain') return !!cfg.explain;
+      if (t.id === 'derive') return !!(cfg.derivations && cfg.derivations.length);
       if (t.id === 'equations') return cfg.equations && cfg.equations.length;
       if (t.id === 'code') return cfg.code && cfg.code.length;
       if (t.id === 'check') return cfg.check && cfg.check.length;
@@ -852,24 +867,25 @@
     function termsBlock() {
       var tc = cfg.terms; if (!tc) return null;
       var box = h('div', { class: 'viz-terms' });
-      tc.items.forEach(function (it) {
+      tc.items.forEach(function (it, idx) {
         var val = h('span', { class: 'viz-term-val' }), fill = h('span', { class: 'viz-term-fill', style: { background: it.color || Viz.color('accent') } });
         var row = h('button', { class: 'viz-term', type: 'button', 'data-viz-key': 'term:' + it.id, title: (it.help || '').replace(/\$/g, ''), onclick: function () { app.set('focus', app.state.focus === it.id ? null : it.id); } },
           h('span', { class: 'viz-term-head' }, h('span', { class: 'viz-term-label', html: mathify(it.label) }), val), h('span', { class: 'viz-term-track' }, fill));
         row.style.setProperty('--term-color', it.color || Viz.color('accent'));
-        termEls.push({ it: it, row: row, val: val, fill: fill }); box.appendChild(row);
+        termEls.push({ it: it, idx: idx, row: row, val: val, fill: fill }); box.appendChild(row);
       });
       if (tc.total) { var tv = h('span', { class: 'viz-term-val' }); box.appendChild(h('div', { class: 'viz-term-total' }, h('span', { html: mathify(tc.total.label) }), tv)); termEls.push({ total: true, val: tv }); }
       return box;
     }
     function updateTerms() {
+      termEls = termEls.filter(function (o) { return o.val.isConnected; });   // drop bars of earlier walkthrough steps
       var tc = cfg.terms; if (!tc || !termEls.length) return;
       var vals = tc.items.map(function (it) { try { return it.value(app.state, app); } catch (e) { return NaN; } });
       var total = tc.total ? (isFn(tc.total.value) ? tc.total.value(app.state, app) : vals.reduce(function (a, b) { return a + (isFinite(b) ? b : 0); }, 0)) : null;
       var mx = Math.max.apply(null, vals.map(Math.abs).concat(total === null ? [] : [Math.abs(total)]).filter(isFinite).concat([1e-300]));
       termEls.forEach(function (o, i) {
         if (o.total) { o.val.textContent = fmt(total, { sig: tc.sig || 3, unit: tc.unit }); return; }
-        var v = vals[i];
+        var v = vals[o.idx];
         o.val.textContent = fmt(v, { sig: tc.sig || 3, unit: tc.unit });
         o.fill.style.width = (isFinite(v) ? Math.abs(v) / mx * 100 : 0) + '%';
         o.row.classList.toggle('neg', v < 0);
@@ -915,7 +931,7 @@
             if (bottom - pageStart > avail + 0.5 && top > pageStart + 0.5) {
               // keep a sub-heading together with the item that follows it
               var prevIt = items[i - 1];
-              if (prevIt && prevIt.classList.contains('viz-subhead') && prevIt._vizPage === pg && prevIt.getBoundingClientRect().top - top0 > pageStart + 0.5) { pg += 1; pageStart = prevIt.getBoundingClientRect().top - top0; prevIt._vizPage = pg; }
+              if (prevIt && (prevIt.classList.contains('viz-subhead') || prevIt.classList.contains('viz-work-h')) && prevIt._vizPage === pg && prevIt.getBoundingClientRect().top - top0 > pageStart + 0.5) { pg += 1; pageStart = prevIt.getBoundingClientRect().top - top0; prevIt._vizPage = pg; }
               else { pg += 1; pageStart = top; }
               pages.push(pg);
             }
@@ -968,29 +984,159 @@
       tourEls = { chips: chips, count: count, title: title, text: text, extras: h('div'), prev: prev, next: next, card: tourPager.card, pager: tourPager };
     })();
 
-    // Step by step (live working)
-    var calcPager = null, calcHtml = null, calcLive = [];
-    if (cfg.calc) (function () {
-      var p = panel('calc');
-      calcPager = Pager(cfg.calc.title || 'Step by step · with your numbers', []); pagers.push(calcPager); p.appendChild(calcPager.card);
+    // Explain — "Explanation & interpretation" (the forced_damped_vibrations.html pattern): numbered sections that
+    // compute every displayed quantity with the reader's own numbers, then interpret the current setting. Live.
+    var calcPager = null, calcHtml = null, calcLive = [], popWin = null, popBtn = null;
+    if (cfg.explain) (function () {
+      var p = panel('explain');
+      popBtn = h('button', { class: 'viz-pager-btn viz-pop-btn', type: 'button', title: 'Open this explanation in a new tab (it stays live)', 'aria-label': 'Open the explanation in a new tab', text: '↗', onclick: function () { openPop(); } });
+      var head = h('span', { class: 'viz-card-head' }, h('span', { html: mathify(cfg.explain.title || 'Explanation & interpretation') }), popBtn);
+      calcPager = Pager('', [], head); pagers.push(calcPager); p.appendChild(calcPager.card);
     })();
     function updateCalc(structural) {
       if (!calcPager) return;
+      var E = cfg.explain;
       if (structural) {
-        var html; try { html = (isFn(cfg.calc) ? cfg.calc : cfg.calc.html)(app.state, app); } catch (e) { html = '<p>—</p>'; reportError(e); }
+        var html; try { html = (isFn(E) ? E : E.html)(app.state, app); } catch (e) { html = '<p>—</p>'; reportError(e); }
         if (html !== calcHtml) {
           calcHtml = html;
           var tmp = h('div', { html: mathify(html) });
           var items = Array.prototype.slice.call(tmp.children);
           calcPager.setItems(items); typeset(calcPager.body);
           calcLive = Array.prototype.slice.call(calcPager.body.querySelectorAll('[data-live]'));
-          if (app.tab === 'calc') calcPager.layout();
+          if (app.tab === 'explain') calcPager.layout();
         }
       }
-      if (cfg.calc.live && calcLive.length) {
-        var vals; try { vals = cfg.calc.live(app.state, app) || {}; } catch (e) { vals = {}; }
+      if (E.live && calcLive.length) {
+        var vals; try { vals = E.live(app.state, app) || {}; } catch (e) { vals = {}; }
         calcLive.forEach(function (el) { var v = vals[el.getAttribute('data-live')]; if (v !== undefined) { v = typeof v === 'number' ? fmt(v, { sig: 4 }) : String(v); if (el.textContent !== v) el.textContent = v; } });
       }
+      pushPop();
+    }
+    // the same explanation in a separate, live browser tab (for reading next to the picture on a big screen)
+    function openPop() {
+      if (popWin && !popWin.closed) { popWin.focus(); pushPop(); return; }
+      var w = null; try { w = global.open('', '_blank'); } catch (e) { w = null; }
+      if (!w) { popBtn.title = 'The browser blocked the new tab: allow pop-ups for this page'; popBtn.classList.add('blocked'); return; }
+      popWin = w;
+      var styles = Array.prototype.map.call(doc.querySelectorAll('style, link[rel="stylesheet"]'), function (el) { return el.outerHTML; }).join('\n');
+      var name = esc(String(cfg.title || doc.title).replace(/\$/g, ''));
+      w.document.write('<!DOCTYPE html><html lang="en" data-theme="' + (doc.documentElement.getAttribute('data-theme') || 'light') + '"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Explanation · ' + name + '</title>' + styles +
+        '<style>html,body{height:auto!important;overflow:auto!important}body{margin:0;background:var(--viz-bg)}' +
+        '.viz-pop-hd{position:sticky;top:0;padding:8px 18px;font-weight:650;background:var(--viz-card);border-bottom:1px solid var(--viz-border)}' +
+        '.viz-pop-hd span{font-weight:400;color:var(--viz-muted);font-size:12px;margin-left:8px}' +
+        '.viz-pop{padding:12px 18px;column-width:340px;column-gap:28px;font-size:14px}.viz-pop>*{break-inside:avoid;margin-bottom:6px}</style></head>' +
+        '<body><div class="viz-pop-hd">' + name + ' · explanation &amp; interpretation<span>live: follows the controls and the animation in the explainer</span></div>' +
+        '<div class="viz-pop" id="viz-pop-body"></div></body></html>');
+      w.document.close(); pushPop();
+    }
+    function pushPop() {
+      if (!popWin) return;
+      if (popWin.closed) { popWin = null; return; }
+      try {
+        var b = popWin.document.getElementById('viz-pop-body'); if (!b) return;
+        b.innerHTML = calcPager.body.innerHTML;
+        Array.prototype.forEach.call(b.children, function (el) { el.style.display = ''; });
+      } catch (e) { popWin = null; }
+    }
+
+    // Derivation — one move per step: the line we had → what we did → the new line → why that is allowed → what it
+    // says in words (+ the line with the reader's numbers). Pages: the goal · step 1…n · the result.
+    var der = { i: 0, s: 0, els: null };
+    function derBlock(cls, label, html) {
+      return h('div', { class: 'viz-der-block ' + cls }, label ? h('b', { class: 'k', html: mathify(label) }) : null, h('span', { class: 'viz-der-txt', html: mathify(html) }));
+    }
+    function derLine(tex, cls, label) {
+      var inner = h('div', { class: 'viz-eq-inner' }); renderTex(inner, tex, true);
+      return h('div', { class: 'viz-der-line ' + (cls || '') }, label ? h('span', { class: 'viz-der-tag', text: label }) : null, h('div', { class: 'viz-eq-body' }, inner));
+    }
+    if (cfg.derivations && cfg.derivations.length) (function () {
+      var p = panel('derive');
+      var pick = cfg.derivations.length > 1 ? h('div', { class: 'viz-seg viz-der-pick', role: 'radiogroup', 'aria-label': 'Derivation' },
+        cfg.derivations.map(function (d, i) { return h('button', { class: 'viz-seg-btn', type: 'button', html: mathify(d.short || d.title), onclick: function () { app.goDerive(i, 0); } }); })) : null;
+      var count = h('div', { class: 'viz-step-count' }), chips = h('div', { class: 'viz-steps-chips', role: 'tablist', 'aria-label': 'Derivation steps' });
+      var pg = Pager('', [], h('div', { class: 'viz-step-head' }, pick, count, chips), 'viz-step-card viz-der-card'); pagers.push(pg);
+      var prev = h('button', { class: 'viz-btn', type: 'button', text: '← Back', onclick: function () { app.goDerive(der.i, der.s - 1); } });
+      var next = h('button', { class: 'viz-btn primary', type: 'button', text: 'Next →' });
+      p.appendChild(pg.card); p.appendChild(h('div', { class: 'viz-step-nav' }, prev, next));
+      der.els = { pick: pick, count: count, chips: chips, pager: pg, prev: prev, next: next };
+    })();
+    /** Show derivation i at page s (0 = the goal, 1…n = steps, n+1 = the result). opts.quiet: render only (no state change). */
+    app.goDerive = function (i, s, opts) {
+      if (!der.els) return app;
+      opts = opts || {};
+      var D = cfg.derivations; i = clamp(i || 0, 0, D.length - 1);
+      var d = D[i], n = d.steps.length, last = n + 1;
+      s = clamp(s || 0, 0, last); der.i = i; der.s = s;
+      var st = s >= 1 && s <= n ? d.steps[s - 1] : null;
+      if (!opts.quiet) {
+        if (app.tab !== 'derive') app.setTab('derive');
+        if (s === 0 && d.set) app.set(d.set);
+        if (st && st.set) app.set(st.set);
+        if (s === last && d.result && d.result.set) app.set(d.result.set);
+        if (st && st.play !== undefined) app.play(st.play);
+      }
+      root.setAttribute('data-der-picture', d.picture === false ? '0' : '1');
+      // on phones only one view stays next to the derivation: d.view, else the first view
+      var keep = viewById[d.view] ? d.view : views[0].id;
+      views.forEach(function (v) { v.el.classList.toggle('viz-der-off', v.id !== keep); });
+      Array.prototype.forEach.call(rowsEl.children, function (row) { row.classList.toggle('viz-der-off', !row.querySelector('.viz-view:not(.viz-der-off)')); });
+      var E = der.els, items = [];
+      if (E.pick) Array.prototype.forEach.call(E.pick.children, function (b, k) { b.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
+      E.count.textContent = (s === 0 ? 'The goal' : s === last ? 'The result' : 'Step ' + s + ' of ' + n) + (d.ref ? ' · ' + d.ref : '');
+      E.chips.innerHTML = '';
+      for (var k = 0; k <= last; k++) (function (k) {
+        var c = h('button', { class: 'viz-step-chip' + (k < s ? ' done' : ''), type: 'button', text: k === 0 ? 'G' : (k === last ? '✓' : String(k)),
+          title: k === 0 ? 'The goal' : (k === last ? 'The result' : String(d.steps[k - 1].did || 'Step ' + k).replace(/<[^>]+>|\$/g, '')), onclick: function () { app.goDerive(i, k); } });
+        if (k === s) c.setAttribute('aria-current', 'step');
+        E.chips.appendChild(c);
+      })(k);
+      items.push(h('h2', { class: 'viz-step-title', html: mathify(d.title) }));
+      var startTex = d.start ? (typeof d.start === 'string' ? d.start : d.start.tex) : null;
+      if (s === 0) {
+        if (d.goal) items.push(derBlock('viz-der-goal', 'What we want to show', d.goal));
+        if (startTex) items.push(derLine(startTex, 'viz-der-cur', 'we start from'));
+        if (d.start && d.start.plain) items.push(derBlock('viz-der-plain', 'In words', d.start.plain));
+        if (d.plan && d.plan.length) items.push(derBlock('viz-der-plan', 'The plan', '<ol>' + d.plan.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>'));
+        if (d.uses && d.uses.length) items.push(derBlock('viz-der-uses', 'Tools we use', d.uses.join(' · ')));
+      } else if (st) {
+        var prevTex = s === 1 ? startTex : d.steps[s - 2].tex;
+        if (prevTex) items.push(derLine(prevTex, 'viz-der-prev', 'we had'));
+        if (st.did) items.push(derBlock('viz-der-did', '', '↓ ' + st.did));
+        items.push(derLine(st.tex, 'viz-der-cur', 'now'));
+        if (st.why) items.push(derBlock('viz-der-why', 'Why', st.why));
+        if (st.plain) items.push(derBlock('viz-der-plain', 'In words', st.plain));
+        if (isFn(st.live)) { var lv = h('div', { class: 'viz-eq-inner', 'data-der-live': '1' }); items.push(h('div', { class: 'viz-der-line viz-der-live' }, h('span', { class: 'viz-der-tag', text: 'your numbers' }), h('div', { class: 'viz-eq-body' }, lv))); }
+        if (st.watch) items.push(h('div', { class: 'viz-callout watch' }, h('b', { class: 'k', text: 'Watch' }), h('span', { html: mathify(st.watch) })));
+      } else {
+        items.push(derBlock('viz-der-goal', 'The whole chain', 'Each line follows from the one above by the move written next to it.'));
+        if (startTex) items.push(derLine(startTex, 'viz-der-chain'));
+        d.steps.forEach(function (x, k) { items.push(derLine(x.tex, 'viz-der-chain', String(k + 1))); });
+        if (d.result && d.result.tex) items.push(derLine(d.result.tex, 'viz-der-result', 'result'));
+        if (d.result && d.result.plain) items.push(derBlock('viz-der-plain', 'In words', d.result.plain));
+        if (isFn(d.interpret)) items.push(h('div', { class: 'viz-der-block viz-der-interp' }, h('b', { class: 'k', text: 'What it means right now' }), h('span', { class: 'viz-der-txt viz-der-interp-body' })));
+        if (d.check) items.push(derBlock('viz-der-check', 'Check it', d.check));
+      }
+      E.pager.setItems(items); typeset(E.pager.card);
+      E.prev.disabled = s === 0;
+      E.next.textContent = s === 0 ? 'Start →' : (s === n ? 'The result →' : (s === last ? (i < D.length - 1 ? 'Next derivation →' : 'Explore →') : 'Next step →'));
+      E.next.onclick = s === last ? (i < D.length - 1 ? function () { app.goDerive(i + 1, 0); } : function () { app.setTab('explore'); }) : function () { app.goDerive(i, s + 1); };
+      if (!opts.quiet) {
+        clearHighlights();
+        var hl = (st && st.highlight) || (s === last && d.result && d.result.highlight);
+        if (hl) [].concat(hl).forEach(function (key) { Array.prototype.forEach.call(root.querySelectorAll('[data-viz-key="' + key + '"]'), function (el) { el.classList.add('viz-hl'); app._hl.push(el); }); });
+        updateDerDynamic(); app.draw(); app.fit(); saveHash();
+      }
+      return app;
+    };
+    function updateDerDynamic() {
+      if (!der.els) return;
+      var d = cfg.derivations[der.i], st = der.s >= 1 && der.s <= d.steps.length ? d.steps[der.s - 1] : null;
+      var lv = der.els.pager.body.querySelector('[data-der-live]');
+      if (lv && st && isFn(st.live)) { var t; try { t = st.live(app.state, app); } catch (e) { t = '\\text{—}'; } if (lv._t !== t) { lv._t = t; renderTex(lv, t, true); scaleEq(lv); } }
+      var ib = der.els.pager.body.querySelector('.viz-der-interp-body');
+      if (ib && isFn(d.interpret)) { var hh; try { hh = d.interpret(app.state, app); } catch (e) { hh = ''; } if (ib._h !== hh) { ib._h = hh; ib.innerHTML = mathify(hh); typeset(ib); } }
     }
 
     // Equations
@@ -1066,7 +1212,8 @@
       (cfg.tour && cfg.tour.length ? '<li><b>Walkthrough</b> tells the story step by step: press <kbd>Next →</kbd> or use <kbd>←</kbd>/<kbd>→</kbd>. Each step sets up the picture for you.</li>' : '') +
       '<li><b>Explore</b> hands you the controls: drag a slider and watch the picture and the live numbers respond.</li>' +
       (cfg.presets && cfg.presets.length ? '<li>The chips above the picture jump to special cases worth seeing.</li>' : '') +
-      (cfg.calc ? '<li><b>Step by step</b> works the formulas out with your current numbers, line by line.</li>' : '') +
+      (cfg.explain ? '<li><b>Explain</b> works out every number on the picture with your current settings, step by step, and says what it means (↗ opens it in its own tab on a big screen).</li>' : '') +
+      (cfg.derivations && cfg.derivations.length ? '<li><b>Derivation</b> builds the key formula one small move at a time: the line before, what we did, the new line, why that is allowed, and what it says in words.</li>' : '') +
       (cfg.equations && cfg.equations.length ? '<li><b>Equations</b> shows the formulas behind the picture, with your numbers substituted.</li>' : '') +
       (cfg.code && cfg.code.length ? '<li><b>Code</b> shows the Python that computes the picture; live values appear in the comments.</li>' : '') +
       (cfg.check && cfg.check.length ? '<li><b>Check yourself</b> asks questions you can answer by experimenting.</li>' : '') +
@@ -1217,6 +1364,7 @@
       updateInspectNotes();
       updateCalc(structural !== false);
       updateCodeLive();
+      if (app.tab === 'derive') updateDerDynamic();
       if (tourEls.card && force !== false) refreshStepExtras();
     }
     function refreshStepExtras() {
@@ -1285,6 +1433,21 @@
         var sc = typeof s.code === 'string' ? { id: s.code } : s.code, cc = codeCfg[sc.id], ln = sc.lines || [1, 1], ctxN = sc.context === undefined ? 1 : sc.context;
         X.appendChild(h('div', { class: 'viz-code-card viz-step-code' }, codeBlock(cc, ln[0] - 1 - ctxN, ln[1] - 1 + ctxN, ln)));
       }
+      if (s.derive && cfg.derivations) {
+        // a walkthrough step can quote one step of a derivation and link to the full one
+        var sd = typeof s.derive === 'string' ? { id: s.derive } : s.derive, di = -1;
+        cfg.derivations.forEach(function (dd, k) { if (dd.id === sd.id) di = k; });
+        if (di >= 0) {
+          var dd = cfg.derivations[di], dk = sd.step ? clamp(sd.step, 1, dd.steps.length) : 0, dst = dk ? dd.steps[dk - 1] : null;
+          var mini = h('div', { class: 'viz-der-mini' },
+            h('div', { class: 'viz-der-mini-head' }, h('span', { html: mathify('Derivation · ' + (dst ? 'step ' + dk + (dst.did ? ': ' + dst.did : '') : dd.title)) }),
+              h('button', { class: 'viz-btn', type: 'button', text: 'All steps →', onclick: function () { app.goDerive(di, dk); } })));
+          var tex = dst ? dst.tex : (dd.result && dd.result.tex) || (typeof dd.start === 'string' ? dd.start : dd.start && dd.start.tex);
+          if (tex) mini.appendChild(derLine(tex, 'viz-der-cur'));
+          if (dst && dst.why) mini.appendChild(derBlock('viz-der-why', 'Why', dst.why));
+          X.appendChild(mini);
+        }
+      }
       if (s.inspect && isFn(cfg.inspect)) X.appendChild(h('div', { class: 'viz-inspect viz-step-inspect' }));
       if (s.notes && isFn(cfg.notes)) X.appendChild(h('div', { class: 'viz-notes viz-step-notes' }));
       if (s.callout) X.appendChild(h('div', { class: 'viz-callout ' + (s.callout.kind || 'try') }, h('b', { class: 'k', text: CALLOUT_LABEL[s.callout.kind || 'try'] }), h('span', { html: mathify(s.callout.html) })));
@@ -1305,6 +1468,7 @@
       if (!app._ready || app._fromLoop) return;
       var o = { tab: app.tab };
       if (app.tab === 'tour') o.step = app.step + 1;
+      if (app.tab === 'derive') { o.d = der.i + 1; o.ds = der.s; }
       writeHash(o);
     }
 
@@ -1314,6 +1478,8 @@
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (ev.key === 'ArrowRight' && app.tab === 'tour') { app.goStep(app.step + 1); ev.preventDefault(); }
       else if (ev.key === 'ArrowLeft' && app.tab === 'tour') { app.goStep(app.step - 1); ev.preventDefault(); }
+      else if (ev.key === 'ArrowRight' && app.tab === 'derive') { app.goDerive(der.i, der.s + 1); ev.preventDefault(); }
+      else if (ev.key === 'ArrowLeft' && app.tab === 'derive') { app.goDerive(der.i, der.s - 1); ev.preventDefault(); }
       else if (ev.key === ' ' && animated) { app.play(); ev.preventDefault(); }
       else if (ev.key === '?') { help.classList.toggle('open'); }
       else if (ev.key === 'Escape') { help.classList.remove('open'); }
@@ -1349,9 +1515,13 @@
       var W = global.innerWidth, H = global.innerHeight;
       var layout = (W < 700 && H >= W * 0.9) || W < 520 ? 'portrait' : (H < 520 ? 'landscape' : 'wide');
       root.setAttribute('data-layout', layout);
-      root.classList.toggle('short-tabs', false);
+      root.classList.remove('short-tabs', 'tabs-row');
       root.classList.toggle('compact-title', W < 420);
-      if (nav.scrollWidth > nav.clientWidth + 1 || header.scrollWidth > header.clientWidth + 1) root.classList.add('short-tabs');
+      // header: long tab labels inline → short labels inline → tabs on their own row (long, then short labels)
+      var titleBox = header.firstChild;
+      var cramped = function () { return nav.scrollWidth > nav.clientWidth + 1 || header.scrollWidth > header.clientWidth + 1 || (layout !== 'portrait' && titleBox.clientWidth < 200); };
+      if (cramped()) root.classList.add('short-tabs');
+      if (cramped() && layout === 'wide') { root.classList.remove('short-tabs'); root.classList.add('tabs-row'); if (cramped()) root.classList.add('short-tabs'); }
       var bad = [];
       for (var d = 0; d <= 3; d++) {
         root.setAttribute('data-dense', String(d));
@@ -1383,8 +1553,10 @@
     try { resizeCanvas(); if (cfg.stage && isFn(cfg.stage.setup)) cfg.stage.setup(g, app.state); } catch (e) { reportError(e); }
     typeset(root);
     updateReadouts(); updateDynamic(true, true);
+    if (hash.tab === 'calc') hash.tab = 'explain';
     var firstTab = hash.tab && app.tabs.indexOf(hash.tab) >= 0 ? hash.tab : (cfg.startTab || app.tabs[0]);
     if (cfg.tour && cfg.tour.length) app.goStep(hash.step ? Number(hash.step) - 1 : 0);
+    if (der.els) app.goDerive(hash.d ? Number(hash.d) - 1 : 0, hash.ds ? Number(hash.ds) : 0, { quiet: firstTab !== 'derive' });
     app.setTab(firstTab);
     queueLive();
     if (animated && cfg.autoplay !== false) app.play(true); else app.draw();
@@ -1408,7 +1580,10 @@
     };
     global.VIZ = {
       app: app, ready: app.ready, tabs: app.tabs, steps: (cfg.tour || []).length,
-      features: { views: views.length, calc: !!cfg.calc, code: !!(cfg.code && cfg.code.length), terms: !!cfg.terms, inspect: isFn(cfg.inspect), notes: isFn(cfg.notes), presets: (cfg.presets || []).length, transport: !!tr, modes: !!cfg.modes, status: !!cfg.status },
+      derivations: (cfg.derivations || []).map(function (d) { return { id: d.id, title: d.title, ref: d.ref || '', pages: d.steps.length + 2, steps: d.steps.length }; }),
+      goDerive: function (i, s) { app.goDerive(i, s); return app.fit(); },
+      explainStats: function () { var b = calcPager ? calcPager.body : null; return b ? { sections: b.querySelectorAll('.viz-work-h').length, interpret: b.querySelectorAll('.viz-work-interp').length, boxes: b.querySelectorAll('.viz-work-res').length, live: b.querySelectorAll('[data-live]').length } : null; },
+      features: { views: views.length, explain: !!cfg.explain, calc: !!cfg.explain, derivations: (cfg.derivations || []).length, code: !!(cfg.code && cfg.code.length), terms: !!cfg.terms, inspect: isFn(cfg.inspect), notes: isFn(cfg.notes), presets: (cfg.presets || []).length, transport: !!tr, modes: !!cfg.modes, status: !!cfg.status },
       audit: function () { return app.fit(); },
       selftest: function () { return app.selftest(); },
       setTab: function (id) { app.setTab(id); return app.fit(); },

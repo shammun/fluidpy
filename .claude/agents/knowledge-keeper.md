@@ -17,8 +17,13 @@ files' `viz:*` meta tags, and the existing `knowledge/*.md`. Then, exactly per t
 3. `knowledge/concept_map.md` — one row per implemented concept; never delete verified rows.
 4. `knowledge/primers.md` — one row per primer the notebook wrote (term, where, gist). `knowledge/notation.md` — every symbol the chapter's code uses (symbol, meaning, SI unit, sign convention, chapters),
    in our own words; flag symbols whose meaning changed from an earlier chapter.
-5. `knowledge/viz_patterns.md` — what worked (stage idea, control, walkthrough move) and what failed (fit problems,
-   confusing controls) from `reports/chNN_viz.md` and the builders' notes.
+5. `knowledge/viz_patterns.md` — what worked (stage idea, control, walkthrough move, explanation section, derivation
+   step that moved the picture) and what failed (fit problems, confusing controls, derivation steps reviewers had to
+   split) from `reports/chNN_viz.md`, `reports/chNN_lesson.md` and the builders' notes.
+5b. `knowledge/concept_map.md` — for every derivation (D row) record the result, where it is derived (notebook cell
+   heading, explainer slug) and the tools it used, so a later chapter recaps it ("derived step by step in Ch. 4, D03")
+   instead of re-deriving; add reusable derivation moves (e.g. "multiply by velocity to get an energy equation") to the
+   `teaching-style` Lessons.
 6. **Library promotion — only when the brief says "promotion allowed"** (otherwise list candidates under "Promotion
    candidates" in `knowledge/viz_patterns.md`, because the site-publisher may be reading `viz/` in parallel): if two explainers (this or earlier chapters) contain the same local helper, move it into
    `assets/viz_lib.js` (documented, backwards compatible), run `.venv/Scripts/python.exe tools/viz_inline.py --all`,

@@ -48,7 +48,7 @@ After each phase: update `progress.json` (status + one-line `notes` + `updated` 
 Brief: header + the output format lives in the agent definition; add the chapter's `blurb`.
 **Gate**: every numbered equation appears once — compare the count of lines that are exactly `(N.M)` in
 `chapters/chNN.txt` (`grep -cE "^\(N\.[0-9]+\)$"`) with the inventory rows mentioning `Eq. (N.`; the dependency graph
-(§3) exists; CODE rows have validation plans. One send-back allowed. → `analyze: pass`, commit.
+(§3) exists; CODE rows have validation plans; §2b lists the derivations (with the moves the book skips). One send-back allowed. → `analyze: pass`, commit.
 
 ## 2. CURATE — `concept-curator` → `analysis/chNN_curation.md`
 Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + "4–5 explainers plus one backup".
@@ -58,18 +58,23 @@ Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + "4–5 exp
   exercises, bibliography or explicitly deferred material) — count NEW rows in `analysis/chNN.md` and compare;
 - every SEEN row is RECAP (or NOTE inside a CORE block);
 - the §3 section-coverage table has one row for every section in `book.yaml → sections`, none empty;
-- §4 lists the prerequisites needing primers; §5 has 4–5 explainers + 1 backup, each with CORE IDs, why-interactive,
-  mirrored fluidpy function, depth features (calc + code + ≥ 2 more) and a named reference explainer.
-Print the counts per tier, the teaching order (one line per CORE item, grouped by section) and the explainer list
+- §4 lists the prerequisites needing primers; §4b has a D row for every derivation in analysis §2b (none dropped
+  without a reason), each with its CORE parent, difficulty, step estimate and "Shown in"; every ★★★ derivation of a
+  CORE item that has an explainer is shown in that explainer;
+- §5 has 4–5 explainers + 1 backup, each with CORE IDs, why-interactive, mirrored fluidpy function, derivations (D ids
+  or none), depth features (explain + code + ≥ 2 more) and a named reference explainer.
+Print the counts per tier, the derivations by difficulty, the teaching order (one line per CORE item, grouped by section) and the explainer list
 (slug + aha) to the user.
 With `--consult`: stop here and ask the user to approve/edit the shortlist (`blocked`). → `curate: pass`, commit.
 
 ## 3 ∥ 4. DESIGN ∥ IMPLEMENT (launch both agents in ONE message)
 - `lesson-designer` → `analysis/chNN_design.md` (brief: header; a storyboard block for EVERY CORE ID with code and a
   visual; storyboards for every explainer with headings `### E<k> · <slug>` and the backup `### B1 · <slug>`; Part C =
-  function contract; Part E = prerequisite ledger).
+  function contract; Part E = prerequisite ledger; Part F = every derivation written out one move per step).
   **Design gate**: the number of CORE blocks in Part A equals the curation's CORE count; Part E exists and every row has
-  an "Explained by"; every explainer storyboard lists calc, code and ≥ 2 depth features. One send-back allowed.
+  an "Explained by"; Part F has a `### Dxx ·` block for every D row, each step with did / tex / why / plain, and a check;
+  every explainer storyboard lists its Explain sections (with interpretation text), its derivations, code and ≥ 2 depth
+  features. One send-back allowed.
 - `concept-implementer` → `fluidpy/`, `scripts/` (brief: header; implement analysis §4 + curation §9; "the lesson-designer
   is writing analysis/chNN_design.md in parallel — if Part C appears before you finish, honour its names and signatures").
 **Merge gate** (after both return): every Part C function exists with a compatible signature
@@ -77,7 +82,7 @@ With `--consult`: stop here and ask the user to approve/edit the shortlist (`blo
 All scripts exit 0 (from the implementer's reply; spot-check one yourself). → `design: pass`, `implement: pass`, commit.
 
 ## 5. VERIFY — `math-verifier` → `tests/test_chNN.py`, `reference/chNN/`, `reports/chNN_verification.md`
-Brief: header + tiers from curation §2 + design Part C list.
+Brief: header + tiers from curation §2 + derivations §4b + design Part C list and Part F.
 **FAIL loop** (max 3): send the failing items + report path to `concept-implementer` ("fix physics, never tolerances,
 keep public signatures"), then re-run `math-verifier`. Still failing → `verify: fail`, notes, **stop and report**.
 Never accept a relaxed tolerance as a fix. → `verify: pass`, commit.
@@ -87,13 +92,13 @@ Never accept a relaxed tolerance as a fix. → `verify: pass`, commit.
 - `viz-builder` — **one agent per explainer**, each brief naming its single `viz/chNN/<slug>.html`, its storyboard
   heading, its mirrored function and the order number. On a laptop launch at most `project.max_parallel_viz`
   (default 3) at a time; start the next as one finishes.
-- `notebook-builder` (brief: header + design Parts A/C/E + list of explainer slugs + "explainers are being built in
+- `notebook-builder` (brief: header + design Parts A/C/E/F + list of explainer slugs + "explainers are being built in
   parallel; embed by slug; run tools/run_notebook.py and tools/coverage_check.py until clean").
 Folders never overlap: reviewer writes nothing, each viz-builder one file, notebook-builder `notebooks/`.
 
 **When the notebook-builder returns**: `lesson-reviewer` → `reports/chNN_lesson.md` (reads the executed notebook as a
-first-time learner: coverage, CORE blocks complete with code + visual, nothing used before it is explained, style,
-correctness). Must-fix → re-brief `notebook-builder` with the report (max 2 rounds), then `lesson-reviewer` again.
+first-time learner: coverage, CORE blocks complete with code + visual, nothing used before it is explained, every
+derivation step follows and is explained, style, correctness). Must-fix → re-brief `notebook-builder` with the report (max 2 rounds), then `lesson-reviewer` again.
 
 **When the reviewer returns**: write `reports/chNN_review.md` yourself from its reply (Must fix / Should fix / Verified).
 Must-fix code items → `concept-implementer` (fluidpy only; signatures stable), then `.venv/Scripts/python.exe -m pytest

@@ -104,6 +104,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .viz-app[data-tab="equations"][data-layout="wide"] .viz-main,
 .viz-app[data-tab="check"][data-layout="wide"] .viz-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.viz-app[data-tab="derive"][data-layout="wide"] .viz-main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
 
 .viz-stage {
   position: relative; min-width: 0; min-height: 0; overflow: hidden;
@@ -260,9 +261,12 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="landscape"] .viz-icon-btn { width: 28px; height: 28px; }
 .viz-app[data-layout="landscape"] .viz-main { gap: 5px; grid-template-columns: minmax(0, 1fr) minmax(250px, 44%); }
 .viz-app[data-layout="landscape"][data-tab="equations"] .viz-main,
-.viz-app[data-layout="landscape"][data-tab="check"] .viz-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.viz-app[data-layout="landscape"][data-tab="check"] .viz-main,
+.viz-app[data-layout="landscape"][data-tab="derive"] .viz-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
 
 /* very small screens: short tab labels */
+.viz-app.tabs-row .viz-header { grid-template-columns: minmax(0,1fr) auto; row-gap: 6px; }
+.viz-app.tabs-row .viz-tabs { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
 .viz-app.short-tabs .viz-tab .viz-tab-long { display: none; }
 .viz-app.short-tabs .viz-tab .viz-tab-short { display: inline; }
 .viz-app.compact-title .viz-title { font-size: 13.5px; }
@@ -389,6 +393,49 @@ button, input, select { font: inherit; color: inherit; }
 .viz-work-table th, .viz-work-table td { padding: 2px 8px 2px 0; text-align: left; border-bottom: 1px solid var(--viz-border); }
 .viz-work-table th { color: var(--viz-muted); font-weight: 600; }
 .viz-work-table tr.cur td { background: color-mix(in srgb, var(--viz-orange) 12%, var(--viz-card)); font-weight: 600; }
+.viz-work-n { display: inline-grid; place-items: center; min-width: 18px; height: 18px; border-radius: 9px; margin-right: 6px;
+  background: var(--viz-accent); color: #fff; font-size: 12px; font-weight: 700; padding: 0 4px; }
+.viz-work-say { margin: 0; font-size: 13px; line-height: 1.45; color: var(--viz-text-soft); }
+.viz-work-hint { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--viz-muted); font-style: italic; }
+.viz-work-interp { font-size: 13px; line-height: 1.45; padding: 5px 9px; border-radius: 0 8px 8px 0; border-left: 3px solid var(--viz-accent); background: var(--viz-accent-soft); color: var(--viz-text); }
+.viz-work-interp b.k, .viz-der-block b.k { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; margin-right: 4px; color: var(--viz-accent-dark); }
+.viz-card-head { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.viz-pop-btn.blocked { border-color: var(--viz-rose); color: var(--viz-rose); }
+.viz-app:not([data-layout="wide"]) .viz-pop-btn { display: none; }
+
+/* ---------- derivation stepper ---------- */
+.viz-der-line { display: block; min-width: 0; border-radius: 8px; padding: 2px 6px; }
+.viz-der-tag { display: block; font-size: 12px; line-height: 1.2; color: var(--viz-muted); font-variant-numeric: tabular-nums; }
+.viz-der-chain { display: flex; align-items: center; gap: 6px; }
+.viz-der-chain .viz-eq-body { flex: 1 1 auto; min-width: 0; }
+.viz-der-chain .viz-der-tag { flex: 0 0 auto; min-width: 16px; }
+.viz-der-prev { opacity: .62; }
+.viz-der-cur { background: color-mix(in srgb, var(--viz-orange) 10%, var(--viz-card)); border: 1px solid color-mix(in srgb, var(--viz-orange) 40%, var(--viz-border)); }
+.viz-der-result { background: color-mix(in srgb, var(--viz-teal) 12%, var(--viz-card)); border: 1px solid color-mix(in srgb, var(--viz-teal) 45%, var(--viz-border)); }
+.viz-der-live { background: var(--viz-accent-soft); color: var(--viz-accent-dark); }
+.viz-der-chain .viz-eq-body { font-size: 14px; }
+.viz-der-block { font-size: 13.5px; line-height: 1.45; color: var(--viz-text-soft); }
+.viz-der-block ol { margin: 2px 0 0 18px; padding: 0; } .viz-der-block li { margin: 0 0 2px; }
+.viz-der-did { font-weight: 650; color: var(--viz-orange); padding-left: 6px; }
+.viz-der-why { border-left: 3px solid var(--viz-teal); background: color-mix(in srgb, var(--viz-teal) 8%, var(--viz-card)); border-radius: 0 8px 8px 0; padding: 4px 9px; }
+.viz-der-why b.k { color: var(--viz-teal); }
+.viz-der-plain { border-left: 3px solid var(--viz-accent); background: var(--viz-accent-soft); border-radius: 0 8px 8px 0; padding: 4px 9px; }
+.viz-der-interp { border-left: 3px solid var(--viz-orange); background: color-mix(in srgb, var(--viz-orange) 8%, var(--viz-card)); border-radius: 0 8px 8px 0; padding: 4px 9px; }
+.viz-der-interp b.k { color: var(--viz-orange); }
+.viz-der-check { border-left: 3px solid var(--viz-blue); padding: 3px 9px; }
+.viz-der-mini { display: flex; flex-direction: column; gap: 4px; background: var(--viz-card-2); border: 1px solid var(--viz-border); border-radius: var(--viz-radius-sm); padding: 5px 7px; }
+.viz-der-mini-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+.viz-der-pick { flex-wrap: wrap; }
+.viz-app[data-dense="2"] .viz-der-block, .viz-app[data-dense="3"] .viz-der-block { font-size: 13px; line-height: 1.4; }
+.viz-app[data-layout="portrait"][data-tab="derive"][data-der-picture="0"] .viz-stage { display: none; }
+.viz-app[data-layout="portrait"][data-tab="derive"][data-der-picture="0"] .viz-side { flex: 1 1 auto; }
+/* phones: the derivation keeps ONE view of the picture (derivation.view, else the first) and drops the strips */
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-stage { min-height: max(150px, 30%); flex: 0 0 auto; height: max(150px, 30%); }
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-stage.multi { min-height: max(150px, 30%); }
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-stage-top,
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-transport { display: none; }
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-der-off { display: none !important; }
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-side { flex: 1 1 auto; }
 .c-accent { color: var(--viz-accent); font-weight: 650; } .c-teal { color: var(--viz-teal); font-weight: 650; }
 .c-orange { color: var(--viz-orange); font-weight: 650; } .c-rose { color: var(--viz-rose); font-weight: 650; } .c-blue { color: var(--viz-blue); font-weight: 650; }
 

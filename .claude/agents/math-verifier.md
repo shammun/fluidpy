@@ -15,6 +15,10 @@ implementation is wrong you *prove* it (a failing test with the metric) and repo
 2. `tests/test_chNN.py`: every computable CORE item ≥ 2 independent levels (at least one of V1/V2/V3/V5); coded NOTE items ≥ 1; conceptual CORE items (no computable output) a demonstration test that the notebook's code for them runs and asserts its point; RECAP items are already tested in their chapter; name tests
    `test_<concept>_<level>_<what>` and put `# V1` … comments. Assert on fields, not single points. Use
    `tools/convergence.py`, `tools/compare_fields.py`, `tools/benchmarks.py`, `fluidpy/core/units.py`.
+2b. Derivations (`analysis/chNN_curation.md` §4b, `analysis/chNN_design.md` Part F): for every ★★ and ★★★ D row add a
+   **V2 symbolic test** `test_<result>_V2_derivation` that re-derives the result with sympy from the stated starting
+   equation and assumptions (and, where cheap, checks each intermediate line of Part F follows from the previous one —
+   a wrong intermediate line is reported to the designer even if the end result is right).
 3. Private book values (V6): numbers quoted by the book go in `tests/book_values_chNN.json` (git-ignored); tests that
    use them are guarded by `pytest.mark.skipif(not BOOK.exists(), …)`. The public report states only relative errors.
 4. `reference/chNN/make_refs.py` + `SOURCES.md` for cited benchmark data (verify each value today with WebFetch/WebSearch;
