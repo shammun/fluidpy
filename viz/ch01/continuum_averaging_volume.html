@@ -1,32 +1,19 @@
 <!DOCTYPE html>
-<!--
-  fluidpy interactive explainer — TEMPLATE.  Create a new one with:
-      .venv/Scripts/python.exe tools/new_viz.py chNN <slug> --title "..." --concept "..."
-  which copies this file to viz/chNN/<slug>.html, fills the meta tags and inlines assets/viz_base.css + assets/viz_lib.js.
-
-  Contract (checked by tools/viz_lint.py and tools/shot.py; see .claude/skills/interactive-viz/SKILL.md):
-    * self-contained: no external files except KaTeX (loaded by viz_lib from a CDN, with a text fallback);
-    * fits the window with NO scrolling at 360x640, 390x844, 844x390, 768x1024, 1280x720, 1366x768, 1920x1080
-      and the notebook size 1000x700 — content that does not fit goes into a tab or a pager, never a scrollbar;
-    * a guided walkthrough (4–8 steps), the equations it shows (with book equation numbers) and live substitutions;
-    * physics mirrors a tested fluidpy function and proves it with selftest() parity rows (py = a Python expression).
-  Never paste book text, figures or tables here: explanations in our own words, equations cited by number.
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>__TITLE__</title>
-<meta name="viz:chapter" content="__CHAPTER__">
-<meta name="viz:slug" content="__SLUG__">
-<meta name="viz:order" content="__ORDER__">
-<meta name="viz:title" content="__TITLE__">
-<meta name="viz:summary" content="__SUMMARY__">
-<meta name="viz:concept" content="__CONCEPT__">
-<meta name="viz:sections" content="__SECTIONS__">
-<meta name="viz:equations" content="__EQUATIONS__">
-<meta name="viz:fluidpy" content="__FLUIDPY__">
-<meta name="viz:derivations" content="__DERIVATIONS__">
+<title>When does 'density at a point' make sense?</title>
+<meta name="viz:chapter" content="ch01">
+<meta name="viz:slug" content="continuum_averaging_volume">
+<meta name="viz:order" content="1">
+<meta name="viz:title" content="When does 'density at a point' make sense?">
+<meta name="viz:summary" content="Grow a sampling box from 1 nm to 1 m through a gas or a liquid and watch its density reading go from wild molecular noise to a steady plateau to the flow's own variation.">
+<meta name="viz:concept" content="continuum hypothesis; density as an average over a box; counting noise N^-1/2; Knudsen number; fluid particle">
+<meta name="viz:sections" content="1.4">
+<meta name="viz:equations" content="§1.4 rho=dm/dV, Kn=l/L; D35 noise; (1.21)">
+<meta name="viz:fluidpy" content="ch01.sample_density ch01.density_noise_expected ch01.box_average_density ch01.mean_free_path_air ch01.knudsen_number">
+<meta name="viz:derivations" content="D35">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -467,7 +454,24 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* E1 stage: one row laid out as a grid — the sample (tall, left) · the reading graph (right) · the Kn strip (under it) */
+  .viz-views > .viz-row { display: grid; gap: 6px; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.75fr);
+    grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); grid-template-areas: "scene curve" "scene kn"; }
+  .viz-views [data-view="scene"] { grid-area: scene; }
+  .viz-views [data-view="curve"] { grid-area: curve; }
+  .viz-views [data-view="kn"] { grid-area: kn; }
+  .viz-app[data-layout="landscape"] .viz-views > .viz-row { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+    grid-template-rows: minmax(0, 1fr); grid-template-areas: "scene curve"; }
+  .viz-app[data-layout="landscape"] .viz-views [data-view="kn"] { display: none; }
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row { grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.8fr) minmax(0, 1fr); grid-template-areas: "scene" "curve"; }
+  .viz-app[data-layout="portrait"][data-tab="derive"] .viz-views > .viz-row { grid-template-rows: minmax(0, 1fr); grid-template-areas: "curve"; }
+
+  @media (max-aspect-ratio: 4/5) {
+    .viz-app[data-layout="wide"] .viz-views > .viz-row { grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 0.85fr) minmax(0, 1.6fr) minmax(0, 0.6fr); grid-template-areas: "scene" "curve" "kn"; }
+    .viz-app[data-layout="wide"][data-tab="derive"] .viz-views > .viz-row { grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.5fr) minmax(0, 0.6fr); }
+  }
 </style>
 </head>
 <body>
@@ -2030,93 +2034,666 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.__FLUIDPY__ (same symbols, same equation numbers, SI units).
+   PHYSICS (SI units) — mirrors fluidpy.ch01_introduction (all reachable as ch01.<name>):
+     numberDensity(rho, Mw)          ↔ ch01.number_density(rho, M_w)          n = rho A_o / M_w          [1/m³]
+     molecularMass(Mw)               ↔ ch01.molecular_mass(M_w)               m = M_w / A_o              [kg]
+     noiseExpected(L, n)             ↔ ch01.density_noise_expected(L, n)      σ_ρ/ρ = (n L³)^(-1/2)      D35
+     boxAverage(L, rho0, eps, Lf)    ↔ ch01.box_average_density(L, rho0, variation, L_flow)
+                                       ρ_box = ρ0 [1 + ε sin(2π x0/L_flow) sinc(L/L_flow)], x0 = L_flow/4, numpy sinc
+     sutherland(T)                   ↔ ch01.sutherland_viscosity(T)           μ = β T^1.5/(T + S)        [Pa s]
+     meanFreePathAir(T, p)           ↔ ch01.mean_free_path_air(T, p)          Jennings (1988) with Sutherland μ, ρ = p/RT
+     knudsen(l, L)                   ↔ ch01.knudsen_number(l, L)              Kn = l/L                   §1.4
+     drawCount(lam, rng)             mirrors the method of ch01.sample_density (Poisson for λ ≤ 1e7, normal above)
    --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+const N_A_KMOL = 6.02214076e26;              // Avogadro's number per kilomole, the book's A_o [1/kmol]
+const K_B = 1.380649e-23;                    // Boltzmann constant [J/K]
+const R_AIR = K_B * N_A_KMOL / 28.9644;      // gas constant of dry air [J/(kg K)] = 287.0579959589441
+const LMIN = -9, LMAX = 0;                   // box-side sweep, log10 of metres
+const COLS = 180, DRAWS = 2;                 // sample columns along the sweep × draws per column
+
+const MEDIA = {
+  air:   { label: 'sea-level air', rho: 1.225, Mw: 28.9644, T: 288.15, p: 101325, gas: true },
+  // ch01.standard_atmosphere(80e3) → (196.64999999999998, 0.8864565809334608, 1.570340636091135e-05)
+  air80: { label: 'air at 80 km', rho: 1.570340636091135e-5, Mw: 28.9644, T: 196.65, p: 0.8864565809334608, gas: true },
+  water: { label: 'liquid water', rho: 998.2, Mw: 18.015, T: 293.15, p: 101325, gas: false }
+};
+const REAL = [['virus', 1e-7], ['aerosol', 1e-6], ['cloud drop', 1e-5], ['raindrop', 2e-3], ['pipe', 5e-2], ['model cell', 1e4]];
+
+function numberDensity(rho, Mw) { return rho * N_A_KMOL / Mw; }
+function molecularMass(Mw) { return Mw / N_A_KMOL; }
+function spacingOf(rho, Mw) { return Math.pow(numberDensity(rho, Mw), -1 / 3); }
+function noiseExpected(L, n) { return Math.pow(n * L * L * L, -0.5); }
+function sincN(u) { if (u === 0) return 1; const x = Math.PI * u; return Math.sin(x) / x; }      // numpy.sinc
+function boxAverage(L, rho0, eps, Lflow, x0) {
+  if (x0 === undefined) x0 = 0.25 * Lflow;
+  return rho0 * (1 + eps * Math.sin(2 * Math.PI * x0 / Lflow) * sincN(L / Lflow));
+}
+function sutherland(T) { return 1.458e-6 * Math.pow(T, 1.5) / (T + 110.4); }
+function perfectGasDensity(p, T) { return p / (R_AIR * T); }
+function meanFreePathJennings(mu, rho, p) { return Math.sqrt(Math.PI / 8) * mu / (0.4987445 * Math.sqrt(rho * p)); }
+function meanFreePathAir(T, p) { return meanFreePathJennings(sutherland(T), perfectGasDensity(p, T), p); }
+function knudsen(l, L) { return l / L; }
+function knRegime(Kn) { return Kn < 0.01 ? 'continuum' : Kn < 0.1 ? 'slip flow' : Kn < 10 ? 'transition' : 'free molecular'; }
+
+/* ---- random counts: local helpers (promotion candidates: Viz.num.poisson / Viz.num.normal / Viz.num.lgamma) ---- */
+function lgamma(x) {                         // Lanczos approximation (g = 7, 9 terms), |rel. error| < 1e-13
+  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61503916999185,
+    12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * x))) - lgamma(1 - x);
+  x -= 1; let a = c[0]; const t = x + 7.5;
+  for (let i = 1; i < 9; i++) a += c[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+function normal(rng) { let u = 0; while (u === 0) u = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng()); }
+function poisson(lam, rng) {                 // numpy's methods: multiplication for λ < 10, PTRS (Hörmann 1993) above
+  if (!(lam > 0)) return 0;
+  if (lam < 10) { const e = Math.exp(-lam); let k = 0, p = rng(); while (p > e) { k++; p *= rng(); } return k; }
+  const slam = Math.sqrt(lam), loglam = Math.log(lam), b = 0.931 + 2.53 * slam, a = -0.059 + 0.02483 * b;
+  const invalpha = 1.1239 + 1.1328 / (b - 3.4), vr = 0.9277 - 3.6224 / (b - 2);
+  for (;;) {
+    const U = rng() - 0.5, V = rng(), us = 0.5 - Math.abs(U);
+    const k = Math.floor((2 * a / us + b) * U + lam + 0.43);
+    if (us >= 0.07 && V <= vr) return k;
+    if (k < 0 || (us < 0.013 && V > us)) continue;
+    if (Math.log(V) + Math.log(invalpha) - Math.log(a / (us * us) + b) <= -lam + k * loglam - lgamma(k + 1)) return k;
+  }
+}
+function drawCount(lam, rng) { return lam > 1e7 ? lam + Math.sqrt(lam) * normal(rng) : poisson(lam, rng); }   // as ch01.sample_density
+
+/* ---- formatting helpers (promotion candidate: Viz.fmtLength) ---- */
+const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+function pow10Label(d) { return '10' + String(d).split('').map(c => SUPD[c]).join(''); }
+function lenLabel(L, sig) {
+  if (!isFinite(L)) return '∞';
+  const units = [[1e3, 'km'], [1, 'm'], [1e-3, 'mm'], [1e-6, 'µm'], [1e-9, 'nm'], [1e-12, 'pm']];
+  for (const [f, u] of units) if (L >= f * 0.99995) { const v = Number((L / f).toPrecision(sig || 2)); return (v >= 1000 ? Math.round(v) : v) + ' ' + u; }
+  return fmtK(L) + ' m';
+}
+const dpct = v => Math.abs(v) < 1e-9 ? '≈ 0 %' : pct(v);   // drift: round-off is not information
+const pct = (v, sig) => fmtK(100 * v, { sig: sig || 2 }) + ' %';
+const F = (v, sig) => fmtK(v, { sig: sig || 3 });
+/* molecular numbers are tiny (m ≈ 5e-26 kg): the library's fmt/tnum print |v| < 1e-12 as 0, so keep them here */
+function fmtK(v, o) { return Viz.fmt(v, Object.assign({ keepTiny: true }, o || {})); }
+function T(v, sig) {
+  sig = sig || 3;
+  if (typeof v !== 'number' || !isFinite(v)) return '\\text{' + fmtK(v) + '}';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e-3 && a < 1e5) return Number(v.toPrecision(sig)).toString();
+  let e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
+  if (Math.abs(Number(m.toPrecision(sig))) >= 10) { m /= 10; e += 1; }
+  return Number(m.toPrecision(sig)).toString() + '\\times10^{' + e + '}';
+}
+let FONT = null;
+function font(px, weight) { if (!FONT) FONT = getComputedStyle(document.body).fontFamily; return (weight || 500) + ' ' + px + 'px ' + FONT; }
+
+/* ---- the state → every derived number (one place, used by the views, readouts, Explain, notes, code) ---- */
+function model(s) {
+  const M = MEDIA[s.medium] || MEDIA.air;
+  const n = numberDensity(M.rho, M.Mw), m = molecularMass(M.Mw);
+  const L = Math.pow(10, s.logL), Lflow = Math.pow(10, s.logLflow), Lbody = Math.pow(10, s.logLbody);
+  const rhoPt = M.rho * (1 + s.eps);                                  // point value at the crest x0 = L_flow/4
+  const rhoBox = boxAverage(L, M.rho, s.eps, Lflow);
+  const sp = spacingOf(M.rho, M.Mw);
+  const l = M.gas ? meanFreePathAir(M.T, M.p) : sp;                   // liquids: the molecular spacing stands in for l
+  return { M, n, m, L, Lflow, Lbody, rhoPt, rhoBox, sp, l, Nbar: n * L * L * L, noise: noiseExpected(L, n),
+    drift: rhoBox / rhoPt - 1, u: L / Lflow, sinc: sincN(L / Lflow), KnBody: knudsen(l, Lbody), KnBox: knudsen(l, L) };
+}
+function regimeOf(s) { const md = model(s); return md.noise > 1e-3 ? 'noise' : Math.abs(md.drift) > 1e-3 ? 'drift' : 'plateau'; }
+
+/* the continuum window: noise < 0.1 % (L > L_min) and |drift| < 0.1 % (L < L_max) */
+let WIN = { key: null };
+function contWindow(s) {
+  const key = s.medium + '|' + s.eps + '|' + s.logLflow;
+  if (WIN.key === key) return WIN;
+  const M = MEDIA[s.medium] || MEDIA.air, n = numberDensity(M.rho, M.Mw), Lflow = Math.pow(10, s.logLflow);
+  const Lmin = Math.pow(1e6 / n, 1 / 3);
+  let Lmax = Infinity;
+  if (s.eps / (1 + s.eps) > 1e-3) {
+    const f = lg => s.eps * (1 - sincN(Math.pow(10, lg) / Lflow)) / (1 + s.eps) - 1e-3;
+    Lmax = Math.pow(10, Viz.num.brentq(f, s.logLflow - 8, s.logLflow, 1e-13));
+  }
+  WIN = { key, Lmin, Lmax, decades: Math.log10(Lmax / Lmin) };
+  return WIN;
+}
+
+/* every sample the sweep will take (seeded, so a screenshot and a reload show the same dots); "so far" = logL ≤ reach */
+let SMP = { key: null, list: [] };
+function samplesFor(s) {
+  const key = s.medium + '|' + s.eps + '|' + s.logLflow + '|' + s.seed;
+  if (SMP.key === key) return SMP.list;
+  const M = MEDIA[s.medium] || MEDIA.air, n = numberDensity(M.rho, M.Mw), m = molecularMass(M.Mw);
+  const Lflow = Math.pow(10, s.logLflow), rhoPt = M.rho * (1 + s.eps);
+  let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  const rng = Viz.rng(h >>> 0), list = [];
+  for (let k = 0; k < COLS; k++) for (let d = 0; d < DRAWS; d++) {
+    const lg = LMIN + (k + rng()) * (LMAX - LMIN) / COLS, L = Math.pow(10, lg);
+    const lam = n * L * L * L * Math.max(boxAverage(L, 1, s.eps, Lflow), 0);   // expected count (sinusoidal density model)
+    const N = drawCount(lam, rng), rho = N * m / (L * L * L);                   // δm/δV of this box
+    list.push({ i: list.length, logL: lg, L, lam, N, rho, y: rho / rhoPt });
+  }
+  SMP = { key, list };
+  return list;
+}
+function nearestSample(s, lg) {
+  let best = null, bd = Infinity;
+  samplesFor(s).forEach(p => { const d = Math.abs(p.logL - lg); if (d < bd && p.logL <= (s.reach === undefined ? s.logL : s.reach) + 1e-9) { bd = d; best = p; } });
+  return best;
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   DRAWING
+   --------------------------------------------------------------------------------------------------- */
+function drawScene(v, s, md) {
+  v.clear();
+  const ctx = v.ctx, W = v.w, H = v.h;
+  if (W < 50 || H < 50) return;
+  const C = { muted: Viz.color('muted'), text: Viz.color('text'), soft: Viz.color('text-soft'), accent: Viz.color('accent'), teal: Viz.color('teal'), card: Viz.color('card'), border: Viz.color('border') };
+  // layout: the square window + captions below (tall view), to the right (wide view) or overlaid (tight)
+  const capLines = 3, capH = capLines * 17 + 22;
+  let S, sx, sy, cap;
+  if (H - capH >= W - 10) { S = W - 12; sx = 6; sy = Math.max(4, Math.min(24, (H - capH - S) * 0.2)); cap = { x: sx, y: sy + S + 18, w: S, align: 'left' }; }
+  else if (W - H >= 170) { S = H - 10; sx = 6; sy = 5; cap = { x: sx + S + 12, y: sy + 16, w: W - S - 20, align: 'left' }; }
+  else { S = Math.min(W, H) - 10; sx = (W - S) / 2; sy = 5; cap = null; }
+  const X = xi => sx + (xi + 1.5) / 3 * S, Y = eta => sy + (1.5 - eta) / 3 * S;    // ξ, η in units of L, window ±1.5 L
+  ctx.save();
+  ctx.beginPath(); ctx.rect(sx, sy, S, S); ctx.clip();
+  const lamWin = md.n * (md.rhoBox / md.M.rho) * 9 * md.L * md.L * md.L;           // molecules in a slice 3L × 3L × L
+  let Nin = null;
+  if (lamWin < 8000) {
+    ctx.fillStyle = Viz.alpha(C.muted, 0.06); ctx.fillRect(sx, sy, S, S);
+    const bucket = s._playing ? Math.floor((v.app ? v.app.t : 0) * 8) : 0;
+    const rng = Viz.rng(1 + s.seed * 7919 + bucket * 104729 + Math.round(s.logL * 1000));
+    const count = poisson(lamWin, rng), r = Viz.clamp(0.18e-9 / md.L * S / 3, 1.6, 15);
+    Nin = 0;
+    for (let i = 0; i < count; i++) {
+      const xi = rng() * 3 - 1.5, eta = rng() * 3 - 1.5, inside = Math.abs(xi) < 0.5 && Math.abs(eta) < 0.5;
+      if (inside) Nin++;
+      ctx.beginPath(); ctx.arc(X(xi), Y(eta), r, 0, 2 * Math.PI);
+      ctx.fillStyle = inside ? Viz.alpha(C.soft, 0.85) : Viz.alpha(C.muted, 0.45); ctx.fill();
+    }
+  } else {
+    // too many molecules to draw: the smooth macroscopic density ρ0[1 + ε sin(2πx/L_flow)] across the window
+    const cols = 90, lo = [218, 245, 241], hi = [10, 110, 104];
+    for (let i = 0; i < cols; i++) {
+      const xi = -1.5 + (i + 0.5) * 3 / cols, x = 0.25 * md.Lflow + xi * md.L;
+      const t = s.eps > 0 ? (Math.sin(2 * Math.PI * x / md.Lflow) + 1) / 2 : 0.5;
+      ctx.fillStyle = `rgb(${lo.map((c, k) => Math.round(c + (hi[k] - c) * (0.08 + 0.5 * t))).join(',')})`;
+      ctx.fillRect(sx + i * S / cols, sy, S / cols + 1, S);
+    }
+  }
+  // a real object of about this size, drawn to scale around the point
+  const obj = REAL.filter(o => o[1] / (3 * md.L) > 0.12 && o[1] / (3 * md.L) < 1.05)[0];
+  if (obj) {
+    const rad = obj[1] / (3 * md.L) * S / 2;
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = Viz.alpha(C.text, 0.6); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(X(0), Y(0), rad, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = font(12, 600); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const ty = Math.min(sy + S - (cap ? 16 : 36), Math.max(Y(0) + rad + 3, Y(-0.5) + 5));
+    ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(C.card, 0.9); ctx.strokeText(obj[0] + ' ' + lenLabel(obj[1]), X(0), ty);
+    ctx.fillStyle = C.text; ctx.fillText(obj[0] + ' ' + lenLabel(obj[1]), X(0), ty);
+  }
+  ctx.restore();
+  // the sampling box and the point it stands for
+  ctx.save();
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.strokeRect(sx + 0.5, sy + 0.5, S - 1, S - 1);
+  ctx.fillStyle = Viz.alpha(C.accent, 0.07); ctx.fillRect(X(-0.5), Y(0.5), S / 3, S / 3);
+  ctx.strokeStyle = C.accent; ctx.lineWidth = 2.5; ctx.strokeRect(X(-0.5), Y(0.5), S / 3, S / 3);
+  ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5; ctx.beginPath();
+  ctx.moveTo(X(0) - 5, Y(0)); ctx.lineTo(X(0) + 5, Y(0)); ctx.moveTo(X(0), Y(0) - 5); ctx.lineTo(X(0), Y(0) + 5); ctx.stroke();
+  ctx.font = font(12, 650); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const boxLab = 'L = ' + lenLabel(md.L), tw = ctx.measureText(boxLab).width + 10, ly = Math.max(sy + 10, Y(0.5) - 11);
+  ctx.fillStyle = C.accent; ctx.beginPath(); ctx.rect(X(0) - tw / 2, ly - 9, tw, 18); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.fillText(boxLab, X(0), ly + 0.5);
+  // captions: a long and a short wording per line; a line that fits neither is left out (never squeezed)
+  const expN = md.Nbar * md.rhoBox / md.M.rho, rd = Nin !== null ? Nin * md.m / Math.pow(md.L, 3) : md.rhoBox;
+  const lines = Nin !== null
+    ? [[`N = ${Nin} in the box (expected ${F(expN, 3)})`, `N = ${Nin} (expected ${F(expN, 2)})`],
+       [`δm/δV = N m/L³ = ${F(rd)} kg/m³`, `δm/δV = ${F(rd)} kg/m³`],
+       [`= ${F(rd / md.rhoPt, 2)} × the point value`, `= ${F(rd / md.rhoPt, 2)} × ρ(x₀)`]]
+    : [[`N̄ = ${F(md.Nbar)} molecules: too many to draw`, `N̄ = ${F(md.Nbar)}: too many to draw`],
+       [`reading ≈ ${F(md.rhoBox, 4)} kg/m³ ± ${pct(md.noise)}`, `± ${pct(md.noise)} noise`],
+       s.eps > 0 ? ['shading = the flow’s own density wave', 'shade = the flow’s wave'] : ['uniform density (ε = 0)', 'uniform (ε = 0)']];
+  ctx.font = font(12.5, 500); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const pick = (pair, w) => pair.find(t => ctx.measureText(t).width <= w);
+  let used = sy + S;
+  if (cap) {
+    lines.forEach((pair, i) => {
+      const t = pick(pair, cap.w), y = cap.y + i * 17; if (!t || y + 7 > H) return;
+      ctx.fillStyle = i === 0 ? C.text : C.soft; ctx.fillText(t, cap.x, y); used = Math.max(used, y + 8);
+    });
+  } else {
+    const t = pick(lines[0].concat([Nin !== null ? `N = ${Nin}` : `N̄ = ${F(md.Nbar, 2)}`]), S - 12);
+    if (t) { ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(C.card, 0.92); ctx.strokeText(t, sx + 6, sy + S - 11); ctx.fillStyle = C.text; ctx.fillText(t, sx + 6, sy + S - 11); }
+  }
+  // tall view: a count meter — molecules in the box on a log scale, with one molecule and 10⁶ (0.1 % noise) marked
+  if (cap && cap.y > sy + S && H - used > 64) {
+    const mx = sx + 4, mw = S - 8, my = used + Math.min(40, (H - used) * 0.35), lo = -2, hi = 26;
+    const MX = e => mx + (Viz.clamp(e, lo, hi) - lo) / (hi - lo) * mw, e = Math.log10(Math.max(md.Nbar, 1e-3));
+    ctx.font = font(12, 600); ctx.fillStyle = C.soft; ctx.textBaseline = 'bottom';
+    const head = pick(['molecules in the box, N̄ (log scale)', 'molecules N̄ (log scale)', 'N̄ (log)'], mw); if (head) ctx.fillText(head, mx, my - 6);
+    ctx.fillStyle = Viz.alpha(C.muted, 0.15); ctx.fillRect(mx, my, mw, 12);
+    ctx.fillStyle = md.noise > 1e-3 ? Viz.color('orange') : C.teal; ctx.fillRect(mx, my, MX(e) - mx, 12);
+    (mw > 230 ? [[0, '1', Viz.color('rose')], [6, '10⁶', C.teal], [12, '10¹²', C.muted], [18, '10¹⁸', C.muted], [24, '10²⁴', C.muted]]
+      : [[0, '1', Viz.color('rose')], [6, '10⁶', C.teal], [18, '10¹⁸', C.muted]]).forEach(([k, lab, col]) => {
+      ctx.fillStyle = col; ctx.fillRect(MX(k) - 1, my - 3, 2, 18);
+      ctx.font = font(12, 500); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(lab, Viz.clamp(MX(k), mx + 6, mx + mw - 14), my + 17);
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = font(12, 500);
+    const note = md.Nbar < 1 ? 'fewer than one molecule on average' : md.noise > 1e-3 ? 'below 10⁶: noise above 0.1 %' : 'above 10⁶: noise below 0.1 %';
+    const nt = pick([note, note.split(':')[0]], mw); if (nt && my + 36 < H) { ctx.fillStyle = C.soft; ctx.fillText(nt, mx, my + 34); }
+  }
+  ctx.restore();
+}
+
+function drawCurve(v, s, md, win, app) {
+  v.clear();
+  if (v.w < 80 || v.h < 60) return;
+  const ctx = v.ctx;
+  const C = { teal: Viz.color('teal'), orange: Viz.color('orange'), muted: Viz.color('muted'), accent: Viz.color('accent'), amber: Viz.color('amber'), rose: Viz.color('rose'), text: Viz.color('text'), axis: Viz.color('axis'), grid: Viz.color('grid'), card: Viz.color('card') };
+  const P = v.plot({ xlim: [LMIN, LMAX], ylim: [0, 2], pad: { l: 44, r: 10, t: 8, b: 36 } });
+  P.axes({ xticks: [], xlabel: 'box side L (log scale)', ylabel: 'reading ÷ ρ(x₀)' });
+  const px = P.px, every = px.w / 9 < 54 ? 3 : 1;
+  ctx.save(); ctx.font = font(v.w < 420 ? 11.5 : 12, 500); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let d = LMIN; d <= LMAX; d++) {
+    const Xd = Math.round(P.X(d)) + 0.5;
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Xd, px.y); ctx.lineTo(Xd, px.y + px.h); ctx.stroke();
+    if ((d - LMIN) % every === 0) { ctx.fillStyle = C.axis; ctx.fillText(lenLabel(Math.pow(10, d)), Viz.clamp(Xd, px.x + 16, px.x + px.w - 14), px.y + px.h + 4); }
+  }
+  ctx.restore();
+  const reach = s.reach === undefined ? s.logL : s.reach;
+  P.clip(() => {
+    // the continuum window (teal) — noise < 0.1 % and |drift| < 0.1 %
+    if (win.Lmax > win.Lmin) {
+      const a = Math.log10(win.Lmin), b = Math.min(isFinite(win.Lmax) ? Math.log10(win.Lmax) : 9, 9);
+      ctx.fillStyle = Viz.alpha(C.teal, 0.11); ctx.fillRect(P.X(a), px.y, P.X(b) - P.X(a), px.h);
+    }
+    // expected scatter band ±N̄^(-1/2) around the no-noise average (grey), the point value (ghost) and the average (orange)
+    const xs = Viz.num.linspace(LMIN, LMAX, 360);
+    const mid = xs.map(x => boxAverage(Math.pow(10, x), md.M.rho, s.eps, md.Lflow) / md.rhoPt);
+    const nz = xs.map(x => noiseExpected(Math.pow(10, x), md.n));
+    P.fillBetween(xs, mid.map((y, i) => Math.max(-0.2, y * (1 - nz[i]))), mid.map((y, i) => Math.min(2.2, y * (1 + nz[i]))), { color: C.muted, alpha: 0.2 });
+    P.line([LMIN, LMAX], [1, 1], { color: Viz.alpha(C.text, 0.45), width: 1.2, dash: [5, 4] });
+    P.line(xs, mid, { color: C.orange, width: 2.2, dash: [8, 5] });
+    // characteristic lengths
+    const marks = [[md.sp, md.M.gas ? 'spacing' : 'spacing = l', C.muted]];
+    if (md.M.gas) marks.push([md.l, 'l (free path)', C.amber]);
+    marks.push([md.Lflow, 'L_flow', C.orange]);
+    marks.forEach(([Lm, lab, col], i) => {
+      const x = Math.log10(Lm); if (x < LMIN || x > LMAX) return;
+      P.line([x, x], [0, 2], { color: Viz.alpha(col, 0.8), width: 1.3, dash: [2, 3] });
+      if (px.h > 120) P.text(x, 1.9 - 0.13 * (i % 2), lab, { color: col, size: 12, weight: 600, align: x > -1.2 ? 'right' : 'left', dx: x > -1.2 ? -4 : 4 });
+    });
+    // the samples so far (teal); readings above 2 are pinned to the top edge with a small arrow
+    const r = v.w < 420 ? 2.3 : 2.8;
+    samplesFor(s).forEach(p => {
+      if (p.logL > reach + 1e-9) return;
+      if (p.y > 2) {
+        const Xp = P.X(p.logL), Yp = P.Y(2) + 2; ctx.fillStyle = C.teal; ctx.beginPath();
+        ctx.moveTo(Xp, Yp); ctx.lineTo(Xp - 3.5, Yp + 7); ctx.lineTo(Xp + 3.5, Yp + 7); ctx.closePath(); ctx.fill();
+      } else P.dot(p.logL, p.y, r, { color: C.teal });
+    });
+    if (s.probe !== null && s.probe !== undefined) {
+      const p = samplesFor(s)[s.probe];
+      if (p && p.logL <= reach + 1e-9) { P.dot(p.logL, Math.min(p.y, 1.97), 7, { color: 'rgba(0,0,0,0)', stroke: C.accent, strokeWidth: 2.5 }); }
+    }
+    // where the box is now
+    P.line([s.logL, s.logL], [0, 2], { color: C.accent, width: 2 });
+    P.dot(s.logL, Math.min(md.rhoBox / md.rhoPt, 2), 5, { color: C.accent, stroke: C.card, strokeWidth: 2 });
+    if (win.Lmax > win.Lmin) {
+      const a = Math.log10(win.Lmin), b = Math.min(isFinite(win.Lmax) ? Math.log10(win.Lmax) : LMAX, LMAX);
+      if (P.X(b) - P.X(a) > 110 && px.h > 90) P.text((a + b) / 2, 0.12, 'continuum window', { color: C.teal, size: 12.5, weight: 650, align: 'center' });
+    }
+  });
+  if (app && app.holding) {
+    const lines = [`noise fell below 0.1 % at L = ${lenLabel(win.Lmin)}`,
+      isFinite(win.Lmax) ? `the flow's variation passed 0.1 % at L = ${lenLabel(win.Lmax)}` : 'the flow never shifts the reading (ε = 0)',
+      win.Lmax > win.Lmin ? (isFinite(win.decades) ? `continuum window ≈ ${F(win.decades, 2)} decades` : 'continuum window: no upper end') : 'no continuum window at all'];
+    ctx.save(); ctx.font = font(12.5, 600);
+    const wBox = Math.min(px.w - 20, Math.max(...lines.map(t => ctx.measureText(t).width)) + 20), hBox = 3 * 18 + 12;
+    const bx = px.x + (px.w - wBox) / 2, by = px.y + px.h * 0.52 - hBox / 2;
+    ctx.fillStyle = Viz.alpha(C.card, 0.94); ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.rect(bx, by, wBox, hBox); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    lines.forEach((t, i) => { ctx.fillStyle = i === 2 ? C.accent : C.text; ctx.fillText(t, bx + wBox / 2, by + 15 + i * 18, wBox - 12); });
+    ctx.restore();
+  }
+}
+
+function drawKn(v, s, md) {
+  v.clear();
+  if (v.w < 80 || v.h < 36) return;
+  const ctx = v.ctx, P = v.plot({ xlim: [-4, 3], ylim: [0, 1], pad: { l: 12, r: 12, t: 2, b: 20 } }), px = P.px;
+  const bands = [[-4, -2, 'teal', 'continuum'], [-2, -1, 'amber', 'slip'], [-1, 1, 'orange', 'transition'], [1, 3, 'rose', 'free molecular']];
+  ctx.save();
+  bands.forEach(([a, b, c, name]) => {
+    ctx.fillStyle = Viz.alpha(Viz.color(c), 0.15); ctx.fillRect(P.X(a), px.y, P.X(b) - P.X(a), px.h);
+    ctx.font = font(12, 650);
+    if (px.h > 46 && ctx.measureText(name).width + 8 < P.X(b) - P.X(a)) { ctx.fillStyle = Viz.color(c); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(name, (P.X(a) + P.X(b)) / 2, px.y + 3); }
+  });
+  ctx.strokeStyle = Viz.color('border'); ctx.lineWidth = 1; ctx.strokeRect(px.x + 0.5, px.y + 0.5, px.w - 1, px.h - 1);
+  ctx.font = font(12, 500); ctx.fillStyle = Viz.color('axis'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let d = -4; d <= 3; d++) ctx.fillText(pow10Label(d), Viz.clamp(P.X(d), px.x + 12, px.x + px.w - 12), px.y + px.h + 3);
+  const marks = [[md.KnBody, 'body ' + lenLabel(md.Lbody) + ': Kn = ' + F(md.KnBody, 2), Viz.color('text'), 0.34], [md.KnBox, 'box: Kn = ' + F(md.KnBox, 2), Viz.color('accent'), 0.66]];
+  marks.forEach(([Kn, lab, col, fy]) => {
+    const x = Viz.clamp(Math.log10(Kn), -4, 3), Xm = P.X(x);
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(Xm, px.y + 2); ctx.lineTo(Xm, px.y + px.h - 2); ctx.stroke();
+    const Yl = px.h > 46 ? px.y + px.h * fy + 8 : px.y + px.h * (fy - 0.1) + 4, right = Xm < px.x + px.w * 0.6;
+    ctx.font = font(12, 650); ctx.textAlign = right ? 'left' : 'right'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.9);
+    ctx.strokeText(lab, Xm + (right ? 6 : -6), Yl); ctx.fillStyle = col; ctx.fillText(lab, Xm + (right ? 6 : -6), Yl);
+  });
+  ctx.restore();
 }
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
+const W = Viz.work;
 const app = Viz.app({
-  title: '__TITLE__',
-  subtitle: '__SUMMARY__',
+  title: 'When does \u2018density at a point\u2019 make sense?',
+  subtitle: 'Grow a sampling box from 1 nm to 1 m: molecular noise → a steady plateau → the flow\u2019s own variation',
+  autoplay: false,
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    medium: { type: 'select', display: 'chips', label: 'Medium', options: [['air', 'sea-level air'], ['air80', 'air at 80 km'], ['water', 'water']], value: 'air' },
+    logL: { label: 'Box side $L$', min: LMIN, max: LMAX, step: 0.05, value: -5, unit: 'log m', help: 'the side of the sampling cube (log scale)', fmt: v => lenLabel(Math.pow(10, v)) },
+    eps: { label: 'Flow variation $\\epsilon$', min: 0, max: 0.5, step: 0.01, value: 0.2, help: 'fractional density change of the flow\u2019s own wave', fmt: v => fmtK(v, { sig: 2 }) },
+    logLflow: { label: 'Flow scale $L_{\\rm flow}$', min: -4, max: 5, step: 0.1, value: 0, help: 'wavelength of the flow\u2019s density wave', optional: true, fmt: v => lenLabel(Math.pow(10, v)) },
+    logLbody: { label: 'Body size $L_{\\rm body}$', min: -9, max: 1, step: 0.1, value: -6, help: 'the object whose Kn = l/L we test', optional: true, fmt: v => lenLabel(Math.pow(10, v)) },
+    seed: { label: 'Random seed', min: 0, max: 99, step: 1, value: 0, optional: true },
+    resample: { type: 'button', label: '🎲 Resample the molecules', optional: true, action: a => a.set('seed', (a.state.seed + 1) % 100) }
+  },
+  transport: { param: 'logL', min: LMIN, max: LMAX, rate: 1.2, end: 'hold', hold: 2.5, step: 0.25, label: 'Box side $L$', unit: 'log m' },
+  presets: [
+    { label: 'air', set: { medium: 'air', eps: 0.2, logLflow: 0, logL: -5 }, title: 'the default: a 1 m density wave in sea-level air' },
+    { label: '80 km', set: { medium: 'air80', logL: -3, logLbody: -2 }, title: 'thin air near the mesopause, a 1 cm sensor' },
+    { label: 'water', set: { medium: 'water', logL: -8 }, title: 'a liquid: 1300× more molecules per m³' },
+    { label: 'µ-channel', set: { medium: 'air', logLbody: -5.3, logL: -6 }, title: 'a 5 µm channel in air' },
+    { label: 'model grid', set: { logLflow: 4, logL: 0 }, title: 'a flow that varies over 10 km, like a weather-model cell' }
+  ],
+  status: s => {
+    const md = model(s);
+    if (md.noise > 1e-3) return { text: '🎲 molecular noise ±' + pct(md.noise), tone: 'warn' };
+    if (Math.abs(md.drift) > 1e-3) return { text: '📈 the box sees the flow\u2019s own variation (' + pct(md.drift) + ')', tone: 'info' };
+    return { text: '✅ continuum plateau: noise ' + fmtK(md.noise, { sig: 2 }) + ', drift ' + (Math.abs(md.drift) < 1e-9 ? '≈ 0' : fmtK(md.drift, { sig: 2 })), tone: 'good' };
   },
   readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+    { id: 'N', label: 'Molecules $\\bar N$', value: s => model(s).Nbar },
+    { id: 'noise', label: 'Relative noise', value: s => model(s).noise, fmt: v => pct(v) },
+    { id: 'drift', label: 'Drift', value: s => model(s).drift, fmt: v => dpct(v), tone: v => Math.abs(v) > 1e-3 ? 'neg' : '' },
+    { id: 'Kn', label: 'Kn (body)', value: s => model(s).KnBody, fmt: v => F(v, 2), tone: v => v < 0.01 ? 'pos' : 'neg' }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
+  onChange(s, key, a) {
+    if (key === 'regime') return;
+    if (key === 'logL') {
+      if (a._fromLoop) s.reach = s.logL <= LMIN + 1e-9 ? LMIN : Math.max(s.reach === undefined ? LMIN : s.reach, s.logL);
+      else if (!s._keepReach) s.reach = s.logL;
+    }
+    s._playing = a.playing;
+    const r = regimeOf(s);
+    if (r !== s.regime) a.set('regime', r);
+  },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    views: [
+      { id: 'scene', row: 0, title: s => `<b>The sample</b> · box ${lenLabel(Math.pow(10, s.logL))} · click to resample` },
+      { id: 'curve', row: 0, title: '<b>Reading vs box size</b> · <span class="c-teal">samples</span> · grey ±1/√N̄ · <span class="c-orange">no-noise average</span> · click a dot' },
+      { id: 'kn', row: 0, hidePortrait: true, title: s => { const md = model(s); return `<b>Knudsen number</b> Kn = l/L · ${md.M.gas ? 'mean free path' : 'molecular spacing'} l = ${lenLabel(md.l)}`; } }
+    ],
+    setup(g, s) { s.reach = s.logL; s.regime = regimeOf(s); s.probe = null; },
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
+      const a = g.app, md = model(s), win = contWindow(s);
+      s._playing = a.playing;
+      const vs = g.view('scene'); vs.app = a;
+      drawScene(vs, s, md);
+      drawCurve(g.view('curve'), s, md, win, a);
+      drawKn(g.view('kn'), s, md);
+    },
+    onPointer(g, ev, s) {
+      if (ev.type !== 'pointerdown') return false;
+      const a = g.app;
+      if (ev.viewId === 'scene') { a.set('seed', (s.seed + 1) % 100); return true; }
+      if (ev.viewId !== 'curve') return false;
+      const v = ev.view, P = v.plot({ xlim: [LMIN, LMAX], ylim: [0, 2], pad: { l: 44, r: 10, t: 8, b: 36 } });
+      const reach = s.reach === undefined ? s.logL : s.reach;
+      let best = null, bd = 18 * 18;
+      samplesFor(s).forEach(p => {
+        if (p.logL > reach + 1e-9) return;
+        const dx = P.X(p.logL) - v.pointer.x, dy = P.Y(Math.min(p.y, 1.97)) - v.pointer.y, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = p; }
+      });
+      if (!best) return false;
+      a.play(false);
+      s._keepReach = true;
+      try { a.set({ probe: best.i, logL: best.logL }); } finally { s._keepReach = false; }
+      return true;
     }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Press ▶ to grow the box from 1 nm to 1 m. Switch the medium with the chips; click a teal dot to see its arithmetic.',
+    controls: ['medium', 'eps', 'logLflow', 'logLbody', 'resample'],
+    readouts: ['N', 'noise', 'drift', 'Kn'],
+    callouts: [{ kind: 'try', html: 'Set the flow scale to 1 mm. Predict first: does a continuum window survive, and how many decades wide?' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  inspect: s => {
+    if (s.probe === null || s.probe === undefined) return null;
+    const p = samplesFor(s)[s.probe]; if (!p) return null;
+    const md = model(s), L3 = Math.pow(p.L, 3);
+    return `Box $L = ${T(p.L)}$ m, expected $\\bar N = ${T(p.lam)}$, this draw $N = ${T(p.N)}$<br>` +
+      `$\\delta m = Nm = ${T(p.N)} \\times ${T(md.m)} = ${T(p.N * md.m)}$ kg<br>` +
+      `$\\delta V = L^3 = ${T(L3)}$ m³<br>` +
+      `$\\delta m/\\delta V = \\mathbf{${T(p.rho)}}$ kg/m³ $= ${T(p.y)}\\,\\rho(x_0)$<br>` +
+      `expected scatter $\\bar N^{-1/2} = ${T(Math.pow(p.lam, -0.5))}$`;
+  },
+  inspectHint: 'Click a teal dot on the reading graph: its count, mass and volume appear here.',
+  notes: s => {
+    const md = model(s), r = regimeOf(s), win = contWindow(s);
+    let p;
+    if (r === 'noise') p = `<p>🎲 Your ${lenLabel(md.L)} box holds about ${F(md.Nbar)} molecules, so one more or one fewer shifts the reading by ≈ ${pct(md.noise)}. No stable density exists at this size.</p>`;
+    else if (r === 'plateau') p = `<p>✅ Every box from ${lenLabel(win.Lmin)} to ${lenLabel(win.Lmax)} reads the same density to 0.1 %: that shared value is ρ(x). A <b>fluid particle</b> is a box of this size followed through the flow.</p>`;
+    else p = `<p>📈 At ${lenLabel(md.L)} the box averages over the flow's own wave (L_flow = ${lenLabel(md.Lflow)}), so it reads ${pct(md.drift)} off the point value: a regional mean.</p>`;
+    let cur = 0, bd = Infinity;
+    const rows = REAL.map(([name, d], i) => { const dd = Math.abs(Math.log10(d) - s.logL); if (dd < bd) { bd = dd; cur = i; } return [name, lenLabel(d), F(md.n * d * d * d, 2), fmtK(noiseExpected(d, md.n), { sig: 2, keepTiny: true })]; });
+    return p + W.table(['object', 'size', 'N̄', 'noise'], rows, cur);
+  },
+  notesTitle: 'Right now',
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const md = model(s), M = md.M, win = contWindow(s), reg = s.regime || regimeOf(s);
+      let out = W.step(0, 'What the three windows show') +
+        W.say('The <b>sample</b> window zooms on the point: grey dots are molecules (drawn while there are few enough), the <span class="c-accent">purple square</span> is your box. ' +
+          'The <b>reading</b> graph keeps every measurement: <span class="c-teal">teal dots</span> are samples, the grey band is the scatter statistics predicts, the <span class="c-orange">orange dashed</span> curve is what the box would read with no molecular noise, and the <span class="c-teal">teal shading</span> marks the continuum window. The <b>Kn strip</b> compares the mean free path with a body size.');
+      out += W.step(1, 'Molecules in your box') +
+        W.line('$n = \\rho A_o/M_w$ = ' + F(M.rho, 4) + ' × ' + F(N_A_KMOL, 4) + ' / ' + F(M.Mw, 5), F(md.n) + ' m⁻³', 'molecules per m³ of ' + M.label) +
+        W.line('$m = M_w/A_o$ = ' + F(M.Mw, 5) + ' / ' + F(N_A_KMOL, 4), F(md.m) + ' kg', 'the mass of one molecule') +
+        W.line('$L$', Viz.live('L'), 'your box side (the purple square and line)') +
+        W.line('$\\bar N = nL^3$ = ' + F(md.n) + ' × ' + Viz.live('L3') + ' m³', Viz.live('N'), 'every molecule inside counts once: this is the δm of ρ = δm/δV') +
+        W.box('expected molecules in the box: $\\bar N$ = ' + Viz.live('N'));
+      out += W.step(2, 'How noisy the reading is (D35)') +
+        W.line('$\\sigma_\\rho/\\rho = \\bar N^{-1/2}$ = 1/√' + Viz.live('N'), Viz.live('noise'), 'Poisson counting: the grey band\u2019s half-width') +
+        W.box('relative noise ' + Viz.live('noisePct') + ' — a continuum value needs it below 0.1 %');
+      out += W.step(3, 'How much the flow itself changes across the box') +
+        W.line('$\\rho(x_0) = \\rho_0(1+\\epsilon)$ = ' + F(M.rho, 4) + ' × ' + F(1 + s.eps, 3), F(md.rhoPt, 4) + ' kg/m³', 'the point value at a crest of the flow\u2019s wave (dashed grey line = 1)') +
+        W.line('$u = L/L_{\\rm flow}$ = ' + Viz.live('L') + ' / ' + lenLabel(md.Lflow), Viz.live('u')) +
+        W.line('$\\mathrm{sinc}\\,u = \\sin(\\pi u)/(\\pi u)$', Viz.live('sinc'), 'the average of one sine wave over the box') +
+        W.line('$\\rho_{\\rm box} = \\rho_0[1+\\epsilon\\,\\mathrm{sinc}\\,u]$', Viz.live('rhob') + ' kg/m³', 'the orange dashed curve') +
+        W.box('drift $= \\rho_{\\rm box}/\\rho(x_0) - 1$ = ' + Viz.live('driftPct'));
+      out += W.step(4, 'Mean free path and Kn');
+      if (M.gas) {
+        const mu = sutherland(M.T), rg = perfectGasDensity(M.p, M.T);
+        out += W.line('$\\mu = \\beta T^{3/2}/(T+S)$ = 1.458×10⁻⁶ × ' + F(M.T, 5) + ' × √' + F(M.T, 5) + ' / (' + F(M.T, 5) + ' + 110.4)', F(mu, 4) + ' Pa s', 'Sutherland\u2019s law') +
+          W.line('$\\rho = p/(RT)$ = ' + F(M.p, 4) + ' / (' + F(R_AIR, 5) + ' × ' + F(M.T, 5) + ')', F(rg, 4) + ' kg/m³', 'perfect gas, Eq. (1.22)') +
+          W.line('$l = \\sqrt{\\pi/8}\\,\\mu/(0.4987\\sqrt{\\rho p})$', lenLabel(md.l, 3), 'Jennings (1988)');
+      } else {
+        out += W.line('$l \\approx n^{-1/3}$ = 1/∛(' + F(md.n) + ')', lenLabel(md.l, 3), 'a liquid has no free flight: molecules touch, so the spacing stands in for l');
+      }
+      out += W.line('$Kn = l/L_{\\rm body}$ = ' + lenLabel(md.l, 3) + ' / ' + lenLabel(md.Lbody), F(md.KnBody, 3), 'for your body size') +
+        W.box('body: Kn = ' + F(md.KnBody, 2) + ' → <b>' + knRegime(md.KnBody) + '</b> (continuum needs Kn < 0.01)') +
+        W.hint('On a phone held upright the Kn strip is hidden; turn the phone sideways or read the Kn readout in Explore.');
+      out += W.step(5, 'Your continuum window') +
+        W.line('$L_{\\min} = (10^6/n)^{1/3}$', lenLabel(win.Lmin, 3), 'where the noise reaches 0.1 %: 10⁶ molecules') +
+        W.line('$L_{\\max}$: |drift| = 0.1 %', isFinite(win.Lmax) ? lenLabel(win.Lmax, 3) : '∞ (ε = 0)', 'solved numerically for your ε and L_flow') +
+        W.box(win.Lmax > win.Lmin ? 'window width $\\log_{10}(L_{\\max}/L_{\\min})$ = <b>' + (isFinite(win.decades) ? F(win.decades, 3) + ' decades' : 'unbounded') + '</b>' : '<b>no window</b>: the flow varies before the noise dies away');
+      out += W.step(6, 'At the current sweep position') +
+        W.line('box side $L$', Viz.live('L')) +
+        W.line('expected count $\\bar N$', Viz.live('N')) +
+        W.line('nearest sample', Viz.live('last'), 'a teal dot') +
+        W.line('box Kn = l/L', Viz.live('KnBox'));
+      let txt;
+      if (reg === 'noise') txt = 'Your box holds only ' + Viz.live('N') + ' molecules on average; one more or one fewer changes the reading by about ' + Viz.live('noisePct') + '. No continuum value exists at this size: the density here is a random number, not a property of the point.';
+      else if (reg === 'plateau') txt = 'Any box in the teal range (' + lenLabel(win.Lmin) + ' to ' + lenLabel(win.Lmax) + ') gives the same density to better than 0.1 %. That shared number is what the equations of fluid mechanics call ρ(x). A fluid particle is a box of this size followed through the flow.';
+      else txt = 'The box is now so large that it averages over the flow\u2019s own changes: it reads ' + Viz.live('driftPct') + ' off the point value. That is a regional mean, not a value at a point.';
+      if (s.medium === 'water') txt += ' In water there are ' + F(md.n / numberDensity(1.225, 28.9644), 2) + '× more molecules per m³ than in sea-level air, so the window starts ≈ ' + F(Math.cbrt(md.n / numberDensity(1.225, 28.9644)), 2) + '× smaller; molecules touch, so the true scatter is even below this estimate.';
+      if (s.medium === 'air80') txt += ' At 80 km the mean free path is ' + lenLabel(md.l) + ': a sensor of a few centimetres already sees transition-regime Kn, even though its density reading is smooth.';
+      return out + W.interpret(txt, 'Reading the current setting');
+    },
+    live: s => {
+      const md = model(s), near = nearestSample(s, s.logL);
+      return { L: lenLabel(md.L, 3), L3: fmtK(Math.pow(md.L, 3)), N: fmtK(md.Nbar), noise: fmtK(md.noise), noisePct: pct(md.noise),
+        u: fmtK(md.u), sinc: fmtK(md.sinc, { sig: 6 }), rhob: fmtK(md.rhoBox, { sig: 5 }), driftPct: dpct(md.drift),
+        last: near ? fmtK(near.y, { sig: 3 }) + ' × ρ(x₀) at ' + lenLabel(near.L) : '—', KnBox: fmtK(md.KnBox, { sig: 2 }) };
+    }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D35', title: 'How noisy is a density measured in a small box?', short: 'noise', ref: 'D35 · §1.4',
+      goal: 'Find how the scatter of a box\u2019s density reading depends on the box size: the lower end of the continuum window.',
+      start: { tex: '\\bar N = n\\,\\delta V = n\\,L^3', plain: 'A box of side $L$ in a gas with $n$ molecules per m³ holds $\\bar N$ molecules on average.' },
+      plan: ['The molecule count is Poisson.', 'Scale its scatter into a density scatter.', 'Divide by the mean.', 'Write the result in terms of $L$.'],
+      uses: ['Poisson counting: variance = mean', 'power laws and log–log slopes', '$(L^3)^{-1/2} = L^{-3/2}$'],
+      view: 'curve', set: { medium: 'air', eps: 0, logL: -8 },
+      steps: [
+        { did: 'Use Poisson statistics for the count', tex: '\\operatorname{Var}(N) = \\bar N',
+          why: 'Each of very many independent molecules has a tiny chance to be inside the box; such counts are Poisson, whose variance equals the mean. This is where the randomness enters.',
+          plain: 'The count scatters by about $\\sqrt{\\bar N}$.', set: { logL: -8 },
+          live: s => { const md = model(s); return `\\bar N = nL^3 = ${T(md.n)} \\times (${T(md.L)})^3 = ${T(md.Nbar)}`; } },
+        { did: 'Take the square root', tex: '\\sigma_N = \\sqrt{\\bar N}',
+          why: 'The standard deviation is the square root of the variance.',
+          plain: 'A box expecting 100 molecules typically sees 90 to 110.',
+          live: s => { const md = model(s); return `\\sigma_N = \\sqrt{${T(md.Nbar)}} = ${T(Math.sqrt(md.Nbar))}`; } },
+        { did: 'Turn counts into densities', tex: '\\sigma_\\rho = \\dfrac{m\\,\\sigma_N}{L^3},\\quad \\rho = \\dfrac{m\\bar N}{L^3}',
+          why: 'The reading is $\\delta m/\\delta V = mN/L^3$; multiplying a random number by the constant $m/L^3$ multiplies its mean and its standard deviation by that constant.',
+          plain: 'The density reading inherits the count\u2019s scatter.',
+          live: s => { const md = model(s); return `\\sigma_\\rho = \\dfrac{${T(md.m)} \\times ${T(Math.sqrt(md.Nbar))}}{${T(Math.pow(md.L, 3))}} = ${T(md.m * Math.sqrt(md.Nbar) / Math.pow(md.L, 3))}\\ \\mathrm{kg/m^3}`; } },
+        { did: 'Divide by the mean', tex: '\\dfrac{\\sigma_\\rho}{\\rho} = \\dfrac{\\sigma_N}{\\bar N} = \\bar N^{-1/2}',
+          why: '$m/L^3$ cancels, and $\\sqrt{\\bar N}/\\bar N = \\bar N^{-1/2}$. A relative scatter is what decides whether a value is usable.',
+          plain: 'The relative noise is one over the square root of the expected count.',
+          live: s => { const md = model(s); return `\\dfrac{\\sigma_\\rho}{\\rho} = (${T(md.Nbar)})^{-1/2} = ${T(md.noise)}`; },
+          watch: 'The grey band\u2019s half-width at the purple marker equals this number.' },
+        { did: 'Write it in terms of the box side', tex: '\\dfrac{\\sigma_\\rho}{\\rho} = (nL^3)^{-1/2} = n^{-1/2}L^{-3/2}',
+          why: 'Substitute $\\bar N = nL^3$ and use $(ab)^k = a^k b^k$ and $(L^3)^{-1/2} = L^{-3/2}$. The exponent is the slope on a log–log plot.',
+          plain: 'Every factor 10 in box side cuts the noise by $10^{1.5} \\approx 32$.', set: { logL: -6 },
+          live: s => { const md = model(s); return `(${T(md.n)})^{-1/2}\\,(${T(md.L)})^{-3/2} = ${T(md.noise)}`; },
+          watch: 'One decade of L shrinks the band 32×: 0.198 at 10 nm, 0.0063 at 100 nm (sea-level air).' }
+      ],
+      result: { tex: '\\dfrac{\\sigma_\\rho}{\\rho} = (n\\,L^3)^{-1/2}', plain: 'The relative noise of a box density falls as the box side to the power −3/2.' },
+      interpret: s => { const md = model(s); return `With your box ($L$ = ${lenLabel(md.L)}, ${md.M.label}) the noise is ${pct(md.noise)}: ` + (md.noise < 1e-3 ? 'inside the continuum window.' : 'too noisy for a continuum value.') + ' In a liquid the molecules are not independent, so this Poisson estimate is an upper bound.'; },
+      check: 'Units: $nL^3$ is a pure count, so both sides are dimensionless. Limits: $L \\to 0$ gives infinite noise (an empty box), $L \\to \\infty$ gives zero. Number: a 10 µm cube of sea-level air holds $2.55\\times10^{10}$ molecules, noise $6.3\\times10^{-6}$ (selftest row 1 checks this against fluidpy).' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'e1code', title: 'Density, noise and Kn with fluidpy', ref: '§1.4 · D35',
       src: `
-from fluidpy import __CHAPTER__ as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+from fluidpy import ch01_introduction as ch01
+rho, M_w = {{rho}}, {{Mw}}   # {{medium}}
+L = {{L}}                    # box side [m]
+n = ch01.number_density(rho, M_w)
+# molecules per m³: n = {{n}}
+m = ch01.molecular_mass(M_w)   # {{m}} kg
+N = n * L**3                   # expected count {{N}}
+noise = ch01.density_noise_expected(L, n)
+# relative noise N**-0.5 = {{noise}}
+rho_box = ch01.box_average_density(
+    L, rho, eps, L_flow)       # {{rhob}} kg/m³
+l = {{lcall}}
+# l = {{l}} m
+Kn = ch01.knudsen_number(l, L_body)
+# Kn = {{Kn}} -> {{regime}}`,
+      live: s => {
+        const md = model(s), M = md.M;
+        return { rho: String(M.rho), Mw: String(M.Mw), L: fmtK(md.L).replace('×10', 'e').replace(/[⁻⁰¹²³⁴⁵⁶⁷⁸⁹]/g, c => ({ '⁻': '-', '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9' })[c]),
+          medium: M.label, n: fmtK(md.n), m: fmtK(md.m), N: fmtK(md.Nbar), noise: fmtK(md.noise), rhob: fmtK(md.rhoBox, { sig: 5 }), eps: String(s.eps),
+          lcall: M.gas ? 'ch01.mean_free_path_air(T, p)' : 'ch01.mean_molecular_spacing(rho, M_w)', l: fmtK(md.l), Kn: fmtK(md.KnBody, { sig: 2 }), regime: knRegime(md.KnBody) };
+      } },
+    { id: 'e1samp', title: 'The random readings (what ch01.sample_density does)', ref: 'D35',
+      src: `
+import numpy as np
+rng = np.random.default_rng(seed)   # seed {{seed}}
+lam = n * L**3 * rho_box / rho      # count {{lam}}
+counts = rng.poisson(lam, 200)      # Var(N) = mean
+readings = counts * m / L**3        # δm/δV [kg/m³]
+rel = readings.std() / readings.mean()
+# rel ≈ N**-0.5 = {{noise}}
+mean, std = ch01.sample_density(
+    L, n, m, n_samples=200,
+    variation=eps, L_flow=L_flow)`,
+      live: s => { const md = model(s); return { seed: String(s.seed), lam: fmtK(md.Nbar * md.rhoBox / md.M.rho), noise: fmtK(md.noise) }; } }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'What is the density at a point?', text: 'Air is mostly empty space. This purple box is 3 nm wide: it holds zero, one or two molecules, so its \u2018density\u2019 is zero one moment and double the next. <b>So what can \u2018density at a point\u2019 mean?</b>',
+      set: { medium: 'air', logL: -8.5, eps: 0.2, logLflow: 0, logLbody: -6, probe: null }, play: false },
+    { title: 'Grow the box', text: 'Now the box grows from 1 nm to 1 m. Each teal dot is one reading δm/δV. Watch the dots squeeze into the grey band as the box holds more and more molecules.',
+      set: { logL: -9 }, play: true, controls: ['logL'] },
+    { title: 'How noisy? One line of statistics', text: 'A box holding $\\bar N$ molecules on average reads density with relative scatter $\\bar N^{-1/2}$: 0.6 % at 100 nm, six parts per million at 10 µm.',
+      set: { logL: -7, eps: 0.2 }, play: false, readouts: ['N', 'noise'], derive: { id: 'D35', step: 4 } },
+    { title: 'Where does one dot come from?', text: 'Click any teal dot. The inspector counts the molecules in that box, multiplies by the mass of one, divides by the volume and compares with the point value.',
+      set: { logL: -7.5, probe: 52 }, play: false, inspect: true, eq: 'rho' },
+    { title: 'The plateau ends', text: 'Keep growing. Near centimetres the box starts averaging over the flow\u2019s own change (orange dashed) and the reading drifts from the point value. Between noise and drift lies the teal continuum window.',
+      set: { logL: -1, eps: 0.3, probe: null }, play: false, notes: true },
+    { title: 'Kn: the same test for motion', text: 'A 1 µm particle in sea-level air: the mean free path is 64 nm, so Kn = l/L ≈ 0.06. That is slip flow, not a clean continuum (the Kn strip; sideways on a phone).',
+      set: { medium: 'air', logLbody: -6, eps: 0.2, logL: -6 }, play: false, readouts: ['Kn'], code: { id: 'e1code', lines: [12, 15] } },
+    { title: 'Your turn', text: 'Predict first: at 80 km altitude, where does the window start, and is a 1 cm sensor in the continuum? Then press the <b>80 km</b> chip above the picture and ▶.',
+      set: { logLbody: -2 }, play: false, controls: ['logLbody'],
+      callout: { kind: 'key', html: 'A continuum value is the plateau of an average: it exists because boxes much bigger than molecules can still be much smaller than the flow.' } }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'rho', title: 'Density at a point (continuum)', ref: '§1.4', tex: '\\rho(\\mathbf x) = \\dfrac{\\delta m}{\\delta V} = \\dfrac{N\\,m}{L^3}',
+      live: s => { const md = model(s), Nb = md.Nbar * md.rhoBox / md.M.rho; return `\\dfrac{${T(Nb)} \\times ${T(md.m)}}{${T(Math.pow(md.L, 3))}} = ${T(md.rhoBox, 4)}\\ \\mathrm{kg/m^3}`; },
+      note: 'meaningful only for a box inside the continuum window: many molecules, yet small compared with $L_{\\rm flow}$',
+      symbols: [['\\rho', 'density at the point', 'kg/m³'], ['\\delta m', 'mass in the box', 'kg'], ['\\delta V = L^3', 'box volume', 'm³'], ['N,\\ m', 'molecule count, mass of one', '–, kg']] },
+    { id: 'noise', title: 'Counting noise of a box density', ref: 'D35', tex: '\\dfrac{\\sigma_\\rho}{\\rho} = \\bar N^{-1/2} = (nL^3)^{-1/2}',
+      live: s => { const md = model(s); return `(${T(md.n)} \\times ${T(Math.pow(md.L, 3))})^{-1/2} = ${T(md.noise)}`; },
+      symbols: [['n', 'molecules per unit volume', 'm⁻³'], ['\\bar N', 'expected count in the box', '–'], ['L', 'box side', 'm']] },
+    { id: 'kn', title: 'Knudsen number', ref: '§1.4', tex: 'Kn = \\dfrac{l}{L}',
+      live: s => { const md = model(s); return `Kn = \\dfrac{${T(md.l)}}{${T(md.Lbody)}} = ${T(md.KnBody)}`; },
+      note: 'continuum when $Kn \\ll 1$ (below about 0.01); slip 0.01–0.1; transition 0.1–10; free molecular above 10',
+      symbols: [['l', 'mean free path', 'm'], ['L', 'length scale of interest (body, pore)', 'm']] },
+    { id: 'mfp', title: 'Mean free path of air (Jennings 1988, cited)', ref: '§1.4 (l)', tex: 'l = \\sqrt{\\pi/8}\\;\\dfrac{\\mu}{0.4987445\\sqrt{\\rho\\,p}}',
+      live: s => { const md = model(s), M = md.M; return M.gas ? `l = ${T(md.l)}\\ \\mathrm{m}\\ \\ (T = ${T(M.T, 5)}\\ \\mathrm{K},\\ p = ${T(M.p, 4)}\\ \\mathrm{Pa})` : `\\text{liquid: } l \\approx n^{-1/3} = ${T(md.l)}\\ \\mathrm{m}`; },
+      note: 'with Sutherland\u2019s $\\mu(T)$ and $\\rho = p/RT$; grows as $1/p$ with altitude',
+      symbols: [['\\mu', 'dynamic viscosity', 'Pa s'], ['p', 'pressure', 'Pa']] },
+    { id: 'pkin', title: 'Pressure from molecular impacts', ref: 'Eq. (1.21)', tex: 'p = \\tfrac13\\, n\\, m \\langle|\\mathbf u|^2\\rangle = n\\,k_B T',
+      live: s => { const md = model(s), M = md.M; return M.gas ? `p = ${T(md.n)} \\times ${T(K_B, 4)} \\times ${T(M.T, 5)} = ${T(md.n * K_B * M.T, 4)}\\ \\mathrm{Pa}` : `\\text{liquid: molecules interact, so } p \\ne n k_B T`; },
+      note: '(1.21) writes $pV = N k_B T$ for $N$ molecules in a volume $V$; dividing by $V$ gives $n = N/V$. The first form (D34) is momentum delivered by impacts.',
+      symbols: [['k_B', 'Boltzmann constant', 'J/K'], ['T', 'temperature', 'K']] }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Which box side makes the noise exactly 1 % in sea-level air?', a: '$\\bar N^{-1/2} = 0.01$ needs $\\bar N = 10^4$, so $L = (10^4/n)^{1/3} = (10^4/2.55\\times10^{25})^{1/3} \\approx 73$ nm. The Relative noise readout shows 1 % there.', set: { medium: 'air', logL: -7.13 } },
+    { q: 'Switch to water at L = 10 nm. Is the noise larger or smaller than in air, and by how much?', a: 'Water has ≈ 1300× more molecules per m³, so $\\bar N$ is 1300× larger and the noise $\\sqrt{1300} \\approx 36$× smaller: 0.20 in air, $5.5\\times10^{-3}$ in water.', set: { medium: 'water', logL: -8 } },
+    { q: 'Set the flow scale $L_{\\rm flow}$ to 1 mm. Is there still a continuum window?', a: 'Yes, but narrow: from about 0.34 µm (noise) to about 60 µm (drift), roughly 2.2 decades. The teal shading shrinks accordingly (Explain §5).', set: { medium: 'air', eps: 0.2, logLflow: -3 } },
+    { q: 'At 80 km, what is Kn for a 1 cm sensor, and is it in the continuum?', a: '$l \\approx 4.4$ mm, so $Kn = 4.4/10 \\approx 0.44$: the transition regime. The density reading is smooth there, but the flow around the sensor is not a continuum flow.', set: { medium: 'air80', logLbody: -2 } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const nAir = numberDensity(1.225, 28.9644);
+    const win = contWindow({ medium: 'air', eps: 0.2, logLflow: 0 });
+    const rng = Viz.rng(12345);
+    let s25 = 0; for (let i = 0; i < 5000; i++) s25 += poisson(25, rng);
+    let s2k = 0, q2k = 0; for (let i = 0; i < 4000; i++) { const k = poisson(2000, rng); s2k += k; q2k += k * k; }
+    const mean2k = s2k / 4000, var2k = q2k / 4000 - mean2k * mean2k;
+    return [
+      { name: 'noise, 10 µm cube of sea-level air', js: noiseExpected(1e-5, nAir), py: 'ch01.density_noise_expected(1e-5, ch01.number_density(1.225, 28.9644))', rtol: 1e-10 },
+      { name: 'box average, L = 5 cm, eps 0.2, L_flow 1 m', js: boxAverage(0.05, 1.225, 0.2, 1.0), py: 'ch01.box_average_density(0.05, 1.225, 0.2, 1.0)', rtol: 1e-10 },
+      { name: 'mean free path of air, 300 K, 1 atm', js: meanFreePathAir(300, 101325), py: 'ch01.mean_free_path_air(300.0, 101325.0)', rtol: 1e-10 },
+      { name: 'mean free path at 80 km', js: meanFreePathAir(196.65, 0.8864565809334608), py: 'ch01.mean_free_path_air(196.65, 0.8864565809334608)', rtol: 1e-10 },
+      { name: 'number density of water', js: numberDensity(998.2, 18.015), py: 'ch01.number_density(998.2, 18.015)', rtol: 1e-12 },
+      { name: 'molecular mass of air', js: molecularMass(28.9644), py: 'ch01.molecular_mass(28.9644)', rtol: 1e-12 },
+      { name: 'Sutherland viscosity 288.15 K', js: sutherland(288.15), py: 'ch01.sutherland_viscosity(288.15)', rtol: 1e-12 },
+      { name: 'Knudsen number l = 67 nm, L = 1 µm', js: knudsen(6.7e-8, 1e-6), py: 'ch01.knudsen_number(6.7e-8, 1e-6)', rtol: 1e-12 },
+      { name: 'window top: fluidpy drift at JS L_max = −0.1 %', js: boxAverage(win.Lmax, 1.225, 0.2, 1.0) / (1.225 * 1.2) - 1, py: 'ch01.box_average_density(' + win.Lmax.toPrecision(17) + ', 1.225, 0.2, 1.0) / (1.225 * 1.2) - 1', rtol: 1e-9 },
+      { name: 'window bottom: noise at L_min = 0.1 %', js: noiseExpected(win.Lmin, nAir), expect: 1e-3, rtol: 1e-12 },
+      { name: 'Kn invariant 6.7e-8 / 1e-6', js: knudsen(6.7e-8, 1e-6), expect: 0.067, rtol: 1e-12 },
+      { name: 'Poisson mean of 5000 draws at λ = 25', js: s25 / 5000, expect: 25, rtol: 0.03 },
+      { name: 'PTRS Poisson mean at λ = 2000', js: mean2k, expect: 2000, rtol: 0.005 },
+      { name: 'PTRS Poisson variance = mean at λ = 2000', js: var2k, expect: 2000, rtol: 0.1 }
+    ];
+  }
 });
 </script>
 </body>

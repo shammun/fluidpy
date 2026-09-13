@@ -43,7 +43,7 @@ from .core.thermo import (  # noqa: F401  (re-exports for ch01.<name>)
     van_der_waals_internal_energy, van_der_waals_pressure,
 )
 from .core.statics import (  # noqa: F401
-    USSA_BASES, USSA_LAPSE, USSA_LAPSE0, USSA_P0, USSA_T0, USSA_Z1, USSA_Z_TOP,
+    USSA_BASES, USSA_LAPSE, USSA_LAPSE0, USSA_P0, USSA_R0, USSA_T0, USSA_Z1, USSA_Z_TOP,
     absolute_pressure, atmosphere_from_temperature, buoyancy_force, gauge_pressure, hydrostatic_pressure_uniform,
     integrate_hydrostatic, isothermal_density, isothermal_pressure, layered_pressure, linear_lapse_pressure,
     net_pressure_force_on_box, scale_height, standard_atmosphere,
@@ -105,8 +105,9 @@ def shear_deformation_history(t, tau, kind: str = "fluid", G=None, mu=None, t_of
     After unloading: solid returns to 0; fluid and Bingham keep their final strain (zero memory); Maxwell recovers
     only its elastic part τ/G (partial memory, "viscoelastic"). Assumptions: small strains, constant stress while loaded.
 
-    Validation (planned): V1 solid constant τ/G then 0; fluid τ t/μ then τ t_off/μ; V7 μ → ∞ gives no flow, τ <= τ_y
-    Bingham gives no flow. Label: pending.
+    Validation: V1 solid τ/G while loaded then 0; fluid τ t/μ then keeps τ t_off/μ; Maxwell recovers exactly τ/G on
+    unloading; Bingham below yield does not flow; V7 μ = 1e12 gives no flow; missing moduli and unknown kinds raise.
+    Label: analytic.
     """
     t = np.asarray(t, dtype=float)
     require_nonnegative("tau", tau)
@@ -155,7 +156,8 @@ def traction_components(traction, normal):
         ``tau_vec`` = t − sigma_n n̂ [Pa], the tangential (shear) part, orthogonal to n̂;
         ``tau_mag`` = |tau_vec| [Pa].
 
-    Validation (planned): V1 tau_vec · n̂ = 0 and sigma_n n̂ + tau_vec = t; pure pressure gives tau_mag = 0. Label: pending.
+    Validation: V1 on 50 random tractions and normals (seed 5): tau_vec · n̂ = 0 and sigma_n n̂ + tau_vec = t (1e-12);
+    pure pressure on a face gives sigma_n = −p, tau_mag = 0. Label: analytic.
     """
     t = np.asarray(traction, dtype=float)
     n = np.asarray(normal, dtype=float)
@@ -186,7 +188,8 @@ def number_density(rho, M_w):
     n : float or ndarray
         [1/m^3] (air at sea level ≈ 2.5e25).
 
-    Validation (planned): V1 equals p/(k_B T) for a perfect gas. Label: pending.
+    Validation: V1 equals p/(k_B T) at sea level (rel 1e-4); V5 USSA-1976 Table 2 number density from the tabulated
+    rho at 0–50 km (rel 2e-4; max 3.8e-5). Label: analytic, benchmark.
     """
     return as_scalar_if_0d(np.asarray(rho, dtype=float) * N_A_KMOL / np.asarray(M_w, dtype=float))  # rho = m n/V
 
@@ -208,7 +211,8 @@ def mean_molecular_spacing(rho, M_w):
     spacing : float or ndarray
         [m] (water ≈ 0.31 nm, sea-level air ≈ 3.4 nm).
 
-    Validation (planned): V1 closed form; ratio air/water ≈ 11. Label: pending.
+    Validation: V1 water 0.30–0.32 nm, sea-level air 3.3–3.5 nm, ratio 10–12; equals (n/V)^(-1/3) (rel 1e-14).
+    Label: analytic.
     """
     return as_scalar_if_0d(number_density(rho, M_w) ** (-1.0 / 3.0))
 
@@ -240,7 +244,8 @@ def maxwellian_velocities(n: int, T: float, m: float, rng=None, seed: int = 0):
     u : ndarray, shape (n, 3)
         Velocities [m/s].
 
-    Validation (planned): V1 component variance k_B T/m within sampling error (3σ). Label: pending.
+    Validation: V1 (statistical) component variances equal k_B T/m within 1 % for N = 1e6, seed 0; the mean speed of
+    the samples matches :func:`mean_molecular_speed` within 0.5 %. Label: analytic (statistical).
     """
     rng = np.random.default_rng(seed) if rng is None else rng
     return rng.normal(0.0, np.sqrt(K_B * T / m), size=(int(n), 3))  # σ = sqrt(k_B T / m)
@@ -249,8 +254,11 @@ def maxwellian_velocities(n: int, T: float, m: float, rng=None, seed: int = 0):
 def molecular_pressure(number_density, m, velocities):
     """Kinetic-theory pressure from molecular velocities: ``p = (1/3) (N/V) m <|u|^2>``.
 
-    Book: §1.4 (pressure = statistical average of the collision force per unit area); derivation D34 added by the
-    curation (momentum 2 m u_x per wall bounce, <u_x^2> = <|u|^2>/3).
+    Book: §1.4 (pressure is what molecular impacts on a wall add up to, per unit area, on average); derivation D34
+    added by the curation (momentum 2 m u_x per wall bounce, <u_x^2> = <|u|^2>/3).
+
+    Note: argument order differs from :func:`wall_impact_pressure` (``velocities, m, number_density``) — here the
+    number density comes first. Pass keywords when in doubt.
 
     Parameters
     ----------
@@ -270,7 +278,9 @@ def molecular_pressure(number_density, m, velocities):
     -----
     Assumptions: ideal (non-interacting) molecules, isotropic velocity distribution, elastic wall collisions.
 
-    Validation (planned): V4 with Maxwellian samples (N = 1e6, seed 0) equals n k_B T (Eq. 1.21) within 0.5 %. Label: pending.
+    Validation: V2 sympy D34 (Maxwellian momentum flux = n k_B T); V1 (statistical) Maxwellian samples (N = 1e6,
+    seed 0) give n k_B T (Eq. 1.21) within the tested tolerance of 1 % (relative standard error ≈ 0.08 %).
+    Label: symbolic, analytic.
     """
     u = np.asarray(velocities, dtype=float)
     mean_sq = float(np.mean(np.sum(u ** 2, axis=-1)))
@@ -280,7 +290,12 @@ def molecular_pressure(number_density, m, velocities):
 def wall_impact_pressure(velocities, m, number_density, dt=1e-12, area=1.0):
     """Pressure as momentum delivered to a wall per unit area and time by the molecules that hit it (D34, step by step).
 
-    Book: §1.4 (pressure as the average collision force per unit area); derivation D34 added by the curation.
+    Book: §1.4 (pressure as the mean momentum that molecular impacts deliver to a wall); derivation D34 added by the
+    curation.
+
+    Note: argument order differs from :func:`molecular_pressure` (``number_density, m, velocities``) — here the
+    velocities come first. Pass keywords when in doubt.
+
     Expected-count form: each sampled velocity stands for a class of n/N molecules per unit volume; those with u_x > 0
     within u_x dt of the wall hit it in dt, i.e. ``(n/N) · area · u_x · dt`` molecules, each delivering ``2 m u_x``.
     Pressure = total momentum / (area · dt) = ``(2 n m / N) Σ_{u_x>0} u_x^2``.
@@ -303,7 +318,9 @@ def wall_impact_pressure(velocities, m, number_density, dt=1e-12, area=1.0):
     p : float
         [Pa]; its expectation is n m <u_x^2> = n k_B T for a Maxwellian gas.
 
-    Validation (planned): V4 equals :func:`molecular_pressure` and n k_B T within sampling error. Label: pending.
+    Validation: V2 sympy D34 (the half-space momentum-flux integral equals n k_B T); V1 (statistical) the same 1e6
+    Maxwellian samples give n k_B T within the tested 1.2 % (relative standard error ≈ 0.22 %). Label: symbolic,
+    analytic.
     """
     u = np.asarray(velocities, dtype=float)
     ux = u[:, 0]
@@ -338,7 +355,8 @@ def density_expected(L, number_density, m, gradient=0.0, L_flow=1.0):
     rho_box : float or ndarray
         [kg/m^3].
 
-    Validation (planned): V1 gradient = 0 gives n m for every L. Label: pending.
+    Validation: V1 gradient = 0 gives n m; gradient 0.2 at L = 0.5 m gives 1.05 n m (rel 1e-14); the sampler's linear
+    mode reproduces it (rel 1e-3). Label: analytic.
     """
     return as_scalar_if_0d(number_density * m * (1.0 + gradient * np.asarray(L, dtype=float) / (2.0 * L_flow)))
 
@@ -374,8 +392,9 @@ def box_average_density(L, rho0, variation=0.0, L_flow=1.0, x0=None):
     Deterministic companion of :func:`sample_density` (explainer E1 parity). Variation is along x only, so the average
     over the cube's y and z extent is trivial.
 
-    Validation (planned): V1 L → 0 gives rho(x0); L = L_flow gives rho0; V2 equals the mean of rho(x) on a fine grid.
-    Label: pending.
+    Validation: V1 equals trapezoid quadrature of rho(x) over the box for five box sizes 1e-4…2.5 L_flow (rel 1e-8);
+    V7 L → 0 gives rho(x0) and L = L_flow gives rho0 (rel 1e-12); V1 (statistical) the sampler's mean tracks it
+    within 5 standard errors. Label: analytic.
     """
     require_positive("L_flow", L_flow)
     x0 = 0.25 * L_flow if x0 is None else float(x0)
@@ -406,7 +425,9 @@ def density_noise_expected(L, number_density):
     -----
     Deterministic companion of :func:`sample_density` for explainer parity (seeded draws cannot be matched in JS).
 
-    Validation (planned): V1 slope −3/2 on log–log; V4 matches sample statistics within sampling error. Label: pending.
+    Validation: V2 sympy D35 (Poisson counting gives (n L^3)^(-1/2), log–log slope −3/2); worked number 2.5e10
+    molecules in a 10 µm cube of sea-level air; V1 (statistical) :func:`sample_density` noise agrees within 5 standard
+    errors + 1 % for L = 10 nm…1 µm. Label: symbolic, analytic.
     """
     return as_scalar_if_0d((number_density * np.asarray(L, dtype=float) ** 3) ** -0.5)  # D35
 
@@ -454,8 +475,11 @@ def sample_density(L_box, number_density, m, rng=None, n_samples: int = 200, gra
     independent); for λ > 1e7 the normal approximation λ + sqrt(λ) Z is used (numpy's Poisson sampler overflows).
     Assumptions: uncorrelated molecular positions (ideal gas); a liquid's short-range order reduces the noise.
 
-    Validation (planned): V1 relative std ∝ L^(-3/2) (slope −1.5 ± 0.05); V7 mean → rho for large L with no variation;
-    V4 mean → :func:`box_average_density` within sampling error. Label: pending.
+    Validation: V1 (statistical) relative std follows (n L^3)^(-1/2) within 5 standard errors + 1 % and the fitted
+    log–log slope is −1.503 (tolerance −1.5 ± 0.05; 4000 boxes, seed 1); V1 an independent from-scratch mechanism
+    (uniform random positions, binomial counts) gives the same relative noise within 7.5 standard errors; V1
+    (statistical) the sample mean tracks :func:`box_average_density` within 5 standard errors and the linear mode
+    within 1e-3. Label: analytic.
     """
     rng = np.random.default_rng(seed) if rng is None else rng
     L = np.atleast_1d(np.asarray(L_box, dtype=float))
@@ -478,23 +502,23 @@ def sample_density(L_box, number_density, m, rng=None, n_samples: int = 200, gra
 
 
 def knudsen_number(l, L):
-    """Knudsen number, the ratio of the molecular mean free path to the length scale of interest.
+    """Knudsen number: how far a molecule travels between collisions compared with the size of the flow feature.
 
-    Book: §1.4, ``Kn = l/L``; the continuum approximation is valid when Kn << 1.
+    Book: §1.4, ``Kn = l/L``; treating the fluid as a continuum works only while Kn stays far below 1.
 
     Parameters
     ----------
     l : float or array_like
         Mean free path [m].
     L : float or array_like
-        Length scale of the problem (body size, pore diameter, …) [m].
+        Size of the flow feature being described, e.g. a particle, a channel width or a wing chord [m].
 
     Returns
     -------
     Kn : float or ndarray
         [-].
 
-    Validation (planned): V1 closed form; pint dimensionless. Label: pending.
+    Validation: V1 67 nm/1 m = 6.7e-8 and l = L gives 1; L = 0 raises. Label: analytic.
     """
     require_positive("L", L)
     return as_scalar_if_0d(np.asarray(l, dtype=float) / np.asarray(L, dtype=float))  # §1.4: Kn = l/L
@@ -521,8 +545,9 @@ def mean_free_path_jennings(mu, rho, p):
     l : float or ndarray
         Mean free path [m] (≈ 67 nm for air at 300 K, 1 atm).
 
-    Validation (planned): V5 67.3 nm at 300 K, 1 atm with Sutherland μ; V6 book's order of magnitude (private JSON).
-    Label: pending.
+    Validation: V2 pint gives [length] and matches the code (rel 1e-12); V5 through :func:`mean_free_path_air`
+    (67.18 nm vs Jennings/Tsalikis 67.3 nm, −0.18 %); V6 book's order of magnitude (private). Label: symbolic,
+    benchmark, book-value.
     """
     return as_scalar_if_0d(np.sqrt(np.pi / 8.0) * np.asarray(mu, dtype=float)
                            / (0.4987445 * np.sqrt(np.asarray(rho, dtype=float) * np.asarray(p, dtype=float))))
@@ -546,7 +571,9 @@ def mean_free_path_air(T, p=P_ATM):
     l : float or ndarray
         [m] (≈ 67 nm at 300 K, 1 atm; grows as 1/p with altitude).
 
-    Validation (planned): V5 67.3 nm at 300 K, 101325 Pa (Jennings via Tsalikis et al. 2024). Label: pending.
+    Validation: V5 67.18 nm at 300 K, 101325 Pa vs 67.3 nm (Jennings via Tsalikis et al. 2024; −0.18 %, tolerance
+    1 %); V7 l ∝ 1/p at fixed T (rel 1e-12); V6 same order of magnitude as the book's value (private). Label:
+    benchmark, book-value.
     """
     mu = sutherland_viscosity(T)
     rho = perfect_gas_density(p, T)
@@ -581,7 +608,8 @@ def mass_fractions(mole_fractions, molar_masses):
     Y : dict or ndarray
         Mass fractions [-] summing to 1 (dict if a mapping was given).
 
-    Validation (planned): V1 sums to 1; mean molar mass of the USSA composition ≈ 28.96. Label: pending.
+    Validation: V1 dry-air mass fractions sum to 1 (1e-14) and give a mean molar mass 28.96 ± 0.01 kg/kmol; array form
+    [1, 1] with [2, 6] → [0.25, 0.75]. Label: analytic.
     """
     if isinstance(mole_fractions, Mapping):
         keys = list(mole_fractions)
@@ -617,7 +645,8 @@ def fick_mass_flux(rho, kappa_m, grad_Y):
     -----
     Assumptions: binary diffusion, linear in the gradient, isothermal and isobaric (no Soret/pressure diffusion).
 
-    Validation (planned): V1 J · ∇Y < 0; pint kg m^-2 s^-1; negative κ_m raises. Label: pending.
+    Validation: V1 J · ∇Y < 0 for a 3-vector gradient; negative κ_m raises; V2 pint gives kg m^-2 s^-1 and matches
+    the code (rel 1e-14). Label: analytic, symbolic.
     """
     require_nonnegative("kappa_m", kappa_m)
     # numpy broadcasting: for a field of vectors pass rho with a trailing axis, e.g. rho[..., None]
@@ -641,7 +670,8 @@ def fourier_heat_flux(k, grad_T):
     q : float or ndarray
         Heat flux [W/m^2] (= J m^-2 s^-1).
 
-    Validation (planned): V1 antiparallel to ∇T; pint W m^-2; negative k raises. Label: pending.
+    Validation: V1 q · ∇T < 0 for a 3-vector gradient; negative k raises; V2 pint gives W m^-2 and matches the code
+    (rel 1e-14). Label: analytic, symbolic.
     """
     require_nonnegative("k", k)
     return as_scalar_if_0d(-k * np.asarray(grad_T, dtype=float))  # Eq. (1.2)
@@ -668,7 +698,8 @@ def newton_shear_stress(mu, du_dy):
     -----
     Assumptions: Newtonian fluid, u = u(y) only (the tensor form comes in Ch. 4).
 
-    Validation (planned): V1 linear profile gives uniform τ; pint Pa; negative μ raises. Label: pending.
+    Validation: V1 worked number μ = 1e-3 Pa s, du/dy = 1000 1/s → 1 Pa; negative μ raises; V2 pint gives Pa and
+    matches the code (rel 1e-14). Label: analytic, symbolic.
     """
     require_nonnegative("mu", mu)
     return as_scalar_if_0d(np.asarray(mu, dtype=float) * np.asarray(du_dy, dtype=float))  # Eq. (1.3)
@@ -698,8 +729,8 @@ def shear_stress_profile(u, y, mu):
     Method: second-order central differences in the interior and second-order one-sided stencils at the ends, written
     out explicitly (:func:`fluidpy.core.diffusion.derivative_2nd_order`).
 
-    Validation (planned): V1 parabolic channel profile u = U0 (1 − (y/b)^2) gives τ = −2 μ U0 y/b^2 exactly (quadratic);
-    V3 order 2 ± 0.15 on a sine profile. Label: pending.
+    Validation: V1 parabolic channel profile u = U0 (1 − (y/b)^2) gives τ = −2 μ U0 y/b^2 to 1e-10 of μ U0/b; V3
+    observed order 1.996 (2 ± 0.15) on sin(3y), end stencils included (N = 21…161). Label: analytic, converged.
     """
     require_nonnegative("mu", mu)
     return mu * derivative_2nd_order(u, y)  # Eq. (1.3) with 2nd-order stencils
@@ -722,13 +753,22 @@ def wall_shear_history(u_hist, dy: float, mu: float):
     Returns
     -------
     (tau_bottom, tau_top) : tuple of ndarray, shape (nt,)
-        μ ∂u/∂y at y = 0 and y = h [Pa] (both → μ U/h in steady Couette flow).
+        The same signed quantity τ_xy = μ ∂u/∂y [Pa] evaluated at y = 0 and at y = h (both → +μ U/h in steady Couette
+        flow with the top plate moving at +U). Neither value is flipped for the wall's orientation.
 
     Notes
     -----
+    Sign and direction convention. τ = μ ∂u/∂y (Eq. 1.3) is the x-force per unit area that the fluid on the *upper*
+    side (larger y) of a y = const surface exerts on the fluid below it. Hence:
+
+    * bottom wall (y = 0, fluid above it): the fluid exerts +``tau_bottom`` on the fixed plate, pulling it along +x;
+    * top wall (y = h, fluid below it): the fluid exerts **−μ ∂u/∂y = −tau_top** on the moving plate, i.e. it resists
+      the plate's motion; the force needed to keep the plate moving is +``tau_top`` per unit area.
+
     Stencils: (−3u_0 + 4u_1 − u_2)/(2Δy) and (3u_{N−1} − 4u_{N−2} + u_{N−3})/(2Δy), second order.
 
-    Validation (planned): V1 linear profile gives μ U/h at both walls. Label: pending.
+    Validation: V1 a Couette start-up marched to steady state with :func:`ftcs_diffusion_1d` gives μ U/h at both walls
+    (rel 1e-6), and the bottom stress rises monotonically as momentum arrives. Label: analytic.
     """
     u = np.atleast_2d(np.asarray(u_hist, dtype=float))
     tau_bottom = mu * (-3.0 * u[:, 0] + 4.0 * u[:, 1] - u[:, 2]) / (2.0 * dy)  # Eq. (1.3) at y = 0
@@ -757,8 +797,8 @@ def viscosity_power_law(T, mu_ref, T_ref, n=0.5):
     mu : float or ndarray
         [Pa s].
 
-    Validation (planned): V1 μ(T_ref) = μ_ref; V5 relative error vs Sutherland at 216.65 K reported (≈ 9 % for n = 0.5).
-    Label: pending.
+    Validation: V1 μ(T_ref) = μ_ref exactly; n = 1/2 and a 4× temperature give 2 μ_ref (rel 1e-14). No comparison with
+    Sutherland is tested. Label: analytic.
     """
     return as_scalar_if_0d(mu_ref * (np.asarray(T, dtype=float) / T_ref) ** n)  # §1.5: μ ∝ T^(1/2) for gases
 
@@ -783,7 +823,8 @@ def sutherland_viscosity(T, beta=1.458e-6, S=110.4):
     mu : float or ndarray
         [Pa s] (1.7894e-5 at 288.15 K).
 
-    Validation (planned): V5 USSA-1976 table at 0 km (1.7894e-5) and 11–20 km. Label: pending.
+    Validation: V5 USSA-1976 Table 2 viscosity at the tabulated temperatures 0–50 km (rel 1e-4; max 3.1e-5); default
+    constants equal the stored USSA values; V7 increases monotonically over 200–400 K. Label: benchmark.
     """
     T = np.asarray(T, dtype=float)
     require_positive("T", T)
@@ -795,7 +836,9 @@ def water_viscosity(T):
 
     Book: §1.5 (the viscosity of a liquid decreases with temperature). Fit (cited addition):
     ``μ = A · 10^(B/(T − C))`` with A = 2.414e-5 Pa s, B = 247.8 K, C = 140 K (widely reproduced engineering fit,
-    e.g. T. Al-Shemmeri, *Engineering Fluid Mechanics* (2012); accuracy about ±1 % from 0 to 100 °C).
+    e.g. T. Al-Shemmeri, *Engineering Fluid Mechanics* (2012)). Accuracy: +0.08 % at 25 °C against the IAPWS R12-08
+    check point (tested), but about −2 % near 0 °C (1.753e-3 Pa s from the fit; derivation review against IAPWS 2008,
+    not a stored test) — treat it as a ~2 % fit over 0–100 °C, not ±1 %.
 
     Parameters
     ----------
@@ -807,7 +850,9 @@ def water_viscosity(T):
     mu : float or ndarray
         [Pa s] (≈ 1.00e-3 at 20 °C).
 
-    Validation (planned): V5 against a published table (e.g. IAPWS 2008 at 20 °C: 1.0016e-3) within 1 %. Label: pending.
+    Validation: V5 IAPWS R12-08 Table 4 check point (298.15 K, 998 kg/m^3): +0.079 % (tolerance 1 %); V7 decreases
+    monotonically over 275–370 K; T <= 140 K raises. The cold end (≈ −2 % at 0 °C) is not covered by a test.
+    Label: benchmark (single point).
     """
     T = np.asarray(T, dtype=float)
     if np.any(T <= 140.0):
@@ -832,7 +877,8 @@ def kinematic_viscosity(mu, rho):
     nu : float or ndarray
         [m^2/s].
 
-    Validation (planned): V1 closed form; V5 USSA sea level ν = 1.4607e-5 m^2/s. Label: pending.
+    Validation: V5 μ/rho from the USSA-1976 tables reproduces the Table 2 ν column at 0–50 km (rel 2e-4; max 5.3e-5);
+    V2 pint gives m^2/s and matches the code (rel 1e-14). Label: benchmark, symbolic.
     """
     require_positive("rho", rho)
     return as_scalar_if_0d(np.asarray(mu, dtype=float) / np.asarray(rho, dtype=float))  # Eq. (1.4)
@@ -857,7 +903,7 @@ def thermal_diffusivity(k, rho, cp):
     kappa : float or ndarray
         [m^2/s].
 
-    Validation (planned): V1 closed form; pint m^2/s. Label: pending.
+    Validation: V2 pint k/(rho C_p) gives m^2/s and matches the code for water (rel 1e-14). Label: symbolic.
     """
     return as_scalar_if_0d(np.asarray(k, dtype=float) / (np.asarray(rho, dtype=float) * np.asarray(cp, dtype=float)))
 
@@ -879,7 +925,8 @@ def diffusion_time(L, D):
     t : float or ndarray
         [s].
 
-    Validation (planned): V1 closed form; Couette start-up reaches steady state for t ≳ 0.5 h^2/ν. Label: pending.
+    Validation: V1 worked number h = 1 mm of water (ν = 1e-6 m^2/s) gives 1 s. The "steady after ≈ 0.5 h^2/ν" reading
+    is not tested. Label: analytic.
     """
     require_positive("D", D)
     return as_scalar_if_0d(np.asarray(L, dtype=float) ** 2 / np.asarray(D, dtype=float))
@@ -908,7 +955,9 @@ def surface_tension_water(T):
     sigma : float or ndarray
         [N/m] (0.07274 at 20 °C).
 
-    Validation (planned): V5 IAPWS Table 1 at 20 °C (72.74 mN/m) and 25 °C (71.97); V7 σ → 0 at T_c, monotone. Label: pending.
+    Validation: V5 IAPWS R1-76(2014) Table 1, 0.01–200 °C: within 0.005 mN/m of the calculated column (max 0.0045) and
+    inside the experimental uncertainty at every row; V7 strictly decreasing to exactly 0 at T_c; out of range raises.
+    Label: benchmark.
     """
     T = np.asarray(T, dtype=float)
     if np.any(T > IAPWS_TC) or np.any(T < 248.15):
@@ -941,7 +990,8 @@ def laplace_pressure_jump(sigma, R1, R2=None):
     -----
     Assumptions: static interface, uniform σ.
 
-    Validation (planned): V1 sphere 2σ/R; flat (∞, ∞) gives 0; saddle R2 = −R1 gives 0; pint Pa. Label: pending.
+    Validation: V1 sphere 2σ/R, cylinder (R, ∞) σ/R (rel 1e-14), flat (∞, ∞) gives 0, saddle R2 = −R1 gives 0; V2 pint
+    gives Pa, worked number ≈ 146 Pa for a 1 mm water drop. Label: analytic, symbolic.
     """
     R1 = np.asarray(R1, dtype=float)
     R2 = R1 if R2 is None else np.asarray(R2, dtype=float)
@@ -980,7 +1030,9 @@ def wedge_pressure_difference(rho, dz, theta, g=G0):
     -----
     Assumptions: fluid at rest (no shear stress), gravity the only body force, unit thickness.
 
-    Validation (planned): V1 p3 − p1 = 0; V3 p2 − p1 ∝ dz (order 1 ± 0.05); independent of θ. Label: pending.
+    Validation: V1 p3 − p1 = 0 and p2 − p1 = rho g dz/2 exactly (rel 1e-14) for θ = 0.2, 0.7, 1.3 rad; the fitted
+    power of dz is 1.000. This is a closed-form limit (dz → 0), not a discretisation converging, so it is not a V3
+    result. Label: analytic.
     """
     dz = np.asarray(dz, dtype=float)
     theta = np.asarray(theta, dtype=float)
@@ -1015,7 +1067,7 @@ def wedge_face_forces(p1, rho, dz, theta, g=G0):
         ``W = (1/2) rho g dx dz`` (weight); residuals ``res_x``, ``res_z`` [N/m] (zero by construction);
         ``weight_to_face_force`` = W/F2 [-] (→ 0 as dz → 0: the weight vanishes faster than the face forces).
 
-    Validation (planned): V1 residuals vanish; W/F2 ∝ dz. Label: pending.
+    Validation: V1 both residuals < 1e-8 N/m; W/F2 ∝ dz (fitted power 1.000) for three slope angles. Label: analytic.
     """
     dz = np.asarray(dz, dtype=float)
     theta = np.asarray(theta, dtype=float)
@@ -1047,7 +1099,8 @@ def alpha_from_contact_angle(theta_c):
     alpha : float or ndarray
         The book's angle [rad] (π/2 = perfect wetting).
 
-    Validation (planned): V1 θ_c = 0 → π/2; round trip. Label: pending.
+    Validation: V1 θ_c = 0 → π/2, and the resulting full-wetting rise is 14.5–15.2 mm for a 1 mm tube;
+    ``contact_angle_to_alpha`` is the same object. Label: analytic.
     """
     return as_scalar_if_0d(np.pi / 2.0 - np.asarray(theta_c, dtype=float))
 
@@ -1084,8 +1137,9 @@ def capillary_rise(sigma, alpha, rho, R, g=G0):
     Assumptions: narrow tube (spherical meniscus), meniscus volume neglected, static, uniform σ. Consistent with
     (1.5): meniscus radius R/sin α gives p_E = p_atm − 2σ sin α/R = p_atm − rho g h.
 
-    Validation (planned): V1 force-balance residual 0; consistency with :func:`laplace_pressure_jump` and Eq. (1.9);
-    α = 0 gives 0; h ∝ 1/R. Label: pending.
+    Validation: V1 force-balance residual < 1e-14 N; the Laplace jump through a meniscus of radius R/sin α plus
+    Eq. (1.9) gives the same h (rel 1e-12); α = 0 gives 0; h ∝ 1/R (rel 1e-14); V7 full wetting ≈ 15 mm for R = 1 mm.
+    Label: analytic.
     """
     return as_scalar_if_0d(2.0 * np.asarray(sigma, dtype=float) * np.sin(np.asarray(alpha, dtype=float))
                            / (np.asarray(rho, dtype=float) * g * np.asarray(R, dtype=float)))  # Example 1.1
@@ -1112,7 +1166,7 @@ def capillary_rise_deg(sigma, alpha_deg, rho, R, g=G0):
     h : float or ndarray
         [m].
 
-    Validation (planned): V1 equals capillary_rise(np.radians(alpha_deg)). Label: pending.
+    Validation: V1 equals ``capillary_rise(sigma, np.radians(alpha_deg), rho, R)`` (rel 1e-14). Label: analytic.
     """
     return capillary_rise(sigma, np.radians(alpha_deg), rho, R, g)
 
@@ -1123,8 +1177,8 @@ def capillary_rise_deg(sigma, alpha_deg, rho, R, g=G0):
 def mean_molecular_speed(T, m):
     """Mean thermal speed of gas molecules, ``c̄ = sqrt(8 k_B T/(π m))`` (Maxwell–Boltzmann mean).
 
-    Book: §1.8 (relaxation to equilibrium is fast because molecular speeds and collision rates are high). Kinetic
-    theory formula (not printed in the book).
+    Book: §1.8 (a fluid particle settles into local equilibrium quickly because its molecules move fast and collide
+    very often). Kinetic theory formula (not printed in the book).
 
     Parameters
     ----------
@@ -1138,7 +1192,8 @@ def mean_molecular_speed(T, m):
     c_bar : float or ndarray
         [m/s] (≈ 470 m/s for air at 300 K).
 
-    Validation (planned): V4 equals the mean |u| of :func:`maxwellian_velocities` samples. Label: pending.
+    Validation: V5 USSA-1976 Table 2 mean particle speed at 0–50 km (rel 1e-4; max 1.9e-5); V1 (statistical) equals
+    the mean |u| of 1e6 :func:`maxwellian_velocities` samples within 0.5 %. Label: benchmark, analytic.
     """
     return as_scalar_if_0d(np.sqrt(8.0 * K_B * np.asarray(T, dtype=float) / (np.pi * np.asarray(m, dtype=float))))
 
@@ -1162,7 +1217,7 @@ def collision_time(l, T, m):
     t_c : float or ndarray
         [s] (≈ 1e-10 s for air at room conditions).
 
-    Validation (planned): V1 closed form. Label: pending.
+    Validation: V1 equals l/c̄ (rel 1e-14); 1e-10 < t_c < 2e-10 s for air at 300 K. Label: analytic.
     """
     return as_scalar_if_0d(np.asarray(l, dtype=float) / mean_molecular_speed(T, m))
 
@@ -1185,7 +1240,9 @@ def water_density(T):
     rho : float or ndarray
         [kg/m^3] (maximum ≈ 999.97 near 277.1 K).
 
-    Validation (planned): V5 maximum near 3.98 °C; value at 20 °C ≈ 998.2 (NIST tables). Label: pending.
+    Validation: coefficients transcribed from Kell (1975) (fit to Kell 1975; no stored reference table, so no V5);
+    V7 the maximum on a 5 mK grid sits at 277.13 ± 0.05 K; 998.1 < rho(20 °C) < 998.3; the thermal expansion
+    coefficient changes sign between 2 and 8 °C. Label: analytic (range and limit checks only).
     """
     t = np.asarray(T, dtype=float) - KELVIN_OFFSET
     num = (999.83952 + 16.945176 * t - 7.9870401e-3 * t ** 2 - 46.170461e-6 * t ** 3 + 105.56302e-9 * t ** 4
@@ -1217,8 +1274,12 @@ def seawater_density_eos80(T, S):
     The book defines S as kg of salt per kg of water; S [g/kg] = 1000 × that. Practical salinity is numerically close
     to g/kg (≈ 0.5 % difference), which is ignored here.
 
-    Validation (planned): V5 UNESCO check values: S = 35, t68 = 0 °C → 1028.10633; S = 0, t68 = 30 °C → 995.65113.
-    Label: pending.
+    Validation: V5 the UNESCO EOS-80 check values at p = 0 dbar (Fofonoff & Millard 1983, Unesco Tech. Pap. Mar.
+    Sci. 44, p. 19; stored in ``reference/ch01/benchmarks.json``) at (S, t68) = (0, 5), (0, 25), (35, 5), (35, 25) °C:
+    |Δrho| <= 5e-6 kg/m^3 (half the last printed digit; max rel 4.6e-9) and the specific-volume column (rel 1e-8);
+    feeding t68 as if it were ITS-90 misses the table, so the t68 = 1.00024 t90 conversion is required. V1 the
+    linearised EOS stays within 0.5 kg/m^3 over 5–15 °C, 33–37 g/kg, and density rises with S. Label: benchmark,
+    analytic.
     """
     # DEVIATION: salinity in g/kg is fed to EOS-80 as practical salinity (PSS-78); the two differ by about 0.5 %.
     s = np.asarray(S, dtype=float)
@@ -1255,7 +1316,9 @@ def seawater_linear_coefficients(T0=283.15, S0=35.0):
     -----
     Method: central differences of :func:`seawater_density_eos80` (steps 1e-3 K and 1e-3 g/kg).
 
-    Validation (planned): V1 the linear EOS matches EOS-80 to second order near (T0, S0). Label: pending.
+    Validation: V1 at the defaults rho0 = 1027.0 ± 0.1, α_T = 1.67e-4 ± 2e-6, β_S = 7.6e-4 ± 2e-6 (the rounded values
+    used as :func:`seawater_density_linear` defaults), which stay within 0.5 kg/m^3 of EOS-80 over 5–15 °C, 33–37 g/kg.
+    Label: analytic (self-consistency).
     """
     rho0 = seawater_density_eos80(T0, S0)
     dT, dS = 1e-3, 1e-3
@@ -1293,7 +1356,8 @@ def seawater_density_linear(T, S, rho0=1027.0, alpha_T=1.67e-4, beta_S=7.6e-4, T
     rho : float or ndarray
         [kg/m^3] (surface pressure; compressibility enters separately through (1.35)).
 
-    Validation (planned): V1 rho0 at (T0, S0); V5 within 0.5 kg/m^3 of EOS-80 over 5–15 °C, 33–37 g/kg. Label: pending.
+    Validation: V1 returns rho0 exactly at (T0, S0); within 0.5 kg/m^3 of :func:`seawater_density_eos80` on a 5 × 5
+    grid over 5–15 °C, 33–37 g/kg (a self-consistency check, not a benchmark). Label: analytic (self-consistency).
     """
     return as_scalar_if_0d(rho0 * (1.0 - alpha_T * (np.asarray(T, dtype=float) - T0)
                                    + beta_S * (np.asarray(S, dtype=float) - S0)))
@@ -1322,7 +1386,10 @@ def fluid_properties(name: str, T: float = 293.15, p: float = P_ATM):
     -----
     Air: perfect gas (1.22) with R_AIR and Sutherland μ. Water: Kell density, Vogel viscosity, IAPWS surface tension.
 
-    Validation (planned): V5 air at 288.15 K matches USSA sea level (rho 1.2250, μ 1.7894e-5, ν 1.4607e-5). Label: pending.
+    Validation: V5 air at 288.15 K, 101325 Pa matches USSA-1976 sea level rho and μ (rel 1e-4) and ν (rel 2e-4); V1
+    water returns ν = μ/rho (1e-14) and sigma; unknown fluids raise; every ``FLUIDS`` row has ν = μ/rho and positive
+    k, C_p, κ_m, and ν_air/ν_water lies in 14–16. Water entries inherit the fits' own accuracy (see
+    :func:`water_viscosity`). Label: benchmark (air), analytic.
     """
     name = name.lower()
     if name == "air":
@@ -1397,12 +1464,18 @@ FLUIDS: dict[str, dict[str, float]] = {}
 # ====================================================================================================================
 # §1.10 Synthetic atmospheric profile (our data, not digitised from the book)
 # ====================================================================================================================
-def synthetic_boundary_layer_profile(z, T_surface=288.15, mixed_top=800.0, inversion_depth=200.0,
-                                     inversion_dT_dz=0.01, mixed_dT_dz=-0.0098, upper_dT_dz=-0.0045):
-    """Piecewise-linear temperature profile of a lower atmosphere: near-neutral mixed layer, inversion, stable layer.
+#: Default mixed-layer gradient of the synthetic boundary layer: the dry adiabat Γ_a = −g/C_p (Eq. 1.30 with α = 1/T)
+#: computed from this module's G0 and CP_AIR, ≈ −9.7607e-3 K/m, so the mixed layer is exactly neutral (N^2 = 0).
+MIXED_LAYER_DT_DZ: float = float(adiabatic_lapse_rate())
 
-    Book: §1.10 and Fig. 1.9a (a near-neutral layer by the ground with slope ≈ Γ_a, an inversion where T increases with
-    height, and a layer above cooling more slowly than Γ_a). The numbers are ours (not digitised from the book).
+
+def synthetic_boundary_layer_profile(z, T_surface=288.15, mixed_top=800.0, inversion_depth=200.0,
+                                     inversion_dT_dz=0.01, mixed_dT_dz=MIXED_LAYER_DT_DZ, upper_dT_dz=-0.0045):
+    """Piecewise-linear temperature profile of a lower atmosphere: neutral mixed layer, inversion, stable layer.
+
+    Book: §1.10 and Fig. 1.9a (a well-mixed layer by the ground drawn along the adiabatic slope, which is neutral; an
+    inversion where T increases with height; and a layer above cooling more slowly than Γ_a, which is stable). The
+    numbers are ours (not digitised from the book).
 
     Parameters
     ----------
@@ -1417,7 +1490,10 @@ def synthetic_boundary_layer_profile(z, T_surface=288.15, mixed_top=800.0, inver
     inversion_dT_dz : float, optional
         Γ = dT/dz inside the inversion [K/m] (positive: temperature rises with height).
     mixed_dT_dz : float, optional
-        Γ in the mixed layer [K/m] (default −9.8e-3, marginally steeper than Γ_a = −9.76e-3: near-neutral).
+        Γ = dT/dz in the mixed layer [K/m] (Kundu's sign). Default :data:`MIXED_LAYER_DT_DZ` =
+        ``adiabatic_lapse_rate()`` = −g/C_p ≈ −9.7607e-3 K/m: the dry adiabat, so the mixed layer is exactly neutral
+        (N^2 = 0, θ constant). A steeper value (e.g. −9.8e-3) makes it unstable; a gentler one (e.g. −9.7e-3) stable.
+        Meteorology convention: +9.76 K/km.
     upper_dT_dz : float, optional
         Γ above the inversion [K/m] (default −4.5e-3 > Γ_a: stable).
 
@@ -1426,7 +1502,8 @@ def synthetic_boundary_layer_profile(z, T_surface=288.15, mixed_top=800.0, inver
     T : float or ndarray
         [K], continuous at the layer boundaries.
 
-    Validation (planned): V1 slopes per layer equal the inputs; continuity at the kinks. Label: pending.
+    Validation: V1 slopes per layer equal the inputs (the default mixed-layer slope is exactly
+    :data:`MIXED_LAYER_DT_DZ` = −g/C_p) and T is continuous at the kinks (1e-8 K). Label: analytic.
     """
     z = np.asarray(z, dtype=float)
     z_edges, slopes, T_edges = _bl_layers(T_surface, mixed_top, inversion_depth, inversion_dT_dz, mixed_dT_dz,
@@ -1443,7 +1520,7 @@ def _bl_layers(T_surface, mixed_top, inversion_depth, inversion_dT_dz, mixed_dT_
 
 
 def synthetic_boundary_layer_column(z, T_surface=288.15, mixed_top=800.0, inversion_depth=200.0,
-                                    inversion_dT_dz=0.01, mixed_dT_dz=-0.0098, upper_dT_dz=-0.0045,
+                                    inversion_dT_dz=0.01, mixed_dT_dz=MIXED_LAYER_DT_DZ, upper_dT_dz=-0.0045,
                                     p_surface=P_ATM, p_ref=P_REF, cp=CP_AIR, R=R_AIR, g=G0, gamma=GAMMA_AIR):
     """Complete static column for :func:`synthetic_boundary_layer_profile`: T, Γ, p, rho, θ, rho_θ, N^2 and stability.
 
@@ -1455,7 +1532,9 @@ def synthetic_boundary_layer_column(z, T_surface=288.15, mixed_top=800.0, invers
     z : array_like
         Heights [m], >= 0.
     T_surface, mixed_top, inversion_depth, inversion_dT_dz, mixed_dT_dz, upper_dT_dz : float, optional
-        Profile parameters (see :func:`synthetic_boundary_layer_profile`).
+        Profile parameters (see :func:`synthetic_boundary_layer_profile`). The default mixed layer is the dry adiabat
+        for the module's G0 and CP_AIR, so it is labelled ``"neutral"``; if you change ``cp`` or ``g`` here, pass
+        ``mixed_dT_dz=-g/cp`` as well to keep it neutral.
     p_surface : float, optional
         Surface pressure p0 [Pa].
     p_ref : float, optional
@@ -1469,7 +1548,11 @@ def synthetic_boundary_layer_column(z, T_surface=288.15, mixed_top=800.0, invers
         ``z`` [m], ``T`` [K], ``dT_dz`` [K/m], ``p`` [Pa], ``rho`` [kg/m^3], ``theta`` [K], ``dtheta_dz`` [K/m],
         ``rho_theta`` [kg/m^3], ``N2`` [1/s^2], ``stability`` (labels, tolerance 1e-8 1/s^2).
 
-    Validation (planned): V1 θ rho_θ = p_ref/R; V4 dθ/dz from (1.32) equals finite differences of θ. Label: pending.
+    Validation: V1 T equals the profile (1e-14); N^2 in each layer equals :func:`brunt_vaisala_sq_from_lapse`
+    (rel 1e-10); stable in and above the inversion; θ rho_θ = p_ref/R (1e-12); p equals direct integration of
+    (1.8) + (1.22) with :func:`integrate_hydrostatic` (rel 1e-7). With the neutral default the mixed layer
+    (z < 800 m) is tested to have every level below 790 m labelled "neutral", max |N^2| < 1e-15 s^-2 and θ constant
+    (ptp < 1e-9 K; 6e-14 K observed); the old −9.8e-3 K/m slope makes the same levels "unstable". Label: analytic.
     """
     z = np.atleast_1d(np.asarray(z, dtype=float))
     z_edges, slopes, T_edges = _bl_layers(T_surface, mixed_top, inversion_depth, inversion_dT_dz, mixed_dT_dz,
@@ -1520,7 +1603,8 @@ def poiseuille_pressure_drop(mu, U, dx, d):
     -----
     Assumptions: steady, fully developed laminar flow (Re ≲ 2000), smooth pipe (ε irrelevant).
 
-    Validation (planned): V2 dimensionless form Π1 = 32 Π2 Π4. Label: pending.
+    Validation: V1 on 50 random laminar cases (seed 2) the pipe groups collapse onto Π1 = 32 Π2 Π4 (rel 1e-12) — a
+    consistency check of the dimensional form, since the law itself is imported from Ch. 8. Label: analytic.
     """
     return as_scalar_if_0d(32.0 * np.asarray(mu, dtype=float) * np.asarray(U, dtype=float)
                            * np.asarray(dx, dtype=float) / np.asarray(d, dtype=float) ** 2)
@@ -1542,7 +1626,8 @@ def pythagoras_phi(beta):
     phi : float or ndarray
         [-].
 
-    Validation (planned): V1 A^2 φ + B^2 φ = C^2 φ for random triangles. Label: pending.
+    Validation: V1 for 20 random angles (seed 1): A^2 φ + B^2 φ = C^2 φ and φ C^2 equals the triangle area A B/2.
+    Label: analytic.
     """
     return as_scalar_if_0d(0.25 * np.sin(2.0 * np.asarray(beta, dtype=float)))
 
@@ -1552,7 +1637,17 @@ def pythagoras_phi(beta):
 TAYLOR_K_GAMMA14: float = 0.856
 
 
-def blast_energy(D, t, rho, K=1.0):
+_BLAST_GEOMETRY = {"sphere": 1.0, "hemisphere": 0.5}  # energy factor relative to a free sphere of the same radius
+
+
+def _blast_factor(geometry: str) -> float:
+    key = str(geometry).strip().lower()
+    if key not in _BLAST_GEOMETRY:
+        raise ValueError(f"geometry must be 'sphere' or 'hemisphere', got {geometry!r}")
+    return _BLAST_GEOMETRY[key]
+
+
+def blast_energy(D, t, rho, K=1.0, *, geometry: str = "sphere"):
     """Energy of an intense point blast from the blast-wave radius at a given time.
 
     Book: §1.11, Example 1.4: the lone group Π1 = E t^2/(rho D^5) is a constant K, so ``E = K rho D^5 / t^2``.
@@ -1566,8 +1661,14 @@ def blast_energy(D, t, rho, K=1.0):
     rho : float
         Undisturbed air density [kg/m^3].
     K : float, optional
-        Dimensionless constant, not given by dimensional analysis (default 1.0; Taylor's full solution gives
-        ``TAYLOR_K_GAMMA14`` = 0.856 for a spherical blast in γ = 1.4 gas).
+        Dimensionless constant, not given by dimensional analysis (default 1.0). Taylor's similarity solution gives
+        ``TAYLOR_K_GAMMA14`` = 0.856 for a **free spherical** blast (energy released in open air, shock expanding in
+        all directions) in a gas with γ = 1.4; K depends on γ.
+    geometry : {"sphere", "hemisphere"}, optional, keyword-only
+        ``"sphere"`` (default, the behaviour above): E is the energy of a free spherical blast. ``"hemisphere"``: a
+        burst on the ground (the hemispherical blast of the book's Fig. 1.11). The ground acts as a mirror, so a
+        hemispherical blast of energy E behaves like half of a free sphere of energy 2E; the sphere formula with K
+        therefore gives 2E, and this option returns half of it, ``E = K rho D^5 / (2 t^2)``.
 
     Returns
     -------
@@ -1576,17 +1677,26 @@ def blast_energy(D, t, rho, K=1.0):
 
     Notes
     -----
-    Assumptions: strong blast (ambient pressure negligible), γ fixed (hidden in K), point release.
+    Assumptions: strong blast (ambient pressure negligible), γ fixed (hidden in K), point release; for a hemisphere a
+    flat, rigid, non-absorbing ground (a real ground absorbs part of the energy, so the effective factor lies between
+    1/2 and 1).
 
-    Validation (planned): V1 round trip with :func:`blast_radius`; D ∝ t^(2/5) (log–log slope 0.4). Label: pending.
+    Validation: V1 round trip with :func:`blast_radius` (rel 1e-12); D ∝ t^(2/5) (log–log slope 0.4 to 1e-12); the
+    only group of the BLAST preset is E t^2/(rho D^5); V5 ``K=TAYLOR_K_GAMMA14`` scales E by exactly 0.856 (Taylor 1950
+    via Díaz 2020); V1 ``geometry="hemisphere"`` gives E = K rho D^5/(2 t^2) and exactly half the sphere value
+    (rel 1e-14), i.e. a ground burst of E is a free sphere of 2E; unknown geometries raise. Label: analytic, benchmark.
     """
-    return as_scalar_if_0d(K * rho * np.asarray(D, dtype=float) ** 5 / np.asarray(t, dtype=float) ** 2)  # Example 1.4
+    E_sphere = K * rho * np.asarray(D, dtype=float) ** 5 / np.asarray(t, dtype=float) ** 2  # Example 1.4
+    return as_scalar_if_0d(_blast_factor(geometry) * E_sphere)  # ground burst: E = E_sphere(2E equivalent)/2
 
 
-def blast_radius(E, t, rho, K=1.0):
+def blast_radius(E, t, rho, K=1.0, *, geometry: str = "sphere"):
     """Blast-wave radius at time t for energy E: ``D = (E t^2 / (K rho))^(1/5)``.
 
     Book: §1.11, Example 1.4 inverted (the testable form D ∝ t^(2/5)).
+
+    ``geometry="hemisphere"`` (keyword-only) treats E as a ground burst, equivalent to a free sphere of energy 2E:
+    ``D = (2 E t^2 / (K rho))^(1/5)`` (see :func:`blast_energy`). Default ``"sphere"``.
 
     Parameters
     ----------
@@ -1604,9 +1714,12 @@ def blast_radius(E, t, rho, K=1.0):
     D : float or ndarray
         [m].
 
-    Validation (planned): V1 blast_energy(blast_radius(E, t)) = E. Label: pending.
+    Validation: V1 ``blast_energy(blast_radius(E, t, rho), t, rho)`` = E (rel 1e-12); log–log slope of D(t) is 0.4
+    (1e-12) with K = 0.856; ``geometry="hemisphere"`` equals the sphere radius for 2E (rel 1e-14), a radius ratio
+    2^(1/5) at equal E, and round-trips with :func:`blast_energy`. Label: analytic.
     """
-    return as_scalar_if_0d((np.asarray(E, dtype=float) * np.asarray(t, dtype=float) ** 2 / (K * rho)) ** 0.2)
+    E_sphere = np.asarray(E, dtype=float) / _blast_factor(geometry)  # ground burst of E acts like a sphere of 2E
+    return as_scalar_if_0d((E_sphere * np.asarray(t, dtype=float) ** 2 / (K * rho)) ** 0.2)  # Example 1.4 inverted
 
 
 def rayleigh_scattering_ratio(V, d, lam, phi3=1.0):
@@ -1634,8 +1747,8 @@ def rayleigh_scattering_ratio(V, d, lam, phi3=1.0):
     -----
     Assumptions: λ >> V^(1/3) (dipole scattering), far field (energy conservation gives S ∝ d^-2), elastic scattering.
 
-    Validation (planned): V1 blue (450 nm)/red (700 nm) = (700/450)^4 ≈ 5.85; S ∝ V^2, ∝ d^-2; group dimensionless.
-    Label: pending.
+    Validation: V1 blue (450 nm)/red (700 nm) = (700/450)^4 = 5.855 (rel 1e-12); S ∝ V^2 and ∝ d^-2 (rel 1e-12); the
+    group S d^2 λ^4/(I V^2) has zero dimension and the RAYLEIGH preset gives 4 groups. Label: analytic.
     """
     lam = np.asarray(lam, dtype=float)
     return as_scalar_if_0d(phi3 * np.asarray(V, dtype=float) ** 2
@@ -1658,7 +1771,8 @@ def wavelength_to_rgb(lam_nm):
     (r, g, b) : tuple of float or ndarray
         Colour components in [0, 1].
 
-    Validation: visual only (not evidence). Label: qualitative.
+    Validation: smoke-tested only (blue-dominant at 450 nm, pure red at 650 nm, black at 900 nm, array shapes kept);
+    a visual aid by design (verification Open item O1). Label: qualitative.
     """
     w = np.atleast_1d(np.asarray(lam_nm, dtype=float))
     r = np.zeros_like(w)

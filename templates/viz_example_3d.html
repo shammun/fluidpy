@@ -1674,7 +1674,9 @@ button, input, select { font: inherit; color: inherit; }
         if (ev.type === 'pointerup' || ev.type === 'pointercancel') v.pointer.down = false;
         v.pointer.inside = ev.type !== 'pointerleave';
         g.pointer = Object.assign({}, v.pointer, { view: v.id });
-        ev.viewId = v.id; ev.view = v;
+        // UIEvent.view is a read-only prototype getter (assigning it throws in strict mode): shadow it with an own property
+        ev.viewId = v.id; ev.vizView = v;
+        try { Object.defineProperty(ev, 'view', { value: v, configurable: true }); } catch (e) { /* ev.vizView still set */ }
         var redraw;
         if (isFn(v.cfg.onPointer)) redraw = v.cfg.onPointer(v, ev, app.state, app);
         else if (cfg.stage && isFn(cfg.stage.onPointer)) redraw = cfg.stage.onPointer(g, ev, app.state);

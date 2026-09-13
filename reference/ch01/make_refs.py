@@ -106,6 +106,27 @@ AMS = {"dry_adiabatic_lapse_rate_C_per_km": 9.8, "approximate": True, "conventio
        "definition": "g/c_pd", "_source": "https://glossary.ametsoc.org/wiki/Dry-adiabatic_lapse_rate (fetched 2026-09-13)"}
 
 
+# UNESCO EOS-80 check values: Fofonoff & Millard (1983), Unesco Tech. Pap. Mar. Sci. 44, p. 19 (PDF p. 23), quoting
+# Unesco Report No. 38 p. 191. S = practical salinity (PSS-78), t = IPTS-68 temperature [°C], p = gauge pressure
+# [dbar], rho [kg/m^3], V = specific volume [1e-3 m^3/kg]. The source warns that the last decimal may differ by round-off.
+UNESCO_EOS80_CHECK = {
+    "rows": [
+        {"S": 0.0, "t68_C": 5.0, "p_dbar": 0.0, "rho_kg_m3": 999.96675, "V_1e-3_m3_kg": 1.000033251},
+        {"S": 0.0, "t68_C": 5.0, "p_dbar": 10000.0, "rho_kg_m3": 1044.12802, "V_1e-3_m3_kg": 0.957736964},
+        {"S": 0.0, "t68_C": 25.0, "p_dbar": 0.0, "rho_kg_m3": 997.04796, "V_1e-3_m3_kg": 1.00296078},
+        {"S": 0.0, "t68_C": 25.0, "p_dbar": 10000.0, "rho_kg_m3": 1037.90204, "V_1e-3_m3_kg": 0.963482064},
+        {"S": 35.0, "t68_C": 5.0, "p_dbar": 0.0, "rho_kg_m3": 1027.67547, "V_1e-3_m3_kg": 0.973069835},
+        {"S": 35.0, "t68_C": 5.0, "p_dbar": 10000.0, "rho_kg_m3": 1069.48914, "V_1e-3_m3_kg": 0.935025857},
+        {"S": 35.0, "t68_C": 25.0, "p_dbar": 0.0, "rho_kg_m3": 1023.34306, "V_1e-3_m3_kg": 0.977189409},
+        {"S": 35.0, "t68_C": 25.0, "p_dbar": 10000.0, "rho_kg_m3": 1062.53817, "V_1e-3_m3_kg": 0.941142660},
+    ],
+    "t90_from_t68": "t90 = t68 / 1.00024",
+    "_source": "N. P. Fofonoff and R. C. Millard Jr., 'Algorithms for computation of fundamental properties of "
+               "seawater', Unesco Technical Papers in Marine Science 44 (1983), p. 19, check-value table for the "
+               "EOS-80 (from Unesco Report 38, p. 191); scanned PDF via WHOI/MBL darchive, page image read 2026-09-13",
+}
+
+
 def main() -> int:
     HERE.mkdir(parents=True, exist_ok=True)
     (HERE / "constants.json").write_text(json.dumps(CODATA, indent=2), encoding="utf-8")
@@ -123,7 +144,8 @@ def main() -> int:
         w.writerow(["t_C", "sigma_exp_mN_m", "uncertainty_mN_m", "sigma_calc_mN_m"])
         w.writerows(IAPWS_SIGMA)
     other = {"iapws_sigma_equation": IAPWS_SIGMA_EQ, "iapws_viscosity_check": IAPWS_VISCOSITY_CHECK,
-             "jennings": JENNINGS, "taylor_blast": TAYLOR, "ams_lapse_rate": AMS}
+             "jennings": JENNINGS, "taylor_blast": TAYLOR, "ams_lapse_rate": AMS,
+             "unesco_eos80_check": UNESCO_EOS80_CHECK}
     (HERE / "benchmarks.json").write_text(json.dumps(other, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote reference data to {HERE}")
     return 0

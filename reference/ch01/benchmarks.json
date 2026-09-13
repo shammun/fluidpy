@@ -39,5 +39,67 @@
     "convention": "rate of DECREASE, -dT/dz",
     "definition": "g/c_pd",
     "_source": "https://glossary.ametsoc.org/wiki/Dry-adiabatic_lapse_rate (fetched 2026-09-13)"
+  },
+  "unesco_eos80_check": {
+    "rows": [
+      {
+        "S": 0.0,
+        "t68_C": 5.0,
+        "p_dbar": 0.0,
+        "rho_kg_m3": 999.96675,
+        "V_1e-3_m3_kg": 1.000033251
+      },
+      {
+        "S": 0.0,
+        "t68_C": 5.0,
+        "p_dbar": 10000.0,
+        "rho_kg_m3": 1044.12802,
+        "V_1e-3_m3_kg": 0.957736964
+      },
+      {
+        "S": 0.0,
+        "t68_C": 25.0,
+        "p_dbar": 0.0,
+        "rho_kg_m3": 997.04796,
+        "V_1e-3_m3_kg": 1.00296078
+      },
+      {
+        "S": 0.0,
+        "t68_C": 25.0,
+        "p_dbar": 10000.0,
+        "rho_kg_m3": 1037.90204,
+        "V_1e-3_m3_kg": 0.963482064
+      },
+      {
+        "S": 35.0,
+        "t68_C": 5.0,
+        "p_dbar": 0.0,
+        "rho_kg_m3": 1027.67547,
+        "V_1e-3_m3_kg": 0.973069835
+      },
+      {
+        "S": 35.0,
+        "t68_C": 5.0,
+        "p_dbar": 10000.0,
+        "rho_kg_m3": 1069.48914,
+        "V_1e-3_m3_kg": 0.935025857
+      },
+      {
+        "S": 35.0,
+        "t68_C": 25.0,
+        "p_dbar": 0.0,
+        "rho_kg_m3": 1023.34306,
+        "V_1e-3_m3_kg": 0.977189409
+      },
+      {
+        "S": 35.0,
+        "t68_C": 25.0,
+        "p_dbar": 10000.0,
+        "rho_kg_m3": 1062.53817,
+        "V_1e-3_m3_kg": 0.94114266
+      }
+    ],
+    "t90_from_t68": "t90 = t68 / 1.00024",
+    "_source": "N. P. Fofonoff and R. C. Millard Jr., 'Algorithms for computation of fundamental properties of seawater', Unesco Technical Papers in Marine Science 44 (1983), p. 19, check-value table for the EOS-80 (from Unesco Report 38, p. 191); scanned PDF via WHOI/MBL darchive, page image read 2026-09-13"
   }
 }

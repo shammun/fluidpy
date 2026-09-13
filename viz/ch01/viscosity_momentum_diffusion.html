@@ -1,32 +1,19 @@
 <!DOCTYPE html>
-<!--
-  fluidpy interactive explainer — TEMPLATE.  Create a new one with:
-      .venv/Scripts/python.exe tools/new_viz.py chNN <slug> --title "..." --concept "..."
-  which copies this file to viz/chNN/<slug>.html, fills the meta tags and inlines assets/viz_base.css + assets/viz_lib.js.
-
-  Contract (checked by tools/viz_lint.py and tools/shot.py; see .claude/skills/interactive-viz/SKILL.md):
-    * self-contained: no external files except KaTeX (loaded by viz_lib from a CDN, with a text fallback);
-    * fits the window with NO scrolling at 360x640, 390x844, 844x390, 768x1024, 1280x720, 1366x768, 1920x1080
-      and the notebook size 1000x700 — content that does not fit goes into a tab or a pager, never a scrollbar;
-    * a guided walkthrough (4–8 steps), the equations it shows (with book equation numbers) and live substitutions;
-    * physics mirrors a tested fluidpy function and proves it with selftest() parity rows (py = a Python expression).
-  Never paste book text, figures or tables here: explanations in our own words, equations cited by number.
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>__TITLE__</title>
-<meta name="viz:chapter" content="__CHAPTER__">
-<meta name="viz:slug" content="__SLUG__">
-<meta name="viz:order" content="__ORDER__">
-<meta name="viz:title" content="__TITLE__">
-<meta name="viz:summary" content="__SUMMARY__">
-<meta name="viz:concept" content="__CONCEPT__">
-<meta name="viz:sections" content="__SECTIONS__">
-<meta name="viz:equations" content="__EQUATIONS__">
-<meta name="viz:fluidpy" content="__FLUIDPY__">
-<meta name="viz:derivations" content="__DERIVATIONS__">
+<title>How does the fluid learn that a plate moved?</title>
+<meta name="viz:chapter" content="ch01">
+<meta name="viz:slug" content="viscosity_momentum_diffusion">
+<meta name="viz:order" content="2">
+<meta name="viz:title" content="How does the fluid learn that a plate moved?">
+<meta name="viz:summary" content="The top plate starts moving: watch momentum diffuse down through the gap, the profile relax to a straight line and the wall stress settle at μU/h, with ν, not μ, setting the clock. Heat (Fourier) and species (Fick) modes show the same diffusion.">
+<meta name="viz:concept" content="Newton&#x27;s law of friction; dynamic and kinematic viscosity; momentum diffusion; Fick&#x27;s and Fourier&#x27;s laws; diffusion time h²/D">
+<meta name="viz:sections" content="1.3 1.5">
+<meta name="viz:equations" content="(1.1), (1.2), (1.3), (1.4)">
+<meta name="viz:fluidpy" content="ch01.ftcs_diffusion_1d ch01.couette_startup_profile ch01.newton_shear_stress ch01.kinematic_viscosity ch01.thermal_diffusivity ch01.wall_shear_history ch01.diffusion_time ch01.FLUIDS">
+<meta name="viz:derivations" content="none">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -468,6 +455,13 @@ button, input, select { font: inherit; color: inherit; }
 </style>
 <style>
   /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* six fluid chips: let them wrap onto two lines in a narrow side panel instead of overflowing */
+  .viz-panel .viz-seg[data-viz-key="param:fluid"] { display: flex; flex-wrap: wrap; border-radius: 14px; max-width: 100%; }
+  /* phones: keep the three fluid presets on one row so the gap view keeps its height (the others live in Explore) */
+  .viz-app[data-layout="portrait"] .viz-presets .viz-preset:nth-of-type(n+4),
+  .viz-app[data-layout="landscape"] .viz-presets .viz-preset:nth-of-type(n+4) { display: none; }
+  /* short phones (360×640): the presets row goes entirely; the fluid chips in Explore and the walkthrough set the fluid */
+  @media (max-height: 700px) { .viz-app[data-layout="portrait"] .viz-presets { display: none; } }
 </style>
 </head>
 <body>
@@ -2030,93 +2024,622 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.__FLUIDPY__ (same symbols, same equation numbers, SI units).
+   PHYSICS — mirrors fluidpy (SI units, the same symbols, the book's equation numbers)
+     (1.3)  τ = μ du/dy                          ch01.newton_shear_stress(mu, du_dy)
+     (1.4)  ν = μ/ρ                               ch01.kinematic_viscosity(mu, rho)
+            κ = k/(ρ C_p)                         ch01.thermal_diffusivity(k, rho, cp)
+            t_D = L²/D                            ch01.diffusion_time(L, D)
+     model  ∂f/∂t = D ∂²f/∂y² (ours; Ch. 4)       ch01.ftcs_diffusion_1d(f0, D, dy, dt, nsteps)  FTCS, r = DΔt/Δy² ≤ 1/2
+            wall flux, 2nd-order one-sided        ch01.wall_shear_history(u_hist, dy, mu)
+     check  Couette start-up series (Ch. 8)       ch01.couette_startup_profile(y, t, U, h, nu, nterms=200)
+     data   ch01.FLUIDS (20 °C, 1 atm) copied below with full precision
+   The solver runs once in nondimensional form: f = (value)/(top value), η = y/h, τ = t/(h²/D), 41 nodes, r = 0.4.
+   Every fluid, gap and mode is the same run with different scales: t = τ h²/D, flux = (steady flux) × ∂f/∂η.
    --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+const FLUIDS = {
+  air:        { rho: 1.2040847758331326, mu: 1.8134058821488238e-05, k: 0.025751999999999997, cp: 1006.8629999999999, kappa_m: 2.6e-05 },
+  water:      { rho: 998.2041322005837, mu: 0.0010017487594089526, k: 0.6030399999999999, cp: 4182.110000000001, kappa_m: 9.4e-10 },
+  glycerine:  { rho: 1263.9415, mu: 1.4200867308534857, k: 0.286, cp: 2385.8999999999996, kappa_m: 6.630889602626443e-13 },
+  honey:      { rho: 1421.143223013971, mu: 18.96, k: 0.44, cp: 2510.0, kappa_m: 4.9664759169009254e-14 },
+  engine_oil: { rho: 888.1415, mu: 0.7961461224408658, k: 0.145, cp: 1880.915, kappa_m: 1.1827525215565647e-12 }
+};
+const NAMES = { air: 'air', water: 'water', glycerine: 'glycerine', honey: 'honey', engine_oil: 'engine oil' };
+const SOLUTE = { air: 'water vapour diffusing in air', water: 'glycerol diffusing in water', glycerine: 'a small solute (Stokes–Einstein estimate)', honey: 'a small solute (Stokes–Einstein estimate)', engine_oil: 'a small solute (Stokes–Einstein estimate)' };
+const DY_STEP = 0.01;                  // species mode: the top wall holds a mass fraction 0.01 (1 %)
+
+function kinematicViscosity(mu, rho) { if (!(rho > 0)) throw new Error('rho must be > 0'); return mu / rho; }   // Eq. (1.4)
+function thermalDiffusivity(k, rho, cp) { return k / (rho * cp); }
+function diffusionTime(L, D) { if (!(D > 0)) throw new Error('D must be > 0'); return L * L / D; }
+function newtonShear(mu, dudy) { if (mu < 0) throw new Error('mu must be >= 0'); return mu * dudy; }             // Eq. (1.3)
+/** One FTCS step with both ends held (Dirichlet), exactly the update of ch01.ftcs_diffusion_1d. */
+function ftcsStep(f, r) {
+  if (r > 0.5) throw new Error('FTCS unstable: r = D dt/dy^2 = ' + r + ' > 1/2');
+  const n = f.length, out = new Array(n);
+  out[0] = f[0]; out[n - 1] = f[n - 1];
+  for (let i = 1; i < n - 1; i++) out[i] = f[i] + r * (f[i + 1] - 2.0 * f[i] + f[i - 1]);
+  return out;
+}
+/** μ ∂u/∂y at both walls with second-order one-sided stencils (ch01.wall_shear_history for one profile). */
+function wallShear(u, dy, mu) {
+  const n = u.length;
+  return { bottom: mu * (-3.0 * u[0] + 4.0 * u[1] - u[2]) / (2.0 * dy), top: mu * (3.0 * u[n - 1] - 4.0 * u[n - 2] + u[n - 3]) / (2.0 * dy) };
+}
+/** Couette start-up series (a Ch. 8 result, used here only as a check of the FTCS run). */
+function couetteStartup(y, t, U, h, nu, nterms) {
+  nterms = nterms || 200;
+  if (t <= 0) return Math.abs(y - h) <= 1e-8 + 1e-5 * Math.abs(h) ? U : 0;
+  const a = Math.PI * Math.PI * nu * t / (h * h);
+  let s = 0;
+  for (let n = 1; n <= nterms; n++) s += (n % 2 === 1 ? 1 : -1) / n * Math.exp(-a * n * n) * Math.sin(n * (Math.PI * y / h));
+  return U * y / h - (2.0 * U / Math.PI) * s;
+}
+/** Exact nondimensional wall gradients ∂f/∂η at η = 0 and η = 1 from the same series. */
+function exactWallGradients(tau) {
+  let sb = 0, st = 0;
+  for (let n = 1; n <= 200; n++) { const e = Math.exp(-Math.PI * Math.PI * n * n * tau); sb += (n % 2 ? -1 : 1) * e; st += e; if (e < 1e-16) break; }
+  return { b: 1 + 2 * sb, t: 1 + 2 * st };
+}
+
+/* ---- the nondimensional run (41 nodes, r = 0.4, τ from 0 to 1.5 → 6000 steps; every state stored) ---- */
+const N = 41, DETA = 1 / (N - 1), R = 0.4, DTAU = R * DETA * DETA, TAU_MAX = 1.5, NS = Math.round(TAU_MAX / DTAU);
+const HIST = new Float64Array((NS + 1) * N), CUM = new Float32Array((NS + 1) * N), WB = new Float64Array(NS + 1), WT = new Float64Array(NS + 1);
+const ETA = Viz.num.linspace(0, 1, N);
+(function run() {
+  let f = new Array(N).fill(0); f[N - 1] = 1;                 // fluid at rest, top wall steps to 1 at τ = 0
+  const cum = new Array(N).fill(0);
+  for (let n = 0; n <= NS; n++) {
+    if (n > 0) { const g = ftcsStep(f, R); for (let j = 0; j < N; j++) cum[j] += 0.5 * (f[j] + g[j]) * DTAU; f = g; }
+    for (let j = 0; j < N; j++) { HIST[n * N + j] = f[j]; CUM[n * N + j] = cum[j]; }
+    const w = wallShear(f, DETA, 1.0); WB[n] = w.bottom; WT[n] = w.top;
+  }
+})();
+function profileAt(tau) {
+  const x = Viz.clamp(tau / DTAU, 0, NS), i0 = Math.floor(x), i1 = Math.min(NS, i0 + 1), w = x - i0, out = new Array(N);
+  for (let j = 0; j < N; j++) out[j] = HIST[i0 * N + j] * (1 - w) + HIST[i1 * N + j] * w;
+  return out;
+}
+function cumAt(tau) {
+  const x = Viz.clamp(tau / DTAU, 0, NS), i0 = Math.floor(x), i1 = Math.min(NS, i0 + 1), w = x - i0, out = new Array(N);
+  for (let j = 0; j < N; j++) out[j] = CUM[i0 * N + j] * (1 - w) + CUM[i1 * N + j] * w;
+  return out;
+}
+function wallAt(tau) {
+  const x = Viz.clamp(tau / DTAU, 0, NS), i0 = Math.floor(x), i1 = Math.min(NS, i0 + 1), w = x - i0;
+  return { b: WB[i0] * (1 - w) + WB[i1] * w, t: WT[i0] * (1 - w) + WT[i1] * w };
+}
+function fAt(f, eta) { const x = Viz.clamp(eta, 0, 1) / DETA, i = Math.min(N - 2, Math.floor(x)), w = x - i; return f[i] * (1 - w) + f[i + 1] * w; }
+const T_STEADY = Math.log(200) / (Math.PI * Math.PI);           // wall flux within 1 % of steady: 0.537
+const T_PROFILE = Math.log(200 / Math.PI) / (Math.PI * Math.PI); // profile within 1 % of steady: 0.421
+const T_HALF = Math.log(2) / (Math.PI * Math.PI);               // half-life of the slowest mode: 0.0702
+
+/* ---- properties and the three modes ---- */
+const MODE = {
+  momentum: { word: 'momentum', Dtex: '\\nu', Dtxt: 'ν', fSym: 'u', fTex: 'u', xlabel: 'u [m/s]', unitF: 'm/s', flux: 'τ', fluxTex: '\\tau', fluxUnit: 'Pa', law: 'Newton (1.3)', steady: 'steady Couette flow' },
+  heat:     { word: 'heat', Dtex: '\\kappa', Dtxt: 'κ', fSym: 'T − T₀', fTex: 'T - T_0', xlabel: 'T − T₀ [K]', unitF: 'K', flux: 'q', fluxTex: 'q', fluxUnit: 'W/m²', law: 'Fourier (1.2)', steady: 'steady conduction' },
+  species:  { word: 'species', Dtex: '\\kappa_m', Dtxt: 'κₘ', fSym: 'Y', fTex: 'Y', xlabel: 'Y [kg/kg]', unitF: 'kg/kg', flux: 'J', fluxTex: 'J_m', fluxUnit: 'kg/(m² s)', law: 'Fick (1.1)', steady: 'steady diffusion' }
+};
+function props(s) {
+  const named = !!FLUIDS[s.fluid], baseKey = named ? s.fluid : (FLUIDS[s.base] ? s.base : 'water'), b = FLUIDS[baseKey];
+  const mu = named ? b.mu : Math.pow(10, s.logmu), rho = named ? b.rho : s.rho;
+  return { named, baseKey, mu, rho, k: b.k, cp: b.cp, km: b.kappa_m, nu: kinematicViscosity(mu, rho), kappa: thermalDiffusivity(b.k, rho, b.cp),
+    name: named ? NAMES[baseKey] : 'custom fluid' };
+}
+function model(s) {
+  const p = props(s), h = s.h * 1e-3, mode = MODE[s.mode] ? s.mode : 'momentum', MT = MODE[mode];
+  let D, top, flux0;
+  if (mode === 'momentum') { D = p.nu; top = s.U; flux0 = newtonShear(p.mu, s.U / h); }       // τ = μU/h
+  else if (mode === 'heat') { D = p.kappa; top = s.dT; flux0 = -p.k * s.dT / h; }                 // q = −kΔT/h
+  else { D = p.km; top = DY_STEP; flux0 = -p.rho * p.km * DY_STEP / h; }                           // J = −ρκ_m ΔY/h
+  const clock = diffusionTime(h, D), tau = s.tau, f = profileAt(tau), w = wallAt(tau);
+  const slopeAB = (f[21] - f[19]) / (2 * DETA);
+  return { p, h, mode, MT, D, top, flux0, clock, tau, t: tau * clock, f, wb: w.b, wt: w.t,
+    fluxB: flux0 * w.b, fluxT: flux0 * w.t, slopeAB, fluxAB: flux0 * slopeAB };
+}
+function maxError(tau) {
+  const f = profileAt(tau); let m = 0;
+  for (let j = 0; j < N; j++) m = Math.max(m, Math.abs(f[j] - couetteStartup(ETA[j], tau, 1, 1, 1)));
+  return m;
+}
+/* local helper (promotion candidate: Viz.fmtTime) — seconds in everyday units */
+function humanTime(sec) {
+  if (sec === 0) return '0 s';
+  if (!isFinite(sec)) return '—';
+  const a = Math.abs(sec), F = v => Viz.fmt(v, { sig: 3 });
+  if (a < 1e-3) return F(sec * 1e6) + ' µs';
+  if (a < 1) return F(sec * 1e3) + ' ms';
+  if (a < 120) return F(sec) + ' s';
+  if (a < 7200) return F(sec / 60) + ' min';
+  if (a < 172800) return F(sec / 3600) + ' h';
+  if (a < 6.3e7) return F(sec / 86400) + ' days';
+  return F(sec / 3.156e7) + ' years';
+}
+/* local helpers (promotion candidate: a keepZeros option for Viz.fmt / Viz.tnum) — like the library, but 1.00 stays 1.00 */
+function fm(v, sig) {
+  sig = sig || 3;
+  if (typeof v !== 'number' || !isFinite(v) || v === 0 || Math.abs(v) < 1e-12) return Viz.fmt(v, { sig });
+  const a = Math.abs(v);
+  if (a >= 1e-3 && a < Math.pow(10, sig)) return v.toPrecision(sig).replace('-', '−');
+  return Viz.fmt(v, { sig });
+}
+function tn(v, sig) {
+  sig = sig || 3;
+  if (typeof v !== 'number' || !isFinite(v) || v === 0 || Math.abs(v) < 1e-12) return Viz.tnum(v, sig);
+  const a = Math.abs(v);
+  if (a >= 1e-3 && a < Math.pow(10, sig)) return v.toPrecision(sig);
+  if (a >= 1e-3 && a < 1e5) return String(Math.round(v));
+  const e = Math.floor(Math.log10(a));
+  let m = v / Math.pow(10, e), ee = e;
+  if (Math.abs(Number(m.toPrecision(sig))) >= 10) { m /= 10; ee += 1; }
+  return m.toPrecision(sig) + '\\times10^{' + ee + '}';
+}
+function fluxStr(v, M) { return fm(v) + ' ' + M.MT.fluxUnit; }
+
+/* ---- drawing helpers (local; promotion candidate: Viz.roundCard) ---- */
+function card(ctx, x, y, lines, opt) {
+  opt = opt || {};
+  const fs = 12.5, lh = 17, font = getComputedStyle(document.body).fontFamily;
+  ctx.save(); ctx.font = '600 ' + fs + 'px ' + font;
+  const w = Math.max.apply(null, lines.map(l => ctx.measureText(l).width)) + 20, hh = lines.length * lh + 12;
+  const X = Math.round(x - w / 2), Y = Math.round(y - hh / 2);
+  ctx.fillStyle = Viz.alpha(Viz.color('card'), 0.94); ctx.strokeStyle = opt.color || Viz.color('accent'); ctx.lineWidth = 1.5;
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(X, Y, w, hh, 8); else ctx.rect(X, Y, w, hh); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = Viz.color('text'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((l, i) => ctx.fillText(l, x, Y + 6 + lh * (i + 0.5)));
+  ctx.restore();
+}
+function shade(mode, v, a) {
+  if (mode === 'heat') { const c = Viz.cmap('coolwarm', v); return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + (a === undefined ? 0.6 : a) + ')'; }
+  return Viz.alpha(Viz.color(mode === 'species' ? 'amber' : 'teal'), (a === undefined ? 0.07 : 0.25) + (a === undefined ? 0.5 : 0.7) * Viz.clamp(v, 0, 1));
+}
+
+/* molecules (random walkers carrying the value of the layer they came from) and species dots */
+const rnd = Viz.rng(7);
+const MOLS = Array.from({ length: 22 }, () => ({ x: rnd(), eta: 0.04 + 0.92 * rnd(), c: 0 }));
+const DOTS = Array.from({ length: 360 }, () => ({ x: rnd(), eta: rnd(), r: rnd() }));
+let drag = null;
+
+function gapGeom(v) {
+  const W = v.w, H = v.h, small = H < 150 || W < 320;
+  const plate = small ? 7 : 11, yTop = (small ? 23 : 27) + plate, yBot = H - (small ? 17 : 22) - plate;
+  return { W, H, small, plate, yTop, yBot, Y: eta => yBot - eta * (yBot - yTop) };
+}
+
+function drawGap(v, s, M) {
+  v.clear();
+  const G = gapGeom(v), ctx = v.ctx, W = G.W, mode = M.mode, P = v.plot({ rect: { x: 0, y: 0, w: W, h: G.H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [G.H, 0] });
+  const f = M.f, col = { teal: Viz.color('teal'), rose: Viz.color('rose'), accent: Viz.color('accent'), text: Viz.color('text'), muted: Viz.color('muted'), amber: Viz.color('amber'), blue: Viz.color('blue') };
+  // fluid band shaded by f(y, t)
+  for (let j = 0; j < N - 1; j++) { ctx.fillStyle = shade(mode, 0.5 * (f[j] + f[j + 1])); const y0 = G.Y(ETA[j + 1]), y1 = G.Y(ETA[j]); ctx.fillRect(0, y0, W, y1 - y0 + 0.5); }
+  // plates
+  const topFill = mode === 'momentum' ? col.text : mode === 'heat' ? col.rose : col.amber;
+  ctx.fillStyle = topFill; ctx.fillRect(0, G.yTop - G.plate, W, G.plate);
+  ctx.fillStyle = Viz.alpha(col.muted, 0.55); ctx.fillRect(0, G.yBot, W, G.plate);
+  ctx.save(); ctx.strokeStyle = Viz.alpha(col.muted, 0.9); ctx.lineWidth = 1;
+  for (let x = 4; x < W; x += 12) { ctx.beginPath(); ctx.moveTo(x, G.yBot + G.plate); ctx.lineTo(x + 7, G.yBot); ctx.stroke(); }
+  ctx.restore();
+  const zone0 = mode === 'momentum' ? W * 0.40 : 0, Z = W * 0.98 - zone0;
+  if (mode === 'momentum') {
+    const shift = M.tau * Z * 0.9;                                  // the plate's own marks move with it
+    ctx.save(); ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.85); ctx.lineWidth = 2;
+    for (let k = 0; k < 40; k++) { const x = ((k * 26 + shift) % (40 * 26)); if (x > W) continue; ctx.beginPath(); ctx.moveTo(x, G.yTop - 2); ctx.lineTo(x + 5, G.yTop - G.plate + 2); ctx.stroke(); }
+    ctx.restore();
+  }
+  const lab = { size: 12, weight: 600 };
+  const topTxt = mode === 'momentum' ? 'moving plate · U = ' + fm(s.U) + ' m/s →' : mode === 'heat' ? 'hot wall · T₀ + ' + fm(s.dT) + ' K' : 'wall holds Y = ' + DY_STEP;
+  const botTxt = mode === 'momentum' ? 'fixed wall · u = 0' : mode === 'heat' ? 'cold wall · T₀' : 'wall holds Y = 0';
+  P.text(8, G.yTop - G.plate - 3, topTxt, Object.assign({ baseline: 'bottom', color: mode === 'momentum' ? col.text : topFill }, lab));
+  P.text(8, G.yBot + G.plate + 2, botTxt, Object.assign({ baseline: 'top', color: col.muted }, lab));
+  if (!G.small) P.text(W - 8, G.yBot + G.plate + 2, 'gap h = ' + fm(s.h) + ' mm · ' + M.p.name, Object.assign({ baseline: 'top', align: 'right', color: col.muted }, lab));
+
+  if (mode === 'momentum') {
+    // velocity arrows u(y) at eight heights + the profile through their tips (left zone)
+    const x0 = W * 0.04, L = W * 0.30;
+    ctx.save(); ctx.strokeStyle = Viz.alpha(col.text, 0.5); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, G.yTop); ctx.lineTo(x0, G.yBot); ctx.stroke(); ctx.restore();
+    for (let k = 1; k <= 8; k++) { const eta = k / 8, uu = fAt(f, eta); P.arrow(x0, G.Y(eta), uu * L, 0, { color: Viz.alpha(col.teal, 0.95), width: 2, head: G.small ? 6 : 8 }); }
+    P.line(ETA.map((e, j) => x0 + f[j] * L), ETA.map(e => G.Y(e)), { color: col.teal, width: 1.5 });
+    // dye lines advected by u (right zone), wrapping round like a belt
+    const scale = Z * 0.9, cum = cumAt(M.tau);
+    for (let k = 0; k < 5; k++) {
+      const base = (k + 0.5) * Z / 5;
+      ctx.save(); ctx.strokeStyle = col.accent; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.beginPath();
+      let px = null;
+      for (let j = 0; j < N; j++) {
+        const x = zone0 + ((base + cum[j] * scale) % Z), y = G.Y(ETA[j]);
+        if (px === null || Math.abs(x - px) > Z / 2) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        px = x;
+      }
+      ctx.stroke(); ctx.restore();
+    }
+  } else if (mode === 'species') {
+    DOTS.forEach(d => { if (d.r < fAt(f, d.eta)) P.dot(d.x * W, G.Y(d.eta), G.small ? 1.6 : 2.1, { color: Viz.alpha(Viz.color('orange'), 0.85) }); });
+  }
+  // molecules hopping between layers, each carrying the value of the layer it came from
+  MOLS.forEach((m, mi) => {
+    if (G.small && mi % 2) return;
+    const x = zone0 + m.x * Z, y = G.Y(m.eta), c = mode === 'heat' ? shade('heat', m.c, 1) : Viz.alpha(mode === 'species' ? Viz.color('orange') : col.teal, 0.25 + 0.75 * Viz.clamp(m.c, 0, 1));
+    P.dot(x, y, G.small ? 2.6 : 3.6, { color: c, stroke: Viz.alpha(col.text, 0.55), strokeWidth: 1 });
+  });
+  // surface AB at mid-gap and the flux across it
+  const yAB = G.Y(0.5), ax0 = zone0 + Z * (mode === 'momentum' ? 0.34 : 0.62), ax1 = ax0 + Z * (mode === 'momentum' ? 0.30 : 0.22);
+  ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = col.text; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ax0, yAB); ctx.lineTo(ax1, yAB); ctx.stroke(); ctx.restore();
+  P.text(ax0 - 4, yAB, 'A', { align: 'right', weight: 700, size: 12.5 }); P.text(ax1 + 4, yAB, 'B', { weight: 700, size: 12.5 });
+  const mag = Viz.clamp(Math.abs(M.slopeAB) / 1.6, 0, 1.1);
+  if (mode === 'momentum') {
+    P.arrow((ax0 + ax1) / 2 - mag * Z * 0.12, yAB - 9, mag * Z * 0.24, 0, { color: col.rose, width: 3, head: 9 });
+    P.text((ax0 + ax1) / 2, yAB + 11, G.small ? 'τ' : 'τ on AB = ' + fluxStr(M.fluxAB, M), { align: 'center', color: col.rose, size: 12, weight: 650 });
+  } else {
+    const len = mag * (G.yBot - G.yTop) * 0.32, xm = (ax0 + ax1) / 2;
+    P.arrow(xm, yAB - len / 2, 0, len, { color: col.rose, width: 3, head: 9 });
+    if (!G.small) P.text(ax0 - 18, yAB + 13, M.MT.flux + ' on AB = ' + fluxStr(M.fluxAB, M) + ' (down)', { align: 'right', color: col.rose, size: 12, weight: 650 });
+  }
+  if (v.app && v.app.holding) {
+    const M1 = M, steadyTxt = M.mode === 'momentum' ? 'τ = μU/h = ' + fluxStr(M.flux0, M) + ' at every height'
+      : M.mode === 'heat' ? 'q = −kΔT/h = ' + fluxStr(M.flux0, M) + ' at every height' : 'J = −ρκₘΔY/h = ' + fluxStr(M.flux0, M) + ' everywhere';
+    const lines = ['Steady after t ≈ 0.54 h²/' + M.MT.Dtxt + ' = ' + humanTime(T_STEADY * M1.clock), steadyTxt];
+    if (M.mode === 'momentum' && !G.small) lines.push('force on a 10 cm × 10 cm plate: ' + fm(M.flux0 * 0.01) + ' N');
+    card(ctx, W * 0.5, (G.yTop + G.yBot) / 2, lines, { color: col.rose });
+  }
+}
+
+function profilePlot(v, s, M) {
+  return v.plot({ xlim: [0, M.top * 1.08], ylim: [0, s.h], xlabel: M.MT.xlabel, ylabel: 'y [mm]', pad: { r: 10 } });
+}
+const TRAIL = [0.005, 0.02, 0.05, 0.1, 0.2, 0.4];
+function drawProfile(v, s, M) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const P = profilePlot(v, s, M).axes(), top = M.top, hmm = s.h, ys = ETA.map(e => e * hmm);
+  P.clip(() => {
+    P.line([0, top], [0, hmm], { color: Viz.alpha(Viz.color('muted'), 0.9), width: 1.6, dash: [7, 5] });   // steady ghost
+    TRAIL.forEach(tk => { if (tk < M.tau - 1e-9) P.line(profileAt(tk).map(x => x * top), ys, { color: Viz.alpha(Viz.color('teal'), 0.22), width: 1.3 }); });
+    P.line(M.f.map(x => x * top), ys, { color: Viz.color('teal'), width: 3.2 });
+    if (v.h > 160) M.f.forEach((x, j) => P.dot(x * top, ys[j], 1.8, { color: Viz.color('teal') }));
+    const ye = Viz.num.linspace(0, 1, 121);                      // exact series on top, thin dashed: a check
+    P.line(ye.map(e => couetteStartup(e, M.tau, 1, 1, 1) * top), ye.map(e => e * hmm), { color: Viz.color('orange'), width: 1.3, dash: [5, 4] });
+    // AB and the local slope there (the stress on AB is μ × this slope)
+    P.line([0, top * 1.08], [hmm / 2, hmm / 2], { color: Viz.alpha(Viz.color('text'), 0.45), width: 1, dash: [4, 4] });
+    const fab = M.f[20], d = 0.14;
+    P.line([top * (fab - M.slopeAB * d), top * (fab + M.slopeAB * d)], [hmm * (0.5 - d), hmm * (0.5 + d)], { color: Viz.color('rose'), width: 2.4 });
+    P.dot(top * fab, hmm / 2, 4, { color: Viz.color('rose'), stroke: '#fff', strokeWidth: 1.5 });
+    if (s.probe !== undefined && s.probe !== null) {
+      const i = s.probe, fi = M.f[i], sl = (M.f[i + 1] - M.f[i - 1]) / (2 * DETA), yi = ys[i];
+      P.line([0, top * 1.08], [yi, yi], { color: Viz.alpha(Viz.color('accent'), 0.6), width: 1, dash: [2, 3] });
+      P.line([top * (fi - sl * 0.1), top * (fi + sl * 0.1)], [yi - hmm * 0.1, yi + hmm * 0.1], { color: Viz.color('accent'), width: 2 });
+      P.dot(top * M.f[i - 1], ys[i - 1], 3, { color: Viz.color('accent') }); P.dot(top * M.f[i + 1], ys[i + 1], 3, { color: Viz.color('accent') });
+      P.dot(top * fi, yi, 4.5, { color: Viz.color('accent'), stroke: '#fff', strokeWidth: 1.5 });
+    }
+  });
+  if (v.w > 200) P.text(top * 1.06, hmm / 2, 'AB', { align: 'right', baseline: 'bottom', dy: -3, color: Viz.color('text-soft'), size: 12 });
+}
+
+function drawStress(v, s, M) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const ylab = M.mode === 'momentum' ? 'τ_w / (μU/h)' : M.mode === 'heat' ? 'q_w / q_steady' : 'J_w / J_steady';
+  const P = v.plot({ xlim: [0, TAU_MAX], ylim: [0, 3], xlabel: 't / (h²/' + M.MT.Dtxt + ')  [–]', ylabel: ylab + ' [–]', pad: { t: v.h > 170 ? 22 : 12 } }).axes();
+  const idx = [], stride = 10;
+  for (let n = 0; n <= NS; n += stride) idx.push(n);
+  const xs = idx.map(n => n * DTAU), cur = Math.round(Viz.clamp(M.tau / DTAU, 0, NS) / stride);
+  P.clip(() => {
+    P.line([0, TAU_MAX], [1, 1], { color: Viz.alpha(Viz.color('muted'), 0.9), width: 1.2, dash: [6, 4] });
+    P.line([T_STEADY, T_STEADY], [0, 3], { color: Viz.alpha(Viz.color('muted'), 0.9), width: 1, dash: [2, 4] });
+    P.line(xs, idx.map(n => WT[n]), { color: Viz.alpha(Viz.color('rose'), 0.3), width: 2 });
+    P.line(xs, idx.map(n => WB[n]), { color: Viz.alpha(Viz.color('blue'), 0.3), width: 2 });
+    P.line(xs.slice(0, cur + 1), idx.slice(0, cur + 1).map(n => WT[n]), { color: Viz.color('rose'), width: 3 });
+    P.line(xs.slice(0, cur + 1), idx.slice(0, cur + 1).map(n => WB[n]), { color: Viz.color('blue'), width: 3 });
+    const ex = Viz.num.linspace(0.004, TAU_MAX, 160), eg = ex.map(exactWallGradients);   // exact series on top, thin
+    P.line(ex, eg.map(e => e.t), { color: Viz.color('orange'), width: 1, dash: [3, 4] });
+    P.line(ex, eg.map(e => e.b), { color: Viz.color('orange'), width: 1, dash: [3, 4] });
+    P.dot(M.tau, Math.min(M.wt, 3), 4.5, { color: Viz.color('rose'), stroke: '#fff', strokeWidth: 1.5 });
+    P.dot(M.tau, M.wb, 4.5, { color: Viz.color('blue'), stroke: '#fff', strokeWidth: 1.5 });
+  });
+  const small = v.w < 330 || v.h < 150;
+  if (v.h > 140) {
+    P.text(0.2, 2.4, 'top wall', { color: Viz.color('rose'), weight: 650, size: 12 });
+    P.text(0.2, 0.3, 'bottom wall', { color: Viz.color('blue'), weight: 650, size: 12 });
+  }
+  if (!small) {
+    P.text(T_STEADY, 2.1, ' within 1 %', { color: Viz.color('text-soft'), size: 12 });
+    P.text(0.03, 2.8, '↑ top wall starts off-scale', { color: Viz.color('rose'), size: 12 });
+  }
+  if (v.h > 170 && v.w > 380) [0.5, 1.0, 1.5].forEach(x => P.text(x, 3, humanTime(x * M.clock), { align: x === 1.5 ? 'right' : 'center', baseline: 'bottom', dy: -3, color: Viz.color('text-soft'), size: 12, halo: false }));
 }
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
+let syncing = false;
 const app = Viz.app({
-  title: '__TITLE__',
-  subtitle: '__SUMMARY__',
+  title: 'How does the fluid learn that a plate moved?',
+  subtitle: 'One clock, three views: the gap, the profile and the stress on each wall',
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    fluid: { type: 'select', label: 'Fluid (20 °C)', display: 'chips', value: 'water',
+             options: [['air', 'air'], ['water', 'water'], ['glycerine', 'glycerine'], ['honey', 'honey'], ['engine_oil', 'oil'], ['custom', 'custom']] },
+    h:     { label: 'Gap $h$', min: 0.1, max: 10, step: 0.1, value: 1, unit: 'mm', help: 'distance between the plates' },
+    U:     { label: 'Plate speed $U$', min: 0.1, max: 5, step: 0.1, value: 1, unit: 'm/s', help: 'or drag the top plate sideways' },
+    logmu: { label: 'Viscosity $\\log_{10}\\mu$', min: -5, max: 2, step: 0.05, value: Math.log10(FLUIDS.water.mu), optional: true, help: 'dragging makes a custom fluid', fmt: v => 'μ = ' + fm(Math.pow(10, v)) + ' Pa s' },
+    rho:   { label: 'Density $\\rho$', min: 0.5, max: 2000, log: true, value: FLUIDS.water.rho, optional: true, help: 'dragging makes a custom fluid', fmt: v => fm(v) + ' kg/m³' },
+    dT:    { label: 'Wall step $\\Delta T$ (heat)', min: 1, max: 50, step: 1, value: 10, unit: 'K', optional: true },
+    tau:   { label: 'time $t/(h^2/D)$', min: 0, max: TAU_MAX, step: 'any', value: 0, optional: true, fmt: v => v.toFixed(3) }
+  },
+  onChange(s, key, a) {
+    if (syncing) return;
+    syncing = true;
+    try {
+      if (key === 'fluid' && FLUIDS[s.fluid]) a.set({ logmu: Math.log10(FLUIDS[s.fluid].mu), rho: FLUIDS[s.fluid].rho, base: s.fluid });
+      else if ((key === 'logmu' || key === 'rho') && FLUIDS[s.fluid]) {
+        const F0 = FLUIDS[s.fluid];
+        if (Math.abs(s.logmu - Math.log10(F0.mu)) > 1e-9 || Math.abs(s.rho - F0.rho) > 1e-9 * F0.rho) a.set('fluid', 'custom');
+      }
+    } finally { syncing = false; }
+  },
+  transport: { param: 'tau', min: 0, max: TAU_MAX, rate: 0.1, end: 'hold', hold: 3, step: 0.01 },
+  modes: { param: 'mode', label: 'What diffuses', options: [['momentum', 'momentum'], ['heat', 'heat'], ['species', 'species']] },
+  presets: [
+    { label: 'air', set: { fluid: 'air' }, title: 'μ small, ν large', action: a => { a.set('tau', 0); a.play(true); } },
+    { label: 'water', set: { fluid: 'water' }, title: 'the reference', action: a => { a.set('tau', 0); a.play(true); } },
+    { label: 'honey', set: { fluid: 'honey' }, title: 'a million times air’s μ', action: a => { a.set('tau', 0); a.play(true); } },
+    { label: 'water’s μ, air’s ρ', set: { logmu: -3, rho: 1.2 }, title: 'same stress, a thousand times faster clock', action: a => { a.set('tau', 0); a.play(true); } },
+    { label: 'wide gap', set: { h: 10 }, title: 'h = 10 mm: the clock grows 100×', action: a => { a.set('tau', 0); a.play(true); } }
+  ],
+  status: s => {
+    const M = model(s);
+    if (M.tau < T_STEADY) return { text: '⏳ spreading · t = ' + M.tau.toFixed(2) + ' h²/' + M.MT.Dtxt + ' = ' + humanTime(M.t), tone: 'warn' };
+    return { text: '✅ ' + M.MT.steady + ': ' + M.MT.flux + ' = ' + fluxStr(M.flux0, M) + ' everywhere', tone: 'good' };
   },
   readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+    { id: 'nu', label: '$\\nu = \\mu/\\rho$', value: s => props(s).nu, fmt: v => fm(v) + ' m²/s' },
+    { id: 'D', label: 'Diffusivity $D$', value: s => model(s).D, fmt: v => fm(v) + ' m²/s' },
+    { id: 'clock', label: 'Clock $h^2/D$', value: s => model(s).clock, fmt: v => humanTime(v) },
+    { id: 'tnow', label: 't now', value: s => model(s).t, fmt: v => humanTime(v) },
+    { id: 'fluxTop', label: 'Top-wall flux', value: s => model(s).fluxT, fmt: (v, s) => fluxStr(v, model(s)) },
+    { id: 'fluxBot', label: 'Bottom-wall flux', value: s => model(s).fluxB, fmt: (v, s) => fluxStr(v, model(s)) }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    rows: [1.15, 1],
+    views: [
+      { id: 'gap', row: 0, flex: 1, title: s => { const M = model(s); return '<b>The gap</b> · ' + M.p.name + ' · t = ' + humanTime(M.t); } },
+      { id: 'profile', row: 1, flex: 1, title: s => '<b>' + MODE[s.mode].fSym + '(y, t)</b> · <span class="c-teal">FTCS</span> · <span class="c-orange">exact</span> · dashed = steady' },
+      { id: 'stress', row: 1, flex: 1.05, hidePortrait: true, title: s => '<b>Wall ' + (MODE[s.mode] || MODE.momentum).flux + '(t)</b> · <span class="c-rose">top</span> · <span class="c-blue">bottom</span>' }
+    ],
+    step(g, s, dt) {
+      const M = model(s), sd = Math.sqrt(Math.max(dt, 0)) * 0.22;
+      MOLS.forEach(m => {
+        m.eta += (rnd() - 0.5) * 2 * sd; if (m.eta < 0.03) m.eta = 0.06 - m.eta; if (m.eta > 0.97) m.eta = 1.94 - m.eta;
+        m.x = (m.x + (rnd() - 0.5) * dt * 0.4 + 1) % 1;
+        m.c += (fAt(M.f, m.eta) - m.c) * Math.min(1, 2.5 * dt);
+      });
+    },
+    reset() { MOLS.forEach(m => { m.c = 0; }); },
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
+      const M = model(s);
+      drawGap(g.view('gap'), s, M);
+      drawProfile(g.view('profile'), s, M);
+      drawStress(g.view('stress'), s, M);
+    },
+    onPointer(g, ev, s) {
+      const v = ev.view;
+      if (ev.viewId === 'profile' && ev.type === 'pointerdown') {
+        const M = model(s), P = profilePlot(v, s, M), eta = P.iy(v.pointer.y) / s.h;
+        g.app.set('probe', Viz.clamp(Math.round(eta * (N - 1)), 1, N - 2));
+        return true;
+      }
+      if (ev.viewId === 'gap' && s.mode === 'momentum') {
+        const G = gapGeom(v);
+        if (ev.type === 'pointerdown' && v.pointer.y < G.yTop + 12) { drag = { x: v.pointer.x, U: s.U }; return false; }
+        if (ev.type === 'pointermove' && drag && v.pointer.down) { g.app.set('U', Math.round(Viz.clamp(drag.U + (v.pointer.x - drag.x) / G.W * 5, 0.1, 5) * 10) / 10); return true; }
+        if (ev.type === 'pointerup' || ev.type === 'pointercancel') drag = null;
+      }
+      return false;
     }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Press ▶ and watch the <span class="c-teal">profile</span> creep down the gap. Switch fluids and compare the clock $h^2/D$.',
+    controls: ['fluid', 'h', 'U', 'logmu', 'rho', 'dT'],
+    readouts: ['nu', 'clock', 'tnow', 'fluxTop', 'fluxBot'],
+    callouts: [{ kind: 'try', html: 'Air and water in the same 1 mm gap: predict which clock is shorter before you click.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  inspect: s => {
+    if (s.probe === undefined || s.probe === null) return null;
+    const M = model(s), i = s.probe, dy = M.h / (N - 1), a = M.f[i + 1] * M.top, b = M.f[i - 1] * M.top, grad = (a - b) / (2 * dy);
+    const head = `At $y = ${tn(i * dy * 1e3)}$ mm (node ${i}), t = ${humanTime(M.t)}:<br>`;
+    if (M.mode === 'momentum') return head + `$\\dfrac{du}{dy} \\approx \\dfrac{u_{${i + 1}} - u_{${i - 1}}}{2\\Delta y} = \\dfrac{${tn(a, 4)} - ${tn(b, 4)}}{2 \\times ${tn(dy)}} = ${tn(grad)}$ 1/s<br>` +
+      `$\\tau = \\mu\\,\\dfrac{du}{dy} = ${tn(M.p.mu)} \\times ${tn(grad)} = \\mathbf{${tn(M.p.mu * grad)}}$ Pa`;
+    if (M.mode === 'heat') return head + `$\\dfrac{dT}{dy} \\approx \\dfrac{${tn(a, 4)} - ${tn(b, 4)}}{2 \\times ${tn(dy)}} = ${tn(grad)}$ K/m<br>` +
+      `$q = -k\\,\\dfrac{dT}{dy} = -${tn(M.p.k)} \\times ${tn(grad)} = \\mathbf{${tn(-M.p.k * grad)}}$ W/m²`;
+    return head + `$\\dfrac{dY}{dy} \\approx \\dfrac{${tn(a, 4)} - ${tn(b, 4)}}{2 \\times ${tn(dy)}} = ${tn(grad)}$ 1/m<br>` +
+      `$J = -\\rho\\kappa_m\\dfrac{dY}{dy} = -${tn(M.p.rho)} \\times ${tn(M.p.km)} \\times ${tn(grad)} = \\mathbf{${tn(-M.p.rho * M.p.km * grad)}}$ kg/(m² s)`;
+  },
+  inspectHint: 'Click the profile at any height: the stress (or flux) there is worked out from the two neighbouring grid values.',
+  notes: s => {
+    const M = model(s), hm = M.h, keys = Object.keys(FLUIDS);
+    const Dk = k => M.mode === 'momentum' ? FLUIDS[k].mu / FLUIDS[k].rho : M.mode === 'heat' ? thermalDiffusivity(FLUIDS[k].k, FLUIDS[k].rho, FLUIDS[k].cp) : FLUIDS[k].kappa_m;
+    const rows = keys.map(k => [NAMES[k], fm(FLUIDS[k].mu), fm(Dk(k)), humanTime(hm * hm / Dk(k))]);
+    const cur = keys.indexOf(s.fluid);
+    const water = Dk('water'), ratio = M.D / water;
+    const cmp = s.fluid === 'water' ? `Water is the reference: $h^2/${M.MT.Dtex}$ = ${humanTime(M.clock)} for your ${fm(s.h)} mm gap.`
+      : `${M.p.name[0].toUpperCase() + M.p.name.slice(1)}: $${M.MT.Dtex}$ is ${fm(ratio >= 1 ? ratio : 1 / ratio)}× ${ratio >= 1 ? 'larger' : 'smaller'} than water’s, so it settles ${fm(ratio >= 1 ? ratio : 1 / ratio)}× ${ratio >= 1 ? 'faster' : 'slower'} in the same gap.`;
+    return `<p>${cmp}</p>` + Viz.work.table(['fluid', 'μ [Pa s]', M.MT.Dtxt + ' [m²/s]', 'h²/' + M.MT.Dtxt], rows, cur);
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const W = Viz.work, M = model(s), p = M.p, MT = M.MT, h = M.h;
+      let o = W.step(0, 'What you are looking at');
+      if (M.mode === 'momentum') o += W.say('<b>The gap</b>: the top plate moves, the fixed plate does not. <span class="c-teal">Teal</span> arrows are the velocity at eight heights, <span class="c-accent">purple</span> dye lines are carried by the flow, and the <span class="c-rose">rose</span> arrow is the stress on the surface AB. <b>u(y, t)</b>: the <span class="c-teal">FTCS</span> profile creeps toward the dashed straight line; the thin <span class="c-orange">orange</span> curve is the exact series, a check on the numerics. <b>Wall τ(t)</b>: stress on the <span class="c-rose">top</span> and <span class="c-blue">bottom</span> plates.');
+      else o += W.say('Same run, other meaning. The shading and the <span class="c-teal">teal</span> profile are now ' + (M.mode === 'heat' ? 'temperature above the cold wall' : 'the mass fraction $Y$ (orange dots mark where the species has reached)') + '. The <span class="c-rose">rose</span> arrow is the ' + (M.mode === 'heat' ? 'heat flux $q$' : 'mass flux $J_m$') + ' across AB; it points down, from high to low, as the minus sign in ' + MT.law + ' says.');
+      o += W.hint('On a phone the wall-flux graph is hidden; turn the phone sideways to see it.');
+      o += W.step(1, 'From μ to ν') +
+        W.line('$\\mu$', fm(p.mu) + ' Pa s', p.named ? p.name + ' at 20 °C (fluidpy FLUIDS)' : 'your override') +
+        W.line('$\\rho$', fm(p.rho) + ' kg/m³', '') +
+        W.box(`$\\nu = \\mu/\\rho = ${tn(p.mu)}/${tn(p.rho)} = \\mathbf{${tn(p.nu)}}$ m²/s`) +
+        W.say('Why divide by ρ: τ is a flux of momentum, and momentum per volume is ρu. Dividing (1.3) by ρ gives a diffusivity for u itself, in m²/s like $\\kappa$ and $\\kappa_m$.');
+      o += W.step(2, 'The clock of this diffusion') +
+        W.line(`$D = ${MT.Dtex}$`, fm(M.D) + ' m²/s', M.mode === 'momentum' ? 'momentum diffuses with ν' : M.mode === 'heat' ? 'heat diffuses with κ = k/ρC_p' : 'the species diffuses with κₘ') +
+        W.box(`$t_D = h^2/D = (${tn(h)})^2/${tn(M.D)} = \\mathbf{${tn(M.clock)}}$ s`) +
+        W.line('in everyday units', humanTime(M.clock), 'double the gap and this grows four times') +
+        W.line('$t = (t/t_D)\\times t_D$', Viz.live('tnow'), 'the scrubber moves t/t_D; seconds follow');
+      if (M.mode === 'momentum') {
+        o += W.step(3, 'The steady state it heads for') +
+          W.line('$u = U\\,y/h$', 'a straight line', 'the grey dashed ghost') +
+          W.line(`$du/dy = U/h = ${tn(s.U)}/${tn(h)}$`, fm(s.U / h) + ' 1/s', 'the same slope at every height') +
+          W.box(`$\\tau = \\mu U/h = ${tn(p.mu)} \\times ${tn(s.U / h)} = \\mathbf{${tn(M.flux0)}}$ Pa`) +
+          W.line(`force on a 10 cm × 10 cm plate $= ${tn(M.flux0)} \\times 0.01$`, fm(M.flux0 * 0.01) + ' N', 'what you pull with to keep the plate moving');
+      } else if (M.mode === 'heat') {
+        o += W.step(3, 'The steady state it heads for') +
+          W.line('$T - T_0 = \\Delta T\\,y/h$', 'a straight line', 'the grey dashed ghost') +
+          W.box(`$q = -k\\,\\Delta T/h = -${tn(p.k)} \\times ${tn(s.dT / h)} = \\mathbf{${tn(M.flux0)}}$ W/m²`) +
+          W.line(`heat through a 10 cm × 10 cm plate $= ${tn(Math.abs(M.flux0))} \\times 0.01$`, fm(Math.abs(M.flux0) * 0.01) + ' W', 'downward, from the hot wall');
+      } else {
+        o += W.step(3, 'The steady state it heads for') +
+          W.line('$Y = \\Delta Y\\,y/h$', 'a straight line', 'with ΔY = 0.01 held by the top wall') +
+          W.box(`$J_m = -\\rho\\kappa_m\\,\\Delta Y/h = \\mathbf{${tn(M.flux0)}}$ kg/(m² s)`) +
+          W.line(`through 10 cm × 10 cm $= ${tn(Math.abs(M.flux0))} \\times 0.01$`, fm(Math.abs(M.flux0) * 0.01) + ' kg/s', 'κ_m here: ' + SOLUTE[p.baseKey]);
+      }
+      o += W.step(4, 'How the start-up dies away') +
+        W.line('slowest mode $\\tfrac{2}{\\pi}e^{-\\pi^2 t/t_D}$', Viz.live('amp'), 'the n = 1 term of the exact series, as a fraction of the top value') +
+        W.line(`half-life $\\tfrac{\\ln 2}{\\pi^2}t_D = 0.0702 \\times ${tn(M.clock)}$ s`, humanTime(T_HALF * M.clock)) +
+        W.box(`profile within 1 %: $t > \\tfrac{\\ln(200/\\pi)}{\\pi^2}t_D = 0.421\\,t_D = \\mathbf{${tn(T_PROFILE * M.clock)}}$ s`) +
+        W.line('wall flux within 1 %: $\\tfrac{\\ln 200}{\\pi^2}t_D = 0.537\\,t_D$', humanTime(T_STEADY * M.clock), 'the dotted marker on the wall graph');
+      o += W.step(5, 'At the current time') +
+        W.line('$t/t_D$', Viz.live('tau')) +
+        W.line('$t$', Viz.live('tnow')) +
+        W.line(`top-wall $${MT.fluxTex}$`, Viz.live('ft'), 'rose curve and dot') +
+        W.line(`bottom-wall $${MT.fluxTex}$`, Viz.live('fb'), 'blue curve and dot') +
+        W.line(`$${MT.fluxTex}$ on AB (mid-gap)`, Viz.live('fab'), 'the rose arrow in the gap') +
+        W.line('largest |FTCS − exact|', Viz.live('err'), 'of the top value; large only while the layer is thinner than a few cells (Δy = h/40)');
+      const Pr = p.nu / p.kappa, Sc = p.nu / p.km;
+      o += W.step(6, 'The same law for heat and species') +
+        W.line(`$\\kappa = k/(\\rho C_p) = ${tn(p.k)}/(${tn(p.rho)} \\times ${tn(p.cp)})$`, fm(p.kappa) + ' m²/s', 'Fourier (1.2) divided by the heat content ρCₚ') +
+        W.line(`$Pr = \\nu/\\kappa$`, fm(Pr), 'momentum diffuses Pr times faster than heat') +
+        W.line('$\\kappa_m$', fm(p.km) + ' m²/s', SOLUTE[p.baseKey]) +
+        W.line(`$Sc = \\nu/\\kappa_m$`, fm(Sc), 'momentum diffuses Sc times faster than the species') +
+        W.box(`clocks for ${fm(s.h)} mm: momentum ${humanTime(h * h / p.nu)} · heat ${humanTime(h * h / p.kappa)} · species ${humanTime(h * h / p.km)}`);
+      let cmp;
+      if (M.mode === 'heat') cmp = `In ${p.name} heat is ${Pr >= 1 ? fm(Pr) + '× slower' : fm(1 / Pr) + '× faster'} than momentum (Pr = ${fm(Pr)}).`;
+      else if (M.mode === 'species') cmp = `In ${p.name} the species is ${fm(Sc)}× slower than momentum (Sc = ${fm(Sc)}): molecules of a solute wander far less than momentum spreads.`;
+      else if (s.fluid === 'water') cmp = 'Water is the reference fluid; pick air or honey and compare the clock.';
+      else {
+        const W0 = FLUIDS.water, rm = p.mu / W0.mu, rn = p.nu / (W0.mu / W0.rho);
+        cmp = `Compared with water, ${p.name} has ${fm(rm >= 1 ? rm : 1 / rm)}× ${rm >= 1 ? 'larger' : 'smaller'} μ but ${fm(rn >= 1 ? rn : 1 / rn)}× ${rn >= 1 ? 'larger' : 'smaller'} ν, so it settles ${fm(rn >= 1 ? rn : 1 / rn)}× ${rn >= 1 ? 'faster' : 'slower'}: ν, not μ, sets the clock.`;
+      }
+      o += W.interpret(Viz.live('regime') + ' ' + cmp, 'Reading the current setting');
+      return o;
+    },
+    live: s => {
+      const M = model(s), MT = M.MT;
+      const regime = M.tau < T_STEADY
+        ? `The ${MT.word} has spread for only ${M.tau.toFixed(2)} of the clock h²/${MT.Dtxt}: the far side of the gap does not know yet, and the top wall feels a large ${MT.flux} because the profile is steep there.`
+        : M.mode === 'momentum' ? 'Every layer now passes on exactly the momentum it receives: τ is the same at every height and equals μU/h.'
+          : `Every layer now passes on exactly what it receives: ${MT.flux} is the same at every height.`;
+      return { tau: M.tau.toFixed(3), tnow: humanTime(M.t), amp: fm(2 / Math.PI * Math.exp(-Math.PI * Math.PI * M.tau)),
+        ft: fluxStr(M.fluxT, M), fb: fluxStr(M.fluxB, M), fab: fluxStr(M.fluxAB, M), err: fm(100 * maxError(M.tau), 2) + ' %', regime };
+    }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'e2code', title: 'Momentum diffusion in Python', ref: 'Eq. (1.3), (1.4)',
       src: `
-from fluidpy import __CHAPTER__ as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import numpy as np
+from fluidpy import ch01_introduction as ch01
+mu, rho = {{mu}}, {{rho}}  # {{fluid}} [Pa s, kg/m³]
+h, U = {{h}}, {{U}}  # gap [m], plate speed [m/s]
+nu = ch01.kinematic_viscosity(mu, rho)  # (1.4): {{nu}} m²/s
+t_clock = ch01.diffusion_time(h, nu)  # h²/ν = {{tc}} s
+y = np.linspace(0.0, h, 41)  # 41 nodes across the gap
+dy = y[1] - y[0]  # Δy = {{dy}} m
+dt = ch01.stable_time_step(nu, dy, safety=0.8)  # r = 0.4
+u0 = np.zeros_like(y); u0[-1] = U  # plate jumps to U
+n = round({{ratio}} * t_clock / dt)  # {{nsteps}} steps, t = {{t}} s
+F = ch01.ftcs_diffusion_1d(u0, nu, dy, dt, n)  # all profiles
+tb, tt = ch01.wall_shear_history(F, dy, mu)  # {{taub}}, {{taut}} Pa
+u_ex = ch01.couette_startup_profile(y, n * dt, U, h, nu)
+tau_s = ch01.newton_shear_stress(mu, U / h)  # (1.3): {{tauS}} Pa`,
+      live: s => {
+        const p = props(s), h = s.h * 1e-3, tc = diffusionTime(h, p.nu), t = s.tau * tc, u = profileAt(s.tau).map(x => x * s.U), w = wallShear(u, h / 40, p.mu);
+        return { mu: fm(p.mu, 4), rho: fm(p.rho, 4), fluid: p.name, h: fm(h), U: fm(s.U), nu: fm(p.nu), tc: fm(tc), dy: fm(h / 40),
+          ratio: s.tau.toFixed(3), nsteps: String(Math.round(s.tau / DTAU)), t: fm(t), taub: fm(w.bottom), taut: fm(w.top), tauS: fm(newtonShear(p.mu, s.U / h)) };
+      } },
+    { id: 'modes', title: 'Heat and species: the same model, another D', ref: 'Eq. (1.1), (1.2)',
+      src: `
+kappa = ch01.thermal_diffusivity(k, rho, cp)  # {{kappa}} m²/s
+Pr = nu / kappa  # Prandtl number = {{Pr}}
+T_clock = ch01.diffusion_time(h, kappa)  # h²/κ = {{tk}} s
+q = ch01.fourier_heat_flux(k, dT / h)  # (1.2): {{q}} W/m²
+J = ch01.fick_mass_flux(rho, kappa_m, dY / h)  # (1.1): {{J}} kg/(m² s)`,
+      live: s => {
+        const p = props(s), h = s.h * 1e-3;
+        return { kappa: fm(p.kappa), Pr: fm(p.nu / p.kappa), tk: fm(h * h / p.kappa), q: fm(-p.k * s.dT / h), J: fm(-p.rho * p.km * DY_STEP / h) };
+      } },
+    { id: 'ftcs', title: 'What one FTCS step does (from scratch)', ref: 'model (ours)',
+      src: `
+def ftcs_step(f, r):  # ends held fixed (Dirichlet)
+    assert r <= 0.5, "FTCS unstable"  # here r = D Δt/Δy² = 0.4
+    new = f.copy()  # f[0] and f[-1] keep the wall values
+    new[1:-1] = f[1:-1] + r * (f[2:] - 2 * f[1:-1] + f[:-2])
+    return new  # identical to one step of ftcs_diffusion_1d`,
+      live: s => ({}) }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'A plate starts moving', text: 'The top plate has just jumped to 1 m/s. Water touching it moves with it at once (no slip), but most of the gap is still at rest. <b>How does the fluid below find out?</b>',
+      set: { mode: 'momentum', fluid: 'water', h: 1, U: 1, tau: 0.02, probe: null }, play: false },
+    { title: 'Momentum diffuses', text: 'Watch the <span class="c-teal">teal</span> profile creep down the gap. The <span class="c-accent">purple</span> dye lines lean, then keep leaning: a fluid under a steady shear stress never stops deforming.',
+      set: { mode: 'momentum', fluid: 'water', tau: 0, probe: null }, play: true },
+    { title: 'Stress = μ × slope', text: 'Early on the profile is steep at the top wall, so the stress there is large and the bottom wall feels almost nothing. Once the line is straight, τ = μU/h at every height: here 1.00 Pa.',
+      set: { mode: 'momentum', fluid: 'water', h: 1, U: 1, tau: 0.06, probe: null }, play: true, eq: 'newton', readouts: ['fluxTop', 'fluxBot'] },
+    { title: 'ν, not μ, sets the clock', text: 'Now air. Its μ is 55× smaller than water’s, yet it settles 15× faster: the clock is h²/ν and ν = μ/ρ. Read the clock: 66 ms instead of 1.00 s.',
+      set: { mode: 'momentum', fluid: 'air', h: 1, tau: 0, probe: null }, play: true, readouts: ['nu', 'clock'] },
+    { title: 'Check any height', text: 'Click the profile at any height. The inspector takes the two neighbouring grid values, forms the slope and multiplies by μ: Newton’s law (1.3), number by number.',
+      set: { mode: 'momentum', fluid: 'water', h: 1, U: 1, tau: 0.1, probe: 30 }, play: false, inspect: true },
+    { title: 'Same law, three things', text: 'Heat: the profile is temperature and the flux is Fourier’s q = −k dT/dy. Species gives Fick’s J. Same equation, another D: in water heat spreads 7× slower than momentum.',
+      set: { mode: 'heat', fluid: 'water', h: 1, tau: 0, probe: null }, play: true, code: { id: 'modes', lines: [1, 3] } },
+    { title: 'Your turn: predict', text: 'Honey is a million times more viscous than air. In a 5 mm gap, does it settle faster or slower than water? Predict, then press ▶ and read the clock.',
+      set: { mode: 'momentum', fluid: 'honey', h: 5, tau: 0, probe: null }, play: false, controls: ['fluid', 'h'] }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'newton', title: 'Newton’s law of friction', ref: 'Eq. (1.3)', tex: '\\tau = \\mu\\,\\dfrac{du}{dy}',
+      live: s => { const M = model(Object.assign({}, s, { mode: 'momentum' })), g = M.slopeAB * s.U / M.h; return `\\tau_{AB} = ${tn(M.p.mu)} \\times ${tn(g)} = ${tn(M.p.mu * g)}\\ \\text{Pa}`; },
+      note: 'momentum flux from fast to slow fluid; live: on AB now', symbols: [['\\tau', 'shear stress', 'Pa'], ['\\mu', 'dynamic viscosity', 'Pa s'], ['du/dy', 'velocity gradient', '1/s']] },
+    { id: 'nu', title: 'Kinematic viscosity', ref: 'Eq. (1.4)', tex: '\\nu \\equiv \\mu/\\rho',
+      live: s => { const p = props(s); return `\\nu = ${tn(p.mu)}/${tn(p.rho)} = ${tn(p.nu)}\\ \\text{m}^2/\\text{s}`; },
+      note: 'the diffusivity of momentum', symbols: [['\\nu', 'kinematic viscosity', 'm²/s'], ['\\rho', 'density', 'kg/m³']] },
+    { id: 'fick', title: 'Fick’s law', ref: 'Eq. (1.1)', tex: '\\mathbf J_m = -\\rho\\,\\kappa_m\\nabla Y',
+      live: s => { const M = model(Object.assign({}, s, { mode: 'species' })); return `J_{AB} = ${tn(M.fluxAB)}\\ \\text{kg/(m}^2\\text{ s)}`; },
+      note: 'species flux, down the mass-fraction gradient (live: on AB, ΔY = 0.01)', symbols: [['\\mathbf J_m', 'mass flux', 'kg/(m² s)'], ['\\kappa_m', 'mass diffusivity', 'm²/s'], ['Y', 'mass fraction', '–']] },
+    { id: 'fourier', title: 'Fourier’s law', ref: 'Eq. (1.2)', tex: '\\mathbf q = -k\\,\\nabla T',
+      live: s => { const M = model(Object.assign({}, s, { mode: 'heat' })); return `q_{AB} = ${tn(M.fluxAB)}\\ \\text{W/m}^2`; },
+      note: 'heat flux, down the temperature gradient (live: on AB)', symbols: [['\\mathbf q', 'heat flux', 'W/m²'], ['k', 'thermal conductivity', 'W/(m K)']] },
+    { id: 'diff', title: 'Model diffusion equation (ours; derived in Ch. 4)', ref: 'model', tex: '\\dfrac{\\partial f}{\\partial t} = D\\,\\dfrac{\\partial^2 f}{\\partial y^2}',
+      live: s => { const M = model(s); return `D = ${tn(M.D)}\\ \\text{m}^2/\\text{s},\\ \\ h^2/D = ${tn(M.clock)}\\ \\text{s}`; },
+      note: '$D = \\nu$, $\\kappa = k/\\rho C_p$ or $\\kappa_m$: each flux law plus conservation gives this', symbols: [['f', 'u, T or Y', ''], ['D', 'diffusivity', 'm²/s']] },
+    { id: 'ftcs', title: 'FTCS scheme (our numerics)', ref: 'scheme', tex: 'f_i^{n+1} = f_i^n + r\\,(f_{i+1}^n - 2f_i^n + f_{i-1}^n)',
+      note: '$r = D\\,\\Delta t/\\Delta y^2 = 0.4 \\le 1/2$ (stable); 41 nodes, 4000 steps per $h^2/D$' },
+    { id: 'series', title: 'Exact start-up (a Ch. 8 result; our check)', ref: 'check', tex: '\\begin{aligned} u &= U\\tfrac{y}{h} - \\tfrac{2U}{\\pi}\\textstyle\\sum_{n\\ge 1} \\tfrac{(-1)^{n+1}}{n} \\\\ &\\quad\\times \\sin\\tfrac{n\\pi y}{h}\\, e^{-n^2\\pi^2 \\nu t/h^2} \\end{aligned}',
+      note: 'the orange curve; the n = 1 term decays slowest' }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Water, h = 1 mm and then h = 2 mm: how much longer does the flow take to become steady?', a: '4× longer (1.00 s → 3.99 s): the clock is h²/ν, so doubling h quadruples it.', set: { fluid: 'water', mode: 'momentum', h: 2, tau: 0 } },
+    { q: 'Air or water in the same gap: which settles first, and why?', a: 'Air, about 15× sooner. $\\mu_{\\rm air}$ is 55× smaller than water’s, but $\\rho_{\\rm air}$ is 830× smaller, so $\\nu_{\\rm air} = \\mu/\\rho \\approx 15\\,\\nu_{\\rm water}$. How fast motion spreads is set by ν, not μ.', set: { fluid: 'air', mode: 'momentum', h: 1, tau: 0 } },
+    { q: 'Double U. What happens to the wall stress and to the settling time?', a: 'The stress doubles (τ = μU/h is linear in U); the settling time is unchanged, because the diffusion equation does not contain U.', set: { U: 2 } },
+    { q: 'Heat mode, water, 1 mm: how long to reach the straight temperature profile, and why longer than momentum?', a: 'κ = 1.44×10⁻⁷ m²/s, so h²/κ ≈ 6.9 s against h²/ν ≈ 1.0 s: heat diffuses about 7× slower than momentum in water (Prandtl number ≈ 7).', set: { mode: 'heat', fluid: 'water', h: 1, tau: 0 } },
+    { q: 'Honey in 5 mm against water in 5 mm: which clock is shorter?', a: 'Honey: h²/ν ≈ 1.9 ms against water’s ≈ 25 s. Honey’s huge μ also gives a huge ν (0.013 m²/s), so its momentum spreads almost instantly.', set: { fluid: 'honey', mode: 'momentum', h: 5, tau: 0 } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const f250 = HIST[250 * N + 20];
+    const fEnd = profileAt(TAU_MAX); let steadyDev = 0;
+    for (let j = 1; j < N - 1; j++) steadyDev = Math.max(steadyDev, Math.abs((fEnd[j + 1] - fEnd[j - 1]) / (2 * DETA) - 1));
+    return [
+      { name: 'ν water (1.4)', js: kinematicViscosity(1.0017e-3, 998.2), py: 'ch01.kinematic_viscosity(1.0017e-3, 998.2)', rtol: 1e-12 },
+      { name: 'Couette series mid-gap, t = 0.1 s', js: couetteStartup(0.5e-3, 0.1, 1.0, 1e-3, 1e-6, 200), py: 'ch01.couette_startup_profile(0.5e-3, 0.1, 1.0, 1e-3, 1e-6)', rtol: 1e-9 },
+      { name: 'one FTCS step (r = 0.25)', js: ftcsStep([0, 0, 0, 1], 0.25)[2], py: 'ch01.ftcs_diffusion_1d(np.array([0.0, 0.0, 0.0, 1.0]), 1.0, 1.0, 0.25, 1)[-1][2]', rtol: 1e-12 },
+      { name: 'FTCS run: 41 nodes, 250 steps, mid node', js: f250, py: 'ch01.ftcs_diffusion_1d(np.eye(41)[40], 1.0, 0.025, 0.4 * 0.025**2, 250)[-1][20]', rtol: 1e-9 },
+      { name: 'τ steady (1.3)', js: newtonShear(1e-3, 1000), py: 'ch01.newton_shear_stress(1e-3, 1000.0)', rtol: 1e-12 },
+      { name: 'κ water', js: thermalDiffusivity(0.60304, 998.204, 4182.11), py: 'ch01.thermal_diffusivity(0.60304, 998.204, 4182.11)', rtol: 1e-12 },
+      { name: 'top-wall stencil', js: wallShear([0, 0.1, 0.3, 0.6, 1.0], 0.25, 1e-3).top, py: 'ch01.wall_shear_history(np.array([[0.0, 0.1, 0.3, 0.6, 1.0]]), 0.25, 1e-3)[1][0]', rtol: 1e-12 },
+      { name: 'heat clock, water 1 mm', js: diffusionTime(1e-3, thermalDiffusivity(0.60304, 998.204, 4182.11)), py: 'ch01.diffusion_time(1e-3, ch01.thermal_diffusivity(0.60304, 998.204, 4182.11))', rtol: 1e-12 },
+      { name: 'ν honey (FLUIDS)', js: FLUIDS.honey.mu / FLUIDS.honey.rho, py: 'ch01.FLUIDS["honey"]["nu"]', rtol: 1e-12 },
+      { name: 'ν air / ν water', js: kinematicViscosity(FLUIDS.air.mu, FLUIDS.air.rho) / kinematicViscosity(FLUIDS.water.mu, FLUIDS.water.rho), py: 'ch01.FLUIDS["air"]["nu"] / ch01.FLUIDS["water"]["nu"]', rtol: 1e-12 },
+      { name: 'steady τ uniform at t = 1.5 h²/ν', js: steadyDev, expect: 0, atol: 1e-3 },
+      { name: 'FTCS vs exact at t = 0.1 h²/ν (max error)', js: maxError(0.1), expect: 0, atol: 5e-4 },
+      { name: 'FTCS refuses r > 1/2', js: (() => { try { ftcsStep([0, 0, 1], 0.51); return 0; } catch (e) { return 1; } })(), expect: 1, rtol: 0 }
+    ];
+  }
 });
 </script>
 </body>

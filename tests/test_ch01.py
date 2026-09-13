@@ -120,7 +120,7 @@ def test_continuum_V1_box_average_matches_quadrature_and_limits():  # V1 + V7 (p
     assert ch01.density_expected(0.5, N_AIR, M_AIR, gradient=0.2) == pytest.approx(N_AIR * M_AIR * 1.05, rel=1e-14)
 
 
-def test_continuum_V4_sample_mean_tracks_box_average():  # V4 (mean of the sampler = deterministic box average)
+def test_continuum_V1_sample_mean_tracks_box_average():  # V1 (statistical: sampler mean = deterministic box average)
     L = np.array([0.05, 0.3, 0.8])
     mean, std = ch01.sample_density(L, 1e6, 1.0, n_samples=400, variation=0.2, L_flow=1.0, seed=7)
     target = ch01.box_average_density(L, 1e6, 0.2, 1.0)
@@ -139,7 +139,7 @@ def test_kinetic_pressure_V2_derivation_D34():  # V2 (D34 re-derived: momentum f
     assert sp.simplify(3 * m * ux2 - 3 * kB * T) == 0  # ⟨|u|²⟩ = 3⟨u_x²⟩ = 3k_BT/m (step 7)
 
 
-def test_kinetic_pressure_V4_sampled_molecules_give_nkT():  # V4 (statistical; D34 check)
+def test_kinetic_pressure_V1_sampled_molecules_give_nkT():  # V1 (statistical check of D34: momentum flux = n k_B T)
     T = 288.15
     u = ch01.maxwellian_velocities(1_000_000, T, M_AIR, seed=0)
     p_ref = N_AIR * ch01.K_B * T
@@ -270,6 +270,15 @@ def test_couette_startup_V1_steady_state_uniform_stress_and_limits():  # V1 + V7
     assert ch01.diffusion_time(h, nu) == pytest.approx(1.0)  # worked number h²/ν = 1 s for water
 
 
+def test_couette_startup_V1_initial_state_any_gap_width():  # V1 (t = 0 exact initial state; relative plate tolerance)
+    for h in (1e-12, 1e-6, 1.0, 1e3):
+        y = np.linspace(0.0, h, 11)
+        u = ch01.couette_startup_profile(y, 0.0, 2.5, h, 1e-6)
+        assert u[-1] == 2.5 and np.all(u[:-1] == 0.0), (h, u)  # only the moving plate has speed U
+        assert ch01.couette_startup_profile(h, 0.0, 2.5, h, 1e-6) == 2.5
+        assert ch01.couette_startup_profile(0.9 * h, 0.0, 2.5, h, 1e-6) == 0.0
+
+
 def test_ftcs_V7_stability_limit_enforced():  # V7 (stability limit r = 1/2)
     N, D, dy = 41, 1.0, 1.0 / 40
     rng = np.random.default_rng(0)
@@ -305,6 +314,27 @@ def test_ftcs_V4_zero_flux_conserves_integral_and_gaussian_order():  # V4 + V3 (
     assert abs(observed_order(hs, errs) - 2.0) < 0.15, (errs, pairwise_orders(hs, errs))
     with pytest.raises(ValueError):
         ch01.ftcs_diffusion_1d(f0, 1.0, dy, 1e-6, 1, bc=("periodic", "dirichlet"))
+
+
+def test_ftcs_V1_boundary_names_validated():  # V1 (unknown bc raises; names case-insensitive; periodic node convention)
+    y = np.linspace(0.0, 1.0, 21)
+    f0 = np.sin(np.pi * y) + 0.3
+    dy, dt = y[1], 0.4 * y[1] ** 2
+    for bad in (("dirichlet", "robin"), ("neuman", "neumann"), ("", "dirichlet"), "neumann", ("dirichlet",)):
+        with pytest.raises(ValueError):
+            ch01.ftcs_diffusion_1d(f0, 1.0, dy, dt, 5, bc=bad)
+    ref = ch01.ftcs_diffusion_1d(f0, 1.0, dy, dt, 50, bc=("neumann", "dirichlet"))
+    assert np.array_equal(ch01.ftcs_diffusion_1d(f0, 1.0, dy, dt, 50, bc=(" Neumann", "DIRICHLET")), ref)
+    assert np.all(ref[:, -1] == f0[-1])  # Dirichlet end held
+    # periodic: node N−1 neighbours node 0; a sine sampled without the repeated endpoint decays as exp(−D k'² t) with
+    # the discrete FTCS factor (1 − 4r sin²(k dy/2)) per step, k = 2π/(N dy)
+    N = 32
+    yp = dy * np.arange(N)
+    k = 2 * np.pi / (N * dy)
+    r = 0.4
+    Fp = ch01.ftcs_diffusion_1d(np.sin(k * yp), 1.0, dy, r * dy**2, 40, bc=("periodic", "periodic"), save_every=40)
+    amp = (1 - 4 * r * np.sin(k * dy / 2) ** 2) ** 40
+    assert np.max(np.abs(Fp[-1] - amp * np.sin(k * yp))) < 1e-13
 
 
 def test_viscosity_temperature_V5_sutherland_matches_ussa_table():  # V5 (USSA-1976 Table 2 via PDAS) + V7
@@ -499,6 +529,26 @@ def test_hydrostatics_V5_ussa1976_table_profiles():  # V5 (PDAS USSA-1976 Table 
         ch01.standard_atmosphere(9e4)
 
 
+@needs_ref
+def test_standard_atmosphere_V5_geometric_height_option():  # V5 (PDAS USSA-1976 Table 1 is tabulated at geometric Z)
+    c = ref_json("ussa1976_constants.json")
+    assert ch01.USSA_R0 == pytest.approx(c["r0_km"] * 1e3, rel=1e-15)  # r0 = 6356.766 km (Table 2 + NASA errata)
+    rows = ref_csv("ussa1976_table1.csv")
+    Z = np.array([r["Z_km"] * 1e3 for r in rows])
+    T, p, rho = ch01.standard_atmosphere(Z, geometric=True)
+    assert np.max(np.abs(T - [r["T_K"] for r in rows])) < 1e-3
+    assert rel(p, [r["p_Pa"] for r in rows]) < 1e-3 and rel(rho, [r["rho_kg_m3"] for r in rows]) < 1e-3
+    T10 = ch01.standard_atmosphere(10000.0, geometric=True)[0]
+    assert abs(T10 - 223.252) < 1e-3  # Table 1 at Z = 10 km geometric
+    assert abs(ch01.standard_atmosphere(10000.0)[0] - 223.25) > 0.1  # 10 km geopotential is a different level (223.15 K)
+    Tg, pg, rg = ch01.standard_atmosphere(geopotential_m(Z / 1e3, c["r0_km"]))  # same as converting by hand
+    assert rel(T, Tg) < 1e-14 and rel(p, pg) < 1e-12 and rel(rho, rg) < 1e-12
+    assert np.isfinite(ch01.standard_atmosphere(86000.0, geometric=True)[0])  # top of the model maps inside the range
+    for bad in (-1.0, 86001.0):
+        with pytest.raises(ValueError):
+            ch01.standard_atmosphere(bad, geometric=True)
+
+
 def test_hydrostatics_V1_layered_tank_and_gauge():  # V1 (C17, C21)
     z = np.linspace(-6, 1, 71)
     one = ch01.layered_pressure(z, [10.0], [1000.0])
@@ -533,7 +583,7 @@ def test_buoyancy_V2_derivation_D37():  # V2 (D37 steps 4–6)
     assert sp.simplify(F_net - rho * g * A * (z2 - z1)) == 0
 
 
-def test_pressure_isotropy_V3_wedge_limit():  # V3 (order 1 in dz) + V1 (C18)
+def test_pressure_isotropy_V1_wedge_closed_form_vanishes_linearly():  # V1 (C18: closed-form wedge balance, ∝ dz; not a discretisation)
     dz = np.array([1e-1, 5e-2, 2.5e-2, 1.25e-2])
     for th in (0.2, 0.7, 1.3):
         d = ch01.wedge_pressure_difference(1000.0, dz, th)
@@ -781,14 +831,16 @@ def test_perfect_gas_V2_dimensions_and_kmol_trap():  # V2
     assert rel(Ru_mol, ch01.R_U) < 1e-10  # the factor 1000 between mol and kmol
 
 
-def test_isothermal_atmosphere_V1_scale_height():  # V1 (C62, C63) + V2
+def test_isothermal_atmosphere_V1_scale_height():  # V1 (C62, C63) + V2; the book's own example is in the private book-value test
     z, p0, g, R, T = sp.symbols("z p0 g R T", positive=True)
     p = p0 * sp.exp(-g * z / (R * T))
     assert sp.simplify(sp.diff(p, z) + p * g / (R * T)) == 0
-    H = ch01.scale_height(250.0)
-    assert rel(ch01.isothermal_pressure(H, 1e5, 250.0), 1e5 / np.e) < 1e-14 and 7300 < H < 7330
-    assert rel(ch01.isothermal_density(3000.0, 1.2, 250.0), 1.2 * ch01.isothermal_pressure(3000.0, 1.0, 250.0)) < 1e-14
-    assert rel(ch01.scale_height(500.0), 2 * ch01.scale_height(250.0)) < 1e-14
+    T0 = 288.15  # USSA sea-level temperature (not the book's example temperature)
+    H = ch01.scale_height(T0)
+    assert rel(H, ch01.R_AIR * T0 / G) < 1e-14  # H = R T/g
+    assert rel(ch01.isothermal_pressure(H, 1e5, T0), 1e5 / np.e) < 1e-14
+    assert rel(ch01.isothermal_density(3000.0, 1.2, T0), 1.2 * ch01.isothermal_pressure(3000.0, 1.0, T0)) < 1e-14
+    assert rel(ch01.scale_height(2 * T0), 2 * H) < 1e-14
 
 
 # ====================================================================================================================
@@ -895,7 +947,7 @@ def test_parcel_equation_V1_analytic_solution_satisfies_ode():  # V1 (numerical 
         assert z[0] == pytest.approx(5.0) and (z[1] - z[0]) / dt == pytest.approx(w0, abs=1e-3)
 
 
-def test_parcel_equation_V3_nonlinear_parcel_converges_to_linear():  # V3 (error ∝ ζ0², ocean/lab mode)
+def test_parcel_equation_V7_nonlinear_parcel_converges_to_linear():  # V7 (small-amplitude limit: error ∝ ζ0², ocean)
     t = np.linspace(0, 1500, 31)
     rho0, b, a = 1025.0, -0.01, -0.004
     N2 = ch01.brunt_vaisala_sq(rho0, b, a)
@@ -909,7 +961,7 @@ def test_parcel_equation_V3_nonlinear_parcel_converges_to_linear():  # V3 (error
     assert ch01.parcel_ode_from_gradients(0.0, 3.0, rho0, b, a) == 3.0
 
 
-def test_parcel_equation_V3_atmospheric_parcel_converges_to_linear():  # V3 (dry parcel, perfect gas)
+def test_parcel_equation_V7_atmospheric_parcel_converges_to_linear():  # V7 (small-amplitude limit, dry parcel)
     t = np.linspace(0, 1500, 31)
     T0, G_ = 288.15, -6.5e-3
     N2 = ch01.brunt_vaisala_sq_from_lapse(T0, G_)
@@ -921,6 +973,62 @@ def test_parcel_equation_V3_atmospheric_parcel_converges_to_linear():  # V3 (dry
     eps = 1e-3
     da = (ch01.parcel_acceleration_atmosphere(eps, T0, G_) - ch01.parcel_acceleration_atmosphere(-eps, T0, G_)) / (2 * eps)
     assert rel(-da, N2) < 1e-6 and ch01.parcel_acceleration_atmosphere(0.0, T0, G_) == 0.0
+
+
+def _parcel_potential(zeta, g, rho0, drho_dz, drho_a_dz, denominator_gradient):
+    """Exact potential V(ζ) with dV/dζ = −g (b − a) ζ/(ρ0 + c ζ) for linear profiles (b = dρ/dz, a = dρ_a/dz).
+
+    c = a divides by the PARCEL density ρ_p = ρ0 + aζ (Newton II for the parcel's own mass); c = b would divide by the
+    environment density. ∫ ζ/(ρ0 + cζ) dζ = ζ/c − (ρ0/c²) ln(1 + cζ/ρ0).
+    """
+    c = denominator_gradient
+    return -g * (drho_dz - drho_a_dz) * (zeta / c - rho0 / c**2 * np.log1p(c * zeta / rho0))
+
+
+def test_parcel_equation_V4_energy_first_integral_divides_by_parcel_density():  # V4 (first integral) + V1 (turning point, period)
+    # Book §1.10 before linearising: (ρ_p V) ζ'' = −ρ_p V g + ρ_e V g ⇒ ζ'' = −g (ρ_p − ρ_e)/ρ_p. With linear profiles
+    # ρ_p = ρ0 + aζ, ρ_e = ρ0 + bζ this is ζ'' = g (b − a) ζ/(ρ0 + aζ) = −dV/dζ, so E = ½ζ'² + V(ζ) is conserved exactly.
+    # A strongly non-linear case (|a ζ0|/ρ0 = 0.2, |b ζ0|/ρ0 = 0.4) separates ÷ρ_p from ÷ρ_e by ~20 m in the turning
+    # point, while both share the same N² and small-amplitude limit (so the V7 test cannot tell them apart).
+    from scipy.integrate import quad
+    from scipy.optimize import brentq
+
+    g, rho0, b, a, z0 = G, 1.0, -0.01, 0.005, 40.0
+    env = lambda z: rho0 + b * z  # noqa: E731
+    par = lambda zeta: rho0 + a * zeta  # noqa: E731
+    Vp = lambda z: _parcel_potential(z, g, rho0, b, a, a)  # noqa: E731  (÷ parcel density: the correct law)
+    Ve = lambda z: _parcel_potential(z, g, rho0, b, a, b)  # noqa: E731  (÷ environment density: the wrong law)
+    z1 = brentq(lambda z: Vp(z) - Vp(z0), -99.0, -1e-9)  # lower turning point, V(z1) = V(z0)
+    z1_env = brentq(lambda z: Ve(z) - Ve(z0), -99.0, -1e-9)
+    assert abs(z1 - z1_env) > 10.0  # the test discriminates the two laws by metres, not by round-off
+    c, d = 0.5 * (z0 + z1), 0.5 * (z0 - z1)  # period by quadrature, ζ = c + d sin θ removes the endpoint singularities
+    P, P_err = quad(lambda th: 2 * d * np.cos(th) / np.sqrt(2 * (Vp(z0) - Vp(c + d * np.sin(th)))), -np.pi / 2,
+                    np.pi / 2, limit=200)
+    assert P_err < 1e-10 * P
+    t = np.linspace(0.0, 1.25 * P, 25001)
+    dt = t[1] - t[0]
+    ts, zs = ch01.parcel_ode((0.0, t[-1]), z0, env, par, t_eval=t, zeta_max=1e6)
+    assert ts.size == t.size
+    w = (zs[2:] - zs[:-2]) / (2 * dt)  # central difference, O(dt²)
+    E = 0.5 * w**2 + Vp(zs[1:-1])
+    assert np.ptp(E) < 1e-6 * abs(Vp(z0)), np.ptp(E) / abs(Vp(z0))  # V4: first integral conserved
+    E_env = 0.5 * w**2 + Ve(zs[1:-1])
+    assert np.ptp(E_env) > 1e-2 * abs(Ve(z0))  # the ÷ρ_e invariant is visibly not conserved by this trajectory
+
+    def extremum(i):  # parabola through three samples → vertex (time, value)
+        y0, y1, y2 = zs[i - 1], zs[i], zs[i + 1]
+        s = 0.5 * (y0 - y2) / (y0 - 2 * y1 + y2)
+        return t[i] + s * dt, y1 - 0.25 * (y0 - y2) * s
+
+    i_min = int(np.argmin(zs))
+    assert abs(extremum(i_min)[1] - z1) < 1e-6 * abs(z1), (extremum(i_min)[1], z1, z1_env)  # V1 turning point
+    late = t > 0.75 * P
+    i_max = int(np.argmax(np.where(late, zs, -np.inf)))
+    t_ret, z_ret = extremum(i_max)
+    assert abs(t_ret - P) < 1e-6 * P and abs(z_ret - z0) < 1e-6 * z0, (t_ret, P, z_ret)  # V1 period, return to ζ0
+    assert abs(extremum(i_min)[0] - P / 2) < 1e-6 * P  # asymmetric potential, but half-period to the lower turn
+    # the gradient wrapper runs the same law
+    assert np.max(np.abs(ch01.parcel_ode_from_gradients(t[::500], z0, rho0, b, a) - zs[::500])) < 1e-6 * z0
 
 
 def test_parcel_ode_V7_runaway_capped_with_nan():  # V7 (N² < 0: NaN after the cap, never overflow)
@@ -973,7 +1081,7 @@ def test_brunt_vaisala_V2_isothermal_atmosphere_symbolic():  # V2 (N² = g²/(C_
     assert rel(val, G**2 / (ch01.CP_AIR * 250.0)) < 1e-14 and 3.8e-4 < val < 3.9e-4
 
 
-def test_brunt_vaisala_V4_density_form_equals_lapse_and_theta_forms():  # V4 (three independent routes to N²)
+def test_brunt_vaisala_V1_density_form_equals_lapse_and_theta_forms():  # V1 (consistency: three independent routes to N²)
     z = np.linspace(0.0, 6000.0, 6001)
     Tfun = lambda zz: 288.0 - 6e-3 * np.asarray(zz) + 3.0 * np.sin(np.asarray(zz) / 700.0)  # noqa: E731
     dTdz = -6e-3 + 3.0 / 700.0 * np.cos(z / 700.0)
@@ -1024,6 +1132,20 @@ def test_seawater_eos_V1_linear_fit_consistent_with_eos80():  # V1 (C60; self-co
     assert ch01.seawater_density_eos80(283.15, 35.0) > ch01.seawater_density_eos80(283.15, 34.0)
 
 
+@needs_ref
+def test_seawater_eos_V5_unesco_eos80_check_values():  # V5 (Fofonoff & Millard 1983, Unesco Tech. Pap. Mar. Sci. 44, p. 19)
+    chk = ref_json("benchmarks.json")["unesco_eos80_check"]
+    rows = [r for r in chk["rows"] if r["p_dbar"] == 0.0]  # the one-atmosphere equation (p = 0 dbar gauge)
+    assert len(rows) == 4
+    for r in rows:
+        T90_K = r["t68_C"] / 1.00024 + ch01.KELVIN_OFFSET  # the function takes ITS-90 kelvin and converts to t68
+        rho = ch01.seawater_density_eos80(T90_K, r["S"])
+        assert abs(rho - r["rho_kg_m3"]) <= 5e-6, (r, rho)  # half a unit of the 5th printed decimal
+        assert rel(1.0 / rho, r["V_1e-3_m3_kg"] * 1e-3) < 1e-8, (r, 1.0 / rho)  # specific-volume column [m^3/kg]
+        wrong_scale = ch01.seawater_density_eos80(r["t68_C"] + ch01.KELVIN_OFFSET, r["S"])  # t68 fed in as if ITS-90
+        assert abs(wrong_scale - r["rho_kg_m3"]) > 5e-6  # the table resolves the temperature-scale conversion
+
+
 # ====================================================================================================================
 # C54 · Adiabatic lapse rate (§1.10) and the two lapse-rate conventions — A item; with C49, C53, N17, D19
 # ====================================================================================================================
@@ -1059,6 +1181,13 @@ def test_adiabatic_lapse_rate_V1_perfect_gas_sign_and_general_form():  # V1
     assert -0.11e-3 < ch01.adiabatic_lapse_rate(T=283.15, cp=4190.0, alpha=1.5e-4) < -0.09e-3  # water
     with pytest.raises(ValueError):
         ch01.adiabatic_lapse_rate(alpha=1e-3)
+    with pytest.warns(UserWarning, match="alpha"):  # T without alpha: perfect gas assumed, T ignored — say so
+        Gw = ch01.adiabatic_lapse_rate(T=283.15)
+    assert Gw == Ga
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # no warning on the normal calls
+        ch01.adiabatic_lapse_rate()
+        ch01.adiabatic_lapse_rate(T=283.15, cp=4190.0, alpha=1.5e-4)
     q = Q_(G, "m/s**2") * Q_(1 / 288.15, "1/K") * Q_(288.15, "K") / Q_(ch01.CP_AIR, "J/(kg*K)")
     assert q.check("[temperature]/[length]")
 
@@ -1149,7 +1278,7 @@ def test_lapse_rate_stability_V1_auto_decimals_near_adiabat():  # V1 (auto-decim
             assert len(a_txt.split(".")[1]) <= 6
 
 
-def test_lapse_rate_stability_V4_same_code_both_conventions_and_sign_of_N2():  # V4 (sweep −15…+10 K/km)
+def test_lapse_rate_stability_V7_same_code_both_conventions_and_sign_of_N2():  # V7 (invariance under the sign convention; sweep −15…+10 K/km)
     Ga = ch01.adiabatic_lapse_rate()
     sweep = np.concatenate([np.linspace(-15e-3, 10e-3, 2501), [Ga, Ga + 1e-7, Ga - 1e-7]])
     to_code = {"stable": 1, "neutral": 0, "unstable": -1}
@@ -1236,7 +1365,7 @@ def test_potential_temperature_V2_derivation_D36():  # V2 (D36 ★★: N² = (g/
     assert sp.simplify((g * dlntheta).subs(hydro) - g / Tz * (sp.diff(Tz, z) + g / cp)) == 0  # step 8
 
 
-def test_potential_temperature_gradient_V1_matches_finite_differences():  # V1 (C56) + V4 (θρ_θ = p_ref/R)
+def test_potential_temperature_gradient_V1_matches_finite_differences():  # V1 (C56; identity θρ_θ = p_ref/R)
     z = np.linspace(0, 11000, 11001)
     T, p, rho = ch01.standard_atmosphere(z)
     th = ch01.potential_temperature(T, p)
@@ -1253,19 +1382,28 @@ def test_potential_temperature_gradient_V1_matches_finite_differences():  # V1 (
     assert ch01.potential_density(1.2, ch01.P_REF) == 1.2
 
 
-def test_synthetic_column_V1_layers_consistent():  # V1 (N18; the default mixed-layer quirk is in the report, not here)
+def test_synthetic_column_V1_layers_consistent():  # V1 (N18; default mixed layer = dry adiabat, Fig. 1.9 neutral)
     z = np.linspace(0, 2000, 201)
     T = ch01.synthetic_boundary_layer_profile(z)
     col = ch01.synthetic_boundary_layer_column(z)
     assert rel(col["T"], T) < 1e-14
+    Ga = ch01.adiabatic_lapse_rate()
+    assert ch01.MIXED_LAYER_DT_DZ == Ga and rel(Ga, -G / ch01.CP_AIR) < 1e-14  # default slope is −g/C_p, not −9.8e-3
     mids = {"mixed": 400.0, "inversion": 900.0, "upper": 1500.0}
-    slopes = {"mixed": -0.0098, "inversion": 0.01, "upper": -0.0045}
+    slopes = {"mixed": ch01.MIXED_LAYER_DT_DZ, "inversion": 0.01, "upper": -0.0045}
     for k, zz in mids.items():
         i = int(np.argmin(np.abs(z - zz)))
         assert col["dT_dz"][i] == slopes[k]
-        assert rel(col["N2"][i], ch01.brunt_vaisala_sq_from_lapse(col["T"][i], slopes[k])) < 1e-10
+        assert abs(col["N2"][i] - ch01.brunt_vaisala_sq_from_lapse(col["T"][i], slopes[k])) \
+            <= 1e-10 * abs(ch01.brunt_vaisala_sq_from_lapse(col["T"][i], slopes[k])) + 1e-15
     assert abs(ch01.synthetic_boundary_layer_profile(800.0 - 1e-9) - ch01.synthetic_boundary_layer_profile(800.0 + 1e-9)) < 1e-8
+    below = z < 790
+    assert np.all(col["stability"][below] == "neutral"), set(col["stability"][below])  # mixed layer neutral …
+    assert np.max(np.abs(col["N2"][below])) < 1e-15  # … because N² = 0 (scale of N² here ~1e-4 s⁻²)
+    assert np.ptp(col["theta"][below]) < 1e-9  # θ constant along the dry adiabat
     assert np.all(col["stability"][(z > 810) & (z < 990)] == "stable") and np.all(col["stability"][z > 1010] == "stable")
+    steep = ch01.synthetic_boundary_layer_column(z, mixed_dT_dz=-9.8e-3)  # the old default: steeper than Γa → unstable
+    assert np.all(steep["stability"][below] == "unstable")
     assert np.max(np.abs(col["theta"] * col["rho_theta"] / (ch01.P_REF / ch01.R_AIR) - 1)) < 1e-12
     p_int = ch01.integrate_hydrostatic(z, lambda zz, pp: pp / (ch01.R_AIR * float(ch01.synthetic_boundary_layer_profile(zz))),
                                        ch01.P_ATM, rtol=1e-11)
@@ -1273,10 +1411,11 @@ def test_synthetic_column_V1_layers_consistent():  # V1 (N18; the default mixed-
 
 
 @book_only
-def test_scale_height_V6_book_value():  # V6 (≤ 0.5 %)
+def test_scale_height_V6_book_value():  # V6 (≤ 0.5 %; the book's worked scale-height example, private values)
     s = book()["stratification"]
     H = ch01.scale_height(s["scale_height_T_K"])
     assert rel(H / 1e3, s["scale_height_km"]["value"]) < 0.005
+    assert rel(ch01.isothermal_pressure(H, 1e5, s["scale_height_T_K"]), 1e5 / np.e) < 1e-14
     band = s["isothermal_band_T_K"]
     z = np.linspace(0, band["height_km"] * 1e3, 701)
     T = ch01.standard_atmosphere(z)[0]
@@ -1325,7 +1464,7 @@ def test_dimensional_homogeneity_V1_dimension_vectors():  # V1 (§1.11 Step 2)
         ch01.dimension_vector("mol", drop_substance=False)
 
 
-def test_dimensional_homogeneity_V4_values_change_groups_do_not():  # V4 (C64: laws independent of units)
+def test_dimensional_homogeneity_V7_values_change_groups_do_not():  # V7 (C64: invariance under a change of units)
     v = {"dp": 100.0, "dx": 2.0, "d": 0.05, "eps": 1e-4, "U": 0.1, "rho": 1000.0, "mu": 1e-3}
     cgs = ch01.rescale_units(v, ch01.PIPE, "cgs")
     assert cgs["dp"] == pytest.approx(Q_(100, "Pa").to("dyn/cm**2").magnitude)  # independent: pint conversion
@@ -1474,7 +1613,7 @@ def test_buckingham_V1_exponent_solve_matches_linear_algebra():  # V1 (from-scra
     assert ch01.group_latex({"lam": Fraction(1, 2)}) == r"\lambda^{1/2}"
 
 
-def test_buckingham_V4_groups_count_dimensionless_independent_all_presets():  # V4 (property tests)
+def test_buckingham_V1_groups_count_dimensionless_independent_all_presets():  # V1 (property tests: n − r, zero dimension, independence)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         for key, info in ch01.PRESET_INFO.items():
@@ -1522,7 +1661,7 @@ def test_examples_V1_blast_rayleigh_pythagoras():  # V1 + V7 (C73–C76)
         warnings.simplefilter("ignore", UserWarning)
         g = ch01.pi_groups(ch01.SCALE_HEIGHT, "H", ("T0", "Mw", "g", "Ru"))
     assert len(g) == 1
-    vals = {"H": ch01.scale_height(250.0), "T0": 250.0, "Mw": ch01.M_W_AIR, "g": G, "Ru": ch01.R_U}
+    vals = {"H": ch01.scale_height(288.15), "T0": 288.15, "Mw": ch01.M_W_AIR, "g": G, "Ru": ch01.R_U}
     assert rel(ch01.group_value(g[0], vals), 1.0) < 1e-12  # the constant of Ex. 1.2 is 1
     E, t, rho = 8.4e13, 0.025, 1.2
     D = ch01.blast_radius(E, t, rho)
@@ -1554,6 +1693,27 @@ def test_blast_V5_taylor_constant():  # V5 (Taylor 1950 via Díaz 2020)
     assert rel(tb["S_gamma"] ** -5, ch01.TAYLOR_K_GAMMA14) < 0.003  # S = 1.032 is rounded to 4 s.f.
     assert rel(ch01.blast_energy(100.0, 0.02, 1.2, K=ch01.TAYLOR_K_GAMMA14),
                0.856 * ch01.blast_energy(100.0, 0.02, 1.2)) < 1e-14
+
+
+def test_blast_V1_hemisphere_equals_free_sphere_of_twice_the_energy():  # V1 (image argument: ground burst E ≡ sphere 2E)
+    K, rho = ch01.TAYLOR_K_GAMMA14, 1.2
+    D = np.array([50.0, 100.0, 140.0])
+    t = np.array([0.006, 0.016, 0.025])
+    E_h = ch01.blast_energy(D, t, rho, K=K, geometry="hemisphere")
+    assert rel(E_h, K * rho * D**5 / (2 * t**2)) < 1e-14  # E = K ρ D⁵/(2t²)
+    assert rel(2 * E_h, ch01.blast_energy(D, t, rho, K=K)) < 1e-14  # the sphere formula returns the 2E equivalent
+    E = 8.4e13
+    ts = np.logspace(-3, -1, 7)
+    assert rel(ch01.blast_radius(E, ts, rho, K=K, geometry="hemisphere"), ch01.blast_radius(2 * E, ts, rho, K=K)) < 1e-14
+    assert rel(ch01.blast_energy(ch01.blast_radius(E, ts, rho, K=K, geometry="Hemisphere "), ts, rho, K=K,
+                                 geometry="hemisphere"), E) < 1e-12  # round trip; name case/space-insensitive
+    assert rel(ch01.blast_radius(E, 0.01, rho, geometry="hemisphere") / ch01.blast_radius(E, 0.01, rho), 2 ** 0.2) < 1e-14
+    assert ch01.blast_energy(100.0, 0.02, rho, geometry="sphere") == ch01.blast_energy(100.0, 0.02, rho)  # default
+    for fn, args in ((ch01.blast_energy, (100.0, 0.02, rho)), (ch01.blast_radius, (E, 0.02, rho))):
+        with pytest.raises(ValueError):
+            fn(*args, geometry="cylinder")
+    with pytest.raises(TypeError):
+        ch01.blast_energy(100.0, 0.02, rho, 1.0, "hemisphere")  # keyword-only
 
 
 # ====================================================================================================================

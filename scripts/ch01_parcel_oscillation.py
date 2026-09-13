@@ -63,7 +63,8 @@ def main() -> int:
     # --- ocean thermocline: linear densities, compressible parcel --------------------------------------------------------
     rho0, c = 1026.0, 1500.0
     drho_a = ch01.isentropic_density_gradient(rho0, c)
-    drho = drho_a - 0.1  # environment 0.1 kg/m^4 denser per metre downward than the isentropic gradient (synthetic)
+    excess = 0.01  # kg/m^4: a strong thermocline (≈ 1 kg/m^3 over 100 m) gives N ≈ 1e-2 1/s, period ≈ 10 min
+    drho = drho_a - excess  # environment denser downward than the isentropic gradient by `excess` (synthetic)
     N2o = ch01.brunt_vaisala_sq(rho0, drho, drho_a)
     to = np.linspace(0.0, 3.0 * 2 * np.pi / np.sqrt(N2o), 301)
     fig, ax = plt.subplots(figsize=(8, 3.8))
@@ -86,7 +87,8 @@ def main() -> int:
         print(f"{label}: N^2 = {N2:.3e} 1/s^2, {ts[0]} = {ts[1]:.1f} s; zeta(25 min): linear {lin[-1]:.1f} m, "
               f"nonlinear {nl[-1]:.1f} m")
     print(f"Euler–Cromer (dt = 0.5 s) zeta(600 s) = {zz:.3f} m vs analytic {ch01.parcel_displacement(600.0, zeta0, report[0][1]):.3f} m")
-    print(f"ocean: drho_a/dz = {drho_a:.3e} kg/m^4, N^2 = {N2o:.3e} 1/s^2, N = {np.sqrt(N2o):.3e} 1/s")
+    print(f"ocean (strong thermocline, excess gradient {excess} kg/m^4): drho_a/dz = {drho_a:.3e} kg/m^4, "
+          f"N^2 = {N2o:.3e} 1/s^2, N = {np.sqrt(N2o):.3e} 1/s, period = {2 * np.pi / np.sqrt(N2o) / 60:.1f} min")
     print(f"saved 2 figures in {out}  ({time.perf_counter() - t_start:.1f} s)")
     if not args.no_show:
         plt.show()

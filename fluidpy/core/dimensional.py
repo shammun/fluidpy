@@ -13,9 +13,9 @@ Variables are given as an ordered mapping ``name -> dimension spec``; a spec is 
 ``"kg/m**3"``, ``"J/(kmol*K)"``), a pint Quantity/Unit, a mapping of base exponents (``{"M": 1, "L": -1, "T": -2}``)
 or a sequence of exponents in the order of ``BASIS``.
 
-Convention: the amount-of-substance dimension (kmol) is dropped with a warning, as the book does in Example 1.2
-("a kmole is a pure number"). Because [substance] enters M_w and R_u only as kmol^-1, dropping it never changes the
-groups of a problem that contains both.
+Convention: the amount-of-substance dimension (kmol) is dropped with a warning, following the book's treatment in
+Example 1.2, where a kilomole is counted as a number of molecules rather than a base dimension. Because [substance]
+enters M_w and R_u only as kmol^-1, dropping it never changes the groups of a problem that contains both.
 """
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ def _full_vector(q: Any, drop_substance: bool = True) -> np.ndarray:
     if "[substance]" in dims:
         if not drop_substance:
             raise ValueError(f"{q!r} has a [substance] dimension; pass drop_substance=True to treat kmol as a number")
-        warnings.warn(f"{q!r}: the [substance] (mole) dimension is dropped — a kmol is treated as a pure number, as in "
-                      "Example 1.2", UserWarning, stacklevel=3)
+        warnings.warn(f"{q!r}: the [substance] (mole) dimension is dropped — kmol counts molecules and is handled as "
+                      "dimensionless (Example 1.2 convention)", UserWarning, stacklevel=3)
         dims.pop("[substance]")
     extra = set(dims) - set(_PINT_KEYS.values())
     if extra:
@@ -100,8 +100,9 @@ def dimension_vector(q: Any, basis: Sequence[str] = BASIS, drop_substance: bool 
     ValueError
         For dimensions outside M, L, T, Θ, or a nonzero exponent of a base dimension missing from ``basis``.
 
-    Validation (planned): V1 Pa → (1, −1, −2, 0); J/(kg K) → (0, 2, −2, −1); R_u in J/(kmol K) → (1, 2, −2, −1) as in
-    the Example 1.2 matrix. Label: pending.
+    Validation: V1 seven unit strings (Pa, J/(kg K), m/s, Pa s, W/m^2, rad, dimensionless) agree with pint's
+    dimensionality dicts; mapping, sequence and scalar specs; basis subsets; bad inputs raise; V2 J/(kmol K) warns
+    and gives (1, 2, −2, −1). Label: analytic, symbolic.
     """
     full = _full_vector(q, drop_substance)
     idx = [BASIS.index(_ALIASES.get(b, b)) for b in basis]
@@ -132,7 +133,8 @@ def dimensional_matrix(variables: Mapping[str, Any], basis: Sequence[str] = BASI
         ``A``: ndarray of int (float if exponents are fractional), shape (len(rows), n), column order = dict order;
         ``names``: list of variable names; ``rows``: list of row labels.
 
-    Validation (planned): V1 pipe matrix equals (1.39); V6 Example 1.2, 1.4, 1.5 matrices (private JSON). Label: pending.
+    Validation: V1 pipe matrix equals (1.39) exactly, names and row labels, ``drop_zero_rows=False`` keeps a zero Θ
+    row; V6 matrices of Examples 1.2–1.5 (private). Label: analytic, book-value.
     """
     names = list(variables)
     if not names:
@@ -210,7 +212,9 @@ def minor_determinant(A: Any, rows: Sequence[int], cols: Sequence[int]):
     -------
     det : int (Fraction if not integral)
 
-    Validation (planned): V1 pipe minors 0 and −1; V2 agrees with numpy.linalg.det. Label: pending.
+    Validation: V1 pipe minors 0, −1, −1; a from-scratch cofactor expansion agrees on all 35 3×3 minors of (1.39);
+    Fraction input; mismatched sizes raise; V2 agrees with rounded ``numpy.linalg.det`` on the witness minors of 200
+    random integer matrices (seed 0). Label: analytic, symbolic.
     """
     if len(rows) != len(cols):
         raise ValueError("a minor needs as many rows as columns")
@@ -220,10 +224,10 @@ def minor_determinant(A: Any, rows: Sequence[int], cols: Sequence[int]):
 
 
 def rank_by_minors(A: Any):
-    """Rank as the size of the largest square sub-matrix with a nonzero determinant, with a witness minor.
+    """Rank from minors: the order of the biggest square sub-matrix whose determinant is not zero, plus that witness.
 
-    Book: §1.11 Step 3 ("the rank r of any matrix is defined to be the size of the largest square submatrix that has a
-    nonzero determinant").
+    Book: §1.11 Step 3 (rank of the dimensional matrix, found by testing square minors from the biggest possible size
+    down until one has a determinant different from zero).
 
     Parameters
     ----------
@@ -241,8 +245,10 @@ def rank_by_minors(A: Any):
     Method: exhaustive exact cofactor determinants over ``itertools.combinations`` — the transparent method the book
     teaches, fine for the n <= ~10 of dimensional analysis. Cross-check with ``numpy.linalg.matrix_rank``.
 
-    Validation (planned): V1 ranks 3, 4, 1, 3, 2 for the pipe problem and Examples 1.2–1.5; the book's dependent-row
-    example has rank 2; V2 agrees with numpy on 200 random integer matrices (seed 0). Label: pending.
+    Validation: V1 pipe matrix → (3, (0, 1, 2), (0, 1, 4)); zero matrix → (0, (), ()); V2 rank equals
+    ``numpy.linalg.matrix_rank`` and sympy ``Matrix.rank`` on 200 random integer matrices (seed 0, some with a forced
+    dependent row), witness minor nonzero; V6 ranks of the book's matrices and its dependent-row example (private).
+    Label: analytic, symbolic, book-value.
     """
     M = _to_fraction_matrix(A)
     m, n = len(M), len(M[0])
@@ -263,7 +269,7 @@ def solve_exponents(target: str, repeating: Sequence[str], variables: Mapping[st
     Parameters
     ----------
     target : str
-        Name of the non-repeating variable, raised to the first power.
+        Name of the non-repeating variable; its exponent in the group is fixed at 1.
     repeating : sequence of str
         The r repeating variables; their dimensional sub-matrix must have full column rank.
     variables : mapping
@@ -284,8 +290,9 @@ def solve_exponents(target: str, repeating: Sequence[str], variables: Mapping[st
     -----
     Method: exact Gauss–Jordan elimination on ``R a = −d_target`` (R = repeating columns), Fractions throughout.
 
-    Validation (planned): V1 pipe (−2, 0, −1) with (U, d, rho); Example 1.2 (−1, 1, 1, −1); every result has a zero
-    dimension vector; a singular repeating set raises. Label: pending.
+    Validation: V1 pipe (U, d, rho) exponents (−2, 0, −1) as Fractions, equal to a from-scratch
+    ``numpy.linalg.solve``; a singular set (three lengths) and an inconsistent set raise; V6 Example 1.2 exponents
+    (private). Label: analytic, book-value.
     """
     repeating = list(repeating)
     sub = {k: variables[k] for k in [target] + repeating}
@@ -373,8 +380,11 @@ def pi_groups(variables: Mapping[str, Any], solution: str | None = None, repeati
     The set is not unique (another repeating set gives another basis of the same null space). Assumptions: the
     variable list is complete and the relation is dimensionally homogeneous (D28).
 
-    Validation (planned): V2 count n − r, every group dimensionless, groups independent; V4 group values invariant
-    under a change of units (:func:`rescale_units`); V1 Example 1.3 gives a/C^2 and β. Label: pending.
+    Validation: V2 sympy D28: the pipe groups lie in null(D) and span it, rank–nullity gives 4; units rescaled so the
+    repeating variables are 1 turn the others into their Π values (rel 1e-12); property sweep on all 7 presets × 2
+    repeating sets (book's and automatic): n − r groups, each dimensionless by code and by pint, independent; V1
+    blast group {E: 1, D: −5, rho: −1, t: 2}, a dimensionless variable is its own group, bad calls raise; V6 group
+    counts of Examples 1.2–1.5 (private). Label: symbolic, analytic, book-value (plus a consistency sweep).
     """
     names = list(variables)
     solution = names[0] if solution is None else solution
@@ -415,7 +425,8 @@ def group_dimension(group: Mapping[str, Any], variables: Mapping[str, Any]) -> n
     -------
     vec : ndarray, shape (4,)
 
-    Validation (planned): V1 zero for every output of :func:`pi_groups`. Label: pending.
+    Validation: V1 zero for every group :func:`pi_groups` returns on the 7 presets (checked independently with pint)
+    and for the Rayleigh group S d^2 λ^4/(I V^2). Label: analytic.
     """
     return sum((float(e) * _full_vector(variables[k]) for k, e in group.items()), np.zeros(4))
 
@@ -423,7 +434,7 @@ def group_dimension(group: Mapping[str, Any], variables: Mapping[str, Any]) -> n
 def exponent_matrix(groups: Sequence[Mapping[str, Any]], names: Sequence[str]) -> np.ndarray:
     """Exponent matrix of a set of groups: rows = groups, columns = variable names.
 
-    Book: §1.11 (combining groups; independence is the rank of this matrix).
+    Book: §1.11 (combining groups; a set of groups is independent when this matrix has full row rank).
 
     Parameters
     ----------
@@ -436,7 +447,8 @@ def exponent_matrix(groups: Sequence[Mapping[str, Any]], names: Sequence[str]) -
     -------
     E : ndarray of float, shape (len(groups), len(names))
 
-    Validation (planned): V1 pipe groups give a 4 × 7 matrix of rank 4. Label: pending.
+    Validation: V1 in the preset property sweep its numpy rank equals the number of groups for every preset and
+    repeating set. Label: analytic (consistency sweep).
     """
     return np.array([[float(g.get(k, 0)) for k in names] for g in groups], dtype=float)
 
@@ -459,7 +471,8 @@ def groups_independent(groups: Sequence[Mapping[str, Any]], names: Sequence[str]
     independent : bool
         ``rank(E) == len(groups)`` with exact arithmetic.
 
-    Validation (planned): V1 {Π1..Π4} independent; {Π1, Π4, Π1/Π4^2} dependent. Label: pending.
+    Validation: V1 pipe {Π1..Π4} independent; {Π1, Π4, Π1/Π4^2} dependent; True for every preset's groups in the
+    property sweep. Label: analytic.
     """
     if names is None:
         names = []
@@ -494,7 +507,7 @@ def group_latex(group: Mapping[str, Any], symbols: Mapping[str, str] | None = No
     -------
     tex : str
 
-    Validation (planned): V1 pipe Π1 string. Label: pending.
+    Validation: V1 exact strings for the pipe Π1 and for a fractional power (λ^{1/2}). Label: analytic.
     """
     symbols = {**LATEX_SYMBOLS, **(symbols or {})}
     num, den = [], []
@@ -522,7 +535,8 @@ def group_expression(group: Mapping[str, Any], labels: Mapping[str, str] | None 
     -------
     expr : sympy.Expr
 
-    Validation (planned): V1 pipe Π1. Label: pending.
+    Validation: V1 sympy simplifies ``group_expression({dp: 1, U: −2, rho: −1}) − dp/(U^2 rho)`` to 0.
+    Label: analytic.
     """
     import sympy as sp
 
@@ -551,7 +565,9 @@ def group_value(group: Mapping[str, Any], values: Mapping[str, float]) -> float:
     -------
     value : float
 
-    Validation (planned): V4 unchanged by :func:`rescale_units`. Label: pending.
+    Validation: V7 every pipe group keeps its value under :func:`rescale_units` to cgs and imperial (rel 1e-12;
+    invariance under a change of units); V1 worked number Π1 = 10, Poiseuille collapse Π1 = 32 Π2 Π4 (rel 1e-12),
+    Example 1.2 constant = 1. Label: analytic.
     """
     out = 1.0
     for k, e in group.items():
@@ -592,7 +608,9 @@ def rescale_units(values: Mapping[str, float], variables: Mapping[str, Any], sys
     Method: base-unit scale factors applied to the dimension vector (equivalent to pint conversion into coherent
     derived units of the target system; the pound here is the pound-mass).
 
-    Validation (planned): V1 1 Pa = 10 dyn/cm^2 in cgs; V4 :func:`group_value` unchanged. Label: pending.
+    Validation: V1 agrees with independent pint conversions (Pa → dyn/cm^2, Pa s → poise, Pa → lb/(ft s^2),
+    m/s → ft/s, K → °R); scales chosen from the repeating variables make them exactly 1 (D28 steps 9–11, 1e-12);
+    V7 :func:`group_value` unchanged under the change of units (rel 1e-12). Label: analytic.
     """
     scales = UNIT_SYSTEMS[system] if isinstance(system, str) else {_ALIASES.get(k, k): v for k, v in system.items()}
     s = np.array([scales[b] for b in BASIS], dtype=float)

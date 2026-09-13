@@ -58,7 +58,9 @@ def main() -> int:
 
     print(f"log-log slope of D(t): {slope:.4f} (exact 0.4); energy recovered {E_est:.4e} J vs true {E_true:.1e} J "
           f"({(E_est / E_true - 1) * 100:+.2f} %)")
-    print(f"round trip blast_energy(blast_radius(E)) / E - 1 = {ch01.blast_energy(ch01.blast_radius(E_true, 0.01, rho), 0.01, rho) / E_true - 1:.1e}")
+    E_ground = np.mean(ch01.blast_energy(D, t, rho, K, geometry="hemisphere"))
+    print(f"same radii read as a ground burst (hemisphere ≡ half of a free sphere of energy 2E): E = {E_ground:.4e} J")
+    print(f"round trip blast_energy(blast_radius(E)) / E - 1 ={ch01.blast_energy(ch01.blast_radius(E_true, 0.01, rho), 0.01, rho) / E_true - 1:.1e}")
     print(f"saved fig1_11_blast_wave.png in {out}  ({time.perf_counter() - t_start:.1f} s)")
     if not args.no_show:
         plt.show()

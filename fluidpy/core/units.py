@@ -81,8 +81,8 @@ def celsius_to_kelvin(T_C: Any) -> Any:
     Assumptions: this converts a temperature *value*. A temperature *difference* has the same number in °C and K
     (pint: ``delta_degC``); never pass a difference through this function. Every ``fluidpy`` function takes kelvin.
 
-    Validation (planned): V1 round trip K → °C → K and 0 °C = 273.15 K; V7 agreement with pint
-    ``Q_(T, "degC").to("K")``. Label: pending.
+    Validation: V1 round trip °C → K → °C (1e-12), 0 °C = 273.15 K returned as a float; agrees with pint
+    ``Q_(T, "degC").to("K")`` (1e-12). Label: analytic.
     """
     import numpy as np
 
@@ -109,7 +109,7 @@ def kelvin_to_celsius(T_K: Any) -> Any:
     -----
     Assumptions: a temperature value, not a difference (see :func:`celsius_to_kelvin`).
 
-    Validation (planned): V1 round trip; V7 pint agreement. Label: pending.
+    Validation: V1 round trip with :func:`celsius_to_kelvin` (1e-12). Label: analytic.
     """
     import numpy as np
 

@@ -75,6 +75,28 @@ def fig_parcel():
     save(fig, "parcel_regimes")
 
 
+def fig_parcel_energy():
+    """Phase portrait of the strongly non-linear parcel vs the exact energy contours of the ÷ρ_p and ÷ρ_e laws."""
+    g, rho0, b, a, z0 = G, 1.0, -0.01, 0.005, 40.0
+    def V(z, c):
+        return -g * (b - a) * (z / c - rho0 / c**2 * np.log1p(c * z / rho0))
+    t = np.linspace(0, 20, 20001)
+    ts, zs = ch01.parcel_ode((0, 20), z0, lambda z: rho0 + b * z, lambda q: rho0 + a * q, t_eval=t, zeta_max=1e6)
+    w = np.gradient(zs, ts)
+    fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    zz = np.linspace(-60, 45, 600)
+    for c, lab, col in ((a, "E = const, divide by parcel density", COLORS["teal"]),
+                        (b, "E = const, divide by environment density", COLORS["rose"])):
+        ww = np.sqrt(np.clip(2 * (V(z0, c) - V(zz, c)), 0, None))
+        ok = 2 * (V(z0, c) - V(zz, c)) >= 0
+        ax.plot(zz[ok], ww[ok], color=col, lw=3, alpha=0.45, label=lab)
+        ax.plot(zz[ok], -ww[ok], color=col, lw=3, alpha=0.45)
+    ax.plot(zs, w, "k--", lw=1, label="parcel_ode trajectory")
+    ax.set_xlabel("ζ [m]"); ax.set_ylabel("dζ/dt [m/s]"); ax.legend(fontsize=8)
+    ax.set_title("non-linear parcel: trajectory lies on the ÷ρ_p energy curve")
+    save(fig, "parcel_energy_first_integral")
+
+
 def fig_couette():
     h, U, nu = 1e-3, 1.0, 1e-6
     y = np.linspace(0, h, 41)
@@ -283,5 +305,5 @@ def metrics():
 
 if __name__ == "__main__":
     use_style()
-    fig_1_9(); fig_parcel(); fig_couette(); fig_continuum(); fig_lapse(); fig_ussa(); fig_pi_collapse(); fig_sigma()
+    fig_1_9(); fig_parcel(); fig_parcel_energy(); fig_couette(); fig_continuum(); fig_lapse(); fig_ussa(); fig_pi_collapse(); fig_sigma()
     metrics()

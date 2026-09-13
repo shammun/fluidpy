@@ -26,6 +26,9 @@ USSA_BASES = np.array([0.0, 11000.0, 20000.0, 32000.0, 47000.0, 51000.0, 71000.0
 USSA_LAPSE = np.array([-6.5e-3, 0.0, 1.0e-3, 2.8e-3, 0.0, -2.8e-3, -2.0e-3])
 USSA_Z_TOP: float = 84852.0    #: top of the seventh layer, geopotential altitude [m]
 USSA_Z1: float = 11000.0       #: top of the first layer (tropopause base), geopotential altitude [m]
+#: Effective Earth radius r0 of the USSA-1976 geopotential conversion H = r0 Z/(r0 + Z) [m] (NASA-TM-X-74335, with the
+#: errata sheet; value stored with its source in reference/ch01/ussa1976_constants.json).
+USSA_R0: float = 6356766.0
 
 
 def gauge_pressure(p, p_atm=P_ATM):
@@ -45,7 +48,7 @@ def gauge_pressure(p, p_atm=P_ATM):
     p_gauge : float or ndarray
         [Pa]; 0 at atmospheric pressure, −p_atm in a vacuum.
 
-    Validation (planned): V1 p_atm → 0, vacuum → −p_atm. Label: pending.
+    Validation: V1 p_atm → 0, vacuum → −p_atm, round trip with :func:`absolute_pressure`. Label: analytic.
     """
     return as_scalar_if_0d(np.asarray(p, dtype=float) - p_atm)  # §1.7: p_gauge = p − p_atm
 
@@ -67,7 +70,7 @@ def absolute_pressure(p_gauge, p_atm=P_ATM):
     p : float or ndarray
         [Pa].
 
-    Validation (planned): V1 round trip with :func:`gauge_pressure`. Label: pending.
+    Validation: V1 round trip with :func:`gauge_pressure` (exact). Label: analytic.
     """
     return as_scalar_if_0d(np.asarray(p_gauge, dtype=float) + p_atm)
 
@@ -97,7 +100,8 @@ def hydrostatic_pressure_uniform(z, p0, rho, g=G0):
     -----
     Assumptions: static fluid, uniform rho and g.
 
-    Validation (planned): V2 sympy dp/dz + rho g = 0; V1 p(0) = p0 and depth h gives +rho g h. Label: pending.
+    Validation: V2 sympy residual dp/dz + rho g = 0 with p(0) = p0, code equals the lambdified form (1e-9 Pa), pint
+    [pressure]; V1 10 m of water ≈ 1 atm. Label: symbolic, analytic.
     """
     return as_scalar_if_0d(p0 - rho * g * np.asarray(z, dtype=float))  # Eq. (1.9)
 
@@ -138,8 +142,9 @@ def integrate_hydrostatic(z, rho_fn: Callable[[float, float], float], p0: float,
     Method: adaptive Runge–Kutta integration upward and downward from z0 with dense output (our choice).
     Assumptions: static fluid; gravity uniform and vertical.
 
-    Validation (planned): V1 constant rho equals Eq. (1.9); isothermal gas equals :func:`isothermal_pressure`; linear
-    T(z) equals :func:`linear_lapse_pressure`; V3 error falls with rtol. Label: pending.
+    Validation: V1 constant rho equals Eq. (1.9) (rel 1e-10); isothermal gas equals :func:`isothermal_pressure`
+    (1e-8), also integrating up and down from a middle level; linear T(z) equals :func:`linear_lapse_pressure` (1e-8);
+    V3 a from-scratch Euler march converges to it at order 1.002 (it serves as the reference there). Label: analytic.
     """
     z = np.atleast_1d(np.asarray(z, dtype=float))
     z0 = float(z[0]) if z0 is None else float(z0)
@@ -197,8 +202,9 @@ def atmosphere_from_temperature(z, T_fn: Callable[[np.ndarray], np.ndarray], p0:
     -----
     Assumptions: static, perfect gas, uniform g.
 
-    Validation (planned): V1 isothermal case equals :func:`isothermal_pressure`; V5 USSA-1976 0–11 km layer reproduces
-    the tabulated pressures at 5 and 11 km. Label: pending.
+    Validation: V1 linear T(z) equals :func:`linear_lapse_pressure` (rel 1e-8) and rho = p/(R T); V5 the USSA-1976
+    0–11 km layer reproduces the tabulated pressure at Z = 5 and 10 km (rel 1e-3); V4 θ is constant along a dry
+    adiabat it builds (ptp/θ = 3.8e-12). Label: analytic, benchmark, conserved.
     """
     z = np.atleast_1d(np.asarray(z, dtype=float))
     p = integrate_hydrostatic(z, lambda zz, pp: pp / (R * float(T_fn(zz))), p0, g=g, z0=z0, rtol=rtol)  # (1.8)+(1.22)
@@ -235,7 +241,8 @@ def isothermal_pressure(z, p0, T, R=R_AIR, g=G0):
     -----
     Assumptions: isothermal, perfect gas, constant g and R.
 
-    Validation (planned): V2 sympy ODE residual; V1 p(H)/p0 = e^-1 with H = R T/g. Label: pending.
+    Validation: V2 sympy residual of dp/dz + p g/(R T) = 0; V1 p(H)/p0 = 1/e with H = R T/g (rel 1e-14); equals
+    :func:`integrate_hydrostatic` for an isothermal gas (1e-8). Label: symbolic, analytic.
     """
     require_positive("T", T)
     return as_scalar_if_0d(p0 * np.exp(-g * np.asarray(z, dtype=float) / (R * T)))  # §1.10: p = p0 e^{−gz/RT}
@@ -262,7 +269,7 @@ def isothermal_density(z, rho0, T, R=R_AIR, g=G0):
     rho : float or ndarray
         [kg/m^3].
 
-    Validation (planned): V1 equals isothermal_pressure/(R T). Label: pending.
+    Validation: V1 equals rho0 times the isothermal pressure ratio (rel 1e-14). Label: analytic.
     """
     require_positive("T", T)
     return as_scalar_if_0d(rho0 * np.exp(-g * np.asarray(z, dtype=float) / (R * T)))
@@ -291,8 +298,9 @@ def scale_height(T, R=R_AIR, g=G0):
     -----
     Assumptions: isothermal perfect gas. The same law follows from dimensional analysis (Example 1.2) with constant 1.
 
-    Validation (planned): V1 H = R T/g and linear in T; V6 book's value at its mean temperature (private JSON).
-    Label: pending.
+    Validation: V1 linear in T, 7300–7330 m at 250 K, Example 1.2 group H g M_w/(R_u T0) = 1 (rel 1e-12); V5 USSA-1976
+    Table 2 pressure scale height H_p with local g at 0–50 km (rel 2e-4; max 8.2e-5); V6 book's value (private).
+    Label: analytic, benchmark, book-value.
     """
     return as_scalar_if_0d(R * np.asarray(T, dtype=float) / g)  # §1.10: H = RT/g
 
@@ -325,8 +333,9 @@ def linear_lapse_pressure(z, p0, T0, dT_dz, R=R_AIR, g=G0):
     -----
     Assumptions: static perfect gas, constant g; T must stay positive over z.
 
-    Validation (planned): V1 equals :func:`integrate_hydrostatic`; V7 dT_dz → 0 recovers :func:`isothermal_pressure`;
-    V5 USSA-1976 table at 5 and 11 km. Label: pending.
+    Validation: V1 equals :func:`integrate_hydrostatic` for T = 288.15 − 6.5e-3 z (rel 1e-8); V7 dT_dz → 0 (−1e-9 K/m)
+    recovers :func:`isothermal_pressure` (rel 1e-5); used layer by layer inside :func:`standard_atmosphere` (V5 there).
+    Label: analytic.
     """
     z = np.asarray(z, dtype=float)
     if dT_dz == 0.0:
@@ -336,7 +345,7 @@ def linear_lapse_pressure(z, p0, T0, dT_dz, R=R_AIR, g=G0):
     return as_scalar_if_0d(p0 * (T / T0) ** (-g / (R * dT_dz)))  # integral of dp/p = −g dz/(R (T0 + Γ z))
 
 
-def standard_atmosphere(z, g=G0, R=R_AIR):
+def standard_atmosphere(z, g=G0, R=R_AIR, *, geometric: bool = False):
     """U.S. Standard Atmosphere 1976 below 84.852 km geopotential altitude: temperature, pressure, density.
 
     Book: §1.10 (a static atmosphere is fixed by its temperature profile through (1.8) and (1.22); the isothermal
@@ -349,11 +358,16 @@ def standard_atmosphere(z, g=G0, R=R_AIR):
     Parameters
     ----------
     z : float or array_like
-        Geopotential altitude [m], 0 <= z <= 84852.
+        **Geopotential** altitude H [m], 0 <= H <= 84852 (the default). Geopotential altitude is the height in a
+        uniform-gravity (g0) world with the same potential energy; it is slightly below the geometric height
+        (≈ 16 m less at 10 km, ≈ 1.0 km less at 80 km). Pass ``geometric=True`` to give geometric height instead.
     g : float, optional
         Standard gravity [m/s^2].
     R : float, optional
         Gas constant [J/(kg K)] (USSA uses R* = 8314.32 J/(kmol K); our CODATA-based R_AIR differs by ~2e-5).
+    geometric : bool, optional, keyword-only
+        If True, ``z`` is geometric height Z above sea level [m] and is converted first with the USSA-1976 relation
+        ``H = r0 Z/(r0 + Z)``, r0 = 6356766 m (:data:`USSA_R0`); valid for 0 <= Z <= 86 km. Default False.
 
     Returns
     -------
@@ -362,11 +376,19 @@ def standard_atmosphere(z, g=G0, R=R_AIR):
 
     Notes
     -----
-    Assumptions: hydrostatic dry perfect gas with constant molecular weight; geopotential (not geometric) altitude.
+    Assumptions: hydrostatic dry perfect gas with constant molecular weight and constant g0 in geopotential altitude.
 
-    Validation (planned): V5 PDAS USSA-1976 table values at 0, 5, 11, 20, 32, 47 km (1e-3 rel). Label: pending.
+    Validation: V5 PDAS USSA-1976 Table 1 (from NASA-TM-X-74335) at Z = 0, 5, 10, 15, 20, 25, 30, 40, 45, 50 km,
+    geometric Z converted to geopotential with r0 = 6356.766 km: max |ΔT| = 4.6e-4 K, p rel 1.2e-4, rho rel 8.5e-5
+    (tolerances 1e-3 K and 1e-3); layer bases and lapse rates identical to Table 4; above the top raises.
+    Label: benchmark.
     """
     z = np.asarray(z, dtype=float)
+    if geometric:
+        if np.any(z < 0) or np.any(z > 86000.0):
+            raise ValueError("standard_atmosphere covers 0 <= Z <= 86000 m (geometric)")
+        H = USSA_R0 * z / (USSA_R0 + z)  # USSA-1976: geopotential altitude H = r0 Z/(r0 + Z)
+        z = np.minimum(H, USSA_Z_TOP)  # Z = 86 km maps to 84852 m up to round-off
     if np.any(z < 0) or np.any(z > USSA_Z_TOP):
         raise ValueError(f"standard_atmosphere covers 0 <= z <= {USSA_Z_TOP:.0f} m (geopotential)")
     Tb = [USSA_T0]
@@ -417,8 +439,8 @@ def layered_pressure(z, thicknesses: Sequence[float], densities: Sequence[float]
     -----
     Assumptions: static, immiscible layers of uniform density, uniform g.
 
-    Validation (planned): V1 one layer equals :func:`hydrostatic_pressure_uniform`; slope −rho_i g in each layer;
-    continuity at interfaces. Label: pending.
+    Validation: V1 one layer equals :func:`hydrostatic_pressure_uniform` (rel 1e-14) and p_surface above the surface;
+    slope −rho_i g in each of two layers; continuous at the interface; mismatched lengths raise. Label: analytic.
     """
     th = np.asarray(thicknesses, dtype=float)
     rh = np.asarray(densities, dtype=float)
@@ -435,8 +457,8 @@ def layered_pressure(z, thicknesses: Sequence[float], densities: Sequence[float]
 def buoyancy_force(rho_fluid, volume, g=G0):
     """Archimedes' buoyancy: upward net pressure force on a fully submerged body.
 
-    Book: §1.7 (consequence of Eq. (1.9); derivation D37 added by the curation: the pressure difference between the
-    bottom and top faces of a body in a fluid at rest equals the weight of the displaced fluid).
+    Book: §1.7 (consequence of Eq. (1.9); derivation D37 added by the curation: the push of the fluid on the lower
+    faces of a submerged body exceeds the push on its upper faces by exactly the weight of the fluid it displaces).
 
     Parameters
     ----------
@@ -456,7 +478,8 @@ def buoyancy_force(rho_fluid, volume, g=G0):
     -----
     Assumptions: static uniform fluid; the body's own density is irrelevant to this force.
 
-    Validation (planned): V1 equals the z-component of :func:`net_pressure_force_on_box` for Eq. (1.9). Label: pending.
+    Validation: V1 equals the z-component of :func:`net_pressure_force_on_box` for Eq. (1.9) (rel 1e-10); 1 L in water
+    gives 9.80665 N; V2 sympy D37 steps 4–6. Label: analytic, symbolic.
     """
     return as_scalar_if_0d(np.asarray(rho_fluid, dtype=float) * g * np.asarray(volume, dtype=float))
 
@@ -485,7 +508,8 @@ def net_pressure_force_on_box(p_fn: Callable[[np.ndarray, np.ndarray, np.ndarray
     -----
     Method: tensor-product Gauss–Legendre quadrature on the six faces (our choice).
 
-    Validation (planned): V1 horizontal components vanish (Pascal, Eq. 1.7) and F_z = rho g V for Eq. (1.9). Label: pending.
+    Validation: V1 for Eq. (1.9) on an off-centre box in seawater F_z = rho g V (rel 1e-10; 2.2e-16 in the report) and
+    the horizontal components vanish (< 1e-9 of p_atm times a face area). Label: analytic.
     """
     x0, x1, y0, y1, z0, z1 = map(float, box)
     xi, wi = np.polynomial.legendre.leggauss(n)
@@ -512,7 +536,7 @@ def net_pressure_force_on_box(p_fn: Callable[[np.ndarray, np.ndarray, np.ndarray
 
 
 __all__ = [
-    "USSA_T0", "USSA_P0", "USSA_LAPSE0", "USSA_Z1", "USSA_BASES", "USSA_LAPSE", "USSA_Z_TOP", "layered_pressure",
+    "USSA_T0", "USSA_P0", "USSA_LAPSE0", "USSA_Z1", "USSA_R0", "USSA_BASES", "USSA_LAPSE", "USSA_Z_TOP", "layered_pressure",
     "gauge_pressure", "absolute_pressure", "hydrostatic_pressure_uniform", "integrate_hydrostatic",
     "atmosphere_from_temperature", "isothermal_pressure", "isothermal_density", "scale_height",
     "linear_lapse_pressure", "standard_atmosphere", "buoyancy_force", "net_pressure_force_on_box",

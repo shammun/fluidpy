@@ -20,6 +20,7 @@ Sign conventions (binding user decision, the book's own)
 """
 from __future__ import annotations
 
+import warnings
 from typing import Callable, NamedTuple
 
 import numpy as np
@@ -59,8 +60,11 @@ def brunt_vaisala_sq(rho0, drho_dz, drho_a_dz, g=G0):
     Assumptions: small displacement (first order in ζ), frictionless adiabatic parcel in instant pressure equilibrium
     with its surroundings, static background, no mixing.
 
-    Validation (planned): V2 sympy isothermal perfect gas gives g^2/(c_p T); V4 equals (g/θ) dθ/dz for random smooth
-    T(z); V1 constant rho with incompressible parcel gives 0. Label: pending.
+    Validation: V1 thermocline worked number g·0.01/1025 (rel 1e-14), uniform incompressible and isentropic columns
+    give exactly 0, rho0 = 0 raises; V2 sympy: code equals the D18 coefficient, and the density route on an isothermal
+    perfect gas reduces to g^2/(C_p T); consistency sweep: density route (with −rho g/c^2) agrees with the lapse and θ
+    routes on a non-trivial T(z) to 1.9e-7 of max|N^2| (tests/test_ch01.py). Label: analytic, symbolic (plus a
+    consistency sweep).
     """
     rho0 = np.asarray(rho0, dtype=float)
     require_positive("rho0", rho0)
@@ -92,7 +96,9 @@ def brunt_vaisala_sq_from_theta(theta, dtheta_dz, g=G0):
     -----
     Assumptions: perfect gas with constant γ, hydrostatic background, small displacements.
 
-    Validation (planned): V4 equals :func:`brunt_vaisala_sq` with drho_a_dz = −rho g/c^2 on smooth profiles. Label: pending.
+    Validation: V1 N^2 < 1e-10 s^-2 along an independently integrated dry adiabat; consistency sweep: equals the
+    lapse-rate route and :func:`brunt_vaisala_sq` (with −rho g/c^2) on a non-trivial T(z) to 1.9e-7 of max|N^2|;
+    D36 re-derived with sympy. Label: analytic, symbolic (plus a consistency sweep).
     """
     theta = np.asarray(theta, dtype=float)
     require_positive("theta", theta)
@@ -121,7 +127,9 @@ def brunt_vaisala_sq_from_lapse(T, dT_dz, cp=CP_AIR, g=G0):
     N2 : float or ndarray
         [1/s^2]; zero when dT/dz = Γ_a = −g/C_p.
 
-    Validation (planned): V1 dT/dz = −g/cp gives 0; V2 equals :func:`brunt_vaisala_sq_from_theta` via (1.32). Label: pending.
+    Validation: V2 sympy isothermal atmosphere N^2 = g^2/(C_p T) (3.83e-4 s^-2 at 250 K, rel 1e-14) and D36 step by
+    step; V1 −(d/dζ) of :func:`parcel_acceleration_atmosphere` at ζ = 0 equals it (rel 1e-6); consistency sweep over
+    −15…+10 K/km: sign agrees with :func:`lapse_rate_stability`. Label: symbolic, analytic (plus a consistency sweep).
     """
     T = np.asarray(T, dtype=float)
     require_positive("T", T)
@@ -145,7 +153,8 @@ def classify_stability(N2, tol: float = 1e-12):
     label : str or ndarray of str
         ``"stable"``, ``"neutral"`` or ``"unstable"`` (array of labels for array input).
 
-    Validation (planned): V1 sign cases; V7 tolerance boundary and array handling. Label: pending.
+    Validation: V1/V7 sign cases, the tolerance boundary (±5e-13 neutral, 2e-12 stable, custom tol) and array input.
+    Label: analytic.
     """
     arr = np.asarray(N2, dtype=float)
     lab = np.where(arr > tol, "stable", np.where(arr < -tol, "unstable", "neutral"))
@@ -169,7 +178,9 @@ def stability_timescale(N2, tol: float = 1e-12):
     (kind, seconds) : tuple (str, float)
         ``("period", 2π/N)`` for N^2 > 0, ``("efold", 1/sqrt(−N^2))`` for N^2 < 0, ``("none", inf)`` when neutral.
 
-    Validation (planned): V1 period 2π/N matches the zero crossings of :func:`parcel_displacement`. Label: pending.
+    Validation: V1 period 2π/N (642 s for the thermocline example) matches the first zero crossing of
+    :func:`parcel_displacement` at a quarter period; e-folding time 100 s for N^2 = −1e-4; neutral gives inf.
+    Label: analytic.
     """
     N2 = float(N2)
     label = classify_stability(N2, tol)
@@ -211,7 +222,9 @@ def parcel_displacement(t, zeta0, N2, w0=0.0):
     Assumptions: linearised (small ζ), undamped (the book's remark that viscosity and conduction arrest the oscillation
     is outside this model).
 
-    Validation (planned): V2 sympy residual of ζ'' + N^2 ζ = 0; V1 period 2π/N; V7 N^2 → 0 limit. Label: pending.
+    Validation: V2 sympy D18: the cos, cosh and constant solutions satisfy ζ'' + N^2 ζ = 0 with ζ(0) = ζ0, ζ'(0) = 0;
+    V1 a numerical second derivative of this function satisfies the ODE for four (N^2, w0) cases (stable, unstable,
+    neutral, with w0). Label: symbolic, analytic.
     """
     t = np.asarray(t, dtype=float)
     N2 = np.asarray(N2, dtype=float)
@@ -229,8 +242,9 @@ def parcel_ode(t_span, zeta0: float, rho_env_fn: Callable[[float], float], rho_p
                rtol: float = 1e-10, atol: float = 1e-12):
     """Nonlinear motion of a displaced parcel under its weight and buoyancy.
 
-    Book: §1.10, Newton's second law "including weight and buoyancy for the displaced element" (Fig. 1.8), before
-    linearisation: ``rho_p V ζ'' = −rho_p V g + rho_e V g``, i.e. ``ζ'' = −g (rho_p(ζ) − rho_e(z0 + ζ)) / rho_p(ζ)``.
+    Book: §1.10 parcel argument (Fig. 1.8), kept nonlinear: mass times acceleration of the parcel equals the pull of
+    gravity on the parcel plus the upward push of the surrounding fluid (Archimedes), before the book linearises:
+    ``rho_p V ζ'' = −rho_p V g + rho_e V g``, i.e. ``ζ'' = −g (rho_p(ζ) − rho_e(z0 + ζ)) / rho_p(ζ)``.
 
     Parameters
     ----------
@@ -268,7 +282,13 @@ def parcel_ode(t_span, zeta0: float, rho_env_fn: Callable[[float], float], rho_p
     Assumptions: frictionless adiabatic parcel, pressure equal to its surroundings at every height, no mixing.
     Buoyancy = weight of displaced fluid (Archimedes, derivation D37).
 
-    Validation (planned): V3 small ζ0 matches :func:`parcel_displacement` with error ∝ ζ0^2; V1 period 2π/N. Label: pending.
+    Validation: V1 with linear density lambdas it reproduces :func:`parcel_ode_from_gradients` to 1e-8 m; V4 the
+    division by the parcel density is pinned by the exact energy first integral E = ½ζ'^2 + V(ζ) of the un-linearised
+    law for rho_p = rho0 + aζ, rho_e = rho0 + bζ (rho0 = 1, b = −0.01, a = +0.005, ζ0 = 40 m, 1.25 periods):
+    ptp(E)/|V(ζ0)| = 3.6e-8 (tolerance 1e-6), while the ÷rho_e invariant visibly drifts; V1 the lower turning point
+    (−35.2876 m, vs −54.74 m for ÷rho_e) and the period (16.40641 s) agree with quadrature (tolerance rel 1e-6);
+    V7 small-amplitude limit (through the wrapper): the difference from :func:`parcel_displacement` shrinks as ζ0^2
+    (fitted exponent 2.000). Label: analytic, conserved.
     """
     cap = 1e3 * max(abs(zeta0), 1e-3) if zeta_max is None else float(zeta_max)
 
@@ -339,7 +359,10 @@ def parcel_ode_from_gradients(t, zeta0, rho0, drho_dz, drho_a_dz, g=G0, w0=0.0, 
     -----
     Scalar-callable. For |ζ| << rho0/|drho_a_dz| it reduces to :func:`parcel_displacement` with N^2 from Eq. (1.29).
 
-    Validation (planned): V3 convergence to the linear solution as ζ0 → 0 (error ∝ ζ0^2). Label: pending.
+    Validation: V7 small-amplitude limit: max |ζ − linear solution| ∝ ζ0^2 for ζ0 = 8, 4, 2, 1 m (fitted exponent
+    2.000, ocean thermocline case); t = 0 returns ζ0; V7 runaway N^2 < 0: finite then NaN after the cap, never inf,
+    follows cosh (rel 1e-3) before the cap; in the V4 energy-first-integral test of :func:`parcel_ode` (÷ parcel
+    density, ζ0 = 40 m) this wrapper matches that trajectory to 1e-6 ζ0. Label: analytic (V7 limit).
     """
     return _sample_parcel(t, zeta0, lambda z: rho0 + drho_dz * z, lambda zeta: rho0 + drho_a_dz * zeta, g, w0,
                           zeta_max)
@@ -377,8 +400,9 @@ def parcel_acceleration_atmosphere(zeta, T0, dT_dz, cp=CP_AIR, g=G0):
     dT_p/dz = −(g/C_p)(T_p/T_e), which equals the constant −g/C_p only where T_p = T_e. Using the constant rate is
     exact to first order in ζ, so the linear limit (and N^2) are unaffected; the difference is O(ζ^2).
 
-    Validation (planned): V1 derivative at ζ = 0 equals −:func:`brunt_vaisala_sq_from_lapse`; zero for dT/dz = −g/C_p.
-    Label: pending.
+    Validation: V1 central-difference derivative at ζ = 0 equals −:func:`brunt_vaisala_sq_from_lapse` (rel 1e-6);
+    zero at ζ = 0; zero acceleration for dT/dz = −g/C_p (neutral run of :func:`parcel_ode_atmosphere` drifts < 1e-8 m).
+    Label: analytic.
     """
     zeta = np.asarray(zeta, dtype=float)
     T_p = T0 - g * zeta / cp  # parcel follows the dry adiabat, Eq. (1.30)
@@ -421,8 +445,9 @@ def parcel_ode_atmosphere(t, zeta0, T0, dT_dz, cp=CP_AIR, g=G0, w0=0.0, zeta_max
     -----
     Environment argument ``dT_dz`` is Kundu's Γ ≡ dT/dz (meteorology Γ = −dT_dz).
 
-    Validation (planned): V3 matches :func:`parcel_displacement` for small ζ0; V1 dT/dz = −g/C_p keeps ζ = ζ0.
-    Label: pending.
+    Validation: V7 small-amplitude limit: max |ζ − linear solution| ∝ ζ0^2 for ζ0 = 200…25 m (fitted exponent 2.002,
+    dT/dz = −6.5 K/km); V1 dT/dz = −g/C_p keeps ζ = ζ0 (drift < 1e-8 m); V7 runaway capped with NaN, and the too-cold
+    guard stops an uncapped run without inf. Label: analytic (V7 limit).
     """
     cap = 1e3 * max(abs(zeta0), 1e-3) if zeta_max is None else float(zeta_max)
     t_arr = np.atleast_1d(np.asarray(t, dtype=float))
@@ -473,7 +498,8 @@ def lapse_rate(T, z):
     dT_dz : ndarray
         [K/m], second-order accurate everywhere (``np.gradient`` with ``edge_order=2``).
 
-    Validation (planned): V1 linear profile returns its slope exactly; V3 order 2 on a smooth profile. Label: pending.
+    Validation: V1 a linear profile returns its slope (rtol 1e-12); V3 observed order 2 ± 0.25 on a smooth profile
+    sampled on a non-uniform grid (N = 21…161). Label: analytic, converged.
     """
     return np.gradient(np.asarray(T, dtype=float), np.asarray(z, dtype=float), edge_order=2)  # Γ ≡ dT/dz
 
@@ -493,7 +519,8 @@ def adiabatic_lapse_rate(T=None, cp=CP_AIR, alpha=None, g=G0):
     Parameters
     ----------
     T : float or array_like, optional
-        Temperature [K]; required when ``alpha`` is given (general fluid), ignored for a perfect gas.
+        Temperature [K]; required when ``alpha`` is given (general fluid). Ignored for a perfect gas (``alpha=None``),
+        where α T = 1 cancels it; passing T without alpha emits a ``UserWarning`` (a liquid needs its own α).
     cp : float or array_like, optional
         Specific heat at constant pressure [J/(kg K)]; default ``CP_AIR``.
     alpha : float or array_like, optional
@@ -511,10 +538,17 @@ def adiabatic_lapse_rate(T=None, cp=CP_AIR, alpha=None, g=G0):
     -----
     Assumptions: isentropic parcel, hydrostatic surroundings, single-component fluid.
 
-    Validation (planned): V1 perfect gas −g/C_p; general form with α = 1/T agrees; V5 |Γ_a| ≈ 9.8 K/km (AMS Glossary);
-    V6 book value (private JSON). Label: pending.
+    Validation: V2 sympy D19 for an arbitrary Gibbs function G(T, p), every intermediate line (steps 4, 7, 10, 12,
+    15, 16), reducing to −g/C_p for the perfect gas; V1 −g/C_p = −9.7607e-3 K/m, general form with α = 1/T agrees
+    (rel 1e-14), α = 0 gives 0, water (α = 1.5e-4, C_p = 4190) ≈ −0.10 K/km, from-scratch lifted parcel slope at the
+    release height (rel 1e-6), pint K/m; V5 AMS Glossary dry adiabatic lapse rate ≈ 9.8 °C/km (ours 9.76, −0.4 %);
+    V6 book's rounded value (private). Label: symbolic, analytic, benchmark, book-value.
     """
     if alpha is None:
+        if T is not None:
+            warnings.warn("adiabatic_lapse_rate: T is ignored when alpha is None (perfect gas, α = 1/T, so "
+                          "Γ_a = −g/C_p); pass alpha as well for a liquid or another non-ideal fluid",
+                          UserWarning, stacklevel=2)
         return as_scalar_if_0d(-g / np.asarray(cp, dtype=float))  # Eq. (1.30) with α = 1/T (1.28)
     if T is None:
         raise ValueError("adiabatic_lapse_rate needs T when alpha is given")
@@ -545,7 +579,7 @@ def parcel_temperature(T0, z, z0=0.0, cp=CP_AIR, g=G0):
     T_a : float or ndarray
         [K].
 
-    Validation (planned): V1 slope equals :func:`adiabatic_lapse_rate`; θ constant along it (1.31). Label: pending.
+    Validation: V1 slope equals :func:`adiabatic_lapse_rate` (rtol 1e-12) and T(z0) = T0. Label: analytic.
     """
     return as_scalar_if_0d(T0 + adiabatic_lapse_rate(cp=cp, g=g) * (np.asarray(z, dtype=float) - z0))
 
@@ -575,8 +609,10 @@ def potential_temperature(T, p, p_ref=P_REF, gamma=GAMMA_AIR):
     -----
     Assumptions: perfect gas, constant γ, reversible adiabatic process (D20).
 
-    Validation (planned): V1 T = θ at p = p_ref; V7 θ constant along a dry adiabat built with
-    ``atmosphere_from_temperature``. Label: pending.
+    Validation: V1 θ = T at p = p_ref, 250 K at 500 hPa → 304.8 K (rel 1e-12), round trip with
+    :func:`temperature_from_potential`, p = 0 raises; V2 sympy D20 and (1.32); V4 θ invariant along a dry adiabat
+    integrated independently with ``atmosphere_from_temperature`` (0–10 km, ptp/θ = 3.8e-12). Label: analytic,
+    symbolic, conserved.
     """
     p = np.asarray(p, dtype=float)
     require_positive("p", p)
@@ -604,7 +640,7 @@ def temperature_from_potential(theta, p, p_ref=P_REF, gamma=GAMMA_AIR):
     T : float or ndarray
         [K].
 
-    Validation (planned): V1 round trip with :func:`potential_temperature`. Label: pending.
+    Validation: V1 round trip with :func:`potential_temperature` (rel 1e-14). Label: analytic.
     """
     p = np.asarray(p, dtype=float)
     require_positive("p", p)
@@ -650,8 +686,9 @@ def potential_temperature_gradient(T, dT_dz, theta=None, cp=CP_AIR, g=G0, p=None
     -----
     Assumptions: perfect gas, hydrostatic, constant C_p (D21).
 
-    Validation (planned): V2 sympy residual of (1.32) = 0; V1 matches centred differences of θ(z) along a synthetic
-    profile. Label: pending.
+    Validation: V2 sympy residual of (1.32) with hydrostatics is 0; V1 matches finite differences of θ(z) along the
+    USSA-1976 0–11 km column (rel 1e-6); θ and p inputs agree (rel 1e-14); giving neither raises; its sign matches the
+    stability code in the −15…+10 K/km consistency sweep. Label: analytic, symbolic.
     """
     T = np.asarray(T, dtype=float)
     if theta is None:
@@ -707,8 +744,8 @@ def lapse_rate_convention(dT_dz, convention: str = "kundu"):
     back into the ``dT_dz`` that fluidpy functions expect. Example: the dry adiabat is −9.76e-3 K/m (Kundu) and
     +9.76e-3 K/m = +g/C_p (meteorology).
 
-    Validation (planned): V1 Kundu identity; meteorology Γ_a = +g/C_p; involution (applying twice returns the input).
-    Label: pending.
+    Validation: V1 Kundu identity; meteorology Γ_a = +g/C_p (rel 1e-14); involution (applying twice returns the
+    input exactly); case and whitespace tolerant; unknown convention strings raise. Label: analytic.
     """
     x = np.asarray(dT_dz, dtype=float)
     Gamma = x if _convention(convention) == "kundu" else -x  # Γ_Kundu ≡ dT/dz ; Γ_met ≡ −dT/dz
@@ -790,9 +827,11 @@ def lapse_rate_stability(dT_dz, Gamma_a=None, convention: str = "kundu", tol: fl
     constant C_p. ``code`` equals the sign of N^2 = (g/T)(dT/dz − Γ_a) (D36) for T > 0. Scalar input only (the text is
     one sentence); use :func:`lapse_rate_convention` for arrays.
 
-    Validation (planned): V1 texts for −6.5 K/km in both conventions; V1 meteorology Γ_a = +g/C_p; V4 ``code``
-    identical in both conventions over −15…+10 K/km and equal to the sign of :func:`brunt_vaisala_sq_from_lapse`.
-    Label: pending.
+    Validation: V1 exact texts for −6.5 and −12 K/km in both conventions, prefix/per_km/ascii options, auto-decimals
+    near the adiabat, never "−0.0", array input raises; consistency sweep (2504 points, −15…+10 K/km): ``code``,
+    ``verdict`` and ``margin`` identical in both conventions and ``code`` equal to the sign of
+    :func:`brunt_vaisala_sq_from_lapse` outside the |margin| <= 1e-9 K/m band (report finding F3). Label: analytic
+    (plus a consistency sweep).
     """
     if np.ndim(dT_dz) != 0 or (Gamma_a is not None and np.ndim(Gamma_a) != 0):
         raise ValueError("lapse_rate_stability is scalar-only; use lapse_rate_convention for arrays")
@@ -844,7 +883,10 @@ def potential_density(rho, p, p_ref=P_REF, gamma=GAMMA_AIR):
     -----
     Assumptions: perfect gas, constant γ. θ rho_θ = p_o/R everywhere (D23), hence (1.34).
 
-    Validation (planned): V4 invariant θ rho_θ = p_ref/R; V1 (1.34) by finite differences. Label: pending.
+    Validation: V1 identity θ rho_θ = p_ref/R (an algebraic identity of (1.31), (1.33) and p = rho R T, not a
+    conservation law) along the USSA-1976 0–11 km column (rel 1e-12) and the synthetic boundary-layer column; V1 (1.34)
+    −(1/rho_θ) drho_θ/dz = (1/θ) dθ/dz by finite differences (1e-6 of the scale); p = p_ref returns rho.
+    Label: analytic.
     """
     p = np.asarray(p, dtype=float)
     require_positive("p", p)
@@ -874,8 +916,8 @@ def isentropic_density_gradient(rho, c, g=G0):
     -----
     Assumptions: (∂rho/∂p)_{s,S} = 1/c^2 (inverse of (1.19)); the parcel's pressure follows hydrostatics; rho_a ≅ rho.
 
-    Validation (planned): V1 −rho g/c^2; V2 for a perfect gas equals the isentropic parcel gradient from (1.26).
-    Label: pending.
+    Validation: V1 −rho g/c^2 (rel 1e-14; 4.47e-3 kg/m^4 for rho = 1025, c = 1500); V1 (numerical) for a perfect gas
+    it equals the isentropic parcel gradient (rho/(γ p)) dp/dz with hydrostatic dp/dz (rel 1e-12). Label: analytic.
     """
     c = np.asarray(c, dtype=float)
     require_positive("c", c)
@@ -909,7 +951,8 @@ def ocean_potential_density_gradient(drho_dz, rho, c, g=G0):
     -----
     Assumptions: seawater parcel at fixed salinity, rho_a ≅ rho, small fractional density changes.
 
-    Validation (planned): V1 sign equals −sign(N^2) from :func:`brunt_vaisala_sq`; V7 c → ∞ gives drho/dz. Label: pending.
+    Validation: V1 sign equals −sign(N^2) from :func:`brunt_vaisala_sq` on 200 random gradients (seed 11); V7 c → ∞
+    gives drho/dz (rel 1e-12). Label: analytic.
     """
     c = np.asarray(c, dtype=float)
     require_positive("c", c)

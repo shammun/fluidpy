@@ -1,32 +1,19 @@
 <!DOCTYPE html>
-<!--
-  fluidpy interactive explainer — TEMPLATE.  Create a new one with:
-      .venv/Scripts/python.exe tools/new_viz.py chNN <slug> --title "..." --concept "..."
-  which copies this file to viz/chNN/<slug>.html, fills the meta tags and inlines assets/viz_base.css + assets/viz_lib.js.
-
-  Contract (checked by tools/viz_lint.py and tools/shot.py; see .claude/skills/interactive-viz/SKILL.md):
-    * self-contained: no external files except KaTeX (loaded by viz_lib from a CDN, with a text fallback);
-    * fits the window with NO scrolling at 360x640, 390x844, 844x390, 768x1024, 1280x720, 1366x768, 1920x1080
-      and the notebook size 1000x700 — content that does not fit goes into a tab or a pager, never a scrollbar;
-    * a guided walkthrough (4–8 steps), the equations it shows (with book equation numbers) and live substitutions;
-    * physics mirrors a tested fluidpy function and proves it with selftest() parity rows (py = a Python expression).
-  Never paste book text, figures or tables here: explanations in our own words, equations cited by number.
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>__TITLE__</title>
-<meta name="viz:chapter" content="__CHAPTER__">
-<meta name="viz:slug" content="__SLUG__">
-<meta name="viz:order" content="__ORDER__">
-<meta name="viz:title" content="__TITLE__">
-<meta name="viz:summary" content="__SUMMARY__">
-<meta name="viz:concept" content="__CONCEPT__">
-<meta name="viz:sections" content="__SECTIONS__">
-<meta name="viz:equations" content="__EQUATIONS__">
-<meta name="viz:fluidpy" content="__FLUIDPY__">
-<meta name="viz:derivations" content="__DERIVATIONS__">
+<title>Same two states: what depends on the path?</title>
+<meta name="viz:chapter" content="ch01">
+<meta name="viz:slug" content="heat_work_paths">
+<meta name="viz:order" content="3">
+<meta name="viz:title" content="Same two states: what depends on the path?">
+<meta name="viz:summary" content="Take 1 kg of air between the same two states along different routes: heat and work change, internal energy and entropy do not, and friction breaks ds = dq/T.">
+<meta name="viz:concept" content="first law; heat and work as path functions; state functions; entropy and the Gibbs relations; isentropic law">
+<meta name="viz:sections" content="1.8, 1.9">
+<meta name="viz:equations" content="(1.10), (1.11), (1.16), (1.17), (1.18), (1.25)">
+<meta name="viz:fluidpy" content="ch01.process_path ch01.path_heat_work_totals ch01.process_heat_work ch01.entropy_change_reversible ch01.perfect_gas_entropy_change ch01.isentropic_pressure ch01.irreversible_process">
+<meta name="viz:derivations" content="D10 D14">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -467,7 +454,14 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* heat_work_paths: on phones the process chips move from the stage strip into Explore (the presets cover them) */
+  .viz-app[data-layout="portrait"] .viz-stage-top > .viz-seg,
+  .viz-app[data-layout="landscape"] .viz-stage-top > .viz-seg { display: none; }
+  /* short phones (360×640): the status line and view titles give their height to the two diagrams */
+  @media (max-height: 700px) {
+    .viz-app[data-layout="portrait"] .viz-status,
+    .viz-app[data-layout="portrait"] .viz-view-title { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -2030,93 +2024,871 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.__FLUIDPY__ (same symbols, same equation numbers, SI units).
+   PHYSICS — mirrors fluidpy.core.thermo (re-exported as ch01.*), same symbols, SI units, Kundu §1.8–1.9:
+     processPath            ↔ ch01.process_path(kind, (v1, T1), (v2, T2), n, gamma, R)
+     legTotals / pathTotals ↔ ch01._leg_totals / ch01.path_heat_work_totals(kind, v1, T1, v2, T2, gamma, R)
+     runningTotals          ↔ ch01.process_heat_work(v_path, T_path, cv, R)      (cumulative trapezoid, w = −∫p dv)
+     entropyReversible      ↔ ch01.entropy_change_reversible(q_path, T_path)       Eq. (1.16)–(1.17)
+     entropyChange          ↔ ch01.perfect_gas_entropy_change(T1, v1, T2, v2, cv, R)  integrated Eq. (1.18)
+     irreversible           ↔ ch01.irreversible_process(kind, T1, v1, cv, R, T2, v2)   Clausius–Duhem, §1.8 (ii)
+     isentropicPressure     ↔ ch01.isentropic_pressure(rho, p0, rho0, gamma)        Eq. (1.25)
+   First-law sign (Eq. 1.10): q = heat added TO the gas, w = work done ON the gas, q + w = Δe.
    --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+const K_B = 1.380649e-23, N_A_KMOL = 6.02214076e26;
+const R_U = K_B * N_A_KMOL;                 // universal gas constant [J/(kmol K)]
+const R_AIR = R_U / 28.9644;                // gas constant of dry air [J/(kg K)] = 287.058
+const CV_AIR = R_AIR / (1.4 - 1);           // C_v of air [J/(kg K)] = 717.64
+const T1 = 300, P1 = 1e5;                   // fixed start state: 300 K, 1 bar
+const V1 = R_AIR * T1 / P1;                 // specific volume at the start [m³/kg] = 0.8612
+const GAS = { '7/5': 1.4, '5/3': 5 / 3 };
+const NLEG = 161;                           // samples per leg for drawing
+const ROUTES = [
+  ['isothermal', 'A · isothermal'], ['isochoric-isobaric', 'B · cool, then expand'], ['isobaric-isochoric', 'C · expand, then cool'],
+  ['isentropic-isochoric', 'D · isentrope + isochore'], ['isothermal-isochoric', 'E · isotherm + isochore']
+];
+const ROUTE_NAME = Object.fromEntries(ROUTES);
+
+function isclose(a, b, rtol) { return Math.abs(a - b) <= 1e-8 + rtol * Math.abs(b); }   // numpy.isclose
+function checkLeg(kind, va, Ta, vb, Tb, gamma) {
+  const ok = kind === 'isothermal' ? isclose(Ta, Tb, 1e-9) : kind === 'isochoric' ? isclose(va, vb, 1e-9)
+    : kind === 'isobaric' ? isclose(Ta / va, Tb / vb, 1e-9) : kind === 'isentropic' ? isclose(Ta * Math.pow(va, gamma - 1), Tb * Math.pow(vb, gamma - 1), 1e-9) : null;
+  if (ok === null) throw new Error('unknown process kind ' + kind);
+  if (!ok) throw new Error('a single ' + kind + ' leg cannot join the two states');
 }
+/** Corner state of a two-leg route (same as thermo._corner_state). */
+function cornerState(kind, v1, t1, v2, t2, gamma) {
+  if (kind === 'isochoric-isobaric') return [v1, t2 * v1 / v2];          // v fixed at v1, then p fixed at p2
+  if (kind === 'isobaric-isochoric') return [v2, t1 * v2 / v1];          // p fixed at p1 until v2, then v fixed
+  if (kind === 'isentropic-isochoric') return [v2, t1 * Math.pow(v1 / v2, gamma - 1)];   // T v^(γ−1) = const
+  if (kind === 'isothermal-isochoric') return [v2, t1];
+  throw new Error('unknown two-leg kind ' + kind);
+}
+/** A point on one leg at fraction f: uniform in v (in T for isochoric legs), exactly like process_path's sampling. */
+function legPoint(kind, va, Ta, vb, Tb, f, gamma) {
+  if (kind === 'isochoric') return [va, Ta + f * (Tb - Ta)];
+  const v = va + f * (vb - va);
+  if (kind === 'isothermal') return [v, Ta];
+  if (kind === 'isobaric') return [v, Ta * v / va];                     // p = RT/v constant
+  return [v, Ta * Math.pow(va / v, gamma - 1)];                          // isentropic, from (1.25) with pv = RT
+}
+function legSamples(kind, va, Ta, vb, Tb, n, gamma) {
+  const v = [], T = [];
+  for (let i = 0; i < n; i++) { const q = legPoint(kind, va, Ta, vb, Tb, i / (n - 1), gamma); v.push(q[0]); T.push(q[1]); }
+  return { v, T };
+}
+/** ch01.process_path: sampled reversible route, one leg or two legs meeting at a corner. */
+function processPath(kind, s1, s2, n = 401, gamma = 1.4, R = R_AIR) {
+  const [v1, t1] = s1, [v2, t2] = s2;
+  let v, T, corner = null;
+  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); ({ v, T } = legSamples(kind, v1, t1, v2, t2, n, gamma)); }
+  else {
+    const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
+    const A = legSamples(a, v1, t1, c[0], c[1], n, gamma), B = legSamples(b, c[0], c[1], v2, t2, n, gamma);
+    v = A.v.concat(B.v.slice(1)); T = A.T.concat(B.T.slice(1)); corner = n - 1;
+  }
+  return { v, T, p: v.map((x, i) => R * T[i] / x), corner };
+}
+/** Exact q, w, Δe, Δs of one reversible perfect-gas leg (thermo._leg_totals). */
+function legTotals(kind, va, Ta, vb, Tb, cv, R) {
+  const cp = cv + R, de = cv * (Tb - Ta);                                // Eq. (1.23); perfect gas de = C_v dT
+  let w, ds;
+  if (kind === 'isothermal') { w = -R * Ta * Math.log(vb / va); ds = R * Math.log(vb / va); }   // −∫p dv, p = RT/v
+  else if (kind === 'isochoric') { w = 0; ds = cv * Math.log(Tb / Ta); }
+  else if (kind === 'isobaric') { w = -R * (Tb - Ta); ds = cp * Math.log(Tb / Ta); }             // −p(v_b − v_a)
+  else if (kind === 'isentropic') { w = de; ds = 0; }                                             // q = 0
+  else throw new Error(kind);
+  const q = de - w;                                                      // Eq. (1.10): q + w = Δe
+  return { q, w, de, ds, int_dq_over_T: ds };
+}
+/** ch01.path_heat_work_totals */
+function pathTotals(kind, v1, t1, v2, t2, gamma = 1.4, R = R_AIR) {
+  const cv = R / (gamma - 1);
+  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); return legTotals(kind, v1, t1, v2, t2, cv, R); }
+  const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
+  const A = legTotals(a, v1, t1, c[0], c[1], cv, R), B = legTotals(b, c[0], c[1], v2, t2, cv, R);
+  const out = {}; Object.keys(A).forEach(k => { out[k] = A[k] + B[k]; }); return out;
+}
+/** ch01.process_heat_work: cumulative trapezoid w = −∫p dv, Δe = C_v(T − T0), q = Δe − w. */
+function runningTotals(v, T, cv = CV_AIR, R = R_AIR) {
+  const p = v.map((x, i) => R * T[i] / x), w = [0];
+  for (let i = 1; i < v.length; i++) w.push(w[i - 1] - 0.5 * (p[i] + p[i - 1]) * (v[i] - v[i - 1]));
+  const de = T.map(t => cv * (t - T[0]));
+  return { q: de.map((x, i) => x - w[i]), w, de, p };
+}
+/** ch01.entropy_change_reversible: trapezoid of dq/T (Eq. 1.17). */
+function entropyReversible(q, T, cumulative = false) {
+  const s = [0];
+  for (let i = 1; i < q.length; i++) s.push(s[i - 1] + 0.5 * (1 / T[i] + 1 / T[i - 1]) * (q[i] - q[i - 1]));
+  return cumulative ? s : s[s.length - 1];
+}
+/** ch01.perfect_gas_entropy_change: Δs = C_v ln(T2/T1) + R ln(v2/v1), integrated (1.18). */
+function entropyChange(t1, v1, t2, v2, cv = CV_AIR, R = R_AIR) { return cv * Math.log(t2 / t1) + R * Math.log(v2 / v1); }
+/** ch01.irreversible_process: stirring at fixed v, or free expansion at fixed T. */
+function irreversible(kind, t1, v1, cv = CV_AIR, R = R_AIR, t2 = null, v2 = null) {
+  if (kind === 'stirring') {
+    if (t2 === null || t2 < t1) throw new Error('stirring needs T2 >= T1');
+    const de = cv * (t2 - t1);
+    return { q: 0, w: de, de, ds: cv * Math.log(t2 / t1), int_dq_over_T: 0 };     // (1.18) at dv = 0
+  }
+  if (kind === 'free_expansion') {
+    if (v2 === null || v2 < v1) throw new Error('free expansion needs v2 >= v1');
+    return { q: 0, w: 0, de: 0, ds: R * Math.log(v2 / v1), int_dq_over_T: 0 };    // (1.18) at dT = 0
+  }
+  throw new Error('kind must be stirring or free_expansion');
+}
+/** ch01.isentropic_pressure: p = p0 (ρ/ρ0)^γ, Eq. (1.25). */
+function isentropicPressure(rho, p0, rho0, gamma = 1.4) { return p0 * Math.pow(rho / rho0, gamma); }
+
+/* ---------------------------------------------------------------------------------------------------
+   MODEL — everything the views, readouts and panels need for the current settings (cached)
+   --------------------------------------------------------------------------------------------------- */
+let _mkey = null, _model = null;
+function model(s) {
+  const key = [s.path, s.vr, s.Tr, s.gas, s.proc].join('|');
+  if (key === _mkey) return _model;
+  const gamma = GAS[s.gas] || 1.4, cv = R_AIR / (gamma - 1), cp = cv + R_AIR;
+  let vr = s.vr, Tr = s.Tr;
+  if (s.proc === 'stir') { vr = 1; Tr = Math.max(Tr, 1); }
+  if (s.proc === 'free') { Tr = 1; vr = Math.max(vr, 1); }
+  const v2 = vr * V1, T2 = Tr * T1;
+  const M = { gamma, cv, cp, v1: V1, T1, p1: P1, v2, T2, p2: R_AIR * T2 / v2, proc: s.proc, vr, Tr };
+  if (s.proc === 'rev') {
+    let kind = s.path;
+    if (kind === 'isothermal' && Math.abs(Tr - 1) > 1e-9) kind = 'isothermal-isochoric';
+    M.kind = kind;
+    const names = kind.split('-'), states = [[V1, T1]];
+    if (names.length === 2) states.push(cornerState(kind, V1, T1, v2, T2, gamma));
+    states.push([v2, T2]);
+    M.corner = names.length === 2 ? states[1] : null;
+    M.legs = names.map((k, i) => ({ kind: k, va: states[i][0], Ta: states[i][1], vb: states[i + 1][0], Tb: states[i + 1][1] }));
+    M.tot = pathTotals(kind, V1, T1, v2, T2, gamma, R_AIR);
+  } else if (s.proc === 'stir') {
+    M.kind = 'stir'; M.legs = [{ kind: 'stir', va: V1, Ta: T1, vb: V1, Tb: T2 }];
+    M.tot = irreversible('stirring', T1, V1, cv, R_AIR, T2, null);
+  } else {
+    M.kind = 'free'; M.legs = [{ kind: 'free', va: V1, Ta: T1, vb: v2, Tb: T1 }];
+    M.tot = irreversible('free_expansion', T1, V1, cv, R_AIR, null, v2);
+  }
+  M.ds = entropyChange(T1, V1, T2, v2, cv, R_AIR);                          // Gibbs, any process
+  M.de = cv * (T2 - T1);
+  // leg bookkeeping: exact totals, visual length (in ln v, ln T), samples; a zero-length leg (e.g. the pump preset's
+  // isochore) gets no share of the animation and is skipped when drawn
+  let Ltot = 0;
+  M.legs.forEach(L => {
+    L.len = Math.hypot(Math.log(L.vb / L.va), Math.log(L.Tb / L.Ta));
+    L.zero = L.len < 1e-9;
+    L.tot = s.proc === 'rev' ? legTotals(L.kind, L.va, L.Ta, L.vb, L.Tb, cv, R_AIR) : M.tot;
+    const pk = L.kind === 'stir' ? 'isochoric' : L.kind === 'free' ? 'isothermal' : L.kind;
+    L.pk = pk; L.smp = legSamples(pk, L.va, L.Ta, L.vb, L.Tb, NLEG, gamma);
+    L.smp.p = L.smp.v.map((x, i) => R_AIR * L.smp.T[i] / x);
+    L.smp.s = L.smp.v.map((x, i) => entropyChange(T1, V1, L.smp.T[i], x, cv, R_AIR));
+    Ltot += L.zero ? 0 : L.len;
+  });
+  let acc = 0;
+  M.legs.forEach((L, i) => { L.u0 = acc; acc += Ltot > 0 ? (L.zero ? 0 : L.len / Ltot) : (i === 0 ? 1 : 0); L.u1 = acc; });
+  // ghost routes between the same two states (reversible ones only)
+  M.ghosts = ROUTES.filter(r => r[0] !== 'isothermal' || Math.abs(Tr - 1) < 1e-9).map(r => {
+    const d = processPath(r[0], [V1, T1], [v2, T2], 121, gamma, R_AIR);
+    return { kind: r[0], name: r[1], v: d.v, p: d.p, s: d.v.map((x, i) => entropyChange(T1, V1, d.T[i], x, cv, R_AIR)), T: d.T, tot: pathTotals(r[0], V1, T1, v2, T2, gamma, R_AIR) };
+  });
+  // plot bounds
+  let vmax = Math.max(V1, v2), pmax = Math.max(P1, M.p2), smin = Math.min(0, M.ds), smax = Math.max(0, M.ds), Tmax = Math.max(T1, T2);
+  M.ghosts.concat(M.legs.map(L => ({ v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T }))).forEach(G => {
+    G.v.forEach((x, i) => { vmax = Math.max(vmax, x); pmax = Math.max(pmax, G.p[i]); smin = Math.min(smin, G.s[i]); smax = Math.max(smax, G.s[i]); Tmax = Math.max(Tmax, G.T[i]); });
+  });
+  M.vmax = vmax; M.pmax = pmax; M.smin = smin; M.smax = smax; M.Tmax = Tmax;
+  _mkey = key; _model = M;
+  return M;
+}
+/** The state at progress u ∈ [0, 1] along the route, with the running totals so far (exact, leg by leg). */
+function at(M, u) {
+  u = Math.max(0, Math.min(1, u));
+  let i = M.legs.findIndex(L => !L.zero && u <= L.u1 + 1e-12);
+  if (i < 0) i = M.legs.length - 1;
+  const L = M.legs[i], f = L.u1 > L.u0 ? (u - L.u0) / (L.u1 - L.u0) : 1;
+  const pt = legPoint(L.pk, L.va, L.Ta, L.vb, L.Tb, Math.max(0, Math.min(1, f)), M.gamma);
+  const v = pt[0], T = pt[1], out = { i, f, v, T, p: R_AIR * T / v, leg: L };
+  if (M.proc === 'rev') {
+    let q = 0, w = 0, de = 0;
+    for (let k = 0; k < i; k++) { q += M.legs[k].tot.q; w += M.legs[k].tot.w; de += M.legs[k].tot.de; }
+    const part = legTotals(L.kind, L.va, L.Ta, v, T, M.cv, R_AIR);
+    Object.assign(out, { q: q + part.q, w: w + part.w, de: de + part.de });
+    out.ds = entropyChange(T1, V1, T, v, M.cv, R_AIR); out.sint = out.ds;
+    out.dq = L.kind === 'isothermal' ? Math.sign(L.vb - L.va) : (L.kind === 'isochoric' || L.kind === 'isobaric') ? Math.sign(L.Tb - L.Ta) : 0;
+  } else if (M.proc === 'stir') {
+    const de = M.cv * (T - T1);
+    Object.assign(out, { q: 0, w: de, de, ds: M.cv * Math.log(T / T1), sint: 0, dq: 0 });
+  } else {
+    Object.assign(out, { q: 0, w: 0, de: 0, ds: R_AIR * Math.log(v / V1), sint: 0, dq: 0 });
+  }
+  return out;
+}
+/** Samples of the route up to progress u (for the bold "so far" curve), split by leg. */
+function soFar(M, u) {
+  const now = at(M, u);
+  return M.legs.map((L, k) => {
+    if (L.zero || k > now.i) return null;
+    if (k < now.i) return { L, v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T };
+    const m = Math.floor(now.f * (NLEG - 1)), v = L.smp.v.slice(0, m + 1), p = L.smp.p.slice(0, m + 1), s = L.smp.s.slice(0, m + 1), T = L.smp.T.slice(0, m + 1);
+    v.push(now.v); p.push(now.p); s.push(now.ds === undefined ? 0 : entropyChange(T1, V1, now.T, now.v, M.cv, R_AIR)); T.push(now.T);
+    return { L, v, p, s, T };
+  }).filter(Boolean);
+}
+/** Route samples (process_path with NLEG per leg) up to the sample nearest u, and the trapezoid totals there. */
+function trapezoidAt(M, u) {
+  if (M.proc !== 'rev') return null;
+  const now = at(M, u), v = [], T = [];
+  M.legs.forEach((L, k) => {
+    if (k > now.i) return;
+    const m = k < now.i ? NLEG - 1 : Math.round(now.f * (NLEG - 1));
+    for (let j = (v.length ? 1 : 0); j <= m; j++) { v.push(L.smp.v[j]); T.push(L.smp.T[j]); }
+  });
+  if (v.length < 2) return { k: v.length, w: 0, q: 0, de: 0, v: v[0] || V1, T: T[0] || T1 };
+  const r = runningTotals(v, T, M.cv, R_AIR), n = v.length - 1;
+  return { k: v.length, w: r.w[n], q: r.q[n], de: r.de[n], v: v[n], T: T[n] };
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   small drawing helpers (local; candidates for viz_lib)
+   --------------------------------------------------------------------------------------------------- */
+const f3 = (v, sig) => Viz.fmt(v, { sig: sig || 3 });
+const tn = (v, sig) => Viz.tnum(v, sig || 3);
+const tp = (v, sig) => (v < 0 ? '(' + tn(v, sig) + ')' : tn(v, sig));   // negative factors in parentheses
+const kJ = v => Viz.fmt(v / 1000, { sig: 3 });
+const _hatch = {};
+/** A diagonal-hatch canvas pattern in a colour (for "negative" areas: work done on the gas, heat rejected). */
+function hatchPattern(ctx, color) {
+  if (!_hatch[color]) { const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.strokeStyle = color; x.lineWidth = 1.6; x.beginPath(); x.moveTo(-1, 9); x.lineTo(9, -1); x.stroke(); _hatch[color] = c; }
+  return ctx.createPattern(_hatch[color], 'repeat');
+}
+/** Fill the area between a curve (xs, ys) and the line y = base, with a colour or a pattern. */
+function fillUnder(P, xs, ys, base, fill, alpha) {
+  if (xs.length < 2) return;
+  const ctx = P.ctx; ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.fillStyle = fill; ctx.beginPath();
+  ctx.moveTo(P.X(xs[0]), P.Y(base)); xs.forEach((x, i) => ctx.lineTo(P.X(x), P.Y(ys[i]))); ctx.lineTo(P.X(xs[xs.length - 1]), P.Y(base)); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+/** Temperature colour: blue (cold) → orange (hot). */
+function tempColor(T, a) {
+  const t = Math.max(0, Math.min(1, (T - 120) / (620 - 120))), c0 = [37, 99, 235], c1 = [249, 115, 22];
+  return `rgba(${Math.round(c0[0] + (c1[0] - c0[0]) * t)},${Math.round(c0[1] + (c1[1] - c0[1]) * t)},${Math.round(c0[2] + (c1[2] - c0[2]) * t)},${a === undefined ? 1 : a})`;
+}
+function canvasText(ctx, str, x, y, o) {
+  o = o || {}; ctx.save(); ctx.font = (o.weight || 600) + ' ' + (o.size || 12.5) + 'px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.baseline || 'middle';
+  if (o.halo !== false) { ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.9); ctx.strokeText(str, x, y); }
+  ctx.fillStyle = o.color || Viz.color('text'); ctx.fillText(str, x, y); ctx.restore();
+}
+const PV_BOUNDS = M => ({ xlim: [0, M.proc === 'stir' ? 2 * V1 : M.vmax * 1.1], ylim: [0, M.pmax / 1000 * 1.25] });
+const TS_BOUNDS = M => { const span = Math.max(40, M.smax - M.smin); return { xlim: [M.smin - 0.12 * span, M.smax + 0.12 * span], ylim: [0, M.Tmax * 1.16] }; };
+function nearestU(M, P, px, py, key) {           // progress u of the route sample nearest to a pixel
+  let best = null, bd = Infinity;
+  M.legs.forEach(L => {
+    if (L.zero) return;
+    for (let j = 0; j < NLEG; j++) {
+      const x = key === 'pv' ? L.smp.v[j] : L.smp.s[j], y = key === 'pv' ? L.smp.p[j] / 1000 : L.smp.T[j];
+      const d = Math.hypot(P.X(x) - px, P.Y(y) - py);
+      if (d < bd) { bd = d; best = L.u0 + (L.u1 - L.u0) * j / (NLEG - 1); }
+    }
+  });
+  return bd < 40 ? best : null;
+}
+/** The physical system: a cylinder with a piston (reversible), a stirred rigid tank, or a tank with a burst membrane. */
+function drawGas(vg, g, s, M, now) {
+  const ctx = vg.ctx, W = vg.w, H = vg.h;
+  const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), text = Viz.color('text');
+  const rc = W < 420 ? Math.min(128, W * 0.38) : Math.min(190, W * 0.3);
+  const x0 = 14, x1 = W - rc - 48;
+  const capH = H >= 110 ? 20 : 0;
+  const ch = Math.max(26, Math.min(H - 44 - capH, Math.max(124, H * 0.58))), y0 = Math.max(6, (H - ch + capH) / 2 - 7), y1 = y0 + ch;
+  g.gasBox = { x0, x1 };
+  const L = now.leg, rev = M.proc === 'rev';
+  let vScale = 0; M.legs.forEach(Lg => Lg.smp.v.forEach(v => { vScale = Math.max(vScale, v); }));
+  vScale *= 1.08;
+  const insulated = !rev || L.kind === 'isentropic';
+  // insulation jacket
+  if (insulated) {
+    ctx.save(); ctx.fillStyle = hatchPattern(ctx, Viz.alpha(muted, 0.5));
+    ctx.fillRect(x0 - 8, y0 - 8, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y1, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y0, 8, ch);
+    if (!rev) ctx.fillRect(x1, y0, 8, ch);
+    ctx.restore();
+  }
+  // gas region
+  let gx0 = x0, gx1;
+  if (rev) gx1 = x0 + (now.v / vScale) * (x1 - x0);
+  else if (M.proc === 'stir') gx1 = x1;
+  else gx1 = x0 + (now.v / M.v2) * (x1 - x0);
+  ctx.save();
+  if (M.proc === 'free') { ctx.fillStyle = Viz.alpha(muted, 0.07); ctx.fillRect(x0, y0, x1 - x0, ch); }
+  ctx.fillStyle = tempColor(now.T, 0.42); ctx.fillRect(gx0, y0, Math.max(0, gx1 - gx0), ch);
+  // molecules
+  const dotC = tempColor(now.T, 0.95);
+  ctx.fillStyle = dotC;
+  (g.mol || []).forEach(m => { const X = gx0 + 3 + m.x * Math.max(0, gx1 - gx0 - 6), Y = y0 + 3 + m.y * (ch - 6); ctx.beginPath(); ctx.arc(X, Y, 2.2, 0, 2 * Math.PI); ctx.fill(); });
+  // walls
+  ctx.strokeStyle = text; ctx.lineWidth = 2.5; ctx.beginPath();
+  ctx.moveTo(x1 + (rev ? 26 : 0), y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1 + (rev ? 26 : 0), y1);
+  if (!rev) { ctx.moveTo(x1, y0); ctx.lineTo(x1, y1); }
+  ctx.stroke();
+  ctx.restore();
+  if (rev) {
+    // piston + rod
+    ctx.save(); ctx.fillStyle = Viz.alpha(muted, 0.85); ctx.fillRect(gx1, y0 + 1, 9, ch - 2);
+    ctx.fillRect(gx1 + 9, (y0 + y1) / 2 - 3, Math.max(0, x1 + 34 - gx1 - 9), 6); ctx.restore();
+    const dv = Math.sign(L.vb - L.va);
+    if (dv !== 0 && !L.zero) {
+      const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
+      const ya = y0 + 12;
+      P.arrow(gx1 + 4 - dv * 26, ya, dv * 22, 0, { color: blue, width: 2.5 });
+    }
+  } else if (M.proc === 'stir') {
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, r = Math.min(ch * 0.36, (x1 - x0) * 0.2), a = g.angle || 0;
+    ctx.save(); ctx.strokeStyle = text; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, y0 - 10); ctx.lineTo(cx, cy); ctx.stroke();
+    ctx.lineWidth = 4; ctx.strokeStyle = Viz.color('rose');
+    for (let k = 0; k < 3; k++) { const b = a + k * 2 * Math.PI / 3; ctx.beginPath(); ctx.moveTo(cx - r * Math.cos(b), cy - 0.45 * r * Math.sin(b)); ctx.lineTo(cx + r * Math.cos(b), cy + 0.45 * r * Math.sin(b)); ctx.stroke(); }
+    ctx.restore();
+  } else {
+    const xm = x0 + (V1 / M.v2) * (x1 - x0);
+    ctx.save(); ctx.strokeStyle = Viz.color('rose'); ctx.lineWidth = 2;
+    if (s.prog < 0.02) { ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y1); ctx.stroke(); }
+    else { ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y0 + ch * 0.25); ctx.moveTo(xm, y1 - ch * 0.25); ctx.lineTo(xm, y1); ctx.stroke(); }
+    ctx.restore();
+    if (gx1 < x1 - 40 && x1 - xm > 50) canvasText(ctx, 'vacuum', (Math.max(gx1, xm) + x1) / 2, (y0 + y1) / 2, { align: 'center', color: muted, size: 12, weight: 500 });
+  }
+  // heater / cooler under the cylinder
+  if (rev && !insulated && !L.zero) {
+    const on = now.dq, col = on > 0 ? orange : on < 0 ? blue : Viz.alpha(muted, 0.5), n = Math.max(3, Math.floor((x1 - x0) / 34));
+    const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
+    for (let k = 0; k < n; k++) {
+      const X = x0 + (k + 0.5) * (x1 - x0) / n;
+      if (on > 0) P.arrow(X, Math.min(H - 2, y1 + 17), 0, -14, { color: col, width: 2.2, head: 6 });
+      else if (on < 0) P.arrow(X, y1 + 3, 0, 14, { color: col, width: 2.2, head: 6 });
+    }
+  }
+  // caption: what the boundary is doing right now
+  if (capH) {
+    const live = M.legs.filter(Lg => !Lg.zero), li = live.indexOf(L);
+    const cap = rev ? (L.zero ? 'no change' : `${live.length > 1 ? 'leg ' + (li + 1) + ' of ' + live.length + ' · ' : ''}${L.kind} · ${now.dq > 0 ? 'heater on: heat flows in' : now.dq < 0 ? 'cooler on: heat flows out' : 'insulated: no heat'}`)
+      : M.proc === 'stir' ? 'rigid, insulated tank · only paddle work goes in' : (s.prog < 0.02 ? 'insulated · membrane holds the gas · vacuum beyond' : 'membrane burst · no heat, no work');
+    canvasText(ctx, cap, x0 - 6, Math.max(9, y0 - 19), { color: now.dq > 0 && rev ? orange : now.dq < 0 && rev ? blue : muted, size: 12.5, weight: 600 });
+  }
+  // counters
+  const cx = W - rc - 4, lh = H < 96 ? 15 : 18, lines = [
+    [`q = ${kJ(now.q)} kJ/kg`, orange], [`w = ${kJ(now.w)} kJ/kg`, blue], [`Δe = ${kJ(now.de)} kJ/kg`, accent], [`Δs = ${f3(now.ds)} J/(kg K)`, text]
+  ].slice(0, H < 70 ? 3 : 4);
+  const top = H / 2 - (lines.length - 1) * lh / 2;
+  lines.forEach((ln, k) => canvasText(ctx, ln[0], cx, top + k * lh * (H > 260 ? 1.2 : 1), { color: ln[1], size: H > 260 ? 14.5 : 12.5, weight: 650 }));
+}
+/** Local pointer layer. The library's canvas listener assigns ev.view, a read-only UIEvent property, which throws in
+    strict mode; so we listen on each view's holder in the capture phase, handle the event here and stop it before it
+    reaches the canvas. Click the p–v or T–s route → probe + move the dot; drag sideways on the gas → scrub. */
+function installPointer(g) {
+  g.views.forEach(v => {
+    let down = false;
+    const handle = e => {
+      const r = v.canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, a = g.app, s = a.state, M = model(s);
+      e.stopPropagation();
+      if (e.type === 'pointerdown') { down = true; try { v.holder.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+      if (e.type === 'pointerup' || e.type === 'pointercancel') { down = false; return; }
+      if (v.id === 'gas') {
+        if (e.type === 'pointerdown' || (e.type === 'pointermove' && down)) {
+          const bx = g.gasBox || { x0: 14, x1: v.w * 0.6 };
+          if (e.type === 'pointerdown') a.play(false);
+          a.set('prog', Math.max(0, Math.min(1, (x - bx.x0) / Math.max(20, bx.x1 - bx.x0))));
+        }
+        return;
+      }
+      if (e.type !== 'pointerdown' || !M.legs.some(L => !L.zero)) return;
+      const P = v.plot(v.id === 'pv' ? PV_BOUNDS(M) : TS_BOUNDS(M));
+      const u = nearestU(M, P, x, y, v.id);
+      if (u === null) return;
+      a.play(false); a.set({ prog: u, probe: u });
+    };
+    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(t => v.holder.addEventListener(t, handle, true));
+    ['pointerleave', 'pointerenter', 'pointerover', 'pointerout'].forEach(t => v.holder.addEventListener(t, e => e.stopPropagation(), true));
+    if (v.id === 'gas') v.holder.style.touchAction = 'none';
+    v.holder.style.cursor = v.id === 'gas' ? 'ew-resize' : 'crosshair';
+  });
+}
+const PRESET_PUMP_TR = Math.pow(2, 0.4);     // T2/T1 on the isentrope for v2/v1 = 1/2 (γ = 1.4): the isochore has zero length
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
 const app = Viz.app({
-  title: '__TITLE__',
-  subtitle: '__SUMMARY__',
+  title: 'Same two states: what depends on the path?',
+  subtitle: '1 kg of air from the same start to the same end by different routes: heat and work change, Δe and Δs do not',
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    path: { type: 'select', label: 'Route', options: ROUTES, value: 'isothermal' },
+    vr: { label: 'Volume ratio $v_2/v_1$', min: 0.25, max: 4, step: 0.05, value: 2, help: 'end volume over start volume' },
+    Tr: { label: 'Temperature ratio $T_2/T_1$', min: 0.5, max: 2, step: 0.05, value: 1, help: 'end temperature over 300 K' },
+    gas: { type: 'select', label: 'Gas', options: [['7/5', 'diatomic γ = 7/5'], ['5/3', 'monatomic γ = 5/3']], value: '7/5', display: 'chips' },
+    proc: { type: 'select', label: 'Process', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']], value: 'rev', display: 'chips' },
+    prog: { label: 'Progress along the route', min: 0, max: 1, step: 'any', value: 0, optional: true, fmt: v => Math.round(v * 100) + ' %' }
+  },
+  transport: { param: 'prog', min: 0, max: 1, rate: 0.2, end: 'hold', hold: 2.2 },
+  modes: { param: 'proc', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']] },
+  presets: [
+    { label: 'iso ×2', set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev' }, title: 'route A: isothermal expansion to twice the volume' },
+    { label: 'cool→expand', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route B: same end states' },
+    { label: 'expand→cool', set: { path: 'isobaric-isochoric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route C: same end states' },
+    { label: 'pump', set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev' }, title: 'isentropic compression to half the volume' },
+    { label: 'stir', set: { proc: 'stir', vr: 1, Tr: 1.2 }, title: 'insulated rigid tank, paddle work' },
+    { label: 'free exp.', set: { proc: 'free', vr: 2, Tr: 1 }, title: 'insulated gas bursts into vacuum' }
+  ],
+  status: s => {
+    const M = model(s);
+    if (s.proc === 'rev') return { text: `🔁 q = ${kJ(M.tot.q)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) (any route)`, tone: 'info' };
+    return { text: `⚠️ irreversible: Δs = ${f3(M.ds)} > ∫δq/T = 0`, tone: 'warn' };
+  },
+  onChange(s, key, a) {
+    if (key === 'path' && s.proc !== 'rev') a.set('proc', 'rev');
+    if (key === 'path' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('Tr', 1);
+    if (key === 'Tr' && s.proc === 'rev' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('path', 'isothermal-isochoric');
+    if (key === 'proc' && s.proc === 'stir') a.set({ vr: 1, Tr: s.Tr > 1 ? s.Tr : 1.2 });
+    if (key === 'proc' && s.proc === 'free') a.set({ Tr: 1, vr: s.vr > 1 ? s.vr : 2 });
+    if (key === 'vr' && s.proc === 'stir' && Math.abs(s.vr - 1) > 1e-9) a.set('proc', 'rev');
+    if (key === 'Tr' && s.proc === 'stir' && s.Tr < 1) a.set('proc', 'rev');
+    if (key === 'Tr' && s.proc === 'free' && Math.abs(s.Tr - 1) > 1e-9) a.set('proc', 'rev');
+    if (key === 'vr' && s.proc === 'free' && s.vr < 1) a.set('proc', 'rev');
+    if (key === 'probe') return;
+    if (key !== 'prog' && key !== 'speed' && key !== 'focus') a.set('probe', null);
   },
   readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+    { id: 'q', label: 'Heat in so far $q$', unit: 'kJ/kg', value: s => at(model(s), s.prog).q / 1000 },
+    { id: 'w', label: 'Work on gas $w$', unit: 'kJ/kg', value: s => at(model(s), s.prog).w / 1000 },
+    { id: 'de', label: 'Change $\\Delta e$', unit: 'kJ/kg', value: s => at(model(s), s.prog).de / 1000 },
+    { id: 'ds', label: '$\\Delta s$ (Gibbs)', unit: 'J/(kg K)', value: s => at(model(s), s.prog).ds },
+    { id: 'sint', label: '$\\int \\delta q/T$ so far', unit: 'J/(kg K)', value: s => at(model(s), s.prog).sint },
+    { id: 'p', label: 'Pressure $p$', unit: 'kPa', value: s => at(model(s), s.prog).p / 1000, optional: true }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
+  terms: {
+    title: 'Energy so far (first law)', unit: 'kJ/kg',
+    items: [
+      { id: 'q', label: 'heat added $q$', color: '#f97316', value: s => at(model(s), s.prog).q / 1000 },
+      { id: 'w', label: 'work on the gas $w$', color: '#2563eb', value: s => at(model(s), s.prog).w / 1000 },
+      { id: 'de', label: 'internal energy $\\Delta e$', color: '#6c5ce7', value: s => at(model(s), s.prog).de / 1000 }
+    ],
+    total: { label: '$q + w$ (must equal $\\Delta e$)', value: s => { const n = at(model(s), s.prog); return (n.q + n.w) / 1000; } }
+  },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    rows: [1.15, 1],
+    views: [
+      { id: 'pv', row: 0, flex: 1, title: '<b>p–v</b> · area under the route = work by the gas' },
+      { id: 'ts', row: 0, flex: 1, hidePortrait: true, title: '<b>T–s</b> · area under the route = heat' },
+      { id: 'gas', row: 1, flex: 1, title: s => { const n = at(model(s), s.prog); return `<b>The gas</b> · T = ${f3(n.T)} K · p = ${f3(n.p / 1000)} kPa · drag sideways to scrub`; } }
+    ],
+    setup(g) {
+      installPointer(g);
+      const rnd = Viz.rng(7); g.mol = [];
+      for (let i = 0; i < 42; i++) { const a = rnd() * 2 * Math.PI; g.mol.push({ x: rnd(), y: rnd(), dx: Math.cos(a), dy: Math.sin(a) }); }
+      g.angle = 0;
+    },
+    step(g, s, dt) {
+      const n = at(model(s), s.prog), sp = 0.55 * Math.sqrt(n.T / 300);
+      (g.mol || []).forEach(m => {
+        m.x += m.dx * sp * dt; m.y += m.dy * sp * dt * 2;
+        if (m.x < 0) { m.x = -m.x; m.dx = -m.dx; } if (m.x > 1) { m.x = 2 - m.x; m.dx = -m.dx; }
+        if (m.y < 0) { m.y = -m.y; m.dy = -m.dy; } if (m.y > 1) { m.y = 2 - m.y; m.dy = -m.dy; }
+      });
+      g.angle = (g.angle || 0) + dt * 6;
+    },
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
-    }
+      const M = model(s), now = at(M, s.prog), parts = soFar(M, s.prog);
+      const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), rose = Viz.color('rose'), teal = Viz.color('teal');
+      const rev = M.proc === 'rev';
+      /* ---------------- p–v diagram ---------------- */
+      const vp = g.view('pv'); vp.clear();
+      if (vp.w > 40 && vp.h > 40) {
+        const B = PV_BOUNDS(M), small = vp.w < 330;
+        const P = vp.plot(Object.assign({ xlabel: 'v [m³/kg]', ylabel: 'p [kPa]' }, B)).axes();
+        P.clip(() => {
+          const x0 = M.vmax * 0.06;
+          P.fn(v => R_AIR * T1 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
+          if (Math.abs(M.T2 - T1) > 1e-6) P.fn(v => R_AIR * M.T2 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
+          P.fn(v => isentropicPressure(V1 / v, P1, 1 / V1, M.gamma) / 1000, { x0: M.vmax * 0.12, color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
+          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.v, G.p.map(x => x / 1000), { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
+          if (rev) {
+            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.v, L.smp.p.map(x => x / 1000), { color: Viz.alpha(blue, 0.3), width: 2 }); });
+            parts.forEach(pt => {
+              const pk = pt.p.map(x => x / 1000);
+              if (pt.L.vb > pt.L.va) fillUnder(P, pt.v, pk, 0, Viz.alpha(blue, 0.2));
+              else if (pt.L.vb < pt.L.va) { fillUnder(P, pt.v, pk, 0, hatchPattern(P.ctx, Viz.alpha(blue, 0.55))); }
+              P.line(pt.v, pk, { color: blue, width: 3 });
+            });
+          } else {
+            P.line([V1, M.v2], [P1 / 1000, M.p2 / 1000], { color: rose, width: 2, dash: [6, 5] });
+          }
+        });
+        if (!small && vp.h >= 190 && M.proc !== 'stir') {
+          const lx = P.px.x + P.px.w - 8;
+          [['isotherms T₁, T₂', Viz.color('amber')], ['isentrope through 1', teal], ['other routes', muted]].concat(rev && M.legs.some(Lg => !Lg.zero && Lg.vb < Lg.va) ? [['hatched: work done on the gas', blue]] : []).forEach((it, k) =>
+            canvasText(P.ctx, it[0], lx, P.px.y + 12 + k * 16, { color: it[1], align: 'right', size: 12, weight: 500 }));
+        }
+        if (!small && !rev) {
+          canvasText(P.ctx, 'no equilibrium path', (P.X(V1) + P.X(M.v2)) / 2 + 16,(P.Y(P1 / 1000) + P.Y(M.p2 / 1000)) / 2 - 12, { color: rose, size: 12 });
+        }
+        P.dot(V1, P1 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
+        P.dot(M.v2, M.p2 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
+        canvasText(P.ctx, '1', P.X(V1) + 7, P.Y(P1 / 1000) - 10, { size: 13 });
+        canvasText(P.ctx, '2', P.X(M.v2) + 7, P.Y(M.p2 / 1000) - 10, { size: 13 });
+        if (rev && M.corner && !M.legs.some(L => L.zero)) P.dot(M.corner[0], R_AIR * M.corner[1] / M.corner[0] / 1000, 4, { color: muted });
+        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.v, pr.p / 1000, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
+        P.dot(now.v, now.p / 1000, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });
+        if (g.app.holding && !small) {
+          const txt = rev ? `route done: q = ${kJ(M.tot.q)}, w = ${kJ(M.tot.w)}, Δe = ${kJ(M.tot.de)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K)`
+            : `done: q = 0, w = ${kJ(M.tot.w)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) > ∫δq/T = 0`;
+          canvasText(P.ctx, txt, P.px.x + P.px.w / 2, P.px.y + 12, { align: 'center', color: accent, size: 12.5, weight: 650 });
+        }
+      }
+      /* ---------------- T–s diagram ---------------- */
+      const vt = g.view('ts'); vt.clear();
+      if (vt.el.offsetParent && vt.w > 40 && vt.h > 40) {
+        const B = TS_BOUNDS(M), small = vt.w < 330;
+        const P = vt.plot(Object.assign({ xlabel: 's − s₁ [J/(kg K)]', ylabel: 'T [K]' }, B)).axes();
+        P.clip(() => {
+          P.line([0, 0], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
+          if (Math.abs(M.ds) > 1e-9) P.line([M.ds, M.ds], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
+          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.s, G.T, { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
+          if (rev) {
+            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.s, L.smp.T, { color: Viz.alpha(orange, 0.3), width: 2 }); });
+            parts.forEach(pt => {
+              const ds = pt.L.tot.ds;
+              if (ds > 1e-9) fillUnder(P, pt.s, pt.T, 0, Viz.alpha(orange, 0.2));
+              else if (ds < -1e-9) fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(orange, 0.6)));
+              P.line(pt.s, pt.T, { color: orange, width: 3 });
+            });
+          } else if (M.proc === 'stir') {
+            const L = M.legs[0];
+            parts.forEach(pt => { fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(rose, 0.45))); P.line(pt.s, pt.T, { color: rose, width: 2.5, dash: [6, 4] }); });
+            P.line(L.smp.s, L.smp.T, { color: Viz.alpha(rose, 0.3), width: 2, dash: [6, 4] });
+          } else {
+            P.line([0, M.ds], [T1, T1], { color: rose, width: 2.5, dash: [6, 5] });
+          }
+        });
+        if (!small) {
+          canvasText(P.ctx, 'isentropes (s fixed)', P.X(0) + 5, P.px.y + 12, { color: teal, size: 12, weight: 500 });
+          const lab = rev ? (M.legs.every(Lg => Lg.zero || Math.abs(Lg.tot.q) < 1e-6) ? 'no heat: the route is vertical' : M.legs.some(Lg => !Lg.zero && Lg.tot.ds < -1e-9) ? 'shaded = heat in · hatched = out' : 'shaded = heat in') : M.proc === 'stir' ? 'area ≠ heat: q = 0' : 'q = 0, yet s rises';
+          canvasText(P.ctx, lab, P.px.x + P.px.w - 6, P.px.y + P.px.h - 12, { color: rev ? orange : rose, align: 'right', size: 12 });
+        }
+        P.dot(0, T1, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
+        P.dot(M.ds, M.T2, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
+        canvasText(P.ctx, '1', P.X(0) + 7, P.Y(T1) - 10, { size: 13 });
+        canvasText(P.ctx, '2', P.X(M.ds) + 7, P.Y(M.T2) - 10, { size: 13 });
+        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.ds, pr.T, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
+        P.dot(now.ds, now.T, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });
+      }
+      /* ---------------- the gas ---------------- */
+      const vg = g.view('gas'); vg.clear();
+      if (vg.w > 40 && vg.h > 40) drawGas(vg, g, s, M, now);
+    },
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Pick a route, press ▶ and watch the heater, the <b class="c-blue">work area</b> and the <b class="c-orange">heat area</b>. Grey curves are the other routes between the same two states.',
+    controls: ['path', 'vr', 'Tr', 'gas', 'proc'],
+    readouts: ['q', 'w', 'de', 'ds', 'sint', 'p'],
+    callouts: [{ kind: 'try', html: 'Play routes A, B and C in turn. The bars for $q$ and $w$ change; $\\Delta e$ and $\\Delta s$ at the end never do.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  inspect: s => {
+    if (s.probe === null || s.probe === undefined) return null;
+    const M = model(s), n = at(M, s.probe);
+    if (M.proc !== 'rev') return `At ${Math.round(s.probe * 100)} % the gas is not in equilibrium: no single $p$ or $T$ describes it, so $-\\int p\\,dv$ is undefined. Only the end states count: $\\Delta s = ${tn(M.ds)}$ J/(kg K).`;
+    const tr = trapezoidAt(M, s.probe);
+    return `$p = RT/v = ${tn(R_AIR, 5)} \\times ${tn(n.T, 4)} / ${tn(n.v, 4)} = \\mathbf{${tn(n.p / 1000, 4)}}$ kPa<br>` +
+      `$w = -\\int p\\,dv \\approx ${tn(tr.w / 1000, 4)}$ kJ/kg (trapezoid, ${tr.k} samples; exact ${Viz.fmt(n.w / 1000, { sig: 4 })})<br>` +
+      `$\\Delta e = C_v(T - T_1) = ${tn(M.cv, 4)} \\times ${tp(n.T - T1, 4)} = ${tn(n.de / 1000, 4)}$ kJ/kg<br>` +
+      `$q = \\Delta e - w = ${tn(n.de / 1000, 4)} - (${tn(n.w / 1000, 4)}) = \\mathbf{${tn(n.q / 1000, 4)}}$ kJ/kg`;
+  },
+  inspectHint: 'Click the route on the p–v or T–s diagram: the exact arithmetic at that point appears here.',
+  notes: s => {
+    const M = model(s), n = at(M, s.prog), L = n.leg;
+    if (M.proc === 'stir') return `<p>Insulated and rigid: no heat, no $p\\,dv$ work. The paddle's work ($w = ${kJ(n.w)}$ kJ/kg so far) stays in the gas as $\\Delta e$, and $s$ rises by $${tn(n.ds)}$ J/(kg K) with $\\int\\delta q/T = 0$.</p>`;
+    if (M.proc === 'free') return `<p>The membrane is gone: the gas rushes into vacuum. Nothing crosses the boundary ($q = w = 0$), $T$ ends where it started, yet $\\Delta s = R\\ln(v_2/v_1) = ${tn(M.ds)}$ J/(kg K).</p>`;
+    const leg = L.kind === 'isothermal' ? (n.dq > 0 ? 'heater on: the heat taken in leaves at once as work' : 'cooling: the work done on the gas leaves as heat')
+      : L.kind === 'isochoric' ? (n.dq > 0 ? 'volume fixed: all heat goes into $e$' : 'volume fixed: heat leaves, $e$ falls')
+      : L.kind === 'isobaric' ? (n.dq > 0 ? 'pressure fixed: heat raises $e$ and pushes the piston out' : 'pressure fixed: heat leaves and the piston moves in')
+      : 'insulated and slow: no heat, the work changes $e$ directly';
+    return `<p>Now on the <b>${L.kind}</b> leg: ${leg}. So far $q = ${kJ(n.q)}$, $w = ${kJ(n.w)}$ kJ/kg; at the end $\\Delta e = ${kJ(M.de)}$ kJ/kg whichever route you pick.</p>`;
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const W = Viz.work, M = model(s), rev = M.proc === 'rev';
+      let out = W.step(0, 'What the three windows show') +
+        W.say('The <b>gas</b> window is the system: 1 kg of air in a cylinder. The heater glows <span class="c-orange">orange</span> while heat goes in and turns <span class="c-blue">blue</span> while heat leaves; a hatched jacket means no heat can pass. ' +
+          'On the <b>p–v diagram</b> the <span class="c-blue">blue</span> area under the route is the work the gas does ($-w$). On the <b>T–s diagram</b> the <span class="c-orange">orange</span> area is the heat $q$. Grey curves are the other routes between the same states.') +
+        W.hint('On a phone the T–s diagram is hidden; turn the phone sideways to see it.');
+      out += W.step(1, 'The two end states') +
+        W.line(`$v_1 = RT_1/p_1 = ${tn(R_AIR, 5)} \\times 300 / 10^5$`, f3(V1, 4) + ' m³/kg', 'perfect gas, Eq. (1.22) with v = 1/ρ') +
+        W.line(`$v_2 = (v_2/v_1)\\,v_1 = ${tn(M.vr)} \\times ${tn(V1, 4)}$`, f3(M.v2, 4) + ' m³/kg', 'your volume ratio') +
+        W.line(`$T_2 = (T_2/T_1)\\,T_1 = ${tn(M.Tr, 4)} \\times 300$`, f3(M.T2, 4) + ' K') +
+        W.box(`$p_2 = RT_2/v_2 = ${tn(R_AIR, 5)} \\times ${tn(M.T2, 4)}/${tn(M.v2, 4)} = \\mathbf{${tn(M.p2 / 1000)}}$ kPa (start: 100 kPa)`);
+      out += W.step(2, 'Internal energy: a state function') +
+        W.line(`$C_v = R/(\\gamma - 1) = ${tn(R_AIR, 5)}/${tn(M.gamma - 1, 3)}$`, f3(M.cv, 4) + ' J/(kg K)', 'Eqs. (1.23)–(1.24)') +
+        W.box(`$\\Delta e = C_v(T_2 - T_1) = ${tn(M.cv, 4)} \\times ${tp(M.T2 - T1, 4)} = \\mathbf{${tn(M.de / 1000)}}$ kJ/kg`) +
+        W.say('For a perfect gas $e$ depends on $T$ only, so this number is the same for every route and for stirring or free expansion.');
+      if (rev) {
+        out += W.step(3, 'Work, leg by leg ($w = -\\int p\\,dv$)');
+        M.legs.forEach((L, k) => {
+          const lab = M.legs.length > 1 ? `leg ${k + 1} (${L.kind})` : L.kind;
+          let f;
+          if (L.zero) f = `${lab}: zero length, skipped`;
+          else if (L.kind === 'isothermal') f = `${lab}: $w = -RT\\ln(v_b/v_a) = -${tn(R_AIR, 4)} \\times ${tn(L.Ta, 4)} \\ln ${tn(L.vb / L.va, 4)}$`;
+          else if (L.kind === 'isochoric') f = `${lab}: $w = 0$ ($v$ fixed)`;
+          else if (L.kind === 'isobaric') f = `${lab}: $w = -p\\,\\Delta v = -${tn(R_AIR * L.Ta / L.va / 1000, 4)}\\,\\text{kPa} \\times ${tp(L.vb - L.va, 4)}$`;
+          else f = `${lab}: $w = C_v(T_b - T_a) = ${tn(M.cv, 4)} \\times ${tp(L.Tb - L.Ta, 4)}$`;
+          out += W.line(f, kJ(L.tot.w) + ' kJ/kg', L.kind === 'isentropic' ? `no heat, so w = Δe of the leg; corner T = T₁(v₁/v₂)^(γ−1) = ${f3(L.Tb, 4)} K` : L.kind === 'isobaric' ? 'p = RT/v is constant on this leg' : '');
+        });
+        out += W.box(`route total: $w = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg ${M.tot.w < 0 ? '(the gas does work on the piston)' : '(the piston does work on the gas)'}`);
+        const cur = ROUTES.findIndex(r => r[0] === M.kind);
+        const rows = ROUTES.map(r => {
+          if (r[0] === 'isothermal' && Math.abs(M.Tr - 1) > 1e-9) return [r[1], '—', '—', '—', 'needs T₂ = T₁'];
+          const t = pathTotals(r[0], V1, T1, M.v2, M.T2, M.gamma, R_AIR);
+          return [r[1], kJ(t.q), kJ(t.w), kJ(t.de), f3(t.ds)];
+        });
+        out += W.say('All five routes between your two states (kJ/kg; Δs in J/(kg K)):') +
+          W.table(['route', '$q$', '$w$', '$\\Delta e$', '$\\Delta s$'], rows, M.kind === 'isothermal-isochoric' && s.path === 'isothermal' ? 4 : cur);
+        out += W.step(4, 'Heat from the first law, Eq. (1.10)');
+        M.legs.forEach((L, k) => { if (!L.zero) out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'the leg'}: $q = \\Delta e - w = ${tn(L.tot.de / 1000, 4)} - (${tn(L.tot.w / 1000, 4)})$`, kJ(L.tot.q) + ' kJ/kg'); });
+        out += W.box(`$q = \\Delta e - w = ${tn(M.tot.de / 1000)} - (${tn(M.tot.w / 1000)}) = \\mathbf{${tn(M.tot.q / 1000)}}$ kJ/kg`);
+        out += W.step(5, 'Entropy two ways') +
+          W.line(`Gibbs (1.18): $\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)} + ${tn(R_AIR, 4)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)', 'only the end states enter');
+        M.legs.forEach((L, k) => {
+          if (L.zero) return;
+          const f = L.kind === 'isothermal' ? `$q/T = ${tn(L.tot.q, 4)}/${tn(L.Ta, 4)}$` : L.kind === 'isochoric' ? `$C_v\\ln(T_b/T_a) = ${tn(M.cv, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$`
+            : L.kind === 'isobaric' ? `$C_p\\ln(T_b/T_a) = ${tn(M.cp, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$` : '$0$ (no heat)';
+          out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'along the route'}: $\\int \\delta q/T =$ ${f}`, f3(L.tot.ds, 4) + ' J/(kg K)');
+        });
+        out += W.box(`$\\int_1^2 \\delta q/T = ${tn(M.tot.int_dq_over_T, 4)} = \\Delta s$: a state function, though $q$ is not`);
+        out += W.step(6, 'The T–s window') +
+          W.say(`On a reversible route $\\delta q = T\\,ds$ (1.17), so the <span class="c-orange">area under the route</span> is the heat: ${kJ(M.tot.q)} kJ/kg here. Heat taken in at low $T$ adds more entropy per joule than heat at high $T$; that weighting is why different $q$ give the same $\\Delta s$.`);
+      } else if (M.proc === 'stir') {
+        out += W.step(3, 'Where the energy comes from') +
+          W.line('$q$', '0', 'the jacket blocks heat') + W.line('$p\\,dv$ work', '0', 'the tank is rigid') +
+          W.box(`paddle work $w = \\Delta e = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg (1.10) — irreversible work, not $-p\\,dv$, so (1.11) does not apply`) +
+          W.step(4, 'Entropy two ways') +
+          W.line(`Gibbs (1.18) at $dv = 0$: $\\Delta s = C_v\\ln(T_2/T_1) = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)') +
+          W.line('actual $\\int \\delta q/T$', '0', 'no heat crossed the boundary') +
+          W.box(`$\\Delta s = ${tn(M.ds)} > \\int\\delta q/T = 0$: Clausius–Duhem, entropy made by friction`) +
+          W.step(5, 'The T–s window') + W.say('The dashed rose curve joins equilibrium states, but its area is <b>not</b> heat: here $T\\,ds = de$ is the stirring work (1.18).');
+      } else {
+        out += W.step(3, 'Nothing crosses the boundary') +
+          W.line('$q$', '0', 'insulated') + W.line('$w$', '0', 'the vacuum pushes back on nothing') +
+          W.box(`$\\Delta e = q + w = 0$, so $T_2 = T_1 = 300$ K ($e = e(T)$)`) +
+          W.step(4, 'Entropy two ways') +
+          W.line(`Gibbs (1.18) at $dT = 0$: $\\Delta s = R\\ln(v_2/v_1) = ${tn(R_AIR, 5)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 5) + ' J/(kg K)') +
+          W.line('actual $\\int \\delta q/T$', '0') +
+          W.box(`$\\Delta s = ${tn(M.ds, 5)} > 0$: an isolated system's entropy rose (§1.8 ii)`) +
+          W.step(5, 'The same end states, reversibly') +
+          W.say(`Route A (isothermal) reaches the same state with $q = ${kJ(R_AIR * T1 * Math.log(M.vr))}$ kJ/kg and the same $\\Delta s$: there the entropy arrives with heat, here it is created inside.`);
+      }
+      const nStep = rev ? 7 : 6;
+      out += W.step(nStep, 'At the current point') +
+        W.line('progress along the route', Viz.live('u') + ' %') +
+        W.line('$v$, $T$', Viz.live('v') + ' m³/kg, ' + Viz.live('T') + ' K', 'the orange dot') +
+        W.line('$p = RT/v$', Viz.live('p') + ' kPa') +
+        W.line('$q$, $w$ so far', Viz.live('q') + ', ' + Viz.live('w') + ' kJ/kg', 'the term bars') +
+        W.line('$s - s_1$ so far', Viz.live('ds') + ' J/(kg K)');
+      let say;
+      if (M.proc === 'stir') say = `Adiabatic is not isentropic. The paddle's ${kJ(M.tot.w)} kJ/kg of work warms the gas by ${f3(M.T2 - T1)} K exactly as heat would, but it also creates ${f3(M.ds)} J/(kg K) of entropy that no heat carried in. That is why $C_v$ cannot be defined as "heat per degree" without saying the process is reversible.`;
+      else if (M.proc === 'free') say = `Nothing crosses the boundary and yet entropy rises by $R\\ln(v_2/v_1) = ${f3(M.ds)}$ J/(kg K). The gas will never squeeze itself back: this one-way street is what the second law describes.`;
+      else if (M.kind === 'isothermal' || (M.kind === 'isothermal-isochoric' && Math.abs(M.Tr - 1) < 1e-9)) say = M.vr >= 1 ? `A slow expansion at constant $T$: $\\Delta e = 0$, so all ${kJ(M.tot.q)} kJ/kg of heat taken in leaves as work. Try route B: it reaches the same state with less heat.` : `A slow squeeze at constant $T$: the ${kJ(M.tot.w)} kJ/kg of work you do leaves as heat, and $s$ falls by ${f3(-M.ds)} J/(kg K).`;
+      else if (M.kind === 'isochoric-isobaric') say = `Cooling first means the expansion happens at the low pressure ${f3(M.corner ? R_AIR * M.corner[1] / M.corner[0] / 1000 : 0)} kPa: less work (${kJ(M.tot.w)} kJ/kg) and less net heat (${kJ(M.tot.q)} kJ/kg) than route A, with the same $\\Delta e$ and $\\Delta s$.`;
+      else if (M.kind === 'isobaric-isochoric') say = `Expanding first at the high start pressure gives the largest work area (${kJ(M.tot.w)} kJ/kg), paid for with the largest heat input; the gas then dumps heat at fixed volume.`;
+      else if (M.kind === 'isentropic-isochoric') say = M.vr < 1 ? `An insulated, frictionless squeeze: no heat, so the ${kJ(M.legs[0].tot.w)} kJ/kg of work stays in the gas and $T$ rises to ${f3(M.legs[0].Tb)} K. The route follows $p\\propto\\rho^{\\gamma}$, steeper than the isotherm.` : `The isentropic leg exchanges no heat; all the heat of this route (${kJ(M.tot.q)} kJ/kg) enters on the isochore, where the gas is coldest.`;
+      else say = `Isotherm then isochore: ${kJ(M.tot.q)} kJ/kg of heat in total for the same $\\Delta e = ${kJ(M.de)}$ kJ/kg.`;
+      out += W.interpret(say, 'Reading the current setting');
+      return out;
+    },
+    live: s => { const n = at(model(s), s.prog); return { u: Math.round(s.prog * 100), v: n.v.toFixed(3), T: n.T.toFixed(1), p: (n.p / 1000).toFixed(1), q: (n.q / 1000).toFixed(2), w: (n.w / 1000).toFixed(2), ds: n.ds.toFixed(1) }; }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D10', title: 'The Gibbs relations: removing heat from the first law', short: 'Gibbs (1.18)', ref: 'Eq. (1.18)', view: 'pv',
+      goal: 'Eliminate heat, which depends on the route, from the reversible first law, leaving relations between state functions only. Those relations then hold for <b>any</b> process.',
+      start: { tex: 'T\\,ds = dq \\quad\\text{and}\\quad de = dq - p\\,dv', plain: 'For a reversible change the heat received is $T\\,ds$ (1.17), and the first law with boundary work $-p\\,dv$ (1.11).' },
+      plan: ['Solve the first law for $dq$ and substitute into $T\\,ds = dq$.', 'Rewrite with enthalpy using the product rule.', 'Explain why a route-independent relation holds for every process.'],
+      uses: ['(1.17) $T\\,ds = dq$', '(1.11) $de = dq - p\\,dv$', '$h = e + pv$ (1.13)', 'differentials', 'product rule for differentials'],
+      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' },
+      steps: [
+        { did: 'Solve the reversible first law for $dq$', tex: 'dq = de + p\\,dv',
+          why: 'Add $p\\,dv$ to both sides of (1.11). We isolate $dq$ because it is the route-dependent quantity we want to replace.',
+          plain: 'Heat in = rise of internal energy + work done by the gas.' },
+        { did: 'Substitute into $T\\,ds = dq$', tex: 'T\\,ds = de + p\\,dv',
+          why: '(1.17) says the same $dq$ equals $T\\,ds$ on a reversible route; equal things can replace each other.',
+          plain: 'The first Gibbs relation: no heat left in it.',
+          live: s => { const M = model(s); return `\\int\\tfrac{de}{T} + \\int\\tfrac{p\\,dv}{T} = ${tn(M.cv * Math.log(M.Tr), 4)} + ${tn(R_AIR * Math.log(M.vr), 4)} = ${tn(M.ds, 4)}`; },
+          watch: 'Divided by $T$, both integrals need only the end states: $C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ J/(kg K).' },
+        { did: 'Differentiate the definition of enthalpy', tex: 'dh = de + d(pv)',
+          why: '$h = e + pv$ (1.13); the differential of a sum is the sum of the differentials. We want a second form written with $dh$.',
+          plain: 'A change in $h$ is a change in $e$ plus a change in $pv$.' },
+        { did: 'Apply the product rule', tex: 'dh = de + p\\,dv + v\\,dp',
+          why: '$d(pv) = p\\,dv + v\\,dp$ (product rule): both $p$ and $v$ may change along the way.',
+          plain: 'Both pressure and volume changes feed $pv$.', highlight: ['readout:de'] },
+        { did: 'Isolate $de + p\\,dv$', tex: 'de + p\\,dv = dh - v\\,dp',
+          why: 'Subtract $v\\,dp$ from both sides of step 4; the left side is exactly the right side of step 2.',
+          plain: 'The same combination written with enthalpy.' },
+        { did: 'Substitute into step 2', tex: 'T\\,ds = dh - v\\,dp',
+          why: 'Replace $de + p\\,dv$ by its equal from step 5.',
+          plain: 'The second Gibbs relation.',
+          live: s => { const M = model(s); return `C_p\\ln\\tfrac{T_2}{T_1} - R\\ln\\tfrac{p_2}{p_1} = ${tn(M.cp * Math.log(M.Tr), 4)} - (${tn(R_AIR * Math.log(M.p2 / P1), 4)}) = ${tn(M.ds, 4)}`; } },
+        { did: 'Drop the reversible restriction (any process)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
+          why: '$T, s, e, h, p, v$ are all state functions, so a relation between their changes cannot know which route took the fluid there; any irreversible change can be replaced by a reversible route between the same states. Only the reading $T\\,ds = dq$ is lost.',
+          plain: 'The relations hold for friction and stirring too, but then $T\\,ds$ is no longer the heat.',
+          set: { proc: 'stir', vr: 1, Tr: 1.2 },
+          live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 3)} = ${tn(M.ds, 4)}`; },
+          watch: 'Gibbs still gives $\\Delta s = C_v\\ln 1.2 \\approx 131$ J/(kg K) for stirring, although $\\delta q = 0$ (see the status line).' }
+      ],
+      result: { tex: '\\begin{aligned} T\\,ds &= de + p\\,dv \\\\ T\\,ds &= dh - v\\,dp \\end{aligned}', plain: 'Entropy changes are fixed by changes of energy (or enthalpy), volume and pressure, for any process.' },
+      interpret: s => { const M = model(s), a = M.cv * Math.log(M.Tr) + R_AIR * Math.log(M.vr), b = M.cp * Math.log(M.Tr) - R_AIR * Math.log(M.p2 / P1); return `For your end states $\\Delta s = ${tn(a, 5)}$ J/(kg K) from the first form and $${tn(b, 5)}$ from the second (difference ${Viz.fmt(Math.abs(a - b), { sig: 2 })}). ` + (M.proc === 'rev' ? 'On this reversible route the heat integral gives the same number.' : 'Here no heat entered, so $\\Delta s > \\int\\delta q/T = 0$.'); },
+      check: 'Units: J/kg on every term. Perfect gas, 300 → 600 K at constant p: form 1 gives C_v ln 2 + R ln 2 = 696.4 J/(kg K), form 2 gives C_p ln 2 − R ln 1 = 696.4. The notebook checks both residuals with sympy; the selftest compares Δs with ch01.perfect_gas_entropy_change.' },
+    { id: 'D14', title: 'The isentropic law $p/\\rho^\\gamma = $ const', short: 'Isentrope (1.25)', ref: 'Eq. (1.25)', view: 'pv',
+      goal: 'Find how pressure follows density when a perfect gas is compressed or expanded with no heat and no friction.',
+      start: { tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp', plain: 'The Gibbs relations (1.18), valid for any process.' },
+      plan: ['Set $ds = 0$ in both forms.', 'Use $e = e(T)$ and $h = h(T)$ to bring in $C_v$ and $C_p$.', 'Divide the two equations so $T$ drops out.', 'Switch from $v$ to $\\rho$ and integrate.'],
+      uses: ['Gibbs relations (D10)', '$e = e(T)$, $h = h(T)$ for a perfect gas', '$\\gamma = C_p/C_v$ (1.24)', 'separation of variables', '$\\int dx/x = \\ln x$', 'log and exponent rules'],
+      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 },
+      steps: [
+        { did: 'Set $ds = 0$ in the first Gibbs form', tex: '0 = de + p\\,dv',
+          why: 'Isentropic means $s$ does not change, so $T\\,ds = 0$ ($T > 0$). We start with the energy form because the work $p\\,dv$ appears in it.',
+          plain: 'All the work done on the gas goes into internal energy.' },
+        { did: 'Use $e = e(T)$', tex: 'C_v\\,dT = -p\\,dv',
+          why: 'For a perfect gas $e$ depends on $T$ only, so the partial derivative in (1.15) is an ordinary one and $de = C_v\\,dT$.',
+          plain: 'Compression ($dv < 0$) warms the gas.' },
+        { did: 'Set $ds = 0$ in the second form, use $h = h(T)$', tex: 'C_p\\,dT = v\\,dp',
+          why: 'Same reasoning with (1.14): $h$ depends on $T$ only, so $dh = C_p\\,dT$; $ds = 0$ gives $dh = v\\,dp$. We need a second equation containing $dp$.',
+          plain: 'Raising the pressure raises the enthalpy.' },
+        { did: 'Divide step 3 by step 2', tex: '\\frac{C_p}{C_v} = \\frac{v\\,dp}{-\\,p\\,dv}',
+          why: 'Along a compression $dT \\neq 0$, so both sides of step 2 are nonzero and we may divide; $dT$ cancels, removing temperature from the problem.',
+          plain: 'The ratio of specific heats links the pressure change to the volume change.' },
+        { did: 'Name the ratio $\\gamma$', tex: '\\gamma = -\\frac{v\\,dp}{p\\,dv}',
+          why: '$\\gamma \\equiv C_p/C_v$ by definition (1.24); nothing else changes.',
+          plain: '$\\gamma$ measures how much faster $p$ changes than $v$, in relative terms.' },
+        { did: 'Separate the variables', tex: '\\frac{dp}{p} = -\\gamma\\,\\frac{dv}{v}',
+          why: 'Multiply both sides by $-dv/v$; now each side contains one variable only, ready to integrate.',
+          plain: 'A 1 % decrease in volume raises the pressure by $\\gamma$ %.',
+          live: s => { const g = model(s).gamma; return `\\frac{dp}{p} = -${tn(g, 3)}\\times(-0.01) = +${tn(0.01 * g, 3)}`; }, play: false },
+        { did: 'Switch from specific volume to density', tex: '\\frac{dv}{v} = -\\frac{d\\rho}{\\rho}',
+          why: '$v = 1/\\rho$ gives $dv = -d\\rho/\\rho^2$ (derivative of $1/\\rho$); dividing by $v = 1/\\rho$ gives $-d\\rho/\\rho$. Watch the sign: this is the classic slip.',
+          plain: 'A 1 % increase in density is a 1 % decrease in volume.' },
+        { did: 'Substitute into step 6', tex: '\\frac{dp}{p} = \\gamma\\,\\frac{d\\rho}{\\rho}',
+          why: 'Replace $dv/v$ by $-d\\rho/\\rho$; the two minus signs cancel.',
+          plain: 'Relative pressure change = $\\gamma$ × relative density change.' },
+        { did: 'Integrate both sides with constant $\\gamma$', tex: '\\ln p = \\gamma\\,\\ln\\rho + \\text{const}',
+          why: '$\\int dx/x = \\ln x$; $\\gamma$ may stay outside the integral because $C_p$ and $C_v$ are constant (our assumption).',
+          plain: 'On log–log axes $p$ against $\\rho$ is a straight line of slope $\\gamma$.',
+          watch: 'On the p–v diagram the bold blue route lies exactly on the faint teal isentrope through state 1.' },
+        { did: 'Combine the logarithms and exponentiate', tex: '\\frac{p}{\\rho^\\gamma} = \\text{const}',
+          why: '$\\ln p - \\gamma\\ln\\rho = \\ln(p/\\rho^\\gamma)$ by the log and exponent rules; if a logarithm is constant, so is its argument.',
+          plain: 'Along an isentrope $p/\\rho^\\gamma$ never changes.',
+          live: s => { const M = model(s), n = at(M, s.prog), g = M.gamma; return `\\frac{p}{\\rho^\\gamma}:\\ ${tn(P1 * Math.pow(V1, g), 5)}\\ \\text{(state 1)},\\ ${tn(n.p * Math.pow(n.v, g), 5)}\\ \\text{(dot)}`; },
+          set: { prog: 0.7 }, play: false }
+      ],
+      result: { tex: 'p/\\rho^\\gamma = \\text{const}', plain: 'With no heat and no friction, a perfect gas with constant specific heats keeps $p \\propto \\rho^\\gamma$.' },
+      interpret: s => { const M = model(s); if (M.proc !== 'rev' || M.kind !== 'isentropic-isochoric') return 'Pick the <b>pump</b> preset to see the isentrope drawn bold.'; const Tb = M.legs[0].Tb; return `Squeezing to $v_2/v_1 = ${tn(M.vr)}$ along the isentrope raises $T$ from 300 K to ${f3(Tb, 4)} K and $p$ by the factor $(v_1/v_2)^{\\gamma} = ${tn(Math.pow(1 / M.vr, M.gamma), 4)}$, with no heat at all.`; },
+      check: 'Units: the constant carries Pa (m³/kg)^γ, fixed by the starting state. Limit γ → 1: p/ρ = const, the isothermal law. Number: pump 1 → 2 bar, ρ₂/ρ₁ = 2^(1/1.4) = 1.641 and T₂ = 288.15 × 2/1.641 = 351.3 K. The selftest compares isentropicPressure with ch01.isentropic_pressure.' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'e3code', title: 'Heat, work and entropy with fluidpy', ref: 'Eqs. (1.10), (1.18)',
       src: `
-from fluidpy import __CHAPTER__ as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import fluidpy.ch01_introduction as ch01
+cv = ch01.cv_from_gamma(gamma)  # {{cv}} J/(kg K)
+v1 = ch01.R_AIR * T1 / p1       # {{v1}} m³/kg
+# exact totals, leg by leg (route {{kind}})
+tot = ch01.path_heat_work_totals(
+    kind, v1, T1, v2, T2, gamma)
+# q = {{q}}, w = {{w}} kJ/kg
+# Δe = {{de}} kJ/kg (any route)
+ds = ch01.perfect_gas_entropy_change(
+    T1, v1, T2, v2, cv=cv)
+# Δs = {{ds}} J/(kg K) (any route)
+path = ch01.process_path(kind,
+    (v1, T1), (v2, T2), gamma=gamma)
+run = ch01.process_heat_work(
+    path["v"], path["T"], cv=cv)
+s_int = ch01.entropy_change_reversible(
+    run["q"], path["T"])   # {{sint}}`,
+      live: s => { const M = model(s), t = M.proc === 'rev' ? M.tot : pathTotals('isothermal-isochoric', V1, T1, M.v2, M.T2, M.gamma, R_AIR); return { kind: M.proc === 'rev' ? M.kind : 'E, for comparison', cv: M.cv.toFixed(2), v1: V1.toFixed(4), q: (t.q / 1000).toFixed(2), w: (t.w / 1000).toFixed(2), de: (t.de / 1000).toFixed(2), ds: M.ds.toFixed(2), sint: (M.proc === 'rev' ? M.tot.int_dq_over_T : 0).toFixed(2) }; },
+      note: 'kind is a route name, e.g. "isochoric-isobaric" (cool, then expand); stirring and free expansion use ch01.irreversible_process.' },
+    { id: 'trap', title: 'From scratch: the work integral on samples', ref: 'Eq. (1.11)',
+      src: `
+p = R * T / v        # (1.22): {{pnow}} kPa now
+# -p dv on each gap between samples
+dw = -0.5 * (p[1:] + p[:-1]) * np.diff(v)
+w = np.concatenate(([0.0], np.cumsum(dw)))
+# w so far = {{wsf}} kJ/kg
+de = cv * (T - T[0])  # {{desf}} kJ/kg
+q = de - w            # (1.10): {{qsf}} kJ/kg`,
+      live: s => { const M = model(s), n = at(M, s.prog), tr = trapezoidAt(M, s.prog) || { w: n.w, de: n.de, q: n.q }; return { pnow: (n.p / 1000).toFixed(2), wsf: (tr.w / 1000).toFixed(3), desf: (tr.de / 1000).toFixed(3), qsf: (tr.q / 1000).toFixed(3) }; } }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'One kilogram, two states', text: 'Air at 300 K and 1 bar will end at twice the volume and the same temperature. <b>Does it need the same heat whichever way it goes?</b> Press play and watch the heater.',
+      set: { path: 'isothermal', vr: 2, Tr: 1, gas: '7/5', proc: 'rev', prog: 0.3, probe: null }, play: true },
+    { title: 'Route A: isothermal', text: 'The gas expands slowly while the heater holds it at 300 K. It takes in 59.7 kJ/kg of heat and pushes out the same work: $w = -59.7$ kJ/kg, $\\Delta e = 0$.',
+      set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev', prog: 0.55 }, play: true, terms: true, code: { id: 'e3code', lines: [5, 8] } },
+    { title: 'Route B: cool, then expand', text: 'Same start, same end. Cool at fixed volume, then expand at the low pressure: $q = 43.1$ and $w = -43.1$ kJ/kg. The blue work area shrinks; $\\Delta e$ is still zero.',
+      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 0.6 }, play: true, terms: true },
+    { title: 'What does not depend on the route', text: 'Divide each bit of heat by the temperature at which it arrives, and add: 199 J/(kg K) on route A and on route B. That sum is the entropy change.',
+      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 1 }, play: false, readouts: ['ds', 'sint'], derive: { id: 'D10', step: 2 } },
+    { title: 'Friction breaks the equality', text: 'Stir an insulated, rigid tank: no heat enters, yet $T$ and $s$ rise. Now $\\Delta s = 131$ J/(kg K) but $\\int\\delta q/T = 0$. That inequality is the second law.',
+      set: { proc: 'stir', vr: 1, Tr: 1.2, prog: 0.5 }, play: true, notes: true },
+    { title: 'No heat, no friction: the isentrope', text: 'A fast, clean squeeze to half the volume follows $p \\propto \\rho^\\gamma$: steeper than the isotherm, and $T$ climbs to 396 K with no heat at all.',
+      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 }, play: true, eq: 'isentropic', derive: { id: 'D14', step: 9 } },
+    { title: 'Your turn', text: 'Predict first: for $v_2/v_1 = 3$ at constant temperature, which route needs the most heat? Pick routes, play each, then check the table in Explain §3.',
+      set: { vr: 3, Tr: 1, proc: 'rev', prog: 0 }, controls: ['path', 'vr'] }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'first', title: 'First law', ref: 'Eq. (1.10)', tex: '\\delta q + \\delta w = \\Delta e',
+      live: s => { const M = model(s); return `${tn(M.tot.q / 1000)} + (${tn(M.tot.w / 1000)}) = ${tn(M.tot.de / 1000)}\\ \\text{kJ/kg}`; },
+      symbols: [['\\delta q', 'heat added to the gas', 'J/kg'], ['\\delta w', 'work done on the gas', 'J/kg'], ['\\Delta e', 'internal energy change', 'J/kg']] },
+    { id: 'rev', title: 'Reversible first law', ref: 'Eq. (1.11)', tex: 'de = dq - p\\,dv',
+      live: s => { const M = model(s), n = at(M, s.prog); return `p = ${tn(n.p / 1000, 4)}\\ \\text{kPa}:\\ dv = 0.01 \\Rightarrow -p\\,dv = ${tn(-n.p * 0.01 / 1000, 3)}\\ \\text{kJ/kg}`; },
+      note: 'Only for slow, frictionless (reversible) processes; $v = 1/\\rho$.', symbols: [['p', 'pressure', 'Pa'], ['v', 'specific volume', 'm³/kg']] },
+    { id: 'entropy', title: 'Entropy from reversible heat', ref: 'Eqs. (1.16)–(1.17)', tex: 's_2 - s_1 = \\int_1^2 \\frac{dq_{\\rm rev}}{T}, \\qquad T\\,ds = dq',
+      live: s => { const M = model(s); return M.proc === 'rev' ? `\\int \\frac{dq}{T} = ${tn(M.tot.int_dq_over_T, 4)}\\ \\text{J/(kg K)}` : `\\text{use a reversible route: }\\Delta s = ${tn(M.ds, 4)}`; },
+      symbols: [['s', 'specific entropy', 'J/(kg K)'], ['T', 'absolute temperature', 'K']] },
+    { id: 'gibbs', title: 'Gibbs relations (any process)', ref: 'Eq. (1.18)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
+      live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.ds, 4)}`; },
+      note: 'Perfect gas with constant $C_v$: $de = C_v\\,dT$ and $p/T = R/v$ integrate to the live line.', symbols: [['h', 'enthalpy e + pv', 'J/kg'], ['C_v', 'specific heat at constant v', 'J/(kg K)']] },
+    { id: 'isentropic', title: 'Isentropic perfect gas', ref: 'Eq. (1.25)', tex: 'p/\\rho^\\gamma = \\text{const}',
+      live: s => { const M = model(s); return `p(2\\rho_1) = 100 \\times 2^{${tn(M.gamma, 3)}} = ${tn(isentropicPressure(2 / V1, P1, 1 / V1, M.gamma) / 1000, 3)}\\ \\text{kPa}`; },
+      note: 'Adiabatic and frictionless, constant $C_p$ and $C_v$.', symbols: [['\\rho', 'density 1/v', 'kg/m³'], ['\\gamma', 'C_p/C_v', '–']] },
+    { id: 'cd', title: 'Clausius–Duhem inequality', ref: '§1.8 (ii)', tex: 's_2 - s_1 \\ge \\int_1^2 \\frac{\\delta q}{T}',
+      live: s => { const M = model(s); const I = M.proc === 'rev' ? M.tot.int_dq_over_T : 0; return `${tn(M.ds, 4)} \\ge ${tn(I, 4)}\\ \\text{J/(kg K)}`; },
+      note: 'For an arbitrary process, with the heat actually received $\\delta q$ (the book prints $dq_{\\rm rev}$ here); equality only when the process is reversible.' }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Between $(v_1, 300\\,\\text{K})$ and $(2v_1, 300\\,\\text{K})$, which route makes the gas do the least work?',
+      a: 'Cool, then expand (route B): the expansion happens at half the pressure, so $w = -43.1$ kJ/kg, against −59.7 (A) and −86.1 (C).', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' } },
+    { q: 'Why is $\\Delta s = 199$ J/(kg K) on every reversible route although $q$ differs?',
+      a: 'Heat received at low $T$ counts more in $\\int dq/T$. The weighting exactly compensates, because $s$ is a state function: $\\Delta s = C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ needs only the end states.' },
+    { q: 'Free expansion to $2v_1$: what are $q$, $w$, $\\Delta e$ and $\\Delta s$?',
+      a: '$0$, $0$, $0$ and $R\\ln 2 = 199$ J/(kg K). The entropy was created inside the gas; no heat carried it in.', set: { proc: 'free', vr: 2, Tr: 1 } },
+    { q: 'Switch the gas to monatomic. Does route A’s work change? Does route B’s total heat?',
+      a: 'Neither. $w = -RT\\ln 2$ has no $\\gamma$ in it, and route B’s total is $q = -w = R\\times150$ K $= 43.1$ kJ/kg. Only the separate legs of B change, because they involve $C_v$ and $C_p$.', set: { gas: '5/3' } },
+    { q: 'At $v_2/v_1 = 3$ and constant $T$, which route needs the most heat?',
+      a: 'Expand, then cool (route C): $q = 172$ kJ/kg, because the whole expansion happens at the start pressure. Route A needs 94.6 and route B 57.4 kJ/kg.', set: { path: 'isobaric-isochoric', vr: 3, Tr: 1, proc: 'rev' } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const v1 = R_AIR * 300 / 1e5, V1PY = 'ch01.R_AIR*300.0/1e5';
+    const pathB = processPath('isochoric-isobaric', [v1, 300], [2 * v1, 300], 401, 1.4, R_AIR);
+    const runB = runningTotals(pathB.v, pathB.T, CV_AIR, R_AIR);
+    const partial = (() => { const s0 = { path: 'isobaric-isochoric', vr: 1.7, Tr: 1.35, gas: '5/3', proc: 'rev' }; const n = at(model(s0), 0.37); _mkey = null; return n.q + n.w - n.de; })();
+    const spread = (() => { const d = ROUTES.slice(1).map(r => pathTotals(r[0], v1, 300, 2 * v1, 450, 1.4, R_AIR).ds); return Math.max(...d) - Math.min(...d); })();
+    return [
+      { name: 'w isothermal ×2 [J/kg]', js: pathTotals('isothermal', v1, 300, 2 * v1, 300, 1.4, R_AIR).w, py: `ch01.path_heat_work_totals("isothermal", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["w"]`, rtol: 1e-10 },
+      { name: 'q cool→expand [J/kg]', js: pathTotals('isochoric-isobaric', v1, 300, 2 * v1, 300, 1.4, R_AIR).q, py: `ch01.path_heat_work_totals("isochoric-isobaric", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["q"]`, rtol: 1e-10 },
+      { name: 'Δs route D to (2v1, 450 K)', js: pathTotals('isentropic-isochoric', v1, 300, 2 * v1, 450, 1.4, R_AIR).ds, py: `ch01.path_heat_work_totals("isentropic-isochoric", ${V1PY}, 300.0, 2*${V1PY}, 450.0)["ds"]`, rtol: 1e-10 },
+      { name: 'Δs Gibbs (300→450 K, 2v1)', js: entropyChange(300, 0.8612, 450, 1.7224, CV_AIR, R_AIR), py: 'ch01.perfect_gas_entropy_change(300.0, 0.8612, 450.0, 1.7224)', rtol: 1e-10 },
+      { name: 'free expansion Δs = R ln 2', js: irreversible('free_expansion', 300, 0.8612, CV_AIR, R_AIR, null, 1.7224).ds, py: 'ch01.irreversible_process("free_expansion", 300.0, 0.8612, v2=1.7224)["ds"]', rtol: 1e-10 },
+      { name: 'stirring Δs (300→360 K)', js: irreversible('stirring', 300, 0.8612, CV_AIR, R_AIR, 360, null).ds, py: 'ch01.irreversible_process("stirring", 300.0, 0.8612, T2=360.0)["ds"]', rtol: 1e-10 },
+      { name: 'isentropic p(ρ = 2) [Pa]', js: isentropicPressure(2.0, 1e5, 1.0, 1.4), py: 'ch01.isentropic_pressure(2.0, 1.0e5, 1.0)', rtol: 1e-12 },
+      { name: 'process_path corner T', js: pathB.T[400], py: `ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"][400]`, rtol: 1e-12 },
+      { name: 'trapezoid q route B, n = 401', js: runB.q[runB.q.length - 1], py: `ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"][-1]`, rtol: 1e-9 },
+      { name: '∫dq/T trapezoid route B', js: entropyReversible(runB.q, pathB.T), py: `ch01.entropy_change_reversible(ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])`, rtol: 1e-9 },
+      { name: 'trapezoid ≈ exact w (route A, n = 401)', js: (() => { const d = processPath('isothermal', [v1, 300], [2 * v1, 300], 401); const r = runningTotals(d.v, d.T); return r.w[400] / pathTotals('isothermal', v1, 300, 2 * v1, 300).w; })(), expect: 1, rtol: 1e-5 },
+      { name: 'first law so far: q + w − Δe', js: partial, expect: 0, atol: 1e-6 },
+      { name: 'Δs spread over 4 routes', js: spread, expect: 0, atol: 1e-9 }
+    ];
+  }
 });
 </script>
 </body>

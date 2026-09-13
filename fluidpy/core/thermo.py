@@ -101,8 +101,9 @@ def molecular_gas_pressure(n, V, T):
     -----
     Assumptions: attractive forces negligible; V/n much larger than the volume of one molecule.
 
-    Validation (planned): V1 closed form and pint dimension check; V4 agreement with the kinetic pressure of seeded
-    Maxwellian samples (``ch01.molecular_pressure``). Label: pending.
+    Validation: V1 n k_B T/V (rel 1e-14) and the D11 chain: equals :func:`perfect_gas_pressure` of the same gas
+    (rel 1e-12); it is the reference n k_B T that sampled Maxwellian molecules reproduce within 1 % in the kinetic
+    pressure test. Label: analytic.
     """
     require_positive("V", V)
     p = np.asarray(n, dtype=float) * K_B * np.asarray(T, dtype=float) / np.asarray(V, dtype=float)  # Eq. (1.21)
@@ -128,7 +129,9 @@ def gas_constant(M_w):
     -----
     Assumptions: perfect gas; M_w of a mixture is its mole-fraction-weighted mean.
 
-    Validation (planned): V1 ``gas_constant(M_W_AIR)`` = R_U/28.9644; V5 within 1e-4 of USSA-1976 287.053. Label: pending.
+    Validation: V1 ``gas_constant(M_W_AIR)`` = R_AIR (rel 1e-15), R_U = k_B A_o; V5 R_AIR vs USSA-1976 R*/M0
+    (rel 1.7e-5, tolerance 5e-5) and p/(rho T) of every USSA Table 1 row (rel 2e-4); CODATA k_B, N_A exact.
+    Label: analytic, benchmark.
     """
     require_positive("M_w", M_w)
     return as_scalar_if_0d(R_U / np.asarray(M_w, dtype=float))  # Eq. (1.22): R = R_u / M_w
@@ -149,7 +152,8 @@ def molecule_mass(M_w):
     m : float or ndarray
         [kg] (≈ 4.81e-26 kg for air).
 
-    Validation (planned): V1 k_B/m = R for air (Eq. 1.22 chain). Label: pending.
+    Validation: V1 k_B/m = R for air (rel 1e-12, D11 step 4); V5 through :func:`mean_molecular_speed`, which matches
+    the USSA-1976 Table 2 mean particle speed (rel 1.9e-5). Label: analytic, benchmark.
     """
     return as_scalar_if_0d(np.asarray(M_w, dtype=float) / N_A_KMOL)  # §1.9: m = M_w / A_o
 
@@ -180,7 +184,8 @@ def perfect_gas_pressure(rho, T, R=R_AIR):
     -----
     Assumptions: perfect gas (molecular interactions negligible), continuum (Kn << 1).
 
-    Validation (planned): V1 closed form; V5 USSA-1976 sea level p/(rho T) = 287.05. Label: pending.
+    Validation: V1 D11 chain equals :func:`molecular_gas_pressure` (rel 1e-12); V2 pint rho R T is [pressure] and
+    matches the code (rel 1e-14); a = b = 0 van der Waals reduces to it (rel 1e-14). Label: analytic, symbolic.
     """
     return as_scalar_if_0d(np.asarray(rho, dtype=float) * R * np.asarray(T, dtype=float))  # Eq. (1.22)
 
@@ -208,8 +213,9 @@ def perfect_gas_density(p, T, R=R_AIR):
     -----
     Assumptions: perfect gas.
 
-    Validation (planned): V1 round trip with :func:`perfect_gas_pressure`; V5 USSA-1976 sea level
-    ``perfect_gas_density(101325, 288.15)`` = 1.2250 kg/m^3. Label: pending.
+    Validation: V5 USSA-1976 sea level ``perfect_gas_density(101325, 288.15)`` vs Table 1 1.2250 kg/m^3 (rel −1.8e-5,
+    tolerance 1e-4); V1 worked number 101325/(287.058 · 288.15) (rel 1e-5); round trip through
+    :func:`perfect_gas_state`. Label: benchmark, analytic.
     """
     require_positive("T", T)
     return as_scalar_if_0d(np.asarray(p, dtype=float) / (R * np.asarray(T, dtype=float)))  # Eq. (1.22)
@@ -245,7 +251,7 @@ def perfect_gas_state(p=None, rho=None, T=None, R=R_AIR):
     -----
     Assumptions: single-component perfect gas (a simple compressible substance; seawater would need salinity too).
 
-    Validation (planned): V1 any two reproduce the third; V7 error unless exactly two given. Label: pending.
+    Validation: V1 any two reproduce the third (rel 1e-14); V7 none, one or three arguments raise. Label: analytic.
     """
     given = [x is not None for x in (p, rho, T)]
     if sum(given) != 2:
@@ -275,7 +281,7 @@ def specific_volume(rho):
     v : float or ndarray
         Specific volume [m^3/kg].
 
-    Validation (planned): V1 closed form. Label: pending.
+    Validation: V1 rho = 4 gives 0.25 exactly. Label: analytic.
     """
     require_positive("rho", rho)
     return as_scalar_if_0d(1.0 / np.asarray(rho, dtype=float))  # §1.8: v = 1/rho
@@ -304,7 +310,8 @@ def enthalpy(e, p, v):
     -----
     Assumptions: none beyond the definition (any substance).
 
-    Validation (planned): V1 closed form; V2 perfect gas h − e = R T. Label: pending.
+    Validation: V1 e + p v with perfect-gas e and v = R T/p equals :func:`perfect_gas_enthalpy` (rel 1e-12).
+    Label: analytic.
     """
     return as_scalar_if_0d(np.asarray(e, dtype=float) + np.asarray(p, dtype=float) * np.asarray(v, dtype=float))  # Eq. (1.13)
 
@@ -332,7 +339,7 @@ def perfect_gas_internal_energy(T, cv=CV_AIR, T_ref=0.0, e_ref=0.0):
     -----
     Assumptions: perfect gas, constant specific heats (the book notes C_v actually rises with T).
 
-    Validation (planned): V1 ``specific_heat_cv`` of this function returns cv. Label: pending.
+    Validation: V1 h − e = R T at 300 K with :func:`perfect_gas_enthalpy` (rel 1e-12). Label: analytic.
     """
     return as_scalar_if_0d(e_ref + cv * (np.asarray(T, dtype=float) - T_ref))  # e = e(T), de = C_v dT
 
@@ -360,7 +367,7 @@ def perfect_gas_enthalpy(T, cp=CP_AIR, T_ref=0.0, h_ref=0.0):
     -----
     Assumptions: perfect gas, constant C_p. With ``T_ref = 0`` and zero references, h − e = (C_p − C_v) T = R T.
 
-    Validation (planned): V1 ``specific_heat_cp`` returns cp; V2 h − e = R T with (1.23). Label: pending.
+    Validation: V1 :func:`specific_heat_cp` of it returns C_p (rel 1e-6); h − e = R T (rel 1e-12). Label: analytic.
     """
     return as_scalar_if_0d(h_ref + cp * (np.asarray(T, dtype=float) - T_ref))  # h = h(T), dh = C_p dT
 
@@ -397,7 +404,9 @@ def partial_derivative(f: Callable[..., float], var: str, at: Mapping[str, float
     Method: second-order central difference (our choice; the book defines the derivatives only).
     Assumptions: f smooth near the point.
 
-    Validation (planned): V1 derivatives of sin, exp, x^3; V3 observed order 2 ± 0.15 as ``step`` halves. Label: pending.
+    Validation: V3 observed order 2.000 (2 ± 0.15) on ∂(y sin x)/∂x as ``step`` halves from 0.1 to 0.0125; V1 through
+    C_p, C_v, α and c of known equations of state (rel 1e-6), and the van der Waals Gibbs identity (rel 1e-5).
+    Label: analytic, converged.
     """
     x = np.asarray(at[var], dtype=float)
     h = step if step is not None else rel_step * np.maximum(np.abs(x), 1.0)
@@ -433,7 +442,7 @@ def specific_heat_cp(h_of_Tp: Callable[[float, float], float], T, p, rel_step: f
     -----
     Assumptions: single-component substance; h a smooth state function.
 
-    Validation (planned): V1 h = c_p T returns c_p; V2 sympy check on a non-trivial h(T, p). Label: pending.
+    Validation: V1 perfect-gas h = C_p T returns C_p (rel 1e-6). Label: analytic.
     """
     return partial_derivative(lambda T, p: h_of_Tp(T, p), "T", {"T": T, "p": p}, rel_step)  # Eq. (1.14)
 
@@ -459,7 +468,7 @@ def specific_heat_cv(e_of_Tv: Callable[[float, float], float], T, v, rel_step: f
     cv : float
         [J/(kg K)].
 
-    Validation (planned): V1 e = c_v T returns c_v; van der Waals e = c_v T − a/v also returns c_v. Label: pending.
+    Validation: V1 van der Waals e = C_v T − a/v (CO2) returns C_v (rel 1e-6). Label: analytic.
     """
     return partial_derivative(lambda T, v: e_of_Tv(T, v), "T", {"T": T, "v": v}, rel_step)  # Eq. (1.15)
 
@@ -494,7 +503,10 @@ def sound_speed_from_eos(p_of_rho_s: Callable[[float, float], float], rho, s=0.0
     -----
     Assumptions: infinitesimal isentropic disturbances. Incompressible limit: ∂rho/∂p → 0 gives c → ∞.
 
-    Validation (planned): V1 p = K rho^gamma gives sqrt(gamma p/rho); V5 USSA sea level 340.29 m/s. Label: pending.
+    Validation: V1 p = K rho^γ gives sqrt(γ p/rho) at three densities (rel 1e-8) and 340.29 m/s at sea level
+    (rel 1e-4); on the perfect-gas isentrope it equals :func:`perfect_gas_sound_speed` (rel 1e-8); V7 Tait liquid
+    c = sqrt(K0/rho0) and c ∝ sqrt(K0) (incompressible limit c → ∞); a non-positive derivative raises.
+    Label: analytic.
     """
     dpdrho = partial_derivative(lambda rho, s: p_of_rho_s(rho, s), "rho", {"rho": rho, "s": s}, rel_step)
     if np.any(np.asarray(dpdrho) <= 0):
@@ -523,8 +535,8 @@ def thermal_expansion_coefficient(rho_of_Tp: Callable[[float, float], float], T,
     alpha : float
         [1/K]; positive when the fluid expands on heating (negative for water below ~4 °C).
 
-    Validation (planned): V1 perfect gas returns 1/T; linear EOS rho0(1 − a0 (T − T0)) returns a0/(1 − a0 ΔT).
-    Label: pending.
+    Validation: V1 perfect gas returns 1/T at 200, 300, 400 K (rel 1e-6); linear EOS rho0(1 − a0 (T − T0)) returns
+    a0/(1 − a0 ΔT) (rel 1e-6); water (Kell) α < 0 at 2 °C and > 0 at 8 °C. Label: analytic.
     """
     rho = np.asarray(rho_of_Tp(T, p), dtype=float)
     drho_dT = partial_derivative(lambda T, p: rho_of_Tp(T, p), "T", {"T": T, "p": p}, rel_step)
@@ -555,7 +567,7 @@ def cv_from_cp(cp, R=R_AIR):
     -----
     Assumptions: perfect gas (uses e = e(T), h = h(T)).
 
-    Validation (planned): V1 cp − cv = R; V5 air gamma from cp ≈ 1005 is 1.40 ± 0.002. Label: pending.
+    Validation: V1 ``cv_from_cp(CP_AIR)`` = CV_AIR (rel 1e-13), C_p − C_v = R. Label: analytic.
     """
     return as_scalar_if_0d(np.asarray(cp, dtype=float) - R)  # Eq. (1.23)
 
@@ -577,7 +589,8 @@ def gamma_from_cp(cp, R=R_AIR):
     gamma : float or ndarray
         [-].
 
-    Validation (planned): V1 closed form; V5 air ≈ 1.40. Label: pending.
+    Validation: V1 round trip ``gamma_from_cp(cp_from_gamma(5/3))`` (rel 1e-13); C_p = 1005 gives 1.40 ± 0.002.
+    Label: analytic.
     """
     cp = np.asarray(cp, dtype=float)
     return as_scalar_if_0d(cp / (cp - R))  # Eq. (1.24) with (1.23)
@@ -600,7 +613,8 @@ def cp_from_gamma(gamma, R=R_AIR):
     cp : float or ndarray
         [J/(kg K)].
 
-    Validation (planned): V1 round trip with :func:`gamma_from_cp`. Label: pending.
+    Validation: V1 round trip with :func:`gamma_from_cp` (rel 1e-13); ``cp_from_gamma(1.4) − cv_from_gamma(1.4)`` = R.
+    Label: analytic.
     """
     g = np.asarray(gamma, dtype=float)
     return as_scalar_if_0d(g * R / (g - 1.0))  # (1.23)+(1.24)
@@ -623,7 +637,7 @@ def cv_from_gamma(gamma, R=R_AIR):
     cv : float or ndarray
         [J/(kg K)].
 
-    Validation (planned): V1 cp_from_gamma − cv_from_gamma = R. Label: pending.
+    Validation: V1 ``cp_from_gamma(1.4) − cv_from_gamma(1.4)`` = R_AIR (rel 1e-13). Label: analytic.
     """
     g = np.asarray(gamma, dtype=float)
     return as_scalar_if_0d(R / (g - 1.0))  # (1.23)+(1.24)
@@ -655,7 +669,9 @@ def isentropic_pressure(rho, p0, rho0, gamma=GAMMA_AIR):
     -----
     Assumptions: perfect gas, constant C_p and C_v, adiabatic and frictionless (isentropic).
 
-    Validation (planned): V1 p/rho^gamma constant; V2 sympy; consistent with :func:`isentropic_ratios`. Label: pending.
+    Validation: V2 sympy D14 step by step (C_v dT = −p dv, dp/p = −γ dv/v, p v^γ constant); V3 a from-scratch Euler
+    march of dp/drho = γ p/rho converges to it at order 0.998; V1 doubling rho gives p0 2^1.4 (rel 1e-14), consistent
+    with :func:`isentropic_ratios` (bicycle pump, rel 1e-12). Label: symbolic, converged, analytic.
     """
     return as_scalar_if_0d(p0 * (np.asarray(rho, dtype=float) / rho0) ** gamma)  # Eq. (1.25)
 
@@ -681,7 +697,8 @@ def isentropic_ratios(p_over_p0, gamma=GAMMA_AIR):
     -----
     Assumptions: as :func:`isentropic_pressure`. gamma → 1 gives T/T0 → 1 (isothermal limit).
 
-    Validation (planned): V1 (T/T0)/(rho/rho0)^(gamma−1) = 1 and p/p0 = (rho/rho0)(T/T0); V7 gamma → 1. Label: pending.
+    Validation: V1 (T/T0)/(rho/rho0)^(γ−1) = 1 and p/p0 = (rho/rho0)(T/T0) (1e-14); bicycle pump p ratio 2 → 351.3 K,
+    rho ratio 1.641; V7 γ → 1 gives T/T0 → 1 (1e-8); p ratio 0 raises. Label: analytic.
     """
     r = np.asarray(p_over_p0, dtype=float)
     require_positive("p_over_p0", r)
@@ -713,8 +730,9 @@ def perfect_gas_sound_speed(T, gamma=GAMMA_AIR, R=R_AIR):
     -----
     Assumptions: perfect gas with constant gamma; isentropic (not isothermal — Newton's sqrt(R T) error).
 
-    Validation (planned): V1 equals :func:`sound_speed_from_eos` on p = K rho^gamma; V5 USSA sea level 340.29 m/s.
-    Label: pending.
+    Validation: V5 USSA-1976 Table 1 sound-speed column at 0–50 km (rel 2e-4; max 2.1e-5); V1 equals
+    :func:`sound_speed_from_eos` on the isentrope through sea level (rel 1e-8); c/sqrt(R T) = sqrt(γ) (not Newton's
+    isothermal value). Label: benchmark, analytic.
     """
     require_positive("T", T)
     return as_scalar_if_0d(np.sqrt(gamma * R * np.asarray(T, dtype=float)))  # Eq. (1.27)
@@ -739,7 +757,8 @@ def perfect_gas_expansion_coefficient(T):
     -----
     Assumptions: perfect gas (rho = p/RT at fixed p).
 
-    Validation (planned): V1 equals :func:`thermal_expansion_coefficient` numerically at 200–400 K. Label: pending.
+    Validation: V1 equals :func:`thermal_expansion_coefficient` of the perfect-gas density at 200, 300, 400 K
+    (rel 1e-6). Label: analytic.
     """
     require_positive("T", T)
     return as_scalar_if_0d(1.0 / np.asarray(T, dtype=float))  # Eq. (1.28)
@@ -834,8 +853,10 @@ def process_path(kind: str, state1, state2, n: int = 401, gamma: float = GAMMA_A
     -----
     Parameterisation: uniform in v (in T for isochoric legs). Assumptions: perfect gas, reversible, constant γ.
 
-    Validation (planned): V1 legs meet at the corner; isobaric legs keep p fixed; isentropic legs keep p v^γ fixed.
-    Label: pending.
+    Validation: V1 trapezoid totals over its samples reproduce the closed forms of :func:`path_heat_work_totals` for
+    isothermal, isochoric and four two-leg paths (rel 1e-5 to 1e-6 at n = 4001); isochoric samples give p = R T/v
+    exactly; corner index n − 1; an unreachable single leg raises. Leg-wise constancy of p (isobaric) and p v^γ
+    (isentropic) is not tested separately. Label: analytic.
     """
     v1, T1 = map(float, state1)
     v2, T2 = map(float, state2)
@@ -891,7 +912,9 @@ def path_heat_work_totals(kind: str, v1: float, T1: float, v2: float, T2: float,
     kind : str
         As :func:`process_path` (single or two-leg kinds).
     v1, T1 : float
-        Start state [m^3/kg], [K].
+        Start state [m^3/kg], [K]. Note: argument order differs from :func:`irreversible_process` (``kind, T1, v1``)
+        and :func:`perfect_gas_entropy_change` (``T1, v1, T2, v2``) — here v comes before T. Pass keywords when in
+        doubt.
     v2, T2 : float
         End state [m^3/kg], [K].
     gamma : float, optional
@@ -909,8 +932,10 @@ def path_heat_work_totals(kind: str, v1: float, T1: float, v2: float, T2: float,
     -----
     Scalar-callable closed forms for explainer parity. Assumptions: reversible, perfect gas, constant γ.
 
-    Validation (planned): V1 equals the trapezoid totals of :func:`process_heat_work` on fine paths; V4 same Δe and Δs
-    for every kind between the same states, different q and w. Label: pending.
+    Validation: V1 equals the trapezoid totals of :func:`process_heat_work` on n = 4001 sampled paths (rel 1e-5) and
+    their ∫dq/T (rel 1e-5); isobaric w = −R ΔT, isochoric w = 0, isothermal q = −w; V4 Δe and Δs identical for four
+    two-leg paths between the same states (ptp < 1e-9 J/kg and < 1e-12 J/(kg K)) while q and w differ by > 1e4 J/kg;
+    Δs equals :func:`perfect_gas_entropy_change` (rel 1e-12); unknown kinds raise. Label: analytic, conserved.
     """
     cv = R / (gamma - 1.0)
     kind = kind.lower()
@@ -933,6 +958,9 @@ def irreversible_process(kind: str, T1: float, v1: float, cv: float = CV_AIR, R:
     Book: §1.8 — the stirring example (temperature rises without heat transfer, so C_v cannot be *defined* as heat per
     degree) and the second law (ii), Clausius–Duhem, taught with the actual heat: ``s2 − s1 ≥ ∫ δq/T``. Δs is
     evaluated with the Gibbs relation (1.18), valid for any process between equilibrium states.
+
+    Note: argument order differs from :func:`path_heat_work_totals` (``kind, v1, T1, v2, T2``) — here T1 comes
+    before v1, as in :func:`perfect_gas_entropy_change`. Pass keywords when in doubt.
 
     Parameters
     ----------
@@ -958,7 +986,9 @@ def irreversible_process(kind: str, T1: float, v1: float, cv: float = CV_AIR, R:
         ``q`` (0), ``w`` (stirring work on the gas; 0 for free expansion), ``de`` [J/kg]; ``ds`` from (1.18) and
         ``int_dq_over_T`` (0) [J/(kg K)] — so ``ds > int_dq_over_T``.
 
-    Validation (planned): V1 stirring ds = C_v ln(T2/T1), free expansion ds = R ln(v2/v1); V4 ds > 0 = ∫δq/T. Label: pending.
+    Validation: V1 stirring 300 → 330 K gives ds = C_v ln 1.1, free expansion v → 2v gives R ln 2 (rel 1e-14), both
+    with ds > ∫δq/T = 0; equals :func:`free_expansion` and the end of :func:`stirred_isochoric_process`; cooling by
+    stirring, compression "free expansion" and unknown kinds raise. Label: analytic.
     """
     kind = kind.lower()
     if kind == "stirring":
@@ -989,7 +1019,8 @@ def join_paths(*legs):
     (v, T) : tuple of ndarray
         The joined path [m^3/kg], [K].
 
-    Validation (planned): V1 joint continuity check. Label: pending.
+    Validation: V1 joins the four legs of the closed test cycle (whose Δe, q + w and Δs close to < 1e-5); legs that do
+    not meet raise. Label: analytic.
     """
     vs, Ts = [], []
     for i, (v, T) in enumerate(legs):
@@ -1034,8 +1065,10 @@ def process_heat_work(v_path, T_path, cv=CV_AIR, R=R_AIR):
     Method: cumulative trapezoid (second order in the sample spacing) — refine ``n`` in :func:`process_path` for
     convergence studies. Assumptions: reversible (quasi-static, frictionless), perfect gas, constant C_v.
 
-    Validation (planned): V1 isothermal w = −R T ln(v2/v1), q = −w; isochoric w = 0, q = C_v ΔT; V3 trapezoid order 2;
-    V4 two paths with the same ends give equal Δe but different q. Label: pending.
+    Validation: V1 isothermal doubling w = −R T ln 2 (rel 1e-6 at n = 4001, −59.7 kJ/kg at 300 K), q = −w, Δe = 0;
+    isochoric w = 0, q = C_v ΔT (rel 1e-14); V3 trapezoid work on an isentrope converges at order 1.999 (n = 11…81);
+    V4 a closed reversible four-leg cycle returns Δe = 0 and q + w = 0 (1e-9) with net work > 1e3 J/kg; unequal or
+    too-short inputs raise. Label: analytic, converged, conserved.
     """
     v = np.asarray(v_path, dtype=float)
     T = np.asarray(T_path, dtype=float)
@@ -1073,8 +1106,9 @@ def entropy_change_reversible(q_path, T_path, cumulative: bool = False):
     Method: trapezoid rule on (1/T) dq. Assumptions: the heat is reversible. For an irreversible process the actual
     ∫δq/T is only a lower bound on Δs (Clausius–Duhem, taught with the actual δq; see analysis §9 typo 4).
 
-    Validation (planned): V1 isothermal/isochoric paths agree with :func:`perfect_gas_entropy_change`; V4 a closed
-    reversible cycle returns Δs → 0. Label: pending.
+    Validation: V1 on four two-leg paths it equals the closed-form Δs of :func:`path_heat_work_totals` (rel 1e-5); V4 a
+    closed reversible four-leg cycle returns Δs = −8.4e-6 J/(kg K) (trapezoid, n = 2001 per leg; bound 1e-5).
+    Label: analytic, conserved.
     """
     q = np.asarray(q_path, dtype=float)
     T = np.asarray(T_path, dtype=float)
@@ -1110,8 +1144,9 @@ def perfect_gas_entropy_change(T1, v1, T2, v2, cv=CV_AIR, R=R_AIR):
     Assumptions: perfect gas, constant C_v. Valid for **any** process between the states (reversible or not) because
     (1.18) relates state functions only: free expansion (T fixed, v doubles, q = 0) gives Δs = R ln 2 > 0.
 
-    Validation (planned): V2 sympy residual of (1.18); V1 isentrope from (1.26) gives 0; V7 (T,v) and (T,p) forms agree.
-    Label: pending.
+    Validation: V2 sympy: the integrated (T, v) form satisfies T ds = de + p dv coefficient by coefficient (D10);
+    V1 equals the (T, p) form for heating at constant p, C_p ln 2 = 696.4 J/(kg K) (rel 1e-12); an isentrope from
+    (1.26) gives 0 (1e-12); equals the Δs of :func:`path_heat_work_totals` (rel 1e-12). Label: symbolic, analytic.
     """
     ds = cv * np.log(np.asarray(T2, dtype=float) / np.asarray(T1, dtype=float)) + R * np.log(
         np.asarray(v2, dtype=float) / np.asarray(v1, dtype=float))  # Eq. (1.18) integrated: T ds = de + p dv
@@ -1139,7 +1174,9 @@ def perfect_gas_entropy_change_p(T1, p1, T2, p2, cp=CP_AIR, R=R_AIR):
     ds : float or ndarray
         [J/(kg K)].
 
-    Validation (planned): V7 agrees with :func:`perfect_gas_entropy_change` for the same states (cp − cv = R). Label: pending.
+    Validation: V2 sympy: the integrated (T, p) form satisfies T ds = dh − v dp; V1 agrees with
+    :func:`perfect_gas_entropy_change` for the same states (rel 1e-12) and equals C_p ln 2 at constant p (1e-14).
+    Label: symbolic, analytic.
     """
     ds = cp * np.log(np.asarray(T2, dtype=float) / np.asarray(T1, dtype=float)) - R * np.log(
         np.asarray(p2, dtype=float) / np.asarray(p1, dtype=float))  # Eq. (1.18): T ds = dh − v dp
@@ -1174,7 +1211,8 @@ def stirred_isochoric_process(v, T1, T2, n: int = 201, cv=CV_AIR, R=R_AIR):
     s2 − s1 = C_v ln(T2/T1) > ∫δq/T = 0 (Clausius–Duhem with the actual δq). Assumptions: perfect gas, constant C_v,
     uniform state at each instant.
 
-    Validation (planned): V1 de = w, q = 0; V4 Δs from (1.18) > 0. Label: pending.
+    Validation: V1 q = 0 at every sample; final s equals ``irreversible_process("stirring")`` ds = C_v ln(T2/T1)
+    (rel 1e-12); ``stirred_isochoric_path`` is the same object. Label: analytic.
     """
     if T2 < T1:
         raise ValueError("stirring work only heats the gas: need T2 >= T1")
@@ -1198,8 +1236,8 @@ stirred_isochoric_path = stirred_isochoric_process
 def free_expansion(v1, v2, T, R=R_AIR):
     """Joule free expansion of a perfect gas into vacuum: q = w = Δe = 0 but entropy rises.
 
-    Book: §1.8 (second law ii, Clausius–Duhem: the entropy of an isolated system cannot decrease), evaluated with
-    Eq. (1.18) for a perfect gas.
+    Book: §1.8 (second law ii, Clausius–Duhem: with no heat exchanged, s2 − s1 ≥ 0), evaluated with Eq. (1.18) for a
+    perfect gas.
 
     Parameters
     ----------
@@ -1215,7 +1253,8 @@ def free_expansion(v1, v2, T, R=R_AIR):
     dict
         ``"q"``, ``"w"``, ``"de"`` (all 0.0 J/kg), ``"ds"`` = R ln(v2/v1) [J/(kg K)], ``"int_dq_over_T"`` = 0.0.
 
-    Validation (planned): V1 doubling v gives R ln 2. Label: pending.
+    Validation: V1 doubling v gives R ln 2 and equals ``irreversible_process("free_expansion")`` exactly.
+    Label: analytic.
     """
     if v2 < v1:
         raise ValueError("a free expansion needs v2 >= v1")
@@ -1254,7 +1293,8 @@ def tait_pressure(rho, rho0=1000.0, K0=2.2e9, n=TAIT_N_WATER, p0=P_ATM):
     -----
     Assumptions: along one isentrope (entropy fixed), liquid state. Not in the book — our contrast model.
 
-    Validation (planned): V1 sound speed at rho0 equals sqrt(K0/rho0); c grows monotonically with K0. Label: pending.
+    Validation: V1 sound speed at rho0 from :func:`sound_speed_from_eos` equals sqrt(K0/rho0) (rel 1e-6; 1483 m/s);
+    V7 c ∝ sqrt(K0) over K0 = 2.2e7…2.2e11 Pa; p(rho0) = p0; K0 = 0 raises. Label: analytic.
     """
     require_positive("K0", K0)
     return as_scalar_if_0d(p0 + (K0 / n) * ((np.asarray(rho, dtype=float) / rho0) ** n - 1.0))
@@ -1277,7 +1317,8 @@ def van_der_waals_constants_per_mass(a_molar, b_molar, M_w):
     (a, b) : tuple of float
         a [Pa m^6/kg^2], b [m^3/kg].
 
-    Validation (planned): V1 pint dimension check. Label: pending.
+    Validation: V1 CRC CO2 molar constants convert to ``VDW_CO2`` (rel 1e-12; the kmol → mol factor is exercised).
+    No pint dimension check. Label: analytic.
     """
     M = M_w / 1.0e3  # kg/kmol -> kg/mol
     return a_molar / M ** 2, b_molar / M
@@ -1310,7 +1351,9 @@ def van_der_waals_pressure(T, v, a, b, R):
     -----
     Assumptions: classical van der Waals fluid. a = b = 0 recovers the perfect gas (1.22).
 
-    Validation (planned): V7 a = b = 0 equals :func:`perfect_gas_pressure`; V2 sympy Maxwell relation in D13. Label: pending.
+    Validation: V1 numerical check of the Gibbs-relation identity (∂e/∂v)_T = T (∂p/∂T)_v − p with
+    :func:`van_der_waals_internal_energy` for CO2 at 300 K (central differences, rel 1e-5); V7 a = b = 0 equals
+    :func:`perfect_gas_pressure` (rel 1e-14). No sympy check. Label: analytic.
     """
     T = np.asarray(T, dtype=float)
     v = np.asarray(v, dtype=float)
@@ -1341,7 +1384,8 @@ def van_der_waals_internal_energy(T, v, a, cv, e_ref=0.0):
     e : float or ndarray
         [J/kg].
 
-    Validation (planned): V2 sympy: (∂e/∂v)_T − [T (∂p/∂T)_v − p] = 0 with :func:`van_der_waals_pressure`. Label: pending.
+    Validation: V1 numerical: (∂e/∂v)_T equals T (∂p/∂T)_v − p from :func:`van_der_waals_pressure` (rel 1e-5) and
+    a/v^2 (rel 1e-6); :func:`specific_heat_cv` of it returns C_v (rel 1e-6). No sympy check. Label: analytic.
     """
     return as_scalar_if_0d(cv * np.asarray(T, dtype=float) - a / np.asarray(v, dtype=float) + e_ref)
 

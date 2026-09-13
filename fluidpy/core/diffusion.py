@@ -36,7 +36,8 @@ def stable_time_step(D: float, dy: float, safety: float = 0.9) -> float:
     dt : float
         [s].
 
-    Validation (planned): V1 r = D dt/dy^2 = safety/2. Label: pending.
+    Validation: V1 r = D dt/dy^2 = safety/2 (0.45 for safety 0.9); ``ftcs_stable_time_step`` is the same object.
+    Label: analytic.
     """
     require_positive("D", D)
     return safety * dy ** 2 / (2.0 * D)  # FTCS limit: D dt/dy^2 <= 1/2
@@ -67,8 +68,11 @@ def ftcs_diffusion_1d(f0, D: float, dy: float, dt: float, nsteps: int,
     nsteps : int
         Number of steps.
     bc : pair of str, optional
-        Boundary condition at (y_0, y_{N−1}): ``"dirichlet"`` (value held fixed), ``"neumann"`` (zero flux, mirror
-        ghost node) or ``"periodic"`` (both ends).
+        Boundary condition at (y_0, y_{N−1}), case-insensitive: ``"dirichlet"`` (value held fixed), ``"neumann"``
+        (zero flux, mirror ghost node) or ``"periodic"`` (must be given at both ends). Any other name raises
+        ValueError. Periodic node convention: node N−1 and node 0 are *neighbours* (one spacing dy apart), so the
+        period is N·dy and the grid must **not** repeat the endpoint — use ``y = y0 + dy*np.arange(N)`` (or
+        ``np.linspace(a, b, N, endpoint=False)``), not ``np.linspace(a, b, N)``.
     values : pair of float, optional
         Dirichlet values; default the end values of ``f0``.
     save_every : int, optional
@@ -87,8 +91,10 @@ def ftcs_diffusion_1d(f0, D: float, dy: float, dt: float, nsteps: int,
     Accuracy O(dt, dy^2); stable for r <= 1/2. With zero-flux ends the trapezoid integral of f is conserved exactly.
     Assumptions: constant D, uniform grid.
 
-    Validation (planned): V1 Gaussian vs the exact spreading Gaussian; V3 spatial order 2 ± 0.15 at fixed r; V4 conserved
-    trapezoid integral with zero-flux BCs; blows up at r = 0.51, stable at 0.49. Label: pending.
+    Validation: V3 converges to :func:`couette_startup_profile` at observed order 2.002 (N = 11…81, r = 0.4) and to the
+    exact spreading Gaussian with zero-flux ends at order 2.007 (N = 61…481); V4 zero-flux ends conserve the trapezoid
+    integral over 2000 steps (drift 2e-16 relative), periodic ends conserve the node sum (1e-10); V7 r = 0.51 raises,
+    grows > 1e3× when forced, r = 0.49 decays; mixed periodic/non-periodic ends raise. Label: converged, conserved.
     """
     f = np.array(f0, dtype=float)
     if f.ndim != 1 or f.size < 3:
@@ -97,7 +103,12 @@ def ftcs_diffusion_1d(f0, D: float, dy: float, dt: float, nsteps: int,
     r = D * dt / dy ** 2
     if check_stability and r > 0.5:
         raise ValueError(f"FTCS unstable: r = D dt/dy^2 = {r:.4g} > 1/2; reduce dt below {0.5 * dy**2 / D:.4g} s")
-    bc = tuple(b.lower() for b in bc)
+    if isinstance(bc, str) or len(bc) != 2:
+        raise ValueError(f"bc must be a pair of names, got {bc!r}")
+    bc = tuple(str(b).strip().lower() for b in bc)
+    unknown = [b for b in bc if b not in ("dirichlet", "neumann", "periodic")]
+    if unknown:
+        raise ValueError(f"unknown boundary condition(s) {unknown}; use 'dirichlet', 'neumann' or 'periodic'")
     if ("periodic" in bc) and bc != ("periodic", "periodic"):
         raise ValueError("periodic boundary conditions must be applied at both ends")
     if values is None:
@@ -147,7 +158,8 @@ def gaussian_spreading(y, t, D, M=1.0, y0=0.0, t0=0.0):
     -------
     f : float or ndarray
 
-    Validation (planned): V2 sympy residual of the PDE; V4 integral equals M. Label: pending.
+    Validation: indirect only — the FTCS scheme converges to it at order 2.007 (N = 61…481), which a wrong kernel
+    would not allow; no direct PDE-residual or integral test yet. Label: converged (indirect).
     """
     tau = np.asarray(t, dtype=float) + t0
     require_positive("t + t0", tau)
@@ -191,14 +203,17 @@ def couette_startup_profile(y, t, U, h, nu, nterms: int | None = 200, tol: float
 
     Notes
     -----
-    At t = 0 the exact initial state (u = 0 below the plate, U at y = h) is returned. Assumptions: incompressible
+    At t = 0 the exact initial state (u = 0 below the plate, U at y = h) is returned; "at the plate" means
+    |y − h| <= 1e-9 h (a tolerance relative to the gap, so it works for any h). Assumptions: incompressible
     Newtonian fluid, no pressure gradient, fluid initially at rest, no-slip.
 
-    Validation (planned): V1 t → ∞ gives U y/h; V3 FTCS converges to it at second order in dy. Label: pending.
+    Validation: V1 t ≫ h^2/ν gives U y/h (1e-12); t = 0 returns the exact initial state; 200 terms and the adaptive
+    sum agree (1e-12) at t = 0.2 s; V3 FTCS converges to it at observed order 2.002. Label: analytic, converged.
     """
     y = np.asarray(y, dtype=float)
     if t <= 0.0:
-        return as_scalar_if_0d(np.where(np.isclose(y, h), float(U), 0.0))
+        at_plate = np.abs(y - h) <= 1e-9 * abs(h)  # relative tolerance (np.isclose's absolute 1e-8 fails for tiny h)
+        return as_scalar_if_0d(np.where(at_plate, float(U), 0.0))
     a = np.pi ** 2 * nu * t / h ** 2
     # number of terms: exp(−a n²)/n < tol
     if nterms is None:
@@ -237,7 +252,9 @@ def derivative_2nd_order(f, y):
     Uniform grid: interior ``(f_{i+1} − f_{i−1})/(2Δy)``, ends ``(∓3 f_0 ± 4 f_1 ∓ f_2)/(2Δy)`` written out explicitly
     (so the order can be measured). Non-uniform grid: ``np.gradient(f, y, edge_order=2)`` (also second order).
 
-    Validation (planned): V1 exact for quadratics; V3 order 2 ± 0.15 on sin. Label: pending.
+    Validation: V1 exact for a quadratic on a non-uniform grid (1e-12) and, through :func:`shear_stress_profile`, on a
+    uniform grid; V3 observed order 1.996 on sin(3y) including the one-sided end stencils (N = 21…161).
+    Label: analytic, converged.
     """
     f = np.asarray(f, dtype=float)
     y = np.asarray(y, dtype=float)
