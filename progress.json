@@ -42,9 +42,9 @@
       "title": "Introduction",
       "slug": "introduction",
       "analyze": "pass",
-      "curate": "blocked",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -52,7 +52,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "curate: 76 CORE/3 RECAP/25 NOTE/2 SKIP, 37 derivations, 5 explainers + backup; awaiting user approval (--consult); lapse rate Gamma=dT/dz negative (user)",
+      "notes": "curate approved by user: 76 CORE/3 RECAP/25 NOTE/2 SKIP, 37 D, explainers continuum_averaging_volume, viscosity_momentum_diffusion, heat_work_paths, parcel_stability, buckingham_pi_machine (+B1 pressure_in_still_fluid); lapse rate Gamma=dT/dz negative (user)",
       "updated": "2026-09-12"
     },
     "ch02": {
