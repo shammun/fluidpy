@@ -12,13 +12,15 @@ Sign conventions (binding user decision, the book's own)
   is **negative** (≈ −9.8e-3 K/m for dry air). A layer is stable when dT/dz > Γ_a (equivalently dθ/dz > 0).
   ⚠️ Most meteorology (including the lapse-rate-feedback literature) uses the opposite, standard convention
   Γ ≡ −dT/dz: there Γ_a ≈ +9.8 K/km and a layer is stable when Γ < Γ_a. Same physics, flipped sign and inequality.
-  This module uses Kundu's sign only; convert with ``Gamma_met = -dT_dz``. See knowledge/notation.md.
+  Every computation here uses Kundu's sign; the meteorology form is produced, never hidden, by
+  :func:`lapse_rate_convention` (Γ in either convention) and :func:`lapse_rate_stability` (verdict plus the criterion
+  written out with numbers in either convention). See knowledge/notation.md.
 * ``p_ref`` (default 1.0e5 Pa) is the reference pressure p_o of (1.31)/(1.33); it is kept separate from the surface
   pressure ``p0`` of ``core.statics``.
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, NamedTuple
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -107,7 +109,8 @@ def brunt_vaisala_sq_from_lapse(T, dT_dz, cp=CP_AIR, g=G0):
     T : float or array_like
         Temperature [K].
     dT_dz : float or array_like
-        Environment lapse rate Γ = dT/dz [K/m], book sign (negative when T falls with height).
+        Environment lapse rate in Kundu's convention Γ = dT/dz [K/m] (negative when T falls with height;
+        the meteorology lapse rate is −dT_dz).
     cp : float, optional
         Specific heat at constant pressure [J/(kg K)].
     g : float, optional
@@ -249,8 +252,9 @@ def parcel_ode(t_span, zeta0: float, rho_env_fn: Callable[[float], float], rho_p
     t_eval : array_like, optional
         Output times [s]; default the solver's own steps.
     zeta_max : float, optional
-        Stop when |ζ| reaches this value [m] (terminal event: the cap for N^2 < 0 runaway). Default
-        ``1e3 * max(|zeta0|, 1e-3)``.
+        Stop when |ζ| reaches this value [m] (terminal event: the cap for N^2 < 0 runaway, which would otherwise grow
+        like cosh(sqrt(−N^2) t) until overflow). Default ``1e3 * max(|zeta0|, 1e-3)`` (≈ 7.6 e-folding times from rest).
+        A second terminal event stops the run if either density reaches zero.
     rtol, atol : float, optional
         ``solve_ivp`` tolerances (RK45).
 
@@ -275,8 +279,13 @@ def parcel_ode(t_span, zeta0: float, rho_env_fn: Callable[[float], float], rho_p
     def hit_cap(_t, y):
         return abs(y[0]) - cap
 
+    def density_vanishes(_t, y):  # guard: stop before a linear density model reaches zero (non-physical)
+        return min(rho_parcel_fn(y[0]), rho_env_fn(z0 + y[0]))
+
     hit_cap.terminal = True
-    sol = solve_ivp(rhs, t_span, [zeta0, w0], t_eval=t_eval, events=hit_cap, rtol=rtol, atol=atol)
+    density_vanishes.terminal = True
+    sol = solve_ivp(rhs, t_span, [zeta0, w0], t_eval=t_eval, events=(hit_cap, density_vanishes), rtol=rtol,
+                    atol=atol)
     if sol.status == -1:
         raise RuntimeError(f"parcel integration failed: {sol.message}")
     return sol.t, sol.y[0]
@@ -350,7 +359,8 @@ def parcel_acceleration_atmosphere(zeta, T0, dT_dz, cp=CP_AIR, g=G0):
     T0 : float
         Temperature at the rest height [K].
     dT_dz : float
-        Environment lapse rate Γ = dT/dz [K/m], book sign (negative when T falls with height).
+        Environment lapse rate in Kundu's convention Γ = dT/dz [K/m] (negative when T falls with height;
+        the meteorology lapse rate is −dT_dz).
     cp : float, optional
         [J/(kg K)].
     g : float, optional
@@ -360,6 +370,12 @@ def parcel_acceleration_atmosphere(zeta, T0, dT_dz, cp=CP_AIR, g=G0):
     -------
     a : float or ndarray
         d^2ζ/dt^2 [m/s^2]; for small ζ it equals −N^2 ζ with N^2 = (g/T0)(dT/dz + g/C_p).
+
+    Notes
+    -----
+    Model choice (ours; the book linearises at once): an isentropic parcel in hydrostatic surroundings actually cools at
+    dT_p/dz = −(g/C_p)(T_p/T_e), which equals the constant −g/C_p only where T_p = T_e. Using the constant rate is
+    exact to first order in ζ, so the linear limit (and N^2) are unaffected; the difference is O(ζ^2).
 
     Validation (planned): V1 derivative at ζ = 0 equals −:func:`brunt_vaisala_sq_from_lapse`; zero for dT/dz = −g/C_p.
     Label: pending.
@@ -384,13 +400,15 @@ def parcel_ode_atmosphere(t, zeta0, T0, dT_dz, cp=CP_AIR, g=G0, w0=0.0, zeta_max
     T0 : float
         Environment temperature at the rest height [K].
     dT_dz : float
-        Environment lapse rate Γ = dT/dz [K/m], book sign.
+        Environment lapse rate in Kundu's convention Γ = dT/dz [K/m] (meteorology: −dT_dz).
     cp, g : float, optional
         [J/(kg K)], [m/s^2].
     w0 : float, optional
         Initial velocity [m/s].
     zeta_max : float, optional
-        Runaway cap [m]; later times return NaN. Default ``1e3 * max(|zeta0|, 1e-3)``.
+        Runaway cap [m] (terminal event for N^2 < 0); later times return NaN. Default ``1e3 * max(|zeta0|, 1e-3)``.
+        The run also stops (NaN afterwards) if the parcel or environment temperature would fall below 10 % of T0,
+        where the linear temperature profiles stop being physical.
     rtol, atol : float, optional
         ``solve_ivp`` tolerances.
 
@@ -398,6 +416,10 @@ def parcel_ode_atmosphere(t, zeta0, T0, dT_dz, cp=CP_AIR, g=G0, w0=0.0, zeta_max
     -------
     zeta : float or ndarray
         [m].
+
+    Notes
+    -----
+    Environment argument ``dT_dz`` is Kundu's Γ ≡ dT/dz (meteorology Γ = −dT_dz).
 
     Validation (planned): V3 matches :func:`parcel_displacement` for small ζ0; V1 dT/dz = −g/C_p keeps ζ = ζ0.
     Label: pending.
@@ -415,9 +437,13 @@ def parcel_ode_atmosphere(t, zeta0, T0, dT_dz, cp=CP_AIR, g=G0, w0=0.0, zeta_max
     def hit_cap(_t, y):
         return abs(y[0]) - cap
 
+    def too_cold(_t, y):  # guard: linear T profiles reach absolute zero far from the rest height
+        return min(T0 - g * y[0] / cp, T0 + dT_dz * y[0]) - 0.1 * T0
+
     hit_cap.terminal = True
+    too_cold.terminal = True
     sol = solve_ivp(rhs, (0.0, t_end), [zeta0, w0], t_eval=np.unique(np.concatenate(([0.0], t_arr))),
-                    events=hit_cap, rtol=rtol, atol=atol)
+                    events=(hit_cap, too_cold), rtol=rtol, atol=atol)
     ts, zs = sol.t, sol.y[0]
     out = np.interp(t_arr, ts, zs) if ts.size > 1 else np.full_like(t_arr, float(zeta0))
     out = np.where(t_arr <= ts[-1] + 1e-12, out, np.nan)
@@ -428,7 +454,10 @@ def parcel_ode_atmosphere(t, zeta0, T0, dT_dz, cp=CP_AIR, g=G0, w0=0.0, zeta_max
 # Lapse rates and potential temperature / density
 # --------------------------------------------------------------------------------------------------------------------
 def lapse_rate(T, z):
-    """Lapse rate Γ = dT/dz of a sampled temperature profile (book sign: negative where T falls with height).
+    """Lapse rate of a sampled profile in Kundu's convention Γ ≡ dT/dz (negative where T falls with height).
+
+    Meteorology convention Γ ≡ −dT/dz: negate the result and flip every stability inequality
+    (see :func:`lapse_rate_convention`, :func:`lapse_rate_stability`).
 
     Book: §1.10, ``Γ ≡ dT/dz``.
 
@@ -451,6 +480,9 @@ def lapse_rate(T, z):
 
 def adiabatic_lapse_rate(T=None, cp=CP_AIR, alpha=None, g=G0):
     """Convention Γ ≡ dT/dz (Kundu's sign; NEGATIVE, ≈ −9.8 K/km in dry air; stable when dT/dz > Γ_a).
+
+    Meteorology convention Γ ≡ −dT/dz: the same quantity is +9.8 K/km and stability flips to Γ < Γ_a
+    (:func:`lapse_rate_convention`, :func:`lapse_rate_stability` write both forms).
 
     Adiabatic temperature gradient Γ_a = dT_a/dz of a parcel moving isentropically through a hydrostatic fluid.
 
@@ -581,7 +613,10 @@ def temperature_from_potential(theta, p, p_ref=P_REF, gamma=GAMMA_AIR):
 
 def potential_temperature_gradient(T, dT_dz, theta=None, cp=CP_AIR, g=G0, p=None, p_ref=P_REF,
                                    gamma=GAMMA_AIR):
-    """Vertical gradient of potential temperature from the actual lapse rate.
+    """dθ/dz from the lapse rate: (T/θ) dθ/dz = Γ − Γ_a with Kundu's Γ ≡ dT/dz (stable when Γ > Γ_a, dθ/dz > 0).
+
+    Meteorology convention Γ ≡ −dT/dz: the same equation reads (T/θ) dθ/dz = Γ_a − Γ, stable when Γ < Γ_a. The
+    ``dT_dz`` argument is always Kundu's sign (convert a meteorology Γ with :func:`lapse_rate_convention`).
 
     Book: §1.10, Eq. (1.32) ``(T/θ) dθ/dz = dT/dz + g/C_p = d(T − T_a)/dz = Γ − Γ_a``, so
     ``dθ/dz = (θ/T)(dT/dz + g/C_p)``.
@@ -591,7 +626,8 @@ def potential_temperature_gradient(T, dT_dz, theta=None, cp=CP_AIR, g=G0, p=None
     T : float or array_like
         Temperature [K].
     dT_dz : float or array_like
-        Environment lapse rate Γ = dT/dz [K/m], book sign (negative when T falls with height).
+        Environment lapse rate in Kundu's convention Γ = dT/dz [K/m] (negative when T falls with height;
+        the meteorology lapse rate is −dT_dz).
     theta : float or array_like, optional
         Potential temperature [K]; if omitted it is computed from ``p``.
     cp : float, optional
@@ -624,6 +660,163 @@ def potential_temperature_gradient(T, dT_dz, theta=None, cp=CP_AIR, g=G0, p=None
         theta = potential_temperature(T, p, p_ref, gamma)
     theta = np.asarray(theta, dtype=float)
     return as_scalar_if_0d(theta / T * (np.asarray(dT_dz, dtype=float) + g / cp))  # Eq. (1.32)
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# The two lapse-rate conventions (user decision: compute with Kundu's, always show the meteorology form too)
+# --------------------------------------------------------------------------------------------------------------------
+#: The two accepted values of ``convention`` in :func:`lapse_rate_convention` and :func:`lapse_rate_stability`.
+LAPSE_RATE_CONVENTIONS: tuple[str, ...] = ("kundu", "meteorology")
+
+
+def _convention(convention: str) -> str:
+    key = str(convention).strip().lower()
+    if key not in LAPSE_RATE_CONVENTIONS:
+        raise ValueError(f"unknown lapse-rate convention {convention!r}; use 'kundu' (Γ ≡ dT/dz) or "
+                         "'meteorology' (Γ ≡ −dT/dz)")
+    return key
+
+
+def lapse_rate_convention(dT_dz, convention: str = "kundu"):
+    """Convention switch: Γ_met = −Γ_Kundu; convert the number AND flip the stability inequality.
+
+    Returns the lapse rate Γ expressed in the requested convention: ``"kundu"`` gives ``dT_dz`` unchanged
+    (Γ ≡ dT/dz), ``"meteorology"`` gives ``−dT_dz`` (Γ ≡ −dT/dz).
+
+    Book: §1.10 defines ``Γ ≡ dT/dz`` (Kundu's convention, used by every fluidpy computation). The standard
+    meteorology convention (AMS Glossary, most atmospheric-science texts and the lapse-rate-feedback literature)
+    defines ``Γ ≡ −dT/dz``. The physics is identical; the sign of every lapse rate and the direction of every
+    stability inequality flip (Kundu: stable when Γ > Γ_a; meteorology: stable when Γ < Γ_a).
+
+    Parameters
+    ----------
+    dT_dz : float or array_like
+        Vertical temperature gradient in Kundu's sign [K/m] (negative when T falls with height). Works for an
+        environment profile and for the adiabatic value from :func:`adiabatic_lapse_rate` alike.
+    convention : {"kundu", "meteorology"}, optional
+        Target convention (case-insensitive); any other string raises ValueError.
+
+    Returns
+    -------
+    Gamma : float or ndarray
+        Γ in the requested convention [K/m]: ``dT_dz`` for "kundu", ``−dT_dz`` for "meteorology".
+
+    Notes
+    -----
+    The map is its own inverse: ``lapse_rate_convention(Gamma_met, "meteorology")`` turns a meteorology lapse rate
+    back into the ``dT_dz`` that fluidpy functions expect. Example: the dry adiabat is −9.76e-3 K/m (Kundu) and
+    +9.76e-3 K/m = +g/C_p (meteorology).
+
+    Validation (planned): V1 Kundu identity; meteorology Γ_a = +g/C_p; involution (applying twice returns the input).
+    Label: pending.
+    """
+    x = np.asarray(dT_dz, dtype=float)
+    Gamma = x if _convention(convention) == "kundu" else -x  # Γ_Kundu ≡ dT/dz ; Γ_met ≡ −dT/dz
+    return as_scalar_if_0d(Gamma)
+
+
+class LapseStability(NamedTuple):
+    """Result of :func:`lapse_rate_stability`; the first two fields are ``(verdict, inequality_text)``.
+
+    Fields: ``verdict`` ("stable" / "neutral" / "unstable"); ``text`` (criterion with numbers); ``code`` (+1 stable,
+    0 neutral, −1 unstable); ``Gamma`` and ``Gamma_a`` [K/m] in the requested convention; ``margin`` [K/m], positive
+    when stable and identical in both conventions (= (T/θ) dθ/dz of Eq. 1.32 for a perfect gas).
+    """
+
+    verdict: str
+    text: str
+    code: int
+    Gamma: float
+    Gamma_a: float
+    margin: float
+
+
+def _fmt_number(x: float, digits: int, ascii_minus: bool) -> str:
+    s = f"{x:.{digits}f}"
+    if float(s) == 0.0:
+        s = s.lstrip("-")  # never print "−0.0"
+    return s if ascii_minus else s.replace("-", "−")
+
+
+def lapse_rate_stability(dT_dz, Gamma_a=None, convention: str = "kundu", tol: float = 1e-9, per_km: bool = True,
+                         prefix: bool = True, digits: int | None = None, ascii_minus: bool = False,
+                         cp=CP_AIR, g=G0) -> LapseStability:
+    """Stability verdict from the lapse rate plus the criterion written out with numbers, in either convention.
+
+    Book: §1.10, Eqs. (1.30) and (1.32): ``(T/θ) dθ/dz = dT/dz + g/C_p = Γ − Γ_a`` with Kundu's ``Γ ≡ dT/dz``, so a
+    layer is stable when ``dT/dz > Γ_a`` (θ increases upward), neutral when equal, unstable when ``dT/dz < Γ_a``.
+    Meteorology convention ``Γ ≡ −dT/dz``: both numbers change sign and the inequality flips, stable when ``Γ < Γ_a``.
+
+    Parameters
+    ----------
+    dT_dz : float
+        Environment temperature gradient in **Kundu's sign** [K/m] (standard troposphere −6.5e-3). Convert a
+        meteorology lapse rate first with ``lapse_rate_convention(Gamma_met, "meteorology")``.
+    Gamma_a : float, optional
+        Adiabatic temperature gradient dT_a/dz in **Kundu's sign** [K/m] (negative for air); default
+        ``adiabatic_lapse_rate(cp=cp, g=g)`` = −g/C_p (dry perfect gas).
+    convention : {"kundu", "meteorology"}, optional
+        Convention of ``text``, ``Gamma`` and ``Gamma_a`` in the result (``verdict``, ``code``, ``margin`` do not
+        depend on it).
+    tol : float, optional
+        Neutral band |margin| <= tol [K/m] (default 1e-9 K/m = 1e-6 K/km, a round-off guard).
+    per_km : bool, optional
+        Numbers in the text in K/km (default) or K/m.
+    prefix : bool, optional
+        Start the text with the criterion itself: ``"stable ⇔ dT/dz > Γa: "`` (Kundu) or ``"stable ⇔ Γ < Γa: "``
+        (meteorology). False gives the bare evaluated inequality, e.g. ``"−6.5 > −9.8 K/km"``.
+    digits : int, optional
+        Decimals in the text; default 1 in K/km and 5 in K/m. Raised automatically (up to 6) when the two numbers
+        would print alike although the layer is not neutral (e.g. −9.8 vs Γa = −9.76 K/km prints "−9.80 < −9.76").
+    ascii_minus : bool, optional
+        Use "-" instead of the typographic minus "−" (U+2212, default).
+    cp : float, optional
+        Specific heat at constant pressure [J/(kg K)] for the default Γ_a.
+    g : float, optional
+        Gravitational acceleration [m/s^2] for the default Γ_a.
+
+    Returns
+    -------
+    LapseStability
+        NamedTuple ``(verdict, text, code, Gamma, Gamma_a, margin)``. Kundu: ``Gamma = dT_dz``, ``Gamma_a`` negative,
+        ``margin = Gamma − Gamma_a``, text ``"stable ⇔ dT/dz > Γa: −6.5 > −9.8 K/km"``. Meteorology:
+        ``Gamma = −dT_dz``, ``Gamma_a`` positive, ``margin = Gamma_a − Gamma``, text
+        ``"stable ⇔ Γ < Γa: 6.5 < 9.8 K/km"``. The relation printed is the true one (">", "<" or "="), so an unstable
+        layer reads e.g. ``"stable ⇔ dT/dz > Γa: −12.0 < −9.8 K/km"``.
+
+    Notes
+    -----
+    Assumptions: dry (unsaturated) parcel, hydrostatic surroundings; with the default Γ_a also a perfect gas with
+    constant C_p. ``code`` equals the sign of N^2 = (g/T)(dT/dz − Γ_a) (D36) for T > 0. Scalar input only (the text is
+    one sentence); use :func:`lapse_rate_convention` for arrays.
+
+    Validation (planned): V1 texts for −6.5 K/km in both conventions; V1 meteorology Γ_a = +g/C_p; V4 ``code``
+    identical in both conventions over −15…+10 K/km and equal to the sign of :func:`brunt_vaisala_sq_from_lapse`.
+    Label: pending.
+    """
+    if np.ndim(dT_dz) != 0 or (Gamma_a is not None and np.ndim(Gamma_a) != 0):
+        raise ValueError("lapse_rate_stability is scalar-only; use lapse_rate_convention for arrays")
+    conv = _convention(convention)
+    x = float(dT_dz)
+    Ga_k = float(adiabatic_lapse_rate(cp=cp, g=g)) if Gamma_a is None else float(Gamma_a)
+    margin = x - Ga_k  # Eq. (1.32): (T/θ) dθ/dz = Γ − Γ_a in Kundu's convention; > 0 stable
+    code = 1 if margin > tol else (-1 if margin < -tol else 0)
+    verdict = {1: "stable", 0: "neutral", -1: "unstable"}[code]
+    if conv == "kundu":
+        Gamma, Gamma_a_c = x, Ga_k  # stable ⇔ dT/dz > Γ_a
+        op = {1: ">", 0: "=", -1: "<"}[code]
+        crit = "stable ⇔ dT/dz > Γa: "
+    else:
+        Gamma, Gamma_a_c = -x, -Ga_k  # Γ_met = −dT/dz, Γ_a,met = −Γ_a: stable ⇔ Γ < Γ_a (inequality flipped)
+        op = {1: "<", 0: "=", -1: ">"}[code]
+        crit = "stable ⇔ Γ < Γa: "
+    scale, unit = (1.0e3, "K/km") if per_km else (1.0, "K/m")
+    d = (1 if per_km else 5) if digits is None else int(digits)
+    a, b = Gamma * scale, Gamma_a_c * scale
+    while code != 0 and d < 6 and _fmt_number(a, d, True) == _fmt_number(b, d, True):
+        d += 1
+    body = f"{_fmt_number(a, d, ascii_minus)} {op} {_fmt_number(b, d, ascii_minus)} {unit}"
+    return LapseStability(verdict, (crit if prefix else "") + body, code, Gamma, Gamma_a_c, margin)
 
 
 def potential_density(rho, p, p_ref=P_REF, gamma=GAMMA_AIR):
@@ -728,7 +921,8 @@ __all__ = [
     "brunt_vaisala_sq", "brunt_vaisala_sq_from_theta", "brunt_vaisala_sq_from_lapse", "classify_stability",
     "stability_timescale", "parcel_displacement", "parcel_ode", "parcel_ode_from_gradients",
     "parcel_acceleration_atmosphere", "parcel_ode_atmosphere",
-    "lapse_rate", "adiabatic_lapse_rate", "parcel_temperature", "potential_temperature", "temperature_from_potential",
+    "lapse_rate", "adiabatic_lapse_rate", "LAPSE_RATE_CONVENTIONS", "LapseStability", "lapse_rate_convention", "lapse_rate_stability",
+    "parcel_temperature", "potential_temperature", "temperature_from_potential",
     "potential_temperature_gradient", "potential_density", "isentropic_density_gradient",
     "ocean_potential_density_gradient",
 ]

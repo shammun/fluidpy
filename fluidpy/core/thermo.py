@@ -154,6 +154,9 @@ def molecule_mass(M_w):
     return as_scalar_if_0d(np.asarray(M_w, dtype=float) / N_A_KMOL)  # §1.9: m = M_w / A_o
 
 
+molecular_mass = molecule_mass  #: alias (design Part C name)
+
+
 def perfect_gas_pressure(rho, T, R=R_AIR):
     """Pressure of a perfect gas from its density and temperature.
 
@@ -1346,7 +1349,7 @@ def van_der_waals_internal_energy(T, v, a, cv, e_ref=0.0):
 __all__ = [
     "K_B", "N_A", "N_A_KMOL", "R_U", "M_W_AIR", "R_AIR", "GAMMA_AIR", "CP_AIR", "CV_AIR", "G0", "P_ATM", "P_REF",
     "MOLAR_MASS", "GAMMA_BY_ATOMICITY", "GAMMA_IDEAL", "VDW_CO2_MOLAR", "VDW_CO2", "TAIT_N_WATER",
-    "molecular_gas_pressure", "gas_constant", "molecule_mass", "perfect_gas_pressure", "perfect_gas_density", "perfect_gas_state",
+    "molecular_gas_pressure", "gas_constant", "molecule_mass", "molecular_mass", "perfect_gas_pressure", "perfect_gas_density", "perfect_gas_state",
     "specific_volume", "enthalpy", "perfect_gas_internal_energy", "perfect_gas_enthalpy",
     "partial_derivative", "specific_heat_cp", "specific_heat_cv", "sound_speed_from_eos",
     "thermal_expansion_coefficient", "cv_from_cp", "gamma_from_cp", "cp_from_gamma", "cv_from_gamma",

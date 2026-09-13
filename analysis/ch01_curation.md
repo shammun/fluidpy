@@ -428,7 +428,7 @@ only. 25 rows.
 - **Derivations:** none (the book derives nothing in §1.5; the Explain tab works τ, ν and h²/ν out with numbers).
 - **Depth features:** Explain tab, synced Code tab, + transport (play/step/scrub, end-of-run summary card), linked views (3), modes (momentum / heat / species with D = ν, k/ρC_p, κ_m), presets (air, water, glycerine, honey), status verdict ("⏳ momentum still spreading: t/(h²/ν) = 0.12" / "✅ steady Couette: τ uniform").
 - **Follows reference:** `forced_damped_vibrations.html` (system + graph on one clock, transient → steady state, "at the current time" values, regime-dependent interpretation).
-- **Aha:** honey has about 10⁴ times the μ of air, but ν decides how fast motion spreads, and air's ν is about 15 times water's.
+- **Aha:** honey has about 10⁶ times the μ of air, but ν decides how fast motion spreads, and air's ν is about 15 times water's.
 
 ### E3 · heat_work_paths
 - **CORE:** C25, C35, C45 · also shows C26 (path vs state), C27 (1.11), C33 (entropy), C34 (irreversible mode), C44 (adiabatic vs isentropic), C46

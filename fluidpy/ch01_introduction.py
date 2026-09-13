@@ -27,7 +27,9 @@ from typing import Mapping, Sequence
 import numpy as np
 
 from .core._util import as_scalar_if_0d, require_nonnegative, require_positive
-from .core.units import KELVIN_OFFSET, celsius_to_kelvin, kelvin_to_celsius  # noqa: F401  (re-export)
+from .core.units import (  # noqa: F401  (re-export)
+    DIM, KELVIN_OFFSET, Q_, celsius_to_kelvin, check_dimensions, dimensional_check, kelvin_to_celsius, ureg,
+)
 from .core.thermo import (  # noqa: F401  (re-exports for ch01.<name>)
     CP_AIR, CV_AIR, G0, GAMMA_AIR, GAMMA_BY_ATOMICITY, GAMMA_IDEAL, K_B, M_W_AIR, MOLAR_MASS, N_A, N_A_KMOL, P_ATM,
     P_REF, R_AIR, R_U, TAIT_N_WATER, VDW_CO2, VDW_CO2_MOLAR,
@@ -47,8 +49,9 @@ from .core.statics import (  # noqa: F401
     net_pressure_force_on_box, scale_height, standard_atmosphere,
 )
 from .core.stratification import (  # noqa: F401
-    adiabatic_lapse_rate, brunt_vaisala_sq, brunt_vaisala_sq_from_lapse, brunt_vaisala_sq_from_theta,
-    classify_stability, isentropic_density_gradient, lapse_rate, ocean_potential_density_gradient,
+    LAPSE_RATE_CONVENTIONS, LapseStability, adiabatic_lapse_rate, brunt_vaisala_sq, brunt_vaisala_sq_from_lapse,
+    brunt_vaisala_sq_from_theta, classify_stability, isentropic_density_gradient, lapse_rate, lapse_rate_convention,
+    lapse_rate_stability, ocean_potential_density_gradient,
     parcel_acceleration_atmosphere, parcel_displacement, parcel_ode, parcel_ode_atmosphere, parcel_ode_from_gradients,
     parcel_temperature, potential_density, potential_temperature, potential_temperature_gradient, stability_timescale,
     temperature_from_potential,
@@ -340,6 +343,47 @@ def density_expected(L, number_density, m, gradient=0.0, L_flow=1.0):
     return as_scalar_if_0d(number_density * m * (1.0 + gradient * np.asarray(L, dtype=float) / (2.0 * L_flow)))
 
 
+def box_average_density(L, rho0, variation=0.0, L_flow=1.0, x0=None):
+    """Density a cube of side L would read with no molecular noise, when the macroscopic density varies sinusoidally.
+
+    Book: §1.4 (continuum hypothesis: the averaging volume must be small compared with the length scale over which the
+    flow's own properties change). Model (ours): ``rho(x) = rho0 [1 + variation · sin(2π x/L_flow)]``, box centred at
+    ``x0``; averaging over ``x0 − L/2 … x0 + L/2`` gives
+    ``rho_box = rho0 [1 + variation · sin(2π x0/L_flow) · sinc(L/L_flow)]`` with numpy's ``sinc(u) = sin(πu)/(πu)``.
+
+    Parameters
+    ----------
+    L : float or array_like
+        Box side [m], >= 0.
+    rho0 : float
+        Mean macroscopic density [kg/m^3].
+    variation : float, optional
+        Fractional amplitude of the macroscopic variation [-] (default 0: uniform).
+    L_flow : float, optional
+        Wavelength of the macroscopic variation, the flow's own length scale [m], > 0.
+    x0 : float, optional
+        Box centre [m]; default ``L_flow/4`` (a crest, where the point value is rho0 (1 + variation)).
+
+    Returns
+    -------
+    rho_box : float or ndarray
+        [kg/m^3]; equals the point value rho(x0) for L << L_flow and tends to rho0 once the box spans whole wavelengths.
+
+    Notes
+    -----
+    Deterministic companion of :func:`sample_density` (explainer E1 parity). Variation is along x only, so the average
+    over the cube's y and z extent is trivial.
+
+    Validation (planned): V1 L → 0 gives rho(x0); L = L_flow gives rho0; V2 equals the mean of rho(x) on a fine grid.
+    Label: pending.
+    """
+    require_positive("L_flow", L_flow)
+    x0 = 0.25 * L_flow if x0 is None else float(x0)
+    L = np.asarray(L, dtype=float)
+    # box average of sin(2πx/L_flow) over a width L centred at x0 = sin(2πx0/L_flow) · sin(πL/L_flow)/(πL/L_flow)
+    return as_scalar_if_0d(rho0 * (1.0 + variation * np.sin(2.0 * np.pi * x0 / L_flow) * np.sinc(L / L_flow)))
+
+
 def density_noise_expected(L, number_density):
     """Expected relative fluctuation of the molecule count in a cube of side L: ``(n L^3)^(-1/2)``.
 
@@ -368,7 +412,7 @@ def density_noise_expected(L, number_density):
 
 
 def sample_density(L_box, number_density, m, rng=None, n_samples: int = 200, gradient: float = 0.0,
-                   L_flow: float = 1.0, seed: int = 0):
+                   L_flow: float = 1.0, seed: int = 0, variation: float = 0.0, x0: float | None = None):
     """Measured density δm/δV in repeated random cubes of side L: sample mean and standard deviation.
 
     Book: §1.4 (continuum hypothesis: rho(x) = δm/δV is meaningful only when δV holds very many molecules yet is small
@@ -379,19 +423,25 @@ def sample_density(L_box, number_density, m, rng=None, n_samples: int = 200, gra
     L_box : float or array_like
         Cube side(s) [m].
     number_density : float
-        Molecules per unit volume at the point [1/m^3].
+        Mean molecules per unit volume [1/m^3] (the macroscopic density is rho0 = number_density · m).
     m : float
         Molecular mass [kg].
     rng : numpy.random.Generator, optional
         Random generator; default ``np.random.default_rng(seed)``.
     n_samples : int, optional
-        Number of independent boxes per size (default 200).
+        Number of independent boxes per size (default 200; use fewer in FAST notebook runs).
     gradient : float, optional
-        Fractional density change per ``L_flow`` across the box (see :func:`density_expected`).
+        Linear macroscopic model (the one explainer E1 mirrors): fractional density change per ``L_flow`` across a
+        box spanning [0, L] from the point (see :func:`density_expected`; default 0).
     L_flow : float, optional
-        Macroscopic length scale [m] (default 1 m).
+        Macroscopic length scale [m] (default 1 m): length of ``gradient`` and wavelength of ``variation``.
     seed : int, optional
         Seed used when ``rng`` is None (default 0).
+    variation : float, optional
+        Optional sinusoidal model: fractional amplitude of a density wave of wavelength ``L_flow``, box centred at
+        ``x0`` (see :func:`box_average_density`; default 0). May be combined with ``gradient``.
+    x0 : float, optional
+        Box centre for the sinusoidal model [m]; default ``L_flow/4`` (a crest).
 
     Returns
     -------
@@ -400,19 +450,21 @@ def sample_density(L_box, number_density, m, rng=None, n_samples: int = 200, gra
 
     Notes
     -----
-    Method: molecule counts are Poisson with mean λ = n L^3 (1 + gradient L/(2 L_flow)) (ideal-gas positions are
+    Method: molecule counts are Poisson with mean λ = n L^3 · (box-average density factor) (ideal-gas positions are
     independent); for λ > 1e7 the normal approximation λ + sqrt(λ) Z is used (numpy's Poisson sampler overflows).
     Assumptions: uncorrelated molecular positions (ideal gas); a liquid's short-range order reduces the noise.
 
-    Validation (planned): V1 relative std ∝ L^(-3/2) (slope −1.5 ± 0.05); V7 mean → rho for large L with no gradient.
-    Label: pending.
+    Validation (planned): V1 relative std ∝ L^(-3/2) (slope −1.5 ± 0.05); V7 mean → rho for large L with no variation;
+    V4 mean → :func:`box_average_density` within sampling error. Label: pending.
     """
     rng = np.random.default_rng(seed) if rng is None else rng
     L = np.atleast_1d(np.asarray(L_box, dtype=float))
     means = np.empty_like(L)
     stds = np.empty_like(L)
     for i, Li in enumerate(L):
-        lam = number_density * Li ** 3 * max(1.0 + gradient * Li / (2.0 * L_flow), 0.0)
+        factor = (box_average_density(Li, 1.0, variation, L_flow, x0)  # sinusoidal model, box centred at x0
+                  + gradient * Li / (2.0 * L_flow))  # linear model, box spanning [0, L]
+        lam = number_density * Li ** 3 * max(factor, 0.0)  # expected molecule count in the box
         if lam > 1e7:
             counts = lam + np.sqrt(lam) * rng.standard_normal(n_samples)
         else:
