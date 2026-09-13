@@ -1,0 +1,43 @@
+{
+  "iapws_sigma_equation": {
+    "B_mN_per_m": 235.8,
+    "b": -0.625,
+    "mu": 1.256,
+    "Tc_K": 647.096,
+    "form": "sigma = B tau^mu (1 + b tau), tau = 1 - T/Tc",
+    "_note": "the PDF text layer drops the minus sign of b; the tabulated calculated column fixes b = -0.625"
+  },
+  "iapws_viscosity_check": [
+    {
+      "T_K": 298.15,
+      "rho_kg_m3": 998.0,
+      "mu_microPa_s": 889.7351
+    },
+    {
+      "T_K": 373.15,
+      "rho_kg_m3": 1000.0,
+      "mu_microPa_s": 307.883622
+    }
+  ],
+  "jennings": {
+    "mean_free_path_air_300K_1atm_nm": 67.3,
+    "phi": 0.4987445,
+    "formula": "lambda = sqrt(pi/8) * mu / (phi * sqrt(rho * P))  (their Eq. 14)",
+    "MD_value_nm": 38.5,
+    "MD_uncertainty_nm": 1.0,
+    "_source": "Tsalikis et al., Aerosol Sci. Technol. 58(8) (2024), doi:10.1080/02786826.2024.2333859; ETH research collection doi:10.3929/ethz-b-000669211"
+  },
+  "taylor_blast": {
+    "gamma": 1.4,
+    "S_gamma_minus5": 0.856,
+    "S_gamma": 1.032,
+    "_source": "J. S. Díaz, 'Explosion analysis from images: Trinity and Beirut', arXiv:2009.05674, p. 3"
+  },
+  "ams_lapse_rate": {
+    "dry_adiabatic_lapse_rate_C_per_km": 9.8,
+    "approximate": true,
+    "convention": "rate of DECREASE, -dT/dz",
+    "definition": "g/c_pd",
+    "_source": "https://glossary.ametsoc.org/wiki/Dry-adiabatic_lapse_rate (fetched 2026-09-13)"
+  }
+}

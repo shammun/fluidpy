@@ -1,0 +1,6 @@
+{
+  "k_B_J_per_K": 1.380649e-23,
+  "N_A_per_mol": 6.02214076e+23,
+  "R_J_per_mol_K": 8.314462618,
+  "_source": "NIST CODATA, https://physics.nist.gov/cgi-bin/cuu/Value?k , ?na , ?r (fetched 2026-09-12)"
+}
