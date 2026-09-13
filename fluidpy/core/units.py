@@ -57,6 +57,66 @@ def dimensional_check(fn: Callable[..., Any], expected: str, **kwargs: Any) -> A
     return out
 
 
+#: Offset between the Celsius and kelvin scales [K] (exact, SI definition of the degree Celsius).
+KELVIN_OFFSET = 273.15
+
+
+def celsius_to_kelvin(T_C: Any) -> Any:
+    """Convert a temperature from degrees Celsius to kelvin.
+
+    Book: §1.2 (the relation printed as "°C = K − 273.15", i.e. T[°C] = T[K] − 273.15).
+
+    Parameters
+    ----------
+    T_C : float or array_like
+        Temperature on the Celsius scale [°C].
+
+    Returns
+    -------
+    T_K : float or ndarray
+        Absolute temperature [K].
+
+    Notes
+    -----
+    Assumptions: this converts a temperature *value*. A temperature *difference* has the same number in °C and K
+    (pint: ``delta_degC``); never pass a difference through this function. Every ``fluidpy`` function takes kelvin.
+
+    Validation (planned): V1 round trip K → °C → K and 0 °C = 273.15 K; V7 agreement with pint
+    ``Q_(T, "degC").to("K")``. Label: pending.
+    """
+    import numpy as np
+
+    out = np.asarray(T_C, dtype=float) + KELVIN_OFFSET  # §1.2: T[K] = T[°C] + 273.15
+    return float(out) if out.ndim == 0 else out
+
+
+def kelvin_to_celsius(T_K: Any) -> Any:
+    """Convert an absolute temperature from kelvin to degrees Celsius.
+
+    Book: §1.2 (T[°C] = T[K] − 273.15).
+
+    Parameters
+    ----------
+    T_K : float or array_like
+        Absolute temperature [K].
+
+    Returns
+    -------
+    T_C : float or ndarray
+        Temperature on the Celsius scale [°C].
+
+    Notes
+    -----
+    Assumptions: a temperature value, not a difference (see :func:`celsius_to_kelvin`).
+
+    Validation (planned): V1 round trip; V7 pint agreement. Label: pending.
+    """
+    import numpy as np
+
+    out = np.asarray(T_K, dtype=float) - KELVIN_OFFSET  # §1.2: T[°C] = T[K] − 273.15
+    return float(out) if out.ndim == 0 else out
+
+
 def nondimensional(value: Any, name: str = "") -> float:
     """Assert a quantity is dimensionless (a Reynolds number, a similarity variable) and return it as a float."""
     if hasattr(value, "dimensionality") and not value.dimensionless:
