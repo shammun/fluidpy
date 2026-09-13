@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Same two states: what depends on the path?</title>
+<title>Why can 7 pipe variables shrink to 4 numbers?</title>
 <meta name="viz:chapter" content="ch01">
-<meta name="viz:slug" content="heat_work_paths">
-<meta name="viz:order" content="3">
-<meta name="viz:title" content="Same two states: what depends on the path?">
-<meta name="viz:summary" content="Take 1 kg of air between the same two states along different routes: heat and work change, internal energy and entropy do not, and friction breaks ds = dq/T.">
-<meta name="viz:concept" content="first law; heat and work as path functions; state functions; entropy and the Gibbs relations; isentropic law">
-<meta name="viz:sections" content="1.8, 1.9">
-<meta name="viz:equations" content="(1.10), (1.11), (1.16), (1.17), (1.18), (1.25)">
-<meta name="viz:fluidpy" content="ch01.process_path ch01.path_heat_work_totals ch01.process_heat_work ch01.entropy_change_reversible ch01.perfect_gas_entropy_change ch01.isentropic_pressure ch01.irreversible_process">
-<meta name="viz:derivations" content="D10 D14">
+<meta name="viz:slug" content="buckingham_pi_machine">
+<meta name="viz:order" content="5">
+<meta name="viz:title" content="Why can 7 pipe variables shrink to 4 numbers?">
+<meta name="viz:summary" content="Switch variables off, pick the repeating set and watch the dimensional matrix, its rank, the exponent solve and the Π groups change; then change units and see every Π keep its value.">
+<meta name="viz:concept" content="dimensional homogeneity; dimensional matrix and its rank; Buckingham Π theorem; repeating variables; exponent algebra">
+<meta name="viz:sections" content="1.11">
+<meta name="viz:equations" content="(1.36), (1.37), (1.38), (1.39), (1.40)">
+<meta name="viz:fluidpy" content="ch01.dimensional_matrix ch01.rank_by_minors ch01.minor_determinant ch01.solve_exponents ch01.pi_groups ch01.groups_independent ch01.group_value ch01.rescale_units">
+<meta name="viz:derivations" content="D28">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -454,13 +454,15 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* heat_work_paths: on phones the process chips move from the stage strip into Explore (the presets cover them) */
-  .viz-app[data-layout="portrait"] .viz-stage-top > .viz-seg,
-  .viz-app[data-layout="landscape"] .viz-stage-top > .viz-seg { display: none; }
-  /* short phones (360×640): the status line and view titles give their height to the two diagrams */
+  /* buckingham_pi_machine: amber words in the Explain tab match the Θ row of the matrix */
+  .c-amber { color: var(--viz-amber); font-weight: 650; }
+  /* short phones held upright: the problem chips and the status line give their height to the matrix, the groups and the
+     walkthrough text (the Explore select picks the problem; the groups window shows a warning card when something fails);
+     in the walkthrough the scrubber also steps aside (step 3 plays the minor search by itself) */
   @media (max-height: 700px) {
-    .viz-app[data-layout="portrait"] .viz-status,
-    .viz-app[data-layout="portrait"] .viz-view-title { display: none; }
+    .viz-app[data-layout="portrait"] .viz-stage-top { display: none; }
+    .viz-app[data-layout="portrait"][data-tab="tour"] .viz-stage.multi { min-height: max(230px, 42%); }
+    .viz-app[data-layout="portrait"][data-tab="tour"] .viz-transport { display: none; }
   }
 </style>
 </head>
@@ -2024,857 +2026,1217 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.thermo (re-exported as ch01.*), same symbols, SI units, Kundu §1.8–1.9:
-     processPath            ↔ ch01.process_path(kind, (v1, T1), (v2, T2), n, gamma, R)
-     legTotals / pathTotals ↔ ch01._leg_totals / ch01.path_heat_work_totals(kind, v1, T1, v2, T2, gamma, R)
-     runningTotals          ↔ ch01.process_heat_work(v_path, T_path, cv, R)      (cumulative trapezoid, w = −∫p dv)
-     entropyReversible      ↔ ch01.entropy_change_reversible(q_path, T_path)       Eq. (1.16)–(1.17)
-     entropyChange          ↔ ch01.perfect_gas_entropy_change(T1, v1, T2, v2, cv, R)  integrated Eq. (1.18)
-     irreversible           ↔ ch01.irreversible_process(kind, T1, v1, cv, R, T2, v2)   Clausius–Duhem, §1.8 (ii)
-     isentropicPressure     ↔ ch01.isentropic_pressure(rho, p0, rho0, gamma)        Eq. (1.25)
-   First-law sign (Eq. 1.10): q = heat added TO the gas, w = work done ON the gas, q + w = Δe.
+   PHYSICS — dimensional analysis as exact linear algebra. Mirrors fluidpy.core.dimensional (re-exported as ch01.*),
+   Kundu §1.11, Eqs. (1.36)–(1.40), Examples 1.2, 1.4, 1.5:
+     dimMatrix(vars)                 ↔ ch01.dimensional_matrix(variables)          (rows M, L, T, Θ; zero rows dropped)
+     minorDet(A, rows, cols)         ↔ ch01.minor_determinant(A, rows, cols)       (cofactor expansion, first row)
+     rankByMinors(A)                 ↔ ch01.rank_by_minors(A)                      (same lexicographic witness)
+     solveExponents(t, rep, vars)    ↔ ch01.solve_exponents(target, repeating, variables)   (Gauss–Jordan on Frac)
+     piGroups(vars, sol, rep)        ↔ ch01.pi_groups(variables, solution, repeating)
+     autoRepeating(vars, excl, r)    ↔ ch01.core.dimensional._auto_repeating
+     groupDimension / groupValue     ↔ ch01.group_dimension / ch01.group_value
+     groupsIndependent(groups)       ↔ ch01.groups_independent(groups)
+     groupTex(group)                 ↔ ch01.group_latex(group)
+     rescale(values, vars, system)   ↔ ch01.rescale_units(values, variables, system)
+   All exponent arithmetic is EXACT (the Frac class below mirrors fractions.Fraction).
    --------------------------------------------------------------------------------------------------- */
-const K_B = 1.380649e-23, N_A_KMOL = 6.02214076e26;
-const R_U = K_B * N_A_KMOL;                 // universal gas constant [J/(kmol K)]
-const R_AIR = R_U / 28.9644;                // gas constant of dry air [J/(kg K)] = 287.058
-const CV_AIR = R_AIR / (1.4 - 1);           // C_v of air [J/(kg K)] = 717.64
-const T1 = 300, P1 = 1e5;                   // fixed start state: 300 K, 1 bar
-const V1 = R_AIR * T1 / P1;                 // specific volume at the start [m³/kg] = 0.8612
-const GAS = { '7/5': 1.4, '5/3': 5 / 3 };
-const NLEG = 161;                           // samples per leg for drawing
-const ROUTES = [
-  ['isothermal', 'A · isothermal'], ['isochoric-isobaric', 'B · cool, then expand'], ['isobaric-isochoric', 'C · expand, then cool'],
-  ['isentropic-isochoric', 'D · isentrope + isochore'], ['isothermal-isochoric', 'E · isotherm + isochore']
+
+/* ---- exact rationals (local helper; promotion candidate for viz_lib.js as Viz.Frac) ---- */
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { const t = a % b; a = b; b = t; } return a || 1; }
+class Frac {
+  constructor(n, d = 1) {
+    if (n instanceof Frac) { this.n = n.n; this.d = n.d; return; }
+    if (!Number.isInteger(n) || !Number.isInteger(d) || d === 0) throw new Error('Frac needs integers, d ≠ 0');
+    if (d < 0) { n = -n; d = -d; }
+    const g = gcd(n, d); this.n = n / g; this.d = d / g;
+    if (this.n === 0) { this.n = 0; this.d = 1; }          // normalise −0
+  }
+  add(o) { o = Q(o); return new Frac(this.n * o.d + o.n * this.d, this.d * o.d); }
+  sub(o) { o = Q(o); return new Frac(this.n * o.d - o.n * this.d, this.d * o.d); }
+  mul(o) { o = Q(o); return new Frac(this.n * o.n, this.d * o.d); }
+  div(o) { o = Q(o); if (o.n === 0) throw new Error('division by zero'); return new Frac(this.n * o.d, this.d * o.n); }
+  neg() { return new Frac(-this.n, this.d); }
+  isZero() { return this.n === 0; }
+  eq(o) { o = Q(o); return this.n === o.n && this.d === o.d; }
+  sign() { return Math.sign(this.n); }
+  valueOf() { return this.n / this.d; }
+  toString() { return this.d === 1 ? String(this.n) : this.n + '/' + this.d; }
+  /** plain text with a real minus sign: −1/2 */
+  txt() { return this.toString().replace('-', '−'); }
+  /** TeX: -\tfrac{1}{2} or -2 */
+  tex() { return this.d === 1 ? String(this.n) : (this.n < 0 ? '-' : '') + '\\tfrac{' + Math.abs(this.n) + '}{' + this.d + '}'; }
+}
+function Q(x) { return x instanceof Frac ? x : new Frac(x); }
+const ZERO = new Frac(0), ONE = new Frac(1);
+
+/* ---- base dimensions and the problems (presets of fluidpy.core.dimensional) ---- */
+const BASIS = ['M', 'L', 'T', 'Θ'];
+const BASIS_TEX = { M: '\\mathrm{M}', L: '\\mathrm{L}', T: '\\mathrm{T}', 'Θ': '\\Theta' };
+/** SI unit-base names of each system (the pound here is the pound-mass, as in rescale_units) */
+const UNIT_NAMES = { SI: ['kg', 'm', 's', 'K'], cgs: ['g', 'cm', 's', 'K'], imperial: ['lb', 'ft', 's', '°R'] };
+/** ch01.UNIT_SYSTEMS: the number of new base units in one SI base unit */
+const UNIT_SYSTEMS = {
+  SI: { M: 1.0, L: 1.0, T: 1.0, 'Θ': 1.0 },
+  cgs: { M: 1.0e3, L: 1.0e2, T: 1.0, 'Θ': 1.0 },
+  imperial: { M: 1.0 / 0.45359237, L: 1.0 / 0.3048, T: 1.0, 'Θ': 1.8 }
+};
+const R_U = 8314.46261815324;                         // universal gas constant [J/(kmol K)] (CODATA 2018 × 1000)
+const G0 = 9.81;                                      // gravitational acceleration used in the examples [m/s²]
+
+// v(id, symbol {b, sub}, tex, meaning, SI unit label, [M, L, T, Θ], SI value)
+function v(id, b, sub, tex, name, unit, dim, si) { return { id, sym: { b, sub }, tex, name, unit, dim: dim.map(x => new Frac(x)), si }; }
+const PIPE_V = [
+  v('dp', 'Δp', '', '\\Delta p', 'pressure drop', 'Pa', [1, -1, -2, 0], 100.0),
+  v('dx', 'Δx', '', '\\Delta x', 'tap distance', 'm', [0, 1, 0, 0], 1.0),
+  v('d', 'd', '', 'd', 'pipe diameter', 'm', [0, 1, 0, 0], 0.01),
+  v('eps', 'ε', '', '\\varepsilon', 'wall roughness', 'm', [0, 1, 0, 0], 1e-5),
+  v('U', 'U', '', 'U', 'mean velocity', 'm/s', [0, 1, -1, 0], 0.1),
+  v('rho', 'ρ', '', '\\rho', 'density', 'kg/m³', [1, -3, 0, 0], 1000.0),
+  v('mu', 'μ', '', '\\mu', 'viscosity', 'Pa·s', [1, -1, -1, 0], 1e-3)
 ];
-const ROUTE_NAME = Object.fromEntries(ROUTES);
+const PEND_L = 1.0, PEND_G = G0;
+const PENDULUM_V = [
+  v('tau', 'τ', '', '\\tau', 'period', 's', [0, 0, 1, 0], 2 * Math.PI * Math.sqrt(PEND_L / PEND_G)),
+  v('Lp', 'L', '', 'L_p', 'string length', 'm', [0, 1, 0, 0], PEND_L),
+  v('m', 'm', '', 'm', 'bob mass', 'kg', [1, 0, 0, 0], 0.5),
+  v('g', 'g', '', 'g', 'gravity', 'm/s²', [0, 1, -2, 0], PEND_G),
+  v('theta0', 'θ', '0', '\\theta_0', 'release angle', 'rad', [0, 0, 0, 0], 0.1)
+];
+const DRAG_D = 0.1, DRAG_U = 10, DRAG_RHO = 1.2, DRAG_CD = 0.47;
+const DRAG_V = [
+  v('F', 'F', '', 'F', 'drag force', 'N', [1, 1, -2, 0], DRAG_CD * 0.5 * DRAG_RHO * DRAG_U * DRAG_U * Math.PI * DRAG_D * DRAG_D / 4),
+  v('D', 'D', '', 'D', 'sphere diameter', 'm', [0, 1, 0, 0], DRAG_D),
+  v('U', 'U', '', 'U', 'air speed', 'm/s', [0, 1, -1, 0], DRAG_U),
+  v('rho', 'ρ', '', '\\rho', 'air density', 'kg/m³', [1, -3, 0, 0], DRAG_RHO),
+  v('mu', 'μ', '', '\\mu', 'air viscosity', 'Pa·s', [1, -1, -1, 0], 1.8e-5)
+];
+const SH_T0 = 288.15, SH_MW = 28.9644;
+const SCALE_V = [
+  v('H', 'H', '', 'H', 'scale height', 'm', [0, 1, 0, 0], R_U * SH_T0 / (G0 * SH_MW)),
+  v('T0', 'T', '0', 'T_0', 'temperature', 'K', [0, 0, 0, 1], SH_T0),
+  v('Mw', 'M', 'w', 'M_w', 'molecular weight', 'kg/kmol', [1, 0, 0, 0], SH_MW),
+  v('g', 'g', '', 'g', 'gravity', 'm/s²', [0, 1, -2, 0], G0),
+  v('Ru', 'R', 'u', 'R_u', 'gas constant', 'J/(kmol·K)', [1, 2, -2, -1], R_U)
+];
+const BL_D = 100, BL_T = 0.02, BL_RHO = 1.2, BL_K = 0.856;
+const BLAST_V = [
+  v('E', 'E', '', 'E', 'blast energy', 'J', [1, 2, -2, 0], BL_K * BL_RHO * Math.pow(BL_D, 5) / (BL_T * BL_T)),
+  v('D', 'D', '', 'D', 'blast radius', 'm', [0, 1, 0, 0], BL_D),
+  v('rho', 'ρ', '', '\\rho', 'air density', 'kg/m³', [1, -3, 0, 0], BL_RHO),
+  v('t', 't', '', 't', 'time', 's', [0, 0, 1, 0], BL_T)
+];
+const RY_I = 1000, RY_V = 5.2e-22, RY_LAM = 4.5e-7, RY_DIST = 1.0;
+const RAYLEIGH_V = [
+  v('S', 'S', '', 'S', 'scattered intensity', 'W/m²', [1, 0, -3, 0], RY_I * RY_V * RY_V / (RY_DIST * RY_DIST * Math.pow(RY_LAM, 4))),
+  v('I', 'I', '', 'I', 'incident intensity', 'W/m²', [1, 0, -3, 0], RY_I),
+  v('lam', 'λ', '', '\\lambda', 'wavelength', 'm', [0, 1, 0, 0], RY_LAM),
+  v('V', 'V', '', 'V', 'particle volume', 'm³', [0, 3, 0, 0], RY_V),
+  v('n_s', 'n', 's', 'n_s', 'refractive index', '–', [0, 0, 0, 0], 1.33),
+  v('d', 'd', '', 'd', 'distance', 'm', [0, 1, 0, 0], RY_DIST)
+];
 
-function isclose(a, b, rtol) { return Math.abs(a - b) <= 1e-8 + rtol * Math.abs(b); }   // numpy.isclose
-function checkLeg(kind, va, Ta, vb, Tb, gamma) {
-  const ok = kind === 'isothermal' ? isclose(Ta, Tb, 1e-9) : kind === 'isochoric' ? isclose(va, vb, 1e-9)
-    : kind === 'isobaric' ? isclose(Ta / va, Tb / vb, 1e-9) : kind === 'isentropic' ? isclose(Ta * Math.pow(va, gamma - 1), Tb * Math.pow(vb, gamma - 1), 1e-9) : null;
-  if (ok === null) throw new Error('unknown process kind ' + kind);
-  if (!ok) throw new Error('a single ' + kind + ' leg cannot join the two states');
-}
-/** Corner state of a two-leg route (same as thermo._corner_state). */
-function cornerState(kind, v1, t1, v2, t2, gamma) {
-  if (kind === 'isochoric-isobaric') return [v1, t2 * v1 / v2];          // v fixed at v1, then p fixed at p2
-  if (kind === 'isobaric-isochoric') return [v2, t1 * v2 / v1];          // p fixed at p1 until v2, then v fixed
-  if (kind === 'isentropic-isochoric') return [v2, t1 * Math.pow(v1 / v2, gamma - 1)];   // T v^(γ−1) = const
-  if (kind === 'isothermal-isochoric') return [v2, t1];
-  throw new Error('unknown two-leg kind ' + kind);
-}
-/** A point on one leg at fraction f: uniform in v (in T for isochoric legs), exactly like process_path's sampling. */
-function legPoint(kind, va, Ta, vb, Tb, f, gamma) {
-  if (kind === 'isochoric') return [va, Ta + f * (Tb - Ta)];
-  const v = va + f * (vb - va);
-  if (kind === 'isothermal') return [v, Ta];
-  if (kind === 'isobaric') return [v, Ta * v / va];                     // p = RT/v constant
-  return [v, Ta * Math.pow(va / v, gamma - 1)];                          // isentropic, from (1.25) with pv = RT
-}
-function legSamples(kind, va, Ta, vb, Tb, n, gamma) {
-  const v = [], T = [];
-  for (let i = 0; i < n; i++) { const q = legPoint(kind, va, Ta, vb, Tb, i / (n - 1), gamma); v.push(q[0]); T.push(q[1]); }
-  return { v, T };
-}
-/** ch01.process_path: sampled reversible route, one leg or two legs meeting at a corner. */
-function processPath(kind, s1, s2, n = 401, gamma = 1.4, R = R_AIR) {
-  const [v1, t1] = s1, [v2, t2] = s2;
-  let v, T, corner = null;
-  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); ({ v, T } = legSamples(kind, v1, t1, v2, t2, n, gamma)); }
-  else {
-    const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
-    const A = legSamples(a, v1, t1, c[0], c[1], n, gamma), B = legSamples(b, c[0], c[1], v2, t2, n, gamma);
-    v = A.v.concat(B.v.slice(1)); T = A.T.concat(B.T.slice(1)); corner = n - 1;
-  }
-  return { v, T, p: v.map((x, i) => R * T[i] / x), corner };
-}
-/** Exact q, w, Δe, Δs of one reversible perfect-gas leg (thermo._leg_totals). */
-function legTotals(kind, va, Ta, vb, Tb, cv, R) {
-  const cp = cv + R, de = cv * (Tb - Ta);                                // Eq. (1.23); perfect gas de = C_v dT
-  let w, ds;
-  if (kind === 'isothermal') { w = -R * Ta * Math.log(vb / va); ds = R * Math.log(vb / va); }   // −∫p dv, p = RT/v
-  else if (kind === 'isochoric') { w = 0; ds = cv * Math.log(Tb / Ta); }
-  else if (kind === 'isobaric') { w = -R * (Tb - Ta); ds = cp * Math.log(Tb / Ta); }             // −p(v_b − v_a)
-  else if (kind === 'isentropic') { w = de; ds = 0; }                                             // q = 0
-  else throw new Error(kind);
-  const q = de - w;                                                      // Eq. (1.10): q + w = Δe
-  return { q, w, de, ds, int_dq_over_T: ds };
-}
-/** ch01.path_heat_work_totals */
-function pathTotals(kind, v1, t1, v2, t2, gamma = 1.4, R = R_AIR) {
-  const cv = R / (gamma - 1);
-  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); return legTotals(kind, v1, t1, v2, t2, cv, R); }
-  const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
-  const A = legTotals(a, v1, t1, c[0], c[1], cv, R), B = legTotals(b, c[0], c[1], v2, t2, cv, R);
-  const out = {}; Object.keys(A).forEach(k => { out[k] = A[k] + B[k]; }); return out;
-}
-/** ch01.process_heat_work: cumulative trapezoid w = −∫p dv, Δe = C_v(T − T0), q = Δe − w. */
-function runningTotals(v, T, cv = CV_AIR, R = R_AIR) {
-  const p = v.map((x, i) => R * T[i] / x), w = [0];
-  for (let i = 1; i < v.length; i++) w.push(w[i - 1] - 0.5 * (p[i] + p[i - 1]) * (v[i] - v[i - 1]));
-  const de = T.map(t => cv * (t - T[0]));
-  return { q: de.map((x, i) => x - w[i]), w, de, p };
-}
-/** ch01.entropy_change_reversible: trapezoid of dq/T (Eq. 1.17). */
-function entropyReversible(q, T, cumulative = false) {
-  const s = [0];
-  for (let i = 1; i < q.length; i++) s.push(s[i - 1] + 0.5 * (1 / T[i] + 1 / T[i - 1]) * (q[i] - q[i - 1]));
-  return cumulative ? s : s[s.length - 1];
-}
-/** ch01.perfect_gas_entropy_change: Δs = C_v ln(T2/T1) + R ln(v2/v1), integrated (1.18). */
-function entropyChange(t1, v1, t2, v2, cv = CV_AIR, R = R_AIR) { return cv * Math.log(t2 / t1) + R * Math.log(v2 / v1); }
-/** ch01.irreversible_process: stirring at fixed v, or free expansion at fixed T. */
-function irreversible(kind, t1, v1, cv = CV_AIR, R = R_AIR, t2 = null, v2 = null) {
-  if (kind === 'stirring') {
-    if (t2 === null || t2 < t1) throw new Error('stirring needs T2 >= T1');
-    const de = cv * (t2 - t1);
-    return { q: 0, w: de, de, ds: cv * Math.log(t2 / t1), int_dq_over_T: 0 };     // (1.18) at dv = 0
-  }
-  if (kind === 'free_expansion') {
-    if (v2 === null || v2 < v1) throw new Error('free expansion needs v2 >= v1');
-    return { q: 0, w: 0, de: 0, ds: R * Math.log(v2 / v1), int_dq_over_T: 0 };    // (1.18) at dT = 0
-  }
-  throw new Error('kind must be stirring or free_expansion');
-}
-/** ch01.isentropic_pressure: p = p0 (ρ/ρ0)^γ, Eq. (1.25). */
-function isentropicPressure(rho, p0, rho0, gamma = 1.4) { return p0 * Math.pow(rho / rho0, gamma); }
+const PROBLEMS = {
+  pipe: { title: 'pressure drop in a pipe', short: 'pipe', py: 'PIPE', vars: PIPE_V, solution: 'dp',
+    reps: { book: ['U', 'd', 'rho'], alt1: ['U', 'd', 'mu'], alt2: ['dx', 'U', 'rho'], alt3: ['U', 'rho', 'mu'], bad: ['d', 'eps', 'rho'] },
+    drops: ['mu', 'eps', 'dx'] },
+  pendulum: { title: 'period of a pendulum', short: 'pendulum', py: 'PENDULUM', vars: PENDULUM_V, solution: 'tau',
+    reps: { book: ['Lp', 'm', 'g'], bad: ['Lp', 'g', 'theta0'] }, drops: ['m', 'theta0'] },
+  sphere_drag: { title: 'drag on a sphere', short: 'drag', py: 'SPHERE_DRAG', vars: DRAG_V, solution: 'F',
+    reps: { book: ['D', 'U', 'rho'], alt1: ['D', 'U', 'mu'], alt2: ['D', 'rho', 'mu'], alt3: ['U', 'rho', 'mu'] }, drops: ['mu', 'rho'] },
+  scale_height: { title: 'scale height (Ex. 1.2)', short: 'scale height', py: 'SCALE_HEIGHT', vars: SCALE_V, solution: 'H',
+    reps: { book: ['T0', 'Mw', 'g', 'Ru'] }, drops: ['Ru'] },
+  blast: { title: 'point blast (Ex. 1.4)', short: 'blast', py: 'BLAST', vars: BLAST_V, solution: 'E',
+    reps: { book: ['D', 'rho', 't'] }, drops: ['rho'] },
+  rayleigh: { title: 'Rayleigh scattering (Ex. 1.5)', short: 'Rayleigh', py: 'RAYLEIGH', vars: RAYLEIGH_V, solution: 'S',
+    reps: { book: ['I', 'lam'], alt1: ['I', 'd'], alt2: ['I', 'V'], bad: ['lam', 'd'] }, drops: ['n_s', 'V'] }
+};
+const REP_IDS = ['book', 'alt1', 'alt2', 'alt3', 'bad', 'custom'];
 
-/* ---------------------------------------------------------------------------------------------------
-   MODEL — everything the views, readouts and panels need for the current settings (cached)
-   --------------------------------------------------------------------------------------------------- */
-let _mkey = null, _model = null;
-function model(s) {
-  const key = [s.path, s.vr, s.Tr, s.gas, s.proc].join('|');
-  if (key === _mkey) return _model;
-  const gamma = GAS[s.gas] || 1.4, cv = R_AIR / (gamma - 1), cp = cv + R_AIR;
-  let vr = s.vr, Tr = s.Tr;
-  if (s.proc === 'stir') { vr = 1; Tr = Math.max(Tr, 1); }
-  if (s.proc === 'free') { Tr = 1; vr = Math.max(vr, 1); }
-  const v2 = vr * V1, T2 = Tr * T1;
-  const M = { gamma, cv, cp, v1: V1, T1, p1: P1, v2, T2, p2: R_AIR * T2 / v2, proc: s.proc, vr, Tr };
-  if (s.proc === 'rev') {
-    let kind = s.path;
-    if (kind === 'isothermal' && Math.abs(Tr - 1) > 1e-9) kind = 'isothermal-isochoric';
-    M.kind = kind;
-    const names = kind.split('-'), states = [[V1, T1]];
-    if (names.length === 2) states.push(cornerState(kind, V1, T1, v2, T2, gamma));
-    states.push([v2, T2]);
-    M.corner = names.length === 2 ? states[1] : null;
-    M.legs = names.map((k, i) => ({ kind: k, va: states[i][0], Ta: states[i][1], vb: states[i + 1][0], Tb: states[i + 1][1] }));
-    M.tot = pathTotals(kind, V1, T1, v2, T2, gamma, R_AIR);
-  } else if (s.proc === 'stir') {
-    M.kind = 'stir'; M.legs = [{ kind: 'stir', va: V1, Ta: T1, vb: V1, Tb: T2 }];
-    M.tot = irreversible('stirring', T1, V1, cv, R_AIR, T2, null);
-  } else {
-    M.kind = 'free'; M.legs = [{ kind: 'free', va: V1, Ta: T1, vb: v2, Tb: T1 }];
-    M.tot = irreversible('free_expansion', T1, V1, cv, R_AIR, null, v2);
-  }
-  M.ds = entropyChange(T1, V1, T2, v2, cv, R_AIR);                          // Gibbs, any process
-  M.de = cv * (T2 - T1);
-  // leg bookkeeping: exact totals, visual length (in ln v, ln T), samples; a zero-length leg (e.g. the pump preset's
-  // isochore) gets no share of the animation and is skipped when drawn
-  let Ltot = 0;
-  M.legs.forEach(L => {
-    L.len = Math.hypot(Math.log(L.vb / L.va), Math.log(L.Tb / L.Ta));
-    L.zero = L.len < 1e-9;
-    L.tot = s.proc === 'rev' ? legTotals(L.kind, L.va, L.Ta, L.vb, L.Tb, cv, R_AIR) : M.tot;
-    const pk = L.kind === 'stir' ? 'isochoric' : L.kind === 'free' ? 'isothermal' : L.kind;
-    L.pk = pk; L.smp = legSamples(pk, L.va, L.Ta, L.vb, L.Tb, NLEG, gamma);
-    L.smp.p = L.smp.v.map((x, i) => R_AIR * L.smp.T[i] / x);
-    L.smp.s = L.smp.v.map((x, i) => entropyChange(T1, V1, L.smp.T[i], x, cv, R_AIR));
-    Ltot += L.zero ? 0 : L.len;
-  });
-  let acc = 0;
-  M.legs.forEach((L, i) => { L.u0 = acc; acc += Ltot > 0 ? (L.zero ? 0 : L.len / Ltot) : (i === 0 ? 1 : 0); L.u1 = acc; });
-  // ghost routes between the same two states (reversible ones only)
-  M.ghosts = ROUTES.filter(r => r[0] !== 'isothermal' || Math.abs(Tr - 1) < 1e-9).map(r => {
-    const d = processPath(r[0], [V1, T1], [v2, T2], 121, gamma, R_AIR);
-    return { kind: r[0], name: r[1], v: d.v, p: d.p, s: d.v.map((x, i) => entropyChange(T1, V1, d.T[i], x, cv, R_AIR)), T: d.T, tot: pathTotals(r[0], V1, T1, v2, T2, gamma, R_AIR) };
-  });
-  // plot bounds
-  let vmax = Math.max(V1, v2), pmax = Math.max(P1, M.p2), smin = Math.min(0, M.ds), smax = Math.max(0, M.ds), Tmax = Math.max(T1, T2);
-  M.ghosts.concat(M.legs.map(L => ({ v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T }))).forEach(G => {
-    G.v.forEach((x, i) => { vmax = Math.max(vmax, x); pmax = Math.max(pmax, G.p[i]); smin = Math.min(smin, G.s[i]); smax = Math.max(smax, G.s[i]); Tmax = Math.max(Tmax, G.T[i]); });
-  });
-  M.vmax = vmax; M.pmax = pmax; M.smin = smin; M.smax = smax; M.Tmax = Tmax;
-  _mkey = key; _model = M;
-  return M;
+function byId(vars) { const o = {}; vars.forEach(q => { o[q.id] = q; }); return o; }
+
+/* ---- the matrix and its minors ---- */
+/** ch01.dimensional_matrix: one column per variable, rows M, L, T, Θ with all-zero rows dropped. */
+function dimMatrix(vars) {
+  if (!vars.length) throw new Error('no variables');
+  const keep = [0, 1, 2, 3].filter(i => vars.some(q => !q.dim[i].isZero()));
+  return { A: keep.map(i => vars.map(q => q.dim[i])), names: vars.map(q => q.id), rows: keep.map(i => BASIS[i]) };
 }
-/** The state at progress u ∈ [0, 1] along the route, with the running totals so far (exact, leg by leg). */
-function at(M, u) {
-  u = Math.max(0, Math.min(1, u));
-  let i = M.legs.findIndex(L => !L.zero && u <= L.u1 + 1e-12);
-  if (i < 0) i = M.legs.length - 1;
-  const L = M.legs[i], f = L.u1 > L.u0 ? (u - L.u0) / (L.u1 - L.u0) : 1;
-  const pt = legPoint(L.pk, L.va, L.Ta, L.vb, L.Tb, Math.max(0, Math.min(1, f)), M.gamma);
-  const v = pt[0], T = pt[1], out = { i, f, v, T, p: R_AIR * T / v, leg: L };
-  if (M.proc === 'rev') {
-    let q = 0, w = 0, de = 0;
-    for (let k = 0; k < i; k++) { q += M.legs[k].tot.q; w += M.legs[k].tot.w; de += M.legs[k].tot.de; }
-    const part = legTotals(L.kind, L.va, L.Ta, v, T, M.cv, R_AIR);
-    Object.assign(out, { q: q + part.q, w: w + part.w, de: de + part.de });
-    out.ds = entropyChange(T1, V1, T, v, M.cv, R_AIR); out.sint = out.ds;
-    out.dq = L.kind === 'isothermal' ? Math.sign(L.vb - L.va) : (L.kind === 'isochoric' || L.kind === 'isobaric') ? Math.sign(L.Tb - L.Ta) : 0;
-  } else if (M.proc === 'stir') {
-    const de = M.cv * (T - T1);
-    Object.assign(out, { q: 0, w: de, de, ds: M.cv * Math.log(T / T1), sint: 0, dq: 0 });
-  } else {
-    Object.assign(out, { q: 0, w: 0, de: 0, ds: R_AIR * Math.log(v / V1), sint: 0, dq: 0 });
-  }
+/** determinant by cofactor (Laplace) expansion along the first row, skipping zero entries (same as _det_cofactor) */
+function detCofactor(M) {
+  const n = M.length;
+  if (n === 1) return M[0][0];
+  if (n === 2) return M[0][0].mul(M[1][1]).sub(M[0][1].mul(M[1][0]));
+  let total = ZERO;
+  M[0].forEach((a, j) => {
+    if (a.isZero()) return;
+    const sub = M.slice(1).map(row => row.slice(0, j).concat(row.slice(j + 1)));
+    total = total.add(a.mul(detCofactor(sub)).mul(j % 2 ? -1 : 1));
+  });
+  return total;
+}
+function subMatrix(A, rows, cols) { return rows.map(i => cols.map(j => A[i][j])); }
+/** ch01.minor_determinant */
+function minorDet(A, rows, cols) {
+  if (rows.length !== cols.length) throw new Error('a minor needs as many rows as columns');
+  return detCofactor(subMatrix(A.map(r => r.map(Q)), rows, cols));
+}
+function combinations(n, k) {
+  const out = [], c = [];
+  (function rec(start) {
+    if (c.length === k) { out.push(c.slice()); return; }
+    for (let i = start; i < n; i++) { c.push(i); rec(i + 1); c.pop(); }
+  })(0);
   return out;
 }
-/** Samples of the route up to progress u (for the bold "so far" curve), split by leg. */
-function soFar(M, u) {
-  const now = at(M, u);
-  return M.legs.map((L, k) => {
-    if (L.zero || k > now.i) return null;
-    if (k < now.i) return { L, v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T };
-    const m = Math.floor(now.f * (NLEG - 1)), v = L.smp.v.slice(0, m + 1), p = L.smp.p.slice(0, m + 1), s = L.smp.s.slice(0, m + 1), T = L.smp.T.slice(0, m + 1);
-    v.push(now.v); p.push(now.p); s.push(now.ds === undefined ? 0 : entropyChange(T1, V1, now.T, now.v, M.cv, R_AIR)); T.push(now.T);
-    return { L, v, p, s, T };
-  }).filter(Boolean);
+/** ch01.rank_by_minors: biggest nonzero square minor, searched from min(m, n) down, combinations in lexicographic order */
+function rankByMinors(A) {
+  const M = A.map(r => r.map(Q)), m = M.length, n = M[0].length;
+  for (let k = Math.min(m, n); k > 0; k--)
+    for (const rows of combinations(m, k))
+      for (const cols of combinations(n, k))
+        if (!detCofactor(subMatrix(M, rows, cols)).isZero()) return { r: k, rows, cols };
+  return { r: 0, rows: [], cols: [] };
 }
-/** Route samples (process_path with NLEG per leg) up to the sample nearest u, and the trapezoid totals there. */
-function trapezoidAt(M, u) {
-  if (M.proc !== 'rev') return null;
-  const now = at(M, u), v = [], T = [];
-  M.legs.forEach((L, k) => {
-    if (k > now.i) return;
-    const m = k < now.i ? NLEG - 1 : Math.round(now.f * (NLEG - 1));
-    for (let j = (v.length ? 1 : 0); j <= m; j++) { v.push(L.smp.v[j]); T.push(L.smp.T[j]); }
+/** every minor the search visits, from size min(m, n) down to r (for the slow-motion scan) */
+function minorSearch(A, r) {
+  const M = A.map(row => row.map(Q)), m = M.length, n = M[0].length, list = [];
+  for (let k = Math.min(m, n); k >= Math.max(r, 1); k--)
+    for (const rows of combinations(m, k))
+      for (const cols of combinations(n, k)) list.push({ k, rows, cols, det: detCofactor(subMatrix(M, rows, cols)) });
+  return list;
+}
+/** rank by exact Gaussian elimination (_rank_exact) */
+function rankExact(Min) {
+  const R = Min.map(r => r.map(Q));
+  if (!R.length) return 0;
+  const m = R.length, n = R[0].length;
+  let rank = 0, col = 0;
+  while (rank < m && col < n) {
+    let piv = -1;
+    for (let i = rank; i < m; i++) if (!R[i][col].isZero()) { piv = i; break; }
+    if (piv < 0) { col++; continue; }
+    [R[rank], R[piv]] = [R[piv], R[rank]];
+    for (let i = 0; i < m; i++) if (i !== rank && !R[i][col].isZero()) {
+      const f = R[i][col].div(R[rank][col]);
+      R[i] = R[i].map((a, j) => a.sub(f.mul(R[rank][j])));
+    }
+    rank++; col++;
+  }
+  return rank;
+}
+
+/* ---- the exponent solve and the groups ---- */
+/** ch01.solve_exponents: exponents a_j with target · Π rep_j^{a_j} dimensionless. Returns [[name, Frac], …] in dict order. */
+function solveExponents(target, repeating, vars) {
+  const V = Array.isArray(vars) ? byId(vars) : vars;
+  const sub = [target].concat(repeating).map(k => { if (!V[k]) throw new Error('unknown variable ' + k); return V[k]; });
+  const { A, names } = dimMatrix(sub);
+  const m = A.length, r = repeating.length;
+  const R = A.map(row => repeating.map(k => row[names.indexOf(k)]));
+  if (rankExact(R) !== r) {
+    const e = new Error('singular repeating set (' + repeating.join(', ') + '): its dimensional sub-matrix has rank ' + rankExact(R) + ' < ' + r);
+    e.kind = 'singular'; throw e;
+  }
+  const aug = A.map((row, i) => R[i].concat([row[names.indexOf(target)].neg()]));
+  let row = 0; const pivots = [];
+  for (let col = 0; col < r; col++) {
+    let piv = -1;
+    for (let i = row; i < m; i++) if (!aug[i][col].isZero()) { piv = i; break; }
+    if (piv < 0) continue;
+    [aug[row], aug[piv]] = [aug[piv], aug[row]];
+    const p = aug[row][col];
+    aug[row] = aug[row].map(x => x.div(p));
+    for (let i = 0; i < m; i++) if (i !== row && !aug[i][col].isZero()) {
+      const f = aug[i][col];
+      aug[i] = aug[i].map((x, j) => x.sub(f.mul(aug[row][j])));
+    }
+    pivots.push(col); row++;
+  }
+  for (let i = row; i < m; i++) if (!aug[i][r].isZero()) {
+    const e = new Error('repeating set (' + repeating.join(', ') + ') cannot cancel the dimensions of ' + target); e.kind = 'inconsistent'; throw e;
+  }
+  const group = [[target, ONE]];
+  pivots.forEach((col, i) => group.push([repeating[col], aug[i][r]]));
+  return group;
+}
+function isDimensionless(q) { return q.dim.every(x => x.isZero()); }
+function dimVec(q) { return q.dim.map(x => x.valueOf()); }
+/** _auto_repeating: prefer a velocity, then lengths, then mass-bearing properties; first full-rank combination */
+function autoRepeating(vars, exclude, r) {
+  const idx = {}; vars.forEach((q, i) => { idx[q.id] = i; });
+  const cand = vars.filter(q => exclude.indexOf(q.id) < 0 && !isDimensionless(q));
+  const pref = q => { const d = dimVec(q); if (d[0] === 0 && d[1] === 1 && d[2] === -1 && d[3] === 0) return 0; if (d[0] === 0 && d[1] === 1 && d[2] === 0 && d[3] === 0) return 1; if (d[0] !== 0) return 2; return 3; };
+  const order = cand.slice().sort((a, b) => (pref(a) - pref(b)) || (idx[a.id] - idx[b.id]));
+  for (const combo of combinations(order.length, r)) {
+    const qs = combo.map(i => order[i]);
+    const cols = [0, 1, 2, 3].map(i => qs.map(q => q.dim[i]));
+    if (rankExact(cols) === r) return qs.map(q => q.id);
+  }
+  const e = new Error('no repeating set of full rank exists among the non-solution variables'); e.kind = 'norep'; throw e;
+}
+/** ch01.pi_groups: n − r groups; the first holds the solution variable; a dimensionless variable is its own group */
+function piGroups(vars, solution, repeating) {
+  const names = vars.map(q => q.id), V = byId(vars);
+  solution = solution === undefined || solution === null ? names[0] : solution;
+  if (!V[solution]) throw new Error('solution variable ' + solution + ' is not in the variable list');
+  const r = rankExact(dimMatrix(vars).A);
+  if (!repeating) repeating = r > 0 ? autoRepeating(vars, [solution], r) : [];
+  if (repeating.length !== r) { const e = new Error('need exactly r = ' + r + ' repeating variables, got ' + repeating.length); e.kind = 'count'; throw e; }
+  if (repeating.indexOf(solution) >= 0) { const e = new Error('the solution variable must not be a repeating variable'); e.kind = 'solution'; throw e; }
+  const others = names.filter(k => repeating.indexOf(k) < 0 && k !== solution);
+  return [solution].concat(others).map(k => isDimensionless(V[k]) ? [[k, ONE]] : solveExponents(k, repeating, V));
+}
+function gget(group, k) { const e = group.find(x => x[0] === k); return e ? e[1] : ZERO; }
+/** ch01.group_dimension: (M, L, T, Θ) exponents of a monomial — all zero for a true Π group */
+function groupDimension(group, vars) {
+  const V = Array.isArray(vars) ? byId(vars) : vars;
+  return [0, 1, 2, 3].map(i => group.reduce((acc, [k, e]) => acc.add(Q(e).mul(V[k].dim[i])), ZERO));
+}
+/** ch01.group_value: Π = Π_k values[k]^{exponent_k} */
+function groupValue(group, values) {
+  let out = 1.0;
+  for (const [k, e] of (Array.isArray(group) ? group : Object.entries(group))) out *= Math.pow(values[k], Number(e.valueOf ? e.valueOf() : e));
+  return out;
+}
+/** ch01.groups_independent: rank of the exponent matrix equals the number of groups (exact) */
+function groupsIndependent(groups, names) {
+  if (!names) { names = []; groups.forEach(g => g.forEach(([k]) => { if (names.indexOf(k) < 0) names.push(k); })); }
+  return rankExact(groups.map(g => names.map(k => gget(g, k)))) === groups.length;
+}
+/** ch01.rescale_units: the same physical values as numbers in another consistent system of base units */
+function rescale(values, vars, system) {
+  const V = Array.isArray(vars) ? byId(vars) : vars;
+  const sc = typeof system === 'string' ? UNIT_SYSTEMS[system] : system;
+  const s = BASIS.map(b => sc[b] === undefined ? 1 : sc[b]);
+  const out = {};
+  Object.keys(values).forEach(k => { out[k] = values[k] * BASIS.reduce((p, b, i) => p * Math.pow(s[i], V[k].dim[i].valueOf()), 1); });
+  return out;
+}
+/** ch01.group_latex: \frac{numerator powers}{denominator powers} in dict order, zero exponents omitted */
+function groupTex(group, vars) {
+  const V = Array.isArray(vars) ? byId(vars) : vars, num = [], den = [];
+  const pow = (sym, e) => e.eq(ONE) ? sym : sym + '^{' + (e.d === 1 ? e.n : e.n + '/' + e.d) + '}';
+  group.forEach(([k, e]) => { e = Q(e); const sym = V[k] ? V[k].tex : k; if (e.sign() > 0) num.push(pow(sym, e)); else if (e.sign() < 0) den.push(pow(sym, e.neg())); });
+  const top = num.length ? num.join(' ') : '1';
+  return den.length ? '\\frac{' + top + '}{' + den.join(' ') + '}' : top;
+}
+/** ch01.poiseuille_pressure_drop: laminar Δp = 32 μ U Δx / d² (used only to test the collapse Π₁ = 32 Π₂ Π₄) */
+function poiseuille(mu, U, dx, d) { return 32.0 * mu * U * dx / (d * d); }
+
+/* ---- "natural" units: scale M, L, T, Θ so the repeating variables are exactly 1 (D28 steps 9–11) ---- */
+function naturalScales(vars, rep, minorRows, rowsLabels) {
+  const V = byId(vars), r = rep.length;
+  // unknowns x_d = ln λ_d for the rows of the repeating minor; the other base units stay SI (λ = 1)
+  const M = rep.map(k => minorRows.map(i => V[k].dim[BASIS.indexOf(rowsLabels[i])].valueOf()).concat([-Math.log(V[k].si)]));
+  for (let c = 0; c < r; c++) {                                  // Gaussian elimination with partial pivoting (floats)
+    let p = c; for (let i = c + 1; i < r; i++) if (Math.abs(M[i][c]) > Math.abs(M[p][c])) p = i;
+    [M[c], M[p]] = [M[p], M[c]];
+    if (Math.abs(M[c][c]) < 1e-12) return null;
+    for (let i = 0; i < r; i++) if (i !== c) { const f = M[i][c] / M[c][c]; for (let j = c; j <= r; j++) M[i][j] -= f * M[c][j]; }
+  }
+  const sc = { M: 1, L: 1, T: 1, 'Θ': 1 };
+  minorRows.forEach((i, c) => { sc[rowsLabels[i]] = Math.exp(M[c][r] / M[c][c]); });
+  return sc;
+}
+
+
+/* ---------------------------------------------------------------------------------------------------
+   THE MACHINE — one memoised state: active variables → matrix → rank → repeating minor → groups → values
+   --------------------------------------------------------------------------------------------------- */
+const SUBS = { '0': '₀' };
+const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '/': 'ᐟ' };
+const plain = q => q.sym.b + (q.sym.sub ? (SUBS[q.sym.sub] || '_' + q.sym.sub) : '');
+const supTxt = x => String(x).split('').map(c => SUP[c] || c).join('');
+const PI_TXT = i => 'Π' + String(i + 1).split('').map(c => '₀₁₂₃₄₅₆₇₈₉'[+c]).join('');
+const LETTERS = ['a', 'b', 'c', 'e'];
+const UNIT_LABEL = { SI: 'SI', cgs: 'cgs', imperial: 'imperial', natural: 'rep = 1' };
+const DROP_OPTS = [['none', 'nothing'], ['mu', 'μ viscosity'], ['eps', 'ε roughness'], ['dx', 'Δx tap distance'], ['m', 'm bob mass'],
+  ['theta0', 'θ₀ release angle'], ['rho', 'ρ density'], ['Ru', 'R_u gas constant'], ['n_s', 'n_s refractive index'], ['V', 'V particle volume']];
+const REP_OPTS = [['book', 'book'], ['alt1', 'alternative 1'], ['alt2', 'alternative 2'], ['alt3', 'alternative 3'], ['bad', 'singular'], ['custom', 'your own (click headers)']];
+
+function repLabel(P, id) {
+  if (id === 'custom') return 'your own (click headers)';
+  const list = P.reps[id]; if (!list) return '—';
+  const V = byId(P.vars), syms = list.map(k => plain(V[k])).join(', ');
+  return syms + (id === 'book' ? (P.short === 'pipe' || /Ex\./.test(P.title) ? ' (book)' : ' (usual)') : id === 'bad' ? ' (singular)' : '');
+}
+
+/** local formatter: 3 significant figures, keeps tiny numbers (Viz.fmt prints |x| < 1e-12 as 0) */
+function nf(x, sig = 3) {
+  if (x === null || x === undefined || !isFinite(x)) return '—';
+  if (x === 0) return '0';
+  x = Number(x.toPrecision(sig));                    // 9.99999e-4 → 0.001 before choosing the notation
+  const a = Math.abs(x);
+  if (a >= 1e-3 && a < 1e5) return String(Number(x.toPrecision(sig))).replace('-', '−');
+  const e = Math.floor(Math.log10(a)); let mnt = Number((x / Math.pow(10, e)).toPrecision(sig)), ee = e;
+  if (Math.abs(mnt) >= 10) { mnt /= 10; ee += 1; }
+  return (String(mnt) + '×10' + supTxt(ee)).replace(/^-/, '−');
+}
+/** compact for matrix cells: 1e−5, 6.59e−18 */
+function cnum(x, sig = 3) {
+  if (!isFinite(x)) return '—'; if (x === 0) return '0';
+  x = Number(x.toPrecision(sig));
+  const a = Math.abs(x);
+  if (a >= 1e-3 && a < 1e4) return String(Number(x.toPrecision(sig))).replace('-', '−');
+  const [m, e] = x.toExponential(Math.max(0, sig - 1)).split('e');
+  return (String(Number(m)) + 'e' + Number(e)).replace(/-/g, '−');
+}
+/** TeX number, keeps tiny values */
+function tn(x, sig = 3) {
+  if (!isFinite(x)) return '\\text{—}'; if (x === 0) return '0';
+  x = Number(x.toPrecision(sig));
+  const a = Math.abs(x);
+  if (a >= 1e-3 && a < 1e5) return String(Number(x.toPrecision(sig)));
+  const e = Math.floor(Math.log10(a)); let mnt = Number((x / Math.pow(10, e)).toPrecision(sig)), ee = e;
+  if (Math.abs(mnt) >= 10) { mnt /= 10; ee += 1; }
+  return mnt + '\\times10^{' + ee + '}';
+}
+function unitStr(q, units) {
+  if (units === 'natural') return '';
+  if (units === 'SI') return q.unit === '–' ? '' : q.unit;
+  if (isDimensionless(q)) return q.unit === 'rad' ? 'rad' : '';
+  const names = UNIT_NAMES[units], pos = [], neg = [];
+  q.dim.forEach((e, i) => { const x = e.valueOf(); if (x > 0) pos.push(names[i] + (x === 1 ? '' : supTxt(x))); else if (x < 0) neg.push(names[i] + supTxt(x)); });
+  return pos.concat(neg).join(' ');
+}
+function dimTxt(q) { const t = q.dim.map((e, i) => e.isZero() ? '' : BASIS[i] + (e.eq(ONE) ? '' : supTxt(e.txt().replace('−', '-')))).join(''); return t || '1'; }
+function dimTex(dim) { const t = dim.map((e, i) => Q(e).isZero() ? '' : BASIS_TEX[BASIS[i]] + '^{' + Q(e).toString() + '}').join(''); return t || '1'; }
+
+const MEMO = new Map();
+function machine(s) {
+  const P = PROBLEMS[s.problem] || PROBLEMS.pipe;
+  const drop = P.drops.indexOf(s.drop) >= 0 ? s.drop : 'none';
+  const repId = s.rep === 'custom' || P.reps[s.rep] ? s.rep : 'book';
+  const key = [s.problem, drop, repId, repId === 'custom' ? s.custom || '' : '', s.units].join('|');
+  if (MEMO.has(key)) return MEMO.get(key);
+  const active = P.vars.filter(q => q.id !== drop), V = byId(active);
+  const dm = dimMatrix(active), rk = rankByMinors(dm.A), n = active.length, r = rk.r, m = dm.rows.length;
+  const search = minorSearch(dm.A, r);
+  let chosen = repId === 'custom' ? (s.custom || '').split(',').filter(k => V[k]) : P.reps[repId].slice(), adjusted = false;
+  if (repId !== 'custom' && chosen.some(k => !V[k])) {
+    try { chosen = autoRepeating(active, [P.solution], r); adjusted = true; } catch (e) { chosen = chosen.filter(k => V[k]); }
+  }
+  const rep = chosen;
+  const repCols = rep.map(k => dm.names.indexOf(k)).sort((a, b) => a - b);
+  let minor = null;
+  if (rep.length && rep.length <= m) {
+    for (const rows of combinations(m, rep.length)) { const d = minorDet(dm.A, rows, repCols); if (!d.isZero()) { minor = { rows, cols: repCols, det: d }; break; } }
+    if (!minor) minor = { rows: combinations(m, rep.length)[0], cols: repCols, det: ZERO };
+  }
+  let err = null, groups = null;
+  if (n - r === 0) err = { kind: 'nogroups' };
+  else if (rep.indexOf(P.solution) >= 0) err = { kind: 'solution' };
+  else if (rep.length !== r) err = { kind: 'count', have: rep.length };
+  else if (!minor || minor.det.isZero()) err = { kind: 'singular' };
+  if (!err) { try { groups = piGroups(active, P.solution, rep); } catch (e) { err = { kind: e.kind || 'error', msg: e.message }; } }
+  const si = {}; P.vars.forEach(q => { si[q.id] = q.si; });
+  let scales = UNIT_SYSTEMS[s.units] || UNIT_SYSTEMS.SI, natural = false;
+  if (s.units === 'natural') {
+    const sc = !err && minor ? naturalScales(active, rep, minor.rows, dm.rows) : null;
+    if (sc) { scales = sc; natural = true; } else scales = UNIT_SYSTEMS.SI;
+  }
+  const cur = rescale(si, P.vars, scales);
+  const vals = groups ? groups.map(g => ({
+    SI: groupValue(g, si), cgs: groupValue(g, rescale(si, P.vars, 'cgs')), imperial: groupValue(g, rescale(si, P.vars, 'imperial')),
+    cur: groupValue(g, cur), dim: groupDimension(g, V)
+  })) : [];
+  const out = { P, drop, repId, active, V, dm, rk, n, r, m, search, rep, adjusted, minor, err, groups, si, cur, scales, natural, vals,
+    indep: groups ? groupsIndependent(groups, dm.names) : false, dimless: active.filter(isDimensionless).map(q => q.id) };
+  if (MEMO.size > 200) MEMO.clear();
+  MEMO.set(key, out);
+  return out;
+}
+const syms = (M, list) => list.map(k => plain(M.V[k] || byId(M.P.vars)[k])).join(', ');
+
+/* ---- TeX builders for the Explain / Derivation / Equations tabs ---- */
+function matTex(rowsLbl, cols, A) {
+  return '\\begin{array}{c|' + 'c'.repeat(cols.length) + '} & ' + cols.join(' & ') + ' \\\\ \\hline ' +
+    A.map((row, i) => BASIS_TEX[rowsLbl[i]] + ' & ' + row.map(x => Q(x).toString()).join(' & ')).join(' \\\\ ') + '\\end{array}';
+}
+function vmat(S) { return '\\begin{vmatrix}' + S.map(r => r.map(x => x.toString()).join(' & ')).join(' \\\\ ') + '\\end{vmatrix}'; }
+function cofactorTex(S) {
+  const det = detCofactor(S);
+  if (S.length === 1) return S[0][0].toString();
+  if (S.length === 2) return '(' + S[0][0] + ')(' + S[1][1] + ') - (' + S[0][1] + ')(' + S[1][0] + ') = ' + det;
+  const terms = [];
+  S[0].forEach((a, j) => {
+    if (a.isZero()) return;
+    const sub = S.slice(1).map(row => row.slice(0, j).concat(row.slice(j + 1)));
+    const sgn = j % 2 ? -1 : 1, c = a.mul(sgn);
+    terms.push((c.sign() < 0 ? '- ' : terms.length ? '+ ' : '') + Math.abs(c.n) + '\\cdot(' + detCofactor(sub) + ')');
   });
-  if (v.length < 2) return { k: v.length, w: 0, q: 0, de: 0, v: v[0] || V1, T: T[0] || T1 };
-  const r = runningTotals(v, T, M.cv, R_AIR), n = v.length - 1;
-  return { k: v.length, w: r.w[n], q: r.q[n], de: r.de[n], v: v[n], T: T[n] };
+  return (terms.length ? terms.join(' ') : '0') + ' = ' + det;
+}
+/** the exponent equations of one group: one row per base dimension present */
+function exponentSystem(M, g) {
+  const target = g[0][0], rep = g.slice(1).map(x => x[0]), T = M.V[target];
+  const rows = [0, 1, 2, 3].filter(i => !T.dim[i].isZero() || rep.some(k => !M.V[k].dim[i].isZero()));
+  return rows.map(i => {
+    let s = T.dim[i].isZero() ? '' : T.dim[i].toString();
+    rep.forEach((k, j) => {
+      const c = M.V[k].dim[i]; if (c.isZero()) return;
+      const cs = c.eq(ONE) ? '' : c.eq(new Frac(-1)) ? '-' : c.toString();
+      const term = cs + LETTERS[j];
+      s += s ? (term.charAt(0) === '-' ? ' ' + term.replace('-', '- ') : ' + ' + term) : term;
+    });
+    return { dim: BASIS[i], tex: BASIS_TEX[BASIS[i]] + ':\\; ' + (s || '0') + ' = 0' };
+  });
+}
+function productTex(M, g) {         // Δp U^a d^b ρ^c
+  return M.V[g[0][0]].tex + '\\,' + g.slice(1).map((x, j) => M.V[x[0]].tex + '^{' + LETTERS[j] + '}').join('\\,');
+}
+function lawTex(M) {
+  if (!M.groups) return '\\text{no law until the repeating set works}';
+  const k = M.groups.length;
+  if (k === 1) return '\\Pi_1 = ' + groupTex(M.groups[0], M.V) + ' = \\text{const}';
+  return '\\Pi_1 = \\varphi(' + M.groups.slice(1).map((_, i) => '\\Pi_' + (i + 2)).join(', ') + ')';
+}
+function groupsListTex(M) {
+  return '\\begin{aligned}' + M.groups.map((g, i) => '\\Pi_' + (i + 1) + ' &= ' + groupTex(g, M.V)).join(' \\\\ ') + '\\end{aligned}';
+}
+
+/* ---- regime words ---- */
+function physicsNote(M) {
+  const id = M.P === PROBLEMS.pipe ? 'pipe' : Object.keys(PROBLEMS).find(k => PROBLEMS[k] === M.P);
+  if (id === 'pipe') {
+    if (M.drop === 'mu') return 'Without $\\mu$ no group can contain a viscosity: $\\Delta p/\\rho U^2 = \\varphi(\\Delta x/d, \\varepsilon/d)$. Laminar pipe data, which depend on viscosity, would not collapse.';
+    if (M.drop === 'eps') return 'A smooth pipe: three groups. Step 7 of the book adds physics: far from the inlet $\\Delta p \\propto \\Delta x$, so $\\Delta p\\, d/(\\rho U^2 \\Delta x) = \\varphi(Re)$.';
+    return 'Step 7 adds physics: far from the inlet $\\Delta p \\propto \\Delta x$, so $\\Pi_1/\\Pi_2 = \\varphi(\\varepsilon/d, Re)$. For laminar flow Ch. 8 finds $\\Pi_1 = 32\\,\\Pi_2\\Pi_4$.';
+  }
+  if (id === 'pendulum') return M.drop === 'theta0' ? 'One group left, so it is a constant: $\\tau\\sqrt{g/L} = C$, i.e. $\\tau = C\\sqrt{L/g}$ (small swings give $C = 2\\pi$).' : 'The mass gets exponent 0 in every group: nothing else carries M, so the period cannot depend on the mass. $\\tau\\sqrt{g/L} = \\varphi(\\theta_0)$.';
+  if (id === 'sphere_drag') return M.drop === 'mu' ? 'No viscosity: one group, so $F = C\\rho U^2 D^2$, the high-speed (form-drag) law.' : M.drop === 'rho' ? 'No density: one group, so $F = C\\mu U D$, Stokes drag of slow creeping flow ($C = 3\\pi$).' : 'The drag coefficient depends only on the Reynolds number: $F/(\\rho U^2 D^2) = \\varphi(\\mu/\\rho U D)$.';
+  if (id === 'scale_height') return M.drop === 'Ru' ? 'Without $R_u$ nothing links temperature (Θ) to mechanics: $r = n$ and no group exists.' : 'One group, so it is a constant: $H = C\\,R_u T_0/(g M_w)$; the isothermal atmosphere of §1.10 gives $C = 1$.';
+  if (id === 'blast') return M.drop === 'rho' ? 'Without the air density nothing can cancel the mass in $E$: no group, no law.' : 'One group, so $E t^2/(\\rho D^5) = K$: the radius grows like $D \\propto t^{2/5}$.';
+  if (id === 'rayleigh') return M.drop === 'V' ? 'Without the particle volume the law cannot say how size matters.' : 'The T row is $-3\\times$ the M row, so $r = 2$. Physics then fixes $S \\propto V^2$ and $S \\propto d^{-2}$, leaving $S/I \\propto \\lambda^{-4}$: blue sky.';
+  return '';
+}
+function errText(M) {
+  const e = M.err; if (!e) return null;
+  const sol = plain(M.V[M.P.solution]);
+  if (e.kind === 'nogroups') return { t: 'n − r = ' + M.n + ' − ' + M.r + ' = 0: no dimensionless group', d: 'Every variable carries a dimension no other variable can cancel. A needed variable is missing.' };
+  if (e.kind === 'solution') return { t: sol + ' is the solution variable', d: 'Keep it out of the repeating set: it must appear in Π₁ to the first power.' };
+  if (e.kind === 'count') return { t: 'Pick r = ' + M.r + ' repeating variables (you have ' + e.have + ')', d: 'Click column headers in the matrix to add or remove them.' };
+  if (e.kind === 'singular') {
+    const T = M.V[M.P.solution];
+    const bad = [0, 1, 2, 3].filter(i => !T.dim[i].isZero() && M.rep.every(k => M.V[k].dim[i].isZero()));
+    const why = bad.length ? ' In Π₁ = ' + sol + ' ' + M.rep.map((k, j) => plain(M.V[k]) + ({ a: 'ᵃ', b: 'ᵇ', c: 'ᶜ', e: 'ᵉ' })[LETTERS[j]]).join(' ') + ' the ' + BASIS[bad[0]] + ' equation reads ' + T.dim[bad[0]].txt() + ' = 0: impossible.'
+      : ' The exponent equations have no unique solution.';
+    return { t: 'Singular repeating set: det = 0', d: '(' + syms(M, M.rep) + ') do not span ' + M.r + ' independent dimensions.' + why };
+  }
+  return { t: 'Cannot build the groups', d: e.msg || '' };
 }
 
 /* ---------------------------------------------------------------------------------------------------
-   small drawing helpers (local; candidates for viz_lib)
+   DRAWING (canvas) — colours: M orange · L blue · T teal · Θ amber · repeating purple · det = 0 rose
    --------------------------------------------------------------------------------------------------- */
-const f3 = (v, sig) => Viz.fmt(v, { sig: sig || 3 });
-const tn = (v, sig) => Viz.tnum(v, sig || 3);
-const tp = (v, sig) => (v < 0 ? '(' + tn(v, sig) + ')' : tn(v, sig));   // negative factors in parentheses
-const kJ = v => Viz.fmt(v / 1000, { sig: 3 });
-const _hatch = {};
-/** A diagonal-hatch canvas pattern in a colour (for "negative" areas: work done on the gas, heat rejected). */
-function hatchPattern(ctx, color) {
-  if (!_hatch[color]) { const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.strokeStyle = color; x.lineWidth = 1.6; x.beginPath(); x.moveTo(-1, 9); x.lineTo(9, -1); x.stroke(); _hatch[color] = c; }
-  return ctx.createPattern(_hatch[color], 'repeat');
+let FAM = null;
+const font = (px, w = 400, mono = false) => { FAM = FAM || getComputedStyle(document.body).fontFamily; return w + ' ' + px + 'px ' + (mono ? 'Consolas, Menlo, monospace' : FAM); };
+const DIMC = () => ({ M: Viz.color('orange'), L: Viz.color('blue'), T: Viz.color('teal'), 'Θ': Viz.color('amber') });
+function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function runsFor(q, e, px) {
+  const small = Math.max(12, Math.round(px * 0.72)), out = [{ t: q.sym.b, px, dy: 0 }];
+  if (q.sym.sub) out.push({ t: q.sym.sub, px: small, dy: px * 0.3 });
+  if (e && !Q(e).eq(ONE)) out.push({ t: Q(e).txt(), px: small, dy: -px * 0.42 });
+  return out;
 }
-/** Fill the area between a curve (xs, ys) and the line y = base, with a colour or a pattern. */
-function fillUnder(P, xs, ys, base, fill, alpha) {
-  if (xs.length < 2) return;
-  const ctx = P.ctx; ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.fillStyle = fill; ctx.beginPath();
-  ctx.moveTo(P.X(xs[0]), P.Y(base)); xs.forEach((x, i) => ctx.lineTo(P.X(x), P.Y(ys[i]))); ctx.lineTo(P.X(xs[xs.length - 1]), P.Y(base)); ctx.closePath(); ctx.fill(); ctx.restore();
+function runsW(ctx, runs) { return runs.reduce((w, r) => { ctx.font = font(r.px, r.w || 500); return w + ctx.measureText(r.t).width + (r.gap || 0); }, 0); }
+function drawRuns(ctx, runs, x, y, color) {
+  ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  runs.forEach(r => { ctx.font = font(r.px, r.w || 500); ctx.fillText(r.t, x, y + r.dy); x += ctx.measureText(r.t).width + (r.gap || 0); });
+  return x;
 }
-/** Temperature colour: blue (cold) → orange (hot). */
-function tempColor(T, a) {
-  const t = Math.max(0, Math.min(1, (T - 120) / (620 - 120))), c0 = [37, 99, 235], c1 = [249, 115, 22];
-  return `rgba(${Math.round(c0[0] + (c1[0] - c0[0]) * t)},${Math.round(c0[1] + (c1[1] - c0[1]) * t)},${Math.round(c0[2] + (c1[2] - c0[2]) * t)},${a === undefined ? 1 : a})`;
+function factorRuns(M, list, px) {
+  const out = [];
+  list.forEach(([k, e], i) => { const rr = runsFor(M.V[k], e, px); rr[rr.length - 1].gap = i < list.length - 1 ? 3 : 0; out.push(...rr); });
+  return out;
 }
-function canvasText(ctx, str, x, y, o) {
-  o = o || {}; ctx.save(); ctx.font = (o.weight || 600) + ' ' + (o.size || 12.5) + 'px ' + getComputedStyle(document.body).fontFamily;
-  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.baseline || 'middle';
-  if (o.halo !== false) { ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.9); ctx.strokeText(str, x, y); }
-  ctx.fillStyle = o.color || Viz.color('text'); ctx.fillText(str, x, y); ctx.restore();
+/** draw a group as a fraction; returns its width */
+function drawFraction(ctx, M, g, x, yMid, px, color, measureOnly) {
+  const num = g.filter(([, e]) => Q(e).sign() > 0), den = g.filter(([, e]) => Q(e).sign() < 0).map(([k, e]) => [k, Q(e).neg()]);
+  const nr = num.length ? factorRuns(M, num, px) : [{ t: '1', px, dy: 0 }];
+  if (!den.length) { const w = runsW(ctx, nr); if (!measureOnly) drawRuns(ctx, nr, x, yMid + px * 0.35, color); return w; }
+  const dr = factorRuns(M, den, px), wn = runsW(ctx, nr), wd = runsW(ctx, dr), w = Math.max(wn, wd) + 6;
+  if (measureOnly) return w;
+  const denSup = dr.some(r => r.dy < 0), numSub = nr.some(r => r.dy > 0);
+  drawRuns(ctx, nr, x + (w - wn) / 2, yMid - 5 - (numSub ? px * 0.3 : 0), color);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(x, yMid); ctx.lineTo(x + w, yMid); ctx.stroke();
+  drawRuns(ctx, dr, x + (w - wd) / 2, yMid + px * 0.78 + 4 + (denSup ? px * 0.34 : 0), color);
+  return w;
 }
-const PV_BOUNDS = M => ({ xlim: [0, M.proc === 'stir' ? 2 * V1 : M.vmax * 1.1], ylim: [0, M.pmax / 1000 * 1.25] });
-const TS_BOUNDS = M => { const span = Math.max(40, M.smax - M.smin); return { xlim: [M.smin - 0.12 * span, M.smax + 0.12 * span], ylim: [0, M.Tmax * 1.16] }; };
-function nearestU(M, P, px, py, key) {           // progress u of the route sample nearest to a pixel
-  let best = null, bd = Infinity;
-  M.legs.forEach(L => {
-    if (L.zero) return;
-    for (let j = 0; j < NLEG; j++) {
-      const x = key === 'pv' ? L.smp.v[j] : L.smp.s[j], y = key === 'pv' ? L.smp.p[j] / 1000 : L.smp.T[j];
-      const d = Math.hypot(P.X(x) - px, P.Y(y) - py);
-      if (d < bd) { bd = d; best = L.u0 + (L.u1 - L.u0) * j / (NLEG - 1); }
-    }
+/** height a stacked fraction needs */
+function fractionH(g, px) { const den = g.some(([, e]) => Q(e).sign() < 0); return den ? 2 * px + 14 : px + 6; }
+/** one-line form Δp/(U² ρ) for rows too short for a stacked fraction */
+function drawInline(ctx, M, g, x, yMid, px, color, measureOnly) {
+  const num = g.filter(([, e]) => Q(e).sign() > 0), den = g.filter(([, e]) => Q(e).sign() < 0).map(([k, e]) => [k, Q(e).neg()]);
+  const runs = num.length ? factorRuns(M, num, px) : [{ t: '1', px, dy: 0 }];
+  if (den.length) { runs[runs.length - 1].gap = 2; runs.push({ t: den.length > 1 ? '/(' : '/', px, dy: 0, gap: 1 }); runs.push(...factorRuns(M, den, px)); if (den.length > 1) runs.push({ t: ')', px, dy: 0 }); }
+  const w = runsW(ctx, runs);
+  if (!measureOnly) drawRuns(ctx, runs, x, yMid + px * 0.35, color);
+  return w;
+}
+function text(ctx, t, x, y, px, color, align = 'left', w = 400, mono = false) {
+  ctx.font = font(px, w, mono); ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y);
+  return ctx.measureText(t).width;
+}
+const HIT = { vars: [], matrix: null, groups: [] };
+let SCAN_N = 1;
+const TRANSPORT = { param: 'scan', min: 0, max: 1, rate: 0.2, end: 'stop', label: 'minor search', unit: '' };
+function scanState(s, M) {
+  const N = M.search.length, done = s.scan >= 1 - 1e-9;
+  return { N, done, idx: done ? N - 1 : Math.min(N - 1, Math.floor(s.scan * N)) };
+}
+
+function drawVars(v, s, M) {
+  v.clear(); HIT.vars = [];
+  const ctx = v.ctx, W = v.w, H = v.h, list = M.P.vars, n = list.length, C = DIMC(), gap = 6;
+  if (W < 60 || H < 40) return;
+  // pick the column count whose cards come closest to a 2:1 shape
+  let cols = 1, best = Infinity;
+  for (let c = 1; c <= n; c++) {
+    const rr = Math.ceil(n / c), w1 = (W - gap * (c + 1)) / c, h1 = Math.min(92, (H - gap * (rr + 1)) / rr);
+    if (w1 < 40 || h1 < 26) continue;
+    const score = Math.abs(Math.log((w1 / h1) / 2.1)) + (w1 < 120 ? 0.4 : 0);
+    if (score < best) { best = score; cols = c; }
+  }
+  const rows = Math.ceil(n / cols);
+  const cw = (W - gap * (cols + 1)) / cols, ch = Math.min(92, (H - gap * (rows + 1)) / rows);
+  const units = M.natural ? 'natural' : (s.units === 'natural' ? 'SI' : s.units);
+  const singular = M.err && M.err.kind === 'singular';
+  const full = cw >= 128 && ch >= 50;
+  list.forEach((q, i) => {
+    const x = gap + (i % cols) * (cw + gap), y = gap + Math.floor(i / cols) * (ch + gap);
+    const off = q.id === M.drop, isRep = M.rep.indexOf(q.id) >= 0 && !off, isSol = q.id === M.P.solution;
+    const repC = singular ? Viz.color('rose') : Viz.color('accent');
+    ctx.save(); if (off) ctx.globalAlpha = 0.42;
+    rrect(ctx, x, y, cw, ch, 9);
+    ctx.fillStyle = isRep ? Viz.alpha(repC, 0.1) : Viz.color('card'); ctx.fill();
+    ctx.setLineDash(off ? [4, 3] : []); ctx.lineWidth = isRep ? 2.2 : 1; ctx.strokeStyle = isRep ? repC : Viz.color('border'); ctx.stroke(); ctx.setLineDash([]);
+    const px = ch > 70 ? 18 : 16, tx = x + 8;
+    const symW = drawRuns(ctx, runsFor(q, null, px), tx, y + Math.min(px + 4, ch / 2 + px * 0.35), Viz.color('text')) - tx;
+    if (isSol) text(ctx, '★', tx + symW + 2, y + 10, 12, Viz.color('rose'), 'left', 700);
+    const bw = full ? Math.min(58, cw * 0.36) : Math.min(46, cw - symW - (isSol ? 30 : 22)), textW = cw - bw - 16;
+    ctx.save(); ctx.beginPath(); ctx.rect(tx, y, textW, ch); ctx.clip();
+    if (full) {
+      text(ctx, off ? 'removed' : q.name, tx, y + px + 17, 12, off ? Viz.color('rose') : Viz.color('muted'));
+      if (ch > 62) text(ctx, off ? '' : cnum(M.cur[q.id]) + ' ' + unitStr(q, units), tx, y + px + 34, 12, Viz.color('text-soft'), 'left', 400, true);
+    } else if (ch >= 44) text(ctx, off ? 'off' : cnum(M.cur[q.id], 2), tx, y + ch - 10, 12, off ? Viz.color('rose') : Viz.color('text-soft'), 'left', 400, true);
+    ctx.restore();
+    // exponent bars (height = exponent; colour = base dimension)
+    if (bw < 22) { ctx.restore(); HIT.vars.push({ x, y, w: cw, h: ch, id: q.id }); return; }
+    const bx = x + cw - bw - 6, labels = full && ch > 58, mid = y + (labels ? ch * 0.46 : ch * 0.5), unit = Math.min(7, (ch - (labels ? 30 : 12)) / 6), step = bw / 4;
+    ctx.strokeStyle = Viz.color('border'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, mid); ctx.lineTo(bx + bw, mid); ctx.stroke();
+    BASIS.forEach((b, j) => {
+      const e = q.dim[j].valueOf(), hh = -e * unit, cx = bx + step * j + step / 2, bar = Math.min(8, step - 2);
+      if (e !== 0) { ctx.fillStyle = C[b]; ctx.fillRect(cx - bar / 2, Math.min(mid, mid + hh), bar, Math.abs(hh)); }
+      if (labels) text(ctx, b, cx, y + ch - 9, 12, e !== 0 ? C[b] : Viz.alpha(Viz.color('muted'), 0.6), 'center', 600);
+    });
+    ctx.restore();
+    HIT.vars.push({ x, y, w: cw, h: ch, id: q.id });
   });
-  return bd < 40 ? best : null;
 }
-/** The physical system: a cylinder with a piston (reversible), a stirred rigid tank, or a tank with a burst membrane. */
-function drawGas(vg, g, s, M, now) {
-  const ctx = vg.ctx, W = vg.w, H = vg.h;
-  const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), text = Viz.color('text');
-  const rc = W < 420 ? Math.min(128, W * 0.38) : Math.min(190, W * 0.3);
-  const x0 = 14, x1 = W - rc - 48;
-  const capH = H >= 110 ? 20 : 0;
-  const ch = Math.max(26, Math.min(H - 44 - capH, Math.max(124, H * 0.58))), y0 = Math.max(6, (H - ch + capH) / 2 - 7), y1 = y0 + ch;
-  g.gasBox = { x0, x1 };
-  const L = now.leg, rev = M.proc === 'rev';
-  let vScale = 0; M.legs.forEach(Lg => Lg.smp.v.forEach(v => { vScale = Math.max(vScale, v); }));
-  vScale *= 1.08;
-  const insulated = !rev || L.kind === 'isentropic';
-  // insulation jacket
-  if (insulated) {
-    ctx.save(); ctx.fillStyle = hatchPattern(ctx, Viz.alpha(muted, 0.5));
-    ctx.fillRect(x0 - 8, y0 - 8, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y1, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y0, 8, ch);
-    if (!rev) ctx.fillRect(x1, y0, 8, ch);
-    ctx.restore();
+
+function drawMatrix(v, s, M, app) {
+  v.clear();
+  const ctx = v.ctx, W = v.w, H = v.h, C = DIMC(), pad = 6, n = M.n, m = M.m;
+  if (W < 60 || H < 60) return;
+  const sc = scanState(s, M); SCAN_N = sc.N;
+  const units = M.natural ? 'natural' : (s.units === 'natural' ? 'SI' : s.units);
+  const lw = 30, cw = Math.min(78, (W - 2 * pad - lw) / n), tw = lw + n * cw, x0 = Math.max(pad, (W - tw) / 2);
+  const narrow = cw < 52;
+  const base = H - 2 * pad, hh = H < 130 ? 22 : 26;
+  let vh = 22, fh = 24, mapH = H > 200 ? Math.min(40, H * 0.16) : 0;
+  if (base - hh - m * 22 - vh - fh - mapH < 0) mapH = 0;
+  if (base - hh - m * 18 - vh - fh < 0) vh = 0;
+  if (base - hh - m * 18 - vh - fh < 0) fh = 0;
+  const rh = Math.max(14, Math.min(40, (base - hh - vh - fh - mapH) / m));
+  const bodyH = hh + m * rh + vh + fh + mapH, y0 = pad + Math.max(0, (H - 2 * pad - bodyH) / 2);
+  const colX = j => x0 + lw + j * cw, rowY = i => y0 + hh + i * rh;
+  const selCol = M.minor && M.rep.length === M.r ? M.minor.cols : [], selRow = M.minor ? M.minor.rows : [];
+  const singular = M.err && (M.err.kind === 'singular');
+  // repeating column bands
+  M.dm.names.forEach((k, j) => {
+    if (M.rep.indexOf(k) < 0) return;
+    rrect(ctx, colX(j) + 2, y0 + 1, cw - 4, hh + m * rh - 2, 7);
+    ctx.fillStyle = Viz.alpha(singular ? Viz.color('rose') : Viz.color('accent'), 0.1); ctx.fill();
+  });
+  // header
+  M.dm.names.forEach((k, j) => {
+    const q = M.V[k], isRep = M.rep.indexOf(k) >= 0, cx = colX(j) + cw / 2;
+    const runs = runsFor(q, null, narrow ? 14 : 16), w = runsW(ctx, runs);
+    drawRuns(ctx, runs, cx - w / 2, y0 + hh - 9, isRep ? (singular ? Viz.color('rose') : Viz.color('accent')) : Viz.color('text'));
+    if (k === M.P.solution) text(ctx, '★', cx + w / 2 + 1, y0 + 8, 12, Viz.color('rose'), 'left', 700);
+  });
+  ctx.strokeStyle = Viz.color('border'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y0 + hh); ctx.lineTo(x0 + tw, y0 + hh); ctx.moveTo(x0 + lw - 2, y0 + 2); ctx.lineTo(x0 + lw - 2, y0 + hh + m * rh); ctx.stroke();
+  // cells
+  const sel = s.sel || {};
+  M.dm.rows.forEach((b, i) => {
+    const y = rowY(i), inMinor = selRow.indexOf(i) >= 0;
+    text(ctx, b, x0 + lw / 2 - 2, y + rh / 2, 14, C[b], 'center', 700);
+    M.dm.A[i].forEach((e, j) => {
+      const x = colX(j), val = e.valueOf();
+      if (val !== 0) { rrect(ctx, x + 4, y + 2, cw - 8, rh - 4, 5); ctx.fillStyle = Viz.alpha(C[b], 0.13); ctx.fill(); }
+      text(ctx, e.txt(), x + cw / 2, y + rh / 2 + 1, rh > 26 && !narrow ? 15 : 13, val === 0 ? Viz.alpha(Viz.color('muted'), 0.75) : C[b], 'center', val === 0 ? 400 : 700, true);
+      if (M.minor && inMinor && selCol.indexOf(j) >= 0) { ctx.lineWidth = 2; ctx.strokeStyle = singular ? Viz.color('rose') : Viz.color('accent'); rrect(ctx, x + 2, y + 1, cw - 4, rh - 2, 6); ctx.stroke(); }
+      if (sel.kind === 'cell' && sel.id === M.dm.names[j] && sel.row === b) { ctx.lineWidth = 2.5; ctx.strokeStyle = Viz.color('orange'); rrect(ctx, x + 1, y, cw - 2, rh, 6); ctx.stroke(); }
+    });
+  });
+  // scanned minor (slow-motion rank search)
+  if (!sc.done && M.search.length) {
+    const cur = M.search[sc.idx];
+    ctx.setLineDash([5, 3]); ctx.lineWidth = 2.5; ctx.strokeStyle = Viz.color('amber');
+    cur.rows.forEach(i => cur.cols.forEach(j => { rrect(ctx, colX(j) + 1, rowY(i), cw - 2, rh, 6); ctx.stroke(); }));
+    ctx.setLineDash([]);
   }
-  // gas region
-  let gx0 = x0, gx1;
-  if (rev) gx1 = x0 + (now.v / vScale) * (x1 - x0);
-  else if (M.proc === 'stir') gx1 = x1;
-  else gx1 = x0 + (now.v / M.v2) * (x1 - x0);
-  ctx.save();
-  if (M.proc === 'free') { ctx.fillStyle = Viz.alpha(muted, 0.07); ctx.fillRect(x0, y0, x1 - x0, ch); }
-  ctx.fillStyle = tempColor(now.T, 0.42); ctx.fillRect(gx0, y0, Math.max(0, gx1 - gx0), ch);
-  // molecules
-  const dotC = tempColor(now.T, 0.95);
-  ctx.fillStyle = dotC;
-  (g.mol || []).forEach(m => { const X = gx0 + 3 + m.x * Math.max(0, gx1 - gx0 - 6), Y = y0 + 3 + m.y * (ch - 6); ctx.beginPath(); ctx.arc(X, Y, 2.2, 0, 2 * Math.PI); ctx.fill(); });
-  // walls
-  ctx.strokeStyle = text; ctx.lineWidth = 2.5; ctx.beginPath();
-  ctx.moveTo(x1 + (rev ? 26 : 0), y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1 + (rev ? 26 : 0), y1);
-  if (!rev) { ctx.moveTo(x1, y0); ctx.lineTo(x1, y1); }
-  ctx.stroke();
-  ctx.restore();
-  if (rev) {
-    // piston + rod
-    ctx.save(); ctx.fillStyle = Viz.alpha(muted, 0.85); ctx.fillRect(gx1, y0 + 1, 9, ch - 2);
-    ctx.fillRect(gx1 + 9, (y0 + y1) / 2 - 3, Math.max(0, x1 + 34 - gx1 - 9), 6); ctx.restore();
-    const dv = Math.sign(L.vb - L.va);
-    if (dv !== 0 && !L.zero) {
-      const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
-      const ya = y0 + 12;
-      P.arrow(gx1 + 4 - dv * 26, ya, dv * 22, 0, { color: blue, width: 2.5 });
-    }
-  } else if (M.proc === 'stir') {
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, r = Math.min(ch * 0.36, (x1 - x0) * 0.2), a = g.angle || 0;
-    ctx.save(); ctx.strokeStyle = text; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(cx, y0 - 10); ctx.lineTo(cx, cy); ctx.stroke();
-    ctx.lineWidth = 4; ctx.strokeStyle = Viz.color('rose');
-    for (let k = 0; k < 3; k++) { const b = a + k * 2 * Math.PI / 3; ctx.beginPath(); ctx.moveTo(cx - r * Math.cos(b), cy - 0.45 * r * Math.sin(b)); ctx.lineTo(cx + r * Math.cos(b), cy + 0.45 * r * Math.sin(b)); ctx.stroke(); }
-    ctx.restore();
+  // value row (the numbers of each variable in the current units)
+  const yv = y0 + hh + m * rh + vh / 2 + 1;
+  if (vh) {
+  text(ctx, units === 'natural' ? '=' : '#', x0 + lw / 2 - 2, yv, 12, Viz.color('muted'), 'center', 600);
+  M.dm.names.forEach((k, j) => {
+    const isRep = M.natural && M.rep.indexOf(k) >= 0;
+    text(ctx, cnum(M.cur[k], narrow ? 2 : 3), colX(j) + cw / 2, yv, 12, isRep ? Viz.color('accent') : Viz.color('text-soft'), 'center', isRep ? 700 : 400, true);
+  });
+  }
+  // footer: rank, count, determinant of the repeating block
+  const yf = y0 + hh + m * rh + vh + fh / 2 + 2;
+  let fx = x0;
+  if (!fh) { /* too short: the readouts carry r and n − r */ }
+  else if (!sc.done) {
+    const cur = M.search[sc.idx];
+    const t = 'testing ' + cur.k + '×' + cur.k + ' minor ' + (sc.idx + 1) + '/' + sc.N + ': det = ' + cur.det.txt();
+    text(ctx, t, x0, yf, 13, cur.det.isZero() ? Viz.color('rose') : Viz.color('amber'), 'left', 650);
   } else {
-    const xm = x0 + (V1 / M.v2) * (x1 - x0);
-    ctx.save(); ctx.strokeStyle = Viz.color('rose'); ctx.lineWidth = 2;
-    if (s.prog < 0.02) { ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y1); ctx.stroke(); }
-    else { ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y0 + ch * 0.25); ctx.moveTo(xm, y1 - ch * 0.25); ctx.lineTo(xm, y1); ctx.stroke(); }
-    ctx.restore();
-    if (gx1 < x1 - 40 && x1 - xm > 50) canvasText(ctx, 'vacuum', (Math.max(gx1, xm) + x1) / 2, (y0 + y1) / 2, { align: 'center', color: muted, size: 12, weight: 500 });
-  }
-  // heater / cooler under the cylinder
-  if (rev && !insulated && !L.zero) {
-    const on = now.dq, col = on > 0 ? orange : on < 0 ? blue : Viz.alpha(muted, 0.5), n = Math.max(3, Math.floor((x1 - x0) / 34));
-    const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
-    for (let k = 0; k < n; k++) {
-      const X = x0 + (k + 0.5) * (x1 - x0) / n;
-      if (on > 0) P.arrow(X, Math.min(H - 2, y1 + 17), 0, -14, { color: col, width: 2.2, head: 6 });
-      else if (on < 0) P.arrow(X, y1 + 3, 0, 14, { color: col, width: 2.2, head: 6 });
+    fx += text(ctx, 'r = ' + M.r, fx, yf, 15, Viz.color('accent'), 'left', 750) + 12;
+    fx += text(ctx, 'n − r = ' + M.n + ' − ' + M.r + ' = ' + (M.n - M.r), fx, yf, 13, Viz.color('text'), 'left', 600) + 12;
+    if (M.minor && W > 330) {
+      const ok = !M.minor.det.isZero();
+      const t = 'det(' + M.minor.cols.map(j => plain(M.V[M.dm.names[j]])).join(',') + ') = ' + M.minor.det.txt() + (ok ? ' ✓' : ' ✗');
+      ctx.font = font(13, 650); const tw2 = ctx.measureText(t).width;
+      if (fx + tw2 < x0 + tw + 20 || W - fx > tw2 + 4) text(ctx, t, Math.min(W - pad, Math.max(fx + tw2, x0 + tw)), yf, 13, ok ? Viz.color('accent') : Viz.color('rose'), 'right', 650);
     }
   }
-  // caption: what the boundary is doing right now
-  if (capH) {
-    const live = M.legs.filter(Lg => !Lg.zero), li = live.indexOf(L);
-    const cap = rev ? (L.zero ? 'no change' : `${live.length > 1 ? 'leg ' + (li + 1) + ' of ' + live.length + ' · ' : ''}${L.kind} · ${now.dq > 0 ? 'heater on: heat flows in' : now.dq < 0 ? 'cooler on: heat flows out' : 'insulated: no heat'}`)
-      : M.proc === 'stir' ? 'rigid, insulated tank · only paddle work goes in' : (s.prog < 0.02 ? 'insulated · membrane holds the gas · vacuum beyond' : 'membrane burst · no heat, no work');
-    canvasText(ctx, cap, x0 - 6, Math.max(9, y0 - 19), { color: now.dq > 0 && rev ? orange : now.dq < 0 && rev ? blue : muted, size: 12.5, weight: 600 });
+  // minor map: every minor the search visits (purple = det ≠ 0, rose = 0, grey = not tested yet)
+  const mapCells = [];
+  if (mapH > 0) {
+    const N = sc.N, ym = y0 + hh + m * rh + vh + fh + 4, avail = Math.min(W - 2 * pad, Math.max(tw, 240)) - 62;
+    const perRow = Math.max(1, Math.ceil(N / Math.max(1, Math.floor((mapH - 4) / 13))));
+    const sq = Math.max(7, Math.min(16, Math.floor(avail / Math.max(perRow, Math.ceil(N / 2))) - 2));
+    const cols2 = Math.max(1, Math.floor(avail / (sq + 2))), rowsN = Math.ceil(N / cols2);
+    const sqq = Math.min(sq, Math.floor((mapH - 4) / Math.max(1, rowsN)) - 2);
+    const mx = Math.max(pad, (W - Math.min(N, cols2) * (sqq + 2) - 62) / 2);
+    const nz = M.search.filter(x => !x.det.isZero()).length;
+    text(ctx, sc.done ? nz + '/' + N + ' ≠ 0' : 'minors', mx, ym + Math.min(rowsN, 3) * (sqq + 2) / 2, 12, sc.done ? Viz.color('accent') : Viz.color('muted'), 'left', 600);
+    M.search.forEach((mn, i) => {
+      const cx = mx + 60 + (i % cols2) * (sqq + 2), cy = ym + Math.floor(i / cols2) * (sqq + 2);
+      const tested = sc.done || i <= sc.idx;
+      ctx.fillStyle = !tested ? Viz.alpha(Viz.color('muted'), 0.18) : mn.det.isZero() ? Viz.alpha(Viz.color('rose'), 0.55) : Viz.color('accent');
+      ctx.fillRect(cx, cy, sqq, sqq);
+      if ((!sc.done && i === sc.idx) || (sel.kind === 'minor' && sel.idx === i)) { ctx.lineWidth = 2; ctx.strokeStyle = Viz.color('amber'); ctx.strokeRect(cx - 1.5, cy - 1.5, sqq + 3, sqq + 3); }
+      mapCells.push({ x: cx - 1, y: cy - 1, s: sqq + 2, i });
+    });
   }
-  // counters
-  const cx = W - rc - 4, lh = H < 96 ? 15 : 18, lines = [
-    [`q = ${kJ(now.q)} kJ/kg`, orange], [`w = ${kJ(now.w)} kJ/kg`, blue], [`Δe = ${kJ(now.de)} kJ/kg`, accent], [`Δs = ${f3(now.ds)} J/(kg K)`, text]
-  ].slice(0, H < 70 ? 3 : 4);
-  const top = H / 2 - (lines.length - 1) * lh / 2;
-  lines.forEach((ln, k) => canvasText(ctx, ln[0], cx, top + k * lh * (H > 260 ? 1.2 : 1), { color: ln[1], size: H > 260 ? 14.5 : 12.5, weight: 650 }));
+  HIT.matrix = { x0, y0, lw, cw, hh, rh, m, n, mapCells };
 }
-const PRESET_PUMP_TR = Math.pow(2, 0.4);     // T2/T1 on the isentrope for v2/v1 = 1/2 (γ = 1.4): the isochore has zero length
+
+function drawGroups(v, s, M) {
+  v.clear(); HIT.groups = [];
+  const ctx = v.ctx, W = v.w, H = v.h, pad = 8;
+  if (W < 60 || H < 40) return;
+  const et = errText(M);
+  if (et) {
+    const bw = Math.min(W - 2 * pad, 600), bx = (W - bw) / 2;
+    ctx.font = font(13, 500); const words = et.d.split(' '), lines = []; let line = '';
+    words.forEach(wd => { const t = line ? line + ' ' + wd : wd; if (ctx.measureText(t).width > bw - 24) { lines.push(line); line = wd; } else line = t; }); lines.push(line);
+    const show = lines.slice(0, Math.max(1, Math.floor((H - 2 * pad - 44) / 18)));
+    const bh = Math.min(H - 2 * pad, 44 + show.length * 18), by = (H - bh) / 2;
+    rrect(ctx, bx, by, bw, bh, 12); ctx.fillStyle = Viz.alpha(Viz.color('rose'), 0.08); ctx.fill(); ctx.strokeStyle = Viz.color('rose'); ctx.lineWidth = 1.5; ctx.stroke();
+    text(ctx, '⚠ ' + et.t, W / 2, by + 20, bw < 380 ? 14 : 16, Viz.color('rose'), 'center', 700);
+    show.forEach((l, i) => text(ctx, l, W / 2, by + 42 + i * 18, 13, Viz.color('text-soft'), 'center', 500));
+    return;
+  }
+  const k = M.groups.length;
+  let fh = 26;
+  if ((H - 2 * pad - fh) / k < 24) fh = 0;
+  const twoCol = k > 1 && (H - 2 * pad - fh) / k < 22;
+  const nrow = twoCol ? Math.ceil(k / 2) : k, CW = twoCol ? W / 2 : W;
+  const wide = !twoCol && W >= 600, mid = !twoCol && W >= 420;
+  const showAll = mid;
+  const hdr = showAll && (H - 2 * pad - fh) / (k + 1) >= 26 ? 18 : 0;
+  const rh = Math.max(20, Math.min(64, (H - 2 * pad - fh - hdr) / nrow));
+  const px = rh >= 46 ? 16 : 14;
+  const top = pad + hdr + Math.max(0, (H - 2 * pad - fh - hdr - rh * nrow) / 2);
+  const units = M.natural ? 'natural' : (s.units === 'natural' ? 'SI' : s.units);
+  const sysCols = showAll ? ['SI', 'cgs', 'imperial'].concat(M.natural ? ['natural'] : []) : [units];
+  const valW = showAll ? Math.max(60, Math.min(96, (W * (wide ? 0.5 : 0.46)) / sysCols.length)) : Math.min(twoCol ? 76 : 120, CW * 0.3);
+  const valX0 = CW - pad - valW * sysCols.length;
+  const dimX = mid ? valX0 - (wide ? 104 : 70) : null;
+  if (showAll && hdr) sysCols.forEach((u, c) => text(ctx, UNIT_LABEL[u], valX0 + valW * c + valW / 2, pad + 8, 12, u === units ? Viz.color('accent') : Viz.color('muted'), 'center', u === units ? 700 : 500));
+  M.groups.forEach((g, i) => {
+    const ox = twoCol ? (i % 2) * CW : 0, y = top + (twoCol ? Math.floor(i / 2) : i) * rh, ym = y + rh / 2, selected = s.sel && s.sel.kind === 'group' && s.sel.i === i;
+    if (selected || (twoCol ? (Math.floor(i / 2) + i) % 2 === 0 : i % 2 === 0)) { rrect(ctx, ox + pad / 2, y + 1, CW - pad, rh - 2, 8); ctx.fillStyle = selected ? Viz.alpha(Viz.color('orange'), 0.12) : Viz.alpha(Viz.color('muted'), 0.06); ctx.fill(); }
+    ctx.save(); ctx.translate(ox, 0);
+    let x = pad + 4;
+    x += text(ctx, PI_TXT(i) + ' =', x, ym, px, Viz.color('accent'), 'left', 700) + 8;
+    const avail = (dimX || valX0) - x - 8;
+    const stacked = rh >= fractionH(g, px);
+    if (stacked && drawFraction(ctx, M, g, 0, 0, px, '', true) <= avail) drawFraction(ctx, M, g, x, ym, px, Viz.color('text'), false);
+    else if (rh >= fractionH(g, 14) && drawFraction(ctx, M, g, 0, 0, 14, '', true) <= avail && px > 14) drawFraction(ctx, M, g, x, ym, 14, Viz.color('text'), false);
+    else drawInline(ctx, M, g, x, ym, drawInline(ctx, M, g, 0, 0, 15, '', true) <= avail ? 15 : 13, Viz.color('text'), false);
+    if (dimX) {
+      const zero = M.vals[i].dim.every(d => d.isZero());
+      const t = wide ? M.dm.rows.map(b => b + '⁰').join('') + (zero ? ' ✓' : ' ✗') : (zero ? '[1] ✓' : '✗');
+      text(ctx, t, dimX + 4, ym, 13, zero ? Viz.color('teal') : Viz.color('rose'), 'left', 650);
+    }
+    sysCols.forEach((u, c) => {
+      const val = u === 'natural' ? M.vals[i].cur : M.vals[i][u] !== undefined ? M.vals[i][u] : M.vals[i].cur;
+      text(ctx, valW < 84 ? cnum(val) : nf(val), valX0 + valW * c + valW / 2, ym, valW < 84 ? 12 : 13, u === units ? Viz.color('text') : Viz.color('muted'), 'center', u === units ? 700 : 400, true);
+    });
+    ctx.restore();
+    HIT.groups.push({ x0: ox, x1: ox + CW, y0: y, y1: y + rh, i });
+  });
+  // footer: the law and the independence badge
+  if (!fh) return;
+  const yf = top + nrow * rh + fh / 2 + 2;
+  const law = k === 1 ? 'one group → Π₁ = constant' : 'Π₁ = φ(' + M.groups.slice(1).map((_, i) => PI_TXT(i + 1)).join(', ') + ')';
+  text(ctx, law, pad + 4, yf, 14, Viz.color('text'), 'left', 650);
+  if (W > 300) text(ctx, (M.indep ? 'independent ✓' : 'dependent ✗') + (showAll ? (hdr ? ' · same value in every unit system' : ' · columns: SI · cgs · imperial') : ''), W - pad, yf, 12, M.indep ? Viz.color('teal') : Viz.color('rose'), 'right', 600);
+}
+
+/** keep the select option labels in step with the problem (the engine builds selects once) */
+function syncOptions(s) {
+  const P = PROBLEMS[s.problem] || PROBLEMS.pipe;
+  const scanTxt = s.scan >= 1 - 1e-9 ? 'all ' + SCAN_N : (Math.min(SCAN_N, Math.floor(s.scan * SCAN_N) + 1)) + ' / ' + SCAN_N;
+  document.querySelectorAll('[data-viz-key="param:scan"] .viz-control-value').forEach(el => { if (el.textContent !== scanTxt) el.textContent = scanTxt; });
+  document.querySelectorAll('[data-viz-key="param:rep"] select').forEach(sel => {
+    Array.prototype.forEach.call(sel.options, o => { const ok = o.value === 'custom' || !!P.reps[o.value]; o.hidden = !ok; o.disabled = !ok; const t = repLabel(P, o.value); if (o.textContent !== t) o.textContent = t; });
+    if (sel.value !== s.rep) sel.value = s.rep;
+  });
+  document.querySelectorAll('[data-viz-key="param:drop"] select').forEach(sel => {
+    Array.prototype.forEach.call(sel.options, o => { const ok = o.value === 'none' || P.drops.indexOf(o.value) >= 0; o.hidden = !ok; o.disabled = !ok; });
+    if (sel.value !== s.drop) sel.value = s.drop;
+  });
+}
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
+const f3 = x => nf(x);
+const START = { problem: 'pipe', rep: 'book', drop: 'none', units: 'SI', custom: '', scan: 1, sel: null };
+
 const app = Viz.app({
-  title: 'Same two states: what depends on the path?',
-  subtitle: '1 kg of air from the same start to the same end by different routes: heat and work change, Δe and Δs do not',
+  title: 'Why can 7 pipe variables shrink to 4 numbers?',
+  subtitle: 'Variables → dimensional matrix → rank → Π groups, and a unit switch that changes every number except the Π values',
   params: {
-    path: { type: 'select', label: 'Route', options: ROUTES, value: 'isothermal' },
-    vr: { label: 'Volume ratio $v_2/v_1$', min: 0.25, max: 4, step: 0.05, value: 2, help: 'end volume over start volume' },
-    Tr: { label: 'Temperature ratio $T_2/T_1$', min: 0.5, max: 2, step: 0.05, value: 1, help: 'end temperature over 300 K' },
-    gas: { type: 'select', label: 'Gas', options: [['7/5', 'diatomic γ = 7/5'], ['5/3', 'monatomic γ = 5/3']], value: '7/5', display: 'chips' },
-    proc: { type: 'select', label: 'Process', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']], value: 'rev', display: 'chips' },
-    prog: { label: 'Progress along the route', min: 0, max: 1, step: 'any', value: 0, optional: true, fmt: v => Math.round(v * 100) + ' %' }
+    problem: { type: 'select', label: 'Problem', value: 'pipe', options: Object.keys(PROBLEMS).map(k => [k, PROBLEMS[k].title]) },
+    rep: { type: 'select', label: 'Repeating set', value: 'book', options: REP_OPTS },
+    drop: { type: 'select', label: 'Remove a variable', value: 'none', options: DROP_OPTS },
+    units: { type: 'select', label: 'Units', value: 'SI', display: 'chips', options: [['SI', 'SI'], ['cgs', 'cgs'], ['imperial', 'imperial'], ['natural', 'rep = 1']] },
+    scan: { label: 'minor search', min: 0, max: 1, step: 'any', value: 1, optional: true,
+      fmt: x => x >= 1 - 1e-9 ? 'all ' + SCAN_N : (Math.min(SCAN_N, Math.floor(x * SCAN_N) + 1)) + ' / ' + SCAN_N }
   },
-  transport: { param: 'prog', min: 0, max: 1, rate: 0.2, end: 'hold', hold: 2.2 },
-  modes: { param: 'proc', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']] },
-  presets: [
-    { label: 'iso ×2', set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev' }, title: 'route A: isothermal expansion to twice the volume' },
-    { label: 'cool→expand', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route B: same end states' },
-    { label: 'expand→cool', set: { path: 'isobaric-isochoric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route C: same end states' },
-    { label: 'pump', set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev' }, title: 'isentropic compression to half the volume' },
-    { label: 'stir', set: { proc: 'stir', vr: 1, Tr: 1.2 }, title: 'insulated rigid tank, paddle work' },
-    { label: 'free exp.', set: { proc: 'free', vr: 2, Tr: 1 }, title: 'insulated gas bursts into vacuum' }
-  ],
+  transport: TRANSPORT,
+  autoplay: false,
+  presets: Object.keys(PROBLEMS).map(k => ({ label: PROBLEMS[k].short, set: { problem: k, rep: 'book', drop: 'none', custom: '' }, title: PROBLEMS[k].title })),
+  presetsLabel: 'Problem',
   status: s => {
-    const M = model(s);
-    if (s.proc === 'rev') return { text: `🔁 q = ${kJ(M.tot.q)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) (any route)`, tone: 'info' };
-    return { text: `⚠️ irreversible: Δs = ${f3(M.ds)} > ∫δq/T = 0`, tone: 'warn' };
-  },
-  onChange(s, key, a) {
-    if (key === 'path' && s.proc !== 'rev') a.set('proc', 'rev');
-    if (key === 'path' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('Tr', 1);
-    if (key === 'Tr' && s.proc === 'rev' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('path', 'isothermal-isochoric');
-    if (key === 'proc' && s.proc === 'stir') a.set({ vr: 1, Tr: s.Tr > 1 ? s.Tr : 1.2 });
-    if (key === 'proc' && s.proc === 'free') a.set({ Tr: 1, vr: s.vr > 1 ? s.vr : 2 });
-    if (key === 'vr' && s.proc === 'stir' && Math.abs(s.vr - 1) > 1e-9) a.set('proc', 'rev');
-    if (key === 'Tr' && s.proc === 'stir' && s.Tr < 1) a.set('proc', 'rev');
-    if (key === 'Tr' && s.proc === 'free' && Math.abs(s.Tr - 1) > 1e-9) a.set('proc', 'rev');
-    if (key === 'vr' && s.proc === 'free' && s.vr < 1) a.set('proc', 'rev');
-    if (key === 'probe') return;
-    if (key !== 'prog' && key !== 'speed' && key !== 'focus') a.set('probe', null);
+    const M = machine(s), et = errText(M);
+    if (et) return { text: (M.err.kind === 'count' ? '✋ ' : M.err.kind === 'nogroups' ? '⛔ ' : '⚠️ ') + et.t, tone: M.err.kind === 'count' ? 'info' : 'bad' };
+    const k = M.groups.length;
+    return { text: '✅ n = ' + M.n + ', r = ' + M.r + ' → ' + k + ' independent group' + (k > 1 ? 's' : '') + (M.dimless.length ? ' (' + syms(M, M.dimless) + ' is its own)' : '') + (M.adjusted ? ' · set adjusted' : ''), tone: 'good' };
   },
   readouts: [
-    { id: 'q', label: 'Heat in so far $q$', unit: 'kJ/kg', value: s => at(model(s), s.prog).q / 1000 },
-    { id: 'w', label: 'Work on gas $w$', unit: 'kJ/kg', value: s => at(model(s), s.prog).w / 1000 },
-    { id: 'de', label: 'Change $\\Delta e$', unit: 'kJ/kg', value: s => at(model(s), s.prog).de / 1000 },
-    { id: 'ds', label: '$\\Delta s$ (Gibbs)', unit: 'J/(kg K)', value: s => at(model(s), s.prog).ds },
-    { id: 'sint', label: '$\\int \\delta q/T$ so far', unit: 'J/(kg K)', value: s => at(model(s), s.prog).sint },
-    { id: 'p', label: 'Pressure $p$', unit: 'kPa', value: s => at(model(s), s.prog).p / 1000, optional: true }
+    { id: 'n', label: 'Variables $n$', value: s => machine(s).n, fmt: x => String(x) },
+    { id: 'rank', label: 'Rank $r$', value: s => machine(s).r, fmt: x => String(x) },
+    { id: 'groups', label: 'Groups $n-r$', value: s => machine(s).n - machine(s).r, fmt: x => String(x) },
+    { id: 'det', label: 'Repeating minor det', value: s => { const M = machine(s); return M.minor ? M.minor.det.valueOf() : NaN; },
+      fmt: (x, s) => { const M = machine(s); return M.minor ? M.minor.det.txt() + (M.minor.det.isZero() ? ' ✗' : ' ✓') : '—'; } }
   ],
-  terms: {
-    title: 'Energy so far (first law)', unit: 'kJ/kg',
-    items: [
-      { id: 'q', label: 'heat added $q$', color: '#f97316', value: s => at(model(s), s.prog).q / 1000 },
-      { id: 'w', label: 'work on the gas $w$', color: '#2563eb', value: s => at(model(s), s.prog).w / 1000 },
-      { id: 'de', label: 'internal energy $\\Delta e$', color: '#6c5ce7', value: s => at(model(s), s.prog).de / 1000 }
-    ],
-    total: { label: '$q + w$ (must equal $\\Delta e$)', value: s => { const n = at(model(s), s.prog); return (n.q + n.w) / 1000; } }
-  },
   stage: {
     rows: [1.15, 1],
     views: [
-      { id: 'pv', row: 0, flex: 1, title: (s, a) => a.g.view('pv').w >= 420 ? '<b>p–v</b> · area under the route = work by the gas' : '<b>p–v</b> · shaded = work · dashed: isotherms, isentrope' },
-      { id: 'ts', row: 0, flex: 1, hidePortrait: true, title: '<b>T–s</b> · area under the route = heat' },
-      { id: 'gas', row: 1, flex: 1, title: s => { const n = at(model(s), s.prog); return `<b>The gas</b> · T = ${f3(n.T)} K · p = ${f3(n.p / 1000)} kPa · drag sideways to scrub`; } }
+      { id: 'vars', row: 0, flex: 0.9, hidePortrait: true, title: s => { const M = machine(s); return '<b>Variables</b> · ★ solution · purple = repeating · click to remove'; } },
+      { id: 'matrix', row: 0, flex: 1.35, title: s => { const M = machine(s); return '<b>Dimensional matrix</b> · ' + M.m + ' × ' + M.n + ' · click a header to (un)pick it'; } },
+      { id: 'groups', row: 1, flex: 1, title: s => { const M = machine(s); return '<b>Π groups</b> · values in ' + UNIT_LABEL[M.natural ? 'natural' : s.units === 'natural' ? 'SI' : s.units] + ' units · click a group'; } }
     ],
-    setup(g) {
-      g.views.forEach(v => { v.canvas.style.cursor = v.id === 'gas' ? 'ew-resize' : 'crosshair'; });
-      const rnd = Viz.rng(7); g.mol = [];
-      for (let i = 0; i < 42; i++) { const a = rnd() * 2 * Math.PI; g.mol.push({ x: rnd(), y: rnd(), dx: Math.cos(a), dy: Math.sin(a) }); }
-      g.angle = 0;
-    },
-    step(g, s, dt) {
-      const n = at(model(s), s.prog), sp = 0.55 * Math.sqrt(n.T / 300);
-      (g.mol || []).forEach(m => {
-        m.x += m.dx * sp * dt; m.y += m.dy * sp * dt * 2;
-        if (m.x < 0) { m.x = -m.x; m.dx = -m.dx; } if (m.x > 1) { m.x = 2 - m.x; m.dx = -m.dx; }
-        if (m.y < 0) { m.y = -m.y; m.dy = -m.dy; } if (m.y > 1) { m.y = 2 - m.y; m.dy = -m.dy; }
-      });
-      g.angle = (g.angle || 0) + dt * 6;
-    },
     draw(g, s) {
-      const M = model(s), now = at(M, s.prog), parts = soFar(M, s.prog);
-      const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), rose = Viz.color('rose'), teal = Viz.color('teal');
-      const rev = M.proc === 'rev';
-      /* ---------------- p–v diagram ---------------- */
-      const vp = g.view('pv'); vp.clear();
-      if (vp.w > 40 && vp.h > 40) {
-        const B = PV_BOUNDS(M), small = vp.w < 330;
-        const P = vp.plot(Object.assign({ xlabel: 'v [m³/kg]', ylabel: 'p [kPa]' }, B)).axes();
-        P.clip(() => {
-          const x0 = M.vmax * 0.06;
-          P.fn(v => R_AIR * T1 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
-          if (Math.abs(M.T2 - T1) > 1e-6) P.fn(v => R_AIR * M.T2 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
-          P.fn(v => isentropicPressure(V1 / v, P1, 1 / V1, M.gamma) / 1000, { x0: M.vmax * 0.12, color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.v, G.p.map(x => x / 1000), { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
-          if (rev) {
-            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.v, L.smp.p.map(x => x / 1000), { color: Viz.alpha(blue, 0.3), width: 2 }); });
-            parts.forEach(pt => {
-              const pk = pt.p.map(x => x / 1000);
-              if (pt.L.vb > pt.L.va) fillUnder(P, pt.v, pk, 0, Viz.alpha(blue, 0.2));
-              else if (pt.L.vb < pt.L.va) { fillUnder(P, pt.v, pk, 0, hatchPattern(P.ctx, Viz.alpha(blue, 0.55))); }
-              P.line(pt.v, pk, { color: blue, width: 3 });
-            });
-          } else {
-            P.line([V1, M.v2], [P1 / 1000, M.p2 / 1000], { color: rose, width: 2, dash: [6, 5] });
-          }
-        });
-        if (vp.w >= 420 && vp.h >= 190 && M.proc !== 'stir') {
-          const lx = P.px.x + P.px.w - 8;
-          [['isotherms T₁, T₂', Viz.color('amber')], ['isentrope through 1', teal], ['other routes', muted]].concat(rev && M.legs.some(Lg => !Lg.zero && Lg.vb < Lg.va) ? [['hatched: work done on the gas', blue]] : []).forEach((it, k) =>
-            canvasText(P.ctx, it[0], lx, P.px.y + 12 + k * 16, { color: it[1], align: 'right', size: 12, weight: 500 }));
-        }
-        if (!small && !rev) {
-          canvasText(P.ctx, 'no equilibrium path', (P.X(V1) + P.X(M.v2)) / 2 + 16,(P.Y(P1 / 1000) + P.Y(M.p2 / 1000)) / 2 - 12, { color: rose, size: 12 });
-        }
-        P.dot(V1, P1 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        P.dot(M.v2, M.p2 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        canvasText(P.ctx, '1', P.X(V1) + 7, P.Y(P1 / 1000) - 10, { size: 13 });
-        canvasText(P.ctx, '2', P.X(M.v2) + 7, P.Y(M.p2 / 1000) - 10, { size: 13 });
-        if (rev && M.corner && !M.legs.some(L => L.zero)) P.dot(M.corner[0], R_AIR * M.corner[1] / M.corner[0] / 1000, 4, { color: muted });
-        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.v, pr.p / 1000, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
-        if (rev) P.dot(now.v, now.p / 1000, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });   // no equilibrium state to mark mid-way when irreversible
-        if (g.app.holding && !small) {
-          const txt = rev ? `route done: q = ${kJ(M.tot.q)}, w = ${kJ(M.tot.w)}, Δe = ${kJ(M.tot.de)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K)`
-            : `done: q = 0, w = ${kJ(M.tot.w)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) > ∫δq/T = 0`;
-          canvasText(P.ctx, txt, P.px.x + P.px.w / 2, P.px.y + 12, { align: 'center', color: accent, size: 12.5, weight: 650 });
-        }
-      }
-      /* ---------------- T–s diagram ---------------- */
-      const vt = g.view('ts'); vt.clear();
-      if (vt.el.offsetParent && vt.w > 40 && vt.h > 40) {
-        const B = TS_BOUNDS(M), small = vt.w < 330;
-        const P = vt.plot(Object.assign({ xlabel: 's − s₁ [J/(kg K)]', ylabel: 'T [K]' }, B)).axes();
-        P.clip(() => {
-          P.line([0, 0], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          if (Math.abs(M.ds) > 1e-9) P.line([M.ds, M.ds], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.s, G.T, { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
-          if (rev) {
-            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.s, L.smp.T, { color: Viz.alpha(orange, 0.3), width: 2 }); });
-            parts.forEach(pt => {
-              const ds = pt.L.tot.ds;
-              if (ds > 1e-9) fillUnder(P, pt.s, pt.T, 0, Viz.alpha(orange, 0.2));
-              else if (ds < -1e-9) fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(orange, 0.6)));
-              P.line(pt.s, pt.T, { color: orange, width: 3 });
-            });
-          } else if (M.proc === 'stir') {
-            const L = M.legs[0];
-            parts.forEach(pt => { fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(rose, 0.45))); P.line(pt.s, pt.T, { color: rose, width: 2.5, dash: [6, 4] }); });
-            P.line(L.smp.s, L.smp.T, { color: Viz.alpha(rose, 0.3), width: 2, dash: [6, 4] });
-          } else {
-            P.line([0, M.ds], [T1, T1], { color: rose, width: 2.5, dash: [6, 5] });
-          }
-        });
-        if (!small) {
-          canvasText(P.ctx, 'isentropes (s fixed)', P.X(0) + 5, P.px.y + 12, { color: teal, size: 12, weight: 500 });
-          const lab = rev ? (M.legs.every(Lg => Lg.zero || Math.abs(Lg.tot.q) < 1e-6) ? 'no heat: the route is vertical' : M.legs.some(Lg => !Lg.zero && Lg.tot.ds < -1e-9) ? 'shaded = heat in · hatched = out' : 'shaded = heat in') : M.proc === 'stir' ? 'area ≠ heat: q = 0' : 'q = 0, yet s rises';
-          canvasText(P.ctx, lab, P.px.x + P.px.w - 6, P.px.y + P.px.h - 12, { color: rev ? orange : rose, align: 'right', size: 12 });
-        }
-        P.dot(0, T1, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        P.dot(M.ds, M.T2, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        canvasText(P.ctx, '1', P.X(0) + 7, P.Y(T1) - 10, { size: 13 });
-        canvasText(P.ctx, '2', P.X(M.ds) + 7, P.Y(M.T2) - 10, { size: 13 });
-        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.ds, pr.T, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
-        P.dot(now.ds, now.T, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });
-      }
-      /* ---------------- the gas ---------------- */
-      const vg = g.view('gas'); vg.clear();
-      if (vg.w > 40 && vg.h > 40) drawGas(vg, g, s, M, now);
+      const M = machine(s);
+      TRANSPORT.rate = 1 / Math.min(14, Math.max(2.5, M.search.length * 0.45));
+      drawVars(g.view('vars'), s, M);
+      drawMatrix(g.view('matrix'), s, M, g.app);
+      drawGroups(g.view('groups'), s, M);
+      syncOptions(s);
     },
-    // click the p–v or T–s route → probe + move the dot there; drag sideways on the gas → scrub the progress
     onPointer(g, ev, s) {
-      const v = ev.vizView || g.view(ev.viewId), M = model(s), x = v.pointer.x, y = v.pointer.y;
-      if (ev.viewId === 'gas') {
-        if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && v.pointer.down)) return false;
-        const bx = g.gasBox || { x0: 14, x1: v.w * 0.6 };
-        if (ev.type === 'pointerdown') g.app.play(false);
-        g.app.set('prog', Math.max(0, Math.min(1, (x - bx.x0) / Math.max(20, bx.x1 - bx.x0))));
+      if (ev.type !== 'pointerdown') return false;
+      const view = ev.vizView || ev.view, px = view.pointer.x, py = view.pointer.y, M = machine(s), A = g.app;
+      if (ev.viewId === 'vars') {
+        const hit = HIT.vars.find(c => px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h);
+        if (!hit) return false;
+        if (M.P.drops.indexOf(hit.id) >= 0) A.set({ drop: s.drop === hit.id ? 'none' : hit.id, sel: { kind: 'var', id: hit.id } });
+        else A.set({ sel: { kind: 'var', id: hit.id } });
         return true;
       }
-      if (ev.type !== 'pointerdown' || !M.legs.some(L => !L.zero)) return false;
-      const u = nearestU(M, v.plot(ev.viewId === 'pv' ? PV_BOUNDS(M) : TS_BOUNDS(M)), x, y, ev.viewId);
-      if (u === null) return false;
-      g.app.play(false); g.app.set({ prog: u, probe: u });
-      return true;
+      if (ev.viewId === 'matrix' && HIT.matrix) {
+        const H = HIT.matrix;
+        const cell = H.mapCells.find(c => px >= c.x && px <= c.x + c.s && py >= c.y && py <= c.y + c.s);
+        if (cell) {
+          const mn = M.search[cell.i], set = { sel: { kind: 'minor', idx: cell.i }, scan: 1 };
+          if (mn.k === M.r) { set.rep = 'custom'; set.custom = mn.cols.map(j => M.dm.names[j]).join(','); }
+          A.set(set); return true;
+        }
+        const j = Math.floor((px - H.x0 - H.lw) / H.cw);
+        if (j < 0 || j >= H.n) return false;
+        const name = M.dm.names[j];
+        if (py >= H.y0 && py < H.y0 + H.hh) {
+          const list = M.rep.slice(), at = list.indexOf(name);
+          if (at >= 0) list.splice(at, 1); else list.push(name);
+          A.set({ rep: 'custom', custom: list.join(','), sel: { kind: 'var', id: name } });
+          return true;
+        }
+        const i = Math.floor((py - H.y0 - H.hh) / H.rh);
+        if (i >= 0 && i < H.m) { A.set({ sel: { kind: 'cell', id: name, row: M.dm.rows[i] } }); return true; }
+        return false;
+      }
+      if (ev.viewId === 'groups') {
+        const hit = HIT.groups.find(r => py >= r.y0 && py <= r.y1 && px >= r.x0 && px <= r.x1);
+        if (hit) { A.set({ sel: { kind: 'group', i: hit.i } }); return true; }
+      }
+      return false;
+    }
+  },
+  onChange(s, key, A) {
+    if (key === 'problem') {
+      const P = PROBLEMS[s.problem];
+      const fix = { sel: null };
+      if (s.rep !== 'custom' && !P.reps[s.rep]) fix.rep = 'book';
+      if (s.rep === 'custom') { fix.rep = 'book'; fix.custom = ''; }
+      if (s.drop !== 'none' && P.drops.indexOf(s.drop) < 0) fix.drop = 'none';
+      A.set(fix);
     }
   },
   explore: {
-    intro: 'Pick a route, press ▶ and watch the heater, the <b class="c-blue">work area</b> and the <b class="c-orange">heat area</b>. Grey curves are the other routes between the same two states.',
-    controls: ['path', 'vr', 'Tr', 'gas', 'proc'],
-    readouts: ['q', 'w', 'de', 'ds', 'sint', 'p'],
-    callouts: [{ kind: 'try', html: 'Play routes A, B and C in turn. The bars for $q$ and $w$ change; $\\Delta e$ and $\\Delta s$ at the end never do.' }]
+    intro: 'Pick a problem, a repeating set or a variable to remove; switch units. Click matrix headers to build your own repeating set.',
+    controls: ['problem', 'rep', 'drop', 'units'],
+    readouts: ['n', 'rank', 'groups', 'det'],
+    callouts: [{ kind: 'try', html: 'Pendulum: remove the mass $m$. Do the groups change? Why can a period not depend on mass?' }]
   },
+  inspectHint: 'Click a matrix cell, a column header, a variable card, a group or a square of the minor map: its exact arithmetic appears here.',
   inspect: s => {
-    if (s.probe === null || s.probe === undefined) return null;
-    const M = model(s), n = at(M, s.probe);
-    if (M.proc !== 'rev') return `At ${Math.round(s.probe * 100)} % the gas is not in equilibrium: no single $p$ or $T$ describes it, so $-\\int p\\,dv$ is undefined. Only the end states count: $\\Delta s = ${tn(M.ds)}$ J/(kg K).`;
-    const tr = trapezoidAt(M, s.probe);
-    return `$p = RT/v = ${tn(R_AIR, 5)} \\times ${tn(n.T, 4)} / ${tn(n.v, 4)} = \\mathbf{${tn(n.p / 1000, 4)}}$ kPa<br>` +
-      `$w = -\\int p\\,dv \\approx ${tn(tr.w / 1000, 4)}$ kJ/kg (trapezoid, ${tr.k} samples; exact ${Viz.fmt(n.w / 1000, { sig: 4 })})<br>` +
-      `$\\Delta e = C_v(T - T_1) = ${tn(M.cv, 4)} \\times ${tp(n.T - T1, 4)} = ${tn(n.de / 1000, 4)}$ kJ/kg<br>` +
-      `$q = \\Delta e - w = ${tn(n.de / 1000, 4)} - (${tn(n.w / 1000, 4)}) = \\mathbf{${tn(n.q / 1000, 4)}}$ kJ/kg`;
+    const M = machine(s), sel = s.sel;
+    if (!sel) return null;
+    if (sel.kind === 'cell' || sel.kind === 'var') {
+      const q = byId(M.P.vars)[sel.id]; if (!q) return null;
+      const dims = q.dim.map((e, i) => e.isZero() ? '' : BASIS_TEX[BASIS[i]] + '^{' + e + '}').join('') || '1';
+      // units as TeX powers (KaTeX has no metrics for the Unicode ³ and ²)
+      const uTex = q.unit === '–' ? '1' : '\\mathrm{' + q.unit.replace(/³/g, '^{3}').replace(/²/g, '^{2}').replace(/·/g, '\\,') + '}';
+      let out = '$[' + q.tex + '] = ' + uTex + ' = ' + dims + '$';
+      if (sel.kind === 'cell') { const i = BASIS.indexOf(sel.row); out += ' → row ' + sel.row + ', column $' + q.tex + '$ holds <b>' + q.dim[i].txt() + '</b>.'; }
+      else out += sel.id === M.drop ? ' · <b class="c-rose">removed</b>: its column is gone.' : M.rep.indexOf(sel.id) >= 0 ? ' · <b class="c-accent">repeating</b>.' : ' · heads its own group.';
+      return out;
+    }
+    if (sel.kind === 'minor') {
+      const mn = M.search[sel.idx]; if (!mn) return null;
+      const S = subMatrix(M.dm.A, mn.rows, mn.cols);
+      return 'Columns (' + mn.cols.map(j => plain(M.V[M.dm.names[j]])).join(', ') + '), rows ' + mn.rows.map(i => M.dm.rows[i]).join(', ') + ':<br>$' + vmat(S) + ' = ' + cofactorTex(S) + '$' +
+        (mn.k === M.r ? (mn.det.isZero() ? ' → not usable.' : ' → usable repeating set.') : ' → size ' + mn.k + ' > r.');
+    }
+    if (sel.kind === 'group' && M.groups && M.groups[sel.i]) {
+      const g = M.groups[sel.i], i = sel.i;
+      if (g.length === 1) return '$\\Pi_' + (i + 1) + ' = ' + M.V[g[0][0]].tex + '$ is dimensionless on its own, so it is a group by itself.';
+      const eqs = exponentSystem(M, g).map(e => '$' + e.tex + '$').join(' · ');
+      const sol = g.slice(1).map((x, j) => LETTERS[j] + ' = ' + x[1].tex()).join(',\\ ');
+      return '$\\Pi_' + (i + 1) + ' = ' + productTex(M, g) + '$: ' + eqs + ' → $' + sol + '$ → $\\Pi_' + (i + 1) + ' = ' + groupTex(g, M.V) + ' = ' + tn(M.vals[i].cur) + '$';
+    }
+    return null;
   },
-  inspectHint: 'Click the route on the p–v or T–s diagram: the exact arithmetic at that point appears here.',
   notes: s => {
-    const M = model(s), n = at(M, s.prog), L = n.leg;
-    if (M.proc === 'stir') return `<p>Insulated and rigid: no heat, no $p\\,dv$ work. The paddle's work ($w = ${kJ(n.w)}$ kJ/kg so far) stays in the gas as $\\Delta e$, and $s$ rises by $${tn(n.ds)}$ J/(kg K) with $\\int\\delta q/T = 0$.</p>`;
-    if (M.proc === 'free') return `<p>The membrane is gone: the gas rushes into vacuum. Nothing crosses the boundary ($q = w = 0$), $T$ ends where it started, yet $\\Delta s = R\\ln(v_2/v_1) = ${tn(M.ds)}$ J/(kg K).</p>`;
-    const leg = L.kind === 'isothermal' ? (n.dq > 0 ? 'heater on: the heat taken in leaves at once as work' : 'cooling: the work done on the gas leaves as heat')
-      : L.kind === 'isochoric' ? (n.dq > 0 ? 'volume fixed: all heat goes into $e$' : 'volume fixed: heat leaves, $e$ falls')
-      : L.kind === 'isobaric' ? (n.dq > 0 ? 'pressure fixed: heat raises $e$ and pushes the piston out' : 'pressure fixed: heat leaves and the piston moves in')
-      : 'insulated and slow: no heat, the work changes $e$ directly';
-    return `<p>Now on the <b>${L.kind}</b> leg: ${leg}. So far $q = ${kJ(n.q)}$, $w = ${kJ(n.w)}$ kJ/kg; at the end $\\Delta e = ${kJ(M.de)}$ kJ/kg whichever route you pick.</p>`;
+    const M = machine(s), et = errText(M);
+    if (et) return '<p><b class="c-rose">' + et.t + '.</b> ' + et.d + '</p>' + (M.err.kind === 'singular' && M.P === PROBLEMS.pipe ? '<p>$d$ and $\\varepsilon$ are both pure lengths: their columns are equal, so no power of them can cancel the time in $\\Delta p$.</p>' : '');
+    return '<p>' + physicsNote(M) + '</p>' + (M.repId !== 'book' ? '<p>A different repeating set gives a different but <b>equivalent</b> basis: each new group is a product of powers of the old ones.</p>' : '');
   },
   explain: {
     html: s => {
-      const W = Viz.work, M = model(s), rev = M.proc === 'rev';
-      let out = W.step(0, 'What the three windows show') +
-        W.say('The <b>gas</b> window is the system: 1 kg of air in a cylinder. The heater glows <span class="c-orange">orange</span> while heat goes in and turns <span class="c-blue">blue</span> while heat leaves; a hatched jacket means no heat can pass. ' +
-          'On the <b>p–v diagram</b> the <span class="c-blue">blue</span> area under the route is the work the gas does ($-w$). On the <b>T–s diagram</b> the <span class="c-orange">orange</span> area is the heat $q$. Grey curves are the other routes between the same states.') +
-        W.hint('On a phone the T–s diagram is hidden; turn the phone sideways to see it.');
-      out += W.step(1, 'The two end states') +
-        W.line(`$v_1 = RT_1/p_1 = ${tn(R_AIR, 5)} \\times 300 / 10^5$`, f3(V1, 4) + ' m³/kg', 'perfect gas, Eq. (1.22) with v = 1/ρ') +
-        W.line(`$v_2 = (v_2/v_1)\\,v_1 = ${tn(M.vr)} \\times ${tn(V1, 4)}$`, f3(M.v2, 4) + ' m³/kg', 'your volume ratio') +
-        W.line(`$T_2 = (T_2/T_1)\\,T_1 = ${tn(M.Tr, 4)} \\times 300$`, f3(M.T2, 4) + ' K') +
-        W.box(`$p_2 = RT_2/v_2 = ${tn(R_AIR, 5)} \\times ${tn(M.T2, 4)}/${tn(M.v2, 4)} = \\mathbf{${tn(M.p2 / 1000)}}$ kPa (start: 100 kPa)`);
-      out += W.step(2, 'Internal energy: a state function') +
-        W.line(`$C_v = R/(\\gamma - 1) = ${tn(R_AIR, 5)}/${tn(M.gamma - 1, 3)}$`, f3(M.cv, 4) + ' J/(kg K)', 'Eqs. (1.23)–(1.24)') +
-        W.box(`$\\Delta e = C_v(T_2 - T_1) = ${tn(M.cv, 4)} \\times ${tp(M.T2 - T1, 4)} = \\mathbf{${tn(M.de / 1000)}}$ kJ/kg`) +
-        W.say('For a perfect gas $e$ depends on $T$ only, so this number is the same for every route and for stirring or free expansion.');
-      if (rev) {
-        out += W.step(3, 'Work, leg by leg ($w = -\\int p\\,dv$)');
-        M.legs.forEach((L, k) => {
-          const lab = M.legs.length > 1 ? `leg ${k + 1} (${L.kind})` : L.kind;
-          let f;
-          if (L.zero) f = `${lab}: zero length, skipped`;
-          else if (L.kind === 'isothermal') f = `${lab}: $w = -RT\\ln(v_b/v_a) = -${tn(R_AIR, 4)} \\times ${tn(L.Ta, 4)} \\ln ${tn(L.vb / L.va, 4)}$`;
-          else if (L.kind === 'isochoric') f = `${lab}: $w = 0$ ($v$ fixed)`;
-          else if (L.kind === 'isobaric') f = `${lab}: $w = -p\\,\\Delta v = -${tn(R_AIR * L.Ta / L.va / 1000, 4)}\\,\\text{kPa} \\times ${tp(L.vb - L.va, 4)}$`;
-          else f = `${lab}: $w = C_v(T_b - T_a) = ${tn(M.cv, 4)} \\times ${tp(L.Tb - L.Ta, 4)}$`;
-          out += W.line(f, kJ(L.tot.w) + ' kJ/kg', L.kind === 'isentropic' ? `no heat, so w = Δe of the leg; corner T = T₁(v₁/v₂)^(γ−1) = ${f3(L.Tb, 4)} K` : L.kind === 'isobaric' ? 'p = RT/v is constant on this leg' : '');
+      const W = Viz.work, M = machine(s), P = M.P, units = M.natural ? 'natural' : (s.units === 'natural' ? 'SI' : s.units);
+      let out = W.step(0, 'What you are looking at') +
+        W.say('The <b>cards</b> are the variables with their exponent bars; the <b>matrix</b> stacks those exponents as columns (<b class="c-orange">orange</b> = M row, <b class="c-blue">blue</b> = L, <b class="c-teal">teal</b> = T, <b class="c-amber">amber</b> = Θ); the <b>groups</b> are what the matrix allows. <b class="c-accent">Purple</b> = the repeating set; <b class="c-rose">rose</b> = a zero determinant.') +
+        W.hint('On a phone held upright the variable cards are hidden; the matrix headers and this table list the variables.');
+      // 1 · the variables
+      out += W.step(1, 'Your variable list: n = ' + M.n) +
+        W.table(['$q$', 'SI unit', '$[q]$', 'value (' + UNIT_LABEL[units] + ')'], M.active.map(q => ['$' + q.tex + '$' + (q.id === P.solution ? ' ★' : ''), q.unit, '$' + dimTex(q.dim) + '$', nf(M.cur[q.id]) + ' ' + unitStr(q, units)])) +
+        (M.drop !== 'none' ? W.say('You removed $' + byId(P.vars)[M.drop].tex + '$, so its column is gone.') : '');
+      // 2 · rank by minors
+      const S = subMatrix(M.dm.A, M.rk.rows, M.rk.cols);
+      out += W.step(2, 'Rank by minors') +
+        W.say('The rank is the size of the biggest square block with a nonzero determinant. The search starts at ' + Math.min(M.m, M.n) + '×' + Math.min(M.m, M.n) + ' and stops at the first nonzero one:') +
+        W.line('$' + vmat(S) + '$', '', 'columns ' + M.rk.cols.map(j => plain(M.V[M.dm.names[j]])).join(', ') + ' · rows ' + M.rk.rows.map(i => M.dm.rows[i]).join(', ')) +
+        W.line('$' + cofactorTex(S) + '$', '', 'cofactor expansion along the first row') +
+        W.line('minors tested', Viz.live('scan'), 'press ▶ to replay the search') +
+        W.box('rank $r = \\mathbf{' + M.r + '}$' + (M.m > M.r ? ' (fewer than the ' + M.m + ' rows: one row is a combination of the others)' : ''));
+      // 3 · how many groups
+      out += W.step(3, 'How many groups') +
+        W.line('$n - r = ' + M.n + ' - ' + M.r + '$', String(M.n - M.r), 'rank–nullity: independent solutions of $A\\mathbf{k} = \\mathbf{0}$') +
+        (M.minor ? W.line('$\\det A_{\\rm rep}(' + M.minor.cols.map(j => M.V[M.dm.names[j]].tex).join(', ') + ')$', M.minor.det.txt(), M.minor.det.isZero() ? 'zero: this set cannot be the repeating set' : 'nonzero: a valid repeating set') : '');
+      // 4 · each group
+      if (M.groups) {
+        out += W.step(4, 'Each group by exponent algebra');
+        M.groups.forEach((g, i) => {
+          if (g.length === 1) { out += W.box('$\\Pi_' + (i + 1) + ' = ' + M.V[g[0][0]].tex + '$ (already dimensionless)'); return; }
+          out += W.line('$\\Pi_' + (i + 1) + ' = ' + productTex(M, g) + '$', '', 'powers of the repeating set');
+          exponentSystem(M, g).forEach(e => { out += W.line('$' + e.tex + '$', '', e.dim === exponentSystem(M, g)[0].dim ? 'each base dimension must cancel' : ''); });
+          out += W.box('$' + g.slice(1).map((x, j) => LETTERS[j] + ' = ' + x[1].tex()).join(',\\; ') + '\\;\\Rightarrow\\; \\Pi_' + (i + 1) + ' = ' + groupTex(g, M.V) + '$');
         });
-        out += W.box(`route total: $w = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg ${M.tot.w < 0 ? '(the gas does work on the piston)' : '(the piston does work on the gas)'}`);
-        const cur = ROUTES.findIndex(r => r[0] === M.kind);
-        const rows = ROUTES.map(r => {
-          if (r[0] === 'isothermal' && Math.abs(M.Tr - 1) > 1e-9) return [r[1], '—', '—', '—', 'needs T₂ = T₁'];
-          const t = pathTotals(r[0], V1, T1, M.v2, M.T2, M.gamma, R_AIR);
-          return [r[1], kJ(t.q), kJ(t.w), kJ(t.de), f3(t.ds)];
-        });
-        out += W.say('All five routes between your two states (kJ/kg; Δs in J/(kg K)):') +
-          W.table(['route', '$q$', '$w$', '$\\Delta e$', '$\\Delta s$'], rows, M.kind === 'isothermal-isochoric' && s.path === 'isothermal' ? 4 : cur);
-        out += W.step(4, 'Heat from the first law, Eq. (1.10)');
-        M.legs.forEach((L, k) => { if (!L.zero) out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'the leg'}: $q = \\Delta e - w = ${tn(L.tot.de / 1000, 4)} - (${tn(L.tot.w / 1000, 4)})$`, kJ(L.tot.q) + ' kJ/kg'); });
-        out += W.box(`$q = \\Delta e - w = ${tn(M.tot.de / 1000)} - (${tn(M.tot.w / 1000)}) = \\mathbf{${tn(M.tot.q / 1000)}}$ kJ/kg`);
-        out += W.step(5, 'Entropy two ways') +
-          W.line(`Gibbs (1.18): $\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)} + ${tn(R_AIR, 4)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)', 'only the end states enter');
-        M.legs.forEach((L, k) => {
-          if (L.zero) return;
-          const f = L.kind === 'isothermal' ? `$q/T = ${tn(L.tot.q, 4)}/${tn(L.Ta, 4)}$` : L.kind === 'isochoric' ? `$C_v\\ln(T_b/T_a) = ${tn(M.cv, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$`
-            : L.kind === 'isobaric' ? `$C_p\\ln(T_b/T_a) = ${tn(M.cp, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$` : '$0$ (no heat)';
-          out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'along the route'}: $\\int \\delta q/T =$ ${f}`, f3(L.tot.ds, 4) + ' J/(kg K)');
-        });
-        out += W.box(`$\\int_1^2 \\delta q/T = ${tn(M.tot.int_dq_over_T, 4)} = \\Delta s$: a state function, though $q$ is not`);
-        out += W.step(6, 'The T–s window') +
-          W.say(`On a reversible route $\\delta q = T\\,ds$ (1.17), so the <span class="c-orange">area under the route</span> is the heat: ${kJ(M.tot.q)} kJ/kg here. Heat taken in at low $T$ adds more entropy per joule than heat at high $T$; that weighting is why different $q$ give the same $\\Delta s$.`);
-      } else if (M.proc === 'stir') {
-        out += W.step(3, 'Where the energy comes from') +
-          W.line('$q$', '0', 'the jacket blocks heat') + W.line('$p\\,dv$ work', '0', 'the tank is rigid') +
-          W.box(`paddle work $w = \\Delta e = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg (1.10) — irreversible work, not $-p\\,dv$, so (1.11) does not apply`) +
-          W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dv = 0$: $\\Delta s = C_v\\ln(T_2/T_1) = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)') +
-          W.line('actual $\\int \\delta q/T$', '0', 'no heat crossed the boundary') +
-          W.box(`$\\Delta s = ${tn(M.ds)} > \\int\\delta q/T = 0$: Clausius–Duhem, entropy made by friction`) +
-          W.step(5, 'The T–s window') + W.say('The dashed rose curve joins equilibrium states, but its area is <b>not</b> heat: here $T\\,ds = de$ is the stirring work (1.18).');
       } else {
-        out += W.step(3, 'Nothing crosses the boundary') +
-          W.line('$q$', '0', 'insulated') + W.line('$w$', '0', 'the vacuum pushes back on nothing') +
-          W.box(`$\\Delta e = q + w = 0$, so $T_2 = T_1 = 300$ K ($e = e(T)$)`) +
-          W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dT = 0$: $\\Delta s = R\\ln(v_2/v_1) = ${tn(R_AIR, 5)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 5) + ' J/(kg K)') +
-          W.line('actual $\\int \\delta q/T$', '0') +
-          W.box(`$\\Delta s = ${tn(M.ds, 5)} > 0$: an isolated system's entropy rose (§1.8 ii)`) +
-          W.step(5, 'The same end states, reversibly') +
-          W.say(`Route A (isothermal) reaches the same state with $q = ${kJ(R_AIR * T1 * Math.log(M.vr))}$ kJ/kg and the same $\\Delta s$: there the entropy arrives with heat, here it is created inside.`);
+        const et = errText(M);
+        out += W.step(4, 'Each group') + W.say('<b class="c-rose">' + et.t + '.</b> ' + et.d);
       }
-      const nStep = rev ? 7 : 6;
-      out += W.step(nStep, 'At the current point') +
-        W.line('progress along the route', Viz.live('u') + ' %') +
-        W.line('$v$, $T$', Viz.live('v') + ' m³/kg, ' + Viz.live('T') + ' K', 'the orange dot') +
-        W.line('$p = RT/v$', Viz.live('p') + ' kPa') +
-        W.line('$q$, $w$ so far', Viz.live('q') + ', ' + Viz.live('w') + ' kJ/kg', 'the term bars') +
-        W.line('$s - s_1$ so far', Viz.live('ds') + ' J/(kg K)');
-      let say;
-      if (M.proc === 'stir') say = `Adiabatic is not isentropic. The paddle's ${kJ(M.tot.w)} kJ/kg of work warms the gas by ${f3(M.T2 - T1)} K exactly as heat would, but it also creates ${f3(M.ds)} J/(kg K) of entropy that no heat carried in. That is why $C_v$ cannot be defined as "heat per degree" without saying the process is reversible.`;
-      else if (M.proc === 'free') say = `Nothing crosses the boundary and yet entropy rises by $R\\ln(v_2/v_1) = ${f3(M.ds)}$ J/(kg K). The gas will never squeeze itself back: this one-way street is what the second law describes.`;
-      else if (M.kind === 'isothermal' || (M.kind === 'isothermal-isochoric' && Math.abs(M.Tr - 1) < 1e-9)) say = M.vr >= 1 ? `A slow expansion at constant $T$: $\\Delta e = 0$, so all ${kJ(M.tot.q)} kJ/kg of heat taken in leaves as work. Try route B: it reaches the same state with less heat.` : `A slow squeeze at constant $T$: the ${kJ(M.tot.w)} kJ/kg of work you do leaves as heat, and $s$ falls by ${f3(-M.ds)} J/(kg K).`;
-      else if (M.kind === 'isochoric-isobaric') say = `Cooling first means the expansion happens at the low pressure ${f3(M.corner ? R_AIR * M.corner[1] / M.corner[0] / 1000 : 0)} kPa: less work (${kJ(M.tot.w)} kJ/kg) and less net heat (${kJ(M.tot.q)} kJ/kg) than route A, with the same $\\Delta e$ and $\\Delta s$.`;
-      else if (M.kind === 'isobaric-isochoric') say = `Expanding first at the high start pressure gives the largest work area (${kJ(M.tot.w)} kJ/kg), paid for with the largest heat input; the gas then dumps heat at fixed volume.`;
-      else if (M.kind === 'isentropic-isochoric') say = M.vr < 1 ? `An insulated, frictionless squeeze: no heat, so the ${kJ(M.legs[0].tot.w)} kJ/kg of work stays in the gas and $T$ rises to ${f3(M.legs[0].Tb)} K. The route follows $p\\propto\\rho^{\\gamma}$, steeper than the isotherm.` : `The isentropic leg exchanges no heat; all the heat of this route (${kJ(M.tot.q)} kJ/kg) enters on the isochore, where the gas is coldest.`;
-      else say = `Isotherm then isochore: ${kJ(M.tot.q)} kJ/kg of heat in total for the same $\\Delta e = ${kJ(M.de)}$ kJ/kg.`;
-      out += W.interpret(say, 'Reading the current setting');
+      // 5 · the check
+      if (M.groups) {
+        const rows = M.groups.map((g, i) => ['$\\Pi_' + (i + 1) + '$', '$' + dimTex(M.vals[i].dim) + '$', nf(M.vals[i].SI), nf(M.vals[i].cgs), nf(M.vals[i].imperial)]);
+        const q = M.V[P.solution];
+        out += W.step(5, 'The check: dimensionless, same in every unit system') +
+          W.table(['group', 'dims', 'SI', 'cgs', 'imperial'], rows) +
+          W.line('$' + q.tex + '$', nf(q.si) + ' ' + q.unit + ' = ' + nf(rescale(M.si, P.vars, 'cgs')[q.id]) + ' ' + unitStr(q, 'cgs') + ' = ' + nf(rescale(M.si, P.vars, 'imperial')[q.id]) + ' ' + unitStr(q, 'imperial'), 'the numbers of a dimensional variable change') +
+          (M.natural ? W.line('in units with ' + syms(M, M.rep) + ' = 1', '$' + q.tex + '$ reads ' + nf(M.cur[q.id]), 'which is exactly $\\Pi_1$ (Derivation step 12)') : '');
+      }
+      // 6 · the law
+      out += W.step(6, 'The dimensionless law') + W.line('$' + lawTex(M) + '$', '', M.groups ? 'Eq. (1.37) for your problem' : '') + W.say(physicsNote(M));
+      if (M.groups && P === PROBLEMS.pipe && M.drop === 'none' && M.repId === 'book') {
+        const lam = 32 * M.vals[1].SI * M.vals[3].SI;
+        out += W.line('laminar: $32\\,\\Pi_2\\Pi_4 = 32 \\times ' + tn(M.vals[1].SI) + ' \\times ' + tn(M.vals[3].SI) + '$', nf(lam), 'Poiseuille (Ch. 8) would give Δp = ' + nf(lam * M.si.rho * M.si.U * M.si.U) + ' Pa; the 100 Pa here is just a sample value');
+      }
+      // 7 · interpretation
+      let msg;
+      if (M.err) msg = M.err.kind === 'singular' ? 'The chosen variables cannot carry ' + M.r + ' independent dimensions, so some variable\'s dimensions can never be cancelled. Pick a set with a nonzero determinant.'
+        : M.err.kind === 'nogroups' ? 'With $r = n$ every combination keeps some dimension: no dimensionless law is possible. A physically needed variable is missing.'
+          : M.err.kind === 'solution' ? 'The solution variable must stay out of the repeating set, so it appears in exactly one group.' : 'The repeating set needs exactly $r = ' + M.r + '$ variables.';
+      else if (P === PROBLEMS.pipe && M.drop === 'none') msg = M.repId === 'book' ? '$\\Pi_4 = \\mu/\\rho U d = 1/Re$: viscosity matters only through the Reynolds number, and one 4-variable law replaces a 7-variable one.' : 'A different but equivalent basis: each new group is a product of powers of the book\'s four, and $n - r = 4$ is unchanged.';
+      else if (M.drop !== 'none') msg = 'Removing a variable changes $n$ (and maybe $r$), so the law changes. Dimensional analysis is only as good as the variable list.';
+      else msg = physicsNote(M);
+      out += W.interpret(msg, 'Reading the current setting');
       return out;
     },
-    live: s => { const n = at(model(s), s.prog); return { u: Math.round(s.prog * 100), v: n.v.toFixed(3), T: n.T.toFixed(1), p: (n.p / 1000).toFixed(1), q: (n.q / 1000).toFixed(2), w: (n.w / 1000).toFixed(2), ds: n.ds.toFixed(1) }; }
+    live: s => { const M = machine(s), sc = scanState(s, M); return { scan: sc.done ? 'all ' + sc.N : (sc.idx + 1) + ' of ' + sc.N }; }
   },
-  derivations: [
-    { id: 'D10', title: 'The Gibbs relations: removing heat from the first law', short: 'Gibbs (1.18)', ref: 'Eq. (1.18)', view: 'pv',
-      goal: 'Eliminate heat, which depends on the route, from the reversible first law, leaving relations between state functions only. Those relations then hold for <b>any</b> process.',
-      start: { tex: 'T\\,ds = dq \\quad\\text{and}\\quad de = dq - p\\,dv', plain: 'For a reversible change the heat received is $T\\,ds$ (1.17), and the first law with boundary work $-p\\,dv$ (1.11).' },
-      plan: ['Solve the first law for $dq$ and substitute into $T\\,ds = dq$.', 'Rewrite with enthalpy using the product rule.', 'Explain why a route-independent relation holds for every process.'],
-      uses: ['(1.17) $T\\,ds = dq$', '(1.11) $de = dq - p\\,dv$', '$h = e + pv$ (1.13)', 'differentials', 'product rule for differentials'],
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' },
-      steps: [
-        { did: 'Solve the reversible first law for $dq$', tex: 'dq = de + p\\,dv',
-          why: 'Add $p\\,dv$ to both sides of (1.11). We isolate $dq$ because it is the route-dependent quantity we want to replace.',
-          plain: 'Heat in = rise of internal energy + work done by the gas.' },
-        { did: 'Substitute into $T\\,ds = dq$', tex: 'T\\,ds = de + p\\,dv',
-          why: '(1.17) says the same $dq$ equals $T\\,ds$ on a reversible route; equal things can replace each other.',
-          plain: 'The first Gibbs relation: no heat left in it.',
-          live: s => { const M = model(s); return `\\int\\tfrac{de}{T} + \\int\\tfrac{p\\,dv}{T} = ${tn(M.cv * Math.log(M.Tr), 4)} + ${tn(R_AIR * Math.log(M.vr), 4)} = ${tn(M.ds, 4)}`; },
-          watch: 'For a perfect gas with constant $C_v$, both integrals need only the end states: $C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ J/(kg K).' },
-        { did: 'Differentiate the definition of enthalpy', tex: 'dh = de + d(pv)',
-          why: '$h = e + pv$ (1.13); the differential of a sum is the sum of the differentials. We want a second form written with $dh$.',
-          plain: 'A change in $h$ is a change in $e$ plus a change in $pv$.' },
-        { did: 'Apply the product rule', tex: 'dh = de + p\\,dv + v\\,dp',
-          why: '$d(pv) = p\\,dv + v\\,dp$ (product rule): both $p$ and $v$ may change along the way.',
-          plain: 'Both pressure and volume changes feed $pv$.', highlight: ['readout:de'] },
-        { did: 'Isolate $de + p\\,dv$', tex: 'de + p\\,dv = dh - v\\,dp',
-          why: 'Subtract $v\\,dp$ from both sides of step 4; the left side is exactly the right side of step 2.',
-          plain: 'The same combination written with enthalpy.' },
-        { did: 'Substitute into step 2', tex: 'T\\,ds = dh - v\\,dp',
-          why: 'Replace $de + p\\,dv$ by its equal from step 5.',
-          plain: 'The second Gibbs relation.',
-          live: s => { const M = model(s); return `C_p\\ln\\tfrac{T_2}{T_1} - R\\ln\\tfrac{p_2}{p_1} = ${tn(M.cp * Math.log(M.Tr), 4)} - (${tn(R_AIR * Math.log(M.p2 / P1), 4)}) = ${tn(M.ds, 4)}`; } },
-        { did: 'Drop the reversible restriction (any process)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
-          why: 'Every symbol in the relation is a state function, so it cannot know which route was taken. Only the reading $T\\,ds = dq$ is lost.',
-          plain: 'Any irreversible change can be replaced by a reversible route between the same states, so the relations hold for stirring too, but $T\\,ds$ is no longer the heat.',
-          set: { proc: 'stir', vr: 1, Tr: 1.2 },
-          live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 3)} = ${tn(M.ds, 4)}`; },
-          watch: 'Gibbs still gives $\\Delta s = C_v\\ln 1.2 \\approx 131$ J/(kg K) for stirring, although $\\delta q = 0$ (see the status line).' }
-      ],
-      result: { tex: '\\begin{aligned} T\\,ds &= de + p\\,dv \\\\ T\\,ds &= dh - v\\,dp \\end{aligned}', plain: 'Entropy changes are fixed by changes of energy (or enthalpy), volume and pressure, for any process.' },
-      interpret: s => { const M = model(s), a = M.cv * Math.log(M.Tr) + R_AIR * Math.log(M.vr), b = M.cp * Math.log(M.Tr) - R_AIR * Math.log(M.p2 / P1); return `For your end states $\\Delta s = ${tn(a, 5)}$ J/(kg K) from the first form and $${tn(b, 5)}$ from the second (difference ${Viz.fmt(Math.abs(a - b), { sig: 2 })}). ` + (M.proc === 'rev' ? 'On this reversible route the heat integral gives the same number.' : 'Here no heat entered, so $\\Delta s > \\int\\delta q/T = 0$.'); },
-      check: 'Units: J/kg on every term. Perfect gas, 300 → 600 K at constant p: form 1 gives C_v ln 2 + R ln 2 = 696.4 J/(kg K), form 2 gives C_p ln 2 − R ln 1 = 696.4. The notebook checks both residuals with sympy; the selftest compares Δs with ch01.perfect_gas_entropy_change.' },
-    { id: 'D14', title: 'The isentropic law $p/\\rho^\\gamma = $ const', short: 'Isentrope (1.25)', ref: 'Eq. (1.25)', view: 'pv',
-      goal: 'Find how pressure follows density when a perfect gas is compressed or expanded with no heat and no friction.',
-      start: { tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp', plain: 'The Gibbs relations (1.18), valid for any process.' },
-      plan: ['Set $ds = 0$ in both forms.', 'Use $e = e(T)$ and $h = h(T)$ to bring in $C_v$ and $C_p$.', 'Divide the two equations so $T$ drops out.', 'Switch from $v$ to $\\rho$ and integrate.'],
-      uses: ['Gibbs relations (D10)', '$e = e(T)$, $h = h(T)$ for a perfect gas', '$\\gamma = C_p/C_v$ (1.24)', 'separation of variables', '$\\int dx/x = \\ln x$', 'log and exponent rules'],
-      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 },
-      steps: [
-        { did: 'Set $ds = 0$ in the first Gibbs form', tex: '0 = de + p\\,dv',
-          why: 'Isentropic means $s$ does not change, so $T\\,ds = 0$ ($T > 0$). We start with the energy form because the work $p\\,dv$ appears in it.',
-          plain: 'All the work done on the gas goes into internal energy.' },
-        { did: 'Use $e = e(T)$', tex: 'C_v\\,dT = -p\\,dv',
-          why: 'For a perfect gas $e$ depends on $T$ only, so the partial derivative in (1.15) is an ordinary one and $de = C_v\\,dT$.',
-          plain: 'Compression ($dv < 0$) warms the gas.' },
-        { did: 'Set $ds = 0$ in the second Gibbs form', tex: '0 = dh - v\\,dp',
-          why: 'Isentropic, so $T\\,ds = 0$ in $T\\,ds = dh - v\\,dp$; we want a second equation that contains $dp$.',
-          plain: 'At constant entropy the enthalpy changes only through the pressure.' },
-        { did: 'Use $h = h(T)$', tex: 'C_p\\,dT = v\\,dp',
-          why: 'For a perfect gas $h$ depends on $T$ only, so $dh = C_p\\,dT$ (1.14).',
-          plain: 'Raising the pressure raises the temperature.' },
-        { did: 'Divide step 4 by step 2', tex: '\\frac{C_p}{C_v} = \\frac{v\\,dp}{-\\,p\\,dv}',
-          why: 'Along a compression $dT \\neq 0$, so both sides of step 2 are nonzero and we may divide; $dT$ cancels, removing temperature from the problem.',
-          plain: 'The ratio of specific heats links the pressure change to the volume change.' },
-        { did: 'Name the ratio $\\gamma$', tex: '\\gamma = -\\frac{v\\,dp}{p\\,dv}',
-          why: '$\\gamma \\equiv C_p/C_v$ by definition (1.24); nothing else changes.',
-          plain: '$\\gamma$ measures how much faster $p$ changes than $v$, in relative terms.' },
-        { did: 'Separate the variables', tex: '\\frac{dp}{p} = -\\gamma\\,\\frac{dv}{v}',
-          why: 'Multiply both sides by $-dv/v$; now each side contains one variable only, ready to integrate.',
-          plain: 'A 1 % decrease in volume raises the pressure by $\\gamma$ %.',
-          live: s => { const g = model(s).gamma; return `\\frac{dp}{p} = -${tn(g, 3)}\\times(-0.01) = +${tn(0.01 * g, 3)}`; }, play: false },
-        { did: 'Switch from specific volume to density', tex: '\\frac{dv}{v} = -\\frac{d\\rho}{\\rho}',
-          why: '$v = 1/\\rho$ gives $dv = -d\\rho/\\rho^2$ (derivative of $1/\\rho$); dividing by $v = 1/\\rho$ gives $-d\\rho/\\rho$. Watch the sign: this is the classic slip.',
-          plain: 'A 1 % increase in density is a 1 % decrease in volume.' },
-        { did: 'Substitute into step 7', tex: '\\frac{dp}{p} = \\gamma\\,\\frac{d\\rho}{\\rho}',
-          why: 'Replace $dv/v$ by $-d\\rho/\\rho$; the two minus signs cancel.',
-          plain: 'Relative pressure change = $\\gamma$ × relative density change.' },
-        { did: 'Integrate both sides with constant $\\gamma$', tex: '\\ln p = \\gamma\\,\\ln\\rho + \\text{const}',
-          why: '$\\int dx/x = \\ln x$; $\\gamma$ may stay outside the integral because $C_p$ and $C_v$ are constant (our assumption).',
-          plain: 'On log–log axes $p$ against $\\rho$ is a straight line of slope $\\gamma$.',
-          watch: 'On the p–v diagram the bold blue route lies exactly on the faint teal isentrope through state 1.' },
-        { did: 'Combine the logarithms and exponentiate', tex: '\\frac{p}{\\rho^\\gamma} = \\text{const}',
-          why: '$\\ln p - \\gamma\\ln\\rho = \\ln(p/\\rho^\\gamma)$ by the log and exponent rules; if a logarithm is constant, so is its argument.',
-          plain: 'Along an isentrope $p/\\rho^\\gamma$ never changes.',
-          live: s => { const M = model(s), n = at(M, s.prog), g = M.gamma; return `\\frac{p}{\\rho^\\gamma}:\\ ${tn(P1 * Math.pow(V1, g), 5)}\\ \\text{(state 1)},\\ ${tn(n.p * Math.pow(n.v, g), 5)}\\ \\text{(dot)}`; },
-          set: { prog: 0.7 }, play: false }
-      ],
-      result: { tex: 'p/\\rho^\\gamma = \\text{const}', plain: 'With no heat and no friction, a perfect gas with constant specific heats keeps $p \\propto \\rho^\\gamma$.' },
-      interpret: s => { const M = model(s); if (M.proc !== 'rev' || M.kind !== 'isentropic-isochoric') return 'Pick the <b>pump</b> preset to see the isentrope drawn bold.'; const Tb = M.legs[0].Tb; return `Squeezing to $v_2/v_1 = ${tn(M.vr)}$ along the isentrope raises $T$ from 300 K to ${f3(Tb, 4)} K and $p$ by the factor $(v_1/v_2)^{\\gamma} = ${tn(Math.pow(1 / M.vr, M.gamma), 4)}$, with no heat at all.`; },
-      check: 'Units: the constant carries Pa (m³/kg)^γ, fixed by the starting state. Limit γ → 1: p/ρ = const, the isothermal law. Number: pump 1 → 2 bar, ρ₂/ρ₁ = 2^(1/1.4) = 1.641 and T₂ = 288.15 × 2/1.641 = 351.3 K. The selftest compares isentropicPressure with ch01.isentropic_pressure.' }
-  ],
+  derivations: [{
+    id: 'D28', title: 'Buckingham\'s Π theorem', short: 'Π theorem', ref: 'Eq. (1.37)', view: 'matrix',
+    goal: 'Show that a correct relation among $n$ dimensional variables can be rewritten as a relation among exactly $n - r$ independent dimensionless groups, where $r$ is the rank of the dimensional matrix, and see why the groups are not unique.',
+    start: { tex: 'f(q_1, q_2, \\dots, q_n) = 0', plain: 'A complete, dimensionally homogeneous relation among $n$ variables, whose dimensions fill the matrix $A$ (rows = base dimensions, columns = variables, rank $r$).' },
+    plan: ['A product of powers is dimensionless exactly when its exponents solve $A\\mathbf k = \\mathbf 0$.', 'Rank–nullity counts the independent solutions: $n - r$.', 'Units chosen cleverly show the law can depend only on those groups.'],
+    uses: ['exponent rules', 'rank and linear independence', 'null space and rank–nullity', 'determinants (minors)', 'changing base units'],
+    set: { problem: 'pipe', rep: 'book', drop: 'none', units: 'SI', custom: '', scan: 1, sel: null },
+    steps: [
+      { did: 'Form a general product of powers', tex: '\\Pi = q_1^{k_1}\\,q_2^{k_2}\\cdots q_n^{k_n}',
+        why: 'Only products of powers have dimensions that are again products of powers of M, L, T, Θ, so they are the candidates. The exponents $\\mathbf k = (k_1, \\dots, k_n)$ are the unknowns.',
+        plain: 'A group is some variables multiplied together, each raised to a power.', play: false },
+      { did: 'Write its dimension with the matrix entries', tex: '[\\Pi] = \\prod_{d} d^{\\,\\sum_j A_{dj} k_j}',
+        why: '$[q_j] = \\mathrm M^{A_{Mj}}\\mathrm L^{A_{Lj}}\\mathrm T^{A_{Tj}}\\Theta^{A_{\\Theta j}}$ with $d$ running over M, L, T, Θ. Raising to $k_j$ multiplies exponents; multiplying quantities adds them.',
+        plain: 'The exponent of each base dimension is a weighted sum of the $k$\'s.' },
+      { did: 'Require every exponent to vanish', tex: 'A\\,\\mathbf k = \\mathbf 0',
+        why: 'Dimensionless means $\\mathrm M^0\\mathrm L^0\\mathrm T^0\\Theta^0$. Each row $d$ of $A$ gives one equation $\\sum_j A_{dj}k_j = 0$.',
+        plain: 'A group is dimensionless exactly when its exponent vector solves this linear system.',
+        live: s => {
+          const M = machine(s); if (!M.groups) return '\\text{fix the repeating set first}';
+          const g = M.groups[0];
+          return '\\begin{aligned}' + M.dm.rows.map((b, i) => {
+            const terms = g.filter(([k, e]) => !Q(e).isZero() && !M.V[k].dim[BASIS.indexOf(b)].isZero()).map(([k, e]) => Q(e).mul(M.V[k].dim[BASIS.indexOf(b)]));
+            return BASIS_TEX[b] + ':\\ &' + (terms.length ? terms.map((t, j) => (j && t.sign() >= 0 ? '+' : '') + t.toString()).join(' ') : '0') + ' = 0';
+          }).join(' \\\\ ') + '\\end{aligned}';
+        } },
+      { did: 'Name the solution set', tex: '\\{\\mathbf k : A\\mathbf k = \\mathbf 0\\} = \\operatorname{null}(A)',
+        why: 'That is the definition of the null space. Sums and multiples of solutions are again solutions, so it is a vector space.',
+        plain: 'All dimensionless groups live in the null space of $A$.' },
+      { did: 'Count its dimension', tex: '\\dim\\operatorname{null}(A) = n - r',
+        why: 'Rank–nullity theorem for a matrix with $n$ columns: rank + nullity = $n$.',
+        plain: 'There are exactly $n - r$ independent exponent vectors.',
+        live: s => { const M = machine(s); return 'n - r = ' + M.n + ' - ' + M.r + ' = ' + (M.n - M.r); }, highlight: ['readout:groups'] },
+      { did: 'Pick a basis and call its groups Π', tex: '\\mathbf k^{(1)},\\dots,\\mathbf k^{(n-r)} \\;\\to\\; \\Pi_1,\\dots,\\Pi_{n-r}',
+        why: 'Any basis of the null space will do. Its vectors are linearly independent, so no group is a product of powers of the others. Another basis gives another, equivalent set.',
+        plain: '$n - r$ independent dimensionless numbers, and they are not unique.',
+        live: s => { const M = machine(s); return M.groups ? groupsListTex(M) : '\\text{—}'; } },
+      { did: 'Show every group is built from these', tex: '\\mathbf k = \\sum_i c_i\\,\\mathbf k^{(i)} \\;\\Rightarrow\\; \\Pi = \\prod_i \\Pi_i^{\\,c_i}',
+        why: 'A basis spans the space, and adding exponent vectors multiplies the matching powers.',
+        plain: 'Any other dimensionless combination is a product of powers of $\\Pi_1, \\dots, \\Pi_{n-r}$.',
+        live: s => { const M = machine(s); if (!M.groups || M.groups.length < 2) return '\\text{(one group: nothing to combine)}'; const a = M.groups[0], b = M.groups[M.groups.length - 1], k = M.groups.length; const comb = {}; a.forEach(([n1, e]) => { comb[n1] = Q(e); }); b.forEach(([n1, e]) => { comb[n1] = (comb[n1] || ZERO).sub(Q(e).mul(2)); }); return '\\Pi_1\\,\\Pi_' + k + '^{-2} = ' + groupTex(Object.entries(comb), M.V); } },
+      { did: 'Choose r variables with independent columns', tex: '\\det A_{\\rm rep} \\neq 0',
+        why: 'Rank $r$ means some $r\\times r$ minor is nonzero; its $r$ variables are the repeating set. If $A$ has more rows than $r$, use $r$ rows whose minor is nonzero.',
+        plain: 'Pick $r$ variables that between them carry all the independent dimensions.',
+        live: s => { const M = machine(s); return M.minor ? '\\det A_{\\rm rep}(' + M.minor.cols.map(j => M.V[M.dm.names[j]].tex).join(',') + ') = ' + M.minor.det.toString() : '\\text{—}'; },
+        watch: 'The purple outline in the matrix is this block; rose means its determinant is 0.' },
+      { did: 'Build one group for each other variable', tex: 'A_{\\rm rep}\\,\\mathbf a_j = -A_{\\cdot j} \\;\\Rightarrow\\; \\Pi_j = q_j\\prod_{i\\in\\text{rep}} q_i^{\\,a_{ij}}',
+        why: 'For each non-repeating $q_j$, cancelling its dimensions with the repeating set is a square linear system with matrix $A_{\\rm rep}$; $\\det A_{\\rm rep} \\neq 0$ (step 8) makes the solution unique. Each group holds a different $q_j$ to the first power, so the $n - r$ groups are independent: a basis of $\\operatorname{null}(A)$.',
+        plain: 'Each remaining variable, made dimensionless by the repeating set, is one group.',
+        live: s => {
+          const M = machine(s); if (!M.groups) return '\\text{fix the repeating set first}';
+          const g = M.groups[0]; if (g.length === 1) return '\\Pi_1 = ' + M.V[g[0][0]].tex + '\\ \\text{(already dimensionless)}';
+          return '\\begin{aligned}' + exponentSystem(M, g).map(e => e.tex.replace(':\\; ', ':\\;&')).join(' \\\\ ') +
+            ' \\\\ &\\Rightarrow ' + g.slice(1).map((x, j) => LETTERS[j] + ' = ' + x[1].tex()).join(',\\ ') + '\\end{aligned}';
+        },
+        watch: 'The groups window lists one row per non-repeating variable; click a row for its exponent algebra.' },
+      { did: 'Rescale the base units', tex: 'q_j \\to q_j\\prod_d \\lambda_d^{A_{dj}}',
+        why: 'Making the unit of dimension $d$ smaller by a factor $\\lambda_d$ multiplies the number of every quantity by $\\lambda_d$ to its exponent. The physics is unchanged.',
+        plain: 'New units, new numbers, same world.', set: { units: 'cgs' },
+        live: s => { const M = machine(s), q = M.V[M.P.solution], sc = UNIT_SYSTEMS.cgs; return q.tex + '\' = ' + tn(q.si) + '\\times' + BASIS.map((b, i) => q.dim[i].isZero() ? '' : '(' + tn(sc[b]) + ')^{' + q.dim[i] + '}').join('') + ' = ' + tn(rescale(M.si, M.P.vars, 'cgs')[q.id]); },
+        watch: 'The value row of the matrix changed; every Π value in the groups window did not.' },
+      { did: 'Choose scales that make the repeating variables 1', tex: '\\textstyle\\sum_d A_{dj}\\ln\\lambda_d = -\\ln q_j\\quad (j \\in \\text{rep})',
+        why: 'Taking logs turns step 10 into $r$ linear equations for the $\\ln\\lambda_d$. Their matrix is the transposed repeating block, nonsingular by step 8, so a solution exists.',
+        plain: 'We can always pick units in which the $r$ repeating variables are exactly one.', set: { units: 'natural' },
+        live: s => { const M = machine(s); if (!M.natural) return '\\text{—}'; return M.dm.rows.map(b => '\\lambda_{' + (b === 'Θ' ? '\\Theta' : b) + '} = ' + tn(M.scales[b])).join(',\\ '); },
+        watch: 'Units "rep = 1": the repeating columns now read 1 in the value row.' },
+      { did: 'Read the other variables in those units', tex: 'q_j\' = \\Pi_j \\quad (j \\notin \\text{rep})',
+        why: '$\\Pi_j$ = $q_j$ × (powers of the repeating variables) is dimensionless, so its number is the same in every unit system. In the new units the repeating factors are 1, so $q_j\'$ equals $\\Pi_j$.',
+        plain: 'In these units each remaining variable is its own group.', set: { units: 'natural' },
+        live: s => { const M = machine(s); if (!M.groups || !M.natural) return '\\text{—}'; const q = M.V[M.P.solution]; return q.tex + '\' = ' + tn(M.cur[q.id]) + ' = \\Pi_1'; } },
+      { did: 'Use homogeneity to drop the ones', tex: 'f(1,\\dots,1,\\Pi_1,\\dots,\\Pi_{n-r}) = 0',
+        why: 'A correct law holds in every unit system, so also in these. The $r$ constant ones are absorbed into a new function $\\phi$. A complete variable list guarantees nothing else hides in $f$.',
+        plain: 'The law depends only on the $n - r$ groups.', set: { units: 'SI' },
+        live: s => lawTex(machine(s)) }
+    ],
+    result: { tex: '\\phi(\\Pi_1, \\Pi_2, \\dots, \\Pi_{n-r}) = 0', plain: '$n$ variables with $r$ independent dimensions can always be traded for $n - r$ independent dimensionless groups (Eq. 1.37).' },
+    interpret: s => { const M = machine(s); return 'Your problem (' + M.P.title + '): $n = ' + M.n + '$, $r = ' + M.r + '$, so ' + (M.n - M.r) + ' group' + (M.n - M.r === 1 ? '' : 's') + (M.groups ? ': $' + M.groups.map(g => groupTex(g, M.V)).join(',\\ ') + '$.' : '. ' + errText(M).t + '.'); },
+    check: 'sympy: the null space of (1.39) has $4 = 7 - 3$ vectors, each with $A\\mathbf k = 0$, and $(1,0,0,0,-2,-1,0)$ lies in their span. Pipe: $\\Pi_1 = 10$ in SI and cgs. Blast (n = 4, r = 3): one group, a constant. The selftest rows check the same numbers against fluidpy.'
+  }],
   code: [
-    { id: 'e3code', title: 'Heat, work and entropy with fluidpy', ref: 'Eqs. (1.10), (1.18)',
+    { id: 'machine', title: 'The Π machine in Python', ref: 'Eqs. (1.37)–(1.40)',
       src: `
-import fluidpy.ch01_introduction as ch01
-cv = ch01.cv_from_gamma(gamma)  # {{cv}} J/(kg K)
-v1 = ch01.R_AIR * T1 / p1       # {{v1}} m³/kg
-# exact totals, leg by leg (route {{kind}})
-tot = ch01.path_heat_work_totals(
-    kind, v1, T1, v2, T2, gamma)
-# q = {{q}}, w = {{w}} kJ/kg
-# Δe = {{de}} kJ/kg (any route)
-ds = ch01.perfect_gas_entropy_change(
-    T1, v1, T2, v2, cv=cv)
-# Δs = {{ds}} J/(kg K) (any route)
-path = ch01.process_path(kind,
-    (v1, T1), (v2, T2), gamma=gamma)
-run = ch01.process_heat_work(
-    path["v"], path["T"], cv=cv)
-s_int = ch01.entropy_change_reversible(
-    run["q"], path["T"])   # {{sint}}`,
-      live: s => { const M = model(s), t = M.proc === 'rev' ? M.tot : pathTotals('isothermal-isochoric', V1, T1, M.v2, M.T2, M.gamma, R_AIR); return { kind: M.proc === 'rev' ? M.kind : 'E, for comparison', cv: M.cv.toFixed(2), v1: V1.toFixed(4), q: (t.q / 1000).toFixed(2), w: (t.w / 1000).toFixed(2), de: (t.de / 1000).toFixed(2), ds: M.ds.toFixed(2), sint: (M.proc === 'rev' ? M.tot.int_dq_over_T : 0).toFixed(2) }; },
-      note: 'kind is a route name, e.g. "isochoric-isobaric" (cool, then expand); stirring and free expansion use ch01.irreversible_process.' },
-    { id: 'trap', title: 'From scratch: the work integral on samples', ref: 'Eq. (1.11)',
+# the chapter-1 physics module
+from fluidpy import ch01
+V = dict(ch01.{{preset}})    # {{n0}} variables
+V.pop("{{drop}}", None)      # removed: {{drop}}
+# dimensional matrix: {{shape}}, rows {{rows}}
+A, names, rows = ch01.dimensional_matrix(V)
+# rank by minors: r = {{r}}, witness cols {{ci}}
+r, ri, ci = ch01.rank_by_minors(A)
+rep = {{rep}}
+# minor of the repeating columns: det = {{det}}
+det = ch01.minor_determinant(A, {{mr}}, {{mc}})
+# n − r = {{ng}} groups, exponents solved exactly
+groups = ch01.pi_groups(V, "{{sol}}", rep)
+tex = [ch01.group_latex(g) for g in groups]
+# Π₁ = {{tex1}}`,
+      live: s => {
+        const M = machine(s), fmtT = a => '(' + a.join(', ') + (a.length === 1 ? ',' : '') + ')';
+        return { preset: M.P.py, n0: M.P.vars.length, drop: M.drop, shape: M.m + ' × ' + M.n, rows: M.dm.rows.join(''), r: M.r, ci: fmtT(M.rk.cols),
+          rep: fmtT(M.rep.map(k => '"' + k + '"')), mr: M.minor ? fmtT(M.minor.rows) : '()', mc: M.minor ? fmtT(M.minor.cols) : '()', det: M.minor ? M.minor.det.toString() : '—',
+          sol: M.P.solution, ng: M.groups ? M.groups.length : 'error: ' + (M.err ? M.err.kind : ''), tex1: M.groups ? groupTex(M.groups[0], M.V) : '—' };
+      } },
+    { id: 'units', title: 'Change units, keep every Π', ref: '§1.11 · D28 steps 10–12',
       src: `
-p = R * T / v        # (1.22): {{pnow}} kPa now
-# -p dv on each gap between samples
-dw = -0.5 * (p[1:] + p[:-1]) * np.diff(v)
-w = np.concatenate(([0.0], np.cumsum(dw)))
-# w so far = {{wsf}} kJ/kg
-de = cv * (T - T[0])  # {{desf}} kJ/kg
-q = de - w            # (1.10): {{qsf}} kJ/kg`,
-      live: s => { const M = model(s), n = at(M, s.prog), tr = trapezoidAt(M, s.prog) || { w: n.w, de: n.de, q: n.q }; return { pnow: (n.p / 1000).toFixed(2), wsf: (tr.w / 1000).toFixed(3), desf: (tr.de / 1000).toFixed(3), qsf: (tr.q / 1000).toFixed(3) }; } }
+import numpy as np
+si = {{si}}  # SI numbers
+# new base units per SI unit: {{scales}}
+S = {{Sexpr}}
+new = ch01.rescale_units(si, V, S)
+# {{sol}}: {{solold}} (SI) → {{solnew}} ({{sys}})
+pis = [ch01.group_value(g, new) for g in groups]
+# Π values: {{pis}}
+old = [ch01.group_value(g, si) for g in groups]
+assert np.allclose(pis, old)   # units never matter
+ok = ch01.groups_independent(groups)   # {{ok}}`,
+      live: s => {
+        const M = machine(s), q = M.V[M.P.solution];
+        return { si: 'dict(' + M.active.slice(0, 2).map(x => x.id + '=' + cnum(x.si).replace(/−/g, '-')).join(', ') + ', …)', sys: UNIT_LABEL[M.natural ? 'natural' : s.units === 'natural' ? 'SI' : s.units], solold: cnum(q.si),
+          Sexpr: M.natural ? '{' + BASIS.map(b => '"' + b + '": ' + cnum(M.scales[b])).join(', ') + '}' : 'ch01.UNIT_SYSTEMS["' + (s.units === 'natural' ? 'SI' : s.units) + '"]',
+          scales: BASIS.map(b => b + ' ×' + cnum(M.scales[b])).join(' '), sol: M.P.solution, solnew: cnum(M.cur[q.id]),
+          pis: M.groups ? '[' + M.vals.map(x => cnum(x.cur)).join(', ') + ']' : '—', ok: M.groups ? String(M.indep).replace(/^./, c => c.toUpperCase()) : '—' };
+      } },
+    { id: 'sympy', title: 'Check D28 with sympy (pipe, Eq. 1.39)', ref: 'D28',
+      src: `
+import sympy as sp          # exact linear algebra
+# (1.39): columns dp dx d eps U rho mu
+A = sp.Matrix([[1, 0, 0, 0, 0, 1, 1],       # M
+               [-1, 1, 1, 1, 1, -3, -1],    # L
+               [-2, 0, 0, 0, -1, 0, -1]])   # T
+ns = A.nullspace()          # basis of all groups
+print(A.rank(), len(ns))    # 3 4: rank–nullity
+k1 = sp.Matrix([1, 0, 0, 0, -2, -1, 0])     # Π₁
+print((A * k1).is_zero_matrix)   # True
+# Π₁ lies in the span of the basis:
+print(sp.Matrix.hstack(*ns, k1).rank() == 4)  # True` }
   ],
   tour: [
-    { title: 'One kilogram, two states', text: 'Air at 300 K and 1 bar will end at twice the volume and the same temperature. <b>Does it need the same heat whichever way it goes?</b> Press play and watch the heater.',
-      set: { path: 'isothermal', vr: 2, Tr: 1, gas: '7/5', proc: 'rev', prog: 0.3, probe: null }, play: true },
-    { title: 'Route A: isothermal', text: 'The gas expands slowly while the heater holds it at 300 K. It takes in 59.7 kJ/kg of heat and pushes out the same work: $w = -59.7$ kJ/kg, $\\Delta e = 0$.',
-      set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev', prog: 0.55 }, play: true, terms: true, code: { id: 'e3code', lines: [5, 8] } },
-    { title: 'Route B: cool, then expand', text: 'Same start, same end. Cool at fixed volume, then expand at the low pressure: $q = 43.1$ and $w = -43.1$ kJ/kg. The blue work area shrinks; $\\Delta e$ is still zero.',
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 0.6 }, play: true, terms: true },
-    { title: 'What does not depend on the route', text: 'Divide each bit of heat by the temperature at which it arrives, and add: 199 J/(kg K) on route A and on route B. That sum is the entropy change.',
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 1 }, play: false, readouts: ['ds', 'sint'], derive: { id: 'D10', step: 2 } },
-    { title: 'Friction breaks the equality', text: 'Stir an insulated, rigid tank: no heat enters, yet $T$ and $s$ rise. Now $\\Delta s = 131$ J/(kg K) but $\\int\\delta q/T = 0$. That inequality is the second law.',
-      set: { proc: 'stir', vr: 1, Tr: 1.2, prog: 0.5 }, play: true, notes: true },
-    { title: 'No heat, no friction: the isentrope', text: 'A fast, clean squeeze to half the volume follows $p \\propto \\rho^\\gamma$: steeper than the isotherm, and $T$ climbs to 396 K with no heat at all.',
-      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 }, play: true, eq: 'isentropic', derive: { id: 'D14', step: 10 } },
-    { title: 'Your turn', text: 'Predict first: for $v_2/v_1 = 3$ at constant temperature, which route needs the most heat? Pick routes, play each, then check the table in Explain §3.',
-      set: { vr: 3, Tr: 1, proc: 'rev', prog: 0 }, controls: ['path', 'vr'] }
+    { title: 'Seven variables', text: 'The pressure drop $\\Delta p$ along a pipe depends on the tap distance $\\Delta x$, diameter $d$, roughness $\\varepsilon$, speed $U$, density $\\rho$ and viscosity $\\mu$. <b>Does a law really need all seven separately?</b>',
+      set: Object.assign({}, START), play: false },
+    { title: 'Dimensions as columns', text: 'Write each dimension as powers of mass M, length L and time T, and stack the exponents as columns: the dimensional matrix (1.39). Orange = M row, blue = L, teal = T.',
+      set: Object.assign({}, START, { sel: { kind: 'cell', id: 'mu', row: 'L' } }), eq: 'matrix', inspect: true, play: false },
+    { title: 'Rank 3', text: 'Watch the search: the first two 3×3 blocks have determinant 0; the third, (Δp, Δx, U), gives −1, so r = 3. The map then shows all 35 blocks: 21 are nonzero.',
+      set: Object.assign({}, START, { scan: 0 }), play: true, readouts: ['rank', 'det'], code: { id: 'machine', lines: [7, 8] }, highlight: ['readout:rank'] },
+    { title: 'Null space = groups', text: 'A product $\\Delta p^{k_1}\\Delta x^{k_2}\\cdots\\mu^{k_7}$ is dimensionless exactly when $A\\mathbf k = \\mathbf 0$. Rank–nullity gives $n - r = 7 - 3 = 4$ independent solutions: the four Π groups below.',
+      set: Object.assign({}, START), derive: { id: 'D28', step: 5 }, play: false },
+    { title: 'Units do not matter', text: 'Switch units: every number in the value row changes, yet every Π keeps its value. A dimensionless number cannot know which ruler you used.',
+      set: Object.assign({}, START, { units: 'imperial' }), controls: ['units'], code: { id: 'units', lines: [4, 8] }, play: false },
+    { title: 'Units where U = d = ρ = 1', text: 'Now choose units that make the repeating variables exactly 1. In them $\\Delta p$ reads $\\Pi_1 = 10$ and $\\mu$ reads $\\Pi_4$. This is the heart of Buckingham\'s proof.',
+      set: Object.assign({}, START, { units: 'natural' }), derive: { id: 'D28', step: 12 }, play: false },
+    { title: 'A bad choice', text: 'Pick $(d, \\varepsilon, \\rho)$ as the repeating set: two pure lengths and a density cannot cancel time. The determinant is 0 and the machine refuses.',
+      set: Object.assign({}, START, { rep: 'bad' }), notes: true, play: false },
+    { title: 'Your turn', text: 'Remove $\\mu$. Predict first: how many groups remain, and what physics is lost? Then try the blast problem: one group means the law is a constant.',
+      set: Object.assign({}, START, { drop: 'mu' }), controls: ['drop', 'problem'], play: false }
   ],
   equations: [
-    { id: 'first', title: 'First law', ref: 'Eq. (1.10)', tex: '\\delta q + \\delta w = \\Delta e',
-      live: s => { const M = model(s); return `${tn(M.tot.q / 1000)} + (${tn(M.tot.w / 1000)}) = ${tn(M.tot.de / 1000)}\\ \\text{kJ/kg}`; },
-      symbols: [['\\delta q', 'heat added to the gas', 'J/kg'], ['\\delta w', 'work done on the gas', 'J/kg'], ['\\Delta e', 'internal energy change', 'J/kg']] },
-    { id: 'rev', title: 'Reversible first law', ref: 'Eq. (1.11)', tex: 'de = dq - p\\,dv',
-      live: s => { const M = model(s), n = at(M, s.prog); return `p = ${tn(n.p / 1000, 4)}\\ \\text{kPa}:\\ dv = 0.01 \\Rightarrow -p\\,dv = ${tn(-n.p * 0.01 / 1000, 3)}\\ \\text{kJ/kg}`; },
-      note: 'Only for slow, frictionless (reversible) processes; $v = 1/\\rho$.', symbols: [['p', 'pressure', 'Pa'], ['v', 'specific volume', 'm³/kg']] },
-    { id: 'entropy', title: 'Entropy from reversible heat', ref: 'Eqs. (1.16)–(1.17)', tex: 's_2 - s_1 = \\int_1^2 \\frac{dq_{\\rm rev}}{T}, \\qquad T\\,ds = dq',
-      live: s => { const M = model(s); return M.proc === 'rev' ? `\\int \\frac{dq}{T} = ${tn(M.tot.int_dq_over_T, 4)}\\ \\text{J/(kg K)}` : `\\text{use a reversible route: }\\Delta s = ${tn(M.ds, 4)}`; },
-      symbols: [['s', 'specific entropy', 'J/(kg K)'], ['T', 'absolute temperature', 'K']] },
-    { id: 'gibbs', title: 'Gibbs relations (any process)', ref: 'Eq. (1.18)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
-      live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.ds, 4)}`; },
-      note: 'Perfect gas with constant $C_v$: $de = C_v\\,dT$ and $p/T = R/v$ integrate to the live line.', symbols: [['h', 'enthalpy e + pv', 'J/kg'], ['C_v', 'specific heat at constant v', 'J/(kg K)']] },
-    { id: 'isentropic', title: 'Isentropic perfect gas', ref: 'Eq. (1.25)', tex: 'p/\\rho^\\gamma = \\text{const}',
-      live: s => { const M = model(s); return `p(2\\rho_1) = 100 \\times 2^{${tn(M.gamma, 3)}} = ${tn(isentropicPressure(2 / V1, P1, 1 / V1, M.gamma) / 1000, 3)}\\ \\text{kPa}`; },
-      note: 'Adiabatic and frictionless, constant $C_p$ and $C_v$.', symbols: [['\\rho', 'density 1/v', 'kg/m³'], ['\\gamma', 'C_p/C_v', '–']] },
-    { id: 'cd', title: 'Clausius–Duhem inequality', ref: '§1.8 (ii)', tex: 's_2 - s_1 \\ge \\int_1^2 \\frac{\\delta q}{T}',
-      live: s => { const M = model(s); const I = M.proc === 'rev' ? M.tot.int_dq_over_T : 0; return `${tn(M.ds, 4)} \\ge ${tn(I, 4)}\\ \\text{J/(kg K)}`; },
-      note: 'For an arbitrary process, with the heat actually received $\\delta q$ (the book prints $dq_{\\rm rev}$ here); equality only when the process is reversible.' }
+    { id: 'f', title: 'A physical law among n variables', ref: 'Eq. (1.36)', tex: 'f(q_1, q_2, \\dots, q_n) = 0',
+      live: s => { const M = machine(s); return 'f(' + M.active.map(q => q.tex).join(', ') + ') = 0'; },
+      symbols: [['q_j', 'the variables and parameters of the problem', 'various'], ['n', 'how many there are', '–']] },
+    { id: 'pi', title: 'Buckingham\'s theorem', ref: 'Eq. (1.37)', tex: '\\phi(\\Pi_1, \\Pi_2, \\dots, \\Pi_{n-r}) = 0 \\;\\text{ or }\\; \\Pi_1 = \\varphi(\\Pi_2, \\dots, \\Pi_{n-r})',
+      live: s => { const M = machine(s); return 'n - r = ' + M.n + ' - ' + M.r + ' = ' + (M.n - M.r) + ':\\quad ' + lawTex(M); },
+      symbols: [['\\Pi_i', 'dimensionless groups', '–'], ['r', 'rank of the dimensional matrix', '–'], ['\\phi,\\ \\varphi', 'undetermined functions', '–']] },
+    { id: 'pipe', title: 'The pipe problem', ref: 'Eq. (1.38)', tex: 'f(\\Delta p, \\Delta x, d, \\varepsilon, U, \\rho, \\mu) = 0',
+      symbols: [['\\Delta p', 'pressure drop', 'Pa'], ['\\Delta x,\\ d,\\ \\varepsilon', 'tap distance, diameter, roughness', 'm'], ['U', 'mean velocity', 'm/s'], ['\\rho,\\ \\mu', 'density, viscosity', 'kg/m³, Pa·s']] },
+    { id: 'matrix', title: 'The dimensional matrix', ref: 'Eq. (1.39)', tex: matTex(['M', 'L', 'T'], PIPE_V.map(q => q.tex), dimMatrix(PIPE_V).A),
+      live: s => { const M = machine(s); return matTex(M.dm.rows, M.active.map(q => q.tex), M.dm.A); },
+      note: 'Live: the matrix of your current problem.', symbols: [['\\mathrm{M, L, T}, \\Theta', 'mass, length, time, temperature', '–']] },
+    { id: 'law', title: 'The pipe law', ref: 'Eq. (1.40)', tex: '\\frac{\\Delta p}{\\rho U^2} = \\varphi\\!\\left(\\frac{\\Delta x}{d}, \\frac{\\varepsilon}{d}, \\frac{\\mu}{\\rho U d}\\right)',
+      live: s => { const M = machine(s); return M.groups ? groupsListTex(M) : '\\text{—}'; }, note: 'Live: your groups.' },
+    { id: 'expo', title: 'Exponents of Π₁ (pipe, repeating U, d, ρ)', ref: '§1.11 Step 5', tex: '\\mathrm M^{c+1}\\,\\mathrm L^{a+b-3c-1}\\,\\mathrm T^{-a-2} = \\mathrm M^0\\mathrm L^0\\mathrm T^0',
+      live: () => '\\mathrm M^{-1+1}\\,\\mathrm L^{-2+0+3-1}\\,\\mathrm T^{2-2}', note: 'so $a = -2$, $b = 0$, $c = -1$ and $\\Pi_1 = \\Delta p/\\rho U^2$.' }
   ],
   check: [
-    { q: 'Between $(v_1, 300\\,\\text{K})$ and $(2v_1, 300\\,\\text{K})$, which route makes the gas do the least work?',
-      a: 'Cool, then expand (route B): the expansion happens at half the pressure, so $w = -43.1$ kJ/kg, against −59.7 (A) and −86.1 (C).', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' } },
-    { q: 'Why is $\\Delta s = 199$ J/(kg K) on every reversible route although $q$ differs?',
-      a: 'Heat received at low $T$ counts more in $\\int dq/T$. The weighting exactly compensates, because $s$ is a state function: $\\Delta s = C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ needs only the end states.' },
-    { q: 'Free expansion to $2v_1$: what are $q$, $w$, $\\Delta e$ and $\\Delta s$?',
-      a: '$0$, $0$, $0$ and $R\\ln 2 = 199$ J/(kg K). The entropy was created inside the gas; no heat carried it in.', set: { proc: 'free', vr: 2, Tr: 1 } },
-    { q: 'Switch the gas to monatomic. Does route A’s work change? Does route B’s total heat?',
-      a: 'Neither. $w = -RT\\ln 2$ has no $\\gamma$ in it, and route B’s total is $q = -w = R\\times150$ K $= 43.1$ kJ/kg. Only the separate legs of B change, because they involve $C_v$ and $C_p$.', set: { gas: '5/3' } },
-    { q: 'At $v_2/v_1 = 3$ and constant $T$, which route needs the most heat?',
-      a: 'Expand, then cool (route C): $q = 172$ kJ/kg, because the whole expansion happens at the start pressure. Route A needs 94.6 and route B 57.4 kJ/kg.', set: { path: 'isobaric-isochoric', vr: 3, Tr: 1, proc: 'rev' } }
+    { q: 'Choose the repeating set $(d, \\varepsilon, \\rho)$. Why does it fail?', a: '$d$ and $\\varepsilon$ are both lengths, so their columns are equal and the T row of the block is all zeros: det = 0. No power of them can cancel the time in $\\Delta p$ or $\\mu$.', set: { problem: 'pipe', rep: 'bad', drop: 'none', custom: '' } },
+    { q: 'Remove $\\mu$ from the pipe. How many groups remain, and what is lost?', a: '$6 - 3 = 3$ groups. No group contains a viscosity (no Reynolds number), so viscous, e.g. laminar, behaviour cannot be described.', set: { problem: 'pipe', rep: 'book', drop: 'mu', custom: '' } },
+    { q: 'Blast problem: how does the radius grow with time?', a: 'One group, $E t^2/(\\rho D^5)$, so it is a constant $K$ and $D \\propto (E/\\rho)^{1/5} t^{2/5}$.', set: { problem: 'blast', rep: 'book', drop: 'none', custom: '' } },
+    { q: 'Scale-height problem: why is $r = 4$, and what is the lone group?', a: 'Temperature enters ($T_0$, $R_u$), so Θ is a fourth independent dimension. $n - r = 5 - 4 = 1$: $H g M_w/(R_u T_0)$ is a constant (1 for the isothermal atmosphere).', set: { problem: 'scale_height', rep: 'book', drop: 'none', custom: '' } },
+    { q: 'Pendulum: remove the mass. What changes?', a: 'Only $n$ and $r$ drop by one each (the M row disappears), so the groups are the same. Nothing else carries mass, so the period cannot depend on it.', set: { problem: 'pendulum', rep: 'book', drop: 'm', custom: '' } }
   ],
   selftest: () => {
-    const v1 = R_AIR * 300 / 1e5, V1PY = 'ch01.R_AIR*300.0/1e5';
-    const pathB = processPath('isochoric-isobaric', [v1, 300], [2 * v1, 300], 401, 1.4, R_AIR);
-    const runB = runningTotals(pathB.v, pathB.T, CV_AIR, R_AIR);
-    const partial = (() => { const s0 = { path: 'isobaric-isochoric', vr: 1.7, Tr: 1.35, gas: '5/3', proc: 'rev' }; const n = at(model(s0), 0.37); _mkey = null; return n.q + n.w - n.de; })();
-    const spread = (() => { const d = ROUTES.slice(1).map(r => pathTotals(r[0], v1, 300, 2 * v1, 450, 1.4, R_AIR).ds); return Math.max(...d) - Math.min(...d); })();
+    const pipeA = dimMatrix(PIPE_V).A, pv = {}; PIPE_V.forEach(q => { pv[q.id] = q.si; });
+    const PIPE_PY = '{"dp": 100.0, "dx": 1.0, "d": 0.01, "eps": 1e-05, "U": 0.1, "rho": 1000.0, "mu": 0.001}';
+    const g1 = [['dp', 1], ['U', -2], ['rho', -1]].map(([k, e]) => [k, new Frac(e)]);
+    const g4 = solveExponents('mu', ['U', 'd', 'rho'], PIPE_V);
+    const rk = rankByMinors(pipeA);
+    const lamDp = poiseuille(1e-3, 0.1, 1.0, 0.01), lamVals = Object.assign({}, pv, { dp: lamDp });
+    const gs = piGroups(PIPE_V, 'dp', ['U', 'd', 'rho']);
+    const sc = naturalScales(PIPE_V, ['U', 'd', 'rho'], [0, 1, 2], ['M', 'L', 'T']);
+    const scPy = '{"M": ' + sc.M.toPrecision(17) + ', "L": ' + sc.L.toPrecision(17) + ', "T": ' + sc.T.toPrecision(17) + ', "Θ": 1.0}';
+    const pend = solveExponents('tau', ['Lp', 'm', 'g'], PENDULUM_V);
+    const blast = piGroups(BLAST_V, 'E', ['D', 'rho', 't'])[0];
+    const shv = {}; SCALE_V.forEach(q => { shv[q.id] = q.si; });
+    const ray = piGroups(RAYLEIGH_V, 'S', ['I', 'V']);
+    let singularThrows = 0; try { solveExponents('dp', ['d', 'eps', 'rho'], PIPE_V); } catch (e) { singularThrows = e.kind === 'singular' ? 1 : 0; }
     return [
-      { name: 'w isothermal ×2 [J/kg]', js: pathTotals('isothermal', v1, 300, 2 * v1, 300, 1.4, R_AIR).w, py: `ch01.path_heat_work_totals("isothermal", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["w"]`, rtol: 1e-10 },
-      { name: 'q cool→expand [J/kg]', js: pathTotals('isochoric-isobaric', v1, 300, 2 * v1, 300, 1.4, R_AIR).q, py: `ch01.path_heat_work_totals("isochoric-isobaric", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["q"]`, rtol: 1e-10 },
-      { name: 'Δs route D to (2v1, 450 K)', js: pathTotals('isentropic-isochoric', v1, 300, 2 * v1, 450, 1.4, R_AIR).ds, py: `ch01.path_heat_work_totals("isentropic-isochoric", ${V1PY}, 300.0, 2*${V1PY}, 450.0)["ds"]`, rtol: 1e-10 },
-      { name: 'Δs Gibbs (300→450 K, 2v1)', js: entropyChange(300, 0.8612, 450, 1.7224, CV_AIR, R_AIR), py: 'ch01.perfect_gas_entropy_change(300.0, 0.8612, 450.0, 1.7224)', rtol: 1e-10 },
-      { name: 'free expansion Δs = R ln 2', js: irreversible('free_expansion', 300, 0.8612, CV_AIR, R_AIR, null, 1.7224).ds, py: 'ch01.irreversible_process("free_expansion", 300.0, 0.8612, v2=1.7224)["ds"]', rtol: 1e-10 },
-      { name: 'stirring Δs (300→360 K)', js: irreversible('stirring', 300, 0.8612, CV_AIR, R_AIR, 360, null).ds, py: 'ch01.irreversible_process("stirring", 300.0, 0.8612, T2=360.0)["ds"]', rtol: 1e-10 },
-      { name: 'isentropic p(ρ = 2) [Pa]', js: isentropicPressure(2.0, 1e5, 1.0, 1.4), py: 'ch01.isentropic_pressure(2.0, 1.0e5, 1.0)', rtol: 1e-12 },
-      { name: 'process_path corner T', js: pathB.T[400], py: `ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"][400]`, rtol: 1e-12 },
-      { name: 'trapezoid q route B, n = 401', js: runB.q[runB.q.length - 1], py: `ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"][-1]`, rtol: 1e-9 },
-      { name: '∫dq/T trapezoid route B', js: entropyReversible(runB.q, pathB.T), py: `ch01.entropy_change_reversible(ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])`, rtol: 1e-9 },
-      { name: 'trapezoid ≈ exact w (route A, n = 401)', js: (() => { const d = processPath('isothermal', [v1, 300], [2 * v1, 300], 401); const r = runningTotals(d.v, d.T); return r.w[400] / pathTotals('isothermal', v1, 300, 2 * v1, 300).w; })(), expect: 1, rtol: 1e-5 },
-      { name: 'first law so far: q + w − Δe', js: partial, expect: 0, atol: 1e-6 },
-      { name: 'Δs spread over 4 routes', js: spread, expect: 0, atol: 1e-9 }
+      { name: 'rank of the pipe matrix (1.39)', js: rk.r, py: 'ch01.rank_by_minors(ch01.dimensional_matrix(ch01.PIPE)[0])[0]', rtol: 0, atol: 1e-12 },
+      { name: 'rank witness columns (lexicographic)', js: rk.cols[0] * 100 + rk.cols[1] * 10 + rk.cols[2], py: 'np.dot(ch01.rank_by_minors(ch01.dimensional_matrix(ch01.PIPE)[0])[2], [100, 10, 1])', rtol: 0, atol: 1e-12 },
+      { name: 'minor (U, ρ, μ) = −1', js: minorDet(pipeA, [0, 1, 2], [4, 5, 6]).valueOf(), py: 'ch01.minor_determinant(ch01.dimensional_matrix(ch01.PIPE)[0], (0, 1, 2), (4, 5, 6))', rtol: 0, atol: 1e-12 },
+      { name: 'minor (Δx, d, ε) = 0', js: minorDet(pipeA, [0, 1, 2], [1, 2, 3]).valueOf(), py: 'ch01.minor_determinant(ch01.dimensional_matrix(ch01.PIPE)[0], (0, 1, 2), (1, 2, 3))', rtol: 0, atol: 1e-12 },
+      { name: 'matrix entry L row, ρ = −3', js: pipeA[1][5].valueOf(), py: 'ch01.dimensional_matrix(ch01.PIPE)[0][1][5]', rtol: 0, atol: 1e-12 },
+      { name: 'exponent of U in Π₁ = −2', js: gget(solveExponents('dp', ['U', 'd', 'rho'], PIPE_V), 'U').valueOf(), py: 'ch01.solve_exponents("dp", ("U", "d", "rho"), ch01.PIPE)["U"]', rtol: 0, atol: 1e-12 },
+      { name: 'exponent of d in Π₁ = 0', js: gget(solveExponents('dp', ['U', 'd', 'rho'], PIPE_V), 'd').valueOf(), py: 'ch01.solve_exponents("dp", ("U", "d", "rho"), ch01.PIPE)["d"]', rtol: 0, atol: 1e-12 },
+      { name: 'exponent of ρ in Π₁ = −1', js: gget(solveExponents('dp', ['U', 'd', 'rho'], PIPE_V), 'rho').valueOf(), py: 'ch01.solve_exponents("dp", ("U", "d", "rho"), ch01.PIPE)["rho"]', rtol: 0, atol: 1e-12 },
+      { name: 'exponent of μ for Δx, rep (U, ρ, μ)', js: gget(solveExponents('dx', ['U', 'rho', 'mu'], PIPE_V), 'mu').valueOf(), py: 'ch01.solve_exponents("dx", ("U", "rho", "mu"), ch01.PIPE)["mu"]', rtol: 0, atol: 1e-12 },
+      { name: 'pendulum: exponent of g = 1/2 (exact)', js: gget(pend, 'g').valueOf(), py: 'ch01.solve_exponents("tau", ("Lp", "m", "g"), ch01.PENDULUM)["g"]', rtol: 0, atol: 1e-15 },
+      { name: 'pipe groups n − r = 4', js: gs.length, py: 'np.size(ch01.pi_groups(ch01.PIPE, "dp", ("U", "d", "rho")))', rtol: 0, atol: 1e-12 },
+      { name: 'rank of the Rayleigh matrix = 2', js: rankByMinors(dimMatrix(RAYLEIGH_V).A).r, py: 'ch01.rank_by_minors(ch01.dimensional_matrix(ch01.RAYLEIGH)[0])[0]', rtol: 0, atol: 1e-12 },
+      { name: 'Rayleigh rep (I, V): exponent of V in Π₂ = −1/3', js: gget(ray[1], 'V').valueOf(), py: 'ch01.pi_groups(ch01.RAYLEIGH, "S", ("I", "V"))[1]["V"]', rtol: 0, atol: 1e-15 },
+      { name: 'blast group: exponent of D = −5', js: gget(blast, 'D').valueOf(), py: 'ch01.pi_groups(ch01.BLAST, "E", ("D", "rho", "t"))[0]["D"]', rtol: 0, atol: 1e-12 },
+      { name: 'Π₁ in SI = 10', js: groupValue(g1, pv), py: 'ch01.group_value({"dp": 1, "U": -2, "rho": -1}, ' + PIPE_PY + ')', rtol: 1e-12 },
+      { name: 'Π₁ in cgs (unchanged)', js: groupValue(g1, rescale(pv, PIPE_V, 'cgs')), py: 'ch01.group_value({"dp": 1, "U": -2, "rho": -1}, ch01.rescale_units(' + PIPE_PY + ', ch01.PIPE, "cgs"))', rtol: 1e-12 },
+      { name: 'Π₄ = μ/ρUd in imperial', js: groupValue(g4, rescale(pv, PIPE_V, 'imperial')), py: 'ch01.group_value(ch01.solve_exponents("mu", ("U", "d", "rho"), ch01.PIPE), ch01.rescale_units(' + PIPE_PY + ', ch01.PIPE, "imperial"))', rtol: 1e-12 },
+      { name: 'μ in imperial [lb/(ft s)]', js: rescale(pv, PIPE_V, 'imperial').mu, py: 'ch01.rescale_units(' + PIPE_PY + ', ch01.PIPE, "imperial")["mu"]', rtol: 1e-12 },
+      { name: 'natural units: Δp reads Π₁', js: rescale(pv, PIPE_V, sc).dp, py: 'ch01.rescale_units(' + PIPE_PY + ', ch01.PIPE, ' + scPy + ')["dp"]', rtol: 1e-9 },
+      { name: 'laminar collapse Π₁ = 32 Π₂ Π₄', js: 32 * groupValue(gs[1], pv) * groupValue(gs[3], pv), py: 'ch01.group_value({"dp": 1, "U": -2, "rho": -1}, {"dp": ch01.poiseuille_pressure_drop(1e-3, 0.1, 1.0, 0.01), "U": 0.1, "rho": 1000.0})', rtol: 1e-12 },
+      { name: 'laminar Δp = 32 μUΔx/d²', js: lamDp, py: 'ch01.poiseuille_pressure_drop(1e-3, 0.1, 1.0, 0.01)', rtol: 1e-12 },
+      { name: 'scale-height group = 1', js: groupValue(piGroups(SCALE_V, 'H', ['T0', 'Mw', 'g', 'Ru'])[0], shv), expect: 1, rtol: 1e-12 },
+      { name: 'pipe groups independent', js: groupsIndependent(gs) ? 1 : 0, py: 'ch01.groups_independent(ch01.pi_groups(ch01.PIPE, "dp", ("U", "d", "rho"))) * 1', rtol: 0, atol: 1e-12 },
+      { name: '{Π₁, Π₄, Π₁/Π₄²} dependent', js: groupsIndependent([gs[0], gs[3], [['dp', ONE], ['U', ZERO], ['d', new Frac(2)], ['rho', ONE], ['mu', new Frac(-2)]]]) ? 1 : 0, py: 'ch01.groups_independent([{"dp": 1, "U": -2, "rho": -1}, {"mu": 1, "U": -1, "d": -1, "rho": -1}, {"dp": 1, "d": 2, "rho": 1, "mu": -2}]) * 1', rtol: 0, atol: 1e-12 },
+      { name: 'every pipe group dimensionless', js: gs.every(g => groupDimension(g, PIPE_V).every(x => x.isZero())) ? 1 : 0, expect: 1, rtol: 0, atol: 1e-12 },
+      { name: 'singular set (d, ε, ρ) is refused', js: singularThrows, expect: 1, rtol: 0, atol: 1e-12 }
     ];
   }
 });

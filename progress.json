@@ -46,13 +46,19 @@
       "design": "pass",
       "implement": "pass",
       "verify": "pass",
-      "review": "running",
-      "viz": "running",
-      "notebook": "running",
-      "knowledge": "todo",
-      "publish": "todo",
-      "explainers": [],
-      "notes": "A 15 / B 70 / C 21 of 106; 12 derivations; design: 15 A blocks, 106 ids placed, Part C 144 callables all present, Part E 225 rows, Part F 12; implement: audit found no formula errors, lapse_rate_convention/lapse_rate_stability added, 14 scripts exit 0; verify PASS 101 tests (V1 50, V2 19, V3 11, V4 13, V5 11, V6 5, V7 15), FTCS order 2.00; should-fix F1 synthetic_boundary_layer_profile default steeper than Gamma_a; TODO knowledge phase: (a) tools/shot.py should click/drag every view and fail on page errors (viz_lib ev.view pointer bug went unseen); (b) user: make tools/coverage_check.py fail loudly on a blank tier in the curation parser instead of relying on bold first cells",
+      "review": "pass",
+      "viz": "pass",
+      "notebook": "pass",
+      "knowledge": "running",
+      "publish": "running",
+      "explainers": [
+        "continuum_averaging_volume",
+        "viscosity_momentum_diffusion",
+        "heat_work_paths",
+        "parcel_stability",
+        "buckingham_pi_machine"
+      ],
+      "notes": "A 15 / B 70 / C 21 of 106; 12 derivations; design: 15 A blocks, 106 ids placed, Part C 144 callables all present, Part E 225 rows, Part F 12; implement: audit found no formula errors, lapse_rate_convention/lapse_rate_stability added, 14 scripts exit 0; verify PASS 101 tests (V1 50, V2 19, V3 11, V4 13, V5 11, V6 5, V7 15), FTCS order 2.00; review: 2 must-fix fixed (BL default neutral, docstring wording), 107 tests pass; viz PASS round 2 (5/5, 115 parity rows, 2141 clicks 0 errors); notebook PASS (496 cells, coverage OK); open viz should-fix (non-blocking): E1 noise basis badge vs inspector, E3 end card clipped on portrait phones, E4 raw e^{±λt} in D18 step 13 + 360px zeta ticks, E5 D28 step 9 why 53 words; open notebook should-fix: book-map arrow overlaps (scripts/ch01_book_map.py);TODO knowledge phase: (a) tools/shot.py should click/drag every view and fail on page errors (viz_lib ev.view pointer bug went unseen); (b) user: make tools/coverage_check.py fail loudly on a blank tier in the curation parser instead of relying on bold first cells",
       "updated": "2026-09-13"
     },
     "ch02": {

@@ -2914,7 +2914,7 @@ D11/D14, p045–p046 for D18/D19, p047 for D20/D36, p049–p052 for D28); the re
 - **Plan.** (1) Forces: weight and buoyancy. (2) Densities of the parcel and of its new surroundings to first order in ζ.
   (3) Keep only first-order terms. (4) Name the coefficient N² and solve.
 - **Tools.** Newton's second law (P09) · buoyancy (D37, C20) · first-order Taylor expansion (P26) · linear second-order ODE
-  (P44) · square root of a negative number (P45, in C51 — only needed to read the N² < 0 case, restated in step 12).
+  (P44) · square root of a negative number (P45, placed in C50 before D18 in the built notebook, with Euler’s formula and cosh).
 - **Assumptions.** Small displacement ζ (steps 4–7) · the parcel moves frictionlessly and adiabatically, no mixing (step 4:
   it follows its own isentropic density) · its pressure instantly equals that of its surroundings (step 2: buoyancy from the
   environment) · the background is static (step 5) · released from rest (step 12).

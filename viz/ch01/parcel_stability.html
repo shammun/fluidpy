@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Same two states: what depends on the path?</title>
+<title>Push a parcel up: does it come back?</title>
 <meta name="viz:chapter" content="ch01">
-<meta name="viz:slug" content="heat_work_paths">
-<meta name="viz:order" content="3">
-<meta name="viz:title" content="Same two states: what depends on the path?">
-<meta name="viz:summary" content="Take 1 kg of air between the same two states along different routes: heat and work change, internal energy and entropy do not, and friction breaks ds = dq/T.">
-<meta name="viz:concept" content="first law; heat and work as path functions; state functions; entropy and the Gibbs relations; isentropic law">
-<meta name="viz:sections" content="1.8, 1.9">
-<meta name="viz:equations" content="(1.10), (1.11), (1.16), (1.17), (1.18), (1.25)">
-<meta name="viz:fluidpy" content="ch01.process_path ch01.path_heat_work_totals ch01.process_heat_work ch01.entropy_change_reversible ch01.perfect_gas_entropy_change ch01.isentropic_pressure ch01.irreversible_process">
-<meta name="viz:derivations" content="D10 D14">
+<meta name="viz:slug" content="parcel_stability">
+<meta name="viz:order" content="4">
+<meta name="viz:title" content="Push a parcel up: does it come back?">
+<meta name="viz:summary" content="Shape the environment's temperature (or density) profile, lift a parcel and release it: it oscillates at N, stays put or runs away, with the stability criterion shown in Kundu's and in the meteorology sign convention.">
+<meta name="viz:concept" content="static stability; Brunt-Vaisala frequency N^2; adiabatic lapse rate in two sign conventions; potential temperature; ocean potential density">
+<meta name="viz:sections" content="1.10">
+<meta name="viz:equations" content="(1.29), (1.30), (1.31), (1.32), (1.35)">
+<meta name="viz:fluidpy" content="ch01.adiabatic_lapse_rate ch01.lapse_rate_convention ch01.lapse_rate_stability ch01.brunt_vaisala_sq_from_lapse ch01.brunt_vaisala_sq ch01.brunt_vaisala_sq_from_theta ch01.parcel_displacement ch01.parcel_ode_atmosphere ch01.parcel_ode_from_gradients ch01.potential_temperature ch01.potential_temperature_gradient ch01.stability_timescale ch01.ocean_potential_density_gradient ch01.isentropic_density_gradient ch01.synthetic_boundary_layer_profile ch01.linear_lapse_pressure ch01.seawater_density_linear">
+<meta name="viz:derivations" content="D18 D19 D20 D36">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -454,12 +454,35 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* heat_work_paths: on phones the process chips move from the stage strip into Explore (the presets cover them) */
+  /* parcel_stability: controls that belong to another medium are hidden (the medium chips set data-medium) */
+  .viz-app[data-medium="atm"] [data-viz-key="param:drhodz"],
+  .viz-app[data-medium="atm"] [data-viz-key="param:compress"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:dTdz"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:inv"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:invRate"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:zo"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:T0"],
+  .viz-app[data-medium="ocean"] [data-viz-key="param:showTheta"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:dTdz"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:inv"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:invRate"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:zo"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:T0"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:showTheta"],
+  .viz-app[data-medium="lab"] [data-viz-key="param:compress"] { display: none; }
+  .ps-ok { color: var(--viz-teal); font-weight: 700; }
+  .ps-no { color: var(--viz-rose); font-weight: 700; }
+  .ps-amber { color: var(--viz-amber); font-weight: 650; }
+  .viz-app .viz-readout-value { white-space: normal; overflow-wrap: anywhere; }
+  /* phones: every preset also sets the medium, so the medium chips give their row to the views */
   .viz-app[data-layout="portrait"] .viz-stage-top > .viz-seg,
-  .viz-app[data-layout="landscape"] .viz-stage-top > .viz-seg { display: none; }
-  /* short phones (360×640): the status line and view titles give their height to the two diagrams */
+  .viz-app[data-layout="landscape"] .viz-stage-top > .viz-seg,
+  .viz-app[data-layout="portrait"] .viz-presets-label,
+  .viz-app[data-layout="landscape"] .viz-presets-label { display: none; }
+  /* landscape phones: the three views side by side (column + profile | ζ(t)), titles give their height to the plots */
+  .viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
+  .viz-app[data-layout="landscape"] .viz-view-title { display: none; }
   @media (max-height: 700px) {
-    .viz-app[data-layout="portrait"] .viz-status,
     .viz-app[data-layout="portrait"] .viz-view-title { display: none; }
   }
 </style>
@@ -2023,859 +2046,983 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.thermo (re-exported as ch01.*), same symbols, SI units, Kundu §1.8–1.9:
-     processPath            ↔ ch01.process_path(kind, (v1, T1), (v2, T2), n, gamma, R)
-     legTotals / pathTotals ↔ ch01._leg_totals / ch01.path_heat_work_totals(kind, v1, T1, v2, T2, gamma, R)
-     runningTotals          ↔ ch01.process_heat_work(v_path, T_path, cv, R)      (cumulative trapezoid, w = −∫p dv)
-     entropyReversible      ↔ ch01.entropy_change_reversible(q_path, T_path)       Eq. (1.16)–(1.17)
-     entropyChange          ↔ ch01.perfect_gas_entropy_change(T1, v1, T2, v2, cv, R)  integrated Eq. (1.18)
-     irreversible           ↔ ch01.irreversible_process(kind, T1, v1, cv, R, T2, v2)   Clausius–Duhem, §1.8 (ii)
-     isentropicPressure     ↔ ch01.isentropic_pressure(rho, p0, rho0, gamma)        Eq. (1.25)
-   First-law sign (Eq. 1.10): q = heat added TO the gas, w = work done ON the gas, q + w = Δe.
-   --------------------------------------------------------------------------------------------------- */
-const K_B = 1.380649e-23, N_A_KMOL = 6.02214076e26;
-const R_U = K_B * N_A_KMOL;                 // universal gas constant [J/(kmol K)]
-const R_AIR = R_U / 28.9644;                // gas constant of dry air [J/(kg K)] = 287.058
-const CV_AIR = R_AIR / (1.4 - 1);           // C_v of air [J/(kg K)] = 717.64
-const T1 = 300, P1 = 1e5;                   // fixed start state: 300 K, 1 bar
-const V1 = R_AIR * T1 / P1;                 // specific volume at the start [m³/kg] = 0.8612
-const GAS = { '7/5': 1.4, '5/3': 5 / 3 };
-const NLEG = 161;                           // samples per leg for drawing
-const ROUTES = [
-  ['isothermal', 'A · isothermal'], ['isochoric-isobaric', 'B · cool, then expand'], ['isobaric-isochoric', 'C · expand, then cool'],
-  ['isentropic-isochoric', 'D · isentrope + isochore'], ['isothermal-isochoric', 'E · isotherm + isochore']
-];
-const ROUTE_NAME = Object.fromEntries(ROUTES);
+/* ===================================================================================================
+   PHYSICS — mirrors fluidpy (every name reachable as ch01.<name>), same symbols, SI units, Kundu §1.10.
+   Sign convention (binding user decision): every computation uses Kundu's Γ ≡ dT/dz [K/m] (negative when
+   T falls with height; Γa = −g/C_p ≈ −9.76 K/km; stable when Γ > Γa). The standard meteorology convention
+   Γ ≡ −dT/dz (Γa ≈ +9.76 K/km; stable when Γ < Γa) is produced by lapseConvention/lapseStability and is
+   always on screen next to Kundu's.
+     adiabaticLapseRate        ↔ ch01.adiabatic_lapse_rate(T, cp, alpha, g)              Eq. (1.30)
+     lapseConvention           ↔ ch01.lapse_rate_convention(dT_dz, convention)
+     lapseStability            ↔ ch01.lapse_rate_stability(dT_dz, Gamma_a, convention, …) (1.30), (1.32)
+     N2FromLapse               ↔ ch01.brunt_vaisala_sq_from_lapse(T, dT_dz, cp, g)       (1.32) + D36
+     N2FromTheta               ↔ ch01.brunt_vaisala_sq_from_theta(theta, dtheta_dz, g)   D36
+     N2Density                 ↔ ch01.brunt_vaisala_sq(rho0, drho_dz, drho_a_dz, g)      Eq. (1.29)
+     classifyStability         ↔ ch01.classify_stability(N2, tol)
+     stabilityTimescale        ↔ ch01.stability_timescale(N2, tol)
+     parcelDisplacement        ↔ ch01.parcel_displacement(t, zeta0, N2, w0)             parcel equation (D18)
+     parcelAccelAtm            ↔ ch01.parcel_acceleration_atmosphere(zeta, T0, dT_dz, cp, g)
+     parcelOdeAtmosphere       ↔ ch01.parcel_ode_atmosphere(t, zeta0, T0, dT_dz, …, zeta_max)
+     parcelOdeGradients        ↔ ch01.parcel_ode_from_gradients(t, zeta0, rho0, drho_dz, drho_a_dz, …)
+     linearLapsePressure       ↔ ch01.linear_lapse_pressure(z, p0, T0, dT_dz, R, g)     (1.8) + (1.22)
+     potentialTemperature      ↔ ch01.potential_temperature(T, p, p_ref, gamma)         Eq. (1.31)
+     thetaGradient             ↔ ch01.potential_temperature_gradient(T, dT_dz, theta)   Eq. (1.32)
+     isentropicDensityGradient ↔ ch01.isentropic_density_gradient(rho, c, g)            before (1.35)
+     oceanCriterion            ↔ ch01.ocean_potential_density_gradient(drho_dz, rho, c) Eq. (1.35)
+     seawaterLinear            ↔ ch01.seawater_density_linear(T, S)
+     blProfile                 ↔ ch01.synthetic_boundary_layer_profile(z, …)  (neutral mixed layer + inversion)
+   Nonlinear parcels (N² < 0 runaway) are capped exactly like the Python: the run stops when |ζ| reaches
+   zeta_max (or a temperature/density guard fires) and later times are NaN — never an overflow.
+   =================================================================================================== */
+const K_B = 1.380649e-23, N_A = 6.02214076e23, N_A_KMOL = N_A * 1.0e3;
+const R_U = K_B * N_A_KMOL;                          // universal gas constant [J/(kmol K)]
+const M_W_AIR = 28.9644;                             // molar mass of dry air [kg/kmol]
+const R_AIR = R_U / M_W_AIR;                         // 287.058 J/(kg K)
+const GAMMA_AIR = 1.4;
+const CP_AIR = GAMMA_AIR * R_AIR / (GAMMA_AIR - 1.0);  // 1004.70 J/(kg K)
+const G0 = 9.80665, P_ATM = 101325.0, P_REF = 1.0e5;
+const C_SEA = 1500.0, RHO_SEA = 1025.0, RHO_LAB = 1025.0;
 
-function isclose(a, b, rtol) { return Math.abs(a - b) <= 1e-8 + rtol * Math.abs(b); }   // numpy.isclose
-function checkLeg(kind, va, Ta, vb, Tb, gamma) {
-  const ok = kind === 'isothermal' ? isclose(Ta, Tb, 1e-9) : kind === 'isochoric' ? isclose(va, vb, 1e-9)
-    : kind === 'isobaric' ? isclose(Ta / va, Tb / vb, 1e-9) : kind === 'isentropic' ? isclose(Ta * Math.pow(va, gamma - 1), Tb * Math.pow(vb, gamma - 1), 1e-9) : null;
-  if (ok === null) throw new Error('unknown process kind ' + kind);
-  if (!ok) throw new Error('a single ' + kind + ' leg cannot join the two states');
+function convKey(convention) {
+  const k = String(convention).trim().toLowerCase();
+  if (k !== 'kundu' && k !== 'meteorology') throw new Error('unknown lapse-rate convention ' + convention);
+  return k;
 }
-/** Corner state of a two-leg route (same as thermo._corner_state). */
-function cornerState(kind, v1, t1, v2, t2, gamma) {
-  if (kind === 'isochoric-isobaric') return [v1, t2 * v1 / v2];          // v fixed at v1, then p fixed at p2
-  if (kind === 'isobaric-isochoric') return [v2, t1 * v2 / v1];          // p fixed at p1 until v2, then v fixed
-  if (kind === 'isentropic-isochoric') return [v2, t1 * Math.pow(v1 / v2, gamma - 1)];   // T v^(γ−1) = const
-  if (kind === 'isothermal-isochoric') return [v2, t1];
-  throw new Error('unknown two-leg kind ' + kind);
+/** Γa = −gαT/C_p (1.30); perfect gas (alpha null): −g/C_p. Kundu's sign: negative for air. */
+function adiabaticLapseRate(T = null, cp = CP_AIR, alpha = null, g = G0) {
+  if (alpha === null) return -g / cp;
+  if (T === null) throw new Error('adiabaticLapseRate needs T when alpha is given');
+  return -g * alpha * T / cp;
 }
-/** A point on one leg at fraction f: uniform in v (in T for isochoric legs), exactly like process_path's sampling. */
-function legPoint(kind, va, Ta, vb, Tb, f, gamma) {
-  if (kind === 'isochoric') return [va, Ta + f * (Tb - Ta)];
-  const v = va + f * (vb - va);
-  if (kind === 'isothermal') return [v, Ta];
-  if (kind === 'isobaric') return [v, Ta * v / va];                     // p = RT/v constant
-  return [v, Ta * Math.pow(va / v, gamma - 1)];                          // isentropic, from (1.25) with pv = RT
-}
-function legSamples(kind, va, Ta, vb, Tb, n, gamma) {
-  const v = [], T = [];
-  for (let i = 0; i < n; i++) { const q = legPoint(kind, va, Ta, vb, Tb, i / (n - 1), gamma); v.push(q[0]); T.push(q[1]); }
-  return { v, T };
-}
-/** ch01.process_path: sampled reversible route, one leg or two legs meeting at a corner. */
-function processPath(kind, s1, s2, n = 401, gamma = 1.4, R = R_AIR) {
-  const [v1, t1] = s1, [v2, t2] = s2;
-  let v, T, corner = null;
-  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); ({ v, T } = legSamples(kind, v1, t1, v2, t2, n, gamma)); }
-  else {
-    const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
-    const A = legSamples(a, v1, t1, c[0], c[1], n, gamma), B = legSamples(b, c[0], c[1], v2, t2, n, gamma);
-    v = A.v.concat(B.v.slice(1)); T = A.T.concat(B.T.slice(1)); corner = n - 1;
-  }
-  return { v, T, p: v.map((x, i) => R * T[i] / x), corner };
-}
-/** Exact q, w, Δe, Δs of one reversible perfect-gas leg (thermo._leg_totals). */
-function legTotals(kind, va, Ta, vb, Tb, cv, R) {
-  const cp = cv + R, de = cv * (Tb - Ta);                                // Eq. (1.23); perfect gas de = C_v dT
-  let w, ds;
-  if (kind === 'isothermal') { w = -R * Ta * Math.log(vb / va); ds = R * Math.log(vb / va); }   // −∫p dv, p = RT/v
-  else if (kind === 'isochoric') { w = 0; ds = cv * Math.log(Tb / Ta); }
-  else if (kind === 'isobaric') { w = -R * (Tb - Ta); ds = cp * Math.log(Tb / Ta); }             // −p(v_b − v_a)
-  else if (kind === 'isentropic') { w = de; ds = 0; }                                             // q = 0
-  else throw new Error(kind);
-  const q = de - w;                                                      // Eq. (1.10): q + w = Δe
-  return { q, w, de, ds, int_dq_over_T: ds };
-}
-/** ch01.path_heat_work_totals */
-function pathTotals(kind, v1, t1, v2, t2, gamma = 1.4, R = R_AIR) {
-  const cv = R / (gamma - 1);
-  if (kind.indexOf('-') < 0) { checkLeg(kind, v1, t1, v2, t2, gamma); return legTotals(kind, v1, t1, v2, t2, cv, R); }
-  const [a, b] = kind.split('-'), c = cornerState(kind, v1, t1, v2, t2, gamma);
-  const A = legTotals(a, v1, t1, c[0], c[1], cv, R), B = legTotals(b, c[0], c[1], v2, t2, cv, R);
-  const out = {}; Object.keys(A).forEach(k => { out[k] = A[k] + B[k]; }); return out;
-}
-/** ch01.process_heat_work: cumulative trapezoid w = −∫p dv, Δe = C_v(T − T0), q = Δe − w. */
-function runningTotals(v, T, cv = CV_AIR, R = R_AIR) {
-  const p = v.map((x, i) => R * T[i] / x), w = [0];
-  for (let i = 1; i < v.length; i++) w.push(w[i - 1] - 0.5 * (p[i] + p[i - 1]) * (v[i] - v[i - 1]));
-  const de = T.map(t => cv * (t - T[0]));
-  return { q: de.map((x, i) => x - w[i]), w, de, p };
-}
-/** ch01.entropy_change_reversible: trapezoid of dq/T (Eq. 1.17). */
-function entropyReversible(q, T, cumulative = false) {
-  const s = [0];
-  for (let i = 1; i < q.length; i++) s.push(s[i - 1] + 0.5 * (1 / T[i] + 1 / T[i - 1]) * (q[i] - q[i - 1]));
-  return cumulative ? s : s[s.length - 1];
-}
-/** ch01.perfect_gas_entropy_change: Δs = C_v ln(T2/T1) + R ln(v2/v1), integrated (1.18). */
-function entropyChange(t1, v1, t2, v2, cv = CV_AIR, R = R_AIR) { return cv * Math.log(t2 / t1) + R * Math.log(v2 / v1); }
-/** ch01.irreversible_process: stirring at fixed v, or free expansion at fixed T. */
-function irreversible(kind, t1, v1, cv = CV_AIR, R = R_AIR, t2 = null, v2 = null) {
-  if (kind === 'stirring') {
-    if (t2 === null || t2 < t1) throw new Error('stirring needs T2 >= T1');
-    const de = cv * (t2 - t1);
-    return { q: 0, w: de, de, ds: cv * Math.log(t2 / t1), int_dq_over_T: 0 };     // (1.18) at dv = 0
-  }
-  if (kind === 'free_expansion') {
-    if (v2 === null || v2 < v1) throw new Error('free expansion needs v2 >= v1');
-    return { q: 0, w: 0, de: 0, ds: R * Math.log(v2 / v1), int_dq_over_T: 0 };    // (1.18) at dT = 0
-  }
-  throw new Error('kind must be stirring or free_expansion');
-}
-/** ch01.isentropic_pressure: p = p0 (ρ/ρ0)^γ, Eq. (1.25). */
-function isentropicPressure(rho, p0, rho0, gamma = 1.4) { return p0 * Math.pow(rho / rho0, gamma); }
+const GA = adiabaticLapseRate();                     // −9.7607e-3 K/m
+/** Γ in the requested convention: Kundu dT/dz unchanged, meteorology −dT/dz. */
+function lapseConvention(dTdz, convention = 'kundu') { return convKey(convention) === 'kundu' ? dTdz : -dTdz; }
 
-/* ---------------------------------------------------------------------------------------------------
-   MODEL — everything the views, readouts and panels need for the current settings (cached)
-   --------------------------------------------------------------------------------------------------- */
-let _mkey = null, _model = null;
+/** Python's f"{x:.{d}f}" (round half to even on exact binary ties; JS toFixed rounds those up). */
+function pyFixed(x, d) {
+  const neg = x < 0 || Object.is(x, -0), a = Math.abs(x);
+  let s = a.toFixed(d);
+  const full = a.toFixed(100), dot = full.indexOf('.');
+  const rest = full.slice(dot + 1 + d);
+  if (/^50*$/.test(rest)) {
+    const kept = full.slice(0, d > 0 ? dot + 1 + d : dot);
+    if (Number(kept.charAt(kept.length - 1)) % 2 === 0) s = kept;
+  }
+  return (neg ? '-' : '') + s;
+}
+/** stratification._fmt_number: fixed decimals, never "−0.0", typographic minus unless asciiMinus. */
+function fmtNumber(x, digits, asciiMinus) {
+  let s = pyFixed(x, digits);
+  if (parseFloat(s) === 0) s = s.replace(/^-+/, '');
+  return asciiMinus ? s : s.replace(/-/g, '\u2212');
+}
+/** ch01.lapse_rate_stability → {verdict, text, code, Gamma, Gamma_a, margin}; auto-decimals as in Python. */
+function lapseStability(dTdz, Gamma_a = null, convention = 'kundu', o = {}) {
+  const tol = o.tol === undefined ? 1e-9 : o.tol, perKm = o.per_km === undefined ? true : o.per_km;
+  const prefix = o.prefix === undefined ? true : o.prefix, ascii = !!o.ascii_minus;
+  const cp = o.cp === undefined ? CP_AIR : o.cp, g = o.g === undefined ? G0 : o.g;
+  const conv = convKey(convention), x = Number(dTdz);
+  const Gak = Gamma_a === null ? adiabaticLapseRate(null, cp, null, g) : Number(Gamma_a);
+  const margin = x - Gak;                                   // (1.32): (T/θ) dθ/dz = Γ − Γa, > 0 stable
+  const code = margin > tol ? 1 : (margin < -tol ? -1 : 0);
+  const verdict = code === 1 ? 'stable' : code === 0 ? 'neutral' : 'unstable';
+  let Gamma, Gac, op, crit;
+  if (conv === 'kundu') { Gamma = x; Gac = Gak; op = code === 1 ? '>' : code === 0 ? '=' : '<'; crit = 'stable \u21d4 dT/dz > \u0393a: '; }
+  else { Gamma = -x; Gac = -Gak; op = code === 1 ? '<' : code === 0 ? '=' : '>'; crit = 'stable \u21d4 \u0393 < \u0393a: '; }
+  const scale = perKm ? 1.0e3 : 1.0, unit = perKm ? 'K/km' : 'K/m';
+  let d = o.digits === undefined || o.digits === null ? (perKm ? 1 : 5) : Math.trunc(o.digits);
+  const a = Gamma * scale, b = Gac * scale;
+  while (code !== 0 && d < 6 && fmtNumber(a, d, true) === fmtNumber(b, d, true)) d += 1;
+  const body = fmtNumber(a, d, ascii) + ' ' + op + ' ' + fmtNumber(b, d, ascii) + ' ' + unit;
+  return { verdict, text: (prefix ? crit : '') + body, code, Gamma, Gamma_a: Gac, margin };
+}
+/** N² = (g/T)(dT/dz + g/C_p), (1.32) with D36. */
+function N2FromLapse(T, dTdz, cp = CP_AIR, g = G0) { if (!(T > 0)) throw new Error('T must be > 0'); return g / T * (dTdz + g / cp); }
+/** N² = (g/θ) dθ/dz, D36. */
+function N2FromTheta(theta, dthdz, g = G0) { if (!(theta > 0)) throw new Error('theta must be > 0'); return g / theta * dthdz; }
+/** N² = −(g/ρ(z_o))(dρ/dz − dρa/dz), Eq. (1.29). */
+function N2Density(rho0, drhodz, drhoadz, g = G0) { if (!(rho0 > 0)) throw new Error('rho0 must be > 0'); return -(g / rho0) * (drhodz - drhoadz); }
+function classifyStability(N2, tol = 1e-12) { return N2 > tol ? 'stable' : N2 < -tol ? 'unstable' : 'neutral'; }
+/** {kind: 'period' | 'efold' | 'none', seconds}. */
+function stabilityTimescale(N2, tol = 1e-12) {
+  const lab = classifyStability(N2, tol);
+  if (lab === 'stable') return { kind: 'period', seconds: 2.0 * Math.PI / Math.sqrt(N2) };
+  if (lab === 'unstable') return { kind: 'efold', seconds: 1.0 / Math.sqrt(-N2) };
+  return { kind: 'none', seconds: Infinity };
+}
+/** Linear parcel equation ζ'' + N²ζ = 0: cos / line / cosh (with an initial velocity w0). */
+function parcelDisplacement(t, zeta0, N2, w0 = 0.0) {
+  const a = Math.sqrt(Math.abs(N2)), k = a > 0 ? w0 / a : 0.0;
+  if (N2 > 0) return zeta0 * Math.cos(a * t) + k * Math.sin(a * t);
+  if (N2 < 0) return zeta0 * Math.cosh(a * t) + k * Math.sinh(a * t);
+  return zeta0 + w0 * t;
+}
+/** ζ'' = g (T_p − T_e)/T_e with T_p = T0 − gζ/C_p (dry adiabat) and T_e = T0 + (dT/dz)ζ. */
+function parcelAccelAtm(zeta, T0, dTdz, cp = CP_AIR, g = G0) {
+  const Tp = T0 - g * zeta / cp, Te = T0 + dTdz * zeta;
+  return g * (Tp - Te) / Te;
+}
+
+/** Fixed-step RK4 run of ζ'' = acc(ζ) until tEnd or until guard(ζ) ≥ 0 (solve_ivp's terminal events). */
+function runParcel(acc, zeta0, w0, tEnd, dt, guard) {
+  const n = Math.max(1, Math.ceil(tEnd / dt)), h = tEnd / n, f = (_t, Y) => [Y[1], acc(Y[0])];
+  const ts = [0], zs = [zeta0], ws = [w0];
+  let y = [zeta0, w0], tStop = tEnd, stopped = false;
+  for (let i = 0; i < n; i++) {
+    const yn = Viz.num.rk4Step(f, i * h, y, h), g0 = guard(y[0]), g1 = guard(yn[0]);
+    if (!(g1 < 0) || !isFinite(yn[0])) {
+      const fr = isFinite(g1) && g1 !== g0 ? Math.min(1, Math.max(0, g0 / (g0 - g1))) : 1;
+      tStop = (i + fr) * h; stopped = true;
+      ts.push(tStop); zs.push(y[0] + fr * (yn[0] - y[0])); ws.push(y[1] + fr * (yn[1] - y[1]));
+      break;
+    }
+    y = yn; ts.push((i + 1) * h); zs.push(y[0]); ws.push(y[1]);
+  }
+  return { ts, zs, ws, h, tStop, stopped };
+}
+/** ζ at time t from a run: cubic Hermite with the velocities (4th order); NaN after the run stopped. */
+function sampleRun(R, t) {
+  if (t > R.tStop + 1e-12) return NaN;
+  if (t <= 0) return R.zs[0];
+  const i = Math.min(Math.floor(t / R.h), R.ts.length - 2);
+  const t0 = R.ts[i], hh = R.ts[i + 1] - t0;
+  if (!(hh > 0)) return R.zs[i];
+  const s = (t - t0) / hh, s2 = s * s, s3 = s2 * s;
+  return (2 * s3 - 3 * s2 + 1) * R.zs[i] + (s3 - 2 * s2 + s) * hh * R.ws[i] + (-2 * s3 + 3 * s2) * R.zs[i + 1] + (s3 - s2) * hh * R.ws[i + 1];
+}
+/** ch01.parcel_ode_atmosphere (scalar t): nonlinear dry parcel, capped at zeta_max, too-cold guard. */
+function parcelOdeAtmosphere(t, zeta0, T0, dTdz, cp = CP_AIR, g = G0, w0 = 0.0, zetaMax = null) {
+  const cap = zetaMax === null ? 1e3 * Math.max(Math.abs(zeta0), 1e-3) : zetaMax;
+  if (t <= 0) return zeta0;
+  const N = Math.sqrt(Math.abs(N2FromLapse(T0, dTdz, cp, g))) || 1e-6;
+  const R = runParcel(z => parcelAccelAtm(z, T0, dTdz, cp, g), zeta0, w0, t, Math.min(0.5, 0.01 / N),
+    z => Math.max(Math.abs(z) - cap, 0.1 * T0 - Math.min(T0 - g * z / cp, T0 + dTdz * z)));
+  return R.stopped && R.tStop < t - 1e-12 ? NaN : R.zs[R.zs.length - 1];
+}
+/** ch01.parcel_ode_from_gradients (scalar t): ζ'' = −g(ρ_p − ρ_e)/ρ_p with linear ρ_e, ρ_p. */
+function parcelOdeGradients(t, zeta0, rho0, drhodz, drhoadz, g = G0, w0 = 0.0, zetaMax = null) {
+  const cap = zetaMax === null ? 1e3 * Math.max(Math.abs(zeta0), 1e-3) : zetaMax;
+  if (t <= 0) return zeta0;
+  const N = Math.sqrt(Math.abs(N2Density(rho0, drhodz, drhoadz, g))) || 1e-6;
+  const acc = z => { const rp = rho0 + drhoadz * z; return -g * (rp - (rho0 + drhodz * z)) / rp; };
+  const R = runParcel(acc, zeta0, w0, t, Math.min(0.5, 0.01 / N),
+    z => Math.max(Math.abs(z) - cap, -Math.min(rho0 + drhoadz * z, rho0 + drhodz * z)));
+  return R.stopped && R.tStop < t - 1e-12 ? NaN : R.zs[R.zs.length - 1];
+}
+/** p = p0 (T/T0)^(−g/(RΓ)) for T = T0 + Γz; isothermal p0 exp(−gz/(RT0)) when Γ = 0. */
+function linearLapsePressure(z, p0, T0, dTdz, R = R_AIR, g = G0) {
+  if (dTdz === 0) return p0 * Math.exp(-g * z / (R * T0));
+  const T = T0 + dTdz * z;
+  if (!(T > 0)) throw new Error('T along the layer must stay > 0');
+  return p0 * Math.pow(T / T0, -g / (R * dTdz));
+}
+/** θ = T (p_o/p)^((γ−1)/γ), Eq. (1.31) solved for θ. */
+function potentialTemperature(T, p, pRef = P_REF, gamma = GAMMA_AIR) { if (!(p > 0)) throw new Error('p must be > 0'); return T * Math.pow(pRef / p, (gamma - 1.0) / gamma); }
+/** dθ/dz = (θ/T)(dT/dz + g/C_p), Eq. (1.32). */
+function thetaGradient(T, dTdz, theta, cp = CP_AIR, g = G0) { return theta / T * (dTdz + g / cp); }
+function isentropicDensityGradient(rho, c, g = G0) { return -rho * g / (c * c); }
+function oceanCriterion(drhodz, rho, c, g = G0) { return drhodz + rho * g / (c * c); }
+function seawaterLinear(T, S, rho0 = 1027.0, alphaT = 1.67e-4, betaS = 7.6e-4, T0 = 283.15, S0 = 35.0) {
+  return rho0 * (1.0 - alphaT * (T - T0) + betaS * (S - S0));
+}
+/** Piecewise-linear lower atmosphere: neutral mixed layer (Γa), inversion, stable layer above. */
+function blProfile(z, Ts = 288.15, mixedTop = 800.0, invDepth = 200.0, invdTdz = 0.01, mixeddTdz = GA, upperdTdz = -0.0045) {
+  const e = [0.0, mixedTop, mixedTop + invDepth], sl = [mixeddTdz, invdTdz, upperdTdz];
+  const Te = [Ts + 0.0, Ts + sl[0] * (e[1] - e[0]), Ts + (sl[0] * (e[1] - e[0]) + sl[1] * (e[2] - e[1]))];
+  const k = z >= e[2] ? 2 : z >= e[1] ? 1 : 0;
+  return Te[k] + sl[k] * (z - e[k]);
+}
+
+/* ===================================================================================================
+   MODEL — one state → environment, parcel run, verdict (cached; the clock only changes u)
+   =================================================================================================== */
+const H_COL = { atm: 3000, ocean: 300, lab: 0.5 };
+const MIX_TOP = 800, INV_TOP = 1000;
+let S_NOW = null, _mkey = null, _M = null;
+
+function atmEnvironment(s) {
+  const zo = s.zo, T0 = s.T0, G = s.dTdz / 1e3;
+  if (!s.inv) {
+    const Ts = T0 - G * zo;
+    return { T: z => Ts + G * z, lapse: () => G, Ts, edges: [0], slopes: [G] };
+  }
+  const I = s.invRate / 1e3, Ts = T0 - blProfile(zo, 0.0, MIX_TOP, INV_TOP - MIX_TOP, I, GA, G);
+  return { T: z => blProfile(z, Ts, MIX_TOP, INV_TOP - MIX_TOP, I, GA, G), lapse: z => (z >= INV_TOP ? G : z >= MIX_TOP ? I : GA), Ts, edges: [0, MIX_TOP, INV_TOP], slopes: [GA, I, G] };
+}
+/** hydrostatic pressure layer by layer from P_ATM at the ground (as synthetic_boundary_layer_column). */
+function atmPressure(env, z) {
+  let pb = P_ATM;
+  for (let k = 0; k < env.edges.length; k++) {
+    const top = k + 1 < env.edges.length ? env.edges[k + 1] : Infinity, zb = env.edges[k];
+    if (z < top) return linearLapsePressure(z - zb, pb, env.T(zb), env.slopes[k]);
+    pb = linearLapsePressure(top - zb, pb, env.T(zb), env.slopes[k]);
+  }
+  return pb;
+}
+function layerName(z) { return z >= INV_TOP ? 'above the inversion' : z >= MIX_TOP ? 'inside the inversion' : 'in the mixed layer'; }
+
 function model(s) {
-  const key = [s.path, s.vr, s.Tr, s.gas, s.proc].join('|');
-  if (key === _mkey) return _model;
-  const gamma = GAS[s.gas] || 1.4, cv = R_AIR / (gamma - 1), cp = cv + R_AIR;
-  let vr = s.vr, Tr = s.Tr;
-  if (s.proc === 'stir') { vr = 1; Tr = Math.max(Tr, 1); }
-  if (s.proc === 'free') { Tr = 1; vr = Math.max(vr, 1); }
-  const v2 = vr * V1, T2 = Tr * T1;
-  const M = { gamma, cv, cp, v1: V1, T1, p1: P1, v2, T2, p2: R_AIR * T2 / v2, proc: s.proc, vr, Tr };
-  if (s.proc === 'rev') {
-    let kind = s.path;
-    if (kind === 'isothermal' && Math.abs(Tr - 1) > 1e-9) kind = 'isothermal-isochoric';
-    M.kind = kind;
-    const names = kind.split('-'), states = [[V1, T1]];
-    if (names.length === 2) states.push(cornerState(kind, V1, T1, v2, T2, gamma));
-    states.push([v2, T2]);
-    M.corner = names.length === 2 ? states[1] : null;
-    M.legs = names.map((k, i) => ({ kind: k, va: states[i][0], Ta: states[i][1], vb: states[i + 1][0], Tb: states[i + 1][1] }));
-    M.tot = pathTotals(kind, V1, T1, v2, T2, gamma, R_AIR);
-  } else if (s.proc === 'stir') {
-    M.kind = 'stir'; M.legs = [{ kind: 'stir', va: V1, Ta: T1, vb: V1, Tb: T2 }];
-    M.tot = irreversible('stirring', T1, V1, cv, R_AIR, T2, null);
+  const key = [s.medium, s.dTdz, s.conv, s.zo, s.T0, s.inv, s.invRate, s.zeta0, s.drhodz, s.compress].join('|');
+  if (key === _mkey) return _M;
+  const md = s.medium, H = H_COL[md], M = { medium: md, H, zeta0: s.zeta0 * H / 3000 };
+  let maxN2;
+  if (md === 'atm') {
+    const env = atmEnvironment(s), zo = s.zo, T0 = s.T0;
+    Object.assign(M, { env, zo, T0, zlo: 0, zhi: 3000, G: env.lapse(zo) });
+    M.N2 = N2FromLapse(T0, M.G);
+    M.stab = lapseStability(M.G, null, s.conv);
+    M.stabK = lapseStability(M.G, null, 'kundu'); M.stabM = lapseStability(M.G, null, 'meteorology');
+    M.bareK = lapseStability(M.G, null, 'kundu', { prefix: false }).text;
+    M.bareM = lapseStability(M.G, null, 'meteorology', { prefix: false }).text;
+    M.code = M.stab.code;
+    M.p0 = atmPressure(env, zo); M.theta0 = potentialTemperature(T0, M.p0); M.dth = thetaGradient(T0, M.G, M.theta0);
+    M.Tp = zeta => T0 - G0 * zeta / CP_AIR;
+    M.Te = zeta => env.T(zo + zeta);
+    M.acc = zeta => { const Te = M.Te(zeta); return G0 * (M.Tp(zeta) - Te) / Te; };
+    M.cap = Math.min(zo - M.zlo, M.zhi - zo);
+    M.guard = z => Math.max(Math.abs(z) - M.cap, 0.1 * T0 - Math.min(M.Tp(z), M.Te(z)));
+    maxN2 = Math.max.apply(null, env.slopes.map(sl => Math.abs(N2FromLapse(T0, sl))));
   } else {
-    M.kind = 'free'; M.legs = [{ kind: 'free', va: V1, Ta: T1, vb: v2, Tb: T1 }];
-    M.tot = irreversible('free_expansion', T1, V1, cv, R_AIR, null, v2);
+    const rho0 = md === 'ocean' ? RHO_SEA : RHO_LAB, drho = md === 'ocean' ? s.drhodz : s.drhodz * 1000;
+    const drhoaC = isentropicDensityGradient(rho0, C_SEA), drhoa = md === 'ocean' && s.compress ? drhoaC : 0.0;
+    Object.assign(M, { rho0, drho, drhoa, drhoaC, zo: md === 'ocean' ? -150 : 0.25, zlo: md === 'ocean' ? -300 : 0, zhi: md === 'ocean' ? 0 : 0.5 });
+    M.N2 = N2Density(rho0, drho, drhoa);
+    M.code = { stable: 1, neutral: 0, unstable: -1 }[classifyStability(M.N2)];
+    M.drhoth = drho - drhoa;                                          // (1.35)
+    M.rhop = zeta => rho0 + drhoa * zeta; M.rhoe = zeta => rho0 + drho * zeta;
+    M.acc = zeta => { const rp = M.rhop(zeta); return -G0 * (rp - M.rhoe(zeta)) / rp; };
+    M.cap = Math.min(M.zo - M.zlo, M.zhi - M.zo);
+    M.guard = z => Math.max(Math.abs(z) - M.cap, -Math.min(M.rhop(z), M.rhoe(z)));
+    maxN2 = Math.abs(M.N2);
   }
-  M.ds = entropyChange(T1, V1, T2, v2, cv, R_AIR);                          // Gibbs, any process
-  M.de = cv * (T2 - T1);
-  // leg bookkeeping: exact totals, visual length (in ln v, ln T), samples; a zero-length leg (e.g. the pump preset's
-  // isochore) gets no share of the animation and is skipped when drawn
-  let Ltot = 0;
-  M.legs.forEach(L => {
-    L.len = Math.hypot(Math.log(L.vb / L.va), Math.log(L.Tb / L.Ta));
-    L.zero = L.len < 1e-9;
-    L.tot = s.proc === 'rev' ? legTotals(L.kind, L.va, L.Ta, L.vb, L.Tb, cv, R_AIR) : M.tot;
-    const pk = L.kind === 'stir' ? 'isochoric' : L.kind === 'free' ? 'isothermal' : L.kind;
-    L.pk = pk; L.smp = legSamples(pk, L.va, L.Ta, L.vb, L.Tb, NLEG, gamma);
-    L.smp.p = L.smp.v.map((x, i) => R_AIR * L.smp.T[i] / x);
-    L.smp.s = L.smp.v.map((x, i) => entropyChange(T1, V1, L.smp.T[i], x, cv, R_AIR));
-    Ltot += L.zero ? 0 : L.len;
-  });
-  let acc = 0;
-  M.legs.forEach((L, i) => { L.u0 = acc; acc += Ltot > 0 ? (L.zero ? 0 : L.len / Ltot) : (i === 0 ? 1 : 0); L.u1 = acc; });
-  // ghost routes between the same two states (reversible ones only)
-  M.ghosts = ROUTES.filter(r => r[0] !== 'isothermal' || Math.abs(Tr - 1) < 1e-9).map(r => {
-    const d = processPath(r[0], [V1, T1], [v2, T2], 121, gamma, R_AIR);
-    return { kind: r[0], name: r[1], v: d.v, p: d.p, s: d.v.map((x, i) => entropyChange(T1, V1, d.T[i], x, cv, R_AIR)), T: d.T, tot: pathTotals(r[0], V1, T1, v2, T2, gamma, R_AIR) };
-  });
-  // plot bounds
-  let vmax = Math.max(V1, v2), pmax = Math.max(P1, M.p2), smin = Math.min(0, M.ds), smax = Math.max(0, M.ds), Tmax = Math.max(T1, T2);
-  M.ghosts.concat(M.legs.map(L => ({ v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T }))).forEach(G => {
-    G.v.forEach((x, i) => { vmax = Math.max(vmax, x); pmax = Math.max(pmax, G.p[i]); smin = Math.min(smin, G.s[i]); smax = Math.max(smax, G.s[i]); Tmax = Math.max(Tmax, G.T[i]); });
-  });
-  M.vmax = vmax; M.pmax = pmax; M.smin = smin; M.smax = smax; M.Tmax = Tmax;
-  _mkey = key; _model = M;
+  M.ts = stabilityTimescale(M.N2, md === 'atm' ? 1e-12 : 1e-12);
+  if (md === 'atm' && M.code === 0) M.ts = { kind: 'none', seconds: Infinity };
+  const tcap = md === 'lab' ? 120 : 3600, tneu = md === 'lab' ? 60 : 1200;
+  M.tEnd = M.ts.kind === 'period' ? Math.min(3 * M.ts.seconds, tcap) : M.ts.kind === 'efold' ? Math.min(5 * M.ts.seconds, tcap) : tneu;
+  const dt = Math.min(M.tEnd / 2000, maxN2 > 0 ? 0.02 / Math.sqrt(maxN2) : Infinity);
+  M.run = runParcel(M.acc, M.zeta0, 0.0, M.tEnd, dt, M.guard);
+  M.maxAbs = Math.max.apply(null, M.run.zs.map(Math.abs));
+  M.accMax = Math.max(1e-12, Math.max.apply(null, M.run.zs.map(z => Math.abs(M.acc(z)))));
+  const L = Math.min(Math.max(3 * Math.abs(M.zeta0), H / 20, 1.15 * M.maxAbs), Math.max(M.zo - M.zlo, M.zhi - M.zo));
+  M.wlo = Math.max(M.zlo, M.zo - L); M.whi = Math.min(M.zhi, M.zo + L);
+  _mkey = key; _M = M;
   return M;
 }
-/** The state at progress u ∈ [0, 1] along the route, with the running totals so far (exact, leg by leg). */
-function at(M, u) {
-  u = Math.max(0, Math.min(1, u));
-  let i = M.legs.findIndex(L => !L.zero && u <= L.u1 + 1e-12);
-  if (i < 0) i = M.legs.length - 1;
-  const L = M.legs[i], f = L.u1 > L.u0 ? (u - L.u0) / (L.u1 - L.u0) : 1;
-  const pt = legPoint(L.pk, L.va, L.Ta, L.vb, L.Tb, Math.max(0, Math.min(1, f)), M.gamma);
-  const v = pt[0], T = pt[1], out = { i, f, v, T, p: R_AIR * T / v, leg: L };
-  if (M.proc === 'rev') {
-    let q = 0, w = 0, de = 0;
-    for (let k = 0; k < i; k++) { q += M.legs[k].tot.q; w += M.legs[k].tot.w; de += M.legs[k].tot.de; }
-    const part = legTotals(L.kind, L.va, L.Ta, v, T, M.cv, R_AIR);
-    Object.assign(out, { q: q + part.q, w: w + part.w, de: de + part.de });
-    out.ds = entropyChange(T1, V1, T, v, M.cv, R_AIR); out.sint = out.ds;
-    out.dq = L.kind === 'isothermal' ? Math.sign(L.vb - L.va) : (L.kind === 'isochoric' || L.kind === 'isobaric') ? Math.sign(L.Tb - L.Ta) : 0;
-  } else if (M.proc === 'stir') {
-    const de = M.cv * (T - T1);
-    Object.assign(out, { q: 0, w: de, de, ds: M.cv * Math.log(T / T1), sint: 0, dq: 0 });
-  } else {
-    Object.assign(out, { q: 0, w: 0, de: 0, ds: R_AIR * Math.log(v / V1), sint: 0, dq: 0 });
-  }
-  return out;
-}
-/** Samples of the route up to progress u (for the bold "so far" curve), split by leg. */
-function soFar(M, u) {
-  const now = at(M, u);
-  return M.legs.map((L, k) => {
-    if (L.zero || k > now.i) return null;
-    if (k < now.i) return { L, v: L.smp.v, p: L.smp.p, s: L.smp.s, T: L.smp.T };
-    const m = Math.floor(now.f * (NLEG - 1)), v = L.smp.v.slice(0, m + 1), p = L.smp.p.slice(0, m + 1), s = L.smp.s.slice(0, m + 1), T = L.smp.T.slice(0, m + 1);
-    v.push(now.v); p.push(now.p); s.push(now.ds === undefined ? 0 : entropyChange(T1, V1, now.T, now.v, M.cv, R_AIR)); T.push(now.T);
-    return { L, v, p, s, T };
-  }).filter(Boolean);
-}
-/** Route samples (process_path with NLEG per leg) up to the sample nearest u, and the trapezoid totals there. */
-function trapezoidAt(M, u) {
-  if (M.proc !== 'rev') return null;
-  const now = at(M, u), v = [], T = [];
-  M.legs.forEach((L, k) => {
-    if (k > now.i) return;
-    const m = k < now.i ? NLEG - 1 : Math.round(now.f * (NLEG - 1));
-    for (let j = (v.length ? 1 : 0); j <= m; j++) { v.push(L.smp.v[j]); T.push(L.smp.T[j]); }
-  });
-  if (v.length < 2) return { k: v.length, w: 0, q: 0, de: 0, v: v[0] || V1, T: T[0] || T1 };
-  const r = runningTotals(v, T, M.cv, R_AIR), n = v.length - 1;
-  return { k: v.length, w: r.w[n], q: r.q[n], de: r.de[n], v: v[n], T: T[n] };
+/** the parcel at the current time: t, ζ (nonlinear; frozen at the stop point after a runaway), linear ζ, a */
+function now(s) {
+  const M = model(s), t = s.u * M.tEnd;
+  let z = sampleRun(M.run, t);
+  const off = !isFinite(z);
+  if (off) z = M.run.zs[M.run.zs.length - 1];
+  return { M, t, z, off, zlin: parcelDisplacement(t, M.zeta0, M.N2), a: M.acc(z) };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   small drawing helpers (local; candidates for viz_lib)
-   --------------------------------------------------------------------------------------------------- */
-const f3 = (v, sig) => Viz.fmt(v, { sig: sig || 3 });
+/* ===================================================================================================
+   FORMATTING
+   =================================================================================================== */
+const f3 = (v, unit) => Viz.fmt(v, { sig: 3, unit });
+const kmK = x => Viz.fmt(x * 1e3, { sig: 3 });                        // K/m → "−6.5" (in K/km)
+const kmKp = x => Viz.fmt(x * 1e3, { sig: 3, plus: true });            // "+6.5"
 const tn = (v, sig) => Viz.tnum(v, sig || 3);
-const tp = (v, sig) => (v < 0 ? '(' + tn(v, sig) + ')' : tn(v, sig));   // negative factors in parentheses
-const kJ = v => Viz.fmt(v / 1000, { sig: 3 });
-const _hatch = {};
-/** A diagonal-hatch canvas pattern in a colour (for "negative" areas: work done on the gas, heat rejected). */
-function hatchPattern(ctx, color) {
-  if (!_hatch[color]) { const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.strokeStyle = color; x.lineWidth = 1.6; x.beginPath(); x.moveTo(-1, 9); x.lineTo(9, -1); x.stroke(); _hatch[color] = c; }
-  return ctx.createPattern(_hatch[color], 'repeat');
+function fmtT(sec, md) {
+  if (!isFinite(sec)) return '∞';
+  if (md === 'lab' || Math.abs(sec) < 90) return Viz.fmt(sec, { sig: 3 }) + ' s';
+  return Viz.fmt(sec / 60, { sig: 3 }) + ' min';
 }
-/** Fill the area between a curve (xs, ys) and the line y = base, with a colour or a pattern. */
-function fillUnder(P, xs, ys, base, fill, alpha) {
-  if (xs.length < 2) return;
-  const ctx = P.ctx; ctx.save(); ctx.globalAlpha = alpha === undefined ? 1 : alpha; ctx.fillStyle = fill; ctx.beginPath();
-  ctx.moveTo(P.X(xs[0]), P.Y(base)); xs.forEach((x, i) => ctx.lineTo(P.X(x), P.Y(ys[i]))); ctx.lineTo(P.X(xs[xs.length - 1]), P.Y(base)); ctx.closePath(); ctx.fill(); ctx.restore();
+function fmtZ(z, md) { return md === 'lab' ? Viz.fmt(z * 100, { sig: 3 }) + ' cm' : Viz.fmt(z, { sig: 3 }) + ' m'; }
+function regimeColor(code) { return Viz.color(code === 1 ? 'teal' : code === 0 ? 'amber' : 'rose'); }
+function regimeWord(code) { return code === 1 ? 'stable' : code === 0 ? 'neutral' : 'unstable'; }
+function tsText(M) { return M.ts.kind === 'period' ? 'period ' + fmtT(M.ts.seconds, M.medium) : M.ts.kind === 'efold' ? 'e-folds every ' + fmtT(M.ts.seconds, M.medium) : 'no time scale'; }
+const DEFAULTS = { medium: 'atm', dTdz: -6.5, conv: 'kundu', zeta0: 100, inv: false, drhodz: -0.01, invRate: 10, zo: 1500, T0: 288.15, showTheta: false, compress: false, u: 0 };
+const cur = () => S_NOW || DEFAULTS;
+const GA_KM = GA * 1e3;
+
+/* ===================================================================================================
+   VIEWS
+   =================================================================================================== */
+/** v.plot for narrow views: the library clamps pad.l to 40 px below 420 px, where a rotated y title then covers
+    4-character tick labels ("−150" read as "150"). Shift the plot 18 px right and draw the title in that strip.
+    Promotion candidate: Plot option {ylabelGutter: true}. */
+function vplot(v, opt) {
+  if (v.w >= 420) return v.plot(opt);
+  const yl = opt.ylabel;
+  const P = v.plot(Object.assign({}, opt, { ylabel: '', rect: { x: 18, y: 0, w: Math.max(20, v.w - 18), h: v.h } }));
+  const axes = P.axes;
+  P.axes = o => {
+    axes(o);
+    if (yl) { const c = v.ctx; c.save(); c.font = '12px ' + getComputedStyle(document.body).fontFamily; c.fillStyle = Viz.color('text-soft'); c.translate(9, P.px.y + P.px.h / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore(); }
+    return P;
+  };
+  return P;
 }
-/** Temperature colour: blue (cold) → orange (hot). */
-function tempColor(T, a) {
-  const t = Math.max(0, Math.min(1, (T - 120) / (620 - 120))), c0 = [37, 99, 235], c1 = [249, 115, 22];
-  return `rgba(${Math.round(c0[0] + (c1[0] - c0[0]) * t)},${Math.round(c0[1] + (c1[1] - c0[1]) * t)},${Math.round(c0[2] + (c1[2] - c0[2]) * t)},${a === undefined ? 1 : a})`;
+function colDisp(md) { return md === 'atm' ? { k: 1e-3, unit: 'km' } : md === 'ocean' ? { k: 1, unit: 'm' } : { k: 100, unit: 'cm' }; }
+function proDisp(md) { return md === 'lab' ? { k: 100, unit: 'cm' } : { k: 1, unit: 'm' }; }
+function columnPlot(v, M) {
+  const d = colDisp(M.medium);
+  return vplot(v, { xlim: [0, 1], ylim: [M.zlo * d.k, M.zhi * d.k], pad: { l: 40, r: 6, t: 8, b: 24 }, xlabel: v.w < 120 ? '' : M.medium === 'atm' ? 'colour = θ' : 'colour = ρ', ylabel: 'z [' + d.unit + ']' });
 }
-function canvasText(ctx, str, x, y, o) {
-  o = o || {}; ctx.save(); ctx.font = (o.weight || 600) + ' ' + (o.size || 12.5) + 'px ' + getComputedStyle(document.body).fontFamily;
-  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.baseline || 'middle';
-  if (o.halo !== false) { ctx.lineWidth = 3; ctx.strokeStyle = Viz.alpha(Viz.color('card'), 0.9); ctx.strokeText(str, x, y); }
-  ctx.fillStyle = o.color || Viz.color('text'); ctx.fillText(str, x, y); ctx.restore();
+function profileRanges(s, M) {
+  const d = proDisp(M.medium), zs = Viz.num.linspace(M.wlo, M.whi, 41);
+  let xs = [];
+  if (M.medium === 'atm') {
+    if (s.showTheta) xs = zs.map(z => potentialTemperature(M.env.T(z), atmPressure(M.env, z))).concat([M.theta0]);
+    else xs = zs.map(z => M.env.T(z)).concat(zs.map(z => M.Tp(z - M.zo)));
+  } else xs = zs.map(z => M.rhoe(z - M.zo) - 1000).concat(zs.map(z => M.rhop(z - M.zo) - 1000));
+  let lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
+  const span = Math.max(hi - lo, M.medium === 'atm' ? 0.4 : M.medium === 'ocean' ? 0.02 : 0.2);
+  const mid = (lo + hi) / 2; lo = mid - span * 0.62; hi = mid + span * 0.62;
+  return { d, xlim: [lo, hi], ylim: [M.wlo * d.k, M.whi * d.k] };
 }
-const PV_BOUNDS = M => ({ xlim: [0, M.proc === 'stir' ? 2 * V1 : M.vmax * 1.1], ylim: [0, M.pmax / 1000 * 1.25] });
-const TS_BOUNDS = M => { const span = Math.max(40, M.smax - M.smin); return { xlim: [M.smin - 0.12 * span, M.smax + 0.12 * span], ylim: [0, M.Tmax * 1.16] }; };
-function nearestU(M, P, px, py, key) {           // progress u of the route sample nearest to a pixel
-  let best = null, bd = Infinity;
-  M.legs.forEach(L => {
-    if (L.zero) return;
-    for (let j = 0; j < NLEG; j++) {
-      const x = key === 'pv' ? L.smp.v[j] : L.smp.s[j], y = key === 'pv' ? L.smp.p[j] / 1000 : L.smp.T[j];
-      const d = Math.hypot(P.X(x) - px, P.Y(y) - py);
-      if (d < bd) { bd = d; best = L.u0 + (L.u1 - L.u0) * j / (NLEG - 1); }
+function profilePlot(v, s, M) {
+  const r = profileRanges(s, M);
+  const xl = M.medium === 'atm' ? (s.showTheta ? 'θ [K]' : 'T [K]') : 'ρ − 1000 [kg/m³]';
+  return vplot(v, { xlim: r.xlim, ylim: r.ylim, pad: { l: 50, r: 10, t: 10, b: 36 }, xlabel: xl, ylabel: 'z [' + r.d.unit + ']' });
+}
+function zetaDisp(md) { return md === 'lab' ? { k: 100, unit: 'cm', tk: 1, tunit: 's' } : { k: 1, unit: 'm', tk: 1 / 60, tunit: 'min' }; }
+function zetaPlot(v, M) {
+  const d = zetaDisp(M.medium), A = 1.18 * Math.max(Math.abs(M.zeta0), M.maxAbs, M.H / 3000);
+  return vplot(v, { xlim: [0, M.tEnd * d.tk], ylim: [-A * d.k, A * d.k], pad: { l: 50, r: 12, t: 10, b: 36 }, xlabel: 't [' + d.tunit + ']', ylabel: 'ζ [' + d.unit + ']' });
+}
+/** x-axis ticks whose decimals follow the tick step (the library's 3-significant-figure labels repeat on
+    narrow ranges such as 301.9 … 302.3 K). Promotion candidate: Plot.axes({xdecimals: 'auto'}). */
+function xTicks(P, v) {
+  const ctx = v.ctx, px = P.px, t = Viz.num.niceTicks(P.xlim[0], P.xlim[1], Math.max(2, Math.round(px.w / 90)));
+  const step = t.length > 1 ? Math.abs(t[1] - t[0]) : 1, dec = Math.max(0, Math.min(5, -Math.floor(Math.log10(step) + 1e-9)));
+  ctx.save();
+  ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1; ctx.beginPath();
+  t.forEach(x => { const X = Math.round(P.X(x)) + 0.5; ctx.moveTo(X, px.y); ctx.lineTo(X, px.y + px.h); });
+  ctx.stroke();
+  ctx.font = '12px ' + getComputedStyle(document.body).fontFamily; ctx.fillStyle = Viz.color('axis'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  t.forEach(x => ctx.fillText(x.toFixed(dec).replace('-', '−'), P.X(x), px.y + px.h + 4));
+  ctx.restore();
+}
+function drawText(v, x, y, str, o) { const c = v.ctx; c.save(); c.font = (o && o.weight || 600) + ' 12px ' + getComputedStyle(document.body).fontFamily; c.fillStyle = (o && o.color) || Viz.color('text'); c.textAlign = (o && o.align) || 'left'; c.textBaseline = 'middle';
+  if (o && o.bg) { const w = c.measureText(str).width, al = c.textAlign, x0 = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x; c.fillStyle = Viz.alpha(Viz.color('card'), 0.92); c.fillRect(x0 - 4, y - 9, w + 8, 18); c.fillStyle = (o && o.color) || Viz.color('text'); }
+  c.lineWidth = 3; c.strokeStyle = Viz.alpha(Viz.color('card'), 0.9); c.strokeText(str, x, y); c.fillText(str, x, y); c.restore(); }
+
+function drawColumn(v, s, N) {
+  v.clear(); if (v.w < 40 || v.h < 60) return;
+  const M = N.M, P = columnPlot(v, M), d = colDisp(M.medium), ctx = v.ctx, px = P.px;
+  const nb = 90, vals = [];
+  for (let i = 0; i < nb; i++) {
+    const z = M.zlo + (i + 0.5) / nb * (M.zhi - M.zlo);
+    vals.push(M.medium === 'atm' ? potentialTemperature(M.env.T(z), atmPressure(M.env, z)) : M.rhoe(z - M.zo));
+  }
+  const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), cm = M.medium === 'atm' ? 'coolwarm' : 'ocean';
+  for (let i = 0; i < nb; i++) {
+    let f = hi - lo > 1e-12 ? (vals[i] - lo) / (hi - lo) : 0.5;
+    if (M.medium !== 'atm') f = 1 - f;                                     // denser water darker
+    const c = Viz.cmap(cm, 0.12 + 0.76 * f), y1 = P.Y((M.zlo + i / nb * (M.zhi - M.zlo)) * d.k), y0 = P.Y((M.zlo + (i + 1) / nb * (M.zhi - M.zlo)) * d.k);
+    ctx.fillStyle = 'rgb(' + c.map(Math.round).join(',') + ')'; ctx.globalAlpha = 0.55; ctx.fillRect(px.x, y0, px.w, y1 - y0 + 0.6); ctx.globalAlpha = 1;
+  }
+  P.axes({ xticks: [], grid: false, zeroLines: false });
+  if (M.medium === 'atm' && s.inv) {
+    P.rectW(0.03, MIX_TOP * d.k, 0.94, (INV_TOP - MIX_TOP) * d.k, { color: Viz.color('amber'), width: 1.5, dash: [4, 3] });
+    if (v.w > 90) drawText(v, px.x + 4, P.Y(INV_TOP * d.k) - 8, 'inversion', { color: Viz.color('amber'), weight: 650 });
+  }
+  // the profile view's zoom window
+  P.rectW(0.015, M.wlo * d.k, 0.97, (M.whi - M.wlo) * d.k, { color: Viz.alpha(Viz.color('accent'), 0.7), width: 1, dash: [2, 3] });
+  P.line([0, 1], [M.zo * d.k, M.zo * d.k], { color: Viz.color('text'), width: 1, dash: [5, 4] });
+  const zc = (M.zo + N.z) * d.k, col = regimeColor(M.code), r = Math.max(5, Math.min(10, px.w * 0.12));
+  P.dot(0.38, zc, r, { color: col, stroke: '#fff', strokeWidth: 2 });
+  if (v.w > 90) drawText(v, px.x + px.w * 0.38 + r + 4, P.Y(M.zo * d.k) + (N.z >= 0 ? 10 : -10), 'zₒ', { color: Viz.color('muted'), weight: 500 });
+  const a = N.a, len = Math.min(0.42 * (M.zhi - M.zlo) * d.k, Math.abs(a) / M.accMax * 0.16 * (M.zhi - M.zlo) * d.k);
+  if (Math.abs(a) > M.accMax * 1e-3 && len > 0) {
+    const restoring = a * N.z < 0;
+    P.arrow(0.74, zc, 0, Math.sign(a) * Math.max(len, (M.zhi - M.zlo) * d.k * 0.04), { color: Viz.color(restoring ? 'teal' : 'rose'), width: 3, head: 9 });
+  }
+}
+
+function drawProfile(v, s, N) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const M = N.M, P = profilePlot(v, s, M).axes({ xticks: [] }), d = proDisp(M.medium), zs = Viz.num.linspace(M.wlo, M.whi, 90);
+  xTicks(P, v);
+  const Z = z => z * d.k, zc = M.zo + N.z, restoring = N.a * N.z < 0, fcol = Viz.color(Math.abs(N.a) < M.accMax * 1e-3 ? 'amber' : restoring ? 'teal' : 'rose');
+  P.clip(() => {
+    if (M.medium === 'atm' && s.inv) {
+      const a0 = Math.max(M.wlo, MIX_TOP), a1 = Math.min(M.whi, INV_TOP);
+      if (a1 > a0) P.fillBetween(P.xlim, Z(a0), Z(a1), { color: Viz.color('amber'), alpha: 0.12 });
+    }
+    P.line(P.xlim, [Z(M.zo), Z(M.zo)], { color: Viz.alpha(Viz.color('muted'), 0.8), width: 1, dash: [5, 4] });
+    if (s.probeZ !== undefined && s.probeZ !== null && s.probeZ >= M.wlo && s.probeZ <= M.whi)
+      P.line(P.xlim, [Z(s.probeZ), Z(s.probeZ)], { color: Viz.alpha(Viz.color('orange'), 0.8), width: 1.2, dash: [2, 3] });
+    let xe, xp, xNow, xeNow, dlabel;
+    if (M.medium === 'atm' && s.showTheta) {
+      const th = z => potentialTemperature(M.env.T(z), atmPressure(M.env, z));
+      P.line(zs.map(th), zs.map(Z), { color: Viz.color('text'), width: 2.6 });
+      P.line([M.theta0, M.theta0], [Z(M.wlo), Z(M.whi)], { color: Viz.color('accent'), width: 2, dash: [7, 5] });
+      xNow = M.theta0; xeNow = th(zc);
+      dlabel = 'Δθ = ' + Viz.fmt(xNow - xeNow, { sig: 2 }) + ' K';
+      xe = th(M.whi); xp = M.theta0;
+    } else if (M.medium === 'atm') {
+      P.line(zs.map(z => M.env.T(z)), zs.map(Z), { color: Viz.color('text'), width: 2.6 });
+      P.line(zs.map(z => M.Tp(z - M.zo)), zs.map(Z), { color: Viz.color('accent'), width: 2, dash: [7, 5] });
+      xNow = M.Tp(N.z); xeNow = M.Te(N.z);
+      dlabel = 'ΔT = ' + Viz.fmt(xNow - xeNow, { sig: 2 }) + ' K';
+      xe = M.env.T(M.whi); xp = M.Tp(M.whi - M.zo);
+    } else {
+      P.line(zs.map(z => M.rhoe(z - M.zo) - 1000), zs.map(Z), { color: Viz.color('text'), width: 2.6 });
+      P.line(zs.map(z => M.rhop(z - M.zo) - 1000), zs.map(Z), { color: Viz.color('accent'), width: 2, dash: [7, 5] });
+      xNow = M.rhop(N.z) - 1000; xeNow = M.rhoe(N.z) - 1000;
+      dlabel = 'Δρ = ' + Viz.fmt(xNow - xeNow, { sig: 2 }) + ' kg/m³';
+      xe = M.rhoe(M.whi - M.zo) - 1000; xp = M.rhop(M.whi - M.zo) - 1000;
+    }
+    P.line([xNow, xeNow], [Z(zc), Z(zc)], { color: fcol, width: 3 });
+    P.dot(xeNow, Z(zc), 3.5, { color: Viz.color('text') });
+    P.dot(xNow, Z(zc), 7, { color: regimeColor(M.code), stroke: '#fff', strokeWidth: 2 });
+    if (v.w > 240 && v.h > 140) {
+      const heavier = M.medium === 'atm' ? xNow < xeNow : xNow > xeNow, same = Math.abs(N.a) < M.accMax * 1e-3;
+      const txt = dlabel + (same ? ' · no force' : heavier ? ' → pushed down' : ' → pushed up');
+      const X = P.X((xNow + xeNow) / 2), Y = P.Y(Z(zc)) + (N.z >= 0 ? -20 : 20);
+      drawText(v, Math.max(P.px.x + 4, Math.min(P.px.x + P.px.w - 4, X)), Y, txt, { color: fcol, bg: true, align: X < P.px.x + P.px.w * 0.3 ? 'left' : X > P.px.x + P.px.w * 0.7 ? 'right' : 'center' });
+      const envName = M.medium === 'atm' ? (s.showTheta ? 'environment θ' : 'environment T') : 'environment ρ';
+      const pName = M.medium === 'atm' ? (s.showTheta ? "parcel's θ" : "parcel's adiabat") : 'parcel ρₐ';
+      if (v.h > 220 && v.w > 320) {
+        const top = P.Y(Z(M.whi)) + 12, mid = P.px.x + P.px.w / 2;
+        const place = (x, y, str, color) => { const X = P.X(x), inLeft = X < mid; drawText(v, X + (inLeft ? 8 : -8), y, str, { align: inLeft ? 'left' : 'right', color }); };
+        place(xe, top + 2, envName, Viz.color('text'));
+        place(xp, top + 20, pName, Viz.color('accent'));
+      }
     }
   });
-  return bd < 40 ? best : null;
 }
-/** The physical system: a cylinder with a piston (reversible), a stirred rigid tank, or a tank with a burst membrane. */
-function drawGas(vg, g, s, M, now) {
-  const ctx = vg.ctx, W = vg.w, H = vg.h;
-  const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), text = Viz.color('text');
-  const rc = W < 420 ? Math.min(128, W * 0.38) : Math.min(190, W * 0.3);
-  const x0 = 14, x1 = W - rc - 48;
-  const capH = H >= 110 ? 20 : 0;
-  const ch = Math.max(26, Math.min(H - 44 - capH, Math.max(124, H * 0.58))), y0 = Math.max(6, (H - ch + capH) / 2 - 7), y1 = y0 + ch;
-  g.gasBox = { x0, x1 };
-  const L = now.leg, rev = M.proc === 'rev';
-  let vScale = 0; M.legs.forEach(Lg => Lg.smp.v.forEach(v => { vScale = Math.max(vScale, v); }));
-  vScale *= 1.08;
-  const insulated = !rev || L.kind === 'isentropic';
-  // insulation jacket
-  if (insulated) {
-    ctx.save(); ctx.fillStyle = hatchPattern(ctx, Viz.alpha(muted, 0.5));
-    ctx.fillRect(x0 - 8, y0 - 8, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y1, x1 - x0 + 16, 8); ctx.fillRect(x0 - 8, y0, 8, ch);
-    if (!rev) ctx.fillRect(x1, y0, 8, ch);
-    ctx.restore();
-  }
-  // gas region
-  let gx0 = x0, gx1;
-  if (rev) gx1 = x0 + (now.v / vScale) * (x1 - x0);
-  else if (M.proc === 'stir') gx1 = x1;
-  else gx1 = x0 + (now.v / M.v2) * (x1 - x0);
-  ctx.save();
-  if (M.proc === 'free') { ctx.fillStyle = Viz.alpha(muted, 0.07); ctx.fillRect(x0, y0, x1 - x0, ch); }
-  ctx.fillStyle = tempColor(now.T, 0.42); ctx.fillRect(gx0, y0, Math.max(0, gx1 - gx0), ch);
-  // molecules
-  const dotC = tempColor(now.T, 0.95);
-  ctx.fillStyle = dotC;
-  (g.mol || []).forEach(m => { const X = gx0 + 3 + m.x * Math.max(0, gx1 - gx0 - 6), Y = y0 + 3 + m.y * (ch - 6); ctx.beginPath(); ctx.arc(X, Y, 2.2, 0, 2 * Math.PI); ctx.fill(); });
-  // walls
-  ctx.strokeStyle = text; ctx.lineWidth = 2.5; ctx.beginPath();
-  ctx.moveTo(x1 + (rev ? 26 : 0), y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1 + (rev ? 26 : 0), y1);
-  if (!rev) { ctx.moveTo(x1, y0); ctx.lineTo(x1, y1); }
-  ctx.stroke();
-  ctx.restore();
-  if (rev) {
-    // piston + rod
-    ctx.save(); ctx.fillStyle = Viz.alpha(muted, 0.85); ctx.fillRect(gx1, y0 + 1, 9, ch - 2);
-    ctx.fillRect(gx1 + 9, (y0 + y1) / 2 - 3, Math.max(0, x1 + 34 - gx1 - 9), 6); ctx.restore();
-    const dv = Math.sign(L.vb - L.va);
-    if (dv !== 0 && !L.zero) {
-      const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
-      const ya = y0 + 12;
-      P.arrow(gx1 + 4 - dv * 26, ya, dv * 22, 0, { color: blue, width: 2.5 });
-    }
-  } else if (M.proc === 'stir') {
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, r = Math.min(ch * 0.36, (x1 - x0) * 0.2), a = g.angle || 0;
-    ctx.save(); ctx.strokeStyle = text; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(cx, y0 - 10); ctx.lineTo(cx, cy); ctx.stroke();
-    ctx.lineWidth = 4; ctx.strokeStyle = Viz.color('rose');
-    for (let k = 0; k < 3; k++) { const b = a + k * 2 * Math.PI / 3; ctx.beginPath(); ctx.moveTo(cx - r * Math.cos(b), cy - 0.45 * r * Math.sin(b)); ctx.lineTo(cx + r * Math.cos(b), cy + 0.45 * r * Math.sin(b)); ctx.stroke(); }
-    ctx.restore();
-  } else {
-    const xm = x0 + (V1 / M.v2) * (x1 - x0);
-    ctx.save(); ctx.strokeStyle = Viz.color('rose'); ctx.lineWidth = 2;
-    if (s.prog < 0.02) { ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y1); ctx.stroke(); }
-    else { ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(xm, y0); ctx.lineTo(xm, y0 + ch * 0.25); ctx.moveTo(xm, y1 - ch * 0.25); ctx.lineTo(xm, y1); ctx.stroke(); }
-    ctx.restore();
-    if (gx1 < x1 - 40 && x1 - xm > 50) canvasText(ctx, 'vacuum', (Math.max(gx1, xm) + x1) / 2, (y0 + y1) / 2, { align: 'center', color: muted, size: 12, weight: 500 });
-  }
-  // heater / cooler under the cylinder
-  if (rev && !insulated && !L.zero) {
-    const on = now.dq, col = on > 0 ? orange : on < 0 ? blue : Viz.alpha(muted, 0.5), n = Math.max(3, Math.floor((x1 - x0) / 34));
-    const P = vg.plot({ rect: { x: 0, y: 0, w: W, h: H }, pad: { l: 0, r: 0, t: 0, b: 0 }, xlim: [0, W], ylim: [H, 0] });
-    for (let k = 0; k < n; k++) {
-      const X = x0 + (k + 0.5) * (x1 - x0) / n;
-      if (on > 0) P.arrow(X, Math.min(H - 2, y1 + 17), 0, -14, { color: col, width: 2.2, head: 6 });
-      else if (on < 0) P.arrow(X, y1 + 3, 0, 14, { color: col, width: 2.2, head: 6 });
-    }
-  }
-  // caption: what the boundary is doing right now
-  if (capH) {
-    const live = M.legs.filter(Lg => !Lg.zero), li = live.indexOf(L);
-    const cap = rev ? (L.zero ? 'no change' : `${live.length > 1 ? 'leg ' + (li + 1) + ' of ' + live.length + ' · ' : ''}${L.kind} · ${now.dq > 0 ? 'heater on: heat flows in' : now.dq < 0 ? 'cooler on: heat flows out' : 'insulated: no heat'}`)
-      : M.proc === 'stir' ? 'rigid, insulated tank · only paddle work goes in' : (s.prog < 0.02 ? 'insulated · membrane holds the gas · vacuum beyond' : 'membrane burst · no heat, no work');
-    canvasText(ctx, cap, x0 - 6, Math.max(9, y0 - 19), { color: now.dq > 0 && rev ? orange : now.dq < 0 && rev ? blue : muted, size: 12.5, weight: 600 });
-  }
-  // counters
-  const cx = W - rc - 4, lh = H < 96 ? 15 : 18, lines = [
-    [`q = ${kJ(now.q)} kJ/kg`, orange], [`w = ${kJ(now.w)} kJ/kg`, blue], [`Δe = ${kJ(now.de)} kJ/kg`, accent], [`Δs = ${f3(now.ds)} J/(kg K)`, text]
-  ].slice(0, H < 70 ? 3 : 4);
-  const top = H / 2 - (lines.length - 1) * lh / 2;
-  lines.forEach((ln, k) => canvasText(ctx, ln[0], cx, top + k * lh * (H > 260 ? 1.2 : 1), { color: ln[1], size: H > 260 ? 14.5 : 12.5, weight: 650 }));
-}
-const PRESET_PUMP_TR = Math.pow(2, 0.4);     // T2/T1 on the isentrope for v2/v1 = 1/2 (γ = 1.4): the isochore has zero length
 
-/* ---------------------------------------------------------------------------------------------------
+function drawZeta(v, s, N) {
+  v.clear(); if (v.w < 60 || v.h < 30) return;
+  const M = N.M, d = zetaDisp(M.medium), P0 = zetaPlot(v, M);
+  const P = P0.axes({ yticks: Viz.num.niceTicks(P0.ylim[0] * 0.9, P0.ylim[1] * 0.9, Math.max(3, Math.round(P0.px.h / 60))) }), col = regimeColor(M.code), R = M.run;
+  const T = t => t * d.tk, Zd = z => z * d.k;
+  P.clip(() => {
+    if (M.ts.kind !== 'none' && isFinite(M.ts.seconds)) {
+      for (let k = 1; k * M.ts.seconds <= M.tEnd + 1e-9 && k < 40; k++)
+        P.line([T(k * M.ts.seconds), T(k * M.ts.seconds)], P.ylim, { color: Viz.alpha(Viz.color('muted'), 0.35), width: 1, dash: [2, 4] });
+    }
+    if (M.code === -1 && M.cap * d.k < P.ylim[1]) {
+      P.line(P.xlim, [Zd(M.cap), Zd(M.cap)], { color: Viz.alpha(Viz.color('rose'), 0.6), width: 1, dash: [6, 4] });
+      P.line(P.xlim, [-Zd(M.cap), -Zd(M.cap)], { color: Viz.alpha(Viz.color('rose'), 0.6), width: 1, dash: [6, 4] });
+    }
+    P.fn(t => Zd(parcelDisplacement(t / d.tk, M.zeta0, M.N2)), { color: Viz.alpha(Viz.color('muted'), 0.85), width: 1.6, dash: [6, 4], n: 400 });
+    P.line(R.ts.map(T), R.zs.map(Zd), { color: Viz.alpha(col, 0.28), width: 2 });
+    const k = R.ts.findIndex(t => t > N.t);
+    const idx = k < 0 ? R.ts.length : k;
+    const xs = R.ts.slice(0, idx).map(T), ys = R.zs.slice(0, idx).map(Zd);
+    if (!N.off) { xs.push(T(N.t)); ys.push(Zd(N.z)); }
+    P.line(xs, ys, { color: col, width: 2.8 });
+  });
+  const tDot = N.off ? R.tStop : N.t;
+  P.dot(T(tDot), Zd(N.z), 5, { color: Viz.color('orange'), stroke: '#fff', strokeWidth: 2 });
+  if (M.ts.kind !== 'none' && v.w > 240 && M.ts.seconds < M.tEnd) {
+    const lab = M.ts.kind === 'period' ? 'period' : 'e-fold';
+    P.text(T(M.ts.seconds), P.ylim[1], lab, { dx: 4, dy: 9, size: 12, color: Viz.color('muted'), align: 'left' });
+  }
+  if (N.off && v.w > 200 && s.u < 1 - 1e-9) P.text(T(R.tStop), Zd(N.z), 'stopped at the column edge', { dx: -8, dy: N.z > 0 ? 14 : -14, size: 12, align: 'right', color: Viz.color('rose'), weight: 650 });
+  if (s.u >= 1 - 1e-9 && v.w > 220) {
+    let msg;
+    if (M.code === 1) msg = Viz.fmt(M.tEnd / M.ts.seconds, { sig: 2 }) + ' oscillations, period ' + fmtT(M.ts.seconds, M.medium) + ' · undamped here (real fluids damp it)';
+    else if (M.code === 0) msg = 'no force at any height: the parcel stays at ζ₀';
+    else msg = R.stopped ? 'ran away: |ζ| reached ' + fmtZ(M.cap, M.medium) + ' after ' + fmtT(R.tStop, M.medium) : 'ran away: ζ grew to ' + fmtZ(R.zs[R.zs.length - 1], M.medium) + ' in ' + fmtT(M.tEnd, M.medium);
+    P.text((P.xlim[0] + P.xlim[1]) / 2, P.ylim[0], msg, { dy: -12, align: 'center', weight: 700, size: 12.5, color: Viz.color('accent') });
+  }
+}
+
+/* ===================================================================================================
+   TEXT BLOCKS reused by notes, explain, status
+   =================================================================================================== */
+function convTable(s, M) {
+  const ok = M.code === 1 ? '<span class="ps-ok">✓ stable</span>' : M.code === 0 ? '<span class="ps-amber">= neutral</span>' : '<span class="ps-no">✗ unstable</span>';
+  return '<div class="ps-conv">' + Viz.work.table(['convention', 'stable if', 'Γ vs Γa now'], [
+    ['<b>Kundu</b><br>Γ = dT/dz', 'Γ > Γa', M.bareK + ' ' + ok],
+    ['<b>meteorology</b><br>Γ = −dT/dz', 'Γ < Γa', M.bareM + ' ' + ok]
+  ], s.conv === 'kundu' ? 0 : 1) + '</div>';
+}
+function densityTable(s, M) {
+  const ok = M.code === 1 ? '<span class="ps-ok">✓ stable</span>' : M.code === 0 ? '<span class="ps-amber">= neutral</span>' : '<span class="ps-no">✗ unstable</span>';
+  return Viz.work.table(['form', 'value', 'stable if', 'now'], [
+    ['(1.29) $N^2$', f3(M.N2, '1/s²'), '$N^2 > 0$', ok],
+    ['(1.35) $d\\rho_\\theta/dz$', f3(M.drhoth, 'kg/m⁴'), '$< 0$', ok]
+  ], -1);
+}
+function regimeText(s, M) {
+  const ts = M.ts, md = M.medium;
+  if (md === 'atm' && s.inv && M.zo >= MIX_TOP && M.zo < INV_TOP)
+    return 'Inside the inversion the temperature rises with height: very stable (' + tsText(M) + '). Smoke and pollution trapped below cannot mix up through it.';
+  if (md === 'atm' && s.inv && M.zo < MIX_TOP)
+    return 'The mixed layer follows the dry adiabat, so a parcel is at home at every height: this is the well-mixed boundary layer. Released from rest it stays put.';
+  if (md !== 'atm') {
+    if (M.code === 1) return 'The water gets denser downward faster than the parcel\'s own density changes, so a lifted parcel is heavier than its new surroundings and sinks back, overshoots and oscillates (' + tsText(M) + ').';
+    if (M.code === 0) return 'The parcel and its surroundings change density at the same rate: no restoring force, the parcel stays where it is put.';
+    return 'Dense water sits on light water: a lifted parcel is lighter than its new surroundings and accelerates away (' + tsText(M) + '). The column overturns.';
+  }
+  if (M.code === 1 && M.G >= 0) return 'Your environment does not cool with height at all (dT/dz = ' + Viz.fmt(M.G * 1e3, { sig: 3 }) + ' K/km) while a rising parcel cools 9.76 K/km, so a lifted parcel ends up much colder and denser than the air around it. It sinks back, overshoots and oscillates, ' + tsText(M) + ': a strongly stable layer. Real air damps the oscillation by mixing.';
+  if (M.code === 1) return 'Your environment cools more slowly than a rising parcel (' + Viz.fmt(-M.G * 1e3, { sig: 3 }) + ' vs 9.76 K/km in the meteorology sign), so a lifted parcel ends up colder and denser than the air around it. It sinks back, overshoots and oscillates, ' + tsText(M) + ': a buoyancy (Brunt–Väisälä) oscillation. Real air damps it by mixing.';
+  if (M.code === 0) return 'The environment lies exactly on the dry adiabat: a parcel is at home at every height, like the well-mixed boundary layer on a sunny afternoon.';
+  return 'The environment cools faster than the parcel (' + Viz.fmt(-M.G * 1e3, { sig: 3 }) + ' vs 9.76 K/km in the meteorology sign): a lifted parcel stays warmer and lighter than its surroundings and accelerates away, ' + tsText(M) + '. That is convection: thermals and towering cumulus.';
+}
+
+/* ===================================================================================================
    APP
-   --------------------------------------------------------------------------------------------------- */
+   =================================================================================================== */
 const app = Viz.app({
-  title: 'Same two states: what depends on the path?',
-  subtitle: '1 kg of air from the same start to the same end by different routes: heat and work change, Δe and Δs do not',
+  title: 'Push a parcel up: does it come back?',
+  subtitle: 'Lift a parcel in air, sea or a salt tank and let go: it oscillates at N, stays or runs away',
   params: {
-    path: { type: 'select', label: 'Route', options: ROUTES, value: 'isothermal' },
-    vr: { label: 'Volume ratio $v_2/v_1$', min: 0.25, max: 4, step: 0.05, value: 2, help: 'end volume over start volume' },
-    Tr: { label: 'Temperature ratio $T_2/T_1$', min: 0.5, max: 2, step: 0.05, value: 1, help: 'end temperature over 300 K' },
-    gas: { type: 'select', label: 'Gas', options: [['7/5', 'diatomic γ = 7/5'], ['5/3', 'monatomic γ = 5/3']], value: '7/5', display: 'chips' },
-    proc: { type: 'select', label: 'Process', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']], value: 'rev', display: 'chips' },
-    prog: { label: 'Progress along the route', min: 0, max: 1, step: 'any', value: 0, optional: true, fmt: v => Math.round(v * 100) + ' %' }
+    dTdz: { label: 'Environment $dT/dz$', min: -15, max: 10, step: 0.1, value: -6.5, unit: 'K/km', help: "Kundu's Γ (above the inversion when it is on); meteorology's Γ is minus this",
+      fmt: v => Viz.fmt(v, { sig: 3 }) + ' K/km · met ' + Viz.fmt(-v, { sig: 3, plus: true }) },
+    conv: { type: 'select', display: 'chips', label: 'Lapse-rate convention', options: [['kundu', 'Kundu Γ=dT/dz'], ['meteorology', 'met. Γ=−dT/dz']], value: 'kundu' },
+    zeta0: { label: 'Release displacement $\\zeta_0$', min: -300, max: 300, step: 10, value: 100, help: 'drag the parcel in the column view',
+      fmt: v => fmtZ(v * H_COL[cur().medium] / 3000, cur().medium) },
+    inv: { type: 'toggle', label: 'Inversion 800–1000 m', value: false },
+    drhodz: { label: 'Density gradient $d\\rho/dz$', min: -0.05, max: 0.02, step: 0.001, value: -0.01, help: 'negative: lighter water on top',
+      fmt: v => Viz.fmt(cur().medium === 'lab' ? v * 1000 : v, { sig: 3 }) + ' kg/m⁴' },
+    invRate: { label: 'Inversion $dT/dz$', min: 0, max: 30, step: 1, value: 10, unit: 'K/km', optional: true },
+    zo: { label: 'Rest height $z_o$', min: 500, max: 2500, step: 50, value: 1500, unit: 'm', optional: true },
+    T0: { label: 'Temperature at $z_o$', min: 230, max: 310, step: 0.05, value: 288.15, unit: 'K', optional: true },
+    showTheta: { type: 'toggle', label: 'Show θ instead of T', value: false, optional: true },
+    compress: { type: 'toggle', label: 'Parcel feels compressibility', value: false, optional: true, help: 'c = 1500 m/s: dρa/dz = −ρg/c²' },
+    u: { label: 'time $t$', min: 0, max: 1, step: 'any', value: 0, optional: true, fmt: v => fmtT(v * model(cur()).tEnd, cur().medium) }
   },
-  transport: { param: 'prog', min: 0, max: 1, rate: 0.2, end: 'hold', hold: 2.2 },
-  modes: { param: 'proc', options: [['rev', 'reversible'], ['stir', 'stirring'], ['free', 'free expansion']] },
+  modes: { param: 'medium', label: 'Medium', options: [['atm', 'Atmosphere'], ['ocean', 'Ocean'], ['lab', 'Lab tank']] },
+  transport: { param: 'u', min: 0, max: 1, rate: 1 / 12, end: 'hold', hold: 2.5, step: 1 / 60 },
   presets: [
-    { label: 'iso ×2', set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev' }, title: 'route A: isothermal expansion to twice the volume' },
-    { label: 'cool→expand', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route B: same end states' },
-    { label: 'expand→cool', set: { path: 'isobaric-isochoric', vr: 2, Tr: 1, proc: 'rev' }, title: 'route C: same end states' },
-    { label: 'pump', set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev' }, title: 'isentropic compression to half the volume' },
-    { label: 'stir', set: { proc: 'stir', vr: 1, Tr: 1.2 }, title: 'insulated rigid tank, paddle work' },
-    { label: 'free exp.', set: { proc: 'free', vr: 2, Tr: 1 }, title: 'insulated gas bursts into vacuum' }
+    { label: 'Γ = Γa', set: { medium: 'atm', dTdz: GA_KM, inv: false, u: 0 }, title: 'dry adiabatic environment: exactly neutral' },
+    { label: '−6.5 K/km', set: { medium: 'atm', dTdz: -6.5, inv: false, zo: 1500, T0: 288.15, zeta0: 100, u: 0 }, title: 'standard atmosphere' },
+    { label: 'isothermal', set: { medium: 'atm', dTdz: 0, inv: false, u: 0 }, title: 'dT/dz = 0' },
+    { label: 'inversion', set: { medium: 'atm', inv: true, invRate: 10, dTdz: -6.5, zeta0: 50, zo: 900, u: 0 }, title: 'nocturnal inversion 800–1000 m over a neutral mixed layer' },
+    { label: '−12 K/km', set: { medium: 'atm', dTdz: -12, inv: false, u: 0 }, title: 'superadiabatic ground layer' },
+    { label: 'thermocline', set: { medium: 'ocean', drhodz: -0.01, compress: false, u: 0 }, title: 'ocean thermocline dρ/dz = −0.01 kg/m⁴' },
+    { label: 'salt tank', set: { medium: 'lab', drhodz: -0.01, u: 0 }, title: 'lab salt stratification dρ/dz = −10 kg/m⁴' }
   ],
-  status: s => {
-    const M = model(s);
-    if (s.proc === 'rev') return { text: `🔁 q = ${kJ(M.tot.q)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) (any route)`, tone: 'info' };
-    return { text: `⚠️ irreversible: Δs = ${f3(M.ds)} > ∫δq/T = 0`, tone: 'warn' };
-  },
-  onChange(s, key, a) {
-    if (key === 'path' && s.proc !== 'rev') a.set('proc', 'rev');
-    if (key === 'path' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('Tr', 1);
-    if (key === 'Tr' && s.proc === 'rev' && s.path === 'isothermal' && Math.abs(s.Tr - 1) > 1e-9) a.set('path', 'isothermal-isochoric');
-    if (key === 'proc' && s.proc === 'stir') a.set({ vr: 1, Tr: s.Tr > 1 ? s.Tr : 1.2 });
-    if (key === 'proc' && s.proc === 'free') a.set({ Tr: 1, vr: s.vr > 1 ? s.vr : 2 });
-    if (key === 'vr' && s.proc === 'stir' && Math.abs(s.vr - 1) > 1e-9) a.set('proc', 'rev');
-    if (key === 'Tr' && s.proc === 'stir' && s.Tr < 1) a.set('proc', 'rev');
-    if (key === 'Tr' && s.proc === 'free' && Math.abs(s.Tr - 1) > 1e-9) a.set('proc', 'rev');
-    if (key === 'vr' && s.proc === 'free' && s.vr < 1) a.set('proc', 'rev');
-    if (key === 'probe') return;
-    if (key !== 'prog' && key !== 'speed' && key !== 'focus') a.set('probe', null);
+  status: (s, a) => {
+    const M = model(s), small = !!(a && a.root && a.root.getAttribute('data-layout') !== 'wide');
+    const tone = M.code === 1 ? 'good' : M.code === 0 ? 'warn' : 'bad', tail = M.code !== 0 && !small ? ' · ' + tsText(M) : '';
+    if (M.medium === 'atm') {
+      // verdict word first · the exact fluidpy text in the chosen convention · the other convention's bare relation
+      const em = M.code === 1 ? '🌊' : M.code === 0 ? '⚖️' : '🚀';
+      const other = s.conv === 'kundu' ? 'met: ' + M.bareM : 'Kundu: ' + M.bareK;
+      return { text: em + ' ' + M.stab.verdict + ' · ' + M.stab.text + ' · ' + other + tail, tone };
+    }
+    const em = M.code === 1 ? '🌊 stable' : M.code === 0 ? '⚖️ neutral' : '🚀 unstable';
+    return { text: em + ' · $N^2$ = ' + f3(M.N2, '1/s²') + tail, tone };
   },
   readouts: [
-    { id: 'q', label: 'Heat in so far $q$', unit: 'kJ/kg', value: s => at(model(s), s.prog).q / 1000 },
-    { id: 'w', label: 'Work on gas $w$', unit: 'kJ/kg', value: s => at(model(s), s.prog).w / 1000 },
-    { id: 'de', label: 'Change $\\Delta e$', unit: 'kJ/kg', value: s => at(model(s), s.prog).de / 1000 },
-    { id: 'ds', label: '$\\Delta s$ (Gibbs)', unit: 'J/(kg K)', value: s => at(model(s), s.prog).ds },
-    { id: 'sint', label: '$\\int \\delta q/T$ so far', unit: 'J/(kg K)', value: s => at(model(s), s.prog).sint },
-    { id: 'p', label: 'Pressure $p$', unit: 'kPa', value: s => at(model(s), s.prog).p / 1000, optional: true }
+    { id: 'grad', label: 'Environment gradient', value: s => 0, fmt: (v, s) => { const M = model(s); return M.medium !== 'atm' ? 'dρ/dz = ' + f3(M.drho, 'kg/m⁴') : s.conv === 'kundu' ? kmK(M.G) + ' K/km (met ' + kmKp(-M.G) + ')' : kmKp(-M.G) + ' K/km (Kundu ' + kmK(M.G) + ')'; } },
+    { id: 'ref', label: "Parcel's own gradient", value: s => 0, fmt: (v, s) => { const M = model(s); return M.medium !== 'atm' ? 'dρa/dz = ' + f3(M.drhoa, 'kg/m⁴') : s.conv === 'kundu' ? kmK(GA) + ' K/km (met ' + kmKp(-GA) + ')' : kmKp(-GA) + ' K/km (Kundu ' + kmK(GA) + ')'; } },
+    { id: 'N2', label: '$N^2$ at $z_o$', unit: '1/s²', value: s => model(s).N2 },
+    { id: 'tscale', label: 'Period / e-fold', value: s => 0, fmt: (v, s) => { const M = model(s); return M.ts.kind === 'period' ? 'T = ' + fmtT(M.ts.seconds, M.medium) : M.ts.kind === 'efold' ? 'e-fold ' + fmtT(M.ts.seconds, M.medium) : 'none (neutral)'; } },
+    { id: 'margin', label: 'Stability indicator', value: s => 0, fmt: (v, s) => { const M = model(s); return M.medium === 'atm' ? 'dθ/dz = ' + Viz.fmt(M.dth * 1e3, { sig: 3, plus: true }) + ' K/km' : 'dρθ/dz = ' + f3(M.drhoth, 'kg/m⁴'); } },
+    { id: 'zeta', label: 'ζ now', value: s => 0, optional: true, fmt: (v, s) => { const N = now(s); return fmtZ(N.z, N.M.medium) + (N.off ? ' (stopped)' : ''); } }
   ],
-  terms: {
-    title: 'Energy so far (first law)', unit: 'kJ/kg',
-    items: [
-      { id: 'q', label: 'heat added $q$', color: '#f97316', value: s => at(model(s), s.prog).q / 1000 },
-      { id: 'w', label: 'work on the gas $w$', color: '#2563eb', value: s => at(model(s), s.prog).w / 1000 },
-      { id: 'de', label: 'internal energy $\\Delta e$', color: '#6c5ce7', value: s => at(model(s), s.prog).de / 1000 }
-    ],
-    total: { label: '$q + w$ (must equal $\\Delta e$)', value: s => { const n = at(model(s), s.prog); return (n.q + n.w) / 1000; } }
-  },
   stage: {
-    rows: [1.15, 1],
+    rows: [1.25, 1],
     views: [
-      { id: 'pv', row: 0, flex: 1, title: (s, a) => a.g.view('pv').w >= 420 ? '<b>p–v</b> · area under the route = work by the gas' : '<b>p–v</b> · shaded = work · dashed: isotherms, isentrope' },
-      { id: 'ts', row: 0, flex: 1, hidePortrait: true, title: '<b>T–s</b> · area under the route = heat' },
-      { id: 'gas', row: 1, flex: 1, title: s => { const n = at(model(s), s.prog); return `<b>The gas</b> · T = ${f3(n.T)} K · p = ${f3(n.p / 1000)} kPa · drag sideways to scrub`; } }
+      { id: 'column', row: 0, flex: 0.36, hidePortrait: true, title: s => '<b>The column</b>' },
+      { id: 'profile', row: 0, flex: 1, title: s => { const M = model(s); return M.medium !== 'atm' ? '<b>ρ(z)</b> · environment (black) · <span class="c-accent">parcel ρₐ (dashed)</span>' : s.showTheta ? '<b>θ(z)</b> · environment (black) · <span class="c-accent">the parcel keeps its θ</span>' : '<b>T(z)</b> · environment (black) · <span class="c-accent">parcel\'s dry adiabat</span>'; } },
+      { id: 'zeta', row: 1, flex: 1, title: s => { const M = model(s), c = M.code === 1 ? 'c-teal' : M.code === -1 ? 'c-rose' : 'ps-amber'; return '<b>ζ(t)</b> · <span class="' + c + '">nonlinear run (bold = so far)</span> · grey dashed = linear'; } }
     ],
-    setup(g) {
-      g.views.forEach(v => { v.canvas.style.cursor = v.id === 'gas' ? 'ew-resize' : 'crosshair'; });
-      const rnd = Viz.rng(7); g.mol = [];
-      for (let i = 0; i < 42; i++) { const a = rnd() * 2 * Math.PI; g.mol.push({ x: rnd(), y: rnd(), dx: Math.cos(a), dy: Math.sin(a) }); }
-      g.angle = 0;
-    },
-    step(g, s, dt) {
-      const n = at(model(s), s.prog), sp = 0.55 * Math.sqrt(n.T / 300);
-      (g.mol || []).forEach(m => {
-        m.x += m.dx * sp * dt; m.y += m.dy * sp * dt * 2;
-        if (m.x < 0) { m.x = -m.x; m.dx = -m.dx; } if (m.x > 1) { m.x = 2 - m.x; m.dx = -m.dx; }
-        if (m.y < 0) { m.y = -m.y; m.dy = -m.dy; } if (m.y > 1) { m.y = 2 - m.y; m.dy = -m.dy; }
-      });
-      g.angle = (g.angle || 0) + dt * 6;
-    },
     draw(g, s) {
-      const M = model(s), now = at(M, s.prog), parts = soFar(M, s.prog);
-      const blue = Viz.color('blue'), orange = Viz.color('orange'), muted = Viz.color('muted'), accent = Viz.color('accent'), rose = Viz.color('rose'), teal = Viz.color('teal');
-      const rev = M.proc === 'rev';
-      /* ---------------- p–v diagram ---------------- */
-      const vp = g.view('pv'); vp.clear();
-      if (vp.w > 40 && vp.h > 40) {
-        const B = PV_BOUNDS(M), small = vp.w < 330;
-        const P = vp.plot(Object.assign({ xlabel: 'v [m³/kg]', ylabel: 'p [kPa]' }, B)).axes();
-        P.clip(() => {
-          const x0 = M.vmax * 0.06;
-          P.fn(v => R_AIR * T1 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
-          if (Math.abs(M.T2 - T1) > 1e-6) P.fn(v => R_AIR * M.T2 / v / 1000, { x0, color: Viz.alpha(Viz.color('amber'), 0.5), width: 1, dash: [4, 4] });
-          P.fn(v => isentropicPressure(V1 / v, P1, 1 / V1, M.gamma) / 1000, { x0: M.vmax * 0.12, color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.v, G.p.map(x => x / 1000), { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
-          if (rev) {
-            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.v, L.smp.p.map(x => x / 1000), { color: Viz.alpha(blue, 0.3), width: 2 }); });
-            parts.forEach(pt => {
-              const pk = pt.p.map(x => x / 1000);
-              if (pt.L.vb > pt.L.va) fillUnder(P, pt.v, pk, 0, Viz.alpha(blue, 0.2));
-              else if (pt.L.vb < pt.L.va) { fillUnder(P, pt.v, pk, 0, hatchPattern(P.ctx, Viz.alpha(blue, 0.55))); }
-              P.line(pt.v, pk, { color: blue, width: 3 });
-            });
-          } else {
-            P.line([V1, M.v2], [P1 / 1000, M.p2 / 1000], { color: rose, width: 2, dash: [6, 5] });
-          }
-        });
-        if (vp.w >= 420 && vp.h >= 190 && M.proc !== 'stir') {
-          const lx = P.px.x + P.px.w - 8;
-          [['isotherms T₁, T₂', Viz.color('amber')], ['isentrope through 1', teal], ['other routes', muted]].concat(rev && M.legs.some(Lg => !Lg.zero && Lg.vb < Lg.va) ? [['hatched: work done on the gas', blue]] : []).forEach((it, k) =>
-            canvasText(P.ctx, it[0], lx, P.px.y + 12 + k * 16, { color: it[1], align: 'right', size: 12, weight: 500 }));
-        }
-        if (!small && !rev) {
-          canvasText(P.ctx, 'no equilibrium path', (P.X(V1) + P.X(M.v2)) / 2 + 16,(P.Y(P1 / 1000) + P.Y(M.p2 / 1000)) / 2 - 12, { color: rose, size: 12 });
-        }
-        P.dot(V1, P1 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        P.dot(M.v2, M.p2 / 1000, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        canvasText(P.ctx, '1', P.X(V1) + 7, P.Y(P1 / 1000) - 10, { size: 13 });
-        canvasText(P.ctx, '2', P.X(M.v2) + 7, P.Y(M.p2 / 1000) - 10, { size: 13 });
-        if (rev && M.corner && !M.legs.some(L => L.zero)) P.dot(M.corner[0], R_AIR * M.corner[1] / M.corner[0] / 1000, 4, { color: muted });
-        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.v, pr.p / 1000, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
-        if (rev) P.dot(now.v, now.p / 1000, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });   // no equilibrium state to mark mid-way when irreversible
-        if (g.app.holding && !small) {
-          const txt = rev ? `route done: q = ${kJ(M.tot.q)}, w = ${kJ(M.tot.w)}, Δe = ${kJ(M.tot.de)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K)`
-            : `done: q = 0, w = ${kJ(M.tot.w)} kJ/kg · Δs = ${f3(M.ds)} J/(kg K) > ∫δq/T = 0`;
-          canvasText(P.ctx, txt, P.px.x + P.px.w / 2, P.px.y + 12, { align: 'center', color: accent, size: 12.5, weight: 650 });
-        }
-      }
-      /* ---------------- T–s diagram ---------------- */
-      const vt = g.view('ts'); vt.clear();
-      if (vt.el.offsetParent && vt.w > 40 && vt.h > 40) {
-        const B = TS_BOUNDS(M), small = vt.w < 330;
-        const P = vt.plot(Object.assign({ xlabel: 's − s₁ [J/(kg K)]', ylabel: 'T [K]' }, B)).axes();
-        P.clip(() => {
-          P.line([0, 0], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          if (Math.abs(M.ds) > 1e-9) P.line([M.ds, M.ds], B.ylim, { color: Viz.alpha(teal, 0.55), width: 1.2, dash: [2, 3] });
-          M.ghosts.forEach(G => { if (!(rev && G.kind === M.kind)) P.line(G.s, G.T, { color: Viz.alpha(muted, 0.32), width: 1.4 }); });
-          if (rev) {
-            M.legs.forEach(L => { if (!L.zero) P.line(L.smp.s, L.smp.T, { color: Viz.alpha(orange, 0.3), width: 2 }); });
-            parts.forEach(pt => {
-              const ds = pt.L.tot.ds;
-              if (ds > 1e-9) fillUnder(P, pt.s, pt.T, 0, Viz.alpha(orange, 0.2));
-              else if (ds < -1e-9) fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(orange, 0.6)));
-              P.line(pt.s, pt.T, { color: orange, width: 3 });
-            });
-          } else if (M.proc === 'stir') {
-            const L = M.legs[0];
-            parts.forEach(pt => { fillUnder(P, pt.s, pt.T, 0, hatchPattern(P.ctx, Viz.alpha(rose, 0.45))); P.line(pt.s, pt.T, { color: rose, width: 2.5, dash: [6, 4] }); });
-            P.line(L.smp.s, L.smp.T, { color: Viz.alpha(rose, 0.3), width: 2, dash: [6, 4] });
-          } else {
-            P.line([0, M.ds], [T1, T1], { color: rose, width: 2.5, dash: [6, 5] });
-          }
-        });
-        if (!small) {
-          canvasText(P.ctx, 'isentropes (s fixed)', P.X(0) + 5, P.px.y + 12, { color: teal, size: 12, weight: 500 });
-          const lab = rev ? (M.legs.every(Lg => Lg.zero || Math.abs(Lg.tot.q) < 1e-6) ? 'no heat: the route is vertical' : M.legs.some(Lg => !Lg.zero && Lg.tot.ds < -1e-9) ? 'shaded = heat in · hatched = out' : 'shaded = heat in') : M.proc === 'stir' ? 'area ≠ heat: q = 0' : 'q = 0, yet s rises';
-          canvasText(P.ctx, lab, P.px.x + P.px.w - 6, P.px.y + P.px.h - 12, { color: rev ? orange : rose, align: 'right', size: 12 });
-        }
-        P.dot(0, T1, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        P.dot(M.ds, M.T2, 5, { color: Viz.color('text'), stroke: '#fff', strokeWidth: 1.5 });
-        canvasText(P.ctx, '1', P.X(0) + 7, P.Y(T1) - 10, { size: 13 });
-        canvasText(P.ctx, '2', P.X(M.ds) + 7, P.Y(M.T2) - 10, { size: 13 });
-        if (s.probe !== null && s.probe !== undefined) { const pr = at(M, s.probe); P.dot(pr.ds, pr.T, 7, { color: Viz.alpha(accent, 0.25), stroke: accent, strokeWidth: 1.5 }); }
-        P.dot(now.ds, now.T, 5.5, { color: orange, stroke: '#fff', strokeWidth: 2 });
-      }
-      /* ---------------- the gas ---------------- */
-      const vg = g.view('gas'); vg.clear();
-      if (vg.w > 40 && vg.h > 40) drawGas(vg, g, s, M, now);
+      S_NOW = s;
+      if (g.app && g.app.root && g.app.root.getAttribute('data-medium') !== s.medium) g.app.root.setAttribute('data-medium', s.medium);
+      const N = now(s);
+      drawColumn(g.view('column'), s, N);
+      drawProfile(g.view('profile'), s, N);
+      drawZeta(g.view('zeta'), s, N);
     },
-    // click the p–v or T–s route → probe + move the dot there; drag sideways on the gas → scrub the progress
     onPointer(g, ev, s) {
-      const v = ev.vizView || g.view(ev.viewId), M = model(s), x = v.pointer.x, y = v.pointer.y;
-      if (ev.viewId === 'gas') {
-        if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && v.pointer.down)) return false;
-        const bx = g.gasBox || { x0: 14, x1: v.w * 0.6 };
-        if (ev.type === 'pointerdown') g.app.play(false);
-        g.app.set('prog', Math.max(0, Math.min(1, (x - bx.x0) / Math.max(20, bx.x1 - bx.x0))));
+      const v = g.view(ev.viewId), M = model(s);
+      if (ev.viewId === 'column' && (ev.type === 'pointerdown' || (ev.type === 'pointermove' && v.pointer.down))) {
+        const P = columnPlot(v, M), d = colDisp(M.medium), z = P.iy(v.pointer.y) / d.k;
+        const z0 = Math.max(-300, Math.min(300, Math.round((z - M.zo) * 3000 / M.H / 10) * 10));
+        g.app.play(false); g.app.set({ zeta0: z0, u: 0 });
         return true;
       }
-      if (ev.type !== 'pointerdown' || !M.legs.some(L => !L.zero)) return false;
-      const u = nearestU(M, v.plot(ev.viewId === 'pv' ? PV_BOUNDS(M) : TS_BOUNDS(M)), x, y, ev.viewId);
-      if (u === null) return false;
-      g.app.play(false); g.app.set({ prog: u, probe: u });
-      return true;
+      if (ev.viewId === 'profile' && ev.type === 'pointerdown') {
+        const P = profilePlot(v, s, M), d = proDisp(M.medium);
+        g.app.set('probeZ', Math.max(M.wlo, Math.min(M.whi, P.iy(v.pointer.y) / d.k)));
+        return true;
+      }
+      if (ev.viewId === 'zeta' && (ev.type === 'pointerdown' || (ev.type === 'pointermove' && v.pointer.down))) {
+        const P = zetaPlot(v, M), d = zetaDisp(M.medium);
+        g.app.play(false); g.app.set('u', Math.max(0, Math.min(1, P.ix(v.pointer.x) / d.tk / M.tEnd)));
+        return true;
+      }
+      return false;
     }
   },
+  onChange(s, key, a) {
+    S_NOW = s;
+    if (key === 'medium') {
+      ['zeta0', 'drhodz'].forEach(k => (a.controls[k] || []).forEach(c => c.sync(s[k])));
+      a.set('probeZ', null);
+    }
+    if (key !== 'u') (a.controls.u || []).forEach(c => c.sync(s.u));
+  },
   explore: {
-    intro: 'Pick a route, press ▶ and watch the heater, the <b class="c-blue">work area</b> and the <b class="c-orange">heat area</b>. Grey curves are the other routes between the same two states.',
-    controls: ['path', 'vr', 'Tr', 'gas', 'proc'],
-    readouts: ['q', 'w', 'de', 'ds', 'sint', 'p'],
-    callouts: [{ kind: 'try', html: 'Play routes A, B and C in turn. The bars for $q$ and $w$ change; $\\Delta e$ and $\\Delta s$ at the end never do.' }]
+    intro: 'Pick a medium and a preset, press ▶, then reshape the profile. Drag the parcel in the column; click the profile to inspect a height.',
+    controls: ['dTdz', 'conv', 'zeta0', 'inv', 'drhodz', 'invRate', 'zo', 'T0', 'showTheta', 'compress'],
+    readouts: ['grad', 'ref', 'N2', 'tscale', 'margin', 'zeta'],
+    callouts: [{ kind: 'try', html: 'Set $dT/dz = -9.8$ K/km: the status prints −9.80 < −9.76, two decimals, because Γa = −9.7607 K/km.' }]
   },
+  inspectTitle: 'Inspector: the force at one height',
+  inspectHint: 'Click the profile view at any height to see the buoyancy arithmetic there.',
   inspect: s => {
-    if (s.probe === null || s.probe === undefined) return null;
-    const M = model(s), n = at(M, s.probe);
-    if (M.proc !== 'rev') return `At ${Math.round(s.probe * 100)} % the gas is not in equilibrium: no single $p$ or $T$ describes it, so $-\\int p\\,dv$ is undefined. Only the end states count: $\\Delta s = ${tn(M.ds)}$ J/(kg K).`;
-    const tr = trapezoidAt(M, s.probe);
-    return `$p = RT/v = ${tn(R_AIR, 5)} \\times ${tn(n.T, 4)} / ${tn(n.v, 4)} = \\mathbf{${tn(n.p / 1000, 4)}}$ kPa<br>` +
-      `$w = -\\int p\\,dv \\approx ${tn(tr.w / 1000, 4)}$ kJ/kg (trapezoid, ${tr.k} samples; exact ${Viz.fmt(n.w / 1000, { sig: 4 })})<br>` +
-      `$\\Delta e = C_v(T - T_1) = ${tn(M.cv, 4)} \\times ${tp(n.T - T1, 4)} = ${tn(n.de / 1000, 4)}$ kJ/kg<br>` +
-      `$q = \\Delta e - w = ${tn(n.de / 1000, 4)} - (${tn(n.w / 1000, 4)}) = \\mathbf{${tn(n.q / 1000, 4)}}$ kJ/kg`;
+    const M = model(s), z = (s.probeZ === undefined || s.probeZ === null) ? M.zo + M.zeta0 : s.probeZ, zeta = z - M.zo;
+    if (M.medium === 'atm') {
+      const Te = M.Te(zeta), Tp = M.Tp(zeta), a = G0 * (Tp - Te) / Te;
+      const lin = !s.inv ? `$T_e = T_0 + \\tfrac{dT}{dz}(z-z_o) = ${tn(M.T0, 5)} + (${tn(M.G * 1e3)})(${tn(zeta / 1e3)}) = ${tn(Te, 5)}$ K` : `$T_e(${tn(z, 4)}\\,\\text{m}) = ${tn(Te, 5)}$ K (${layerName(z)})`;
+      return `At $z = ${tn(z, 4)}$ m ($\\zeta = ${tn(zeta, 3)}$ m):<br>${lin}<br>$T_p = T_0 + \\Gamma_a\\zeta = ${tn(M.T0, 5)} + (${tn(GA * 1e3)})(${tn(zeta / 1e3)}) = ${tn(Tp, 5)}$ K<br>` +
+        `$a = g\\,\\dfrac{T_p - T_e}{T_e} = 9.807 \\times \\dfrac{${tn(Tp - Te)}}{${tn(Te, 5)}} = \\mathbf{${tn(a)}}$ m/s² ` + (Math.abs(a) < 1e-9 ? '(no force)' : a * zeta < 0 ? '(restoring)' : '(runaway)');
+    }
+    const re = M.rhoe(zeta), rp = M.rhop(zeta), a = -G0 * (rp - re) / rp;
+    return `At $\\zeta = ${tn(zeta * (M.medium === 'lab' ? 100 : 1))}$ ${M.medium === 'lab' ? 'cm' : 'm'}:<br>$\\rho_e = \\rho_0 + \\tfrac{d\\rho}{dz}\\zeta = ${tn(re, 7)}$ kg/m³<br>$\\rho_p = \\rho_0 + \\tfrac{d\\rho_a}{dz}\\zeta = ${tn(rp, 7)}$ kg/m³<br>` +
+      `$a = -g\\,\\dfrac{\\rho_p - \\rho_e}{\\rho_p} = -9.807 \\times \\dfrac{${tn(rp - re)}}{${tn(rp, 5)}} = \\mathbf{${tn(a)}}$ m/s² ` + (Math.abs(a) < 1e-12 ? '(no force)' : a * zeta < 0 ? '(restoring)' : '(runaway)');
   },
-  inspectHint: 'Click the route on the p–v or T–s diagram: the exact arithmetic at that point appears here.',
+  notesTitle: 'Two conventions, one verdict',
   notes: s => {
-    const M = model(s), n = at(M, s.prog), L = n.leg;
-    if (M.proc === 'stir') return `<p>Insulated and rigid: no heat, no $p\\,dv$ work. The paddle's work ($w = ${kJ(n.w)}$ kJ/kg so far) stays in the gas as $\\Delta e$, and $s$ rises by $${tn(n.ds)}$ J/(kg K) with $\\int\\delta q/T = 0$.</p>`;
-    if (M.proc === 'free') return `<p>The membrane is gone: the gas rushes into vacuum. Nothing crosses the boundary ($q = w = 0$), $T$ ends where it started, yet $\\Delta s = R\\ln(v_2/v_1) = ${tn(M.ds)}$ J/(kg K).</p>`;
-    const leg = L.kind === 'isothermal' ? (n.dq > 0 ? 'heater on: the heat taken in leaves at once as work' : 'cooling: the work done on the gas leaves as heat')
-      : L.kind === 'isochoric' ? (n.dq > 0 ? 'volume fixed: all heat goes into $e$' : 'volume fixed: heat leaves, $e$ falls')
-      : L.kind === 'isobaric' ? (n.dq > 0 ? 'pressure fixed: heat raises $e$ and pushes the piston out' : 'pressure fixed: heat leaves and the piston moves in')
-      : 'insulated and slow: no heat, the work changes $e$ directly';
-    return `<p>Now on the <b>${L.kind}</b> leg: ${leg}. So far $q = ${kJ(n.q)}$, $w = ${kJ(n.w)}$ kJ/kg; at the end $\\Delta e = ${kJ(M.de)}$ kJ/kg whichever route you pick.</p>`;
+    const M = model(s);
+    if (M.medium === 'atm') return convTable(s, M) + '<p>Meteorology negates both numbers, so the inequality flips. The margin Γ − Γa = ' + Viz.fmt(M.stab.margin * 1e3, { sig: 3, plus: true }) + ' K/km is the same in both.</p>';
+    return densityTable(s, M) + '<p>Both forms give one verdict: $N^2 = -(g/\\rho)\\,d\\rho_\\theta/dz$. The lapse-rate conventions appear in atmosphere mode.</p>';
   },
   explain: {
     html: s => {
-      const W = Viz.work, M = model(s), rev = M.proc === 'rev';
-      let out = W.step(0, 'What the three windows show') +
-        W.say('The <b>gas</b> window is the system: 1 kg of air in a cylinder. The heater glows <span class="c-orange">orange</span> while heat goes in and turns <span class="c-blue">blue</span> while heat leaves; a hatched jacket means no heat can pass. ' +
-          'On the <b>p–v diagram</b> the <span class="c-blue">blue</span> area under the route is the work the gas does ($-w$). On the <b>T–s diagram</b> the <span class="c-orange">orange</span> area is the heat $q$. Grey curves are the other routes between the same states.') +
-        W.hint('On a phone the T–s diagram is hidden; turn the phone sideways to see it.');
-      out += W.step(1, 'The two end states') +
-        W.line(`$v_1 = RT_1/p_1 = ${tn(R_AIR, 5)} \\times 300 / 10^5$`, f3(V1, 4) + ' m³/kg', 'perfect gas, Eq. (1.22) with v = 1/ρ') +
-        W.line(`$v_2 = (v_2/v_1)\\,v_1 = ${tn(M.vr)} \\times ${tn(V1, 4)}$`, f3(M.v2, 4) + ' m³/kg', 'your volume ratio') +
-        W.line(`$T_2 = (T_2/T_1)\\,T_1 = ${tn(M.Tr, 4)} \\times 300$`, f3(M.T2, 4) + ' K') +
-        W.box(`$p_2 = RT_2/v_2 = ${tn(R_AIR, 5)} \\times ${tn(M.T2, 4)}/${tn(M.v2, 4)} = \\mathbf{${tn(M.p2 / 1000)}}$ kPa (start: 100 kPa)`);
-      out += W.step(2, 'Internal energy: a state function') +
-        W.line(`$C_v = R/(\\gamma - 1) = ${tn(R_AIR, 5)}/${tn(M.gamma - 1, 3)}$`, f3(M.cv, 4) + ' J/(kg K)', 'Eqs. (1.23)–(1.24)') +
-        W.box(`$\\Delta e = C_v(T_2 - T_1) = ${tn(M.cv, 4)} \\times ${tp(M.T2 - T1, 4)} = \\mathbf{${tn(M.de / 1000)}}$ kJ/kg`) +
-        W.say('For a perfect gas $e$ depends on $T$ only, so this number is the same for every route and for stirring or free expansion.');
-      if (rev) {
-        out += W.step(3, 'Work, leg by leg ($w = -\\int p\\,dv$)');
-        M.legs.forEach((L, k) => {
-          const lab = M.legs.length > 1 ? `leg ${k + 1} (${L.kind})` : L.kind;
-          let f;
-          if (L.zero) f = `${lab}: zero length, skipped`;
-          else if (L.kind === 'isothermal') f = `${lab}: $w = -RT\\ln(v_b/v_a) = -${tn(R_AIR, 4)} \\times ${tn(L.Ta, 4)} \\ln ${tn(L.vb / L.va, 4)}$`;
-          else if (L.kind === 'isochoric') f = `${lab}: $w = 0$ ($v$ fixed)`;
-          else if (L.kind === 'isobaric') f = `${lab}: $w = -p\\,\\Delta v = -${tn(R_AIR * L.Ta / L.va / 1000, 4)}\\,\\text{kPa} \\times ${tp(L.vb - L.va, 4)}$`;
-          else f = `${lab}: $w = C_v(T_b - T_a) = ${tn(M.cv, 4)} \\times ${tp(L.Tb - L.Ta, 4)}$`;
-          out += W.line(f, kJ(L.tot.w) + ' kJ/kg', L.kind === 'isentropic' ? `no heat, so w = Δe of the leg; corner T = T₁(v₁/v₂)^(γ−1) = ${f3(L.Tb, 4)} K` : L.kind === 'isobaric' ? 'p = RT/v is constant on this leg' : '');
-        });
-        out += W.box(`route total: $w = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg ${M.tot.w < 0 ? '(the gas does work on the piston)' : '(the piston does work on the gas)'}`);
-        const cur = ROUTES.findIndex(r => r[0] === M.kind);
-        const rows = ROUTES.map(r => {
-          if (r[0] === 'isothermal' && Math.abs(M.Tr - 1) > 1e-9) return [r[1], '—', '—', '—', 'needs T₂ = T₁'];
-          const t = pathTotals(r[0], V1, T1, M.v2, M.T2, M.gamma, R_AIR);
-          return [r[1], kJ(t.q), kJ(t.w), kJ(t.de), f3(t.ds)];
-        });
-        out += W.say('All five routes between your two states (kJ/kg; Δs in J/(kg K)):') +
-          W.table(['route', '$q$', '$w$', '$\\Delta e$', '$\\Delta s$'], rows, M.kind === 'isothermal-isochoric' && s.path === 'isothermal' ? 4 : cur);
-        out += W.step(4, 'Heat from the first law, Eq. (1.10)');
-        M.legs.forEach((L, k) => { if (!L.zero) out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'the leg'}: $q = \\Delta e - w = ${tn(L.tot.de / 1000, 4)} - (${tn(L.tot.w / 1000, 4)})$`, kJ(L.tot.q) + ' kJ/kg'); });
-        out += W.box(`$q = \\Delta e - w = ${tn(M.tot.de / 1000)} - (${tn(M.tot.w / 1000)}) = \\mathbf{${tn(M.tot.q / 1000)}}$ kJ/kg`);
-        out += W.step(5, 'Entropy two ways') +
-          W.line(`Gibbs (1.18): $\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)} + ${tn(R_AIR, 4)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)', 'only the end states enter');
-        M.legs.forEach((L, k) => {
-          if (L.zero) return;
-          const f = L.kind === 'isothermal' ? `$q/T = ${tn(L.tot.q, 4)}/${tn(L.Ta, 4)}$` : L.kind === 'isochoric' ? `$C_v\\ln(T_b/T_a) = ${tn(M.cv, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$`
-            : L.kind === 'isobaric' ? `$C_p\\ln(T_b/T_a) = ${tn(M.cp, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$` : '$0$ (no heat)';
-          out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'along the route'}: $\\int \\delta q/T =$ ${f}`, f3(L.tot.ds, 4) + ' J/(kg K)');
-        });
-        out += W.box(`$\\int_1^2 \\delta q/T = ${tn(M.tot.int_dq_over_T, 4)} = \\Delta s$: a state function, though $q$ is not`);
-        out += W.step(6, 'The T–s window') +
-          W.say(`On a reversible route $\\delta q = T\\,ds$ (1.17), so the <span class="c-orange">area under the route</span> is the heat: ${kJ(M.tot.q)} kJ/kg here. Heat taken in at low $T$ adds more entropy per joule than heat at high $T$; that weighting is why different $q$ give the same $\\Delta s$.`);
-      } else if (M.proc === 'stir') {
-        out += W.step(3, 'Where the energy comes from') +
-          W.line('$q$', '0', 'the jacket blocks heat') + W.line('$p\\,dv$ work', '0', 'the tank is rigid') +
-          W.box(`paddle work $w = \\Delta e = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg (1.10) — irreversible work, not $-p\\,dv$, so (1.11) does not apply`) +
-          W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dv = 0$: $\\Delta s = C_v\\ln(T_2/T_1) = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)') +
-          W.line('actual $\\int \\delta q/T$', '0', 'no heat crossed the boundary') +
-          W.box(`$\\Delta s = ${tn(M.ds)} > \\int\\delta q/T = 0$: Clausius–Duhem, entropy made by friction`) +
-          W.step(5, 'The T–s window') + W.say('The dashed rose curve joins equilibrium states, but its area is <b>not</b> heat: here $T\\,ds = de$ is the stirring work (1.18).');
-      } else {
-        out += W.step(3, 'Nothing crosses the boundary') +
-          W.line('$q$', '0', 'insulated') + W.line('$w$', '0', 'the vacuum pushes back on nothing') +
-          W.box(`$\\Delta e = q + w = 0$, so $T_2 = T_1 = 300$ K ($e = e(T)$)`) +
-          W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dT = 0$: $\\Delta s = R\\ln(v_2/v_1) = ${tn(R_AIR, 5)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 5) + ' J/(kg K)') +
-          W.line('actual $\\int \\delta q/T$', '0') +
-          W.box(`$\\Delta s = ${tn(M.ds, 5)} > 0$: an isolated system's entropy rose (§1.8 ii)`) +
-          W.step(5, 'The same end states, reversibly') +
-          W.say(`Route A (isothermal) reaches the same state with $q = ${kJ(R_AIR * T1 * Math.log(M.vr))}$ kJ/kg and the same $\\Delta s$: there the entropy arrives with heat, here it is created inside.`);
+      const M = model(s), W = Viz.work;
+      let o = W.step(0, 'What the windows show') +
+        W.say('The <b>column</b> is the ' + (M.medium === 'atm' ? 'air, coloured by potential temperature θ (blue cool, red warm)' : M.medium === 'ocean' ? 'sea, coloured by density (dark = dense)' : 'salt-stratified tank, coloured by density') +
+          '; the disc is your parcel and its arrow the buoyant force (<span class="c-teal">teal = pushed back</span>, <span class="c-rose">rose = pushed away</span>). In the <b>profile</b> the black line is the environment and the <span class="c-accent">dashed purple</span> line the parcel\'s own ' + (M.medium === 'atm' ? 'adiabat' : 'density') + ' through $z_o$. <b>ζ(t)</b> shows its height: grey dashed is the linear solution, the coloured curve the full nonlinear motion.') +
+        W.hint('On a phone the column view is hidden (the parcel is also drawn in the profile); turn the phone sideways to see all three.');
+      if (M.medium === 'atm') {
+        const N = Math.sqrt(Math.abs(M.N2));
+        o += W.step(1, "The parcel's own cooling rate, Eq. (1.30)") +
+          W.line('$\\Gamma_a = -g/C_p = -9.807/1004.7$', f3(GA, 'K/m'), 'a perfect gas has α = 1/T, so αT = 1') +
+          W.box('Kundu: $\\Gamma_a = \\mathbf{' + tn(GA * 1e3) + '}$ K/km &nbsp;·&nbsp; meteorology: $\\Gamma_{a,\\rm met} = \\mathbf{+' + tn(-GA * 1e3) + '}$ K/km');
+        o += W.step(2, 'Your environment at the rest height') +
+          (s.inv ? W.say('The inversion is on: the mixed layer (below 800 m) follows the dry adiabat, the inversion (800–1000 m) has $dT/dz = +' + tn(s.invRate) + '$ K/km, and above it $dT/dz = ' + tn(s.dTdz) + '$ K/km. Your parcel rests ' + layerName(M.zo) + '.') : '') +
+          W.line('Kundu $\\Gamma = dT/dz$ at $z_o = ' + tn(M.zo, 4) + '$ m', kmK(M.G) + ' K/km', 'your slider' + (s.inv ? ' / the layer' : '')) +
+          W.line('meteorology $\\Gamma_{\\rm met} = -dT/dz$', kmKp(-M.G) + ' K/km', 'same air, opposite sign') +
+          W.box('$\\Gamma = \\mathbf{' + tn(M.G * 1e3) + '}$ K/km (Kundu) &nbsp;⇔&nbsp; $\\Gamma_{\\rm met} = \\mathbf{' + tn(-M.G * 1e3) + '}$ K/km');
+        o += W.step(3, '$N^2$ and its time scale') +
+          W.line('$N^2 = \\frac{g}{T}(\\Gamma - \\Gamma_a) = \\frac{9.807}{' + tn(M.T0, 5) + '}(' + tn(M.G * 1e3) + ' + ' + tn(-GA * 1e3) + ')\\times10^{-3}$', f3(M.N2, '1/s²'), 'D36 with (1.32)') +
+          (M.ts.kind === 'period' ? W.line('$N = \\sqrt{N^2}$', f3(N, '1/s')) + W.box('period $2\\pi/N = \\mathbf{' + tn(M.ts.seconds) + '}$ s $= ' + tn(M.ts.seconds / 60) + '$ min')
+            : M.ts.kind === 'efold' ? W.line('$\\sigma = \\sqrt{-N^2}$', f3(N, '1/s'), 'the growth rate') + W.box('e-folding time $1/\\sigma = \\mathbf{' + tn(M.ts.seconds) + '}$ s $= ' + tn(M.ts.seconds / 60) + '$ min')
+              : W.box('$N^2 = 0$: no restoring force and no time scale'));
+        o += W.step(4, 'Potential temperature at $z_o$') +
+          W.line('$p(z_o)$ from hydrostatics', f3(M.p0 / 100, 'hPa'), '(1.8) with p = ρRT, layer by layer up from 1013.25 hPa') +
+          W.line('$\\theta = T(p_o/p)^{R/C_p} = ' + tn(M.T0, 5) + '\\times(1000/' + tn(M.p0 / 100, 4) + ')^{0.2857}$', f3(M.theta0, 'K'), '(1.31)') +
+          W.line('$d\\theta/dz = (\\theta/T)(\\Gamma - \\Gamma_a)$', Viz.fmt(M.dth * 1e3, { sig: 3, plus: true }) + ' K/km', '(1.32)') +
+          W.box(M.code === 1 ? 'θ increases upward ⇒ <b>stable</b>' : M.code === 0 ? 'θ is uniform ⇒ <b>neutral</b>' : 'θ decreases upward ⇒ <b>unstable</b>');
+        o += W.step(5, 'The criterion in both conventions') + convTable(s, M) +
+          W.say('Negating both numbers reverses the inequality. The margin Γ − Γa (Kundu) = Γa,met − Γmet = ' + Viz.fmt(M.stab.margin * 1e3, { sig: 3, plus: true }) + ' K/km is the same, so the verdict never depends on the convention.') +
+          W.line('<code>lapse_rate_stability</code> prints', '“' + M.stab.text + '”');
+        o += W.step(6, 'The parcel now') +
+          W.line('$t$', Viz.live('t')) + W.line('$\\zeta$ nonlinear (bold)', Viz.live('zeta')) + W.line('$\\zeta$ linear (grey)', Viz.live('zlin')) +
+          W.line('$T_p = T_0 + \\Gamma_a\\zeta$', Viz.live('Tp')) + W.line('$T_e(z_o + \\zeta)$', Viz.live('Te')) + W.line('$a = g(T_p - T_e)/T_e$', Viz.live('acc'), 'the arrow in the column');
+        o += W.step(7, 'Ocean and lab tank') + W.hint('Use the thermocline or salt tank preset (or the Medium chips on larger screens) to see the density form (1.29) and the ocean criterion (1.35).');
+        o += W.interpret(regimeText(s, M) + ' <i>Climate note:</i> lapse-rate-feedback papers write Γ = −dT/dz; a warming that lowers their Γ (toward the moist adiabat) warms the upper troposphere more than the surface.', 'Reading the current setting');
+        return o;
       }
-      const nStep = rev ? 7 : 6;
-      out += W.step(nStep, 'At the current point') +
-        W.line('progress along the route', Viz.live('u') + ' %') +
-        W.line('$v$, $T$', Viz.live('v') + ' m³/kg, ' + Viz.live('T') + ' K', 'the orange dot') +
-        W.line('$p = RT/v$', Viz.live('p') + ' kPa') +
-        W.line('$q$, $w$ so far', Viz.live('q') + ', ' + Viz.live('w') + ' kJ/kg', 'the term bars') +
-        W.line('$s - s_1$ so far', Viz.live('ds') + ' J/(kg K)');
-      let say;
-      if (M.proc === 'stir') say = `Adiabatic is not isentropic. The paddle's ${kJ(M.tot.w)} kJ/kg of work warms the gas by ${f3(M.T2 - T1)} K exactly as heat would, but it also creates ${f3(M.ds)} J/(kg K) of entropy that no heat carried in. That is why $C_v$ cannot be defined as "heat per degree" without saying the process is reversible.`;
-      else if (M.proc === 'free') say = `Nothing crosses the boundary and yet entropy rises by $R\\ln(v_2/v_1) = ${f3(M.ds)}$ J/(kg K). The gas will never squeeze itself back: this one-way street is what the second law describes.`;
-      else if (M.kind === 'isothermal' || (M.kind === 'isothermal-isochoric' && Math.abs(M.Tr - 1) < 1e-9)) say = M.vr >= 1 ? `A slow expansion at constant $T$: $\\Delta e = 0$, so all ${kJ(M.tot.q)} kJ/kg of heat taken in leaves as work. Try route B: it reaches the same state with less heat.` : `A slow squeeze at constant $T$: the ${kJ(M.tot.w)} kJ/kg of work you do leaves as heat, and $s$ falls by ${f3(-M.ds)} J/(kg K).`;
-      else if (M.kind === 'isochoric-isobaric') say = `Cooling first means the expansion happens at the low pressure ${f3(M.corner ? R_AIR * M.corner[1] / M.corner[0] / 1000 : 0)} kPa: less work (${kJ(M.tot.w)} kJ/kg) and less net heat (${kJ(M.tot.q)} kJ/kg) than route A, with the same $\\Delta e$ and $\\Delta s$.`;
-      else if (M.kind === 'isobaric-isochoric') say = `Expanding first at the high start pressure gives the largest work area (${kJ(M.tot.w)} kJ/kg), paid for with the largest heat input; the gas then dumps heat at fixed volume.`;
-      else if (M.kind === 'isentropic-isochoric') say = M.vr < 1 ? `An insulated, frictionless squeeze: no heat, so the ${kJ(M.legs[0].tot.w)} kJ/kg of work stays in the gas and $T$ rises to ${f3(M.legs[0].Tb)} K. The route follows $p\\propto\\rho^{\\gamma}$, steeper than the isotherm.` : `The isentropic leg exchanges no heat; all the heat of this route (${kJ(M.tot.q)} kJ/kg) enters on the isochore, where the gas is coldest.`;
-      else say = `Isotherm then isochore: ${kJ(M.tot.q)} kJ/kg of heat in total for the same $\\Delta e = ${kJ(M.de)}$ kJ/kg.`;
-      out += W.interpret(say, 'Reading the current setting');
-      return out;
+      const lab = M.medium === 'lab';
+      o += W.step(1, "The parcel's own density gradient") +
+        (M.medium === 'ocean' && s.compress ? W.line('$d\\rho_a/dz = -\\rho g/c^2 = -1025\\times9.807/1500^2$', f3(M.drhoa, 'kg/m⁴'), 'it is squeezed as the pressure grows downward')
+          : W.line('$d\\rho_a/dz$', '0 kg/m⁴', lab ? 'water is nearly incompressible over 50 cm' : 'incompressible parcel (toggle compressibility)')) +
+        W.box('the parcel changes density at $\\mathbf{' + tn(M.drhoa) + '}$ kg/m⁴ as it moves');
+      o += W.step(2, 'Your environment') +
+        W.line('$d\\rho/dz$', f3(M.drho, 'kg/m⁴'), lab ? 'the slider × 1000 in the tank' : 'your slider') +
+        (lab ? W.line('salinity gradient $d S/dz = (d\\rho/dz)/(\\rho_0\\beta_S)$', f3(M.drho / (1027 * 7.6e-4), 'g/kg per m'), 'linear EOS, fixed T')
+          : W.line('as a thermocline $dT/dz = -(d\\rho/dz)/(\\rho_0\\alpha_T)$', f3(-M.drho / (1027 * 1.67e-4), 'K/m'), 'linear EOS at S = 35 g/kg')) +
+        W.box('lighter fluid on top when $d\\rho/dz < 0$');
+      o += W.step(3, '$N^2$ from Eq. (1.29)') +
+        W.line('$N^2 = -\\frac{g}{\\rho_0}\\big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\big) = -\\frac{9.807}{1025}(' + tn(M.drho) + ' - (' + tn(M.drhoa) + '))$', f3(M.N2, '1/s²')) +
+        (M.ts.kind === 'period' ? W.box('period $2\\pi/N = \\mathbf{' + tn(M.ts.seconds) + '}$ s' + (lab ? '' : ' $= ' + tn(M.ts.seconds / 60) + '$ min'))
+          : M.ts.kind === 'efold' ? W.box('e-folding time $1/\\sqrt{-N^2} = \\mathbf{' + tn(M.ts.seconds) + '}$ s') : W.box('$N^2 = 0$: neutral'));
+      o += W.step(4, 'The potential-density criterion, Eq. (1.35)') +
+        W.line('$d\\rho_\\theta/dz = d\\rho/dz - d\\rho_a/dz$', f3(M.drhoth, 'kg/m⁴'), 'negative = stable') +
+        (M.medium === 'ocean' ? W.line('with compressibility $d\\rho/dz + \\rho g/c^2$', f3(oceanCriterion(M.drho, 1025, 1500), 'kg/m⁴'), 'the book\'s ocean form') : '') +
+        W.box('sign ' + (M.drhoth < 0 ? 'negative ⇒ <b>stable</b>' : M.drhoth > 0 ? 'positive ⇒ <b>unstable</b>' : 'zero ⇒ <b>neutral</b>'));
+      o += W.step(5, 'Two forms, one verdict') + densityTable(s, M) + W.say('$N^2 = -(g/\\rho_0)\\,d\\rho_\\theta/dz$: the two signs are always opposite. The lapse-rate conventions table appears in atmosphere mode.');
+      o += W.step(6, 'The parcel now') +
+        W.line('$t$', Viz.live('t')) + W.line('$\\zeta$ nonlinear (bold)', Viz.live('zeta')) + W.line('$\\zeta$ linear (grey)', Viz.live('zlin')) +
+        W.line('$\\rho_p - \\rho_e$', Viz.live('drho')) + W.line('$a = -g(\\rho_p - \\rho_e)/\\rho_p$', Viz.live('acc'), 'the arrow in the column');
+      o += W.step(7, 'The atmosphere') + W.hint('Use an atmosphere preset (or the Medium chips on larger screens) to see the same test written with lapse rates, in both sign conventions.');
+      o += W.interpret(regimeText(s, M), 'Reading the current setting');
+      return o;
     },
-    live: s => { const n = at(model(s), s.prog); return { u: Math.round(s.prog * 100), v: n.v.toFixed(3), T: n.T.toFixed(1), p: (n.p / 1000).toFixed(1), q: (n.q / 1000).toFixed(2), w: (n.w / 1000).toFixed(2), ds: n.ds.toFixed(1) }; }
+    live: s => {
+      const N = now(s), M = N.M, md = M.medium;
+      const out = { t: fmtT(N.t, md), zeta: fmtZ(N.z, md) + (N.off ? ' (stopped)' : ''), zlin: isFinite(N.zlin) ? fmtZ(N.zlin, md) : '∞', acc: Viz.fmt(N.a, { sig: 3 }) + ' m/s²' };
+      if (md === 'atm') { out.Tp = Viz.fmt(M.Tp(N.z), { sig: 6 }) + ' K'; out.Te = Viz.fmt(M.Te(N.z), { sig: 6 }) + ' K'; }
+      else out.drho = Viz.fmt(M.rhop(N.z) - M.rhoe(N.z), { sig: 3 }) + ' kg/m³';
+      return out;
+    }
   },
   derivations: [
-    { id: 'D10', title: 'The Gibbs relations: removing heat from the first law', short: 'Gibbs (1.18)', ref: 'Eq. (1.18)', view: 'pv',
-      goal: 'Eliminate heat, which depends on the route, from the reversible first law, leaving relations between state functions only. Those relations then hold for <b>any</b> process.',
-      start: { tex: 'T\\,ds = dq \\quad\\text{and}\\quad de = dq - p\\,dv', plain: 'For a reversible change the heat received is $T\\,ds$ (1.17), and the first law with boundary work $-p\\,dv$ (1.11).' },
-      plan: ['Solve the first law for $dq$ and substitute into $T\\,ds = dq$.', 'Rewrite with enthalpy using the product rule.', 'Explain why a route-independent relation holds for every process.'],
-      uses: ['(1.17) $T\\,ds = dq$', '(1.11) $de = dq - p\\,dv$', '$h = e + pv$ (1.13)', 'differentials', 'product rule for differentials'],
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' },
+    { id: 'D18', title: 'The parcel equation and $N^2$', short: 'D18 · N²', ref: 'Eq. (1.29)', view: 'zeta',
+      goal: 'Find how a small blob of fluid moves after it is pushed a little way up in a fluid at rest, and the one number that decides whether it comes back.',
+      start: { tex: '\\rho_p V\\,\\frac{d^2\\zeta}{dt^2} = \\sum F_z', plain: "Newton's second law for a parcel of volume V and density ρ_p, displaced by ζ from its rest height z_o." },
+      plan: ['List the forces: weight and buoyancy.', 'Write the densities of the parcel and of its new surroundings to first order in ζ.', 'Keep first-order terms only.', 'Name the coefficient $N^2$ and solve.'],
+      uses: ["Newton's second law", 'buoyancy (Archimedes)', 'first-order Taylor expansion', 'linear 2nd-order ODE', '$\\sqrt{\\text{negative}}$'],
+      set: { medium: 'ocean', drhodz: -0.01, compress: false, zeta0: 50, u: 0 },
       steps: [
-        { did: 'Solve the reversible first law for $dq$', tex: 'dq = de + p\\,dv',
-          why: 'Add $p\\,dv$ to both sides of (1.11). We isolate $dq$ because it is the route-dependent quantity we want to replace.',
-          plain: 'Heat in = rise of internal energy + work done by the gas.' },
-        { did: 'Substitute into $T\\,ds = dq$', tex: 'T\\,ds = de + p\\,dv',
-          why: '(1.17) says the same $dq$ equals $T\\,ds$ on a reversible route; equal things can replace each other.',
-          plain: 'The first Gibbs relation: no heat left in it.',
-          live: s => { const M = model(s); return `\\int\\tfrac{de}{T} + \\int\\tfrac{p\\,dv}{T} = ${tn(M.cv * Math.log(M.Tr), 4)} + ${tn(R_AIR * Math.log(M.vr), 4)} = ${tn(M.ds, 4)}`; },
-          watch: 'For a perfect gas with constant $C_v$, both integrals need only the end states: $C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ J/(kg K).' },
-        { did: 'Differentiate the definition of enthalpy', tex: 'dh = de + d(pv)',
-          why: '$h = e + pv$ (1.13); the differential of a sum is the sum of the differentials. We want a second form written with $dh$.',
-          plain: 'A change in $h$ is a change in $e$ plus a change in $pv$.' },
-        { did: 'Apply the product rule', tex: 'dh = de + p\\,dv + v\\,dp',
-          why: '$d(pv) = p\\,dv + v\\,dp$ (product rule): both $p$ and $v$ may change along the way.',
-          plain: 'Both pressure and volume changes feed $pv$.', highlight: ['readout:de'] },
-        { did: 'Isolate $de + p\\,dv$', tex: 'de + p\\,dv = dh - v\\,dp',
-          why: 'Subtract $v\\,dp$ from both sides of step 4; the left side is exactly the right side of step 2.',
-          plain: 'The same combination written with enthalpy.' },
-        { did: 'Substitute into step 2', tex: 'T\\,ds = dh - v\\,dp',
-          why: 'Replace $de + p\\,dv$ by its equal from step 5.',
-          plain: 'The second Gibbs relation.',
-          live: s => { const M = model(s); return `C_p\\ln\\tfrac{T_2}{T_1} - R\\ln\\tfrac{p_2}{p_1} = ${tn(M.cp * Math.log(M.Tr), 4)} - (${tn(R_AIR * Math.log(M.p2 / P1), 4)}) = ${tn(M.ds, 4)}`; } },
-        { did: 'Drop the reversible restriction (any process)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
-          why: 'Every symbol in the relation is a state function, so it cannot know which route was taken. Only the reading $T\\,ds = dq$ is lost.',
-          plain: 'Any irreversible change can be replaced by a reversible route between the same states, so the relations hold for stirring too, but $T\\,ds$ is no longer the heat.',
-          set: { proc: 'stir', vr: 1, Tr: 1.2 },
-          live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 3)} = ${tn(M.ds, 4)}`; },
-          watch: 'Gibbs still gives $\\Delta s = C_v\\ln 1.2 \\approx 131$ J/(kg K) for stirring, although $\\delta q = 0$ (see the status line).' }
+        { did: "Name the parcel's two vertical forces", tex: '\\sum F_z = -\\rho_p V g + F_b', why: 'Its weight points down; the pressure of the surrounding fluid gives a net force F_b. Nothing else acts on a frictionless parcel.', plain: 'Weight down, buoyancy up.' },
+        { did: 'Use buoyancy at the new height', tex: 'F_b = \\rho(z_o + \\zeta)\\,V g', why: "The parcel's pressure matches its surroundings, so the net push is the weight of the environment fluid it displaces at z_o + ζ (Archimedes).", plain: 'The parcel is buoyed by the fluid it pushes aside at its new height.', set: { u: 0 } },
+        { did: "Insert both forces into Newton's law", tex: '\\rho_p V\\,\\frac{d^2\\zeta}{dt^2} = -\\rho_p V g + \\rho(z_o+\\zeta)\\,V g', why: 'The start says mass × acceleration equals the sum of the forces; steps 1 and 2 give that sum term by term.', plain: 'The parcel accelerates according to the difference between buoyancy and weight.' },
+        { did: "Divide by the parcel's mass $\\rho_p V$", tex: '\\frac{d^2\\zeta}{dt^2} = -g\\,\\frac{\\rho_p - \\rho(z_o+\\zeta)}{\\rho_p}', why: 'ρ_pV ≠ 0, so we may divide both sides by it; collecting the g terms leaves the acceleration alone on the left.', plain: 'A parcel heavier than its surroundings accelerates down.' },
+        { did: "Expand the parcel's density along its path", tex: '\\rho_p = \\rho(z_o) + \\frac{d\\rho_a}{dz}\\,\\zeta', why: 'First-order Taylor. The parcel starts with the environment density ρ(z_o) and changes adiabatically at the isentropic rate dρ_a/dz as it meets new pressure.', plain: "The parcel's density changes at its own rate." },
+        { did: "Expand the environment's density", tex: '\\rho(z_o+\\zeta) = \\rho(z_o) + \\frac{d\\rho}{dz}\\,\\zeta', why: "First-order Taylor of the static background profile; dρ/dz is the environment's gradient.", plain: 'The surroundings have their own, different rate.' },
+        { did: 'Subtract the two', tex: '\\rho_p - \\rho(z_o+\\zeta) = \\Big(\\frac{d\\rho_a}{dz} - \\frac{d\\rho}{dz}\\Big)\\zeta', why: 'ρ(z_o) cancels because parcel and environment matched at rest; what remains is first order in ζ.', plain: 'The density difference grows in proportion to the displacement.',
+          live: s => { const M = model(s); if (M.medium === 'atm') return '\\text{switch to ocean or lab to see numbers}'; return '(' + tn(M.drhoa) + ' - (' + tn(M.drho) + '))\\times' + tn(M.zeta0) + ' = ' + tn((M.drhoa - M.drho) * M.zeta0) + '\\ \\text{kg/m}^3'; } },
+        { did: 'Keep the leading term in the denominator', tex: '\\rho_p \\approx \\rho(z_o)', why: 'The numerator is already proportional to ζ; the correction (dρ_a/dz)ζ below would only add terms of order ζ², which we drop for a small displacement.', plain: "For the inertia, the parcel's density is its starting density." },
+        { did: 'Substitute steps 7 and 8 into step 4', tex: '\\frac{d^2\\zeta}{dt^2} = -\\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho_a}{dz} - \\frac{d\\rho}{dz}\\Big)\\zeta', why: 'Replace the density difference and the denominator.', plain: 'The acceleration is proportional to the displacement: a spring.' },
+        { did: 'Swap the bracket, move it left', tex: '\\frac{d^2\\zeta}{dt^2} - \\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)\\zeta = 0', why: '−(a − b) = (b − a); then subtract the right side from both sides. This is the book\'s form.', plain: 'The parcel equation of §1.10.' },
+        { did: 'Name the coefficient $N^2$', tex: 'N^2 \\equiv -\\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)', why: 'Definition (1.29), chosen so the equation reads ζ″ + N²ζ = 0, the oscillator form.', plain: 'One number collects gravity and the two density gradients.',
+          live: s => { const M = model(s); if (M.medium === 'atm') return 'N^2 = \\tfrac{g}{T}(\\Gamma-\\Gamma_a) = ' + tn(M.N2) + '\\ \\text{s}^{-2}'; return 'N^2 = -\\tfrac{9.807}{' + tn(M.rho0, 4) + '}(' + tn(M.drho) + ' - (' + tn(M.drhoa) + ')) = ' + tn(M.N2) + '\\ \\text{s}^{-2}'; } },
+        { did: 'Try an exponential solution', tex: '\\zeta = e^{\\lambda t}\\ \\Rightarrow\\ \\lambda^2 + N^2 = 0', why: 'For a linear equation with constant coefficients e^{λt} turns derivatives into powers of λ; e^{λt} ≠ 0 divides out.', plain: 'The motion is set by the roots λ = ±√(−N²).' },
+        { did: 'Release from rest when $N^2 \\neq 0$', tex: '\\zeta(t) = \\begin{cases} \\zeta_0\\cos Nt & N^2 > 0\\\\ \\zeta_0\\cosh\\sqrt{-N^2}\\,t & N^2 < 0 \\end{cases}', why: 'ζ(0) = ζ₀ and ζ′(0) = 0 pick the even combination of e^{±λt}: cos for imaginary λ, cosh for real λ.', plain: 'Oscillate or run away.', set: { u: 0 }, play: true,
+          watch: 'In the thermocline preset the grey dashed curve has period 2π/N = 10.7 min.' },
+        { did: 'Treat the double root $N^2 = 0$', tex: '\\zeta = A + Bt,\\quad \\zeta\'(0) = B = 0\\ \\Rightarrow\\ \\zeta = \\zeta_0', why: 'λ = 0 is a double root, so the second solution is t, not another exponential; release from rest removes it.', plain: 'A neutral parcel stays where it is put.',
+          set: { medium: 'atm', dTdz: GA_KM, inv: false, u: 0 }, play: true, watch: 'With dT/dz = Γa the ζ(t) curve is flat: no force at any height.' }
       ],
-      result: { tex: '\\begin{aligned} T\\,ds &= de + p\\,dv \\\\ T\\,ds &= dh - v\\,dp \\end{aligned}', plain: 'Entropy changes are fixed by changes of energy (or enthalpy), volume and pressure, for any process.' },
-      interpret: s => { const M = model(s), a = M.cv * Math.log(M.Tr) + R_AIR * Math.log(M.vr), b = M.cp * Math.log(M.Tr) - R_AIR * Math.log(M.p2 / P1); return `For your end states $\\Delta s = ${tn(a, 5)}$ J/(kg K) from the first form and $${tn(b, 5)}$ from the second (difference ${Viz.fmt(Math.abs(a - b), { sig: 2 })}). ` + (M.proc === 'rev' ? 'On this reversible route the heat integral gives the same number.' : 'Here no heat entered, so $\\Delta s > \\int\\delta q/T = 0$.'); },
-      check: 'Units: J/kg on every term. Perfect gas, 300 → 600 K at constant p: form 1 gives C_v ln 2 + R ln 2 = 696.4 J/(kg K), form 2 gives C_p ln 2 − R ln 1 = 696.4. The notebook checks both residuals with sympy; the selftest compares Δs with ch01.perfect_gas_entropy_change.' },
-    { id: 'D14', title: 'The isentropic law $p/\\rho^\\gamma = $ const', short: 'Isentrope (1.25)', ref: 'Eq. (1.25)', view: 'pv',
-      goal: 'Find how pressure follows density when a perfect gas is compressed or expanded with no heat and no friction.',
-      start: { tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp', plain: 'The Gibbs relations (1.18), valid for any process.' },
-      plan: ['Set $ds = 0$ in both forms.', 'Use $e = e(T)$ and $h = h(T)$ to bring in $C_v$ and $C_p$.', 'Divide the two equations so $T$ drops out.', 'Switch from $v$ to $\\rho$ and integrate.'],
-      uses: ['Gibbs relations (D10)', '$e = e(T)$, $h = h(T)$ for a perfect gas', '$\\gamma = C_p/C_v$ (1.24)', 'separation of variables', '$\\int dx/x = \\ln x$', 'log and exponent rules'],
-      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 },
+      result: { tex: '\\frac{d^2\\zeta}{dt^2} + N^2\\zeta = 0,\\quad N^2 = -\\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)', plain: "A displaced parcel is a harmonic oscillator with squared frequency N², positive when the environment's density falls with height faster than the parcel's own." },
+      interpret: s => { const M = model(s); return 'With your settings $N^2 = ' + tn(M.N2) + '$ s⁻²: ' + regimeText(s, M); },
+      check: 'Units: (m s⁻²)/(kg m⁻³) × kg m⁻⁴ = s⁻² ✓. Uniform incompressible fluid: dρ/dz = dρ_a/dz = 0 → N² = 0 ✓. Thermocline −0.01 kg/m⁴, ρ = 1025 → 9.57×10⁻⁵ s⁻², period 642 s ✓ (selftest rows vs brunt_vaisala_sq and parcel_ode_from_gradients).' },
+    { id: 'D19', title: 'The adiabatic lapse rate for any fluid', short: 'D19 · Γa', ref: 'Eq. (1.30)', view: 'profile',
+      goal: 'Find how fast the temperature of a parcel changes as it rises isentropically through a fluid in hydrostatic balance, for any fluid, then read it in both sign conventions.',
+      start: { tex: 'T\\,ds = dh - v\\,dp,\\quad ds = 0,\\quad \\frac{dp}{dz} = -\\rho g', plain: "The parcel's entropy stays constant, and the pressure it feels is the hydrostatic pressure of its surroundings." },
+      plan: ['Write dh for the isentropic parcel.', 'Expand dh in T and p: this brings in C_p and an unknown $(\\partial h/\\partial p)_T$.', 'Find that unknown with the Gibbs free energy, a Maxwell relation and α.', 'Divide by dz and use hydrostatics.'],
+      uses: ['Gibbs relations (1.18)', '$C_p$ (1.14)', 'α (1.20)', 'chain rule in two variables', 'Maxwell relation', 'hydrostatics (1.8)'],
+      set: { medium: 'atm', dTdz: -6.5, conv: 'kundu', showTheta: false, inv: false, u: 0 },
       steps: [
-        { did: 'Set $ds = 0$ in the first Gibbs form', tex: '0 = de + p\\,dv',
-          why: 'Isentropic means $s$ does not change, so $T\\,ds = 0$ ($T > 0$). We start with the energy form because the work $p\\,dv$ appears in it.',
-          plain: 'All the work done on the gas goes into internal energy.' },
-        { did: 'Use $e = e(T)$', tex: 'C_v\\,dT = -p\\,dv',
-          why: 'For a perfect gas $e$ depends on $T$ only, so the partial derivative in (1.15) is an ordinary one and $de = C_v\\,dT$.',
-          plain: 'Compression ($dv < 0$) warms the gas.' },
-        { did: 'Set $ds = 0$ in the second Gibbs form', tex: '0 = dh - v\\,dp',
-          why: 'Isentropic, so $T\\,ds = 0$ in $T\\,ds = dh - v\\,dp$; we want a second equation that contains $dp$.',
-          plain: 'At constant entropy the enthalpy changes only through the pressure.' },
-        { did: 'Use $h = h(T)$', tex: 'C_p\\,dT = v\\,dp',
-          why: 'For a perfect gas $h$ depends on $T$ only, so $dh = C_p\\,dT$ (1.14).',
-          plain: 'Raising the pressure raises the temperature.' },
-        { did: 'Divide step 4 by step 2', tex: '\\frac{C_p}{C_v} = \\frac{v\\,dp}{-\\,p\\,dv}',
-          why: 'Along a compression $dT \\neq 0$, so both sides of step 2 are nonzero and we may divide; $dT$ cancels, removing temperature from the problem.',
-          plain: 'The ratio of specific heats links the pressure change to the volume change.' },
-        { did: 'Name the ratio $\\gamma$', tex: '\\gamma = -\\frac{v\\,dp}{p\\,dv}',
-          why: '$\\gamma \\equiv C_p/C_v$ by definition (1.24); nothing else changes.',
-          plain: '$\\gamma$ measures how much faster $p$ changes than $v$, in relative terms.' },
-        { did: 'Separate the variables', tex: '\\frac{dp}{p} = -\\gamma\\,\\frac{dv}{v}',
-          why: 'Multiply both sides by $-dv/v$; now each side contains one variable only, ready to integrate.',
-          plain: 'A 1 % decrease in volume raises the pressure by $\\gamma$ %.',
-          live: s => { const g = model(s).gamma; return `\\frac{dp}{p} = -${tn(g, 3)}\\times(-0.01) = +${tn(0.01 * g, 3)}`; }, play: false },
-        { did: 'Switch from specific volume to density', tex: '\\frac{dv}{v} = -\\frac{d\\rho}{\\rho}',
-          why: '$v = 1/\\rho$ gives $dv = -d\\rho/\\rho^2$ (derivative of $1/\\rho$); dividing by $v = 1/\\rho$ gives $-d\\rho/\\rho$. Watch the sign: this is the classic slip.',
-          plain: 'A 1 % increase in density is a 1 % decrease in volume.' },
-        { did: 'Substitute into step 7', tex: '\\frac{dp}{p} = \\gamma\\,\\frac{d\\rho}{\\rho}',
-          why: 'Replace $dv/v$ by $-d\\rho/\\rho$; the two minus signs cancel.',
-          plain: 'Relative pressure change = $\\gamma$ × relative density change.' },
-        { did: 'Integrate both sides with constant $\\gamma$', tex: '\\ln p = \\gamma\\,\\ln\\rho + \\text{const}',
-          why: '$\\int dx/x = \\ln x$; $\\gamma$ may stay outside the integral because $C_p$ and $C_v$ are constant (our assumption).',
-          plain: 'On log–log axes $p$ against $\\rho$ is a straight line of slope $\\gamma$.',
-          watch: 'On the p–v diagram the bold blue route lies exactly on the faint teal isentrope through state 1.' },
-        { did: 'Combine the logarithms and exponentiate', tex: '\\frac{p}{\\rho^\\gamma} = \\text{const}',
-          why: '$\\ln p - \\gamma\\ln\\rho = \\ln(p/\\rho^\\gamma)$ by the log and exponent rules; if a logarithm is constant, so is its argument.',
-          plain: 'Along an isentrope $p/\\rho^\\gamma$ never changes.',
-          live: s => { const M = model(s), n = at(M, s.prog), g = M.gamma; return `\\frac{p}{\\rho^\\gamma}:\\ ${tn(P1 * Math.pow(V1, g), 5)}\\ \\text{(state 1)},\\ ${tn(n.p * Math.pow(n.v, g), 5)}\\ \\text{(dot)}`; },
-          set: { prog: 0.7 }, play: false }
+        { did: 'Set $ds = 0$ in the Gibbs relation', tex: 'dh = v\\,dp', why: 'No heat and no friction, so the entropy is constant. We use the enthalpy form because it contains dp, which hydrostatics will supply.', plain: "The parcel's enthalpy changes only through the pressure it meets." },
+        { did: 'Expand $dh$ in T and p', tex: 'dh = \\Big(\\frac{\\partial h}{\\partial T}\\Big)_p dT + \\Big(\\frac{\\partial h}{\\partial p}\\Big)_T dp', why: 'Two properties fix the state, so h = h(T, p); the chain rule gives its differential. We want dT to appear.', plain: 'h changes because T changes and because p changes.' },
+        { did: 'Recognise $C_p$', tex: 'dh = C_p\\,dT + \\Big(\\frac{\\partial h}{\\partial p}\\Big)_T dp', why: '(1.14) defines C_p = (∂h/∂T)_p. One coefficient is now a known property; the other still needs work.', plain: 'The first part is the specific heat times the temperature change.' },
+        { did: 'Gibbs relation at fixed T', tex: '\\Big(\\frac{\\partial h}{\\partial p}\\Big)_T = T\\Big(\\frac{\\partial s}{\\partial p}\\Big)_T + v', why: 'dh = T ds + v dp holds for any change; take a change at constant T and divide by dp. This trades the unknown for an entropy derivative.', plain: 'How h depends on p at fixed T involves how s does.' },
+        { did: 'Introduce the Gibbs free energy', tex: 'g \\equiv h - Ts,\\qquad dg = v\\,dp - s\\,dT', why: 'dg = dh − T ds − s dT (product rule) and dh = T ds + v dp; the T ds terms cancel. Its natural variables are exactly p and T.', plain: 'A helper state function whose changes involve only dp and dT.' },
+        { did: 'Read off its partial derivatives', tex: '\\Big(\\frac{\\partial g}{\\partial p}\\Big)_T = v,\\qquad \\Big(\\frac{\\partial g}{\\partial T}\\Big)_p = -s', why: 'Compare dg = v dp − s dT term by term with the chain rule dg = (∂g/∂p)_T dp + (∂g/∂T)_p dT.', plain: 'v and −s are the slopes of g.' },
+        { did: 'Equate the mixed second derivatives', tex: '\\Big(\\frac{\\partial v}{\\partial T}\\Big)_p = -\\Big(\\frac{\\partial s}{\\partial p}\\Big)_T', why: 'g is smooth, so ∂²g/∂T∂p = ∂²g/∂p∂T. This Maxwell relation turns an entropy derivative into a measurable one.', plain: 'How entropy changes with pressure is set by thermal expansion.' },
+        { did: 'Express $(\\partial v/\\partial T)_p$ with α', tex: '\\Big(\\frac{\\partial v}{\\partial T}\\Big)_p = v\\,\\alpha', why: 'v = 1/ρ gives (∂v/∂T)_p = −(1/ρ²)(∂ρ/∂T)_p, and (1.20) says (∂ρ/∂T)_p = −ρα, so the result is α/ρ = vα.', plain: 'Heating at fixed pressure swells unit mass by vα per kelvin.' },
+        { did: 'Insert into the Maxwell relation', tex: '\\Big(\\frac{\\partial s}{\\partial p}\\Big)_T = -\\,v\\,\\alpha', why: 'Steps 7 and 8. The sign matters: squeezing at fixed T lowers the entropy when α > 0.', plain: 'Entropy falls with pressure at the rate vα.' },
+        { did: 'Complete $(\\partial h/\\partial p)_T$', tex: '\\Big(\\frac{\\partial h}{\\partial p}\\Big)_T = v\\,(1 - \\alpha T)', why: 'Substitute step 9 into step 4: −Tvα + v.', plain: 'The pressure part of dh, now in measurable properties.' },
+        { did: 'Equate the two expressions for $dh$', tex: 'C_p\\,dT + v(1 - \\alpha T)\\,dp = v\\,dp', why: 'Step 3 (with step 10) and step 1 describe the same change of the same parcel.', plain: 'Two bookkeepings of one enthalpy change.' },
+        { did: 'Subtract $v\\,dp$ from both sides', tex: 'C_p\\,dT = v\\,\\alpha\\,T\\,dp', why: 'v(1 − αT)dp − v dp = −vαT dp; move it across. The temperature change is now tied to the pressure change alone.', plain: 'A parcel warms when compressed and cools when the pressure drops (α > 0).' },
+        { did: 'Divide by $dz$ along the path', tex: 'C_p\\,\\frac{dT_a}{dz} = v\\,\\alpha\\,T\\,\\frac{dp}{dz}', why: 'Both sides are changes along the vertical path; dividing by dz turns them into rates. The subscript a marks the adiabatic parcel.', plain: 'Temperature rate per metre ↔ pressure rate per metre.' },
+        { did: 'Use hydrostatics with $v = 1/\\rho$', tex: 'C_p\\,\\frac{dT_a}{dz} = -\\,\\alpha\\,T\\,g', why: "The parcel's pressure is the environment's, dp/dz = −ρg (1.8); at the release height the parcel's v equals 1/ρ, so vρ = 1.", plain: 'The pressure drop with height sets the cooling.', highlight: ['readout:ref'] },
+        { did: 'Divide by $C_p$', tex: '\\frac{dT_a}{dz} \\equiv \\Gamma_a = -\\,\\frac{g\\,\\alpha\\,T}{C_p}', why: 'C_p > 0. This is (1.30), derived without any perfect-gas relation.', plain: 'The adiabatic lapse rate of any fluid.',
+          live: s => { const M = model(s), T = M.medium === 'atm' ? M.T0 : 288.15; return '\\begin{aligned}\\alpha T &= (1/' + tn(T, 5) + ')\\times' + tn(T, 5) + ' = 1\\\\ \\Gamma_a &= -9.807/1004.7 = ' + tn(GA) + '\\ \\text{K/m}\\end{aligned}'; } },
+        { did: 'Specialise to a perfect gas', tex: '\\Gamma_a = -\\,\\frac{g}{C_p} = -9.76\\ \\text{K/km}', why: 'α = 1/T for a perfect gas (1.28), so αT = 1; g = 9.807 m/s² and C_p = 1004.7 J/(kg K).', plain: 'Dry air cools 9.76 K for every kilometre it rises.', watch: "The dashed purple adiabat's slope is exactly this." }
       ],
-      result: { tex: 'p/\\rho^\\gamma = \\text{const}', plain: 'With no heat and no friction, a perfect gas with constant specific heats keeps $p \\propto \\rho^\\gamma$.' },
-      interpret: s => { const M = model(s); if (M.proc !== 'rev' || M.kind !== 'isentropic-isochoric') return 'Pick the <b>pump</b> preset to see the isentrope drawn bold.'; const Tb = M.legs[0].Tb; return `Squeezing to $v_2/v_1 = ${tn(M.vr)}$ along the isentrope raises $T$ from 300 K to ${f3(Tb, 4)} K and $p$ by the factor $(v_1/v_2)^{\\gamma} = ${tn(Math.pow(1 / M.vr, M.gamma), 4)}$, with no heat at all.`; },
-      check: 'Units: the constant carries Pa (m³/kg)^γ, fixed by the starting state. Limit γ → 1: p/ρ = const, the isothermal law. Number: pump 1 → 2 bar, ρ₂/ρ₁ = 2^(1/1.4) = 1.641 and T₂ = 288.15 × 2/1.641 = 351.3 K. The selftest compares isentropicPressure with ch01.isentropic_pressure.' }
+      result: { tex: '\\Gamma_a = \\frac{dT_a}{dz} = -\\frac{g\\alpha T}{C_p};\\quad \\text{dry air: } -\\frac{g}{C_p} = -9.76\\ \\text{K/km}', plain: 'Kundu (Γ ≡ dT/dz): Γa = −9.76 K/km, stable when Γ > Γa (−6.5 > −9.76). Meteorology (Γ ≡ −dT/dz): Γa = +9.76 K/km, stable when Γ < Γa (6.5 < 9.76). Multiplying by −1 flips the inequality; the verdict is the same.' },
+      interpret: s => { const M = model(s); if (M.medium !== 'atm') return 'Switch to the atmosphere to compare your lapse rate with Γa.'; return 'Your environment: $dT/dz = ' + tn(M.G * 1e3) + '$ vs $\\Gamma_a = ' + tn(GA * 1e3) + '$ K/km (Kundu) ⇔ $\\Gamma_{\\rm met} = ' + tn(-M.G * 1e3) + '$ vs $+' + tn(-GA * 1e3) + '$ K/km (meteorology) → ' + regimeWord(M.code) + ': “' + M.stab.text + '”.'; },
+      check: 'Units: m s⁻² · K⁻¹ · K / (J kg⁻¹ K⁻¹) = K/m ✓. α = 0 gives Γa = 0 ✓. Water at 283 K (α = 1.5×10⁻⁴ 1/K, C_p = 4190) → −0.10 K/km ✓. A sympy check with an arbitrary Gibbs function reproduces steps 12–16 (notebook).' },
+    { id: 'D20', title: 'Potential temperature', short: 'D20 · θ', ref: 'Eq. (1.31)', view: 'profile',
+      goal: 'Define a temperature label that a parcel keeps when it moves without heating: the temperature it would have if brought adiabatically to a reference pressure p_o. The book takes p_o = p(0) at sea level (≈ 100 kPa); meteorology and <code>potential_temperature</code> fix 1000 hPa. Our ground pressure is 1013.25 hPa, so θ at z = 0 is about 1 K below T.',
+      start: { tex: '\\frac{T}{T_0} = \\Big(\\frac{p}{p_0}\\Big)^{(\\gamma-1)/\\gamma}', plain: 'Along one isentrope of a perfect gas the temperature ratio of two states is a power of their pressure ratio (1.26).' },
+      plan: ['Choose the two states: "now" and "at the reference pressure".', 'Solve for the reference temperature.', 'Rewrite the exponent with R/C_p.'],
+      uses: ['isentropic ratios (1.26)', 'exponent rules', '$R = C_p - C_v$, $\\gamma = C_p/C_v$'],
+      set: { medium: 'atm', showTheta: true, u: 0 },
+      steps: [
+        { did: 'Take the reference state $(\\theta, p_o)$', tex: '\\frac{T}{\\theta} = \\Big(\\frac{p}{p_o}\\Big)^{(\\gamma-1)/\\gamma}', why: '(1.26) links any two states on one isentrope; the parcel taken adiabatically to p_o has temperature θ by definition, so rename T₀ → θ and p₀ → p_o.', plain: 'The parcel now and the parcel at 1000 hPa lie on the same isentrope.' },
+        { did: 'Multiply both sides by θ', tex: 'T = \\theta\\,\\Big(\\frac{p}{p_o}\\Big)^{(\\gamma-1)/\\gamma}', why: 'θ ≠ 0. This is the book\'s form (1.31).', plain: 'Actual temperature = potential temperature times a pressure factor.',
+          live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return tn(M.T0, 5) + ' = ' + tn(M.theta0, 5) + '\\times(' + tn(M.p0 / 100, 4) + '/1000)^{0.2857}'; } },
+        { did: 'Solve for θ', tex: '\\theta = T\\,\\Big(\\frac{p_o}{p}\\Big)^{(\\gamma-1)/\\gamma}', why: 'Divide by the power and use 1/(a/b)^k = (b/a)^k. This is the form we compute.', plain: 'Correct the thermometer reading for the pressure.' },
+        { did: 'Rewrite the exponent', tex: '\\frac{\\gamma-1}{\\gamma} = 1 - \\frac{C_v}{C_p}', why: 'Split the fraction: (γ − 1)/γ = 1 − 1/γ, and 1/γ = C_v/C_p.', plain: "The exponent is one minus the inverse of the specific-heat ratio." },
+        { did: 'Use $R = C_p - C_v$', tex: '\\theta = T\\,\\Big(\\frac{p_o}{p}\\Big)^{R/C_p}', why: '1 − C_v/C_p = (C_p − C_v)/C_p = R/C_p; for air 287.06/1004.7 = 2/7.', plain: 'The meteorology form, exponent 0.286.',
+          live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return '\\theta = ' + tn(M.T0, 5) + '\\times(1000/' + tn(M.p0 / 100, 4) + ')^{0.2857} = ' + tn(M.theta0, 5) + '\\ \\text{K}'; } }
+      ],
+      result: { tex: 'T = \\theta\\,(p/p_o)^{(\\gamma-1)/\\gamma}\\quad\\Leftrightarrow\\quad \\theta = T\\,(p_o/p)^{R/C_p}', plain: 'Potential temperature is the temperature a parcel would have at 1000 hPa; dry adiabatic motion keeps it constant.' },
+      interpret: s => { const M = model(s); if (M.medium !== 'atm') return 'Switch to the atmosphere to see θ.'; return 'At $z_o$: $T = ' + tn(M.T0, 5) + '$ K, $p = ' + tn(M.p0 / 100, 4) + '$ hPa, so $\\theta = ' + tn(M.theta0, 5) + '$ K. In the θ view the parcel keeps this value (dashed vertical line).'; },
+      check: 'p = p_o gives θ = T ✓. 500 hPa and 250 K → θ = 250 × 2^{2/7} = 304.8 K ✓ (selftest row vs potential_temperature).' },
+    { id: 'D36', title: '$N^2$ from the θ gradient', short: 'D36 · N²(θ)', ref: 'D36 · (1.32)', view: 'profile',
+      goal: 'Show that for a perfect-gas atmosphere the density-based N² of (1.29) is g/θ times the vertical gradient of θ, so stability means "θ increases upward".',
+      start: { tex: 'N^2 = -\\frac{g}{\\rho}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)', plain: 'The parcel result of D18, at the height where parcel and environment share the density ρ.' },
+      plan: ['Write both density gradients as relative (logarithmic) rates.', 'Environment from p = ρRT; parcel from the isentropic ratio.', 'Subtract: the pressure terms combine into θ.', 'Use (1.32) for the lapse-rate form.'],
+      uses: ['(1.29)', 'logarithmic differentiation', '$p = \\rho R T$', 'isentropic ratios (1.26)', 'θ (1.31)', '(1.32)'],
+      set: { medium: 'atm', showTheta: true, dTdz: -6.5, u: 0 },
+      steps: [
+        { did: 'Take ρ inside the bracket', tex: 'N^2 = -g\\Big(\\frac1\\rho\\frac{d\\rho}{dz} - \\frac1\\rho\\frac{d\\rho_a}{dz}\\Big)', why: "Distribute 1/ρ; at the rest height the parcel's density equals ρ, so each term is a relative rate, which logs make easy.", plain: 'N² compares relative density changes.' },
+        { did: 'Log-differentiate $p = \\rho R T$', tex: '\\frac1\\rho\\frac{d\\rho}{dz} = \\frac1p\\frac{dp}{dz} - \\frac1T\\frac{dT}{dz}', why: 'ρ = p/(RT), so ln ρ = ln p − ln R − ln T; differentiate in z with R constant.', plain: 'Environment density falls because pressure falls, and rises where it gets colder.' },
+        { did: "Log-differentiate the parcel's density", tex: '\\frac1{\\rho_a}\\frac{d\\rho_a}{dz} = \\frac1\\gamma\\,\\frac1p\\frac{dp}{dz}', why: "Along its isentrope ρ_a ∝ p^{1/γ} (1.26), and the parcel's pressure is the environment's p(z).", plain: "The parcel's density follows the pressure only, more weakly." },
+        { did: 'Subtract step 3 from step 2', tex: '\\begin{aligned}&\\tfrac1\\rho\\tfrac{d\\rho}{dz} - \\tfrac1\\rho\\tfrac{d\\rho_a}{dz}\\\\ &\\quad= \\Big(1 - \\tfrac1\\gamma\\Big)\\tfrac1p\\tfrac{dp}{dz} - \\tfrac1T\\tfrac{dT}{dz}\\end{aligned}', why: 'Collect the two pressure terms; ρ_a = ρ at the rest height.', plain: 'What decides stability: a pressure part and a temperature part.' },
+        { did: 'Log-differentiate θ (1.31)', tex: '\\frac1\\theta\\frac{d\\theta}{dz} = \\frac1T\\frac{dT}{dz} - \\frac{\\gamma-1}{\\gamma}\\,\\frac1p\\frac{dp}{dz}', why: 'ln θ = ln T + ((γ − 1)/γ)(ln p_o − ln p); p_o is a constant.', plain: 'θ rises with T and with falling pressure.' },
+        { did: 'Recognise the bracket', tex: '\\Big(1 - \\frac1\\gamma\\Big)\\frac1p\\frac{dp}{dz} - \\frac1T\\frac{dT}{dz} = -\\frac1\\theta\\frac{d\\theta}{dz}', why: '1 − 1/γ = (γ − 1)/γ, so step 4 is exactly minus step 5.', plain: 'The density race is the θ gradient in disguise.' },
+        { did: 'Substitute into step 1', tex: 'N^2 = \\frac{g}{\\theta}\\,\\frac{d\\theta}{dz}', why: '−g × (−(1/θ)dθ/dz): the two minus signs cancel.', plain: 'N² is g over θ times the θ gradient.',
+          live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return '\\tfrac{9.807}{' + tn(M.theta0, 5) + '}\\times' + tn(M.dth) + ' = ' + tn(N2FromTheta(M.theta0, M.dth)) + '\\ \\text{s}^{-2}'; },
+          watch: 'It equals the N² readout, which is computed from the lapse rate.' },
+        { did: 'Use (1.32) for the lapse-rate form', tex: 'N^2 = \\frac{g}{T}\\Big(\\frac{dT}{dz} + \\frac{g}{C_p}\\Big) = \\frac{g}{T}\\,(\\Gamma - \\Gamma_a)', why: '(1.32) gives (1/θ)dθ/dz = (1/T)(dT/dz + g/C_p); with Γa = −g/C_p (D19) the bracket is Γ − Γa in Kundu\'s sign.', plain: 'N² is proportional to how much more slowly the environment cools than a parcel.',
+          live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return '\\tfrac{9.807}{' + tn(M.T0, 5) + '}(' + tn(M.G) + ' - (' + tn(GA) + ')) = ' + tn(M.N2) + '\\ \\text{s}^{-2}'; } }
+      ],
+      result: { tex: 'N^2 = \\frac{g}{\\theta}\\frac{d\\theta}{dz} = \\frac{g}{T}(\\Gamma - \\Gamma_a) = \\frac{g}{T}(\\Gamma_{a,\\rm met} - \\Gamma_{\\rm met})', plain: 'A perfect-gas atmosphere is stable exactly where θ increases upward; in lapse rates, where the environment cools more slowly than 9.76 K/km.' },
+      interpret: s => { const M = model(s); if (M.medium !== 'atm') return 'Switch to the atmosphere to compare the two routes.'; return 'Your column at $z_o$: $d\\theta/dz = ' + tn(M.dth * 1e3) + '$ K/km, $N^2 = ' + tn(M.N2) + '$ s⁻² by both routes: ' + regimeWord(M.code) + '.'; },
+      check: 'Units: (m s⁻²/K) × K/m = s⁻² ✓. dθ/dz = 0 ⇔ Γ = Γa ✓. Isothermal at 250 K: N² = g²/(C_pT) = 3.83×10⁻⁴ s⁻² ✓. Standard troposphere at 288.15 K: 1.11×10⁻⁴ s⁻², period 9.9 min ✓.' }
   ],
   code: [
-    { id: 'e3code', title: 'Heat, work and entropy with fluidpy', ref: 'Eqs. (1.10), (1.18)',
+    { id: 'crit', title: 'The criterion in both conventions', ref: 'Eq. (1.30), (1.32)',
       src: `
-import fluidpy.ch01_introduction as ch01
-cv = ch01.cv_from_gamma(gamma)  # {{cv}} J/(kg K)
-v1 = ch01.R_AIR * T1 / p1       # {{v1}} m³/kg
-# exact totals, leg by leg (route {{kind}})
-tot = ch01.path_heat_work_totals(
-    kind, v1, T1, v2, T2, gamma)
-# q = {{q}}, w = {{w}} kJ/kg
-# Δe = {{de}} kJ/kg (any route)
-ds = ch01.perfect_gas_entropy_change(
-    T1, v1, T2, v2, cv=cv)
-# Δs = {{ds}} J/(kg K) (any route)
-path = ch01.process_path(kind,
-    (v1, T1), (v2, T2), gamma=gamma)
-run = ch01.process_heat_work(
-    path["v"], path["T"], cv=cv)
-s_int = ch01.entropy_change_reversible(
-    run["q"], path["T"])   # {{sint}}`,
-      live: s => { const M = model(s), t = M.proc === 'rev' ? M.tot : pathTotals('isothermal-isochoric', V1, T1, M.v2, M.T2, M.gamma, R_AIR); return { kind: M.proc === 'rev' ? M.kind : 'E, for comparison', cv: M.cv.toFixed(2), v1: V1.toFixed(4), q: (t.q / 1000).toFixed(2), w: (t.w / 1000).toFixed(2), de: (t.de / 1000).toFixed(2), ds: M.ds.toFixed(2), sint: (M.proc === 'rev' ? M.tot.int_dq_over_T : 0).toFixed(2) }; },
-      note: 'kind is a route name, e.g. "isochoric-isobaric" (cool, then expand); stirring and free expansion use ch01.irreversible_process.' },
-    { id: 'trap', title: 'From scratch: the work integral on samples', ref: 'Eq. (1.11)',
+from fluidpy import ch01_introduction as ch01
+
+dT_dz = {{G}}                    # environment dT/dz at z_o [K/m]
+Ga = ch01.adiabatic_lapse_rate()          # Kundu: {{Ga}} K/m
+Ga_met = ch01.lapse_rate_convention(Ga, "meteorology")  # {{Gam}}
+res = ch01.lapse_rate_stability(dT_dz, convention="{{conv}}")
+print(res.verdict)       # {{verdict}}
+print(res.text)          # {{text}}
+print(res.margin)        # Γ − Γa = {{margin}} K/m in both`,
+      live: s => { const M = model(s); if (M.medium !== 'atm') return { G: '(atmosphere)', Ga: GA.toExponential(4), Gam: (-GA).toExponential(4), conv: s.conv, verdict: '—', text: '—', margin: '—' }; return { G: M.G.toExponential(4), Ga: GA.toExponential(4), Gam: '+' + (-GA).toExponential(4), conv: s.conv, verdict: M.stab.verdict, text: M.stab.text, margin: M.stab.margin.toExponential(3) }; } },
+    { id: 'n2', title: 'N², its time scale and θ', ref: 'Eq. (1.29)–(1.32)',
       src: `
-p = R * T / v        # (1.22): {{pnow}} kPa now
-# -p dv on each gap between samples
-dw = -0.5 * (p[1:] + p[:-1]) * np.diff(v)
-w = np.concatenate(([0.0], np.cumsum(dw)))
-# w so far = {{wsf}} kJ/kg
-de = cv * (T - T[0])  # {{desf}} kJ/kg
-q = de - w            # (1.10): {{qsf}} kJ/kg`,
-      live: s => { const M = model(s), n = at(M, s.prog), tr = trapezoidAt(M, s.prog) || { w: n.w, de: n.de, q: n.q }; return { pnow: (n.p / 1000).toFixed(2), wsf: (tr.w / 1000).toFixed(3), desf: (tr.de / 1000).toFixed(3), qsf: (tr.q / 1000).toFixed(3) }; } }
+T0 = {{T0}}                                   # temperature at z_o [K]
+N2 = ch01.brunt_vaisala_sq_from_lapse(T0, dT_dz)   # {{N2}} 1/s²
+kind, tau = ch01.stability_timescale(N2)      # {{kind}}, {{tau}} s
+p0 = {{p0}}                                   # hydrostatic p(z_o) [Pa]
+theta = ch01.potential_temperature(T0, p0)    # θ = {{theta}} K
+dth = ch01.potential_temperature_gradient(T0, dT_dz, theta)  # {{dth}}
+N2_theta = ch01.brunt_vaisala_sq_from_theta(theta, dth)  # same N²`,
+      live: s => { const M = model(s); if (M.medium !== 'atm') return { T0: '—', N2: M.N2.toExponential(3), kind: M.ts.kind, tau: isFinite(M.ts.seconds) ? M.ts.seconds.toFixed(1) : 'inf', p0: '—', theta: '—', dth: '—' }; return { T0: M.T0.toFixed(2), N2: M.N2.toExponential(3), kind: M.ts.kind, tau: isFinite(M.ts.seconds) ? M.ts.seconds.toFixed(1) : 'inf', p0: M.p0.toFixed(0), theta: M.theta0.toFixed(2), dth: M.dth.toExponential(3) + ' K/m' }; } },
+    { id: 'parcel', title: 'The parcel: nonlinear and linear', ref: '§1.10 parcel equation',
+      src: `
+t = {{t}}                            # time since release [s]
+zeta0 = {{z0}}                       # release displacement [m]
+# nonlinear run; NaN after |ζ| reaches zeta_max (runaway cap)
+zeta = ch01.parcel_ode_atmosphere(t, zeta0, T0, dT_dz,
+                                  zeta_max={{cap}})  # {{zeta}} m
+zeta_lin = ch01.parcel_displacement(t, zeta0, N2)    # {{zlin}} m`,
+      live: s => { const N = now(s), M = N.M; return { t: N.t.toFixed(1), z0: String(+M.zeta0.toFixed(4)), cap: String(+M.cap.toFixed(3)), zeta: N.off ? 'nan' : N.z.toFixed(3), zlin: isFinite(N.zlin) ? N.zlin.toExponential(3) : 'inf' }; } },
+    { id: 'ocean', title: 'Ocean and lab: the density form', ref: 'Eq. (1.29), (1.35)',
+      src: `
+rho0, c = 1025.0, 1500.0             # density [kg/m³], sound speed [m/s]
+drho_dz = {{drho}}                   # environment gradient [kg/m⁴]
+drho_a = ch01.isentropic_density_gradient(rho0, c)   # {{drhoaC}}
+N2 = ch01.brunt_vaisala_sq(rho0, drho_dz, {{used}})  # {{N2}} 1/s²
+ind = ch01.ocean_potential_density_gradient(drho_dz, rho0, c)
+print(ind)                           # {{ind}} kg/m⁴ (< 0: stable)
+zeta = ch01.parcel_ode_from_gradients(t, zeta0, rho0, drho_dz,
+                                      {{used}})   # nonlinear`,
+      live: s => { const M = model(s); if (M.medium === 'atm') return { drho: '(ocean/lab)', drhoaC: isentropicDensityGradient(1025, 1500).toExponential(3), used: '0.0', N2: '—', ind: '—' }; return { drho: String(+M.drho.toFixed(4)), drhoaC: M.drhoaC.toExponential(3), used: M.drhoa === 0 ? '0.0' : 'drho_a', N2: M.N2.toExponential(3), ind: oceanCriterion(M.drho, 1025, 1500).toExponential(3) }; } }
   ],
   tour: [
-    { title: 'One kilogram, two states', text: 'Air at 300 K and 1 bar will end at twice the volume and the same temperature. <b>Does it need the same heat whichever way it goes?</b> Press play and watch the heater.',
-      set: { path: 'isothermal', vr: 2, Tr: 1, gas: '7/5', proc: 'rev', prog: 0.3, probe: null }, play: true },
-    { title: 'Route A: isothermal', text: 'The gas expands slowly while the heater holds it at 300 K. It takes in 59.7 kJ/kg of heat and pushes out the same work: $w = -59.7$ kJ/kg, $\\Delta e = 0$.',
-      set: { path: 'isothermal', vr: 2, Tr: 1, proc: 'rev', prog: 0.55 }, play: true, terms: true, code: { id: 'e3code', lines: [5, 8] } },
-    { title: 'Route B: cool, then expand', text: 'Same start, same end. Cool at fixed volume, then expand at the low pressure: $q = 43.1$ and $w = -43.1$ kJ/kg. The blue work area shrinks; $\\Delta e$ is still zero.',
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 0.6 }, play: true, terms: true },
-    { title: 'What does not depend on the route', text: 'Divide each bit of heat by the temperature at which it arrives, and add: 199 J/(kg K) on route A and on route B. That sum is the entropy change.',
-      set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev', prog: 1 }, play: false, readouts: ['ds', 'sint'], derive: { id: 'D10', step: 2 } },
-    { title: 'Friction breaks the equality', text: 'Stir an insulated, rigid tank: no heat enters, yet $T$ and $s$ rise. Now $\\Delta s = 131$ J/(kg K) but $\\int\\delta q/T = 0$. That inequality is the second law.',
-      set: { proc: 'stir', vr: 1, Tr: 1.2, prog: 0.5 }, play: true, notes: true },
-    { title: 'No heat, no friction: the isentrope', text: 'A fast, clean squeeze to half the volume follows $p \\propto \\rho^\\gamma$: steeper than the isotherm, and $T$ climbs to 396 K with no heat at all.',
-      set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 }, play: true, eq: 'isentropic', derive: { id: 'D14', step: 10 } },
-    { title: 'Your turn', text: 'Predict first: for $v_2/v_1 = 3$ at constant temperature, which route needs the most heat? Pick routes, play each, then check the table in Explain §3.',
-      set: { vr: 3, Tr: 1, proc: 'rev', prog: 0 }, controls: ['path', 'vr'] }
+    { title: 'Colder aloft: unstable?', text: 'The standard atmosphere cools 6.5 K for every km you climb. Cold, heavy air above warm air sounds unstable. Is it? We lifted the teal parcel 100 m and let go: watch what it does.',
+      set: { medium: 'atm', dTdz: -6.5, inv: false, zo: 1500, T0: 288.15, zeta0: 100, showTheta: false, conv: 'kundu', compress: false, probeZ: null, u: 0 }, play: true,
+      callout: { kind: 'watch', html: 'The arrow in the column (on phones, the coloured bracket in T(z)) is the buoyant force: <b class="c-teal">teal</b> = pushed back, <b class="c-rose">rose</b> = pushed away.' } },
+    { title: 'The parcel cools too', text: 'A rising parcel expands as the pressure drops, so it cools at its own fixed rate, 9.76 K per km: the dashed purple line. The environment cools only 6.5 K/km.',
+      set: { u: 0 }, play: false, eq: 'Ga', derive: { id: 'D19', step: 15 } },
+    { title: 'Compare the two slopes', text: 'At 100 m up the parcel is 0.33 K colder than the air around it, so it is denser and is pushed back down. The inspector does the arithmetic. It overshoots, then returns.',
+      set: { u: 0, probeZ: null }, play: true, inspect: true },
+    { title: 'N² and the period', text: 'The push back grows in proportion to ζ, so the parcel is a spring: ζ″ + N²ζ = 0 with N² = 1.11×10⁻⁴ s⁻². It rings with period 2π/N = 9.9 min.',
+      readouts: ['N2', 'tscale'], derive: { id: 'D18', step: 11 } },
+    { title: 'Two sign conventions, one verdict', text: 'Meteorologists define Γ = −dT/dz, so the same air reads Γ = +6.5 < Γa = +9.8. Kundu writes −6.5 > −9.8. Negate both numbers, flip the inequality: nothing physical changes.',
+      set: { conv: 'meteorology' }, controls: ['conv'], notes: true },
+    { title: 'Runaway', text: 'Now the environment cools 12 K/km, faster than the parcel. A lifted parcel stays warmer and lighter than its surroundings and accelerates away: the grey cosine has become a cosh.',
+      set: { dTdz: -12, conv: 'kundu', u: 0 }, play: true, controls: ['dTdz'], code: { id: 'parcel', lines: [4, 6] } },
+    { title: 'θ says it in one look', text: 'Potential temperature removes the parcel\'s own cooling: the parcel keeps its θ (dashed vertical line). The air is stable exactly where θ increases upward, and N² = (g/θ)dθ/dz.',
+      set: { dTdz: -6.5, showTheta: true, u: 0 }, play: true, derive: { id: 'D36', step: 7 } },
+    { title: 'Your turn: the ocean', text: 'Predict first: if the parcel also feels seawater\'s compressibility, is the thermocline more or less stable? Toggle it, then read the period and N².',
+      set: { medium: 'ocean', drhodz: -0.01, compress: false, zeta0: 100, showTheta: false, u: 0 }, play: true, controls: ['compress', 'drhodz'], readouts: ['N2', 'tscale'] }
   ],
   equations: [
-    { id: 'first', title: 'First law', ref: 'Eq. (1.10)', tex: '\\delta q + \\delta w = \\Delta e',
-      live: s => { const M = model(s); return `${tn(M.tot.q / 1000)} + (${tn(M.tot.w / 1000)}) = ${tn(M.tot.de / 1000)}\\ \\text{kJ/kg}`; },
-      symbols: [['\\delta q', 'heat added to the gas', 'J/kg'], ['\\delta w', 'work done on the gas', 'J/kg'], ['\\Delta e', 'internal energy change', 'J/kg']] },
-    { id: 'rev', title: 'Reversible first law', ref: 'Eq. (1.11)', tex: 'de = dq - p\\,dv',
-      live: s => { const M = model(s), n = at(M, s.prog); return `p = ${tn(n.p / 1000, 4)}\\ \\text{kPa}:\\ dv = 0.01 \\Rightarrow -p\\,dv = ${tn(-n.p * 0.01 / 1000, 3)}\\ \\text{kJ/kg}`; },
-      note: 'Only for slow, frictionless (reversible) processes; $v = 1/\\rho$.', symbols: [['p', 'pressure', 'Pa'], ['v', 'specific volume', 'm³/kg']] },
-    { id: 'entropy', title: 'Entropy from reversible heat', ref: 'Eqs. (1.16)–(1.17)', tex: 's_2 - s_1 = \\int_1^2 \\frac{dq_{\\rm rev}}{T}, \\qquad T\\,ds = dq',
-      live: s => { const M = model(s); return M.proc === 'rev' ? `\\int \\frac{dq}{T} = ${tn(M.tot.int_dq_over_T, 4)}\\ \\text{J/(kg K)}` : `\\text{use a reversible route: }\\Delta s = ${tn(M.ds, 4)}`; },
-      symbols: [['s', 'specific entropy', 'J/(kg K)'], ['T', 'absolute temperature', 'K']] },
-    { id: 'gibbs', title: 'Gibbs relations (any process)', ref: 'Eq. (1.18)', tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp',
-      live: s => { const M = model(s); return `\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.ds, 4)}`; },
-      note: 'Perfect gas with constant $C_v$: $de = C_v\\,dT$ and $p/T = R/v$ integrate to the live line.', symbols: [['h', 'enthalpy e + pv', 'J/kg'], ['C_v', 'specific heat at constant v', 'J/(kg K)']] },
-    { id: 'isentropic', title: 'Isentropic perfect gas', ref: 'Eq. (1.25)', tex: 'p/\\rho^\\gamma = \\text{const}',
-      live: s => { const M = model(s); return `p(2\\rho_1) = 100 \\times 2^{${tn(M.gamma, 3)}} = ${tn(isentropicPressure(2 / V1, P1, 1 / V1, M.gamma) / 1000, 3)}\\ \\text{kPa}`; },
-      note: 'Adiabatic and frictionless, constant $C_p$ and $C_v$.', symbols: [['\\rho', 'density 1/v', 'kg/m³'], ['\\gamma', 'C_p/C_v', '–']] },
-    { id: 'cd', title: 'Clausius–Duhem inequality', ref: '§1.8 (ii)', tex: 's_2 - s_1 \\ge \\int_1^2 \\frac{\\delta q}{T}',
-      live: s => { const M = model(s); const I = M.proc === 'rev' ? M.tot.int_dq_over_T : 0; return `${tn(M.ds, 4)} \\ge ${tn(I, 4)}\\ \\text{J/(kg K)}`; },
-      note: 'For an arbitrary process, with the heat actually received $\\delta q$ (the book prints $dq_{\\rm rev}$ here); equality only when the process is reversible.' }
+    { id: 'parcel', title: 'Parcel equation', ref: '§1.10', tex: '\\frac{d^2\\zeta}{dt^2} - \\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)\\zeta = 0',
+      live: s => '\\ddot\\zeta + (' + tn(model(s).N2) + ')\\,\\zeta = 0',
+      symbols: [['\\zeta', 'upward displacement from $z_o$', 'm'], ['d\\rho_a/dz', "parcel's isentropic density gradient", 'kg/m⁴']] },
+    { id: 'N2', title: 'Brunt–Väisälä frequency', ref: 'Eq. (1.29)', tex: 'N^2 = -\\frac{g}{\\rho(z_o)}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)',
+      live: s => { const M = model(s); return M.medium === 'atm' ? 'N^2 = \\tfrac{g}{T}(\\Gamma-\\Gamma_a) = ' + tn(M.N2) + '\\ \\text{s}^{-2}' : 'N^2 = -\\tfrac{9.807}{' + tn(M.rho0, 4) + '}(' + tn(M.drho) + ' - (' + tn(M.drhoa) + ')) = ' + tn(M.N2) + '\\ \\text{s}^{-2}'; },
+      note: '$N^2 > 0$ stable (oscillation at N), $= 0$ neutral, $< 0$ unstable (growth rate $\\sqrt{-N^2}$).', symbols: [['N', 'buoyancy frequency', '1/s']] },
+    { id: 'Ga', title: 'Adiabatic lapse rate', ref: 'Eq. (1.30)', tex: '\\frac{dT_a}{dz} \\equiv \\Gamma_a = -\\frac{g\\alpha T}{C_p}',
+      live: s => '\\Gamma_a = -\\tfrac{9.807}{1004.7} = ' + tn(GA * 1e3) + '\\ \\text{K/km}',
+      note: 'Kundu: Γ ≡ dT/dz, Γa = −9.76 K/km, stable ⇔ Γ > Γa · meteorology: Γ ≡ −dT/dz, Γa = +9.76 K/km, stable ⇔ Γ < Γa.',
+      symbols: [['\\alpha', 'thermal expansion coefficient (1/T for a perfect gas)', '1/K'], ['C_p', 'specific heat at constant pressure', 'J/(kg K)']] },
+    { id: 'conv', title: 'The two sign conventions', ref: '§1.10 · notation',
+      tex: '\\begin{aligned}\\text{Kundu: }&\\Gamma \\equiv \\tfrac{dT}{dz},\\ \\text{stable} \\Leftrightarrow \\Gamma > \\Gamma_a\\\\ \\text{meteorology: }&\\Gamma \\equiv -\\tfrac{dT}{dz},\\ \\text{stable} \\Leftrightarrow \\Gamma < \\Gamma_a\\end{aligned}',
+      live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; const t1 = M.bareK.replace(/\u2212/g, '-').replace(' K/km', ''), t2 = M.bareM.replace(/\u2212/g, '-').replace(' K/km', ''); return '\\begin{aligned}&' + t1 + '\\\\ &' + t2 + '\\end{aligned}'; },
+      note: 'Γ_met = −Γ_Kundu for both numbers; multiplying an inequality by −1 reverses it, so the verdict is identical.' },
+    { id: 'theta', title: 'Potential temperature', ref: 'Eq. (1.31)', tex: 'T(z) = \\theta(z)\\Big(\\frac{p(z)}{p_o}\\Big)^{(\\gamma-1)/\\gamma}',
+      live: s => { const M = model(s); return M.medium !== 'atm' ? '\\text{(atmosphere mode)}' : tn(M.T0, 5) + ' = ' + tn(M.theta0, 5) + '\\,(' + tn(M.p0 / 100, 4) + '/1000)^{0.2857}'; },
+      symbols: [['p_o', 'reference pressure: the book takes sea level (≈ 100 kPa); meteorology and our code fix 1000 hPa', 'Pa'], ['\\gamma', 'C_p/C_v = 1.4 for air', '–']] },
+    { id: 'dtheta', title: 'θ gradient and the lapse rates', ref: 'Eq. (1.32)', tex: '\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\frac{dT}{dz} + \\frac{g}{C_p} = \\Gamma - \\Gamma_a',
+      live: s => { const M = model(s); return M.medium !== 'atm' ? '\\text{(atmosphere mode)}' : '= ' + tn(M.G * 1e3) + ' - (' + tn(GA * 1e3) + ') = ' + tn(M.stab.margin * 1e3) + '\\ \\text{K/km} = \\Gamma_{a,\\rm met} - \\Gamma_{\\rm met}'; },
+      note: 'In the meteorology convention the right side reads Γa,met − Γmet.' },
+    { id: 'N2theta', title: 'N² from θ', ref: 'D36', tex: 'N^2 = \\frac{g}{\\theta}\\frac{d\\theta}{dz}',
+      live: s => { const M = model(s); return M.medium !== 'atm' ? '\\text{(atmosphere mode)}' : '\\tfrac{9.807}{' + tn(M.theta0, 5) + '}\\times' + tn(M.dth) + ' = ' + tn(N2FromTheta(M.theta0, M.dth)) + '\\ \\text{s}^{-2}'; } },
+    { id: 'ocean', title: 'Ocean stability criterion', ref: 'Eq. (1.35)', tex: '\\frac{d\\rho_\\theta}{dz} = \\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz} \\cong \\frac{d\\rho}{dz} + \\frac{\\rho g}{c^2}',
+      live: s => { const M = model(s); return M.medium !== 'ocean' ? '\\text{(ocean mode)}' : tn(M.drho) + ' + \\tfrac{1025\\times9.807}{1500^2} = ' + tn(oceanCriterion(M.drho, 1025, 1500)) + '\\ \\text{kg/m}^4'; },
+      note: 'Negative: stable · zero: neutral · positive: unstable.', symbols: [['c', 'speed of sound in seawater', 'm/s']] }
   ],
   check: [
-    { q: 'Between $(v_1, 300\\,\\text{K})$ and $(2v_1, 300\\,\\text{K})$, which route makes the gas do the least work?',
-      a: 'Cool, then expand (route B): the expansion happens at half the pressure, so $w = -43.1$ kJ/kg, against −59.7 (A) and −86.1 (C).', set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' } },
-    { q: 'Why is $\\Delta s = 199$ J/(kg K) on every reversible route although $q$ differs?',
-      a: 'Heat received at low $T$ counts more in $\\int dq/T$. The weighting exactly compensates, because $s$ is a state function: $\\Delta s = C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ needs only the end states.' },
-    { q: 'Free expansion to $2v_1$: what are $q$, $w$, $\\Delta e$ and $\\Delta s$?',
-      a: '$0$, $0$, $0$ and $R\\ln 2 = 199$ J/(kg K). The entropy was created inside the gas; no heat carried it in.', set: { proc: 'free', vr: 2, Tr: 1 } },
-    { q: 'Switch the gas to monatomic. Does route A’s work change? Does route B’s total heat?',
-      a: 'Neither. $w = -RT\\ln 2$ has no $\\gamma$ in it, and route B’s total is $q = -w = R\\times150$ K $= 43.1$ kJ/kg. Only the separate legs of B change, because they involve $C_v$ and $C_p$.', set: { gas: '5/3' } },
-    { q: 'At $v_2/v_1 = 3$ and constant $T$, which route needs the most heat?',
-      a: 'Expand, then cool (route C): $q = 172$ kJ/kg, because the whole expansion happens at the start pressure. Route A needs 94.6 and route B 57.4 kJ/kg.', set: { path: 'isobaric-isochoric', vr: 3, Tr: 1, proc: 'rev' } }
+    { q: 'Set $dT/dz = 0$ (isothermal) at $T = 250$ K. Stable? What period?', a: '0 > −9.76 K/km, so stable (meteorology: 0 < 9.76). N² = g²/(C_pT) = 3.83×10⁻⁴ s⁻², period 2π/N = 5.4 min.', set: { medium: 'atm', dTdz: 0, T0: 250, inv: false, u: 0 } },
+    { q: 'A meteorology paper reports a lapse rate Γ = 11 K/km. Enter it. Verdict?', a: 'Its dT/dz is −11 K/km, and −11.0 < −9.8, so unstable. In the paper\'s own form: 11.0 > 9.8. Same verdict.' },
+    { q: 'Which $dT/dz$ gives a 20-minute period at 288 K?', a: 'N = 2π/1200 s = 5.24×10⁻³ s⁻¹, N² = 2.74×10⁻⁵ s⁻² = (g/T)(dT/dz + 9.76×10⁻³), so dT/dz ≈ −8.96 K/km (Γmet ≈ +8.96).', set: { medium: 'atm', T0: 288, inv: false } },
+    { q: 'Ocean thermocline: toggle compressibility. What happens to N² and the period?', a: 'N² drops from 9.57×10⁻⁵ to 5.29×10⁻⁵ s⁻² and the period grows from 10.7 to 14.4 min: a sinking parcel is also squeezed, so it ends up less heavy than an incompressible one.', set: { medium: 'ocean', drhodz: -0.01, compress: false, u: 0 } },
+    { q: 'Set $dT/dz = -9.8$ K/km. Why does the status print two decimals?', a: 'Γa = −9.7607 K/km. With one decimal both would print −9.8 although the layer is slightly unstable, so the text adds decimals until the numbers differ: −9.80 < −9.76.', set: { medium: 'atm', dTdz: -9.8, inv: false } }
   ],
   selftest: () => {
-    const v1 = R_AIR * 300 / 1e5, V1PY = 'ch01.R_AIR*300.0/1e5';
-    const pathB = processPath('isochoric-isobaric', [v1, 300], [2 * v1, 300], 401, 1.4, R_AIR);
-    const runB = runningTotals(pathB.v, pathB.T, CV_AIR, R_AIR);
-    const partial = (() => { const s0 = { path: 'isobaric-isochoric', vr: 1.7, Tr: 1.35, gas: '5/3', proc: 'rev' }; const n = at(model(s0), 0.37); _mkey = null; return n.q + n.w - n.de; })();
-    const spread = (() => { const d = ROUTES.slice(1).map(r => pathTotals(r[0], v1, 300, 2 * v1, 450, 1.4, R_AIR).ds); return Math.max(...d) - Math.min(...d); })();
-    return [
-      { name: 'w isothermal ×2 [J/kg]', js: pathTotals('isothermal', v1, 300, 2 * v1, 300, 1.4, R_AIR).w, py: `ch01.path_heat_work_totals("isothermal", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["w"]`, rtol: 1e-10 },
-      { name: 'q cool→expand [J/kg]', js: pathTotals('isochoric-isobaric', v1, 300, 2 * v1, 300, 1.4, R_AIR).q, py: `ch01.path_heat_work_totals("isochoric-isobaric", ${V1PY}, 300.0, 2*${V1PY}, 300.0)["q"]`, rtol: 1e-10 },
-      { name: 'Δs route D to (2v1, 450 K)', js: pathTotals('isentropic-isochoric', v1, 300, 2 * v1, 450, 1.4, R_AIR).ds, py: `ch01.path_heat_work_totals("isentropic-isochoric", ${V1PY}, 300.0, 2*${V1PY}, 450.0)["ds"]`, rtol: 1e-10 },
-      { name: 'Δs Gibbs (300→450 K, 2v1)', js: entropyChange(300, 0.8612, 450, 1.7224, CV_AIR, R_AIR), py: 'ch01.perfect_gas_entropy_change(300.0, 0.8612, 450.0, 1.7224)', rtol: 1e-10 },
-      { name: 'free expansion Δs = R ln 2', js: irreversible('free_expansion', 300, 0.8612, CV_AIR, R_AIR, null, 1.7224).ds, py: 'ch01.irreversible_process("free_expansion", 300.0, 0.8612, v2=1.7224)["ds"]', rtol: 1e-10 },
-      { name: 'stirring Δs (300→360 K)', js: irreversible('stirring', 300, 0.8612, CV_AIR, R_AIR, 360, null).ds, py: 'ch01.irreversible_process("stirring", 300.0, 0.8612, T2=360.0)["ds"]', rtol: 1e-10 },
-      { name: 'isentropic p(ρ = 2) [Pa]', js: isentropicPressure(2.0, 1e5, 1.0, 1.4), py: 'ch01.isentropic_pressure(2.0, 1.0e5, 1.0)', rtol: 1e-12 },
-      { name: 'process_path corner T', js: pathB.T[400], py: `ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"][400]`, rtol: 1e-12 },
-      { name: 'trapezoid q route B, n = 401', js: runB.q[runB.q.length - 1], py: `ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"][-1]`, rtol: 1e-9 },
-      { name: '∫dq/T trapezoid route B', js: entropyReversible(runB.q, pathB.T), py: `ch01.entropy_change_reversible(ch01.process_heat_work(ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["v"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])["q"], ch01.process_path("isochoric-isobaric", (${V1PY}, 300.0), (2*${V1PY}, 300.0))["T"])`, rtol: 1e-9 },
-      { name: 'trapezoid ≈ exact w (route A, n = 401)', js: (() => { const d = processPath('isothermal', [v1, 300], [2 * v1, 300], 401); const r = runningTotals(d.v, d.T); return r.w[400] / pathTotals('isothermal', v1, 300, 2 * v1, 300).w; })(), expect: 1, rtol: 1e-5 },
-      { name: 'first law so far: q + w − Δe', js: partial, expect: 0, atol: 1e-6 },
-      { name: 'Δs spread over 4 routes', js: spread, expect: 0, atol: 1e-9 }
-    ];
+    const rows = [];
+    const py = s => JSON.stringify(s);
+    const textRow = (name, dTdz, conv, prefix, pyArgs) => {
+      const r = lapseStability(dTdz, null, conv, { prefix });
+      rows.push({ name: name + ': "' + r.text + '"', js: 1, py: 'ch01.lapse_rate_stability(' + pyArgs + ')[1] == ' + py(r.text), rtol: 0, atol: 0 });
+    };
+    rows.push({ name: 'Γa Kundu [K/m]', js: adiabaticLapseRate(), py: 'ch01.adiabatic_lapse_rate()', rtol: 1e-12 });
+    rows.push({ name: 'Γa water (α, T given)', js: adiabaticLapseRate(283.15, 4190.0, 1.5e-4), py: 'ch01.adiabatic_lapse_rate(T=283.15, cp=4190.0, alpha=1.5e-4)', rtol: 1e-12 });
+    rows.push({ name: 'Γ meteorology of −6.5 K/km', js: lapseConvention(-0.0065, 'meteorology'), py: 'ch01.lapse_rate_convention(-0.0065, "meteorology")', rtol: 1e-12 });
+    rows.push({ name: 'Γa meteorology', js: lapseConvention(GA, 'meteorology'), py: 'ch01.lapse_rate_convention(ch01.adiabatic_lapse_rate(), "meteorology")', rtol: 1e-12 });
+    rows.push({ name: 'stability code −12 K/km (met)', js: lapseStability(-0.012, null, 'meteorology').code, py: 'ch01.lapse_rate_stability(-0.012, convention="meteorology")[2]', rtol: 0, atol: 0 });
+    rows.push({ name: 'margin −6.5 K/km (Kundu)', js: lapseStability(-0.0065, null, 'kundu').margin, py: 'ch01.lapse_rate_stability(-0.0065)[5]', rtol: 1e-12 });
+    rows.push({ name: 'margin −6.5 K/km (met, same)', js: lapseStability(-0.0065, null, 'meteorology').margin, py: 'ch01.lapse_rate_stability(-0.0065, convention="meteorology")[5]', rtol: 1e-12 });
+    rows.push({ name: 'Γ field (met) of −6.5 K/km', js: lapseStability(-0.0065, null, 'meteorology').Gamma, py: 'ch01.lapse_rate_stability(-0.0065, convention="meteorology")[3]', rtol: 1e-12 });
+    textRow('text Kundu', -0.0065, 'kundu', true, '-0.0065');
+    textRow('text met bare', -0.0065, 'meteorology', false, '-0.0065, convention="meteorology", prefix=False');
+    textRow('text unstable met', -0.012, 'meteorology', true, '-0.012, convention="meteorology"');
+    textRow('text near Γa Kundu', -0.0098, 'kundu', false, '-0.0098, prefix=False');
+    textRow('text near Γa met', -0.00976, 'meteorology', false, '-0.00976, convention="meteorology", prefix=False');
+    textRow('text near Γa Kundu', -0.00976, 'kundu', false, '-0.00976, prefix=False');
+    textRow('text exactly neutral', GA, 'kundu', true, 'ch01.adiabatic_lapse_rate()');
+    textRow('text never −0.0', -1e-5, 'kundu', false, '-1e-5, prefix=False');
+    textRow('text half-even tie', -0.00925, 'meteorology', false, '-0.00925, convention="meteorology", prefix=False');
+    textRow('status tail met bare (−12)', -0.012, 'meteorology', false, '-0.012, convention="meteorology", prefix=False');
+    textRow('status tail Kundu bare (−12)', -0.012, 'kundu', false, '-0.012, prefix=False');
+    textRow('status Kundu text (−12)', -0.012, 'kundu', true, '-0.012');
+    textRow('status tail met bare (0, isothermal)', 0.0, 'meteorology', false, '0.0, convention="meteorology", prefix=False');
+    {
+      // the status badge: verdict word first, then fluidpy's exact text, then the other convention's bare relation
+      const okFor = conv => {
+        const st = Object.assign({}, DEFAULTS, { dTdz: -12, conv }), M = model(st);
+        const t = app && app.cfg ? app.cfg.status(st, null).text : '';
+        return t.indexOf('unstable · ' + M.stab.text + ' · ' + (conv === 'kundu' ? 'met: ' + M.bareM : 'Kundu: ' + M.bareK)) === 3 ? 1 : 0;
+      };
+      rows.push({ name: 'status = verdict · fluidpy text · other convention (both)', js: okFor('kundu') * okFor('meteorology'), expect: 1, atol: 0 });
+    }
+    rows.push({ name: 'N² from lapse (288.15 K, −6.5)', js: N2FromLapse(288.15, -0.0065), py: 'ch01.brunt_vaisala_sq_from_lapse(288.15, -0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'N² density, thermocline', js: N2Density(1025, -0.01, 0), py: 'ch01.brunt_vaisala_sq(1025.0, -0.01, 0.0)', rtol: 1e-12 });
+    rows.push({ name: 'N² density, compressible', js: N2Density(1025, -0.01, isentropicDensityGradient(1025, 1500)), py: 'ch01.brunt_vaisala_sq(1025.0, -0.01, ch01.isentropic_density_gradient(1025.0, 1500.0))', rtol: 1e-12 });
+    rows.push({ name: 'N² from θ', js: N2FromTheta(300, 0.003), py: 'ch01.brunt_vaisala_sq_from_theta(300.0, 0.003)', rtol: 1e-12 });
+    rows.push({ name: 'period N² = 1e-4 [s]', js: stabilityTimescale(1e-4).seconds, py: 'ch01.stability_timescale(1e-4)[1]', rtol: 1e-12 });
+    rows.push({ name: 'e-fold N² = −1e-4 [s]', js: stabilityTimescale(-1e-4).seconds, py: 'ch01.stability_timescale(-1e-4)[1]', rtol: 1e-12 });
+    rows.push({ name: 'ζ linear stable [m]', js: parcelDisplacement(300, 100, 1.1097e-4, 0), py: 'ch01.parcel_displacement(300.0, 100.0, 1.1097e-4)', rtol: 1e-12 });
+    rows.push({ name: 'ζ linear unstable [m]', js: parcelDisplacement(200, 100, -7.6e-5, 0), py: 'ch01.parcel_displacement(200.0, 100.0, -7.6e-5)', rtol: 1e-12 });
+    rows.push({ name: 'accel atm ζ=100 [m/s²]', js: parcelAccelAtm(100, 288.15, -0.0065), py: 'ch01.parcel_acceleration_atmosphere(100.0, 288.15, -0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'ζ nonlinear atm t=300 s [m]', js: parcelOdeAtmosphere(300, 50, 288.15, -0.0065), py: 'ch01.parcel_ode_atmosphere(300.0, 50.0, 288.15, -0.0065)', rtol: 1e-6 });
+    rows.push({ name: 'ζ runaway before cap t=300 s [m]', js: parcelOdeAtmosphere(300, 100, 288.15, -0.012, CP_AIR, G0, 0, 1500), py: 'ch01.parcel_ode_atmosphere(300.0, 100.0, 288.15, -0.012, zeta_max=1500.0)', rtol: 1e-6 });
+    rows.push({ name: 'runaway capped: NaN at t=1200 s', js: isNaN(parcelOdeAtmosphere(1200, 100, 288.15, -0.012, CP_AIR, G0, 0, 1500)) ? 1 : 0, py: 'np.isnan(ch01.parcel_ode_atmosphere(1200.0, 100.0, 288.15, -0.012, zeta_max=1500.0))', rtol: 0, atol: 0 });
+    rows.push({ name: 'ζ nonlinear ocean t=200 s [m]', js: parcelOdeGradients(200, 5, 1025, -0.01, 0), py: 'ch01.parcel_ode_from_gradients(200.0, 5.0, 1025.0, -0.01, 0.0)', rtol: 1e-6 });
+    rows.push({ name: 'θ(250 K, 500 hPa) [K]', js: potentialTemperature(250, 5e4), py: 'ch01.potential_temperature(250.0, 50000.0)', rtol: 1e-12 });
+    rows.push({ name: 'dθ/dz (288.15 K, −6.5, 900 hPa)', js: thetaGradient(288.15, -0.0065, potentialTemperature(288.15, 9e4)), py: 'ch01.potential_temperature_gradient(288.15, -0.0065, p=90000.0)', rtol: 1e-12 });
+    rows.push({ name: 'p linear lapse z=1500 m [Pa]', js: linearLapsePressure(1500, P_ATM, 288.15, -0.0065), py: 'ch01.linear_lapse_pressure(1500.0, 101325.0, 288.15, -0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'p isothermal z=1500 m [Pa]', js: linearLapsePressure(1500, P_ATM, 250, 0), py: 'ch01.linear_lapse_pressure(1500.0, 101325.0, 250.0, 0.0)', rtol: 1e-12 });
+    rows.push({ name: 'dρa/dz seawater [kg/m⁴]', js: isentropicDensityGradient(1025, 1500), py: 'ch01.isentropic_density_gradient(1025.0, 1500.0)', rtol: 1e-12 });
+    rows.push({ name: 'ocean criterion (1.35)', js: oceanCriterion(-0.01, 1025, 1500), py: 'ch01.ocean_potential_density_gradient(-0.01, 1025.0, 1500.0)', rtol: 1e-12 });
+    rows.push({ name: 'seawater ρ(20 °C, 35) [kg/m³]', js: seawaterLinear(293.15, 35), py: 'ch01.seawater_density_linear(293.15, 35.0)', rtol: 1e-12 });
+    rows.push({ name: 'BL profile z=500 m (neutral mixed)', js: blProfile(500, 288.15, 800, 200, 0.01, GA, -0.0065), py: 'ch01.synthetic_boundary_layer_profile(500.0, upper_dT_dz=-0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'BL profile z=900 m (inversion)', js: blProfile(900, 288.15, 800, 200, 0.01, GA, -0.0065), py: 'ch01.synthetic_boundary_layer_profile(900.0, upper_dT_dz=-0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'BL profile z=2000 m (above)', js: blProfile(2000, 288.15, 800, 200, 0.01, GA, -0.0065), py: 'ch01.synthetic_boundary_layer_profile(2000.0, upper_dT_dz=-0.0065)', rtol: 1e-12 });
+    rows.push({ name: 'BL mixed-layer N² is exactly 0', js: N2FromLapse(283, GA), py: 'ch01.brunt_vaisala_sq_from_lapse(283.0, ch01.MIXED_LAYER_DT_DZ)', rtol: 0, atol: 1e-18 });
+    // invariants: the verdict never depends on the convention and matches the sign of N² outside the round-off band
+    let same = 1, sign = 1;
+    for (let k = -1500; k <= 1000; k++) {
+      const x = k * 1e-5, a = lapseStability(x, null, 'kundu'), b = lapseStability(x, null, 'meteorology');
+      if (a.code !== b.code || a.margin !== b.margin) same = 0;
+      const n2 = N2FromLapse(288.15, x);
+      if (Math.abs(a.margin) > 1e-9 && a.code !== Math.sign(n2)) sign = 0;
+    }
+    rows.push({ name: 'verdict convention-free (2501 lapse rates)', js: same, expect: 1, atol: 0 });
+    rows.push({ name: 'code = sign N² (2501 lapse rates)', js: sign, expect: 1, atol: 0 });
+    const M0 = model(Object.assign({}, DEFAULTS, { dTdz: -12 }));
+    rows.push({ name: 'stage runaway run stops, no overflow', js: M0.run.stopped && M0.run.zs.every(isFinite) ? 1 : 0, expect: 1, atol: 0 });
+    return rows;
   }
 });
 </script>
