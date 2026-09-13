@@ -41,8 +41,8 @@
     "ch01": {
       "title": "Introduction",
       "slug": "introduction",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -52,8 +52,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 40 eqs, 106 rows (103 NEW), 33 derivations (3 ***)",
+      "updated": "2026-09-12"
     },
     "ch02": {
       "title": "Cartesian Tensors",
