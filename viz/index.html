@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1789283850">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1789283850">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1789579270">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1789579270">
 </head>
 <body>
 <div class="ce-container">
@@ -41,6 +41,33 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>Why can 7 pipe variables shrink to 4 numbers?</b>
 <p>Switch variables off, pick the repeating set and watch the dimensional matrix, its rank, the exponent solve and the Π groups change; then change units and see every Π keep its value.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch01/buckingham_pi_machine.html">Open full window</a><a class="fp-btn" href="../notebooks/ch01_introduction.html#viz-buckingham_pi_machine">In the chapter</a></div>
+</div></div>
+<h2 id="ch02">Chapter 2 — Cartesian Tensors</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 2 · explainer 1 · §2.2 2.3 2.4</small>
+<b>Which rotates — the arrow or the ruler?</b>
+<p>Turn the axes under a fixed vector (or a fixed stress state) and watch the direction-cosine matrix C, the new components x&#x27; = Cᵀx and the tensor components τ&#x27; = CᵀτC move together — one rule applied once per index.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch02/rotation_of_axes.html">Open full window</a><a class="fp-btn" href="../notebooks/ch02_cartesian_tensors.html#viz-rotation_of_axes">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 2 · explainer 2 · §2.4 2.6 2.11</small>
+<b>Cut the point any way you like: what pushes on the cut?</b>
+<p>Drag the normal n of a cut through a stressed point: the traction f = n·τ, its normal and shear parts, the Mohr point and the σ_n(φ), τ_s(φ) curves move together; the two shear-free cuts are the eigenvectors, and their normal stresses bound everything.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch02/cauchy_traction_principal_axes.html">Open full window</a><a class="fp-btn" href="../notebooks/ch02_cartesian_tensors.html#viz-cauchy_traction_principal_axes">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 2 · explainer 3 · §2.10, 2.11</small>
+<b>Is simple shear a rotation?</b>
+<p>A square of fluid carried by u = G·x deforms and spins at once; the same square under S = ½(G + Gᵀ) only stretches, under A = ½(G − Gᵀ) only spins — three panels on one clock, the hidden vector ω of A, and the check that a symmetric tensor cannot see A.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch02/strain_vs_rotation_split.html">Open full window</a><a class="fp-btn" href="../notebooks/ch02_cartesian_tensors.html#viz-strain_vs_rotation_split">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 2 · explainer 4 · §2.9 2.12</small>
+<b>What leaks out of a box?</b>
+<p>Move and resize a box over a plane field: the four face fluxes add up to exactly the divergence integrated inside; tile the box and watch the interior faces cancel; shrink it and watch the flux per area settle on the divergence.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch02/gauss_flux_box.html">Open full window</a><a class="fp-btn" href="../notebooks/ch02_cartesian_tensors.html#viz-gauss_flux_box">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 2 · explainer 5 · §2.9, 2.13</small>
+<b>How much does the flow go round a loop?</b>
+<p>Drag and resize a loop over a 2-D velocity field: the circulation ∮ u·t ds equals the curl integrated inside (Stokes, Eq. 2.34); a straight shear flow has it, an irrotational vortex has it only when the loop encloses its core; shrink the loop and Γ/A → (∇×u)·n (Eq. 2.35); tile the inside and watch the shared edges cancel.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch02/stokes_circulation_loop.html">Open full window</a><a class="fp-btn" href="../notebooks/ch02_cartesian_tensors.html#viz-stokes_circulation_loop">In the chapter</a></div>
 </div></div>
 </div>
 </body>
