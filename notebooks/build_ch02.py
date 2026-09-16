@@ -45,7 +45,13 @@ def note(nid: str, title: str, text: str, equation: str | None = None, ref: str 
 
 def D(key: str, title: str, *, ref: str, goal: str, assumptions: str, start, plan, uses, steps, result,
       interpret: str, check: str, traps: str, check_src: str | None = None) -> None:
-    """A Part F derivation: goal + assumptions, plan, tools, one move per step, result, meaning, check, traps."""
+    """A Part F derivation: goal + assumptions, plan, tools, one move per step, result, meaning, check, traps.
+
+    ``nb.derivation`` prefixes "Eq." to the label; labels that are not equation numbers (an exercise, a section, a
+    chain like "2.32 → 2.23") go into the title in parentheses instead."""
+    import re as _re
+    if ref and not _re.fullmatch(r"[\d.,\s–-]+", ref):
+        title, ref = f"{title} ({ref})", ""
     nb.derivation(key, title, ref=ref, goal=f"{goal}\n\n**Assumptions.** {assumptions}", start=start, plan=plan,
                   uses=uses, steps=[dict(did=a, tex=b, why=c, plain=d) for a, b, c, d in steps], result=result,
                   interpret=interpret, check=check, check_src=check_src)
@@ -99,7 +105,7 @@ import plotly.graph_objects as go                       # rotatable 3-D figures 
 from fluidpy.core.style import COLORS                   # the house palette: teal = old axes, orange = new axes, blue = normal, rose = shear
 import logging                                          # standard library: controls library log messages
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)   # hide harmless font-substitution notes (as in Ch. 1)
-print(f"{len(ch02.__all__)} public functions in fluidpy.ch02_cartesian_tensors")   # the toolbox this notebook calls
+print(f"{len(ch02.__all__)} public functions in fluidpy.ch02_cartesian_tensors")   # the toolbox this notebook calls (f-string: Ch. 1 primer P04)
 """, explain="""
 1. `ch02` is the chapter module; it re-exports the reusable primitives of `fluidpy/core/` (tensors, index notation,
    grids, differential operators, integral theorems) so that one name covers the whole chapter.
@@ -383,7 +389,7 @@ triangular R — we use Q of a random matrix as a random rotation (after fixing 
 `ch02.random_rotation` does.
 """, code="""
 rng = np.random.default_rng(0)                       # seeded generator (Ch. 1 primer P10): reproducible "random" numbers
-Q, _ = np.linalg.qr(rng.normal(size=(3, 3)))         # Q: the orthogonal factor of a random 3×3 matrix
+Q, _ = np.linalg.qr(rng.normal(size=(3, 3)))         # Q: the orthogonal factor of a random 3×3 matrix (tuple unpacking, Ch. 1 P14: `_` discards R)
 print(np.round(Q.T @ Q, 12))                         # the identity: Q is orthogonal
 print(np.linalg.norm(Q @ [3., 4., 0.]))              # 5.0: an orthogonal matrix keeps lengths (3-4-5 triangle)
 """)
@@ -439,7 +445,7 @@ D("D02", "Why C is orthogonal: C Cᵀ = Cᵀ C = I and det C = +1", ref="Exercis
        "The columns of C are perpendicular unit vectors too."),
       ("Take the determinant of step 6",
        r"(\det\mathbf C)^2 = 1\ \Rightarrow\ \det\mathbf C = \pm1",
-       "det(AB) = det A · det B and det Cᵀ = det C (P53), while det I = 1. We take determinants because the sign tells a rotation from a mirror.",
+       "det(AB) = det A · det B and det Cᵀ = det C, while det I = 1 — the determinant is the volume-scale factor of a linear map, and scale factors multiply (Ch. 1 P53 gave the cofactor recipe for computing it). We take determinants because the sign tells a rotation from a mirror.",
        "C cannot stretch volumes; it may or may not flip them."),
       ("Fix the sign for a rotation",
        r"\det\mathbf C = +1",
@@ -461,8 +467,10 @@ the result of D02 — checked in code with `ch02.is_orthogonal(C)`, `ch02.orthog
 `ch02.is_proper_rotation(C)` (det +1).
 """, equation=r"C_{ij} C_{kj} = C_{ji} C_{jk} = \delta_{ik}, \qquad \det \mathbf C = +1", ref="Exercise 2.8")
 nb.md(r"""
-The next derivation starts from the forward rule (2.5), $x'_j = x_iC_{ij}$. (2.5) is derived in the next block (C03,
-D01); here we only need that it holds.
+The next derivation starts from the forward rule (2.5), $x'_j = x_iC_{ij}$: **each new component is the old
+components weighted by the cosines of one column of C** — the projection of the same arrow onto a new axis that the
+figure and the animation above showed. (2.5) is derived move by move in the next block (C03, D01); here we only need
+that it holds.
 """)
 D("D03", "The inverse transformation x_j = x'_i C_ji", ref="2.7",
   goal="""Get the old components back from the new ones — the book says "it can be shown (Exercise 2.2)".""",
@@ -510,7 +518,7 @@ nb.worked_example("a 30° turn about e₃", r"""
 5. $\det C = \cos^2 30° + \sin^2 30° = 1$ ✓ (a rotation, not a mirror).
 """)
 nb.code("""
-C = ch02.rotation_matrix_3d([0, 0, 1], np.deg2rad(30))      # passive C for a frame turned 30° about e_3 (Rodrigues' formula; columns = new axes)
+C = ch02.rotation_matrix_3d([0, 0, 1], np.deg2rad(30))      # passive C for a frame turned 30° about e_3 (columns = new axes) — Rodrigues' formula: the closed form cos θ I + sin θ [k×] + (1 − cos θ) k kᵀ for a rotation by θ about the unit axis k (see the docstring)
 print(np.round(C, 3))                                       # the 3×3 of the tiny example
 E_old = ch02.unit_vectors()                                 # rows e_1, e_2, e_3
 E_new = C.T                                                 # rows e'_1, e'_2, e'_3 = the columns of C
@@ -565,7 +573,7 @@ nb.animation("""
 from fluidpy.core.anim import animate                                     # animation helper (Ch. 1 primer P16)
 from scripts.ch02_fig2_2_rotated_axes import frame_rotation_frames        # drawing helper: fixed arrow, turning orange axes, live C and bars
 n_fr = 10 if not FAST else 6                                              # frames at 0°, 10°, … 90° (FAST: 6 frames)
-thetas = np.deg2rad(np.linspace(0, 90, n_fr))                             # the frame angles [rad]
+thetas = np.deg2rad(np.linspace(0, 90, n_fr))                             # the frame angles [rad] (np.linspace: evenly spaced values, Ch. 1 P06)
 fig, update = frame_rotation_frames(thetas, x=(1.0, 2.0))                 # left: the plane with the arrow (1, 2); right: bars x_i (teal) and x'_j (orange)
 fig.set_layout_engine("none")                                             # fixed layout: the automatic layout engine would re-run on every frame
 show_animation(animate(update, frames=n_fr, fig=fig, interval=500), player="frames")   # step frame by frame
@@ -1007,6 +1015,13 @@ nb.md(r"""
 > — true for the stress (Ch. 4), false for a general tensor; the code never assumes it (`traction` uses
 > `einsum('ji,j->i')`).
 """)
+P("P70", "np.arctan2", r"""
+`np.arctan2(y, x)` returns the angle of the point (x, y) in the correct quadrant (−π, π]; `np.arctan(y/x)` cannot tell
+(−1, −1) from (1, 1). Add 2π (or take `% 360` in degrees) when you want 0–360°.
+""", code="""
+print(np.rad2deg(np.arctan2(0.866, 0.5)))                   # 60.0: the direction of f for a > 0
+print(np.rad2deg(np.arctan2(-0.866, -0.5)) % 360)           # 240.0: the direction of f for a < 0 (opposite quadrant)
+""")
 nb.worked_example("Ex. 2.2 with a = 1 Pa, φ = 30°", r"""
 τ = [[0, a], [a, 0]] (pure shear in a channel, $x_1$ along the flow).
 1. $\mathbf n = (\cos30°, \sin30°) = (0.866, 0.5)$.
@@ -1017,13 +1032,6 @@ nb.worked_example("Ex. 2.2 with a = 1 Pa, φ = 30°", r"""
 6. Normal part $\sigma_n = \mathbf f\cdot\mathbf n = 0.5\times0.866 + 0.866\times0.5 = 0.866 = a\sin60°$; shear part
    $\tau_s = |\mathbf f - \sigma_n\mathbf n| = 0.5 = a\cos60°$ — in general $\sigma_n = a\sin2\phi$, $\tau_s = a\cos2\phi$
    (stated; the Mohr-circle preview of C13).
-""")
-P("P70", "np.arctan2", r"""
-`np.arctan2(y, x)` returns the angle of the point (x, y) in the correct quadrant (−π, π]; `np.arctan(y/x)` cannot tell
-(−1, −1) from (1, 1). Add 2π (or take `% 360` in degrees) when you want 0–360°.
-""", code="""
-print(np.rad2deg(np.arctan2(0.866, 0.5)))                   # 60.0: the direction of f for a > 0
-print(np.rad2deg(np.arctan2(-0.866, -0.5)) % 360)           # 240.0: the direction of f for a < 0 (opposite quadrant)
 """)
 note("N38", "Ex. 2.2, stated", r"""
 the numbers of the tiny example, plus the (2.12) route the book also takes: $\tau'_{11} = \sqrt3 a/2 = 0.866a$,
@@ -1267,7 +1275,7 @@ nb.plotly("""
 def mohr(theta_deg):                                                 # one slider position: the frame turned by θ
     C_ = ch02.rotation_matrix_2d(np.deg2rad(theta_deg))              # passive C
     T = ch02.transform_tensor(tau2, C_)                              # τ' = CᵀτC (2.12) for pure shear a = 1 Pa
-    c, r = ch02.mohr_circle_2d(tau2)                                 # Mohr's circle: centre I₁/2 = 0, radius 1 Pa
+    c, r = ch02.mohr_circle_2d(tau2)                                 # Mohr's circle: centre (τ₁₁ + τ₂₂)/2 = 0 (half the trace — an invariant, C07), radius √(((τ₁₁ − τ₂₂)/2)² + τ₁₂²) = 1 Pa
     ang = np.linspace(0, 2 * np.pi, 181)                             # to draw the circle
     return {"Mohr circle (all planes)": (c + r * np.cos(ang), r * np.sin(ang)),          # fixed circle
             "(τ'₁₁, τ'₁₂): the 1' face": ([c, T[0, 0]], [0, T[0, 1]]),                    # radius to the current point
@@ -1278,9 +1286,13 @@ fig = slider_figure(mohr, "θ", np.linspace(0, 180, 37 if not FAST else 25), uni
 fig.update_yaxes(scaleanchor="x", scaleratio=1)                      # a circle should look like a circle
 fig.show()                                                           # drag θ
 """, explain="""
-1. For each θ the stress is rotated with (2.12) and the pair $(\\tau'_{11}, \\tau'_{12})$ is plotted as a point.
-2. `mohr_circle_2d` gives the circle every such point lies on: centre $I_1/2$ (here 0), radius 1 Pa. The second radius
-   marks the perpendicular face $(\\tau'_{22}, -\\tau'_{12})$ — always the antipode.
+1. For each θ the stress is rotated with (2.12) and the pair $(\\tau'_{11}, \\tau'_{12})$ — the normal and shear stress
+   on the 1' face — is plotted as a point.
+2. **Mohr's circle** (Ch. 4 uses it for stresses; here it is a fact about any symmetric 2×2): the set of all
+   $(\\sigma_n, \\tau_s)$ pairs over all planes through the point is a circle of centre $(\\tau_{11} + \\tau_{22})/2$ — half
+   the trace, an invariant (C07); here 0 — and radius $\\sqrt{((\\tau_{11} - \\tau_{22})/2)^2 + \\tau_{12}^2}$ (here 1 Pa);
+   `mohr_circle_2d` returns both. The second radius marks the perpendicular face $(\\tau'_{22}, -\\tau'_{12})$ — always the
+   antipode.
 """)
 see_read_change("A circle of radius 1 Pa centred at the origin; two radii from the centre to opposite points, turning as you drag θ.",
                 "One turn of the frame (180°) is one full turn of the point (360°): the double angle of the cosine curves above. The circle's radius is the largest shear any plane can carry; where the radius hits the σ axis (θ = 45°) the shear is zero — a principal axis (C13).",
@@ -1338,7 +1350,9 @@ nb.md(r"""
 2. **Invariance:** apply (2.12) and set n = m — D18 below shows every closed index chain survives the rotation unchanged.
 3. **The three invariants:** $I_1 = A_{ii}$, $I_2 = \tfrac12(I_1^2 - A_{ij}A_{ji})$, $I_3 = \det\mathbf A$; they are the
    coefficients of $\det(\mathbf A - \lambda\boldsymbol\delta) = 0$ (Exercise 2.9), so the eigenvalues of C13 are
-   invariants too.
+   invariants too. *Gloss (C13 makes this precise):* an eigenvalue λ and eigenvector b satisfy $\mathbf A\cdot\mathbf b =
+   \lambda\mathbf b$ — a direction that A only stretches; for symmetric A three perpendicular such directions exist and,
+   taken as axes (the *principal frame*), make A diagonal. The roots of the cubic are exactly these λ.
 4. **Products** raise the order (N30); contractions of products (2.14) are matrix products in disguise (N31).
 """)
 D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", ref="Exercise 2.9",
@@ -1371,7 +1385,7 @@ D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", re
        "Any closed chain of indices survives a rotation unchanged."),
       ("Take the determinant of the matrix form",
        r"\det\mathbf A' = \det(\mathbf C^{\rm T}\mathbf A\,\mathbf C) = (\det\mathbf C)^2\det\mathbf A = \det\mathbf A",
-       r"det of a product is the product of dets (P53); det Cᵀ = det C and (det C)² = 1 (D02 step 7). So $I_3 = \det\mathbf A$ is invariant.",
+       r"det of a product is the product of dets (scale factors of volume multiply — D02 step 7); det Cᵀ = det C and (det C)² = 1 (D02 step 7). So $I_3 = \det\mathbf A$ is invariant.",
        "The determinant is the third frame-independent number."),
       ("Expand the characteristic determinant in λ",
        r"\det(\mathbf A - \lambda\boldsymbol\delta) = -\lambda^3 + A_{ii}\,\lambda^2 - M\,\lambda + \det\mathbf A",
@@ -1383,7 +1397,7 @@ D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", re
        "The middle coefficient is exactly the second invariant."),
       ("Evaluate in the principal frame",
        r"I_1 = \lambda^1 + \lambda^2 + \lambda^3,\quad I_2 = \lambda^1\lambda^2 + \lambda^2\lambda^3 + \lambda^3\lambda^1,\quad I_3 = \lambda^1\lambda^2\lambda^3",
-       "For symmetric A the principal frame has A' = diag(λ) (D17 fact 3); the invariants may be computed in any frame, so use this one: trace, sum of 2×2 minors, determinant of a diagonal matrix — Vieta's formulas for the cubic's roots.",
+       "For symmetric A the principal frame — the axes along the three perpendicular eigenvectors b, the directions with A·b = λb that A only stretches (gloss above; proved as D17 fact 3) — has A' = diag(λ¹, λ², λ³); the invariants may be computed in any frame, so use this one: trace, sum of 2×2 minors, determinant of a diagonal matrix — Vieta's formulas (P71) for the cubic's roots.",
        "The invariants are the sum, the pair-sums and the product of the eigenvalues — so the eigenvalues are frame-independent too."),
   ],
   result=(r"I_1 = A_{ii},\quad I_2 = \tfrac12(I_1^2 - A_{ij}A_{ji}),\quad I_3 = \det\mathbf A \ \text{ unchanged by (2.12)};\qquad \det(\mathbf A - \lambda\boldsymbol\delta) = -(\lambda^3 - I_1\lambda^2 + I_2\lambda - I_3)",
@@ -1526,12 +1540,16 @@ for p in permutations((1, 2, 3)):                          # the six orderings o
     print(p, ch02.permutation_sign(*p))                    # (1,2,3) 1, (1,3,2) −1, (2,1,3) −1, (2,3,1) 1, (3,1,2) 1, (3,2,1) −1
 """)
 P("P73", "numpy arrays with three axes and np.transpose", r"""
-`eps[i, j, k]` indexes a 3×3×3 array (shape (3, 3, 3)); `np.transpose(eps, (1, 2, 0))` reorders the axes so that
-`new[i, j, k] = eps[j, k, i]` — the code form of "move an index".
+`eps[i, j, k]` indexes a 3×3×3 array (shape (3, 3, 3)). `np.transpose(a, axes)` puts old axis `axes[p]` in position p,
+so `np.transpose(eps, (1, 2, 0))[i, j, k] = eps[k, i, j]` — the code form of "move an index" (here: the old last index
+k has moved to the front, a two-place move). ε is unchanged by both cyclic shifts, so the demo below also uses a plain
+0…26 array, where a wrong reading of the rule *would* fail.
 """, code="""
 eps = ch02.levi_civita()                                                   # ε_ijk as a (3, 3, 3) array, Python 0-based
 print(eps.shape, eps[0, 1, 2], eps[0, 2, 1], eps[0, 0, 1])                 # (3,3,3) 1 −1 0 = ε_123, ε_132, ε_112
-print(np.array_equal(np.transpose(eps, (1, 2, 0)), eps))                   # True: a two-place move keeps ε  (np.array_equal: exact equality)
+a3 = np.arange(27).reshape(3, 3, 3)                                        # a non-symmetric 3×3×3 array: a3[i, j, k] = 9i + 3j + k
+print(np.transpose(a3, (1, 2, 0))[0, 1, 2], a3[2, 0, 1], a3[1, 2, 0])      # 19 19 15: new[0,1,2] = a3[2,0,1] (old axis 2 moved to the front) — NOT a3[1,2,0]
+print(np.array_equal(np.transpose(eps, (1, 2, 0)), eps))                   # True: the two-place move ε_kij = ε_ijk keeps ε  (np.array_equal: exact equality)
 """)
 P("P74", "right-hand rule and orientation", r"""
 Point the fingers of your right hand along the first vector, curl them toward the second: the thumb gives the direction
@@ -1701,7 +1719,7 @@ fig, axs = plt.subplots(1, 3, figsize=(9.5, 3.4), sharey=True)         # one sli
 labels = {1: "+1", -1: "−1"}                                          # cell labels
 for k, ax in enumerate(axs):                                          # slice k (Python) = ε_ij(k+1)
     sl = eps[:, :, k]                                                 # the 3×3 slice
-    ax.imshow(sl, cmap=ListedColormap([COLORS["teal"], "white", COLORS["accent"]]), vmin=-1, vmax=1)   # −1 teal, 0 white, +1 purple
+    ax.imshow(sl, cmap=ListedColormap([COLORS["teal"], "white", COLORS["accent"]]), vmin=-1, vmax=1)   # imshow draws a 2-D array as coloured cells (a heatmap): −1 teal, 0 white, +1 purple
     ax.grid(False)                                                    # no grid lines through the cells
     for i in range(3):                                                # label the nonzero cells with their index triple
         for j in range(3):
@@ -1767,7 +1785,9 @@ P("P76", "np.meshgrid and the project grid layout", r"""
 (every later chapter):** 3-D arrays are indexed `[k, j, i]` = (z, y, x) — x on the last axis — built with
 `np.meshgrid(z, y, x, indexing='ij')`; 2-D arrays are `[j, i]` = (y, x) from `indexing='xy'`. Vector fields stack the
 component on axis 0 (`np.stack`): `u[c, k, j, i]`. `ch02.grid` and `ch02.grid2d` do this once so nobody transposes a
-curl by accident.
+curl by accident. **Two orders to keep apart:** the *arrays* are `[k, j, i]` = (z, y, x), but the spacing tuple
+`grid.h` and every component index are ordered (x, y, z) — `g3.h = (hx, hy, hz)`, `u[0]` is $u_x$; `partial(f,
+direction, h)` takes the coordinate direction and maps it to the array axis itself.
 """, code="""
 g2 = ch02.grid2d(((-1, 1), (-1, 1)), 5)                    # a 5×5 grid on [−1, 1]²
 print(g2.X.shape, g2.X[0], g2.Y[:, 0])                     # (5, 5); x varies along the LAST axis, y along the first
@@ -1962,9 +1982,13 @@ u_rot = ch02.solid_body_rotation_field([0, 0, 1.0])(g3.X, g3.Y, g3.Z) # Ex. 2.3'
 print(np.abs(ch02.divergence(u_rot, g3.h)).max(), ch02.is_solenoidal(u_rot, g3.h))   # ~1e-15, (True, residual): solenoidal
 G = ch02.vector_gradient(u_rad, g3.h)                                 # G[i, j] = ∂u_i/∂x_j at every node (N52)
 print(G[:, :, 5, 5, 5])                                               # the identity matrix: ∂x_i/∂x_j = δ_ij
-print(np.allclose(np.einsum('ii...', G), div))                        # True: the divergence is the trace of G (C07)
-X3 = sp.Matrix(sp.symbols('x1 x2 x3'))                                # sympy coordinates (Ch. 1 P40, P61)
-print(ch02.exact_div_curl(sp.Symbol('a') * X3))                       # the symbolic twin: (3a, [0, 0, 0])
+print(np.allclose(np.einsum('ii...', G), div))                        # True: the divergence is the trace of G (C07); 'ii...' sums the diagonal at every grid point
+X3 = sp.Matrix(ch02.coordinates(3))                                   # the library's sympy coordinates x1, x2, x3 (Ch. 1 P40, P61) — the SAME symbols the fields differentiate with respect to
+a_sym = sp.Symbol('a')                                                # a symbolic amplitude
+div_sym, curl_sym = ch02.exact_div_curl(a_sym * X3)                   # the symbolic twin of Ex. 2.3: ∇·(a x) and ∇×(a x)
+print(div_sym, curl_sym)                                              # 3*a [0, 0, 0]
+assert div_sym != 0 and float(div_sym.subs(a_sym, 1.0)) == 3.0 and np.allclose(float(div_sym.subs(a_sym, 1.0)), div.mean())   # the symbolic 3a is non-zero and equals the grid value
+assert all(c == 0 for c in curl_sym)                                  # and the curl of a x is exactly zero
 """, explain="""
 1. A 3-D grid (kept for C11 and C12).
 2. `radial_field(1.0)` is a callable field with sympy behind it; evaluated on the grid arrays it returns the three
@@ -1972,7 +1996,8 @@ print(ch02.exact_div_curl(sp.Symbol('a') * X3))                       # the symb
 3. Its divergence is 3 everywhere — exact, because the field is linear.
 4. The rotation field is solenoidal: its divergence is zero to round-off.
 5. The velocity gradient of u = x is δ_ij at every node; its trace is the divergence.
-6. `exact_div_curl` computes the same symbolically: (3a, 0).
+6. `exact_div_curl` computes the same symbolically: 3a and [0, 0, 0] — built on the library's own coordinate symbols
+   (`ch02.coordinates(3)`); the assertions check the symbolic value is non-zero and equals the grid's 3.
 """)
 nb.check_agree("""
 div_mine = (ch02.partial(u_rad[0], 0, g3.h[0])                        # ∂u_1/∂x_1: component 0 differentiated along coordinate direction 0 (x)
@@ -2133,7 +2158,9 @@ w = ch02.curl(u_rot, g3.h)                                                     #
 print(w[:, 5, 5, 5], np.abs(w[2] - 2).max())                                   # [0 0 2] and ~1e-14: ∇×(b × x) = 2b everywhere
 print(np.allclose(np.stack(ch02.curl_components(u_rot, g3.h)), w))             # True: (2.25) written out = the einsum form (N53)
 print(ch02.is_irrotational(u_rad, g3.h)[0], ch02.is_irrotational(u_rot, g3.h)[0])   # True False: a x has no spin, b × x does
-print(ch02.exact_div_curl(sp.Matrix([0, 0, 1]).cross(X3)))                     # the sympy twin: (0, [0, 0, 2])
+div_sym, curl_sym = ch02.exact_div_curl(sp.Matrix([0, 0, 1]).cross(X3))        # the sympy twin of b × x on the library's coordinates X3 (C10)
+print(div_sym, curl_sym)                                                       # 0 [0, 0, 2]
+assert div_sym == 0 and list(curl_sym) == [0, 0, 2] and np.allclose([float(c) for c in curl_sym], w[:, 5, 5, 5])   # non-zero curl 2b, equal to the grid value
 Xs = ch02.coordinates(3)                                                       # sympy symbols x1, x2, x3 (the field's coordinates)
 shear3 = ch02.VectorField([Xs[1], 0, 0], Xs, name="simple shear u1 = Γ x2, Γ = 1")   # the straight shear flow as a 3-D field (Γ = 1/s)
 u_sh = shear3(g3.X, g3.Y, g3.Z)                                                # on the grid (kept for C12)
@@ -2142,7 +2169,7 @@ print(ch02.curl(u_sh, g3.h)[2, 5, 5, 5])                                       #
 1. The curl of the rotation field is (0, 0, 2b) at every node — exact for a linear field.
 2. The three explicit components (2.25) agree with the einsum form (2.24).
 3. The radial field is irrotational, the rotating one is not.
-4. The sympy twin gives (0, [0, 0, 2]) symbolically.
+4. The sympy twin gives divergence 0 and curl [0, 0, 2] symbolically, asserted equal to the grid's curl.
 5. The straight shear flow $u_1 = \\Gamma x_2$ (built as a `VectorField` from sympy expressions) has curl −Γ.
 """)
 nb.check_agree("""
@@ -2172,7 +2199,7 @@ fig.colorbar(im, ax=axs, shrink=0.8, label="(∇×u)₃ [1/s]")                 
 plt.show()                                                                      # display
 """, see="Three heatmaps of (∇×u)₃ with the flow's arrows: uniform purple for the whirlpool (+2), uniform green for the straight shear flow (−1), white for the source (0); a paddle-wheel glyph shows the spin sense.",
    read="Curl is the *difference* of speeds across the wheel, not curvature of streamlines: the straight shear flow is as coloured as the whirlpool, and the spreading source has none.",
-   change="…you used the irrotational vortex $u_\\theta = K/r$ (the explainer's preset): curl 0 everywhere except the centre — a whirlpool with no local spin, the case Stokes' theorem (C16) cannot handle across the core.")
+   change="…you used the *irrotational vortex* — a flow circling the origin with speed $u_\\theta = K/r$ (K a constant, m²/s), the speed blowing up at r = 0 (the explainer's preset): curl 0 everywhere except the centre — a whirlpool with no local spin, the case Stokes' theorem (C16) cannot handle across the core.")
 nb.explainer("stokes_circulation_loop", heading="How much does the flow go round a loop?",
              why="""Curl and circulation are two views of one thing; dragging a loop over a shear flow (curl without curves)
              and over an irrotational vortex (curves without curl) removes the confusion no static figure can. (Its
@@ -2607,7 +2634,7 @@ D("D17", "Real eigenvalues, orthogonal axes, diagonal form and the bounds — fo
        "No cut carries more pull than λ_max or more squeeze than λ_min."),
       ("Bound the shear too",
        r"\tau_s^2 = \lambda^k\lambda^k c_k^2 - (\lambda^kc_k^2)^2 \le \Big(\tfrac{\lambda_{\max} - \lambda_{\min}}{2}\Big)^2",
-       r"$|\mathbf f|^2 = f_if_i = \lambda^k\lambda^kc_k^2$ by the same expansion, and $\tau_s^2 = |\mathbf f|^2 - \sigma_n^2$ is the *variance* of the values λ^k under the weights $c_k^2$; a variance of numbers confined to an interval of length L is at most (L/2)².",
+       r"$|\mathbf f|^2 = f_if_i = \lambda^k\lambda^kc_k^2$ by the same expansion, and $\tau_s^2 = |\mathbf f|^2 - \sigma_n^2$ is the *variance* of the values λ^k under the weights $c_k^2$. A variance of numbers confined to an interval of length L is at most (L/2)² (Popoviciu's inequality): Var X ≤ E[(X − c)²] for any constant c, and with c the midpoint of $[\lambda_{\min}, \lambda_{\max}]$ every $|X - c| \le L/2$.",
        "The shear on any plane is at most half the spread of the eigenvalues (Mohr's circle radius)."),
   ],
   result=(r"\text{real } \lambda^k;\quad \text{orthonormal } \mathbf b^k;\quad \boldsymbol\tau' = \mathbf C^{\rm T}\boldsymbol\tau\mathbf C = \mathrm{diag}(\lambda^1, \lambda^2, \lambda^3),\ \mathbf C = [\mathbf b^1\ \mathbf b^2\ \mathbf b^3];\quad \lambda_{\min} \le \mathbf n\cdot\boldsymbol\tau\cdot\mathbf n \le \lambda_{\max},\ \ \tau_s \le \tfrac12(\lambda_{\max} - \lambda_{\min})",
@@ -2797,7 +2824,7 @@ sibling.) For a *linear* integrand the midpoint rule is exact — the fact D22 l
 """, code="""
 n = 20; xs = (np.arange(n) + 0.5) / n                      # cell centres on [0, 1]
 X, Y, Z = np.meshgrid(xs, xs, xs, indexing='ij')           # a 20³ grid of cell centres
-print(np.sum(X**2) / n**3)                                 # ∭ x² dV over the unit cube = 1/3 (0.3329 with n = 20)
+print(np.sum(X**2) / n**3)                                 # ∭ x² dV over the unit cube = 1/3 (0.3331 with n = 20 — the midpoint rule undershoots a convex integrand by ∝ 1/n²)
 print(np.sum(X[:, :, 0]**2) / n**2)                        # ∬ x² dA over the unit square = 1/3
 """)
 P("P84", "fundamental theorem of calculus", r"""
@@ -2900,7 +2927,7 @@ Q2 = lambda x, y, z: np.stack([x**2, 0 * y, 0 * z])                      # Q = (
 print(ch02.divergence_theorem_box(Q2, ((0, 1),) * 3, 16))                # (1.0, 1.0): only the two x-faces leak
 F = lambda x, y, z: np.stack([2 * x, y**2, z**2])                        # the sphere benchmark field
 lhs_s, rhs_s = ch02.divergence_theorem_sphere(F, 1.0, 48 if not FAST else 24)   # ∭ ∇·F dV over the unit ball vs ∯ n·F dA over the sphere
-print(lhs_s, rhs_s, 8 * np.pi / 3)                                       # 8.378 8.378 8.378 (quadrature error ~1e-4)
+print(lhs_s, rhs_s, 8 * np.pi / 3)                                       # 8.3776 8.3776 8.3776: agree to ~1e-14 — the spherical product rule integrates these low-degree polynomials essentially exactly
 print(ch02.gauss_gradient_box(lambda x, y, z: x * y * z, ((0, 1),) * 3, 16))   # (2.30) on a SCALAR: both sides are the vector (¼, ¼, ¼)
 Q2d = ch02.radial_field(1.0, dim=2)                                      # the plane field (x, y) for the 2-D pictures
 print(ch02.flux_through_faces(Q2d, ((0, 1), (0, 1)), 16))                # {'+x': 1, '-x': 0, '+y': 1, '-y': 0}: the right and top faces leak 1 each
@@ -2908,7 +2935,8 @@ print(ch02.divergence_theorem_tiled(Q2d, ((0, 1), (0, 1)), 4, 16))       # 4×4 
 """, explain="""
 1. `divergence_theorem_box` evaluates both sides of (2.30) for a vector Q on a box by midpoint sums: 3 = 3.
 2. For Q = (x², 0, 0) both sides are 1: only the two x-faces contribute (D25 step 4).
-3. The sphere benchmark: both sides equal 8π/3 to quadrature error.
+3. The sphere benchmark: both sides equal 8π/3 to ~1e-14 — for these low-degree polynomials the spherical product rule
+   is essentially exact, so no visible quadrature error remains.
 4. `gauss_gradient_box` is the scalar form of (2.30): the volume integral of ∇(xyz) equals the surface integral of n·(xyz)
    — a vector on both sides.
 5. `flux_through_faces` lists the four signed face fluxes of a plane field.
@@ -3060,7 +3088,8 @@ D("D21", "The integral definitions as small-volume limits of Gauss' theorem", re
   interpret="""The operators of §2.9 are properties of the field, not of Cartesian axes: the same recipe in spherical or
   cylindrical coordinates gives the curvilinear formulas of Appendix B (N72), and Ch. 4 derives continuity from exactly
   (2.32) on a fluid box. The limit exists only where Q is smooth; at a point source (the explainer's preset) the flux is
-  fixed while V → 0 and (1/V)∮ diverges — a delta function, not a derivative.""",
+  fixed while V → 0 and (1/V)∮ diverges — an infinitely concentrated source whose total is finite (a "delta function"),
+  not a derivative.""",
   check="""Units: (2.32) — [Q]·m²/m³ = [Q]/m on both sides ✓. Limit: Q constant: the boundary integral of n vanishes
   (vector area of a closed surface, P69), so all three derivatives are 0 ✓. Number: Q = (x², 0, 0), x₀ = (1, 0, 0), cube
   h = 0.2: (1/V)∮ = (1.21 − 0.81)(0.04)/0.008 = 2.000 = 2x₀ exactly ✓; Q = (x³, 0, 0): 3.01 vs 3 at h = 0.2, error h²/4,
@@ -3189,7 +3218,7 @@ ax.set_xlim(0.2, 2.0); ax.set_ylim(-0.8, 0.9); ax.set_aspect("equal"); ax.set_xl
 (centre,) = ax.plot([x0], [0], "o", color=COLORS["accent"])              # x₀
 tf = ax.text(0, 0, "", color=COLORS["orange"], ha="left", fontsize=9)    # front-face value (n = +e₁)
 tb = ax.text(0, 0, "", color=COLORS["blue"], ha="right", fontsize=9)     # back-face value (n = −e₁)
-ts_ = ax.text(0.25, 0.75, "", fontsize=9)                                # the running bookkeeping line
+ts_ = ax.text(0.25, 0.85, "", fontsize=9, va="top")                      # the running bookkeeping line(s), top-left, growing downward
 frames_txt = ["the box around x₀ = 1 with side Δx; Q = (x², 0, 0)",      # frame 1: the setting
               "front face (n = +e₁): n·Q = Q₁(x₀ + Δx/2) = Q₁ + (Δx/2)·Q₁′ + …",     # frame 2: D22 step 2, front
               "back face (n = −e₁): n·Q = −Q₁(x₀ − Δx/2) = −Q₁ + (Δx/2)·Q₁′ − …",    # frame 3: D22 step 2, back
@@ -3205,8 +3234,8 @@ def update(i):                                                           # frame
     tf.set_position((x0 + h/2 + 0.03, 0)); tf.set_text(f"+{front:.3f}" if i >= 1 else "")   # front value appears from frame 2
     tb.set_position((x0 - h/2 - 0.03, 0)); tb.set_text(f"{back:.3f}" if i >= 2 else "")     # back value from frame 3
     est = (front + back) * h**2 / h**3                                   # (1/V)∮ n·Q dA for this box: (front + back) × face area / volume
-    tail = f"   Δx = {h:.3f}: (1/V)∮ = {est:.3f}" if i >= 6 else ""      # the number, once the division is done
-    ts_.set_text(frames_txt[i] + tail)                                   # the bookkeeping line
+    tail = f"\\nΔx = {h:.3f}:  (1/V)∮ n·Q dA = {est:.3f}" if i >= 6 else ""   # the number, once the division is done — on its own line
+    ts_.set_text(frames_txt[i] + tail)                                   # the bookkeeping line(s)
     return (box, tf, tb, ts_)                                            # the changed artists
 show_animation(animate(update, frames=len(frames_txt), fig=fig, interval=900), player="frames")   # step through the bookkeeping
 """, explain="""
@@ -3359,7 +3388,7 @@ D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref
        "One small loop's circulation is the normal curl times its area."),
       ("Tile the surface with small rectangles and add",
        r"\sum_k\oint_{C_k}\mathbf u\cdot\mathbf t\,ds = \sum_k(\nabla\times\mathbf u)\cdot\mathbf n\,\Delta A_k \to \iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA",
-       "Step 6 holds for every tile, all oriented counterclockwise about the same n; the right side is a Riemann sum of a continuous function, which tends to the surface integral as the tiles shrink.",
+       "Step 6 holds for every tile, all oriented counterclockwise about the same n; the right side is a Riemann sum (value × tile area, added over the tiles — the midpoint sum of P83) of a continuous function, which tends to the surface integral as the tiles shrink.",
        "The sum of all the little circulations is the total curl inside."),
       ("Cancel the interior edges",
        r"\sum_k\oint_{C_k}\mathbf u\cdot\mathbf t\,ds = \oint_{\text{outer edges}}\mathbf u\cdot\mathbf t\,ds",
@@ -3449,15 +3478,17 @@ see_read_change("A teal hemispherical cap, its purple rim with small arrows, and
                 "…you chose the inside as outside (`stokes_cap_figure(flip=True)`): n and t both reverse; $\\mathbf n_c$ stays. Both sides of (2.34) change sign together.")
 nb.animation("""
 u_sh2 = ch02.shear_field(1.0)                                              # u_1 = Γ x_2 with Γ = 1/s (a 2-D field)
-hs_loop = np.geomspace(2.0, 0.1, 10 if not FAST else 6)                    # loop sides from 2 to 0.1 m
-fig, ax = plt.subplots(figsize=(6.5, 4.6))                                 # one panel
-fig.set_layout_engine("none")                                              # fixed layout: the automatic layout engine would re-run on every frame
+hs_loop = np.geomspace(2.0, 0.1, 10 if not FAST else 6)                    # loop sides from 2 to 0.1 m — np.geomspace: a constant factor between neighbours, like Ch. 1's np.logspace (P06)
+plt.rcParams["figure.constrained_layout.use"] = False                     # automatic layout OFF for this cell: matplotlib re-reads this switch after every saved frame and would undo subplots_adjust
+fig, ax = plt.subplots(figsize=(6.5, 5.2))                                 # one panel, plain layout
+fig.subplots_adjust(bottom=0.27, top=0.9)                                  # room below the axes for the two-line readout
 ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4); ax.set_aspect("equal"); ax.set_xlabel("x₁ [m]"); ax.set_ylabel("x₂ [m]")   # fixed axes
-yy = np.linspace(-1.3, 1.3, 9); ax.quiver(np.zeros(9) - 1.2, yy, yy, 0 * yy, color=COLORS["muted"], scale=12, width=0.004)   # the shear profile u_1 = x_2 (grey)
+ax.set_title("shear flow u₁ = Γx₂, Γ = 1 s⁻¹ — Γ_circ in m²/s, A in m²", fontsize=10)   # the units live here, not in the readout
+yy = np.linspace(-1.2, 1.2, 9); ax.quiver(np.zeros(9) - 1.3, yy, yy, 0 * yy, color=COLORS["muted"], scale=12, width=0.004)   # the shear profile u_1 = x_2 (grey), at the left edge
 (sq_l,) = ax.plot([], [], color=COLORS["accent"], lw=2)                    # the square loop
 wheel = plt.Circle((0.9, -0.9), 0.22, fill=False, color=COLORS["rose"], lw=2); ax.add_patch(wheel)   # a paddle wheel spinning at ½(∇×u)_3 = −Γ/2
 (spoke,) = ax.plot([], [], color=COLORS["rose"], lw=2)
-txt = ax.text(-1.35, 1.2, "", fontsize=9)
+txt = fig.text(0.5, 0.04, "", fontsize=10, ha="center", va="bottom")      # the two-line readout, below the axes (never clipped)
 arrows = [ax.annotate("", (0, 0), (0, 0), arrowprops=dict(arrowstyle="->", color=COLORS["orange"], lw=2)) for _ in range(4)]   # the four side contributions
 def update(i):                                                             # frame i: loop of side h
     h = hs_loop[i]
@@ -3469,9 +3500,11 @@ def update(i):                                                             # fra
         arr.set_position((xa, ya)); arr.xy = (xa + dx_, ya + dy_)          # the bottom and top sides both push clockwise; the vertical sides contribute nothing
     ang_ = -0.5 * 1.0 * i * 0.6                                            # the wheel turns clockwise at −Γ/2 (frame time 0.6 s)
     spoke.set_data([0.9, 0.9 + 0.22 * np.cos(ang_)], [-0.9, -0.9 + 0.22 * np.sin(ang_)])
-    txt.set_text(f"side h = {h:.2f} m:  Γ_circ = ∮u·t ds = {circ:+.4f} m²/s,  A = {h*h:.4f} m²,  Γ_circ/A = {circ / h**2:+.3f} = (∇×u)₃ = −Γ")
+    txt.set_text(f"side h = {h:.2f} m:   Γ_circ = ∮ u·t ds = {circ:+.4f},   A = h² = {h*h:.4f}\\n"   # line 1: the two ingredients
+                 f"Γ_circ / A = {circ / h**2:+.3f}  =  (∇×u)₃  =  −Γ")                                 # line 2: the ratio (2.35) — the number to watch
     return (sq_l, spoke, txt, *arrows)
 show_animation(animate(update, frames=len(hs_loop), fig=fig, interval=700), player="frames")   # step through the sizes
+plt.rcParams["figure.constrained_layout.use"] = True                      # house-style automatic layout back ON for the figures below
 """, explain="""
 1. A square loop of side h shrinks about the origin in the shear flow u₁ = Γx₂ (grey profile on the left); each frame
    prints the circulation, the area and their ratio.
