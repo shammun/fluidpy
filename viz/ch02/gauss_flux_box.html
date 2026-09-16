@@ -460,6 +460,11 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-height: 720px) {
   .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
 }
+/* portrait phones ≥ 700 px tall: the limit view is hidden, so the field row gets more of the stage; on a 640 px phone
+   the bars view would drop below 60 px, so the default 1.6 : 1 split stays there. */
+@media (min-height: 700px) {
+  .viz-app[data-layout="portrait"]:not([data-tab="derive"]) .viz-views > .viz-row:first-child { flex: 2.4 1 0 !important; }
+}
 </style>
 </head>
 <body>
@@ -2142,9 +2147,9 @@ const TWO_PI = 2 * Math.PI, TINY = 1e-12;
 /** The field presets. Q, div, d1 = ∂Q₁/∂x₁, d2 = ∂Q₂/∂x₂ are exact; `poly` marks fields the midpoint rule integrates exactly. */
 const FIELDS = {
   radial: { label: 'a x (Ex. 2.3)', chip: 'a x', name: 'Q = a x, a = 1', tex: '\\mathbf Q = a\\,\\mathbf x = (x_1,\\ x_2)', divTex: '\\nabla\\cdot\\mathbf Q = 2a = 2',
-    py: 'ch02.radial_field(1.0, dim=2)', Q: (x, y) => [x, y], div: () => 2, d1: () => 1, d2: () => 1, poly: true, sol: false },
+    py: 'ch02.radial_field(1.0, dim=2)', Q: (x, y) => [x, y], div: () => 2, d1: () => 1, d2: () => 1, poly: true, sol: false, constDiv: true },
   solid: { label: 'b × x (solenoidal)', chip: 'b × x', name: 'Q = b × x, b = e₃', tex: '\\mathbf Q = \\mathbf b\\times\\mathbf x = (-x_2,\\ x_1)', divTex: '\\nabla\\cdot\\mathbf Q = 0',
-    py: 'ch02.solid_body_rotation_field(1.0, dim=2)', Q: (x, y) => [-y, x], div: () => 0, d1: () => 0, d2: () => 0, poly: true, sol: true },
+    py: 'ch02.solid_body_rotation_field(1.0, dim=2)', Q: (x, y) => [-y, x], div: () => 0, d1: () => 0, d2: () => 0, poly: true, sol: true, constDiv: true },
   xsq: { label: '(x², 0)', chip: '(x², 0)', name: 'Q = (x₁², 0)', tex: '\\mathbf Q = (x_1^2,\\ 0)', divTex: '\\nabla\\cdot\\mathbf Q = 2x_1',
     py: 'lambda X, Y: [X**2, 0.0*X]', Q: (x, y) => [x * x, 0], div: x => 2 * x, d1: x => 2 * x, d2: () => 0, poly: true, sol: false },
   source: { label: 'point source', chip: 'source', name: 'Q = m x/(2π r²), m = 1', tex: '\\mathbf Q = \\frac{m\\,\\mathbf x}{2\\pi r^2}', divTex: '\\nabla\\cdot\\mathbf Q = 0\\ (r > 0)',
@@ -2152,12 +2157,12 @@ const FIELDS = {
     div: () => 0, d1: (x, y) => (y * y - x * x) / (TWO_PI * Math.pow(x * x + y * y, 2)), d2: (x, y) => (x * x - y * y) / (TWO_PI * Math.pow(x * x + y * y, 2)),
     poly: false, sol: true, singular: [0, 0], m: 1 },
   potential: { label: '∇φ, φ = x₁² − x₂²', chip: '∇φ', name: 'Q = ∇φ, φ = x₁² − x₂²', tex: '\\mathbf Q = \\nabla\\varphi = (2x_1,\\ -2x_2)', divTex: '\\nabla\\cdot\\mathbf Q = 2 - 2 = 0',
-    py: 'ch02.potential_field()', Q: (x, y) => [2 * x, -2 * y], div: () => 0, d1: () => 2, d2: () => -2, poly: true, sol: true },
+    py: 'ch02.potential_field()', Q: (x, y) => [2 * x, -2 * y], div: () => 0, d1: () => 2, d2: () => -2, poly: true, sol: true, constDiv: true },
   smooth: { label: 'smooth sin/cos', chip: 'smooth', name: 'Q = (sin x₁ cos x₂, cos x₁ sin x₂ + x₁²)', tex: '\\mathbf Q = (\\sin x_1\\cos x_2,\\ \\cos x_1\\sin x_2 + x_1^2)', divTex: '\\nabla\\cdot\\mathbf Q = 2\\cos x_1\\cos x_2',
     py: 'ch02.smooth_test_field(2)', Q: (x, y) => [Math.sin(x) * Math.cos(y), Math.cos(x) * Math.sin(y) + x * x],
     div: (x, y) => 2 * Math.cos(x) * Math.cos(y), d1: (x, y) => Math.cos(x) * Math.cos(y), d2: (x, y) => Math.cos(x) * Math.cos(y), poly: false, sol: false },
   sink: { label: 'corner sink', chip: 'sink', name: 'Q = −½ (x − (1, 1))', tex: '\\mathbf Q = -\\tfrac12\\,(x_1 - 1,\\ x_2 - 1)', divTex: '\\nabla\\cdot\\mathbf Q = -1',
-    py: 'lambda X, Y: [-0.5*(X-1), -0.5*(Y-1)]', Q: (x, y) => [-0.5 * (x - 1), -0.5 * (y - 1)], div: () => -1, d1: () => -0.5, d2: () => -0.5, poly: true, sol: false }
+    py: 'lambda X, Y: [-0.5*(X-1), -0.5*(Y-1)]', Q: (x, y) => [-0.5 * (x - 1), -0.5 * (y - 1)], div: () => -1, d1: () => -0.5, d2: () => -0.5, poly: true, sol: false, constDiv: true }
 };
 /** Cell centres and the common weight of the composite midpoint rule on [lo, hi] with n cells — fluidpy.midpoint_nodes. */
 function midpointNodes(lo, hi, n) { const w = (hi - lo) / n, x = new Array(n); for (let i = 0; i < n; i++) x[i] = lo + w * (i + 0.5); return { x, w }; }
@@ -2233,8 +2238,8 @@ const regimeName = p => ({ singular: 'singular point inside', solenoidal: 'solen
 /** Relative error of (1/A)∮ against ∇·Q(x₀) as a percentage, or the absolute error where the exact value is 0. */
 const pctErr = p => Math.abs(p.exact) > 1e-9 ? Viz.fmt(100 * Math.abs(p.err) / Math.abs(p.exact), { sig: 2 }) + ' %' : fe(p.err) + ' 1/s';
 function statusOf(s) {
-  const p = phys(s), u = ' m²/s';
-  if (p.regime === 'singular') return { text: `⚠️ singular point inside the box: ∇·Q is a delta — the flux ∮ = ${fz(p.rhs)}${u} ≈ m = ${p.F.m} whatever h; Gauss needs a smooth Q`, tone: 'warn' };
+  const p = phys(s), u = ' m²/s', narrow = typeof window !== 'undefined' && window.innerWidth < 520;
+  if (p.regime === 'singular') return { text: narrow ? `⚠️ singular inside: ∮ = ${fz(p.rhs)} ≈ m = ${p.F.m} whatever h` : `⚠️ singular point inside the box: ∇·Q is a delta — the flux ∮ = ${fz(p.rhs)}${u} ≈ m = ${p.F.m} whatever h; Gauss needs a smooth Q`, tone: 'warn' };
   if (p.regime === 'solenoidal') return { text: `⚖️ solenoidal: ∮ n·Q ds = ${fe(p.rhs)}${u} — every box, anywhere, any size (∇·Q = 0)`, tone: 'good' };
   if (p.regime === 'small') return { text: `📐 h = ${f3(p.h)} m: (1/A)∮ = ${fz(p.ratio)} is within ${pctErr(p)} of ∇·Q(x₀) = ${fz(p.exact)} 1/s`, tone: 'info' };
   if (p.regime === 'source') return { text: `🟠 net outflow ${fz(p.rhs)}${u}: a source inside (∬ ∇·Q dA = ${fz(p.lhs)})`, tone: 'warn' };
@@ -2438,9 +2443,12 @@ function drawBars(v, s) {
     Viz.text(ctx, narrow ? (b.short || b.label.slice(0, 1).toUpperCase()) : b.label, xc, H - 4, { color: Viz.color('text-soft'), size: 12, weight: 600, align: 'center', baseline: 'bottom', maxWidth: slotW + 6 });
   });
   // the gap between the two totals
-  const xPair = padL + slotW * (5 + gapGroup), gapTxt = `|∮ − ∬| = ${fe(Math.abs(p.gap))} m²/s` + (p.F.poly ? ' (round-off: exact)' : ' (midpoint rule, n = ' + p.n + ': ∝ 1/n²)');
-  const fitsCentred = xPair + 130 < W - padR && xPair - 130 > padL;
-  Viz.text(ctx, gapTxt, fitsCentred ? xPair : W - padR - 2, 14, { color: Viz.color('text-soft'), size: 12, weight: 600, align: fitsCentred ? 'center' : 'right', baseline: 'middle', bg: true, maxWidth: W - 2 * padL - 4 });
+  // the gap: round-off for polynomial fields, quadrature error (∝ 1/n²) for the smooth field — but a singular point
+  // inside is a real discrepancy: the delta's flux m is missing from the inside sum (Gauss needs a smooth Q)
+  const xPair = padL + slotW * (5 + gapGroup);
+  const gapTxt = `|∮ − ∬| = ${fe(Math.abs(p.gap))} m²/s` + (p.singular ? `: the delta at the origin carries the flux m = ${p.F.m} — Gauss needs a smooth Q` : p.F.poly ? ' (round-off: exact)' : ' (midpoint rule, n = ' + p.n + ': ∝ 1/n²)');
+  const fitsCentred = !p.singular && xPair + 130 < W - padR && xPair - 130 > padL;
+  Viz.text(ctx, gapTxt, fitsCentred ? xPair : W - padR - 2, 14, { color: p.singular ? C.interior : Viz.color('text-soft'), size: 12, weight: p.singular ? 650 : 600, align: fitsCentred ? 'center' : 'right', baseline: 'middle', bg: true, maxWidth: W - 2 * padL - 4 });
 }
 /** (1/A)∮ vs the box side h on a log axis, for the current centre; dashed grey = ∇·Q(x₀). */
 function ratioCurve(F, cx, cy, n) {
@@ -2541,7 +2549,8 @@ const app = Viz.app({
     views: [
       { id: 'field', row: 0, flex: 1.25, title: s => { const p = phys(s), D = domainOf(p); return `<b>The field and your box</b>${D.zoom > 0 ? ' (zoomed in)' : ''} · ${p.F.name} · h = ${f3(p.h)} m · <b class="c-teal">∮ = ${fz(p.rhs)}</b> vs <b class="c-accent">∬ = ${fz(p.lhs)}</b> m²/s`; } },
       { id: 'limit', row: 0, flex: 1, hidePortrait: true, title: s => { const p = phys(s); return `<b>Shrink the box: (1/A)∮ → ∇·Q(x₀)</b> · now <b class="c-accent">${fz(p.ratio)}</b> vs ${fz(p.exact)} 1/s`; } },
-      { id: 'bars', row: 1, flex: 1, title: s => { const p = phys(s); return `<b>Face fluxes add up</b> · <b class="c-orange">out</b> / <b class="c-blue">in</b> → <b class="c-teal">∮ = ${fz(p.rhs)}</b> = <b class="c-accent">∬ ∇·Q dA = ${fz(p.lhs)}</b> m²/s · (1/A)∮ = ${fz(p.ratio)} → ∇·Q(x₀) = ${fz(p.exact)} 1/s`; } }
+      // the ratio leads the title: on portrait phones the limit view is hidden and a long title is truncated at its end
+      { id: 'bars', row: 1, flex: 1, title: s => { const p = phys(s); return `<b class="c-accent">(1/A)∮ = ${fz(p.ratio)}</b> → ∇·Q(x₀) = ${fz(p.exact)} 1/s · <b>faces add up</b>: <b class="c-orange">out</b> / <b class="c-blue">in</b> → <b class="c-teal">∮ = ${fz(p.rhs)}</b> = <b class="c-accent">∬ ∇·Q dA = ${fz(p.lhs)}</b> m²/s`; } }
     ],
     draw(g, s) { drawField(g.view('field'), s, g.app); drawBars(g.view('bars'), s); drawLimit(g.view('limit'), s); },
     onPointer(g, ev, s) {
@@ -2640,7 +2649,7 @@ const app = Viz.app({
         W.line(`bottom ($x_2 = ${tz(p.box[1][0])}$, $\\mathbf n = -\\mathbf e_2$): $-\\overline{Q_2}\\,h$`, `<b class="${fc.bottom >= 0 ? 'c-orange' : 'c-blue'}">${fs(fc.bottom)}</b>`) +
         W.box(`$\\oint \\mathbf n\\cdot\\mathbf Q\\,ds = ${tz(fc.right)}${pm(fc.left)}${pm(fc.top)}${pm(fc.bottom)} = \\mathbf{${tz(p.rhs)}}$ m²/s — <b class="c-teal">the teal bar</b>, per metre of depth.`);
       out += W.step(3, 'The inside — Eq. (2.30)') +
-        W.line(`$\\iint_A \\nabla\\cdot\\mathbf Q\\,dA$ on the $${p.n}\\times${p.n}$ midpoint grid` + (F.poly && F.chip !== '(x², 0)' ? ` $= ${tz(p.exact)} \\times ${tz(p.area)}$` : ''), tz(p.lhs) + ' m²/s', (F.poly && F.chip !== '(x², 0)' ? 'a constant divergence times the area' : 'the divergence summed cell by cell, times the cell area') + ' — <b class="c-accent">the purple bar</b>') +
+        W.line(`$\\iint_A \\nabla\\cdot\\mathbf Q\\,dA$ on the $${p.n}\\times${p.n}$ midpoint grid` + (F.constDiv ? ` $= ${tz(p.exact)} \\times ${tz(p.area)}$` : ''), tz(p.lhs) + ' m²/s', (F.constDiv ? 'a constant divergence times the area' : 'the divergence summed cell by cell, times the cell area') + ' — <b class="c-accent">the purple bar</b>') +
         W.box(`Difference from the face sum: $|\\oint - \\iint| = ${Viz.tnum(Math.abs(p.gap), 2, { keepTiny: true })}$ m²/s — Gauss' theorem ` + (F.poly ? 'to round-off: for this polynomial field the midpoint rule is exact on both sides.' : `up to the quadrature error, which shrinks like $1/n^2$ (raise $n$ in Explore and watch the gap fall).`));
       out += W.step(4, 'Tiling — D25 step 8') +
         (p.tiles > 1 ? W.line(`${p.tiles * p.tiles} tiles, each obeying (2.30); their ${p.tiles * p.tiles} boundary sums add to`, tz(p.td.sumTiles) + ' m²/s', 'Gauss on every tile, summed (step 7)') +
@@ -2783,7 +2792,8 @@ const app = Viz.app({
         { did: 'Shrink V to the point', tex: '\\frac{\\partial Q}{\\partial x_i}(\\mathbf x_0) = \\lim_{V\\to0}\\frac1V\\iint_A n_iQ\\,dA \\equiv \\mathcal D Q',
           why: 'x* is trapped in V, so x* → x₀; continuity of ∂Q/∂x_i carries the left side to its value at x₀, and the left side never knew the shape of V. This is (2.31).',
           plain: 'The derivative of Q is the limit of the boundary flux per unit volume — no coordinates, and no dependence on the shape of V.', set: { shrink: sigmaOf(0.05) },
-          watch: 'At h = 0.05 m the ratio (1/A)∮ in the bars title has converged to ∇·Q(x₀); on a wide screen the limit view\'s dot has slid down the purple curve onto the dashed line.' },
+          live: s => { const p = phys(s); return `\\begin{aligned} \\tfrac1A\\oint \\mathbf n\\cdot\\mathbf Q\\,ds &= ${tz(p.ratio)}\\ \\text{at } h = ${tz(p.h)}\\ \\text{m} \\\\ \\nabla\\cdot\\mathbf Q(\\mathbf x_0) &= ${tz(p.exact)},\\quad \\text{gap } ${Viz.tnum(p.err, 2, { keepTiny: true })} \\end{aligned}`; },
+          watch: 'At h = 0.05 m the ratio (1/A)∮ (your numbers above, and first in the bars title) has converged to ∇·Q(x₀); on a wide screen the limit view\'s dot has slid down the purple curve onto the dashed line.' },
         { did: 'Specialise to a vector Q and contract', tex: '\\frac{\\partial Q_i}{\\partial x_i} = \\lim_{V\\to0}\\frac1V\\iint_A n_iQ_i\\,dA',
           why: 'Put Q → Q_j in step 4 (Gauss holds component by component, the theorem being linear in Q), then set j = i and sum — contraction on both sides.',
           plain: 'Adding the three diagonal derivatives adds the three flux components.' },
@@ -2841,7 +2851,7 @@ def flux_through_faces(Q, box, n=8):
     { title: 'Add the faces', text: 'Right +1, top +1, left 0, bottom 0: net outflow 2 m²/s. Now the <b class="c-accent">purple</b> bar: the divergence $\\nabla\\cdot\\mathbf Q = 2$ integrated over the inside — also 2. Move the box: always equal.', play: false, set: setField('radial'), terms: true, eq: 'gauss', highlight: ['readout:rhs', 'readout:lhs'] },
     { title: 'Why always? Cut it up', text: 'Tile the box 4×4. Every interior face is shared by two tiles with opposite normals: their fluxes cancel (<b class="c-rose">interior bar = 0</b>). Only the outer faces remain — and on each tile Gauss is a 1-D fundamental theorem.', play: false, set: setField('radial', { tiles: '4' }), derive: { id: 'D25', step: 8 }, readouts: ['rhs'] },
     { title: 'Read the faces with Taylor', text: 'Ex. 2.5: on the right face $Q_1 = Q_1(\\mathbf x_0) + \\tfrac h2\\,\\partial Q_1/\\partial x_1$, on the left $Q_1(\\mathbf x_0) - \\tfrac h2\\,\\partial Q_1/\\partial x_1$. Subtract: the centre value cancels, the slope survives.', play: false, set: setField('radial', { taylor: true }), derive: { id: 'D22', step: 4 }, eq: 'taylor' },
-    { title: 'Shrink it', text: 'Press ▶: the box shrinks. The flux falls like $h^2$, the area like $h^2$, their ratio holds at 2 $= \\nabla\\cdot\\mathbf Q$. That ratio <i>is</i> the divergence — no coordinates needed, Eq. (2.32).', set: setField('radial', { shrink: -0.4 }), play: true, eq: 'limit', readouts: ['ratio', 'exact'] },
+    { title: 'Shrink it', text: 'The box shrinks from $h = 1$ m to a point. The flux falls like $h^2$, the area like $h^2$, their ratio holds at 2 $= \\nabla\\cdot\\mathbf Q$. That ratio <i>is</i> the divergence — no coordinates needed, Eq. (2.32).', set: setField('radial', { shrink: 0 }), play: true, eq: 'limit', readouts: ['ratio', 'exact'] },
     { title: 'A field that never leaks', text: '$\\mathbf b\\times\\mathbf x$: the flow goes round. Every box, anywhere, any size: in = out, $\\nabla\\cdot\\mathbf Q = 0$. Incompressible flow looks like this. Drag the box and watch the <b class="c-teal">teal</b> bar stay at zero.', play: false, set: setField('solid'), controls: ['cx', 'cy', 'shrink'], readouts: ['rhs'] },
     { title: 'When it fails', text: 'Point source: the field is singular at the origin. Enclose it: the flux is $m = 1$ however small the box — shrink it and see. Gauss needs a smooth field inside; move the origin outside and the flux drops to 0.', play: false, set: setField('source', { cx: 0, cy: 0 }), notes: true, controls: ['cx', 'shrink'] },
     { title: 'Your turn', text: 'Smooth preset, $h = 2$ m. Predict: does $(1/A)\\oint$ overshoot or undershoot $\\nabla\\cdot\\mathbf Q(\\mathbf x_0) = 1.54$? Then shrink the box and read the slope of the error curve. Click any face for its arithmetic.', play: false, set: setField('smooth', { shrink: sigmaOf(2) }), controls: ['shrink', 'cx', 'cy'], readouts: ['ratio', 'exact'] }
