@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch01",
+  "current_chapter": "ch02",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -64,8 +64,8 @@
     "ch02": {
       "title": "Cartesian Tensors",
       "slug": "cartesian_tensors",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -75,8 +75,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 94 rows (NEW 74/SEEN 20), 36/36 equations, CODE 55/DEMO 20/SKIP 19, 26 derivations",
+      "updated": "2026-09-16"
     },
     "ch03": {
       "title": "Kinematics",
