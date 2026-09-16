@@ -2,7 +2,8 @@
 
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
-P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01).
+P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
+chapters (ch01 P01–P61, ch02 P62–P86); a new chapter starts at the next free number. Total so far: 86.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -76,3 +77,54 @@ Glosses (one sentence where used, no demo) in ch01: elastic shear modulus G (§1
 limits and orders of smallness (§1.7), similar triangles (Ex. 1.3), light wavelength and intensity (Ex. 1.5), similarity
 solution (Ex. 1.4), boundary layer (§1.4, §1.5), Prandtl number (§1.5), thermocline and inversion (§1.10), potential
 density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy cell (§1.10).
+
+## ch02 primers (P62–P86, notebook `ch02_cartesian_tensors`; the term is the exact `nb.primer` title)
+
+| Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
+|---|---|---|
+| **Python and tooling** | | |
+| np.einsum index strings (P62) | ch02 · §2.1 · C01 | the summation convention in code: `'i,i'` sums over i; `'ik,kj->ij'` sums k and keeps i, j; the letters after `->` are the free indices |
+| matrix multiplication, transpose and identity (P63) | ch02 · §2.1 · C01 | (AB)_ij = Σ_k A_ik B_kj (row of A times column of B); `A @ B`, `A.T` swaps rows and columns, `np.eye(3)` is the identity |
+| plotly 3-D arrows, lines and meshes (P64) | ch02 · §2.1 · C01 | `go.Cone` for arrows, `go.Scatter3d(mode='lines')` for edges, `go.Mesh3d` for faces; all stay rotatable on the page |
+| np.linalg.norm and np.linalg.qr (P67) | ch02 · §2.2 · C02 | `norm` is the length √(v_i v_i); the Q factor of a random Gaussian matrix, with det fixed to +1, is a random rotation |
+| np.arctan2 (P70) | ch02 · §2.6 · C05 | four-quadrant angle of (x, y) in (−π, π]; `arctan(y/x)` cannot tell (−1, −1) from (1, 1) |
+| numpy arrays with three axes and np.transpose (P73) | ch02 · §2.7 · C08 | `eps[i, j, k]` indexes a 3×3×3 array; `np.transpose(a, axes)` puts old axis `axes[p]` in position p, so `np.transpose(eps, (1, 2, 0))[i, j, k] = eps[k, i, j]` (demo on `np.arange(27).reshape(3, 3, 3)`) |
+| np.meshgrid and the project grid layout (P76) | ch02 · §2.9 · C09 | coordinate arrays for every grid point; **project layout**: arrays `[k, j, i]` = (z, y, x), x on the last axis, components on axis 0, but `Grid.h` and components ordered (x, y, z) |
+| numpy broadcasting (P77) | ch02 · §2.9 · C09 | an operation between a grid array and a scalar or smaller array acts at every point at once; neighbour slices `phi[:, 2:] - phi[:, :-2]` build stencils without loops |
+| plt.contour, plt.quiver and plt.streamplot (P78) | ch02 · §2.9 · C09 | level curves; an arrow per point; curves tangent to a vector field (1-D x, y and fields on a `[j, i]` grid) |
+| scipy.linalg.expm (P79) | ch02 · §2.10 · C12 | the matrix exponential e^{Gt} = I + Gt + (Gt)²/2 + …; the trajectory of u = G·x is x(t) = e^{Gt}x₀ |
+| **Physics vocabulary** | | |
+| vector area of a closed surface (P69) | ch02 · §2.6 · C05 | Σ n dA over a closed surface is zero; for the tetrahedron this gives the face areas dA_i = n_i dA |
+| right-hand rule and orientation (P74) | ch02 · §2.7 · C08 | fingers along the first vector, curl toward the second, thumb = cross product; e₁ × e₂ = e₃ fixes a right-handed frame and orients loops (counterclockwise about n) |
+| **Mathematics** | | |
+| orthonormal basis, projection and completeness (P65) | ch02 · §2.2 · C02 | e_i·e_j = δ_ij; a component is a dot product (projection); completeness Σ_j e'_j e'_jᵀ = I says a vector is the sum of its projections |
+| cosines of angles between unit vectors (P66) | ch02 · §2.2 · C02 | for unit vectors the dot product is the cosine; cos(π/2 − θ) = sin θ, cos(θ + π/2) = −sin θ; numpy works in radians (`np.deg2rad`) |
+| limits and orders of smallness (P68) | ch02 · §2.6 · C05 | as an element of size h shrinks, h³ terms vanish faster than h² terms (ratio h → 0), so volume terms drop out of a face balance (ch01 only glossed this) |
+| Vieta's formulas (P71) | ch02 · §2.5 · C07 | a cubic with roots λ^k is λ³ − (Σλ)λ² + (Σ_{k<l} λ^kλ^l)λ − Πλ: coefficients are sums and products of roots |
+| permutations, cyclic order and parity (P72) | ch02 · §2.7 · C08 | 123, 231, 312 are even (cyclic), 132, 213, 321 odd; ε is +1 on even, −1 on odd, 0 with a repeat (`itertools.permutations`) |
+| level sets and the directional derivative (P75) | ch02 · §2.9 · C09 | a level set is where φ is constant; ∂φ/∂n = ∇φ·n is the rate per metre along unit n (chain rule, ch01 P49) |
+| eigenvalues and eigenvectors (P80) | ch02 · §2.11 · C13 | A·b = λb: A only stretches b; nonzero b exist when det(A − λI) = 0; `np.linalg.eigh` for symmetric A, `np.roots` for the polynomial |
+| complex conjugate (P81) | ch02 · §2.11 · C13 | z̄ = a − ib, z z̄ = \|z\|² ≥ 0, z real ⇔ z = z̄; the tool that proves a symmetric tensor's eigenvalues are real |
+| quadratic form and the Rayleigh quotient (P82) | ch02 · §2.11 · C13 | n·τ·n for unit n is the normal stress on the plane ⊥ n; its values lie between the smallest and largest eigenvalue (Gram–Schmidt glossed for repeated λ) |
+| volume and surface integrals as midpoint sums (P83) | ch02 · §2.12 · C14 | add f × (cell volume or area) at cell centres, error ∝ h²; iterated integrals do one axis at a time; exact for linear f |
+| fundamental theorem of calculus (P84) | ch02 · §2.12 · C14 | ∫_a^b f′ dx = f(b) − f(a): Gauss' theorem in one dimension |
+| mean-value theorem for integrals (P85) | ch02 · §2.12 · C15 | ∭_V f dV = f(x*) V for some x* in V; as V shrinks to x₀, x* → x₀ (how the integral definitions become limits) |
+| line integral of a vector field around a loop (P86) | ch02 · §2.13 · C16 | parametrise the loop, add u·t ds; circle x = c + R(cos s, sin s), rectangle side by side; extends ch01 P35 (∫p dv) to vectors |
+
+Reminders written in ch02 instead of new primers (point here): P01 matplotlib, P04 f-strings, P05 stress, P06 linspace
+(also `np.geomspace`), P09 Newton II, P10 random generator, P13 log–log slope (observed order), P14 tuple unpacking,
+P15 `assert np.allclose`, P16 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences and np.gradient,
+P23 dicts, P25 partial derivative (R02 recap of ∇), P26 Taylor, P27 definite integral, P29 lambda, P35 line integral
+along a path, P37 trapezoid, P38 product rule, P40 sympy, P45 i² = −1, P47 live widgets, P49 chain rule, P53
+determinants (det(AB) = det A det B was added as a gloss in D02 step 7: "volume-scale factors multiply"), P61 sympy
+Matrix.
+
+Glosses (one sentence where used, no demo) in ch02: index letters and ≡ (§2.1), bilinearity of the dot product (D01,
+D02), continuity argument for det C = +1 (D02 step 8), det(AB) as volume-scale factors (D02 step 7), Rodrigues'
+formula (cos θ I + sin θ [k×] + (1 − cos θ) k kᵀ, C02), "true for every n ⇒ coefficients agree" (D06 step 7), Mohr's
+circle (C05/C06, taught in Ch. 4), eigen/principal frame forward gloss (C07, D18 step 8), `itertools.product`,
+`np.count_nonzero`, `np.array_equal` (C08), ∂x_i/∂x_j = δ_ij (C10), einsum ellipsis `'ii...'` (C10), `ax.imshow`
+(C08, C10), irrotational vortex u_θ = K/r (C11), `np.pad` (C12), Popoviciu's variance bound (D17 step 15), Riemann sum
+(D26 step 7), Green's theorem as planar Stokes (D26), delta function "an infinitely concentrated source whose total
+is finite" (D21), `try/except ValueError` (C13), climate hooks (Coriolis 2Ω × u, geostrophy, planetary vorticity)
+in the front matter.
