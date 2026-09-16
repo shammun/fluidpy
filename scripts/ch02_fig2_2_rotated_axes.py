@@ -84,7 +84,8 @@ def rotated_axes_figure(C, x=(1.0, 2.0, 3.0), height: int = 560):
 def frame_rotation_frames(theta_list, x=(1.0, 2.0), degrees: bool = False, figsize=(9.5, 4.2)):
     """Build the C02 frame-rotation animation: a fixed arrow, teal axes fixed, orange axes turning by θ.
 
-    Book: §2.2, Eqs. (2.5) x'_j = x_i C_ij and (2.6) C_ij C_ik = δ_jk (Fig. 2.2 idea in the x₁x₂ plane). Drawing only —
+    Book: §2.2, Eq. (2.5) x'_j = x_i C_ij (= (2.6) x'_i = x_k C_ki with the indices re-lettered) and the *unnumbered*
+    orthogonality relation C_ij C_ik = δ_jk (Exercise 2.8, D02) — Fig. 2.2 idea in the x₁x₂ plane. Drawing only —
     the numbers come from ``ch02.rotation_matrix_2d`` (passive C, columns = new axes e'_j) and ``ch02.transform_vector``.
 
     Parameters
@@ -148,7 +149,7 @@ def frame_rotation_frames(theta_list, x=(1.0, 2.0), degrees: bool = False, figsi
         ax2.set_ylabel("component")
         ax2.legend(loc="upper right", fontsize=8.5)
         txt = ("C = \n" + "\n".join("  ".join(f"{v:+.3f}" for v in row) for row in C)
-               + f"\nmax|CᵀC − I| = {ch02.orthogonality_residual(C):.0e}   (2.6)"
+               + f"\nmax|CᵀC − I| = {ch02.orthogonality_residual(C):.0e}   orthogonality (Ex. 2.8)"
                + f"\n|x| = {np.linalg.norm(x):.3f} = |x'| = {np.linalg.norm(xp):.3f}")
         ax2.text(0.02, 0.02, txt, transform=ax2.transAxes, fontsize=8.5, family="monospace", va="bottom")
         ax2.set_title("same arrow, different numbers", fontsize=10)

@@ -12,7 +12,8 @@ degree ≤ 4 and accurate to ~1e-11 otherwise — this never enters the *surface
 
 Quadrature: composite **midpoint** rule (order 2; exact for linear integrands, which is what Example 2.5 uses) or
 **Simpson** (``rule="simpson"``, order 4, needs an odd node count). Orientation: outward n on closed surfaces; on an
-open surface the chosen n fixes the boundary tangent t = n_c × n (counterclockwise seen from the outside, Fig. 2.10).
+open surface the chosen n fixes the boundary tangent t = n_c × n, where n_c is the in-surface normal to C pointing
+*into* A (Fig. 2.10) — t then runs counterclockwise seen from the outside.
 
 Units: coordinates in m; integrals carry [Q unit × m³] (volume), [Q unit × m²] (surface), [u unit × m] (line);
 the point definitions (2.31)–(2.33), (2.35) return [field unit / m].
@@ -92,15 +93,22 @@ def _bounds2(bounds):
 
 
 def _eval(fn: Callable, *coords) -> np.ndarray:
-    """Evaluate a field callable and broadcast constant components to the coordinate shape."""
+    """Evaluate a field callable and broadcast constant components to the coordinate shape.
+
+    The callable may return a scalar array (shape = points), a list/tuple of components (each a scalar array or a
+    constant), or an array with any number of **leading component axes** (vector ``(3, *pts)``, tensor ``(3, 3, *pts)``,
+    e.g. ``fd_partials`` of a vector field). Components that are constants are broadcast to the point shape.
+    """
     B = np.broadcast_arrays(*[_F(c) for c in coords])
+    pts = B[0].shape
     out = fn(*B)
     if isinstance(out, (list, tuple)):
-        return np.stack([np.broadcast_to(_F(c), B[0].shape) for c in out])
+        return np.stack([np.broadcast_to(_F(c), pts) for c in out])
     out = _F(out)
-    if out.ndim == B[0].ndim + 1:
-        return np.stack([np.broadcast_to(c, B[0].shape) for c in out])
-    return np.broadcast_to(out, B[0].shape).copy()
+    if out.ndim <= B[0].ndim:
+        return np.broadcast_to(out, pts).copy()
+    lead = out.shape[: out.ndim - B[0].ndim]  # leading component axes (1 for a vector, 2 for a tensor, …)
+    return np.broadcast_to(out, lead + pts).copy()
 
 
 def fd_partials(fn: Callable, coords, fd_step: float = 1e-3) -> np.ndarray:
@@ -179,10 +187,13 @@ def gauss_gradient_box(Q_fn: Callable, bounds, n: int = 24, dQ_fn: Callable | No
 
     Returns
     -------
-    (lhs, rhs) : arrays, shape ``(3,)`` for scalar Q (index i) or ``(3, 3)`` for vector Q (``[i, j]`` = ∂Q_j/∂x_i ↔ n_i Q_j)
+    (lhs, rhs) : arrays, shape ``(3,)`` for scalar Q (index i) or ``(3, 3)`` for vector Q (``[i, j]`` = ∂Q_j/∂x_i ↔
+        n_i Q_j — the derivative index first, as in (2.30)/(2.31); this is the **transpose** of
+        ``core.operators.vector_gradient``'s G[i, j] = ∂u_i/∂x_j). A tensor Q ``(3, 3, ...)`` gives ``(3, 3, 3)`` likewise.
 
     Validation: V1 Q = xyz on the unit cube: lhs == rhs (1e-12, midpoint is exact for the linear face integrands after
-    cancellation… checked numerically); V3 order 2 (midpoint) / 4 (Simpson) for a sin/cos field. Label: converged.
+    cancellation… checked numerically); vector Q = (xy, yz, zx): lhs == rhs, lhs[i, j] = ∫∂Q_j/∂x_i dV (diag ½,
+    [1, 0] = ½, [0, 1] = 0); V3 order 2 (midpoint) / 4 (Simpson) for a sin/cos field. Label: converged.
     """
     b = _bounds3(bounds)
     if dQ_fn is None:
@@ -313,7 +324,9 @@ def integral_gradient(Q_fn: Callable, x0, h: float = 0.1, n_face: int = 8):
 
     Book: §2.12, Eq. (2.31) — the small-volume limit of (2.30); "(2.31) defines the gradient of a tensor Q of any
     order". Returns shape ``(3,)`` for scalar Q ((∇Q)_i) or ``(3, 3)`` for vector Q (``[i, j]`` = ∂Q_j/∂x_i, derivative
-    index first as in n_i Q_j). Exact for linear fields; error O(h²) otherwise (D21, D22).
+    index first as in n_i Q_j). **Index order:** this is the transpose of ``core.operators.vector_gradient``, whose
+    G[i, j] = ∂u_i/∂x_j (the Ch. 3 velocity-gradient convention) — ``integral_gradient(u, …) ≈ vector_gradient(u, …).T``
+    at the point. Exact for linear fields; error O(h²) otherwise (D21, D22).
 
     Validation: V1 linear Q exact; V3 observed order 2.0 in h against the sympy gradient (h = 0.4 … 0.05).
     Label: analytic, converged.
@@ -524,13 +537,24 @@ class Surface:
 
 
 def boundary_tangent(n_c, n) -> np.ndarray:
-    """Unit tangent to the boundary curve: t = n_c × n (n_c = outward in-surface normal to C, n = surface normal).
+    """Unit tangent to the boundary curve: t = n_c × n, with n_c the unit normal to C that is tangent to A and points
+    **into** the surface A (Fig. 2.10), and n the surface normal on the chosen outside.
 
     Book: §2.13 ("the unit tangent vector to C, t, points in the counterclockwise direction when looking at the outside
-    of A; it is defined as t = n_c × n"); (n_c, n, t) is right-handed (Fig. 2.10).
+    of A; it is defined as t = n_c × n"); Fig. 2.10 draws n_c from the rim *into* A — with that choice t = n_c × n runs
+    counterclockwise about n (an outward-pointing n_c would make t clockwise). (n_c, n, t) is right-handed.
 
-    Validation: V1 unit length; det[n_c, n, t] = +1; on a circle t agrees with the derivative of the parametrisation.
-    Label: analytic.
+    Parameters
+    ----------
+    n_c : array_like, shape (3,) — in-surface normal to C pointing into A (need not be unit)
+    n : array_like, shape (3,) — surface normal on the outside of A (need not be unit)
+
+    Returns
+    -------
+    t : ndarray, shape (3,) — unit tangent to C, counterclockwise about n
+
+    Validation: V1 unit length; det[n_c, n, t] = +1; on a circle (n_c = −radial, n = e₃) t agrees with the derivative
+    of the counterclockwise parametrisation. Label: analytic.
     """
     t = np.cross(_F(n_c), _F(n))  # t = n_c × n  (Fig. 2.10)
     return t / np.linalg.norm(t)
@@ -563,7 +587,8 @@ def _strip(arr: np.ndarray, dim: int) -> np.ndarray:
 
 def planar_loop(center, normal=None, radius: float = 1.0, n: int = 256) -> Loop:
     """Circle of radius R about ``center`` in the plane ⊥ ``normal``, oriented counterclockwise about ``normal``
-    (right-hand rule: t = n_c × n with n_c the outward radial direction). A 2-vector centre → the plane z = 0, n = e₃.
+    (Fig. 2.10: t = n_c × n with n_c = −(x − c)/R the in-plane normal to C pointing *into* the disc A, towards the
+    centre). A 2-vector centre → the plane z = 0, n = e₃.
 
     Book: §2.13, Fig. 2.10 (orientation of C); the disc/circle pair of the C16 worked number (b × x, Γ = 2|b|πR²).
 

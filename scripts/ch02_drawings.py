@@ -5,9 +5,16 @@ via ``sys.path`` (see the scripts' header).
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import numpy as np
 
-from fluidpy.core.style import COLORS
+_ROOT = Path(__file__).resolve().parents[1]  # repo root, so ``import fluidpy`` works when run or imported standalone
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from fluidpy.core.style import COLORS  # noqa: E402
 
 
 def arrow2d(ax, start, vec, color=COLORS["accent"], label=None, lw=2.0, ls="-", text_offset=(0.05, 0.05), **kw):

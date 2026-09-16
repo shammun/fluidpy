@@ -158,21 +158,25 @@ def divergence(u, h, bc: str = "onesided") -> np.ndarray:
 
     Parameters
     ----------
-    u : array_like, shape ``(d, *grid)`` — components on axis 0 (d = 2 or 3 matching the grid)  [u unit]
+    u : array_like, shape ``(nc, *grid)`` — components on axis 0. ``nc`` = the number of grid dimensions (2 or 3), or
+        a 3-component **z-independent** field on a 2-D grid (``(3, ny, nx)``: ∂u₃/∂x₃ = 0, so only the first two
+        components contribute — the same convention as :func:`curl` and :func:`vector_gradient`)  [u unit]
     h : spacing [m]; bc : boundary treatment
 
     Returns
     -------
     ndarray, shape ``grid``  [u unit / m]
 
-    Validation: V1 Example 2.3 ∇·(a x) = 3a exactly (linear field), ∇·(b × x) = 0; == trace(``vector_gradient``);
-    ∇·(∇×u) = 0 to truncation (Exercise 2.19); V3 order 2; V7 invariance under rotation. Label: analytic, converged.
+    Validation: V1 Example 2.3 ∇·(a x) = 3a exactly (linear field), ∇·(b × x) = 0; == trace(``vector_gradient``)
+    (also for the 3-on-2-D case); ∇·(∇×u) = 0 to truncation (Exercise 2.19); V3 order 2; V7 invariance under rotation.
+    Label: analytic, converged.
     """
     U = np.asarray(u, dtype=float)
-    d = U.shape[0]
-    if U.ndim - 1 != d:
-        raise ValueError(f"u has {d} components but {U.ndim - 1} spatial axes; use a matching grid (2-D or 3-D)")
-    return sum(partial(U[i], i, h, bc) for i in range(d))  # Eq. (2.23): ∂u_i/∂x_i
+    nc, nd = U.shape[0], U.ndim - 1
+    if nc < nd or nc > 3 or nd not in (2, 3):
+        raise ValueError(f"u has {nc} components but {nd} spatial axes; use a matching grid (2-D or 3-D), "
+                         "or a 3-component z-independent field on a 2-D grid")
+    return sum(partial(U[i], i, h, bc) for i in range(nd))  # Eq. (2.23): ∂u_i/∂x_i  (∂u₃/∂x₃ = 0 on a 2-D grid)
 
 
 def vector_gradient(u, h, bc: str = "onesided") -> np.ndarray:
@@ -180,6 +184,9 @@ def vector_gradient(u, h, bc: str = "onesided") -> np.ndarray:
 
     Book: §2.9 (unnumbered): "the gradient operation increases the order of a tensor by one … i.e., ∂u_i/∂x_j";
     §2.4 lists ∂u_i/∂x_j among the second-order tensors. Index order fixed here for Ch. 3 (S_ij, R_ij).
+    **Index order:** G[i, j] = ∂u_i/∂x_j (component first, derivative second). The integral definition
+    ``core.integral_theorems.integral_gradient`` returns the **transpose** ([i, j] = ∂Q_j/∂x_i, derivative index first,
+    as (2.31) writes n_i Q_j); the book itself uses both orders.
 
     Parameters
     ----------
@@ -190,7 +197,7 @@ def vector_gradient(u, h, bc: str = "onesided") -> np.ndarray:
     G : ndarray, shape ``(nc, nc, *grid)`` with ``G[i, j] = ∂u_i/∂x_j``  [u unit / m]
 
     Validation: V1 exact on linear fields (G = b-cross matrix for u = b × x); V7 transforms per (2.12) under rotation;
-    ``antisymmetric_part(G)`` ↔ ½∇×u (sign pinned). Label: analytic.
+    ``antisymmetric_part(G)`` ↔ ½∇×u and ``rotation_tensor(G)`` ↔ ∇×u (sign pinned). Label: analytic.
     """
     U = np.asarray(u, dtype=float)
     nc, nd = U.shape[0], U.ndim - 1

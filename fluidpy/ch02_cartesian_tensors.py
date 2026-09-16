@@ -136,8 +136,12 @@ def traction_2d(tau, phi) -> dict:
     dict with ``n`` (2,), ``f`` (2,) [Pa], ``sigma_n`` = f·n [Pa], ``tau_s`` = f·s (signed shear along s = (−sin φ,
     cos φ), the rotated 2'-axis) [Pa], ``tau_s_mag`` = |f − σ_n n| [Pa], ``angle_rad`` = direction of f in [0, 2π).
 
-    Validation: V1 σ_n n + τ_s s == f; symmetric τ: σ_n = τ'₁₁ and τ_s = τ'₁₂ of ``transform_tensor``; V6 Example 2.2.
-    Label: analytic.
+    For *any* 2 × 2 τ (symmetric or not) σ_n = τ'₁₁ and τ_s = τ'₁₂ of τ' = CᵀτC with C = ``rotation_matrix_2d(φ)``:
+    f_i = τ_ji n_j = τ_ji C_j1, so f·e'₁ = C_i1 C_j1 τ_ji = τ'₁₁ and f·e'₂ = C_i2 C_j1 τ_ji = τ'₁₂ by (2.12) — no symmetry
+    is used. (Symmetry would only be needed to also read τ_s as τ'₂₁.)
+
+    Validation: V1 σ_n n + τ_s s == f; σ_n = τ'₁₁ and τ_s = τ'₁₂ of ``transform_tensor`` for symmetric and
+    non-symmetric τ; V6 Example 2.2. Label: analytic.
     """
     t = _F(tau)
     ph = float(phi)
@@ -424,22 +428,33 @@ VELOCITY_GRADIENT_PRESETS = ("simple_shear", "solid_body_rotation", "pure_strain
 def velocity_gradient_preset(name: str, Gamma: float = 1.0, dim: int = 2) -> np.ndarray:
     """Velocity-gradient matrices G[i, j] = ∂u_i/∂x_j of the standard linear flows (E3 presets), rate scale Γ [1/s].
 
-    * ``simple_shear``: u₁ = Γ x₂ → G = [[0, Γ], [0, 0]] (Example 2.4's flow; half strain, half rotation)
-    * ``solid_body_rotation``: u = Γ e₃ × x → G = [[0, −Γ], [Γ, 0]] (Example 2.3; S = 0)
-    * ``pure_strain``: u = Γ(x₂, x₁) → G = [[0, Γ], [Γ, 0]] (A = 0; Example 2.4's S itself as a flow)
-    * ``uniaxial_extension``: u = Γ(x₁, −x₂) → G = diag(Γ, −Γ)
-    * ``irrotational_strain``: alias of ``pure_strain``
+    Book: §2.10 (S + A split of ∂u_i/∂x_j), Examples 2.3 and 2.4; the names and matrices are the design's Part C 6.6
+    / E3 preset list.
+
+    * ``simple_shear``: u = (Γ x₂, 0) → G = [[0, Γ], [0, 0]] (Example 2.4's flow; S₁₂ = Γ/2 and A₁₂ = Γ/2 —
+      half strain, half rotation; ∇·u = 0)
+    * ``solid_body_rotation``: u = Γ e₃ × x = (−Γ x₂, Γ x₁) → G = [[0, −Γ], [Γ, 0]] (Example 2.3 with b = Γ e₃;
+      S = 0, ∇·u = 0, (∇×u)₃ = 2Γ)
+    * ``pure_strain``: u = (Γ x₁, −Γ x₂) → G = diag(Γ, −Γ) (A = 0, traceless: stretch along x₁, squeeze along x₂,
+      area preserved; Example 2.4's S' in its principal frame)
+    * ``uniaxial_extension``: u = (Γ x₁, 0) → G = diag(Γ, 0) (A = 0, **∇·u = Γ ≠ 0**: stretch along x₁ only, the
+      area grows as e^{Γt})
+    * ``irrotational_strain``: u = (Γ x₂, Γ x₁) → G = [[0, Γ], [Γ, 0]] (A = 0, traceless; Example 2.4's S itself as
+      a flow — the simple shear with its rotation removed, principal axes at ±45°)
 
     In 3-D the matrices are embedded in the (1, 2) block with ∂u₃/∂x₃ = 0.
+
+    Validation: V1 S/A split of each preset (A = 0 for the three strain presets, S = 0 for the rotation);
+    trace(G) = ∇·u (Γ for uniaxial extension, 0 otherwise); ``linear_flow_map`` limits. Label: analytic.
     """
     if name not in VELOCITY_GRADIENT_PRESETS:
         raise ValueError(f"unknown preset {name!r}; choose from {VELOCITY_GRADIENT_PRESETS}")
     Gam = float(Gamma)
-    G2 = {"simple_shear": [[0.0, Gam], [0.0, 0.0]],
-          "solid_body_rotation": [[0.0, -Gam], [Gam, 0.0]],
-          "pure_strain": [[0.0, Gam], [Gam, 0.0]],
-          "irrotational_strain": [[0.0, Gam], [Gam, 0.0]],
-          "uniaxial_extension": [[Gam, 0.0], [0.0, -Gam]]}[name]
+    G2 = {"simple_shear": [[0.0, Gam], [0.0, 0.0]],  # u₁ = Γ x₂
+          "solid_body_rotation": [[0.0, -Gam], [Gam, 0.0]],  # u = Γ e₃ × x
+          "pure_strain": [[Gam, 0.0], [0.0, -Gam]],  # u = (Γ x₁, −Γ x₂)  (traceless)
+          "uniaxial_extension": [[Gam, 0.0], [0.0, 0.0]],  # u = (Γ x₁, 0)  (∇·u = Γ)
+          "irrotational_strain": [[0.0, Gam], [Gam, 0.0]]}[name]  # u = (Γ x₂, Γ x₁)  (simple shear minus its rotation)
     G = np.array(G2)
     if dim == 3:
         G3 = np.zeros((3, 3))
@@ -485,10 +500,14 @@ def deform_square(G, t, n_side: int = 10, half_width: float = 1.0, boundary_only
 def material_line_angle(G, t, theta0=0.0):
     """Angle of a material line element that starts at angle θ₀ after time t in the linear flow u = G·x (2-D).
 
-    Under pure rotation it turns uniformly at ω₃/2 (= the vector of A); under pure strain it tends to the stretching
-    axis; under simple shear it does both (E3 view 3). Units: rad.
+    Book: §2.10 (S + A split), previewing Ch. 3 §3.4. Under solid-body rotation the line turns uniformly at the
+    angular velocity of the fluid element, which is the vector of the antisymmetric part A: Ω = ½(∇×u)₃ = ½ω₃ (ω the
+    book's vorticity, = the vector of ``rotation_tensor``); for the ``solid_body_rotation`` preset with G = [[0, −Γ],
+    [Γ, 0]] that is Ω = Γ, so θ(t) = θ₀ + Γt. Under pure strain the line tends to the stretching axis; under simple
+    shear it does both (E3 view 3). Units: rad (θ₀ may be an array).
 
-    Validation: V1 solid-body rotation: θ(t) = θ₀ + Γ t. Label: analytic.
+    Validation: V1 solid-body rotation: θ(t) = θ₀ + Γ t (= θ₀ + ½(∇×u)₃ t); pure strain: θ → 0 as t → ∞.
+    Label: analytic.
     """
     M = linear_flow_map(G, t)[:2, :2]
     th0 = _F(theta0)

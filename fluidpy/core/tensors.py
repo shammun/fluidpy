@@ -927,8 +927,12 @@ def antisymmetric_part(B) -> np.ndarray:
 
     Book: §2.10 (unnumbered decomposition).
 
+    For a velocity gradient G[i, j] = ∂u_i/∂x_j the antisymmetric part is **half** the book's rotation tensor:
+    A = ½R (Ch. 3 (3.17) R_ij = ∂u_i/∂x_j − ∂u_j/∂x_i; see :func:`rotation_tensor`), and
+    ``vector_from_antisymmetric(A)`` = ½∇×u = the angular velocity of the fluid element.
+
     Validation: V1 A antisymmetric, S + A == B; ``vector_from_antisymmetric(antisymmetric_part(∂u_i/∂x_j))`` = ½∇×u
-    for u = b × x (ω = b). Label: analytic.
+    for u = b × x (= b). Label: analytic.
     """
     B_ = _ARR(B)
     return 0.5 * (B_ - np.swapaxes(B_, 0, 1))  # A_ij = ½(B_ij − B_ji)
@@ -946,12 +950,32 @@ def strain_rate_tensor(G) -> np.ndarray:
 
 
 def rotation_tensor(G) -> np.ndarray:
-    """Rotation tensor R_ij = ½(∂u_i/∂x_j − ∂u_j/∂x_i) — the antisymmetric part of the velocity gradient (Ch. 3 name).
+    """Rotation tensor R_ij = ∂u_i/∂x_j − ∂u_j/∂x_i = G − Gᵀ — **twice** the antisymmetric part of the velocity gradient.
 
-    Book: §2.10 ("In Chapter 3, R is recognized as the rotation tensor corresponding to the vorticity vector ω").
-    Units: 1/s. With G[i, j] = ∂u_i/∂x_j, ``vector_from_antisymmetric(R)`` = ½ ∇×u.
+    Book: §2.10, Eqs. (2.26)–(2.27) ("In Chapter 3, R is recognized as the rotation tensor corresponding to the
+    vorticity vector ω"); Ch. 3 Eq. (3.15) R_ij = −ε_ijk ω_k with ω = ∇×u the vorticity, and Eq. (3.17)
+    R_ij = ∂u_i/∂x_j − ∂u_j/∂x_i (no ½). The velocity gradient therefore splits as ∂u_i/∂x_j = S_ij + ½R_ij, i.e.
+    R = 2A with A = ``antisymmetric_part(G)``; "ω and R represent twice the fluid element rotation rate".
+
+    Parameters
+    ----------
+    G : array_like, shape (n, n[, ...]) — velocity gradient with ``G[i, j] = ∂u_i/∂x_j``  [1/s]
+
+    Returns
+    -------
+    R : ndarray, same shape — antisymmetric  [1/s]
+
+    Notes
+    -----
+    * ``vector_from_antisymmetric(rotation_tensor(G))`` = ∇×u, the vorticity (for u = b × x this is 2b).
+    * ``vector_from_antisymmetric(antisymmetric_part(G))`` = ½∇×u, the angular velocity of the fluid element
+      (for u = b × x this is b). Use the antisymmetric part A, not R, when you want the rotation *rate*.
+
+    Validation: V1 R = 2·antisymmetric_part(G), R antisymmetric; ``vector_from_antisymmetric(R)`` for
+    G = ∂(b × x)_i/∂x_j equals 2b = ∇×u (discriminates R from A); V2 sympy (3.17) entrywise. Label: analytic.
     """
-    return antisymmetric_part(G)
+    G_ = _ARR(G)
+    return G_ - np.swapaxes(G_, 0, 1)  # Eq. (3.17): R_ij = ∂u_i/∂x_j − ∂u_j/∂x_i  (= 2 A_ij)
 
 
 def antisymmetric_from_vector(omega) -> np.ndarray:
@@ -985,7 +1009,8 @@ def vector_from_antisymmetric(R):
     the scalar ω₃ = R₂₁ (plane case).
 
     Validation: V1 round trip on random ω; ``vector_from_antisymmetric(antisymmetric_part(G))`` for G = ∂(b × x)_i/∂x_j
-    equals b (= ½ ∇×u). Label: analytic.
+    equals b (= ½ ∇×u), while ``vector_from_antisymmetric(rotation_tensor(G))`` = 2b = ∇×u (the book's ω of (3.15)).
+    Label: analytic.
     """
     R_ = _ARR(R)
     if R_.shape == (2, 2):

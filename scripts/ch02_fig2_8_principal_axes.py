@@ -88,8 +88,10 @@ def main() -> int:
           f"C = 45° rotation (det {np.linalg.det(C):+.3f})\nS' = Cᵀ S C =\n{np.round(ex['S_prime'], 12)}")
     print(f"principal angle ½ atan2(2S12, S11 − S22) = {np.rad2deg(ch02.principal_angle_2d(S)):.2f}°; "
           f"characteristic polynomial coefficients {ch02.characteristic_polynomial(S)} → roots {np.roots(ch02.characteristic_polynomial(S))}")
-    omega3 = ch02.vector_from_antisymmetric(ch02.antisymmetric_part(G))
-    print(f"velocity gradient G = [[0, 2Γ],[0, 0]]: symmetric part = S (S12 = ½·2Γ = Γ), antisymmetric part vector ω3 = {omega3:+.3f} = ½(∇×u)3")
+    omega3 = ch02.vector_from_antisymmetric(ch02.antisymmetric_part(G))  # angular velocity of the element = ½(∇×u)₃
+    vort3 = ch02.vector_from_antisymmetric(ch02.rotation_tensor(G))  # the book's R = G − Gᵀ (3.17): its vector is ∇×u
+    print(f"velocity gradient G = [[0, 2Γ],[0, 0]]: symmetric part = S (S12 = ½·2Γ = Γ), antisymmetric part A = ½R with vector "
+          f"{omega3:+.3f} = ½(∇×u)3 (element spin); rotation tensor R = G − Gᵀ has vector {vort3:+.3f} = (∇×u)3 (vorticity)")
     print(f"saved fig2_8_principal_axes.png in {out}  ({time.perf_counter() - t0:.1f} s)")
     if not args.no_show:
         plt.show()
