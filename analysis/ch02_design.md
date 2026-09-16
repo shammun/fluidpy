@@ -99,7 +99,7 @@ radians; `_deg` only at the interface. This chapter is pure mathematics: stresse
 | 2.10 | `kronecker_delta(n=3)` · `levi_civita() -> (3,3,3)` · `permutation_sign(i, j, k) -> int` (0-based or 1-based accepted, documented) · `epsilon_delta_residual() -> float` (max over 81 cases of |Σ_k ε_ijk ε_klm − (δ_il δ_jm − δ_im δ_jl)|) · `triple_product(a, b, c) -> ndarray` (a × (b × c)) | (2.16)–(2.19) | – | C01 (N40 N41), C08 (N44), B1 | §4 F12 |
 | 2.11 | `is_isotropic(T, rng=None, n_rotations=50, proper=True) -> tuple[bool, float]` | N42 | – | C08 | §4 F13 |
 | 2.12 | `cross(u, v)` ((2.20) explicit) · `cross_einsum(u, v)` (`einsum('ijk,i,j->k', eps, u, v)`) · `angle_between(u, v) -> float` (arctan2(|u×v|, u·v)) | (2.20), (2.21), N45 | rad | C08 (N46–N50), C01 (N45) | §4 F14 |
-| 2.13 | `is_symmetric(B, tol)`, `is_antisymmetric(B, tol)`, `independent_components(B) -> int`, `symmetric_part(B)`, `antisymmetric_part(B)`, `strain_rate_tensor(G)` (= symmetric part), `rotation_tensor(G)` (= antisymmetric part) | §2.10, D14 | any | C12 (N56), E3 | §4 F18 |
+| 2.13 | `is_symmetric(B, tol)`, `is_antisymmetric(B, tol)`, `independent_components(B) -> int`, `symmetric_part(B)`, `antisymmetric_part(B)`, `strain_rate_tensor(G)` (= symmetric part), `rotation_tensor(G)` (= G − Gᵀ = 2A: the book's R with vector ω = ∇×u; A = ½R has vector ½∇×u — review M1) | §2.10, D14 | any | C12 (N56), E3 | §4 F18 |
 | 2.14 | `antisymmetric_from_vector(omega) -> R` (`-einsum('ijk,k->ij', eps, omega)`) · `vector_from_antisymmetric(R) -> omega` (`-0.5*einsum('ijk,ij->k', eps, R)`) | (2.26), (2.27), D15 | any | C12 (N57 N58), E3 | §4 F19 |
 | 2.15 | `symmetric_double_contraction(tau, B) -> (P, P_S, P_A)` (Frobenius sums; P_A = 0 for symmetric τ) | (2.28), (2.29) | any | C12 (N59 N60) | §4 F20 |
 | 2.16 | `principal_axes(tau) -> (lam, B)` (λ ascending; B columns = unit eigenvectors; det B = +1; **raises** for non-symmetric input; stable for repeated λ) · `characteristic_polynomial(tau) -> ndarray(4)` (coefficients of λ³ − I₁λ² + I₂λ − I₃) · `diagonalize(tau) -> (C, tau_prime)` (C = B; τ' = CᵀτC) · `invariants(A) -> (I1, I2, I3)` (I₂ = ½(I₁² − A_ij A_ji)) · `normal_stress_bounds(tau, rng=None, n=1000) -> (min_normal, max_normal, max_shear)` (Monte-Carlo unit normals) | §2.11 facts (D17), Exercise 2.9 (D18) | Pa | C07, C13, E2 | §4 F21 (+§8.6) |
@@ -1091,9 +1091,9 @@ LaTeX is transcribed from the page images.
 12. `nb.worked_example("simple shear u₁ = Γx₂ with Γ = 2 s⁻¹", "1. $G = \begin{bmatrix}0 & 2\\ 0 & 0\end{bmatrix}$
     s⁻¹ ($G_{12} = \partial u_1/\partial x_2$). 2. $S = \tfrac12(G + G^{\rm T}) = \begin{bmatrix}0 & 1\\ 1 &
     0\end{bmatrix}$, $A = \tfrac12(G - G^{\rm T}) = \begin{bmatrix}0 & 1\\ -1 & 0\end{bmatrix}$; S + A = G ✓. 3. The
-    vector of A (3-D, $A_{12} = -\omega_3$): $\omega_3 = -A_{12} = -1$ s⁻¹ — clockwise spin at 1 rad/s, i.e. ω = ½∇×u
-    (C11 gave curl = −Γ = −2) ✓. 4. Check $\mathbf A\cdot\mathbf x = \boldsymbol\omega\times\mathbf x$ at x = (1, 0, 0):
-    A·x = (0, −1, 0); ω × x = (0, 0, −1) × (1, 0, 0) = (0·0 − (−1)·0, (−1)·1 − 0·0, 0) = (0, −1, 0) ✓. 5. S:S = 2, A:A
+    vector of A (3-D, $A_{12} = -a_3$): $a_3 = -A_{12} = -1$ s⁻¹ — clockwise spin at 1 rad/s, i.e. $\mathbf a = \tfrac12\nabla\times\mathbf u = \tfrac12\boldsymbol\omega$
+    (C11 gave curl = ω₃ = −Γ = −2; the book's R = 2A has vector ω itself) ✓. 4. Check $\mathbf A\cdot\mathbf x = \mathbf a\times\mathbf x$ at x = (1, 0, 0):
+    A·x = (0, −1, 0); a × x = (0, 0, −1) × (1, 0, 0) = (0·0 − (−1)·0, (−1)·1 − 0·0, 0) = (0, −1, 0) ✓. 5. S:S = 2, A:A
     (Frobenius) = 2, S:A = 0 — equal parts stretch and spin, orthogonal to each other.")`
 13. `nb.code[explain]` — *code:* `G = ch02.velocity_gradient_preset("simple_shear", Gamma=2.0, dim=3)` ([[0, 2, 0],[0, 0, 0],[0,
     0, 0]]); `S, A_ = ch02.symmetric_part(G), ch02.antisymmetric_part(G); print(S); print(A_)`; `assert np.allclose(S +
@@ -3082,7 +3082,7 @@ flux in blue / out orange, circulation purple. (No line in this part starts with
   `vector_from_antisymmetric`). Number: ω = (0, 0, −1), x = (1, 0, 0): R = [[0, 1, 0],[−1, 0, 0],[0, 0, 0]], R·x = (0,
   −1, 0); ω × x = (0·0 − (−1)·0, (−1)·1 − 0·0, 0) = (0, −1, 0) ✓ (the sign-discrimination test of the analyst's F19).
 - **What it means.** For the velocity gradient, the antisymmetric part A of Ch. 3 carries the vector $\tfrac12\nabla
-  \times\mathbf u$ — half the vorticity — and $\mathbf A\cdot\mathbf x = \boldsymbol\omega\times\mathbf x$ is the velocity
+  \times\mathbf u$ — half the vorticity (the book's R = 2A, (2.26)–(2.27), carries the vorticity ω itself) — and $\mathbf A\cdot\mathbf x = \tfrac12\boldsymbol\omega\times\mathbf x$ is the velocity
   of a solid-body rotation at angular velocity ω (Ex. 2.3 read backwards). That is *why* the antisymmetric part means
   "spin". The sign in (2.27) is chosen so that this works; with the opposite sign R·x = −ω × x.
 - **Traps.** The sign in step 6 (a one-place move). The lower limit misprint. Forgetting that δ_lk ω_k = ω_l (not 3ω).
