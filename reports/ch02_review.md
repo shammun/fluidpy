@@ -61,4 +61,18 @@ uniaxial_extension = diag(Γ,0) (∇·u = Γ ≠ 0), irrotational_strain = [[0,�
 
 ## Resolution
 
-(filled in by the orchestrator after the implementer / verifier round)
+Implementer round (fluidpy + scripts only, signatures stable):
+- M1 fixed: `rotation_tensor` returns G − Gᵀ (= 2A), docstrings of `antisymmetric_part` / `vector_from_antisymmetric` restate
+  A = ½R, vector(A) = ½∇×u, vector(R) = ∇×u. No caller needed a ½ (all used `antisymmetric_part` for angular velocity).
+- M2 fixed: presets now pure_strain = diag(Γ,−Γ), uniaxial_extension = diag(Γ,0), irrotational_strain = [[0,Γ],[Γ,0]].
+- O1 fixed by making the vector-Q case work (`_eval` broadcasts leading component axes; max error 1.9e-15 on the unit cube).
+- O2 and all other should-fix items applied (docstrings, (2.6) label, divergence on 3-on-2-D fields, transposes cross-referenced).
+- Analysis / design wording corrected by the orchestrator (F18, Part C 2.13, C12 worked example, D15 meaning, §9 item 7).
+
+Verifier round: tests that enshrined the old behaviour were rewritten against fields with known answers
+(∇×(b × x) = 2b; preset traces; vector-Q Gauss with exact ∫∂Q_j/∂x_i dV); one new V1 row.
+`pytest tests/test_ch02.py -q` → 92 passed, 0 xfailed. Full suite → 206 passed (+ the stale-inline machinery check
+that fails only while explainers are mid-build). Verdict: **review PASS**.
+
+Lesson recorded for the knowledge-keeper: a test asserting `f(B) == g(B)` between two code functions is not evidence
+for the book's convention — pin to a field with a known answer.

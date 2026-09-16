@@ -920,8 +920,14 @@ def test_divergence_V1_example_2_3_linear_fields_exact():  # V1  (C10, N55; Exam
     assert np.max(np.abs(ch02.divergence(U2, g2.h) - 2.0 * a)) < 1e-12  # plane: 2a
     U2b = ch02.evaluate_field(ch02.solid_body_rotation_field(0.7, dim=2), g2)
     assert np.max(np.abs(ch02.curl(U2b, g2.h) - 1.4)) < 1e-12  # plane scalar curl 2b₃
+    # review should-fix: a 3-component z-independent field on a 2-D grid (∂u₃/∂x₃ = 0), like curl and vector_gradient
+    U3 = np.stack([2.0 * g2.X + g2.Y, -3.0 * g2.Y + g2.X ** 2, g2.X * g2.Y])
+    div3 = ch02.divergence(U3, g2.h)
+    assert np.max(np.abs(div3 - (2.0 - 3.0))) < 1e-12  # ∂u₁/∂x₁ + ∂u₂/∂x₂ = 2 − 3; u₃ contributes nothing
+    assert np.allclose(div3, np.einsum("ii...->...", ch02.vector_gradient(U3, g2.h)), atol=1e-13)
+    assert np.allclose(div3, ch02.divergence(U3[:2], g2.h), atol=1e-14)
     with pytest.raises(ValueError):
-        ch02.divergence(Ur[:2], g.h)
+        ch02.divergence(Ur[:2], g.h)  # 2 components on a 3-D grid: still refused
 
 
 def test_divergence_V2_example_2_3_symbolic():  # V2  (C10, C11; N55 — symbolic a, b)
@@ -1058,7 +1064,21 @@ def test_decomposition_V1_unique_parts_and_component_counts():  # V1  (N56; D14)
         assert np.allclose(S + A, B, atol=1e-15) and ch02.is_symmetric(S) and ch02.is_antisymmetric(A)
         assert np.allclose(np.diag(A), 0.0)
         assert ch02.independent_components(S) == 6 and ch02.independent_components(A) == 3 and ch02.independent_components(B) == 9
-        assert np.allclose(ch02.strain_rate_tensor(B), S) and np.allclose(ch02.rotation_tensor(B), A)
+        assert np.allclose(ch02.strain_rate_tensor(B), S)
+        # review M1: the BOOK's rotation tensor is R = G − Gᵀ = 2A (§2.10 p082: "R is the rotation tensor corresponding
+        # to the vorticity vector ω"; ch03 (3.15) R_ij = −ε_ijk ω_k with ω = ∇×u, (3.17) R_ij = ∂u_i/∂x_j − ∂u_j/∂x_i)
+        R = ch02.rotation_tensor(B)
+        assert np.allclose(R, 2.0 * A, atol=1e-15) and np.allclose(R, B - B.T, atol=1e-15) and ch02.is_antisymmetric(R)
+        assert not np.allclose(R, A)  # the old half-sized variant is rejected
+    # discriminating check with u = b × x (∇×u = 2b): vector(R) = 2b = ∇×u, while vector(A) = b = ½∇×u
+    b = np.array([0.4, -1.3, 0.9])
+    G = ch02.solid_body_rotation_field(b).grad_fn(0.2, -0.1, 0.3)
+    assert np.allclose(ch02.vector_from_antisymmetric(ch02.rotation_tensor(G)), 2.0 * b, atol=1e-14)
+    assert np.allclose(ch02.vector_from_antisymmetric(ch02.antisymmetric_part(G)), b, atol=1e-14)
+    assert np.allclose(ch02.vector_from_antisymmetric(ch02.rotation_tensor(G)), ch02.solid_body_rotation_field(b).curl_fn(0.2, -0.1, 0.3), atol=1e-14)
+    assert np.allclose(ch02.rotation_tensor(G), ch02.antisymmetric_from_vector(2.0 * b), atol=1e-14)  # R_ij = −ε_ijk ω_k, ω = ∇×u
+    # the split ∂u_i/∂x_j = S_ij + ½ R_ij
+    assert np.allclose(ch02.strain_rate_tensor(G) + 0.5 * ch02.rotation_tensor(G), G, atol=1e-15)
     # uniqueness (D14 steps 4–6): if B = S' + A' with S' symmetric and A' antisymmetric then S' = S
     Bs = ch02.symbol_matrix("B")
     Ss = sp.Matrix(3, 3, lambda i, j: sp.Symbol(f"S{min(i, j)}{max(i, j)}"))
@@ -1155,25 +1175,41 @@ def test_linear_flow_V1_kinematics_presets_and_material_lines():  # V1  (Part C 
     M = ch02.linear_flow_map(Gr, 1.2)
     assert np.allclose(M, ch02.rotation_matrix_2d(0.6), atol=1e-14)  # rotation by ω₃ t
     assert abs(ch02.material_line_angle(Gr, 1.2, 0.3) - 0.9) < 1e-14
+    # review M2: the presets follow design Part C 6.6
+    Gp = ch02.velocity_gradient_preset("pure_strain", 0.7)
+    assert np.allclose(Gp, np.diag([0.7, -0.7]))  # u = Γ(x₁, −x₂): traceless, A = 0
+    assert np.allclose(ch02.linear_flow_map(Gp, 2.0), np.diag([np.exp(1.4), np.exp(-1.4)]), atol=1e-13)
     Gu = ch02.velocity_gradient_preset("uniaxial_extension", 0.7)
-    assert np.allclose(ch02.linear_flow_map(Gu, 2.0), np.diag([np.exp(1.4), np.exp(-1.4)]), atol=1e-13)
+    assert np.allclose(Gu, np.diag([0.7, 0.0]))  # u = (Γx₁, 0): ∇·u = Γ ≠ 0
+    assert np.allclose(ch02.linear_flow_map(Gu, 2.0), np.diag([np.exp(1.4), 1.0]), atol=1e-13)
+    Gi = ch02.velocity_gradient_preset("irrotational_strain", 0.7)
+    assert np.allclose(Gi, [[0, 0.7], [0.7, 0]]) and not np.allclose(Gi, Gp)  # Example 2.4's S as a flow; distinct from pure_strain
     Gs = ch02.velocity_gradient_preset("simple_shear", 1.0)
     assert np.allclose(Gs, [[0, 1], [0, 0]])
     dt = 1e-6
     assert np.allclose((ch02.linear_flow_map(Gs, dt) - np.eye(2)) / dt, Gs, atol=1e-5)  # d/dt at t = 0 = G
-    assert np.allclose(ch02.velocity_gradient_preset("pure_strain", 2.0), ch02.velocity_gradient_preset("irrotational_strain", 2.0))
+    # traces: uniaxial extension has ∇·u = Γ; the other four are divergence-free
+    assert abs(np.trace(Gu) - 0.7) < 1e-15
+    for name in ("simple_shear", "solid_body_rotation", "pure_strain", "irrotational_strain"):
+        assert abs(np.trace(ch02.velocity_gradient_preset(name, 0.7))) < 1e-15
+    # rotation content: only simple shear and solid-body rotation carry an antisymmetric part
+    for name, has_spin in (("simple_shear", True), ("solid_body_rotation", True), ("pure_strain", False),
+                           ("uniaxial_extension", False), ("irrotational_strain", False)):
+        Gn = ch02.velocity_gradient_preset(name, 0.7)
+        assert (np.max(np.abs(ch02.rotation_tensor(Gn))) > 0.1) == has_spin
     G3 = ch02.velocity_gradient_preset("simple_shear", 1.0, dim=3)
     assert G3.shape == (3, 3) and G3[0, 1] == 1.0 and np.all(G3[2] == 0)
     with pytest.raises(ValueError):
         ch02.velocity_gradient_preset("nope")
     pts = ch02.deform_square(Gs, 1.0, n_side=6)
     assert pts.shape == (2, 36)
-    ring = ch02.deform_square(Gu, 0.5, n_side=6, boundary_only=True)
+    ring = ch02.deform_square(Gp, 0.5, n_side=6, boundary_only=True)
     assert ring.shape == (2, 24)
     # area is preserved for a traceless G (det e^{Gt} = e^{t tr G} = 1): shoelace on the boundary
-    x, y = ring
-    area = 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
-    assert abs(area - 4.0) < 1e-12
+    shoelace = lambda r: 0.5 * abs(np.dot(r[0], np.roll(r[1], -1)) - np.dot(r[1], np.roll(r[0], -1)))  # noqa: E731
+    assert abs(shoelace(ring) - 4.0) < 1e-12
+    # uniaxial extension: area grows by e^{Γt} (∇·u = Γ)
+    assert abs(shoelace(ch02.deform_square(Gu, 0.5, n_side=6, boundary_only=True)) - 4.0 * np.exp(0.35)) < 1e-12
     assert ch02.deform_square(G3, 0.3).shape[0] == 3
     # Example 2.4's flow: strain_rate_tensor(G) has S₁₂ = Γ/2 for G = [[0, Γ],[0, 0]]
     assert np.allclose(ch02.strain_rate_tensor(Gs), [[0, 0.5], [0.5, 0]])
@@ -1359,14 +1395,19 @@ def test_gauss_theorem_V1_polynomial_fields_on_boxes():  # V1
         ch02.simpson_nodes(0.0, 1.0, 4)
 
 
-@pytest.mark.xfail(strict=True, raises=ValueError,
-                   reason="OPEN ITEM O1: gauss_gradient_box's docstring promises a (3, 3) result for a vector Q, but "
-                          "integral_theorems._eval cannot broadcast a rank-2 field output (raises in volume_integral_box); "
-                          "Part C 5.1 only requires the scalar-Q case, which passes above")
-def test_gauss_theorem_V1_vector_Q_gradient_form_promised_by_docstring():  # V1 (documents a discrepancy)
-    lhs, rhs = ch02.gauss_gradient_box(lambda X, Y, Z: (X * Y, Y * Z, Z * X), (0, 1), 8)  # vector Q: 3 × 3, [i, j] = ∂Q_j/∂x_i
-    assert lhs.shape == (3, 3) and np.allclose(lhs, rhs, atol=1e-11)
-    assert np.allclose(np.diag(lhs), 0.5) and abs(lhs[1, 0] - 0.5) < 1e-11 and abs(lhs[0, 1]) < 1e-11  # ∂(xy)/∂y = x → ∫ = ½
+def test_gauss_theorem_V1_vector_Q_gradient_form():  # V1  (Eq. (2.30) for a vector Q: [i, j] = ∂Q_j/∂x_i ↔ n_i Q_j; O1 closed)
+    Q = lambda X, Y, Z: (X * Y, Y * Z, Z * X)  # noqa: E731
+    lhs, rhs = ch02.gauss_gradient_box(Q, (0, 1), 8)  # FD partials
+    assert lhs.shape == (3, 3) and rhs.shape == (3, 3) and np.allclose(lhs, rhs, atol=1e-11)
+    exact = np.array([[0.5, 0.0, 0.5], [0.5, 0.5, 0.0], [0.0, 0.5, 0.5]])  # ∫∂Q_j/∂x_i dV: ∂(xy)/∂x = y → ½, ∂(xy)/∂y = x → ½ …
+    assert np.allclose(rhs, exact, atol=1e-12) and np.allclose(lhs, exact, atol=1e-10)
+    dQ = lambda X, Y, Z: np.stack([np.stack([Y, 0 * X, Z]), np.stack([X, Z, 0 * X]), np.stack([0 * X, Y, X])])  # noqa: E731  dQ[i, j] = ∂Q_j/∂x_i
+    lhs_e, rhs_e = ch02.gauss_gradient_box(Q, (0, 1), 8, dQ_fn=dQ)
+    assert np.allclose(lhs_e, exact, atol=1e-13) and np.allclose(rhs_e, exact, atol=1e-13)
+    # the index order matches integral_gradient's [i, j] = ∂Q_j/∂x_i (the transposed vector_gradient)
+    x0 = np.array([0.3, -0.2, 0.5])
+    G = ch02.integral_gradient(ch02.smooth_test_field(3), x0, 0.01)
+    assert np.max(np.abs(G - ch02.smooth_test_field(3).grad_fn(*x0).T)) < 1e-5
 
 
 def test_gauss_theorem_V3_quadrature_orders():  # V3  (midpoint 2, Simpson 4)
