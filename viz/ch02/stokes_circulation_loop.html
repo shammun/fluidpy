@@ -2336,10 +2336,20 @@ function streamlinesOf(preset) {
   streamCache[preset] = out;
   return out;
 }
-function fieldPlot(v) { return v.plot({ xlim: [-L, L], ylim: [-L, L], equal: true, xlabel: 'x₁ [m]', ylabel: 'x₂ [m]', pad: { l: v.w < 420 ? 36 : 44, r: 8, t: 8, b: v.w < 420 ? 30 : 34 } }); }
+/** The field plot. In a wide, short panel (portrait phones) equal aspect would stretch x to ±5 m and shrink the loop;
+    there the vertical range is tightened round the loop (in 0.25 m steps, so dragging does not make it jump). */
+function fieldPlot(v, s) {
+  const pad = { l: v.w < 420 ? 36 : 44, r: 8, t: 8, b: v.w < 420 ? 30 : 34 }, pw = v.w - pad.l - pad.r, ph = v.h - pad.t - pad.b;
+  let yh = L;
+  if (s && pw > 1.5 * ph) {
+    const ry = s.shape === 'rect' ? s.R * s.aspect : s.R, ext = Math.abs(s.cy) + ry;
+    yh = Math.min(L, Math.max(0.9, Math.ceil(1.15 * ext / 0.25) * 0.25));
+  }
+  return v.plot({ xlim: [-L, L], ylim: [-yh, yh], equal: true, xlabel: 'x₁ [m]', ylabel: 'x₂ [m]', pad });
+}
 function drawField(v, s, app) {
   v.clear();
-  const p = phys(s), C = COL(), P = fieldPlot(v), ctx = v.ctx, small = P.px.w < 260, lp = p.loop;
+  const p = phys(s), C = COL(), P = fieldPlot(v, s), ctx = v.ctx, small = P.px.w < 260, lp = p.loop;
   // 1. heat image of the curl (purple counterclockwise spin, teal clockwise, white none)
   const H = curlImage(s.preset, P.xlim, P.ylim);
   ctx.save(); ctx.globalAlpha = 0.34; ctx.imageSmoothingEnabled = true; ctx.drawImage(H.canvas, P.px.x, P.px.y, P.px.w, P.px.h); ctx.restore();
@@ -2428,8 +2438,7 @@ function drawUT(v, s) {
     }
     if (typeof s.probe === 'number' && pr.ss[s.probe] !== undefined) { P.dot(pr.ss[s.probe], Math.max(-ymax, Math.min(ymax, pr.ys[s.probe])), 5, { color: C.loop, stroke: Viz.color('card'), strokeWidth: 1.5 }); }
   });
-  const txt = 'shaded area = Γ = ' + fz(p.Gamma) + ' m²/s';
-  Viz.text(v.ctx, txt, P.px.x + P.px.w - 6, P.px.y + P.px.h - 10, { color: C.loop, size: 12, weight: 650, align: 'right', bg: true, maxWidth: P.px.w - 12 });
+  if (P.px.h >= 80) Viz.text(v.ctx, 'shaded area = Γ = ' + fz(p.Gamma) + ' m²/s', P.px.x + P.px.w - 6, P.px.y + P.px.h - 10, { color: C.loop, size: 12, weight: 650, align: 'right', bg: true, maxWidth: P.px.w - 12 });   // below 80 px the title already carries Γ
 }
 function drawBars(v, s) {
   v.clear(); if (v.h < 40) return;
@@ -2638,7 +2647,7 @@ const app = Viz.app({
         g.app.set('probe', Math.max(0, Math.min(lp.points.length - 1, idx))); return true;
       }
       if (ev.viewId !== 'field') return false;
-      const Pf = fieldPlot(v), wx = Pf.ix(pt.x), wy = Pf.iy(pt.y), p = phys(s), lp = p.loop;
+      const Pf = fieldPlot(v, s), wx = Pf.ix(pt.x), wy = Pf.iy(pt.y), p = phys(s), lp = p.loop;
       if (ev.type === 'pointerdown') {
         const dx = wx - s.cx, dy = wy - s.cy, tolW = Math.max(0.07, 9 / Pf.sx(1));
         let onEdge, inside;
@@ -2728,8 +2737,8 @@ const app = Viz.app({
         { did: 'Refine: the outer edges become C', tex: '\\oint_C\\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA',
           why: 'As the tiles shrink, the staircase of outer edges tends to the boundary curve C with tangent t, so step 8\'s left side becomes the circulation round C; with step 7 this is (2.34).',
           plain: 'Stokes\' theorem: circulation round the edge equals curl flux through the surface (u continuous, C piecewise smooth). A curved A is done the same way on each flat patch, with t = n_c × n at the rim.',
-          set: { shape: 'circle', tiles: 6 }, live: s => { const p = phys(s); return p.tileSums ? `\\begin{aligned} \\oint_{\\rm staircase} &= ${tz(p.tileSums.outer)} \\\\ \\oint_C &= ${tz(p.Gamma)} \\\\ \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA &= ${tz(p.flux)} \\end{aligned}` : ''; },
-          watch: 'The staircase boundary of the tiles tends to the circle; raise the Tiles slider in Explore to see the two circulations converge.' },
+          set: { shape: 'circle', tiles: 8 }, live: s => { const p = phys(s); if (!p.tileSums) return ''; const gap = Math.abs(p.Gamma) > 1e-9 ? Math.abs((p.tileSums.outer - p.Gamma) / p.Gamma) * 100 : 0; return `\\begin{aligned} \\oint_{\\rm staircase}\\ (${p.tileSums.n}\\ \\text{tiles}) &= ${tz(p.tileSums.outer)} \\\\ \\oint_C\\ \\text{(circle)} &= ${tz(p.Gamma)}\\quad\\text{gap } ${gap.toFixed(1)}\\,\\% \\to 0\\ \\text{as } k\\to\\infty \\\\ \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA &= ${tz(p.flux)} \\end{aligned}`; },
+          watch: 'The staircase of 8 × 8 tiles still overshoots the circle by the printed gap — the corners it cuts are O(1/k) of the area; the gap shrinks as the Tiles slider (Explore) is raised.' },
         { did: 'Corollary for a gradient field', tex: '\\begin{aligned} \\oint_C\\nabla\\phi\\cdot\\mathbf t\\,ds &= \\oint_C d\\phi = 0 \\\\ \\Rightarrow\\ \\nabla\\times\\nabla\\phi &= 0 \\end{aligned}',
           why: 'Along the curve ∇φ·t ds = dφ (chain rule); the total of an exact change round a closed loop is φ(end) − φ(start) = 0. Then (2.34) forces ∬(∇×∇φ)·n dA = 0 for every A.',
           plain: 'A field that is the slope of something has no circulation — and since the flux vanishes for every surface, no curl either (Exercise 2.20).',
@@ -2804,7 +2813,7 @@ t = ch02.boundary_tangent(n_c, n)   # n_c × n = {{t}}: {{dir}}`,
     { title: 'Stokes: it equals the curl inside', text: 'The curl is 2 everywhere (Ex. 2.3): 2 × π = 6.283. Circulation round the edge = total spin inside — the two bars match. The curl itself comes from (2.25).', derive: { id: 'D12', step: 5 }, readouts: ['Gamma', 'flux'], set: { preset: 'solid', cx: 0, cy: 0, R: 1, probe: null }, highlight: ['view:bars'] },
     { title: 'Straight flow, still spinning', text: 'Shear: every streamline is straight, yet the wheel turns and Γ ≠ 0. Faster on top, slower below — that difference <i>is</i> curl. Watch the wheel turn clockwise.', set: { preset: 'shear', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0 }, play: true, notes: true },
     { title: 'One rectangle proves it', text: 'Rectangle mode is Ex. 2.6: bottom + top give −∂u₁/∂x₂ ΔA, right + left give +∂u₂/∂x₁ ΔA. Tile any surface with rectangles and the interior edges cancel — that is Stokes\' theorem.', set: Object.assign({}, SHEAR_RECT), terms: true, derive: { id: 'D26', step: 6 } },
-    { title: 'Shrink it', text: 'Circulation per unit area → the normal curl, Eq. (2.35). Drag R down and watch Γ/A hold at the point value (the dot on the flat curve). Try the smooth field: then it only converges as R → 0.', set: { preset: 'shear', shape: 'circle', tiles: 0 }, controls: ['R'], eq: 'per_area' },
+    { title: 'Shrink it', text: 'Circulation per unit area → the normal curl, Eq. (2.35). Drag R down and watch the Γ/A readout hold at the point curl (∇×u)₃ = −1. Try the smooth field: then Γ/A only converges as R → 0.', set: { preset: 'shear', shape: 'circle', tiles: 0 }, controls: ['R'], readouts: ['ratio', 'curl'] },
     { title: 'When Stokes fails', text: 'Irrotational vortex: curl zero everywhere — except at the core. Miss the core: Γ → 0. Enclose it: Γ = 2πK at any size. The field is not smooth inside, so the theorem does not apply.', set: { preset: 'vortex', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0 }, readouts: ['Gamma', 'flux'], play: true },
     { title: 'Your turn: potential flow', text: 'Predict the circulation of u = ∇φ round any loop — then drag and resize to test it. Then flip the orientation: what happens to both sides of (2.34)?', set: { preset: 'potential', cx: 0.5, cy: 0.3, R: 0.8, shape: 'circle', flip: false, tiles: 0 }, controls: ['cx', 'cy', 'R', 'flip'], readouts: ['Gamma', 'flux'] }
   ],
