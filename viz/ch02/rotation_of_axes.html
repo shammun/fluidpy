@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<!--
+  fluidpy interactive explainer — ch02 · rotation_of_axes (E1).
+  Built from analysis/ch02_design.md §E1; library inlined by tools/viz_inline.py; audited by tools/viz_lint.py + tools/shot.py.
+  Physics mirrors fluidpy.core.tensors (rotation_matrix_2d, rotation_matrix_3d, transform_vector, inverse_transform_vector,
+  transform_tensor, orthogonality_residual, transforms_as_vector, transforms_as_tensor) and fluidpy.ch02 (polar_components,
+  example_2_2). Equations cited by number from §2.2–2.4; explanations are our own.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -12,7 +19,7 @@
 <meta name="viz:concept" content="rotation of axes; direction cosines; passive vs active rotation; vector transformation rule; tensor transformation rule; orthogonality of C">
 <meta name="viz:sections" content="2.2 2.3 2.4">
 <meta name="viz:equations" content="2.4 2.5 2.7 2.8 2.12">
-<meta name="viz:fluidpy" content="ch02.rotation_matrix_2d ch02.rotation_matrix_3d ch02.transform_vector ch02.inverse_transform_vector ch02.transform_tensor ch02.orthogonality_residual ch02.polar_components ch02.example_2_2 ch02.transforms_as_vector">
+<meta name="viz:fluidpy" content="ch02.rotation_matrix_2d ch02.rotation_matrix_3d ch02.transform_vector ch02.inverse_transform_vector ch02.transform_tensor ch02.orthogonality_residual ch02.polar_components ch02.example_2_2 ch02.transforms_as_vector ch02.transforms_as_tensor">
 <meta name="viz:derivations" content="D01 D02 D06">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
@@ -454,7 +461,14 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* rotation_of_axes: amber words mark the mirror case; the passive/active table highlights the current row */
+  .c-amber { color: var(--viz-amber); font-weight: 650; }
+  .c-muted { color: var(--viz-muted); font-weight: 650; }
+  /* landscape phones: the curves window gives its height to the plane and the matrix (its key numbers live in the
+     matrix title); a row whose every view is hidden collapses instead of leaving an empty band */
+  .viz-app[data-layout="landscape"] .viz-view[data-view="curves"] { display: none !important; }
+  .viz-app[data-layout="landscape"] .viz-row:not(:has(> .viz-view:not([data-view="curves"]))) { display: none; }
+  .viz-app[data-layout="portrait"] .viz-row:not(:has(> .viz-view:not(.viz-hide-portrait))) { display: none; }
 </style>
 </head>
 <body>
@@ -2122,93 +2136,747 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch02.rotation_matrix_2d ch02.rotation_matrix_3d ch02.transform_vector ch02.inverse_transform_vector ch02.transform_tensor ch02.orthogonality_residual ch02.polar_components ch02.example_2_2 ch02.transforms_as_vector (same symbols, same equation numbers, SI units).
+   PHYSICS — mirrors fluidpy.core.tensors / fluidpy.ch02 (same symbols; angles in radians inside every function,
+   degrees only on the controls). Passive convention throughout: C_ij = e_i · e'_j, x' = Cᵀx (2.5), τ' = CᵀτC (2.12).
+     rot2d(θ)                 ↔ ch02.rotation_matrix_2d(θ)          [[c, −s], [s, c]]  (Example 2.1)
+     rot3d(k, θ)              ↔ ch02.rotation_matrix_3d(k, θ)       Rodrigues
+     transformVector(x, C)    ↔ ch02.transform_vector(x, C)         x'_j = x_i C_ij   (2.5)/(2.8)
+     inverseTransform(x', C)  ↔ ch02.inverse_transform_vector       x_j = x'_i C_ji   (2.7)
+     transformTensor(τ, C)    ↔ ch02.transform_tensor(τ, C)         τ'_mn = C_im C_jn τ_ij  (2.12)
+     orthoResidual(C)         ↔ ch02.orthogonality_residual(C)      max |CᵀC − I|
+     polar(u1, u2, θ)         ↔ ch02.polar_components               Example 2.1
+     shearRotated(a, θ)       ↔ ch02.example_2_2(a, θ)["tau_rot"]   (a sin 2θ, a cos 2θ, −a sin 2θ)
+     vectorTestResidual       ↔ ch02.transforms_as_vector(fn, C, points)
+     tensorTestResidual       ↔ ch02.transforms_as_tensor(fn, C, points)
    --------------------------------------------------------------------------------------------------- */
+const D2R = Math.PI / 180;
+function rot2d(theta) { const c = Math.cos(theta), s = Math.sin(theta); return [[c, -s], [s, c]]; }
+function rot3d(axis, angle) {
+  const L = Math.hypot(axis[0], axis[1], axis[2]), k = axis.map(v => v / L), c = Math.cos(angle), s = Math.sin(angle);
+  const K = [[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]];   // [k]_× so that K x = k × x
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] = c * (i === j ? 1 : 0) + s * K[i][j] + (1 - c) * k[i] * k[j];
+  return C;
+}
+/** Mirror the 2' axis: the second column of C changes sign → still orthogonal, det C = −1 (a reflection). */
+function mirrored(C) { return C.map(r => r.map((v, j) => (j === 1 ? -v : v))); }
+function transformVector(x, C) {            // Eq. (2.5): x'_j = x_i C_ij — the FIRST index of C is summed
+  const n = C.length, out = new Array(n).fill(0);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j] += x[i] * C[i][j];
+  return out;
+}
+function inverseTransform(xp, C) {          // Eq. (2.7): x_j = x'_i C_ji — now the SECOND index is summed
+  const n = C.length, out = new Array(n).fill(0);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j] += xp[i] * C[j][i];
+  return out;
+}
+function transformTensor(T, C) {            // Eq. (2.12): τ'_mn = C_im C_jn τ_ij — one C per index
+  const n = C.length, out = [];
+  for (let m = 0; m < n; m++) { out.push(new Array(n).fill(0));
+    for (let nn = 0; nn < n; nn++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) out[m][nn] += C[i][m] * C[j][nn] * T[i][j]; }
+  return out;
+}
+function orthoResidual(C) {                 // max |C_ji C_jk − δ_ik|
+  const n = C.length; let r = 0;
+  for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) { let s = 0; for (let j = 0; j < n; j++) s += C[j][i] * C[j][k]; r = Math.max(r, Math.abs(s - (i === k ? 1 : 0))); }
+  return r;
+}
+function detC(C) {
+  if (C.length === 2) return C[0][0] * C[1][1] - C[0][1] * C[1][0];
+  return C[0][0] * (C[1][1] * C[2][2] - C[1][2] * C[2][1]) - C[0][1] * (C[1][0] * C[2][2] - C[1][2] * C[2][0]) + C[0][2] * (C[1][0] * C[2][1] - C[1][1] * C[2][0]);
+}
+function polar(u1, u2, theta) { const c = Math.cos(theta), s = Math.sin(theta); return [u1 * c + u2 * s, -u1 * s + u2 * c]; }   // Example 2.1
+function activeRotate(x, theta) { const C = rot2d(theta); return [C[0][0] * x[0] + C[0][1] * x[1], C[1][0] * x[0] + C[1][1] * x[1]]; }  // R x = C x (Wikipedia's job)
+function shearRotated(a, theta) { return [a * Math.sin(2 * theta), a * Math.cos(2 * theta), -a * Math.sin(2 * theta)]; }   // Example 2.2: τ'₁₁, τ'₁₂, τ'₂₂
+function vectorTestResidual(fn, C, points) {   // Eq. (2.8) test: is fn(Cᵀx) equal to Cᵀ fn(x) at every sample point?
+  let res = 0;
+  points.forEach(x => { const u = fn(x), up = fn(transformVector(x, C)), cu = transformVector(u, C);
+    for (let j = 0; j < u.length; j++) res = Math.max(res, Math.abs(up[j] - cu[j])); });
+  return res;
+}
+function tensorTestResidual(fn, C, points) {   // Eq. (2.12) test: is fn(Cᵀx) equal to Cᵀ fn(x) C?
+  let res = 0;
+  points.forEach(x => { const T = fn(x), Tp = fn(transformVector(x, C)), TT = transformTensor(T, C);
+    for (let m = 0; m < T.length; m++) for (let n = 0; n < T.length; n++) res = Math.max(res, Math.abs(Tp[m][n] - TT[m][n])); });
+  return res;
+}
+const TEST_POINTS = [[1, 2], [-0.5, 1.5], [2, -1]];
+const VECTOR_TESTS = [
+  { name: 'x itself', tex: '(x_1, x_2)', fn: x => x.slice(), vector: true },
+  { name: 'a stretched copy', tex: '(2x_1, 2x_2)', fn: x => x.map(v => 2 * v), vector: true },
+  { name: 'squares', tex: '(x_1^2, x_2^2)', fn: x => x.map(v => v * v), vector: false },
+  { name: 'length first', tex: '(|\\mathbf x|, 0)', fn: x => [Math.hypot(x[0], x[1]), 0], vector: false }
+];
+const TPRESETS = { shear: 'pure shear', uniaxial: 'uniaxial', hydro: 'hydrostatic −p', fixed: 'fixed array (not a tensor)' };
+function tauOf(s) {
+  const a = s.a;
+  if (s.tpreset === 'uniaxial') return [[a, 0], [0, 0]];
+  if (s.tpreset === 'hydro') return [[-a, 0], [0, -a]];
+  return [[0, a], [a, 0]];                 // 'shear' and 'fixed' share the numbers; 'fixed' declares them frame-independent
+}
+/** Everything the stage, readouts, Explain and Code need, computed once per state. */
 function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+  const th = s.theta * D2R, three = s.mode === 'vector' && s.axis3d;
+  let C = three ? rot3d([1, 1, 1], th) : rot2d(th);
+  if (s.mirror) C = mirrored(C);
+  const C2 = s.mirror ? mirrored(rot2d(th)) : rot2d(th);   // the plane matrix (tensor and polar modes, curves)
+  const x = three ? [s.x1, s.x2, 0] : [s.x1, s.x2];
+  const xp = transformVector(x, C), back = inverseTransform(xp, C), xa = activeRotate([s.x1, s.x2], th);
+  const res = orthoResidual(C), det = detC(C);
+  const tau = tauOf(s), taup = transformTensor(tau, C2);
+  const shown = s.tpreset === 'fixed' ? tau : taup;                    // the fixed array claims the same numbers in every frame
+  const fixedRes = tensorTestResidual(() => tau, C2, [[1, 2]]);        // how far the claim is from (2.12)
+  const pol = polar(s.x1, s.x2, th);
+  const norm = Math.hypot(s.x1, s.x2), normp = Math.hypot(...xp);
+  const d = tau[0][0] - tau[1][1], off = tau[0][1];
+  const thetaP = (Math.abs(d) < 1e-12 && Math.abs(off) < 1e-12) ? null : 0.5 * Math.atan2(2 * off, d);   // τ'₁₂ = 0 there
+  return { th, C, C2, x, xp, back, xa, res, det, tau, taup, shown, fixedRes, pol, norm, normp, thetaP, three };
+}
+/* ---------------------------------------------------------------------------------------------------
+   FORMATTING
+   --------------------------------------------------------------------------------------------------- */
+const f3 = v => (Math.abs(v) < 5e-4 ? '0.000' : v.toFixed(3)).replace('-', '−');
+const fd = v => Viz.fmt(v) + '°';
+const sgn = v => (v < 0 ? '−' : '+');
+const T = (v, sig) => Viz.tnum(v, sig || 3);
+const SUB = ['₁', '₂', '₃'];
+function pair(v) { return '(' + f3(v[0]) + ', ' + f3(v[1]) + (v.length > 2 ? ', ' + f3(v[2]) : '') + ')'; }
+function residTxt(r) { return r < 1e-12 ? (r === 0 ? '0' : r.toExponential(0).replace('-', '−').replace('e', 'e')) : Viz.fmt(r); }
+function modeIs(s, m) { return s.mode === m; }
+
+/* ---------------------------------------------------------------------------------------------------
+   DRAWING — three linked views driven by one state
+   --------------------------------------------------------------------------------------------------- */
+const COL = () => ({ old: Viz.color('teal'), neu: Viz.color('orange'), normal: Viz.color('blue'), shear: Viz.color('rose'), ghost: Viz.color('muted'), text: Viz.color('text'), acc: Viz.color('accent'), amber: Viz.color('amber') });
+const HIT = { plane: null, matrix: null };
+let DRAG = null;
+
+function planeRange(s, ph) {
+  if (s.mode === 'tensor') return 2.35;
+  if (s.mode === 'polar') return 1.2 + Math.hypot(s.x1, s.x2) + 0.3;
+  return 3.6;
+}
+/** Label at an arrow tip, pushed a little further along the arrow so it never sits on the component labels. */
+function tipLabel(P, from, to, str, color) {
+  const dx = P.X(to[0]) - P.X(from[0]), dy = P.Y(to[1]) - P.Y(from[1]), L = Math.hypot(dx, dy) || 1;
+  Viz.text(P.ctx, str, P.X(to[0]) + dx / L * 14, P.Y(to[1]) + dy / L * 14, { size: 14, weight: 800, color: color, bg: true, align: 'center' });
+}
+function axisLine(P, ux, uy, R, color, label, prime, alpha) {
+  P.line([-ux * R * 0.95, ux * R * 0.95], [-uy * R * 0.95, uy * R * 0.95], { color: Viz.alpha(color, alpha || 0.9), width: 1.4 });
+  P.arrow(ux * R * 0.8, uy * R * 0.8, ux * R * 0.15, uy * R * 0.15, { color: color, width: 1.6, head: 8 });
+  P.text(ux * R * 0.97, uy * R * 0.97, label + (prime ? '′' : ''), { color: color, weight: 700, size: 13, align: 'center', dx: -uy * 9, dy: -ux * 9 });
+}
+function shadow(P, tip, foot, color, label, dashed) {
+  P.line([tip[0], foot[0]], [tip[1], foot[1]], { color: Viz.alpha(color, 0.9), width: 1.3, dash: dashed === false ? [] : [5, 4] });
+  P.dot(foot[0], foot[1], 3.5, { color: color });
+  if (label) Viz.text(P.ctx, label, P.X(foot[0]), P.Y(foot[1]), { size: 12, weight: 650, color: color, bg: true, align: 'center', baseline: 'bottom' });
+}
+function drawArc(P, a0, a1, r, color, label) {
+  const ctx = P.ctx, cx = P.X(0), cy = P.Y(0), rp = P.sx(r);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
+  ctx.arc(cx, cy, rp, -a0, -a1, a1 > a0); ctx.stroke(); ctx.restore();
+  const am = (a0 + a1) / 2;
+  if (label) Viz.text(ctx, label, cx + Math.cos(am) * (rp + 14), cy - Math.sin(am) * (rp + 14), { size: 12, weight: 650, color: color, bg: true, align: 'center' });
+}
+function drawPlane(v, s, Q) {
+  v.clear(); const c = COL(), R = planeRange(s), small = v.w < 420;
+  const P = v.plot({ xlim: [-R, R], ylim: [-R, R], equal: true, pad: { l: 6, r: 6, t: 6, b: 6 } });
+  const th = Q.th, ct = Math.cos(th), st = Math.sin(th), passive = s.what === 'axes';
+  // old frame (teal)
+  axisLine(P, 1, 0, R, c.old, '1'); axisLine(P, 0, 1, R, c.old, '2');
+  // new frame (orange) — only when the axes are what turns
+  const e1p = [ct, st], e2p = s.mirror ? [st, -ct] : [-st, ct];
+  if (passive && s.mode !== 'polar') { axisLine(P, e1p[0], e1p[1], R, c.neu, '1', true); axisLine(P, e2p[0], e2p[1], R, c.neu, '2', true); }
+  if (passive && s.mode !== 'polar' && Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, s.mode === 'tensor' ? 1.75 : R * 0.32, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
+  // a selected matrix cell: the two unit vectors and the angle between them
+  if (s.cell && passive && !Q.three && s.mode !== 'polar') {
+    const i = s.cell.i, j = s.cell.j, ei = i === 0 ? [1, 0] : [0, 1], ej = j === 0 ? e1p : e2p, uL = s.mode === 'tensor' ? 1.7 : 1.0;
+    P.arrow(0, 0, ei[0] * uL, ei[1] * uL, { color: c.old, width: 4, head: 10 });
+    P.arrow(0, 0, ej[0] * uL, ej[1] * uL, { color: c.neu, width: 4, head: 10 });
+    const a0 = Math.atan2(ei[1], ei[0]), a1 = Math.atan2(ej[1], ej[0]);
+    drawArc(P, a0, a1, s.mode === 'tensor' ? 1.5 : 0.7, c.acc, 'cos ' + fd(Math.round(((a1 - a0) / D2R + 540) % 360 - 180)) + ' = ' + f3(Q.C[i][j]));
+  }
+  if (s.mode === 'vector') {
+    const x = [s.x1, s.x2], xa = Q.xa;
+    if (passive) {
+      const xp = Q.xp;
+      shadow(P, x, [x[0], 0], c.old, small ? 'x₁' : 'x₁ = ' + f3(x[0]));
+      shadow(P, x, [0, x[1]], c.old, small ? 'x₂' : 'x₂ = ' + f3(x[1]));
+      shadow(P, x, [xp[0] * e1p[0], xp[0] * e1p[1]], c.neu, (small ? 'x′₁' : 'x′₁ = ' + f3(xp[0])) + (Q.three ? ' (proj.)' : ''));
+      shadow(P, x, [xp[1] * e2p[0], xp[1] * e2p[1]], c.neu, (small ? 'x′₂' : 'x′₂ = ' + f3(xp[1])) + (Q.three ? ' (proj.)' : ''));
+      P.arrow(0, 0, x[0], x[1], { color: c.text, width: 3, head: 11 });
+      tipLabel(P, [0, 0], x, 'x', c.text);
+      if (Q.three) Viz.text(P.ctx, 'axis (1,1,1)/√3 · 3-D C', P.X(0), P.Y(-R * 0.9), { size: 12, weight: 600, color: c.neu, bg: true, align: 'center' });
+    } else {
+      P.arrow(0, 0, x[0], x[1], { color: Viz.alpha(c.ghost, 0.55), width: 2.5, head: 10, dash: [6, 4] });
+      { const L = Math.hypot(x[0], x[1]) || 1; Viz.text(P.ctx, 'x before', P.X(x[0] * (1 + 0.35 / L)), P.Y(x[1] * (1 + 0.35 / L)), { size: 12, weight: 600, color: c.ghost, bg: true, align: 'center' }); }
+      shadow(P, xa, [xa[0], 0], c.neu, small ? 'x′₁' : 'x′₁ = ' + f3(xa[0]));
+      shadow(P, xa, [0, xa[1]], c.neu, small ? 'x′₂' : 'x′₂ = ' + f3(xa[1]));
+      P.arrow(0, 0, xa[0], xa[1], { color: c.text, width: 3, head: 11 });
+      tipLabel(P, [0, 0], xa, 'Cx', c.text);
+      if (Math.abs(s.theta) > 2 && !small) drawArc(P, Math.atan2(x[1], x[0]), Math.atan2(xa[1], xa[0]), Q.norm * 0.45, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
+    }
+    HIT.plane = { tip: passive ? [P.X(x[0]), P.Y(x[1])] : [P.X(xa[0]), P.Y(xa[1])], P };
+  } else if (s.mode === 'tensor') {
+    drawElement(P, s, Q, c, small);
+    HIT.plane = { tip: null, P };
+  } else {
+    // polar mode (Example 2.1): the point at angle θ on a circle; the polar frame is the frame turned by θ
+    const rP = 1.2, pt = [rP * ct, rP * st], u = [s.x1, s.x2], ur = Q.pol[0], ut = Q.pol[1], er = [ct, st], et = [-st, ct];
+    P.ctx.save(); P.ctx.setLineDash([4, 4]); P.ctx.strokeStyle = Viz.alpha(c.ghost, 0.6); P.ctx.lineWidth = 1; P.ctx.beginPath(); P.ctx.arc(P.X(0), P.Y(0), P.sx(rP), 0, 2 * Math.PI); P.ctx.stroke(); P.ctx.restore();
+    P.line([0, pt[0]], [0, pt[1]], { color: Viz.alpha(c.neu, 0.5), width: 1, dash: [3, 3] });
+    if (Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, 0.55, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
+    P.arrow(pt[0], pt[1], er[0] * 0.9, er[1] * 0.9, { color: c.neu, width: 2, head: 8 });
+    P.arrow(pt[0], pt[1], et[0] * 0.9, et[1] * 0.9, { color: c.neu, width: 2, head: 8 });
+    Viz.text(P.ctx, 'e_r', P.X(pt[0] + er[0] * 1.05), P.Y(pt[1] + er[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+    Viz.text(P.ctx, 'e_θ', P.X(pt[0] + et[0] * 1.05), P.Y(pt[1] + et[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+    const tip = [pt[0] + u[0], pt[1] + u[1]];
+    shadow(P, tip, [pt[0] + u[0], pt[1]], c.old, small ? 'u₁' : 'u₁ = ' + f3(u[0]));
+    shadow(P, tip, [pt[0], pt[1] + u[1]], c.old, small ? 'u₂' : 'u₂ = ' + f3(u[1]));
+    shadow(P, tip, [pt[0] + ur * er[0], pt[1] + ur * er[1]], c.neu, small ? 'u_r' : 'u_r = ' + f3(ur));
+    shadow(P, tip, [pt[0] + ut * et[0], pt[1] + ut * et[1]], c.neu, small ? 'u_θ' : 'u_θ = ' + f3(ut));
+    P.arrow(pt[0], pt[1], u[0], u[1], { color: c.text, width: 3, head: 11 });
+    P.dot(pt[0], pt[1], 5, { color: c.neu, stroke: '#fff', strokeWidth: 2 });
+    tipLabel(P, pt, tip, 'u', c.text);
+    HIT.plane = { tip: [P.X(tip[0]), P.Y(tip[1])], origin: pt, P };
+  }
+}
+/** The 2-D stress element: a square in the old frame (teal) with τ₁₁, τ₂₂ (blue) and τ₁₂ (rose) on its faces, and the
+    same point cut by the rotated square (orange) carrying τ'₁₁, τ'₁₂, τ'₂₂. First index = face, second = direction. */
+function drawElement(P, s, Q, c, small) {
+  const h = 1.0, k = 0.5 / Math.max(0.5, s.a);    // half-side of the element; arrow length per Pa
+  function square(ang, color, fill) {
+    const pts = [[-h, -h], [h, -h], [h, h], [-h, h]].map(p => [p[0] * Math.cos(ang) - p[1] * Math.sin(ang), p[0] * Math.sin(ang) + p[1] * Math.cos(ang)]);
+    P.ctx.save(); P.ctx.beginPath(); pts.forEach((p, i) => { if (i === 0) P.ctx.moveTo(P.X(p[0]), P.Y(p[1])); else P.ctx.lineTo(P.X(p[0]), P.Y(p[1])); }); P.ctx.closePath();
+    if (fill) { P.ctx.fillStyle = Viz.alpha(color, 0.08); P.ctx.fill(); } P.ctx.strokeStyle = color; P.ctx.lineWidth = 2; P.ctx.stroke(); P.ctx.restore();
+  }
+  function faceArrows(ang, tau, color, primed, labelSign) {
+    const e1 = [Math.cos(ang), Math.sin(ang)], e2 = [-e1[1], e1[0]], p = primed ? '′' : '';
+    // +1 face: normal τ11 along e1, shear τ12 along e2 ; +2 face: normal τ22 along e2, shear τ21 along e1; − faces mirrored
+    const faces = [{ n: e1, t: e2, tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: 1 },
+      { n: e2, t: e1, tn: tau[1][1], ts: tau[1][0], ln: 'τ' + p + '₂₂', ls: 'τ' + p + '₂₁', sign: 1 },
+      { n: [-e1[0], -e1[1]], t: [-e2[0], -e2[1]], tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: -1 },
+      { n: [-e2[0], -e2[1]], t: [-e1[0], -e1[1]], tn: tau[1][1], ts: tau[1][0], ln: 'τ' + p + '₂₂', ls: 'τ' + p + '₂₁', sign: -1 }];
+    faces.forEach(f => {
+      const cx = f.n[0] * h, cy = f.n[1] * h, al = primed || f.sign > 0 ? 1 : 0.7, lab = f.sign === labelSign;
+      if (Math.abs(f.tn) > 1e-9) { P.arrow(cx, cy, f.n[0] * f.tn * k, f.n[1] * f.tn * k, { color: Viz.alpha(c.normal, al), width: primed ? 2.6 : 2, head: 8 });
+        if (lab) Viz.text(P.ctx, f.ln + (small ? '' : ' = ' + f3(f.tn)), P.X(cx + f.n[0] * (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn)), P.Y(cy + f.n[1] * (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn)), { size: 12, weight: 650, color: c.normal, bg: true, align: 'center' }); }
+      if (Math.abs(f.ts) > 1e-9) { P.arrow(cx - f.t[0] * f.ts * k / 2, cy - f.t[1] * f.ts * k / 2, f.t[0] * f.ts * k, f.t[1] * f.ts * k, { color: Viz.alpha(c.shear, al), width: primed ? 2.6 : 2, head: 8 });
+        if (lab) Viz.text(P.ctx, f.ls + (small ? '' : ' = ' + f3(f.ts)), P.X(cx + f.t[0] * (f.ts * k / 2 + 0.18) + f.n[0] * 0.16), P.Y(cy + f.t[1] * (f.ts * k / 2 + 0.18) + f.n[1] * 0.16), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' }); }
+    });
+  }
+  square(0, c.old, false); faceArrows(0, Q.tau, c, false, -1);          // old frame: labels on the − faces
+  square(Q.th, c.neu, true); faceArrows(Q.th, Q.shown, c, true, 1);     // new frame: labels on the + faces
+  if (s.tpreset === 'fixed') Viz.text(P.ctx, 'declared "the same in every frame"', P.X(0), P.Y(-planeRange(s) * 0.9), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' });
+}
+/* ---- the direction-cosine matrix as cells + the live assembly line ---- */
+function drawMatrix(v, s, Q) {
+  v.clear(); const c = COL(), ctx = v.ctx, W = v.w, H = v.h, C = (s.mode === 'vector' ? Q.C : Q.C2), n = C.length;
+  const lines = 3, lh = Math.min(18, Math.max(15, H * 0.085)), textH = lines * lh + 8;
+  const hh = 22, showLabel = W >= 300;
+  const cw = Math.max(40, Math.min(64, (W - hh - 16 - (showLabel ? 34 : 0)) / n, (H - textH - hh - 18) / n));
+  const x0 = (W - (n * cw + hh + (showLabel ? 34 : 0))) / 2 + hh + (showLabel ? 34 : 0), y0 = 6 + hh;
+  const selj = s.selj === undefined ? 0 : s.selj, cell = s.cell;
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // column highlight (orange = the new axis j being built), row highlight (teal) for a picked cell
+  ctx.fillStyle = Viz.alpha(c.neu, 0.13); ctx.fillRect(x0 + selj * cw, y0, cw, n * cw);
+  if (cell) { ctx.fillStyle = Viz.alpha(c.old, 0.13); ctx.fillRect(x0, y0 + cell.i * cw, n * cw, cw); }
+  // headers
+  ctx.font = Viz.font(12.5, 700);
+  for (let j = 0; j < n; j++) { ctx.fillStyle = c.neu; ctx.fillText('e′' + SUB[j], x0 + j * cw + cw / 2, y0 - hh / 2); }
+  for (let i = 0; i < n; i++) { ctx.fillStyle = c.old; ctx.fillText('e' + SUB[i], x0 - hh / 2, y0 + i * cw + cw / 2); }
+  // brackets
+  ctx.strokeStyle = c.text; ctx.lineWidth = 1.5; ctx.beginPath();
+  ctx.moveTo(x0 + 4, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y0 + n * cw); ctx.lineTo(x0 + 4, y0 + n * cw);
+  ctx.moveTo(x0 + n * cw - 4, y0); ctx.lineTo(x0 + n * cw, y0); ctx.lineTo(x0 + n * cw, y0 + n * cw); ctx.lineTo(x0 + n * cw - 4, y0 + n * cw); ctx.stroke();
+  // cells
+  ctx.font = Viz.font(cw < 44 ? 12 : 13.5, 600, true);
+  const cells = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = x0 + j * cw, y = y0 + i * cw, on = cell && cell.i === i && cell.j === j;
+    if (on) { ctx.strokeStyle = c.acc; ctx.lineWidth = 2.5; Viz.roundRect(ctx, x + 2, y + 2, cw - 4, cw - 4, 6); ctx.stroke(); }
+    ctx.fillStyle = on ? c.acc : c.text; ctx.fillText(f3(C[i][j]), x + cw / 2, y + cw / 2);
+    cells.push({ i, j, x, y, s: cw });
+  }
+  if (showLabel) { ctx.font = Viz.font(13, 700); ctx.fillStyle = c.text; ctx.textAlign = 'right'; ctx.fillText('C = ', x0 - hh - 2, y0 + n * cw / 2); }
+  // assembly line for the selected column (vector) or entry (tensor)
+  let L1, L2;
+  const j = selj;
+  if (s.mode === 'tensor') {
+    const m = cell ? cell.i : 0, nn = cell ? cell.j : 1, tau = Q.tau, terms = [];
+    for (let i = 0; i < 2; i++) for (let jj = 0; jj < 2; jj++) if (Math.abs(tau[i][jj]) > 1e-12) terms.push(C[i][m] * C[jj][nn] * tau[i][jj]);
+    L1 = 'τ′' + SUB[m] + SUB[nn] + ' = C_i' + SUB[m] + ' C_j' + SUB[nn] + ' τ_ij  (two C\'s: two indices)';
+    L2 = '= ' + (terms.length ? terms.map((t, q) => (q === 0 ? (t < 0 ? '−' : '') : ' ' + sgn(t) + ' ') + f3(Math.abs(t))).join('') : '0') + ' = ' + f3(Q.taup[m][nn]) + ' Pa' + (s.tpreset === 'fixed' ? '  ≠ declared ' + f3(Q.tau[m][nn]) : '');
+  } else if (s.mode === 'polar') {
+    const nm = ['u_r', 'u_θ'][j], u = [s.x1, s.x2];
+    L1 = nm + ' = u₁C₁' + SUB[j] + ' + u₂C₂' + SUB[j];
+    L2 = '= ' + f3(u[0]) + '×' + f3(C[0][j]) + ' ' + sgn(u[1] * C[1][j]) + ' ' + f3(Math.abs(u[1] * C[1][j])) + ' = ' + f3(Q.pol[j]);
+  } else {
+    const x = Q.x, xp = s.what === 'axes' ? Q.xp : Q.xa;
+    if (s.what === 'axes') {
+      L1 = 'x′' + SUB[j] + ' = x₁C₁' + SUB[j] + ' + x₂C₂' + SUB[j] + (n === 3 ? ' + x₃C₃' + SUB[j] : '') + '   (first index summed)';
+      L2 = '= ' + f3(x[0]) + '×' + f3(C[0][j]) + ' ' + sgn(x[1] * C[1][j]) + ' ' + f3(Math.abs(x[1] * C[1][j])) + (n === 3 ? ' + 0' : '') + ' = ' + f3(xp[j]);
+    } else {
+      L1 = 'x′' + SUB[j] + ' = C' + SUB[j] + '₁x₁ + C' + SUB[j] + '₂x₂   (second index summed: C x)';
+      L2 = '= ' + f3(C[j][0]) + '×' + f3(x[0]) + ' ' + sgn(C[j][1] * x[1]) + ' ' + f3(Math.abs(C[j][1] * x[1])) + ' = ' + f3(xp[j]);
+    }
+  }
+  const L3 = ['max|CᵀC − I| = ' + residTxt(Q.res) + '  ·  det C = ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det)), 'CᵀC − I: ' + residTxt(Q.res) + ' · det ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det))];
+  const ty = y0 + n * cw + 10, fs = W < 300 ? 12 : 12.5;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  [[L1, c.text, 650], [L2, c.neu, 700], [L3, s.mirror ? c.amber : (s.tpreset === 'fixed' && s.mode === 'tensor' ? c.shear : c.old), 650]].forEach((r, q) => {
+    ctx.font = Viz.font(fs, r[2], q === 1);
+    let alts = Array.isArray(r[0]) ? r[0].slice() : [r[0]];
+    if (q === 0) alts.push(alts[0].split('  ')[0]);                                    // drop the trailing hint on narrow views
+    if (q === 1) { const pre = alts[0].replace(/(−?\d\.\d{3})×(−?\d\.\d{3})/g, (m, a, b) => f3(parseFloat(a.replace('−', '-')) * parseFloat(b.replace('−', '-'))));  // pre-multiply the products
+      alts.push(pre, pre.replace(/ ([+−=]) /g, '$1').replace(/ Pa$/, '')); }
+    let t = alts.find(a => ctx.measureText(a).width <= W - 12) || alts[alts.length - 1];
+    if (ctx.measureText(t).width > W - 12) { ctx.font = Viz.font(12, r[2], q === 1); }
+    ctx.fillStyle = r[1]; ctx.fillText(t, Math.max(6, (W - Math.min(W - 12, ctx.measureText(t).width)) / 2), ty + q * lh);
+  });
+  ctx.restore();
+  HIT.matrix = { cells, n };
+}
+/* ---- components against θ ---- */
+function drawCurves(v, s, Q) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const c = COL(), small = v.w < 420;
+  const th0 = s.theta, curves = [], marks = [];
+  let ylim;
+  const CC = t => (s.mirror ? mirrored(rot2d(t * D2R)) : rot2d(t * D2R));
+  if (s.mode === 'tensor') {
+    const tau = Q.tau, tp = t => transformTensor(tau, CC(t));
+    if (s.tpreset === 'fixed') {
+      curves.push({ f: () => tau[0][0], color: c.normal, w: 2.4, label: 'declared τ′₁₁' }, { f: () => tau[0][1], color: c.shear, w: 2.4, label: 'declared τ′₁₂' });
+      curves.push({ f: t => tp(t)[0][0], color: Viz.alpha(c.normal, 0.45), w: 1.4, dash: [5, 4], label: '(2.12) would give' }, { f: t => tp(t)[0][1], color: Viz.alpha(c.shear, 0.45), w: 1.4, dash: [5, 4] });
+    } else {
+      curves.push({ f: t => tp(t)[0][0], color: c.normal, w: 2.4, label: 'τ′₁₁' }, { f: t => tp(t)[1][1], color: c.normal, w: 2, dash: [6, 4], label: 'τ′₂₂' }, { f: t => tp(t)[0][1], color: c.shear, w: 2.4, label: 'τ′₁₂' });
+      if (Q.thetaP !== null) { const tpd = Q.thetaP / D2R; [tpd, tpd + 90, tpd - 90, tpd + 180, tpd - 180].filter(a => a >= -180 && a <= 180).forEach(a => marks.push({ t: a, label: 'τ′₁₂ = 0' })); }
+    }
+    const amp = Math.max(1e-9, ...[Q.tau[0][0], Q.tau[1][1], Q.tau[0][1]].map(Math.abs), Math.hypot(Q.tau[0][0] - Q.tau[1][1], 2 * Q.tau[0][1]) / 2 + Math.abs(Q.tau[0][0] + Q.tau[1][1]) / 2);
+    ylim = [-amp * 1.15, amp * 1.15];
+  } else if (s.mode === 'polar') {
+    curves.push({ f: t => polar(s.x1, s.x2, t * D2R)[0], color: c.neu, w: 2.4, label: 'u_r' }, { f: t => polar(s.x1, s.x2, t * D2R)[1], color: c.neu, w: 2, dash: [6, 4], label: 'u_θ' });
+    curves.push({ f: () => Q.norm, color: Viz.alpha(c.ghost, 0.7), w: 1.2, dash: [2, 3], label: '|u|' });
+    ylim = [-Q.norm * 1.15 - 0.1, Q.norm * 1.15 + 0.1];
+  } else {
+    const xv = [s.x1, s.x2];
+    if (s.what === 'axes') {
+      curves.push({ f: t => transformVector(xv, CC(t))[0], color: c.neu, w: 2.4, label: 'x′₁' }, { f: t => transformVector(xv, CC(t))[1], color: c.neu, w: 2, dash: [6, 4], label: 'x′₂' });
+    } else {
+      curves.push({ f: t => activeRotate(xv, t * D2R)[0], color: c.neu, w: 2.4, label: 'x′₁ (arrow turned)' }, { f: t => activeRotate(xv, t * D2R)[1], color: c.neu, w: 2, dash: [6, 4], label: 'x′₂' });
+      curves.push({ f: t => transformVector(xv, rot2d(t * D2R))[0], color: Viz.alpha(c.ghost, 0.6), w: 1.3, dash: [2, 3], label: 'axes turned (ghost)' });
+    }
+    curves.push({ f: () => Q.norm, color: Viz.alpha(c.ghost, 0.7), w: 1.2, dash: [2, 3], label: '|x|' });
+    ylim = [-Q.norm * 1.15 - 0.1, Q.norm * 1.15 + 0.1];
+  }
+  const P = v.plot({ xlim: [-180, 180], ylim, xlabel: small ? 'θ [°]' : 'rotation of the axes θ [°]', ylabel: s.mode === 'tensor' ? 'τ′ [Pa]' : 'components' , pad: { l: small ? 40 : 48, r: 10, t: 8, b: small ? 30 : 34 } }).axes({ xticks: [-180, -90, 0, 90, 180] });
+  marks.forEach(m => { P.line([m.t, m.t], ylim, { color: Viz.alpha(c.shear, 0.5), width: 1, dash: [3, 3] }); });
+  if (marks.length && !small) { const m0 = marks.reduce((a, b) => (Math.abs(b.t - th0) < Math.abs(a.t - th0) ? b : a)); P.text(m0.t, ylim[1] * 0.9, 'τ′₁₂ = 0 at ' + fd(Math.round(m0.t)), { color: c.shear, size: 12, weight: 650, align: m0.t > 60 ? 'right' : 'left', dx: m0.t > 60 ? -5 : 5 }); }
+  curves.forEach(cv => { P.fn(cv.f, { color: cv.dash && cv.w < 1.5 ? cv.color : Viz.alpha(cv.color, 0.35), width: cv.w, dash: cv.dash, n: 361 });
+    if (!(cv.dash && cv.w < 1.5)) P.fn(cv.f, { color: cv.color, width: cv.w + 0.4, dash: cv.dash, x0: Math.min(0, th0), x1: Math.max(0, th0), n: Math.max(4, Math.round(Math.abs(th0)) + 1) }); });   // faint whole curve, bold from 0 to θ
+  P.line([th0, th0], ylim, { color: Viz.alpha(c.acc, 0.6), width: 1, dash: [4, 3] });
+  curves.forEach(cv => { if (!(cv.dash && cv.w < 1.5)) P.dot(th0, cv.f(th0), 5, { color: cv.color, stroke: '#fff', strokeWidth: 2 }); });
+  // legend in the top-left corner
+  if (!small) { let lx = P.px.x + 8, ly = P.px.y + 8; P.ctx.save(); P.ctx.font = Viz.font(12, 650); P.ctx.textBaseline = 'middle'; P.ctx.textAlign = 'left';
+    curves.filter(cv => cv.label).forEach(cv => { P.ctx.strokeStyle = cv.color; P.ctx.lineWidth = cv.w; P.ctx.setLineDash(cv.dash || []); P.ctx.beginPath(); P.ctx.moveTo(lx, ly); P.ctx.lineTo(lx + 18, ly); P.ctx.stroke(); P.ctx.setLineDash([]);
+      P.ctx.fillStyle = Viz.color('text-soft'); P.ctx.fillText(cv.label, lx + 24, ly); lx += 24 + P.ctx.measureText(cv.label).width + 14; if (lx > P.px.x + P.px.w - 90) { lx = P.px.x + 8; ly += 16; } });
+    P.ctx.restore(); }
+}
+/* ---- pointer: drag the arrow tip (x1, x2), drag near the orange axis (θ), click a matrix cell ---- */
+function onPointer(g, ev, s) {
+  const A = g.app;
+  if (ev.viewId === 'matrix') {
+    if (ev.type !== 'pointerdown' || !HIT.matrix) return false;
+    const px = ev.vizView.pointer.x, py = ev.vizView.pointer.y;
+    const hit = HIT.matrix.cells.find(cc => px >= cc.x && px <= cc.x + cc.s && py >= cc.y && py <= cc.y + cc.s);
+    if (hit) { A.set({ cell: { i: hit.i, j: hit.j }, selj: hit.j }); return true; }
+    return false;
+  }
+  if (ev.viewId !== 'plane' || !HIT.plane) return false;
+  const P = HIT.plane.P, px = ev.vizView.pointer.x, py = ev.vizView.pointer.y;
+  if (ev.type === 'pointerdown') {
+    const tip = HIT.plane.tip;
+    if (tip && Math.hypot(px - tip[0], py - tip[1]) < 22 && s.what === 'axes') DRAG = 'tip';
+    else DRAG = 'theta';
+    A.play(false);
+  }
+  if (!DRAG) return false;
+  if (ev.type === 'pointerup' || ev.type === 'pointercancel' || ev.type === 'pointerleave') { DRAG = null; return false; }
+  if (ev.type !== 'pointermove' || !ev.vizView.pointer.down) return false;
+  const wx = P.ix(px), wy = P.iy(py);
+  if (DRAG === 'tip') {
+    const o = HIT.plane.origin || [0, 0];
+    A.set({ x1: Math.round((wx - o[0]) * 10) / 10, x2: Math.round((wy - o[1]) * 10) / 10 });
+  } else {
+    let ang = Math.atan2(wy, wx) / D2R;
+    if (s.mode !== 'polar' && s.what === 'axes') { // the nearest of the four axis directions decides θ (drag any orange axis)
+      const cand = [ang, ang - 90, ang + 90, ang + 180, ang - 180].map(a => ((a + 540) % 360) - 180);
+      ang = cand.reduce((a, b) => (Math.abs(b - s.theta) < Math.abs(a - s.theta) ? b : a));
+    }
+    A.set('theta', Math.round(ang));
+  }
+  return true;
 }
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
+const RAD30 = 0.5235987755982988;
 const app = Viz.app({
   title: 'Which rotates — the arrow or the ruler?',
-  subtitle: 'Turn the axes under a fixed vector (or a fixed stress state) and watch the direction-cosine matrix C, the new components x' = Cᵀx and the tensor components τ' = CᵀτC move together — one rule applied once per index.',
+  subtitle: 'One vector, two frames: turn the axes and watch C, the new components x′ = Cᵀx and the tensor components τ′ = CᵀτC move together',
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    theta: { label: 'Rotation of the axes $\\theta$', min: -180, max: 180, step: 1, value: 30, unit: '°', help: 'positive = axes turned counterclockwise; the arrow never moves' },
+    x1: { label: '$x_1$', min: -3, max: 3, step: 0.1, value: 1, help: 'first component in the teal frame (drag the arrow tip too)' },
+    x2: { label: '$x_2$', min: -3, max: 3, step: 0.1, value: 2, help: 'second component in the teal frame' },
+    what: { type: 'select', label: 'What rotates (book: the axes, passive)', options: [['axes', 'axes turn'], ['arrow', 'arrow turns']], value: 'axes', display: 'chips' },
+    tpreset: { type: 'select', label: 'Stress state', options: [['shear', 'shear'], ['uniaxial', 'uniaxial'], ['hydro', 'hydro'], ['fixed', 'fixed']], value: 'shear', display: 'chips', optional: true },
+    a: { label: 'Stress level $a$', min: 0.5, max: 2, step: 0.1, value: 1, unit: 'Pa', optional: true, help: 'scales every stress state' },
+    mirror: { type: 'toggle', label: 'Mirror the 2′ axis (det C = −1)', value: false, optional: true },
+    axis3d: { type: 'toggle', label: '3-D: rotate about (1, 1, 1)/√3', value: false, optional: true }
+  },
+  modes: { param: 'mode', label: 'Object', options: [['vector', 'vector'], ['tensor', 'tensor'], ['polar', 'polar']] },
+  transport: { param: 'theta', min: -180, max: 180, rate: 30, end: 'loop', label: 'axes angle $\\theta$', unit: '°' },
+  presets: [
+    { label: 'θ = 0', set: { theta: 0 }, title: 'same axes: C = I' },
+    { label: '45°', set: { theta: 45 }, title: 'half-way; the principal axes of pure shear' },
+    { label: '90°', set: { theta: 90 }, title: 'axes swapped' },
+    { label: '−30°', set: { theta: -30 }, title: 'turned clockwise' },
+    { label: 'polar 60°', set: { mode: 'polar', theta: 60 }, title: 'Example 2.1: the polar frame at θ = 60°' },
+    { label: 'shear', set: { mode: 'tensor', tpreset: 'shear', theta: 30, what: 'axes' }, title: 'Example 2.2: pure shear seen from axes turned by 30°' }
+  ],
+  status: s => {
+    const Q = physics(s);
+    if (s.mirror) return { text: '⚠️ det C = ' + (Q.det < 0 ? '−1' : '+1') + ': a mirror, not a rotation', tone: 'warn' };
+    if (s.mode === 'tensor' && s.tpreset === 'fixed') return { text: '❌ not a tensor: (2.12) residual ' + Viz.fmt(Q.fixedRes) + ' Pa', tone: 'bad' };
+    if (s.mode === 'vector' && s.what === 'arrow') return { text: '🔄 active: arrow turned, axes fixed — C, not Cᵀ', tone: 'info' };
+    return { text: '✅ orthogonal: CᵀC − I = ' + residTxt(Q.res) + ', det C = +' + f3(Q.det).replace('−', ''), tone: 'good' };
   },
   readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+    { id: 'xp', label: 'New components', value: s => physics(s).xp[0], fmt: (v, s) => { const Q = physics(s); return s.mode === 'polar' ? pair(Q.pol) : s.mode === 'tensor' ? 'see τ′' : (s.what === 'axes' ? pair(Q.xp) : pair(Q.xa) + ' (Cx)'); } },
+    { id: 'norm', label: 'Length $|\\mathbf x| = |\\mathbf x\'|$', value: s => physics(s).norm, fmt: (v, s) => f3(v) + ' = ' + f3(physics(s).normp) },
+    { id: 'resid', label: 'max$|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I|$', value: s => physics(s).res, fmt: v => residTxt(v) },
+    { id: 'tau', label: 'τ′₁₁, τ′₁₂, τ′₂₂', unit: 'Pa', value: s => physics(s).taup[0][0], fmt: (v, s) => { const t = physics(s).taup; return f3(t[0][0]) + ', ' + f3(t[0][1]) + ', ' + f3(t[1][1]) + ' Pa'; }, optional: true }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    rows: [1.3, 1],
+    views: [
+      { id: 'plane', row: 0, flex: 1.25, title: s => { const Q = physics(s);
+          if (s.mode === 'tensor') return '<b>The plane</b> · <b class="c-teal">teal</b> element in O12, <b class="c-orange">orange</b> element in O1′2′ · <b class="c-blue">normal</b> / <b class="c-rose">shear</b> stresses';
+          if (s.mode === 'polar') return '<b>The plane</b> · Ex. 2.1: the polar frame (<b class="c-orange">e_r, e_θ</b>) is the <b class="c-teal">Cartesian</b> frame turned by θ = ' + fd(s.theta);
+          return '<b>The plane</b> · ' + (s.what === 'axes' ? '<b class="c-teal">old axes 1, 2</b> · <b class="c-orange">new axes 1′, 2′</b> turned by ' + fd(s.theta) + ' · drag the tip or an orange axis' : 'axes fixed, the arrow turned by ' + fd(s.theta) + ' (grey = before)'); } },
+      { id: 'matrix', row: 0, flex: 1, title: s => { const Q = physics(s);
+          if (s.mode === 'tensor') return '<b>C = eᵢ·e′ⱼ</b> · click a cell for τ′ₘₙ' + (Q.thetaP !== null && s.tpreset !== 'fixed' ? ' · τ′₁₂ = 0 at ' + fd(Math.round(Q.thetaP / D2R)) : '');
+          return '<b>C = eᵢ·e′ⱼ</b> · click a cell · |x| = ' + f3(Q.norm) + ' at every θ'; } },
+      { id: 'curves', row: 1, flex: 1, hidePortrait: true, title: s => s.mode === 'tensor' ? '<b>Stress components vs θ</b> · faint = all angles, bold = 0 → θ' : '<b>Components vs θ</b> · faint = all angles, bold = 0 → θ · grey = the length' }
+    ],
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
-    }
+      const Q = physics(s);
+      drawPlane(g.view('plane'), s, Q);
+      drawMatrix(g.view('matrix'), s, Q);
+      drawCurves(g.view('curves'), s, Q);
+    },
+    onPointer
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Press ▶ to sweep the axes, or drag the arrow tip and the orange axis in the picture. Switch the object (vector · tensor · polar) above the picture.',
+    controls: ['theta', 'x1', 'x2', 'what', 'tpreset', 'a', 'mirror', 'axis3d'],
+    readouts: ['xp', 'norm', 'resid', 'tau'],
+    callouts: [{ kind: 'try', html: 'Set θ = 90°: predict $x\'_1, x\'_2$ for $x = (1, 2)$ before you look at the readout.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  inspectHint: 'Click a cell of C: the two unit vectors and the angle behind that cosine appear here and in the picture.',
+  inspect: s => {
+    if (!s.cell) return null;
+    const Q = physics(s), i = s.cell.i, j = s.cell.j, C = s.mode === 'vector' ? Q.C : Q.C2;
+    if (Q.three) return `$C_{${i + 1}${j + 1}} = \\mathbf e_{${i + 1}}\\cdot\\mathbf e'_{${j + 1}} = \\mathbf{${T(C[i][j])}}$ — in 3-D this is the ${['first', 'second', 'third'][i]} component of the new axis ${j + 1}′ (Rodrigues C about (1, 1, 1)/√3).`;
+    const ei = i === 0 ? 0 : 90, ej = (j === 0 ? 0 : (s.mirror ? -90 : 90)) + s.theta, ang = ((ej - ei + 540) % 360) - 180;
+    return `$C_{${i + 1}${j + 1}} = \\mathbf e_{${i + 1}}\\cdot\\mathbf e'_{${j + 1}}$ = cos(angle between old ${i + 1} and new ${j + 1}′)<br>$= \\cos(${Viz.tnum(Math.round(ang))}°) = \\mathbf{${T(C[i][j])}}$` +
+      `<br><span class="viz-muted">Old axis ${i + 1} points at ${ei}°, new axis ${j + 1}′ at ${Viz.fmt(ej)}°; unit vectors, so the dot product is just the cosine.</span>` +
+      (s.mode === 'tensor' ? `<br>Selected entry: $\\tau'_{${i + 1}${j + 1}} = C_{i${i + 1}}C_{j${j + 1}}\\tau_{ij} = \\mathbf{${T(Q.taup[i][j])}}$ Pa (assembled in the matrix window).` : '');
+  },
+  notes: s => {
+    const Q = physics(s), th = s.theta;
+    if (s.mode === 'vector' && s.what === 'arrow') return `<p><b>Active view.</b> The axes stayed; the arrow turned by ${fd(th)}. Its components are $\\mathbf C\\mathbf x = ${pair(Q.xa)}$ — the same matrix the book applies as $\\mathbf C^{\\rm T}$. Turning the arrow by $+\\theta$ looks, to the arrow, exactly like turning the axes by $-\\theta$: $\\mathbf C(\\theta) = \\mathbf C^{\\rm T}(-\\theta)$.</p>`;
+    if (s.mirror) return `<p><b>Mirror on.</b> The 2′ axis was flipped: $\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I$ still holds (lengths kept: $|\\mathbf x'| = ${f3(Q.normp)}$) but $\\det\\mathbf C = −1$. A mirror cannot be reached by turning; the book\'s "rotation" excludes it, and $\\varepsilon_{ijk}$ would change sign in such a frame.</p>`;
+    if (s.mode === 'tensor') {
+      if (s.tpreset === 'fixed') return `<p><b>A matrix is not a tensor.</b> These numbers claim to be the same in every frame. (2.12) says the components must become $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$; at ${fd(th)} the claim misses by ${Viz.fmt(Q.fixedRes)} Pa. Nine numbers are a tensor only if they obey the rule.</p>`;
+      if (s.tpreset === 'hydro') return `<p><b>Hydrostatic.</b> $\\boldsymbol\\tau = -p\\,\\mathbf I$ looks the same in every frame: $\\mathbf C^{\\rm T}(-p\\mathbf I)\\mathbf C = -p\\,\\mathbf C^{\\rm T}\\mathbf C = -p\\,\\mathbf I$. Every axis is a principal axis; there is no shear on any cut.</p>`;
+      const tpd = Q.thetaP === null ? null : Q.thetaP / D2R, near = tpd !== null && Math.abs(((th - tpd + 90) % 90 + 90) % 90) < 3;
+      if (near) return `<p><b>Principal axes.</b> At θ ≈ ${fd(Math.round(tpd))} (+ multiples of 90°) the shear $\\tau'_{12} = ${T(Q.taup[0][1])}$ Pa vanishes and only normal stresses remain: $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. §2.11 (and E2) calls these the principal axes.</p>`;
+      return `<p>At θ = ${fd(th)} the same stress state reads $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{12} = ${T(Q.taup[0][1])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. Trace $\\tau'_{11} + \\tau'_{22} = ${T(Q.taup[0][0] + Q.taup[1][1])}$ = $\\tau_{11} + \\tau_{22}$: an invariant (C07). Drag θ to where the <b class="c-rose">rose</b> curve crosses zero.</p>`;
+    }
+    if (s.mode === 'polar') return `<p><b>Example 2.1.</b> The point sits at angle ${fd(th)}; $\\mathbf e_r$ is the Cartesian frame\'s 1-axis turned by that angle. So $(u_r, u_\\theta) = ${pair(Q.pol)}$ is just (2.5) with $j \\in \\{r, \\theta\\}$ — polar components are rotated Cartesian components.</p>`;
+    if (Math.abs(th) < 0.5) return '<p><b>θ = 0.</b> The frames coincide: C = I and x′ = x. Every entry on the diagonal is cos 0 = 1.</p>';
+    if (Math.abs(Math.abs(th) - 90) < 0.5) return `<p><b>θ = ±90°.</b> The axes have swapped roles: $x'_1 = ${T(Q.xp[0])} = ${th > 0 ? '+' : '−'}x_2$, $x'_2 = ${T(Q.xp[1])} = ${th > 0 ? '−' : '+'}x_1$. C has zeros on the diagonal.</p>`;
+    if (Math.abs(Math.abs(th) - 180) < 0.5) return '<p><b>θ = ±180°.</b> Both components change sign — a half turn is still a rotation (det C = +1); C = −I.</p>';
+    return `<p>At θ = ${fd(th)} the <b class="c-orange">orange shadows</b> $x' = ${pair(Q.xp)}$ are a reshuffling of the <b class="c-teal">teal ones</b> $x = ${pair(Q.x.slice(0, 2))}$; the arrow\'s length ${f3(Q.norm)} is untouched. Only the ruler moved.</p>`;
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const Q = physics(s), W = Viz.work, th = s.theta, C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C), c = Math.cos(Q.th), sn = Math.sin(Q.th);
+      let out = W.step(0, 'What the windows show') +
+        W.say('<b>The plane</b>: <b class="c-teal">teal</b> axes are the original frame O12, <b class="c-orange">orange</b> axes the rotated frame O1′2′; the black arrow is one vector $\\mathbf x$ (or, in tensor mode, one stress state). Dashed teal/orange lines are its shadows on each frame — the components. <b>C</b> is the table of cosines between old and new axes; the lit column shows one entry being built. <b>Components vs θ</b> traces how the orange numbers change as you turn the axes.') +
+        W.hint('On a phone held upright the curves window is hidden; the length |x| and the angle where τ′₁₂ = 0 are repeated in the C window\'s title.');
+      out += W.step(1, 'The direction-cosine matrix with your angle') +
+        W.line('$C_{11} = \\mathbf e_1\\cdot\\mathbf e\'_1 = \\cos\\theta = \\cos ' + T(th) + '°$', T(C[0][0]), 'old 1 and new 1′ are θ apart') +
+        W.line('$C_{21} = \\mathbf e_2\\cdot\\mathbf e\'_1 = \\cos(90° - \\theta) = \\sin\\theta$', T(C[1][0]), 'old 2 leads new 1′ by 90° − θ') +
+        W.line('$C_{12} = \\mathbf e_1\\cdot\\mathbf e\'_2 = \\cos(90° + \\theta) = -\\sin\\theta$', T(C[0][1]), 'new 2′ is 90° + θ from old 1') +
+        W.line('$C_{22} = \\mathbf e_2\\cdot\\mathbf e\'_2 = \\cos\\theta$', T(C[1][1]), '') +
+        W.box('The columns $(' + T(C[0][0]) + ', ' + T(C[1][0]) + ')$ and $(' + T(C[0][1]) + ', ' + T(C[1][1]) + ')$ are the <b class="c-orange">new unit vectors</b> written in old components — read them off the orange arrows.' + (s.mirror ? ' <b class="c-amber">Mirror on:</b> the second column has its sign flipped.' : ''));
+      out += W.step(2, 'The new components term by term — Eq. (2.5)') +
+        W.line('$x\'_1 = x_1C_{11} + x_2C_{21} = ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + '$', T(xp[0]), 'column 1 of C weights the old components') +
+        W.line('$x\'_2 = x_1C_{12} + x_2C_{22} = ' + T(x[0]) + '\\times(' + T(C[0][1]) + ') + ' + T(x[1]) + '\\times' + T(C[1][1]) + '$', T(xp[1]), 'column 2 of C') +
+        W.box('$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x = (\\mathbf{' + T(xp[0]) + '},\\ \\mathbf{' + T(xp[1]) + '})$ — the <i>first</i> index of C is summed.');
+      out += W.step(3, 'Nothing was lost: orthogonality') +
+        W.line('$\\max|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I|$', residTxt(orthoResidual(C)), 'round-off only: rows and columns are unit vectors at right angles') +
+        W.line('$\\det\\mathbf C = C_{11}C_{22} - C_{12}C_{21} = ' + T(C[0][0] * C[1][1]) + ' - (' + T(C[0][1] * C[1][0]) + ')$', (detC(C) > 0 ? '+' : '−') + T(Math.abs(detC(C))), s.mirror ? 'a mirror (−1), not a rotation' : 'a rotation, not a mirror') +
+        W.box('$|\\mathbf x\'|^2 = ' + T(xp[0] * xp[0]) + ' + ' + T(xp[1] * xp[1]) + ' = \\mathbf{' + T(xp[0] * xp[0] + xp[1] * xp[1]) + '} = |\\mathbf x|^2 = ' + T(x[0] * x[0]) + ' + ' + T(x[1] * x[1]) + '$ — a rotation keeps lengths (D02).');
+      const back = inverseTransform(xp, C);
+      out += W.step(4, 'Back again — Eq. (2.7)') +
+        W.line('$x_1 = x\'_1C_{11} + x\'_2C_{12} = ' + T(xp[0]) + '\\times' + T(C[0][0]) + ' + ' + T(xp[1]) + '\\times(' + T(C[0][1]) + ')$', T(back[0]), 'now the <i>second</i> index of C is summed: x = Cx′ (D03)') +
+        W.line('$x_2 = x\'_1C_{21} + x\'_2C_{22}$', T(back[1]), 'row 2 of C');
+      if (s.mode === 'tensor') {
+        const tau = Q.tau, tp = Q.taup, terms = (m, n) => { const t = []; for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) if (Math.abs(tau[i][j]) > 1e-12) t.push('C_{' + (i + 1) + (m + 1) + '}C_{' + (j + 1) + (n + 1) + '}\\tau_{' + (i + 1) + (j + 1) + '}'); return t.join(' + ') || '0'; };
+        out += W.step(5, 'Tensor mode — Eq. (2.12) entry by entry') +
+          W.say('Stress state: <b>' + TPRESETS[s.tpreset] + '</b>, $\\boldsymbol\\tau = \\begin{pmatrix}' + T(tau[0][0]) + ' & ' + T(tau[0][1]) + '\\\\' + T(tau[1][0]) + ' & ' + T(tau[1][1]) + '\\end{pmatrix}$ Pa. Two C\'s because τ has two indices; zero entries of τ drop out.') +
+          W.line('$\\tau\'_{11} = C_{i1}C_{j1}\\tau_{ij} = ' + terms(0, 0) + '$', T(tp[0][0]) + ' Pa', '<b class="c-blue">normal</b> stress on the 1′ face') +
+          W.line('$\\tau\'_{12} = C_{i1}C_{j2}\\tau_{ij} = ' + terms(0, 1) + '$', T(tp[0][1]) + ' Pa', '<b class="c-rose">shear</b> on the 1′ face') +
+          W.line('$\\tau\'_{22} = C_{i2}C_{j2}\\tau_{ij} = ' + terms(1, 1) + '$', T(tp[1][1]) + ' Pa', '<b class="c-blue">normal</b> stress on the 2′ face') +
+          W.box('Trace $\\tau\'_{11} + \\tau\'_{22} = ' + T(tp[0][0] + tp[1][1]) + ' = \\tau_{11} + \\tau_{22}$: an invariant (C07).' + (s.tpreset === 'shear' ? ' For pure shear: $\\tau\'_{11} = a\\sin 2\\theta = ' + T(shearRotated(s.a, Q.th)[0]) + '$, $\\tau\'_{12} = a\\cos 2\\theta = ' + T(shearRotated(s.a, Q.th)[1]) + '$ Pa (Example 2.2).' : ''));
+        if (s.tpreset === 'fixed') out += W.result('The array declared "the same in every frame" differs from $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ by <b>' + Viz.fmt(Q.fixedRes) + ' Pa</b> at this θ — it is a matrix, not a tensor (N27).', 'warn');
+      } else {
+        out += W.step(5, 'Tensor mode — Eq. (2.12)') + W.hint('Switch the object to <b>tensor</b> (chips above the picture) to see $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ worked out entry by entry with your θ.');
+      }
+      if (s.mode === 'polar') {
+        out += W.step(6, 'Polar mode — Example 2.1') +
+          W.line('$u_r = u_1\\cos\\theta + u_2\\sin\\theta = ' + T(x[0]) + '\\times' + T(c) + ' + ' + T(x[1]) + '\\times' + T(sn) + '$', T(Q.pol[0]), 'the radial component') +
+          W.line('$u_\\theta = -u_1\\sin\\theta + u_2\\cos\\theta$', T(Q.pol[1]), 'the azimuthal component') +
+          W.box('Exactly (2.5) with $j \\in \\{r, \\theta\\}$: the polar frame is the Cartesian frame turned by the point\'s angle θ.');
+      } else {
+        out += W.step(6, 'Polar mode — Example 2.1') + W.hint('Switch the object to <b>polar</b>: the same rule with $j \\in \\{r, \\theta\\}$ gives $(u_r, u_\\theta) = ' + pair(Q.pol) + '$ at θ = ' + fd(th) + '.');
+      }
+      const cur = s.what === 'axes' ? 0 : 1;
+      out += W.step(7, 'Passive or active?') +
+        W.table(['what turns', 'formula', 'x′ now'], [['axes (book)', '$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x$', '$' + pair(xp) + '$'], ['arrow (Wikipedia R)', '$\\mathbf x\' = \\mathbf C\\mathbf x$', '$' + pair(Q.xa) + '$']], cur) +
+        W.say('Same matrix, opposite job. Turning the axes by $+\\theta$ is, from the axes\' point of view, turning the arrow by $-\\theta$: the two rows agree when θ → −θ.');
+      const rows = VECTOR_TESTS.map(tst => { const r = vectorTestResidual(tst.fn, C, TEST_POINTS); return ['$' + tst.tex + '$', Viz.fmt(r), r < 1e-9 ? '<b class="c-teal">vector</b>' : '<b class="c-rose">not a vector</b>']; });
+      out += W.step(8, 'Is it a vector? The test of Eq. (2.8)') +
+        W.say('A triple of numbers is a vector only if its components obey $u\'_j = u_iC_{ij}$. Evaluate each rule in the old frame and in the new one at three sample points; the residual is $\\max|u\'_j - u_iC_{ij}|$ with your C.') +
+        W.table(['rule', 'residual', 'verdict'], rows);
+      let reading;
+      if (s.mirror) reading = 'det C = −1: lengths are kept but handedness is not; ε<sub>ijk</sub> would change sign (N42). Turn the mirror off to get back to a rotation.';
+      else if (s.mode === 'tensor' && s.tpreset === 'fixed') reading = 'The numbers refuse to change with the frame, so they cannot describe a physical stress: the residual ' + Viz.fmt(Q.fixedRes) + ' Pa is the size of the lie. Only (2.12)-obedient arrays are tensors.';
+      else if (s.mode === 'tensor') { const tpd = Q.thetaP === null ? null : Q.thetaP / D2R; reading = tpd !== null && Math.abs((((th - tpd) % 90) + 135) % 90 - 45) > 42 ? 'τ′₁₂ = ' + T(Q.taup[0][1]) + ' Pa ≈ 0: in these axes the shear has vanished and only normal stresses remain — the principal axes of §2.11 (E2).' : 'The same stress state, described from axes turned by ' + fd(th) + ': τ′₁₁ = ' + T(Q.taup[0][0]) + ', τ′₁₂ = ' + T(Q.taup[0][1]) + ', τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa. The trace ' + T(Q.taup[0][0] + Q.taup[1][1]) + ' Pa never moves.' + (tpd !== null ? ' Drag to θ = ' + fd(Math.round(tpd)) + ' to make the shear vanish.' : ''); }
+      else if (s.mode === 'polar') reading = 'The point at ' + fd(th) + ' carries u = ' + pair(x) + '; its polar components (' + T(Q.pol[0]) + ', ' + T(Q.pol[1]) + ') are the Cartesian ones read off a frame turned with the point. Nothing new was defined — one rule, one more application.';
+      else if (s.what === 'arrow') reading = 'You are watching the active rotation: the arrow moved to Cx = ' + pair(Q.xa) + ' while the axes stayed. The book never does this; it turns the axes and applies Cᵀ. Same C, opposite job — flip the chip back to compare.';
+      else if (Math.abs(th) < 0.5) reading = 'θ = 0: the frames coincide, C = I, x′ = x.';
+      else if (Math.abs(Math.abs(th) - 90) < 0.5) reading = 'θ = ±90°: the axes have swapped roles, x′₁ = ±x₂ and x′₂ = ∓x₁.';
+      else if (Math.abs(Math.abs(th) - 180) < 0.5) reading = '|θ| = 180°: both components change sign — a half turn, still a rotation (det C = +1).';
+      else reading = 'The orange shadows (' + T(xp[0]) + ', ' + T(xp[1]) + ') are a reshuffling of the teal ones (' + T(x[0]) + ', ' + T(x[1]) + '); the arrow\'s length ' + T(Q.norm) + ' is untouched. The arrow never moved — only the ruler did.';
+      out += W.step(9, 'At the current angle') + W.line('$\\theta$', Viz.live('theta') + '°') + W.line('$\\mathbf x\'$', Viz.live('xp')) + W.interpret(reading, 'Reading the current setting');
+      return out;
+    },
+    live: s => { const Q = physics(s); return { theta: Viz.fmt(s.theta), xp: s.mode === 'polar' ? pair(Q.pol) : (s.what === 'axes' ? pair(Q.xp) : pair(Q.xa)) }; }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D01', title: 'The transformation rule for components', short: 'Eq. (2.5)', ref: 'Eq. (2.5)', view: 'plane',
+      goal: 'Find how the three numbers that describe a vector change when the axes are rotated — the rule that will define what a vector is.',
+      start: { tex: '\\mathbf x = x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j', plain: 'The same arrow written once in the old basis (2.1) and once in the new basis (2.3); only the numbers differ.' },
+      plan: ['Dot both spellings with one new unit vector.', 'On the primed side orthonormality kills every term but one.', 'Name the cosines that remain: that is C.', 'Do it for a general new axis, not only $\\mathbf e\'_1$.'],
+      uses: ['dot product (2.2)', 'bilinearity of the dot product', 'orthonormality $\\mathbf e\'_i\\cdot\\mathbf e\'_j = \\delta_{ij}$', 'Kronecker substitution (2.17)', 'direction cosines $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$'],
+      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false },
+      steps: [
+        { did: 'Write the arrow in both bases', tex: 'x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j',
+          why: 'Equations (2.1) and (2.3) describe one and the same arrow, so their right sides are equal. We put them side by side to compare coefficients.',
+          plain: 'Two spellings, one vector.', watch: 'The black arrow has teal shadows and orange shadows: the two spellings.' },
+        { did: 'Dot both sides with $\\mathbf e\'_k$', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_j\\,(\\mathbf e\'_j\\cdot\\mathbf e\'_k)',
+          why: 'The dot product is bilinear: it distributes over the sums and lets the scalars x_i, x\'_j pull out. We dot with a new unit vector to isolate one new component.',
+          plain: 'Project both spellings onto the new axis k.', set: { selj: 0, cell: { i: 0, j: 0 } }, watch: 'Column 1 of C lights up: the cosines with the new axis 1′.' },
+        { did: 'Use orthonormality of the new basis', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_j\\,\\delta_{jk}',
+          why: 'The new unit vectors are perpendicular and of length 1, so e\'_j·e\'_k is 1 for j = k and 0 otherwise — that is δ. This is the move the book leaves silent.',
+          plain: 'On the primed side only the k-th term can survive.' },
+        { did: 'Let δ substitute its summed index', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_k',
+          why: 'Kronecker substitution (2.17): x\'_j δ_jk = x\'_k, because the sum over j has one nonzero term. We now have one new component alone on one side.',
+          plain: 'The new component k is a weighted sum of the old ones.' },
+        { did: 'Name the weights as direction cosines', tex: 'x\'_k = x_i\\,C_{ik},\\qquad C_{ik} \\equiv \\mathbf e_i\\cdot\\mathbf e\'_k',
+          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); giving them a name turns the projection into a matrix. For k = 1 this line is (2.4).',
+          plain: 'The weights are the nine cosines between old and new axes.',
+          live: s => { const Q = physics(s), C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C); return '\\begin{aligned} C_{11} &= ' + T(C[0][0]) + ',\\quad C_{21} = ' + T(C[1][0]) + '\\\\ x\'_1 &= ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]) + '\\end{aligned}'; },
+          set: { selj: 0, cell: { i: 0, j: 0 } } },
+        { did: 'Rename the free index k → j', tex: 'x\'_j = x_i\\,C_{ij}',
+          why: 'A free index may be renamed on both sides at once (N12); k = 1, 2, 3 are three equations and this one line holds them all — no "similarly" needed.',
+          plain: 'The new components are the old ones multiplied into C, first index summed.',
+          watch: 'The orange shadow x′₁ on the 1′ axis has exactly the length the matrix window computes.' }
+      ],
+      result: { tex: 'x\'_j = x_iC_{ij}\\qquad(\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x)', plain: 'Each new component is the old components weighted by the cosines in column j of C.' },
+      interpret: s => { const Q = physics(s); return 'With θ = ' + fd(s.theta) + ' your components are ' + pair(transformVector([s.x1, s.x2], Q.C2)) + ': the same arrow, new shadows. Its length ' + f3(Q.norm) + ' did not change.'; },
+      check: 'Units: both sides carry the unit of x (C is dimensionless). Limit θ = 0: C = I, x′ = x. Number: x = (1, 2), θ = 30° gives x′ = (1.866, 1.232), lengths 2.236 both — the selftest rows compare with transform_vector.' },
+    { id: 'D02', title: 'Why C is orthogonal: CCᵀ = CᵀC = I and det C = +1', short: 'CᵀC = I', ref: 'Exercise 2.8', view: 'matrix',
+      goal: 'Show that the direction-cosine matrix undoes itself when transposed, so that going back to the old components is free (D03), lengths are preserved, and contracted index pairs of C become δ. The book leaves this to Exercise 2.8.',
+      start: { tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j', plain: 'The definition of the direction cosines (C02).' },
+      plan: ['Expand an old unit vector in the new basis (completeness).', 'Dot with another old unit vector: δ on one side, a product of two C\'s on the other.', 'Repeat with the roles of the bases swapped.', 'Take determinants for the sign.'],
+      uses: ['completeness $\\mathbf v = (\\mathbf v\\cdot\\mathbf e\'_j)\\mathbf e\'_j$', 'orthonormality of both bases', 'bilinearity', 'matrix product as an index sum (2.9)', '$\\det(AB) = \\det A\\det B$', 'continuity for the sign'],
+      set: { mode: 'vector', what: 'axes', mirror: false, axis3d: false },
+      steps: [
+        { did: 'Write the product we want to evaluate', tex: 'C_{ij}C_{kj} = (\\mathbf e_i\\cdot\\mathbf e\'_j)(\\mathbf e_k\\cdot\\mathbf e\'_j)',
+          why: 'Just the definition of C inserted twice; j is summed. We choose this product because it is (CCᵀ)_ik.',
+          plain: 'Row i of C dotted with row k of C.' },
+        { did: 'Expand $\\mathbf e_i$ in the new basis', tex: '\\mathbf e_i = (\\mathbf e_i\\cdot\\mathbf e\'_j)\\,\\mathbf e\'_j = C_{ij}\\,\\mathbf e\'_j',
+          why: 'Completeness: any vector is the sum of its projections on an orthonormal basis. We expand an old axis in new axes because that produces exactly a row of C.',
+          plain: 'An old axis is a sum of new axes weighted by its row of C.', set: { cell: { i: 0, j: 0 }, selj: 0 }, watch: 'Row 1 of C (teal band) holds the two weights of e₁.' },
+        { did: 'Dot with $\\mathbf e_k$', tex: '\\mathbf e_i\\cdot\\mathbf e_k = C_{ij}\\,(\\mathbf e\'_j\\cdot\\mathbf e_k) = C_{ij}C_{kj}',
+          why: 'Bilinearity pulls C_ij out; e\'_j·e_k = e_k·e\'_j = C_kj by the definition of C. The right side is now the product of step 1.',
+          plain: 'The same product equals a dot product of two old axes.' },
+        { did: 'Use orthonormality of the old basis', tex: 'C_{ij}C_{kj} = \\delta_{ik}\\qquad(\\mathbf C\\mathbf C^{\\rm T} = \\mathbf I)',
+          why: 'e_i·e_k = δ_ik for perpendicular unit vectors. This is the first orthogonality relation; in matrix form the summed second indices make CCᵀ.',
+          plain: 'The rows of C are perpendicular unit vectors.',
+          live: s => { const C = physics(s).C2; return '\\begin{aligned} C_{11}C_{11} + C_{12}C_{12} &= ' + T(C[0][0] * C[0][0]) + ' + ' + T(C[0][1] * C[0][1]) + ' = ' + T(C[0][0] * C[0][0] + C[0][1] * C[0][1]) + ' = \\delta_{11}\\\\ C_{11}C_{21} + C_{12}C_{22} &= ' + T(C[0][0] * C[1][0]) + ' ' + (C[0][1] * C[1][1] < 0 ? '-' : '+') + ' ' + T(Math.abs(C[0][1] * C[1][1])) + ' = ' + T(C[0][0] * C[1][0] + C[0][1] * C[1][1]) + ' = \\delta_{12}\\end{aligned}'; } },
+        { did: 'Swap the roles: expand a new axis in the old basis', tex: '\\mathbf e\'_i = (\\mathbf e\'_i\\cdot\\mathbf e_j)\\,\\mathbf e_j = C_{ji}\\,\\mathbf e_j',
+          why: 'Completeness again, now of the old basis. The second relation does not follow from the first without this second argument — a common gap.',
+          plain: 'A new axis is a sum of old axes weighted by its column of C.', set: { cell: null, selj: 0 }, watch: 'Column 1 (orange band) holds the two old components of e′₁.' },
+        { did: 'Dot with $\\mathbf e\'_k$ and use orthonormality of the new basis', tex: 'C_{ji}C_{jk} = \\delta_{ik}\\qquad(\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I)',
+          why: 'Bilinearity and e_j·e\'_k = C_jk on the right; e\'_i·e\'_k = δ_ik on the left. Now the first indices are summed.',
+          plain: 'The columns of C are perpendicular unit vectors too.', watch: 'The third line of the matrix window is exactly max|CᵀC − I|.' },
+        { did: 'Take the determinant of step 6', tex: '(\\det\\mathbf C)^2 = 1\\ \\Rightarrow\\ \\det\\mathbf C = \\pm1',
+          why: 'det(AB) = det A · det B and det Cᵀ = det C (P53), while det I = 1. We take determinants because the sign tells a rotation from a mirror.',
+          plain: 'C cannot stretch volumes; it may or may not flip them.',
+          live: s => { const C = physics(s).C2; return '\\det\\mathbf C = ' + T(C[0][0]) + '\\times' + T(C[1][1]) + ' - (' + T(C[0][1]) + ')(' + T(C[1][0]) + ') = ' + (detC(C) > 0 ? '+' : '-') + T(Math.abs(detC(C))); } },
+        { did: 'Fix the sign for a rotation', tex: '\\det\\mathbf C = +1',
+          why: 'Turning the axes gradually from θ = 0 changes det C continuously; it starts at det I = +1 and can never pass through 0 (it is ±1), so it stays +1. A mirror (−1) cannot be reached by turning.',
+          plain: 'A genuine rotation keeps the handedness of the axes.', set: { mirror: true }, watch: 'With the mirror on the status turns amber: det C = −1 while CᵀC − I stays 0 — orthogonal, but not a rotation.' }
+      ],
+      result: { tex: 'C_{ij}C_{kj} = C_{ji}C_{jk} = \\delta_{ik},\\qquad\\det\\mathbf C = +1', plain: 'Cᵀ is the inverse of C, and C is a proper rotation.', set: { mirror: false } },
+      interpret: s => { const Q = physics(s); return 'Orthogonality is why the length readout shows |x| = ' + f3(Q.norm) + ' = |x′| = ' + f3(Q.normp) + ' at θ = ' + fd(s.theta) + (s.mirror ? ' even with the mirror on (det C = −1: lengths kept, handedness lost).' : '.'); },
+      check: 'θ = 30°: row 1 · row 1 = 0.75 + 0.25 = 1, row 1 · row 2 = 0.866(0.5) + (−0.5)(0.866) = 0; det = 0.866² + 0.5² = 1 (orthogonality_residual ≈ 2e-16). Limit: C = I trivially. The selftest rows check the residual and det C.' },
+    { id: 'D06', title: 'The tensor transformation rule from Cauchy\'s formula', short: 'Eq. (2.12)', ref: 'Eq. (2.12)', view: 'plane',
+      goal: 'Show how the nine stress components must change under a rotation of axes, given only that force per area and the normal are vectors. The book states (2.12) and cites Sommerfeld\'s tetrahedron; we have the tetrahedron result (2.15) already, so we derive (2.12) from it.',
+      start: { tex: '\\begin{aligned} f_i &= \\tau_{ji}n_j\\quad\\text{(old frame)}\\\\ f\'_n &= \\tau\'_{mn}n\'_m\\quad\\text{(new frame)}\\end{aligned}', plain: 'Cauchy\'s formula holds for every observer, each with their own components of τ.' },
+      plan: ['Transform f as a vector.', 'Insert Cauchy\'s formula in the old frame.', 'Express the old n through the new n′.', 'Compare with Cauchy\'s formula in the new frame, for every n′.'],
+      uses: ['f and n are vectors, (2.8)', 'Cauchy\'s formula (2.15)', 'the inverse transformation (2.7)', 'dummy renaming (N12)', '"true for every n′ ⇒ the coefficients agree"'],
+      set: { mode: 'tensor', tpreset: 'shear', theta: 30, what: 'axes', mirror: false },
+      steps: [
+        { did: 'Transform the traction as a vector', tex: 'f\'_n = f_i\\,C_{in}',
+          why: 'f is a physical force per area, hence a vector, so its components obey (2.8) with the first index of C summed. We start from f because both frames must agree on it.',
+          plain: 'The new observer\'s traction components come from the old ones by C.' },
+        { did: 'Insert Cauchy\'s formula in the old frame', tex: 'f\'_n = \\tau_{ji}\\,n_j\\,C_{in}',
+          why: '(2.15) gives f_i in terms of the old τ and the old n; substituting expresses the new traction through old quantities.',
+          plain: 'The new traction, written with the old stresses and the old normal.', set: { cell: { i: 0, j: 0 }, selj: 0 }, watch: 'The orange element\'s 1′ face: its traction is the blue τ′₁₁ arrow plus the rose τ′₁₂ arrow.' },
+        { did: 'Write the old normal through the new one', tex: 'n_j = n\'_m\\,C_{jm}',
+          why: 'n is a unit vector, so the inverse rule (2.7) applies (second index of C summed). We need n′ because the new observer measures n′.',
+          plain: 'The old components of the normal from the new ones.' },
+        { did: 'Substitute the normal', tex: 'f\'_n = C_{jm}\\,C_{in}\\,\\tau_{ji}\\,n\'_m',
+          why: 'Step 3 into step 2; the factors are reordered (scalars commute) so that both C\'s sit in front. Everything on the right is now old τ, two C\'s and the new normal.',
+          plain: 'The new traction equals two C\'s times the old τ times the new normal.' },
+        { did: 'Write Cauchy\'s formula in the new frame', tex: 'f\'_n = \\tau\'_{mn}\\,n\'_m',
+          why: 'The new observer sees the same physics, so (2.15) holds with primed components everywhere — this defines the new observer\'s τ′.',
+          plain: 'The new observer\'s own stress tensor gives the same traction.',
+          live: s => { const Q = physics(s); return '\\begin{aligned} \\mathbf n\' &= (1, 0):\\quad f\'_1 = \\tau\'_{11}n\'_1 + \\tau\'_{21}n\'_2 = \\tau\'_{11} = ' + T(Q.taup[0][0]) + '\\ \\text{Pa}\\\\ f\'_2 &= \\tau\'_{12} = ' + T(Q.taup[0][1]) + '\\ \\text{Pa}\\end{aligned}'; } },
+        { did: 'Equate steps 4 and 5', tex: '\\big(\\tau\'_{mn} - C_{jm}C_{in}\\tau_{ji}\\big)\\,n\'_m = 0',
+          why: 'Both are the same f\'_n; subtracting and factoring the common n\'_m (a sum on m) collects the difference. The bracket does not depend on n′.',
+          plain: 'A certain matrix, applied to any unit normal, gives zero.' },
+        { did: 'Conclude the bracket vanishes', tex: '\\tau\'_{mn} = C_{jm}\\,C_{in}\\,\\tau_{ji}',
+          why: 'Step 6 holds for every unit n′; choose n′ = e′₁, e′₂, e′₃ in turn and each picks out one column of the bracket, which must be zero (compare coefficients).',
+          plain: 'The new stress components are fixed by the old ones and C.' },
+        { did: 'Rename the dummies (j → i, i → j)', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij}\\qquad(\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C)',
+          why: 'Swapping the names of two summed letters changes nothing (N12); this is the book\'s (2.12). In matrix form C_im = (Cᵀ)_mi, so Cᵀ stands on the left and C on the right.',
+          plain: 'One C per index — the vector rule applied twice.', set: { theta: 45 }, watch: 'At 45° the rose τ′₁₂ arrow is gone: the shear vanished, only ±a normal stresses remain (the curve crosses zero).' }
+      ],
+      result: { tex: '\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij},\\qquad\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C', plain: 'A second-order tensor transforms with one direction-cosine matrix per index; whatever obeys this is a tensor.' },
+      interpret: s => { const Q = physics(s); return s.tpreset === 'shear' ? 'τ′ = CᵀτC with your θ = ' + fd(s.theta) + ' gives τ′₁₁ = a sin 2θ = ' + T(Q.taup[0][0]) + ' Pa, τ′₁₂ = a cos 2θ = ' + T(Q.taup[0][1]) + ' Pa, τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa (Example 2.2).' : 'With your θ = ' + fd(s.theta) + ' and the ' + TPRESETS[s.tpreset] + ' state: τ′₁₁ = ' + T(Q.taup[0][0]) + ', τ′₁₂ = ' + T(Q.taup[0][1]) + ', τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa.'; },
+      check: 'Units: Pa on both sides. Limit C = I: τ′ = τ. Number (Example 2.2, a = 1 Pa, θ = 30°): τ′₁₁ = 2(0.866)(0.5) = 0.866, τ′₁₂ = 0.75 − 0.25 = 0.5, τ′₂₂ = −0.866 Pa (transform_tensor = C.T @ tau @ C). Trace 0 before and after.' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'main', title: 'The same rotation in Python', ref: 'Eqs. (2.5), (2.7), (2.12)',
       src: `
-from fluidpy import ch02 as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import numpy as np
+from fluidpy import ch02_cartesian_tensors as ch02
+
+th = np.deg2rad(theta)                        # θ = {{theta}}° → {{th}} rad
+C = ch02.rotation_matrix_2d(th)               # passive: columns = new axes; C = {{C}}
+x = np.array([x1, x2])                        # the fixed arrow ({{x1}}, {{x2}})
+xp = ch02.transform_vector(x, C)              # (2.5): x' = Cᵀx = ({{xp1}}, {{xp2}})
+back = ch02.inverse_transform_vector(xp, C)   # (2.7): x = Cx' = ({{b1}}, {{b2}})
+res = ch02.orthogonality_residual(C)          # max|CᵀC − I| = {{res}}
+a = {{a}}                                       # stress level [Pa]
+tau = np.array([[0.0, a], [a, 0.0]])          # Example 2.2's pure shear
+tau_p = ch02.transform_tensor(tau, C)         # (2.12): τ' = CᵀτC → τ'₁₁ = {{t11}}, τ'₁₂ = {{t12}} Pa
+ur, ut = ch02.polar_components(x1, x2, th)    # Example 2.1: (u_r, u_θ) = ({{ur}}, {{ut}})`,
+      live: s => { const th = s.theta * D2R, C = rot2d(th), xp = transformVector([s.x1, s.x2], C), b = inverseTransform(xp, C), tp = transformTensor([[0, s.a], [s.a, 0]], C), p = polar(s.x1, s.x2, th);
+        return { theta: Viz.fmt(s.theta), th: th.toFixed(4), C: '[[' + f3(C[0][0]) + ', ' + f3(C[0][1]) + '], [' + f3(C[1][0]) + ', ' + f3(C[1][1]) + ']]', x1: f3(s.x1), x2: f3(s.x2), xp1: f3(xp[0]), xp2: f3(xp[1]), b1: f3(b[0]), b2: f3(b[1]), res: residTxt(orthoResidual(C)), a: s.a.toFixed(1), t11: f3(tp[0][0]), t12: f3(tp[0][1]), ur: f3(p[0]), ut: f3(p[1]) }; } }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'One arrow, two rulers', text: 'The black arrow is a wind vector. <b class="c-teal">Teal</b> axes read it as (1, 2). Turn the rulers — the arrow does not care. What do the <b class="c-orange">orange</b> rulers read?',
+      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false, cell: null, selj: 0 }, readouts: ['xp'] },
+    { title: 'Nine cosines (four here)', text: 'Every entry of C is the cosine between an old axis and a new one. Click a cell: the two unit vectors and their angle appear.',
+      set: { cell: { i: 0, j: 1 }, selj: 1 }, inspect: true, eq: 'Cdef' },
+    { title: 'Shadows add up', text: 'x′₁ = x₁C₁₁ + x₂C₂₁ = 1×0.866 + 2×0.5 = 1.866. Watch the first column light as the sum is built.',
+      set: { cell: { i: 0, j: 0 }, selj: 0 }, eq: 'x5', derive: { id: 'D01', step: 5 } },
+    { title: 'Nothing lost', text: 'CᵀC = I, det C = +1: the arrow\'s length 2.236 is the same in both frames — the status line says so at every θ. Press ▶ to sweep the axes.',
+      set: { cell: null }, play: true, readouts: ['norm', 'resid'], derive: { id: 'D02', step: 4 } },
+    { title: 'Which one really turned?', text: 'Flip the chip: now the arrow turns and the axes stay. Same C — but applied as C, not Cᵀ. This is the passive/active confusion, settled.',
+      set: { what: 'arrow', theta: 30 }, play: false, controls: ['what'], notes: true },
+    { title: 'Twice for a tensor', text: 'Tensor mode: a stress state with pure shear a. Its new components need C twice, once per index: τ′ = CᵀτC.',
+      set: { what: 'axes', mode: 'tensor', tpreset: 'shear', theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, eq: 'tau12', derive: { id: 'D06', step: 8 } },
+    { title: 'Find the quiet axes', text: 'Drag θ until τ′₁₂ = 0 (the <b class="c-rose">rose</b> curve crosses zero). At 45° the shear is gone and the normal stresses are ±a. §2.11 calls these principal axes.',
+      set: { theta: 20 }, play: false, controls: ['theta'], readouts: ['tau'] },
+    { title: 'Your turn: polar', text: 'Polar mode is Example 2.1. Predict u_r and u_θ for the point at 60°, then drag θ there and read them off.',
+      set: { mode: 'polar', theta: 40, x1: 1, x2: 2 }, controls: ['theta', 'x1', 'x2'], readouts: ['xp'] }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'Cdef', title: 'Direction cosines', ref: '§2.2', tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j',
+      live: s => { const C = physics(s).C2; return '\\mathbf C = \\begin{pmatrix}' + T(C[0][0]) + ' & ' + T(C[0][1]) + '\\\\' + T(C[1][0]) + ' & ' + T(C[1][1]) + '\\end{pmatrix}'; },
+      note: 'row i = old axis, column j = new axis; the columns are the new unit vectors in old components', symbols: [['C_{ij}', 'cosine between old axis i and new axis j', '–'], ['\\mathbf e_i,\\ \\mathbf e\'_j', 'unit vectors of the old and new frames', '–']] },
+    { id: 'x4', title: 'First projection', ref: 'Eq. (2.4)', tex: '\\begin{aligned}\\mathbf x\\cdot\\mathbf e\'_1 &= x_1\\,\\mathbf e_1\\cdot\\mathbf e\'_1 + x_2\\,\\mathbf e_2\\cdot\\mathbf e\'_1 + x_3\\,\\mathbf e_3\\cdot\\mathbf e\'_1\\\\ &= x\'_1\\end{aligned}',
+      live: s => { const Q = physics(s), C = Q.C2, xp = transformVector([s.x1, s.x2], C); return 'x\'_1 = ' + T(s.x1) + '\\times' + T(C[0][0]) + ' + ' + T(s.x2) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]); },
+      symbols: [['x_i', 'components in the old frame', 'same as x'], ['x\'_1', 'first component in the new frame', 'same as x']] },
+    { id: 'x5', title: 'Components transform', ref: 'Eq. (2.5)', tex: 'x\'_j = x_i C_{ij}\\qquad(\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x)',
+      live: s => { const Q = physics(s); return '\\mathbf x\' = ' + pair(transformVector([s.x1, s.x2], Q.C2)).replace('−', '-').replace('−', '-'); },
+      note: 'the first index of C is summed; (2.6) is the same line with the letters i, k', symbols: [['j', 'free index: one equation per new axis', '–'], ['i', 'summed index', '–']] },
+    { id: 'x7', title: 'Inverse', ref: 'Eq. (2.7)', tex: 'x_j = x\'_i C_{ji}\\qquad(\\mathbf x = \\mathbf C\\,\\mathbf x\')',
+      live: s => { const Q = physics(s), b = inverseTransform(transformVector([s.x1, s.x2], Q.C2), Q.C2); return '\\mathbf x = ' + pair(b).replace(/−/g, '-'); },
+      note: 'now the second index of C is summed (D03)' },
+    { id: 'x8', title: 'Definition of a vector', ref: 'Eq. (2.8)', tex: 'u\'_j = u_i C_{ij}',
+      live: s => { const Q = physics(s), r = VECTOR_TESTS.map(t => t.tex + ': ' + T(vectorTestResidual(t.fn, Q.C2, TEST_POINTS), 2)); return '\\begin{aligned}&\\text{residuals}\\ ' + r[0] + ',\\ ' + r[1] + '\\\\ &' + r[2] + ',\\ ' + r[3] + '\\end{aligned}'; },
+      note: 'any triple whose components obey this rule is a vector; the Explain tab tests four candidates', symbols: [['u_i', 'components of the candidate in the old frame', '–']] },
+    { id: 'ortho', title: 'Orthogonality', ref: 'Exercise 2.8', tex: 'C_{ij}C_{kj} = \\delta_{ik},\\qquad \\det\\mathbf C = +1',
+      live: s => { const Q = physics(s); return '\\max|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I| = ' + Viz.tnum(Q.res, 2, { keepTiny: true }) + ',\\quad \\det\\mathbf C = ' + (Q.det >= 0 ? '+' : '-') + T(Math.abs(Q.det)); },
+      note: 'derived in D02; a mirror passes the first test and fails the second', symbols: [['\\delta_{ik}', 'Kronecker delta: 1 if i = k, else 0', '–']] },
+    { id: 'tau12', title: 'Tensor rule', ref: 'Eq. (2.12)', tex: '\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}\\qquad(\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C)',
+      live: s => { const Q = physics(s); return '\\tau\'_{11} = ' + T(Q.taup[0][0]) + ',\\ \\tau\'_{12} = ' + T(Q.taup[0][1]) + ',\\ \\tau\'_{22} = ' + T(Q.taup[1][1]) + '\\ \\text{Pa}'; },
+      note: 'pure shear: τ′₁₁ = a sin 2θ, τ′₁₂ = a cos 2θ, τ′₂₂ = −a sin 2θ (Example 2.2)', symbols: [['\\tau_{ij}', 'stress: force per area in direction j on the face normal to i', 'Pa'], ['m, n', 'free indices of the new components', '–']] }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Set θ = 90°. What are $x\'_1, x\'_2$ for $\\mathbf x = (1, 2)$?', a: '(2, −1): the new 1′ axis is the old 2 axis, and the new 2′ axis is minus the old 1 axis; C = [[0, −1], [1, 0]].', set: { mode: 'vector', what: 'axes', theta: 90, x1: 1, x2: 2 } },
+    { q: 'In tensor mode with pure shear, at which θ is $\\tau\'_{11}$ largest, and how large?', a: '45°: τ′₁₁ = a sin 90° = a; the shear τ′₁₂ = a cos 90° = 0 there — a principal axis.', set: { mode: 'tensor', tpreset: 'shear', theta: 45, what: 'axes' } },
+    { q: 'Turn the mirror on. What is det C, and is $|\\mathbf x\'|$ still $|\\mathbf x|$?', a: 'det C = −1; lengths are still preserved (CᵀC = I holds) but the frame is left-handed; the book\'s "rotation" excludes this.', set: { mode: 'vector', mirror: true, theta: 30 } },
+    { q: 'Flip "what rotates" to the arrow with θ = 30°. Is $\\mathbf x\'$ the same as before?', a: 'No: (−0.134, 2.232) instead of (1.866, 1.232) — the active rotation by +θ equals the passive one by −θ.', set: { mode: 'vector', what: 'arrow', theta: 30, x1: 1, x2: 2, mirror: false } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const C = rot2d(RAD30), xp = transformVector([1, 2], C), C3 = rot3d([1, 1, 1], 0.7);
+    return [
+      { name: 'C(30°)[0][1] = −sin 30°', js: C[0][1], py: 'ch02.rotation_matrix_2d(0.5235987755982988)[0][1]', rtol: 1e-12 },
+      { name: "x'₁ (2.5)", js: xp[0], py: 'ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988))[0]', rtol: 1e-12 },
+      { name: "x'₂ (2.5)", js: xp[1], py: 'ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988))[1]', rtol: 1e-12 },
+      { name: 'round trip (2.7)', js: inverseTransform(xp, C)[1], py: 'ch02.inverse_transform_vector(ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988)), ch02.rotation_matrix_2d(0.5235987755982988))[1]', rtol: 1e-12 },
+      { name: "τ'₁₁ pure shear (2.12)", js: transformTensor([[0, 1], [1, 0]], C)[0][0], py: 'ch02.transform_tensor([[0.0, 1.0], [1.0, 0.0]], ch02.rotation_matrix_2d(0.5235987755982988))[0][0]', rtol: 1e-12 },
+      { name: "τ'₁₂ pure shear (2.12)", js: transformTensor([[0, 1], [1, 0]], C)[0][1], py: 'ch02.transform_tensor([[0.0, 1.0], [1.0, 0.0]], ch02.rotation_matrix_2d(0.5235987755982988))[0][1]', rtol: 1e-12 },
+      { name: 'u_r polar (Ex. 2.1)', js: polar(1, 2, RAD30)[0], py: 'ch02.polar_components(1.0, 2.0, 0.5235987755982988)[0]', rtol: 1e-12 },
+      { name: 'u_θ polar (Ex. 2.1)', js: polar(1, 2, RAD30)[1], py: 'ch02.polar_components(1.0, 2.0, 0.5235987755982988)[1]', rtol: 1e-12 },
+      { name: 'orthogonality residual (0.7 rad)', js: orthoResidual(rot2d(0.7)), py: 'ch02.orthogonality_residual(ch02.rotation_matrix_2d(0.7))', rtol: 0, atol: 1e-12 },
+      { name: 'Ex. 2.2 τ_rot[0][0] = a sin 2θ', js: shearRotated(1, RAD30)[0], py: 'ch02.example_2_2(1.0, 0.5235987755982988)["tau_rot"][0][0]', rtol: 1e-12 },
+      { name: 'Ex. 2.2 τ_rot[0][1] = a cos 2θ', js: shearRotated(1, RAD30)[1], py: 'ch02.example_2_2(1.0, 0.5235987755982988)["tau_rot"][0][1]', rtol: 1e-12 },
+      { name: 'Rodrigues C3[0][1] (axis (1,1,1), 0.7 rad)', js: C3[0][1], py: 'ch02.rotation_matrix_3d([1.0, 1.0, 1.0], 0.7)[0][1]', rtol: 1e-12 },
+      { name: 'Rodrigues C3[2][0]', js: C3[2][0], py: 'ch02.rotation_matrix_3d([1.0, 1.0, 1.0], 0.7)[2][0]', rtol: 1e-12 },
+      { name: 'vector test: x itself (2.8)', js: vectorTestResidual(VECTOR_TESTS[0].fn, C, TEST_POINTS), py: 'ch02.transforms_as_vector(lambda x: x, ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0], [-0.5, 1.5], [2.0, -1.0]])', rtol: 0, atol: 1e-12 },
+      { name: 'vector test: squares fail (2.8)', js: vectorTestResidual(VECTOR_TESTS[2].fn, C, TEST_POINTS), py: 'ch02.transforms_as_vector(lambda x: x**2, ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0], [-0.5, 1.5], [2.0, -1.0]])', rtol: 1e-10 },
+      { name: 'tensor test: fixed array fails (2.12)', js: tensorTestResidual(() => [[0, 1], [1, 0]], C, [[1, 2]]), py: 'ch02.transforms_as_tensor(lambda x: [[0.0, 1.0], [1.0, 0.0]],ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0]])', rtol: 1e-10 },
+      { name: '|x| kept', js: Math.hypot(...xp) - Math.hypot(1, 2), expect: 0, atol: 1e-12 },
+      { name: 'det C = +1', js: detC(rot2d(1.2)), expect: 1, rtol: 1e-12 },
+      { name: 'mirror: det = −1, still orthogonal', js: detC(mirrored(C)) + orthoResidual(mirrored(C)), expect: -1, atol: 1e-12 },
+      { name: 'active(θ) = passive(−θ)', js: activeRotate([1, 2], RAD30)[0] - transformVector([1, 2], rot2d(-RAD30))[0], expect: 0, atol: 1e-12 }
+    ];
+  }
 });
 </script>
 </body>
