@@ -692,9 +692,9 @@ LaTeX is transcribed from the page images.
    ```
    A_ij  →  set j = i and sum  →  A_ii = A_11 + A_22 + A_33        (a chain of indices closing on itself)
    under a rotation each index brings one C; a closed pair  C_im C_jm  is  δ_ij  (D02)  →  the C's vanish
-   A_ij A_ji  = a closed chain of two  →  invariant;    A_ij A_ij  is not a chain (i with i, j with j) →  not invariant*
+   A_ij A_ji  = a closed chain of two  →  invariant, and it is the one that enters I₂;    A_ij A_ij = tr(A Aᵀ) is also invariant* — but it is NOT the λ-coefficient of the characteristic polynomial
    ```
-   "(*for a non-symmetric A; the two coincide when A is symmetric.)"
+   "(*both scalars survive a rotation — CᵀAC leaves tr(A Aᵀ) unchanged too. The distinction is that I₂ = ½(I₁² − A_ij A_ji) needs the closed chain A_ij A_ji; the two coincide when A is symmetric.)"
 5. `nb.primer("Vieta's formulas", "For a cubic with roots $\lambda^1, \lambda^2, \lambda^3$: $(\lambda - \lambda^1)
    (\lambda - \lambda^2)(\lambda - \lambda^3) = \lambda^3 - (\sum\lambda^k)\lambda^2 + (\sum_{k<l}\lambda^k\lambda^l)
    \lambda - \lambda^1\lambda^2\lambda^3$ — the coefficients are the sum, the pair-sums and the product of the roots.",
@@ -3184,7 +3184,7 @@ flux in blue / out orange, circulation purple. (No line in this part starts with
   lam1, lam2 = [sp.simplify(s) for s in sp.solve(poly, lam)]    # the two eigenvalues
   b1 = sp.Matrix([q, lam1 - p]); b2 = sp.Matrix([q, lam2 - p])  # eigenvectors from the first row of (τ − λI)b = 0
   assert sp.simplify(b1.dot(b2)) == 0                           # step 8: orthogonal (uses p r − q² = λ1 λ2, Vieta)
-  C = sp.Matrix.hstack(b1/b1.norm(), b2/b2.norm())              # step 9: columns = unit eigenvectors
+  C = sp.Matrix.hstack(b1/sp.sqrt(b1.dot(b1)), b2/sp.sqrt(b2.dot(b2)))  # step 9: unit eigenvectors (sqrt(b·b), not .norm(): .norm() adds Abs() and blocks simplify)
   D = sp.simplify(C.T*tau*C)                                    # step 11: τ' = CᵀτC
   assert sp.simplify(D[0, 1]) == 0 and sp.simplify(D[1, 0]) == 0   # off-diagonals vanish
   assert sp.simplify(D[0, 0] - lam1) == 0 and sp.simplify(D[1, 1] - lam2) == 0   # diagonal = eigenvalues
@@ -3258,8 +3258,8 @@ flux in blue / out orange, circulation purple. (No line in this part starts with
   [[2, 1, 0],[1, 3, 1],[0, 1, 4]]: I₁ = 9, $A_{ij}A_{ji} = 29 + 4 = 33$, I₂ = ½(81 − 33) = 24, I₃ = 18; roots 1.268,
   3.000, 4.732 sum to 9.000 and multiply to 18.00 ✓ (`invariants`, `characteristic_polynomial`, `principal_axes`).
 - **What it means.** The pressure $-\tau_{ii}/3$ (Ch. 4), the volume strain rate $S_{ii} = \nabla\cdot\mathbf u$ (Ch. 3),
-  and the turbulence invariants of Ch. 12 are physical because they are contractions. $A_{ij}A_{ij}$ (not a closed
-  chain) is invariant only for symmetric A — for a non-symmetric A it changes with the frame.
+  and the turbulence invariants of Ch. 12 are physical because they are contractions. $A_{ij}A_{ij} = \mathrm{tr}(A A^T)$ is
+  also frame-independent, but it is not the coefficient of λ in the cubic — I₂ needs the closed chain $A_{ij}A_{ji}$ (equal to it only for symmetric A).
 - **Traps.** Reusing a dummy letter in step 3. Using $A_{ij}A_{ij}$ for I₂. The sign pattern of the cubic. Reading λ^k
   as a power.
 
