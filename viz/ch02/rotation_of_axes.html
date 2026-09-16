@@ -2252,9 +2252,9 @@ const HIT = { plane: null, matrix: null };
 let DRAG = null;
 
 function planeRange(s, ph) {
-  if (s.mode === 'tensor') return 2.35;
+  if (s.mode === 'tensor') return 2.5;
   if (s.mode === 'polar') return 1.2 + Math.hypot(s.x1, s.x2) + 0.3;
-  return 3.6;
+  return Math.max(Math.abs(s.x1), Math.abs(s.x2)) <= 2.5 ? 3.0 : 3.6;
 }
 /** Label at an arrow tip, pushed a little further along the arrow so it never sits on the component labels. */
 function tipLabel(P, from, to, str, color) {
@@ -2266,17 +2266,21 @@ function axisLine(P, ux, uy, R, color, label, prime, alpha) {
   P.arrow(ux * R * 0.8, uy * R * 0.8, ux * R * 0.15, uy * R * 0.15, { color: color, width: 1.6, head: 8 });
   P.text(ux * R * 0.97, uy * R * 0.97, label + (prime ? '′' : ''), { color: color, weight: 700, size: 13, align: 'center', dx: -uy * 9, dy: -ux * 9 });
 }
-function shadow(P, tip, foot, color, label, dashed) {
-  P.line([tip[0], foot[0]], [tip[1], foot[1]], { color: Viz.alpha(color, 0.9), width: 1.3, dash: dashed === false ? [] : [5, 4] });
+/** A component shadow: dashed line from the tip to its foot on an axis, a dot, and the label pushed 12 px off the axis
+    in the world direction `off` (teal labels sit below / left of the old axes, orange labels above / right of the new). */
+function shadow(P, tip, foot, color, label, off) {
+  P.line([tip[0], foot[0]], [tip[1], foot[1]], { color: Viz.alpha(color, 0.9), width: 1.3, dash: [5, 4] });
   P.dot(foot[0], foot[1], 3.5, { color: color });
-  if (label) Viz.text(P.ctx, label, P.X(foot[0]), P.Y(foot[1]), { size: 12, weight: 650, color: color, bg: true, align: 'center', baseline: 'bottom' });
+  if (label) { const o = off || [0, 1], L = Math.hypot(o[0], o[1]) || 1;
+    Viz.text(P.ctx, label, P.X(foot[0]) + o[0] / L * 12, P.Y(foot[1]) - o[1] / L * 12, { size: 12, weight: 650, color: color, bg: true, align: 'center', baseline: 'middle' }); }
 }
-function drawArc(P, a0, a1, r, color, label) {
-  const ctx = P.ctx, cx = P.X(0), cy = P.Y(0), rp = P.sx(r);
+/** Angle arc from a0 to a1 at radius r; the label sits at radius lr (default: just outside the arc), at the mid-angle. */
+function drawArc(P, a0, a1, r, color, label, lr, opposite) {
+  const ctx = P.ctx, cx = P.X(0), cy = P.Y(0), rp = P.sx(r), lp = lr ? P.sx(lr) : rp + 14;
   ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
   ctx.arc(cx, cy, rp, -a0, -a1, a1 > a0); ctx.stroke(); ctx.restore();
-  const am = (a0 + a1) / 2;
-  if (label) Viz.text(ctx, label, cx + Math.cos(am) * (rp + 14), cy - Math.sin(am) * (rp + 14), { size: 12, weight: 650, color: color, bg: true, align: 'center' });
+  const am = (a0 + a1) / 2 + (opposite ? Math.PI : 0);   // opposite: label across the origin, away from the arrow and its shadows
+  if (label) Viz.text(ctx, label, cx + Math.cos(am) * lp, cy - Math.sin(am) * lp, { size: 12, weight: 650, color: color, bg: true, align: 'center' });
 }
 function drawPlane(v, s, Q) {
   v.clear(); const c = COL(), R = planeRange(s), small = v.w < 420;
@@ -2287,31 +2291,33 @@ function drawPlane(v, s, Q) {
   // new frame (orange) — only when the axes are what turns
   const e1p = [ct, st], e2p = s.mirror ? [st, -ct] : [-st, ct];
   if (passive && s.mode !== 'polar') { axisLine(P, e1p[0], e1p[1], R, c.neu, '1', true); axisLine(P, e2p[0], e2p[1], R, c.neu, '2', true); }
-  if (passive && s.mode !== 'polar' && Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, s.mode === 'tensor' ? 1.75 : R * 0.32, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
-  // a selected matrix cell: the two unit vectors and the angle between them
+  // the turning angle: an arc near the axis tips (beyond every shadow), label beyond the 1′ arrowhead
+  if (passive && s.mode !== 'polar' && Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, s.mode === 'tensor' ? 1.9 : R * 0.8, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta), s.mode === 'tensor' ? 2.2 : R * 0.9);
+  // a selected matrix cell: the two unit vectors and the angle between them (label well outside the shadow feet)
   if (s.cell && passive && !Q.three && s.mode !== 'polar') {
     const i = s.cell.i, j = s.cell.j, ei = i === 0 ? [1, 0] : [0, 1], ej = j === 0 ? e1p : e2p, uL = s.mode === 'tensor' ? 1.7 : 1.0;
     P.arrow(0, 0, ei[0] * uL, ei[1] * uL, { color: c.old, width: 4, head: 10 });
     P.arrow(0, 0, ej[0] * uL, ej[1] * uL, { color: c.neu, width: 4, head: 10 });
     const a0 = Math.atan2(ei[1], ei[0]), a1 = Math.atan2(ej[1], ej[0]);
-    drawArc(P, a0, a1, s.mode === 'tensor' ? 1.5 : 0.7, c.acc, 'cos ' + fd(Math.round(((a1 - a0) / D2R + 540) % 360 - 180)) + ' = ' + f3(Q.C[i][j]));
+    // the label goes across the origin (the arrow, its shadows and the element labels all live on the arc's side)
+    drawArc(P, a0, a1, s.mode === 'tensor' ? 1.5 : 0.6, c.acc, 'cos ' + fd(Math.round(((a1 - a0) / D2R + 540) % 360 - 180)) + ' = ' + f3(Q.C[i][j]), s.mode === 'tensor' ? 1.95 : 1.1, true);
   }
   if (s.mode === 'vector') {
     const x = [s.x1, s.x2], xa = Q.xa;
     if (passive) {
       const xp = Q.xp;
-      shadow(P, x, [x[0], 0], c.old, small ? 'x₁' : 'x₁ = ' + f3(x[0]));
-      shadow(P, x, [0, x[1]], c.old, small ? 'x₂' : 'x₂ = ' + f3(x[1]));
-      shadow(P, x, [xp[0] * e1p[0], xp[0] * e1p[1]], c.neu, (small ? 'x′₁' : 'x′₁ = ' + f3(xp[0])) + (Q.three ? ' (proj.)' : ''));
-      shadow(P, x, [xp[1] * e2p[0], xp[1] * e2p[1]], c.neu, (small ? 'x′₂' : 'x′₂ = ' + f3(xp[1])) + (Q.three ? ' (proj.)' : ''));
+      shadow(P, x, [x[0], 0], c.old, small ? 'x₁' : 'x₁ = ' + f3(x[0]), [0, -1]);
+      shadow(P, x, [0, x[1]], c.old, small ? 'x₂' : 'x₂ = ' + f3(x[1]), [-1, 0]);
+      shadow(P, x, [xp[0] * e1p[0], xp[0] * e1p[1]], c.neu, (small ? 'x′₁' : 'x′₁ = ' + f3(xp[0])) + (Q.three ? ' (proj.)' : ''), e2p);
+      shadow(P, x, [xp[1] * e2p[0], xp[1] * e2p[1]], c.neu, (small ? 'x′₂' : 'x′₂ = ' + f3(xp[1])) + (Q.three ? ' (proj.)' : ''), [-e1p[0], -e1p[1]]);
       P.arrow(0, 0, x[0], x[1], { color: c.text, width: 3, head: 11 });
       tipLabel(P, [0, 0], x, 'x', c.text);
       if (Q.three) Viz.text(P.ctx, 'axis (1,1,1)/√3 · 3-D C', P.X(0), P.Y(-R * 0.9), { size: 12, weight: 600, color: c.neu, bg: true, align: 'center' });
     } else {
       P.arrow(0, 0, x[0], x[1], { color: Viz.alpha(c.ghost, 0.55), width: 2.5, head: 10, dash: [6, 4] });
       { const L = Math.hypot(x[0], x[1]) || 1; Viz.text(P.ctx, 'x before', P.X(x[0] * (1 + 0.35 / L)), P.Y(x[1] * (1 + 0.35 / L)), { size: 12, weight: 600, color: c.ghost, bg: true, align: 'center' }); }
-      shadow(P, xa, [xa[0], 0], c.neu, small ? 'x′₁' : 'x′₁ = ' + f3(xa[0]));
-      shadow(P, xa, [0, xa[1]], c.neu, small ? 'x′₂' : 'x′₂ = ' + f3(xa[1]));
+      shadow(P, xa, [xa[0], 0], c.neu, small ? 'x′₁' : 'x′₁ = ' + f3(xa[0]), [0, -1]);
+      shadow(P, xa, [0, xa[1]], c.neu, small ? 'x′₂' : 'x′₂ = ' + f3(xa[1]), [-1, 0]);
       P.arrow(0, 0, xa[0], xa[1], { color: c.text, width: 3, head: 11 });
       tipLabel(P, [0, 0], xa, 'Cx', c.text);
       if (Math.abs(s.theta) > 2 && !small) drawArc(P, Math.atan2(x[1], x[0]), Math.atan2(xa[1], xa[0]), Q.norm * 0.45, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
@@ -2328,13 +2334,15 @@ function drawPlane(v, s, Q) {
     if (Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, 0.55, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
     P.arrow(pt[0], pt[1], er[0] * 0.9, er[1] * 0.9, { color: c.neu, width: 2, head: 8 });
     P.arrow(pt[0], pt[1], et[0] * 0.9, et[1] * 0.9, { color: c.neu, width: 2, head: 8 });
-    Viz.text(P.ctx, 'e_r', P.X(pt[0] + er[0] * 1.05), P.Y(pt[1] + er[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
-    Viz.text(P.ctx, 'e_θ', P.X(pt[0] + et[0] * 1.05), P.Y(pt[1] + et[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+    if (!small) {   // on small views the orange pair is named in the title; the component labels keep the room
+      Viz.text(P.ctx, 'e_r', P.X(pt[0] + er[0] * 1.05), P.Y(pt[1] + er[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+      Viz.text(P.ctx, 'e_θ', P.X(pt[0] + et[0] * 1.05), P.Y(pt[1] + et[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+    }
     const tip = [pt[0] + u[0], pt[1] + u[1]];
-    shadow(P, tip, [pt[0] + u[0], pt[1]], c.old, small ? 'u₁' : 'u₁ = ' + f3(u[0]));
-    shadow(P, tip, [pt[0], pt[1] + u[1]], c.old, small ? 'u₂' : 'u₂ = ' + f3(u[1]));
-    shadow(P, tip, [pt[0] + ur * er[0], pt[1] + ur * er[1]], c.neu, small ? 'u_r' : 'u_r = ' + f3(ur));
-    shadow(P, tip, [pt[0] + ut * et[0], pt[1] + ut * et[1]], c.neu, small ? 'u_θ' : 'u_θ = ' + f3(ut));
+    shadow(P, tip, [pt[0] + u[0], pt[1]], c.old, small ? 'u₁' : 'u₁ = ' + f3(u[0]), [0, -1]);
+    shadow(P, tip, [pt[0], pt[1] + u[1]], c.old, small ? 'u₂' : 'u₂ = ' + f3(u[1]), [-1, 0]);
+    shadow(P, tip, [pt[0] + ur * er[0], pt[1] + ur * er[1]], c.neu, small ? 'u_r' : 'u_r = ' + f3(ur), et);
+    shadow(P, tip, [pt[0] + ut * et[0], pt[1] + ut * et[1]], c.neu, small ? 'u_θ' : 'u_θ = ' + f3(ut), [-er[0], -er[1]]);
     P.arrow(pt[0], pt[1], u[0], u[1], { color: c.text, width: 3, head: 11 });
     P.dot(pt[0], pt[1], 5, { color: c.neu, stroke: '#fff', strokeWidth: 2 });
     tipLabel(P, pt, tip, 'u', c.text);
@@ -2350,7 +2358,7 @@ function drawElement(P, s, Q, c, small) {
     P.ctx.save(); P.ctx.beginPath(); pts.forEach((p, i) => { if (i === 0) P.ctx.moveTo(P.X(p[0]), P.Y(p[1])); else P.ctx.lineTo(P.X(p[0]), P.Y(p[1])); }); P.ctx.closePath();
     if (fill) { P.ctx.fillStyle = Viz.alpha(color, 0.08); P.ctx.fill(); } P.ctx.strokeStyle = color; P.ctx.lineWidth = 2; P.ctx.stroke(); P.ctx.restore();
   }
-  function faceArrows(ang, tau, color, primed, labelSign) {
+  function faceArrows(ang, tau, color, primed, normalSign, shearSign, inside) {
     const e1 = [Math.cos(ang), Math.sin(ang)], e2 = [-e1[1], e1[0]], p = primed ? '′' : '';
     // +1 face: normal τ11 along e1, shear τ12 along e2 ; +2 face: normal τ22 along e2, shear τ21 along e1; − faces mirrored
     const faces = [{ n: e1, t: e2, tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: 1 },
@@ -2358,24 +2366,33 @@ function drawElement(P, s, Q, c, small) {
       { n: [-e1[0], -e1[1]], t: [-e2[0], -e2[1]], tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: -1 },
       { n: [-e2[0], -e2[1]], t: [-e1[0], -e1[1]], tn: tau[1][1], ts: tau[1][0], ln: 'τ' + p + '₂₂', ls: 'τ' + p + '₂₁', sign: -1 }];
     faces.forEach(f => {
-      const cx = f.n[0] * h, cy = f.n[1] * h, al = primed || f.sign > 0 ? 1 : 0.7, lab = f.sign === labelSign;
+      const cx = f.n[0] * h, cy = f.n[1] * h, al = primed || f.sign > 0 ? 1 : 0.7, labN = f.sign === normalSign, labS = f.sign === shearSign;
+      // label positions: outside = beyond the arrow tips; inside = just within the face (old frame), radially apart from the new frame's labels
       if (Math.abs(f.tn) > 1e-9) { P.arrow(cx, cy, f.n[0] * f.tn * k, f.n[1] * f.tn * k, { color: Viz.alpha(c.normal, al), width: primed ? 2.6 : 2, head: 8 });
-        if (lab) Viz.text(P.ctx, f.ln + (small ? '' : ' = ' + f3(f.tn)), P.X(cx + f.n[0] * (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn)), P.Y(cy + f.n[1] * (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn)), { size: 12, weight: 650, color: c.normal, bg: true, align: 'center' }); }
+        const dn = inside ? -0.3 : (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn), sh = inside ? -0.42 : 0;
+        if (labN) Viz.text(P.ctx, f.ln + (small ? '' : ' = ' + f3(f.tn)), P.X(cx + f.n[0] * dn + f.t[0] * sh), P.Y(cy + f.n[1] * dn + f.t[1] * sh), { size: 12, weight: 650, color: c.normal, bg: true, align: 'center' }); }
       if (Math.abs(f.ts) > 1e-9) { P.arrow(cx - f.t[0] * f.ts * k / 2, cy - f.t[1] * f.ts * k / 2, f.t[0] * f.ts * k, f.t[1] * f.ts * k, { color: Viz.alpha(c.shear, al), width: primed ? 2.6 : 2, head: 8 });
-        if (lab) Viz.text(P.ctx, f.ls + (small ? '' : ' = ' + f3(f.ts)), P.X(cx + f.t[0] * (f.ts * k / 2 + 0.18) + f.n[0] * 0.16), P.Y(cy + f.t[1] * (f.ts * k / 2 + 0.18) + f.n[1] * 0.16), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' }); }
+        const dn = inside ? -0.3 : 0.4, st = inside ? 0.42 : f.ts * k / 2 + 0.22;
+        if (labS) Viz.text(P.ctx, f.ls + (small ? '' : ' = ' + f3(f.ts)), P.X(cx + f.t[0] * st + f.n[0] * dn), P.Y(cy + f.t[1] * st + f.n[1] * dn), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' }); }
     });
   }
-  square(0, c.old, false); faceArrows(0, Q.tau, c, false, -1);          // old frame: labels on the − faces
-  square(Q.th, c.neu, true); faceArrows(Q.th, Q.shown, c, true, 1);     // new frame: labels on the + faces
+  // old-frame labels sit inside the element on its − faces; new-frame labels outside (normal on +, shear on − faces):
+  // radially and by face they never meet, whatever θ
+  square(0, c.old, false); faceArrows(0, Q.tau, c, false, -1, -1, true);
+  square(Q.th, c.neu, true); faceArrows(Q.th, Q.shown, c, true, 1, -1, false);
   if (s.tpreset === 'fixed') Viz.text(P.ctx, 'declared "the same in every frame"', P.X(0), P.Y(-planeRange(s) * 0.9), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' });
 }
 /* ---- the direction-cosine matrix as cells + the live assembly line ---- */
 function drawMatrix(v, s, Q) {
   v.clear(); const c = COL(), ctx = v.ctx, W = v.w, H = v.h, C = (s.mode === 'vector' ? Q.C : Q.C2), n = C.length;
-  const lines = 3, lh = Math.min(18, Math.max(15, H * 0.085)), textH = lines * lh + 8;
-  const hh = 22, showLabel = W >= 300;
-  const cw = Math.max(40, Math.min(64, (W - hh - 16 - (showLabel ? 34 : 0)) / n, (H - textH - hh - 18) / n));
-  const x0 = (W - (n * cw + hh + (showLabel ? 34 : 0))) / 2 + hh + (showLabel ? 34 : 0), y0 = 6 + hh;
+  const lh = Math.min(18, Math.max(15, H * 0.085)), showLabel = W >= 300;
+  // height budget: header + n cells + at least one assembly line; on short views (phone Explore) the header shrinks
+  // and the cells print two decimals so that 40 px cells are not forced past the canvas bottom
+  const tight = (H - (lh + 8) - 22 - 18) / n < 40, hh = tight ? 18 : 22, cellMin = tight ? 30 : 40, dec = tight && (H - (lh + 8) - hh - 14) / n < 40 ? 2 : 3;
+  const textH = tight ? lh + 6 : 3 * lh + 8;
+  const cw = Math.max(cellMin, Math.min(64, (W - hh - 16 - (showLabel ? 34 : 0)) / n, (H - textH - hh - (tight ? 12 : 18)) / n));
+  const fcell = v => (dec === 2 ? (Math.abs(v) < 5e-3 ? '0.00' : v.toFixed(2)).replace('-', '−') : f3(v));
+  const x0 = (W - (n * cw + hh + (showLabel ? 34 : 0))) / 2 + hh + (showLabel ? 34 : 0), y0 = (tight ? 2 : 6) + hh;
   const selj = s.selj === undefined ? 0 : s.selj, cell = s.cell;
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   // column highlight (orange = the new axis j being built), row highlight (teal) for a picked cell
@@ -2395,7 +2412,7 @@ function drawMatrix(v, s, Q) {
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     const x = x0 + j * cw, y = y0 + i * cw, on = cell && cell.i === i && cell.j === j;
     if (on) { ctx.strokeStyle = c.acc; ctx.lineWidth = 2.5; Viz.roundRect(ctx, x + 2, y + 2, cw - 4, cw - 4, 6); ctx.stroke(); }
-    ctx.fillStyle = on ? c.acc : c.text; ctx.fillText(f3(C[i][j]), x + cw / 2, y + cw / 2);
+    ctx.fillStyle = on ? c.acc : c.text; ctx.fillText(fcell(C[i][j]), x + cw / 2, y + cw / 2);
     cells.push({ i, j, x, y, s: cw });
   }
   if (showLabel) { ctx.font = Viz.font(13, 700); ctx.fillStyle = c.text; ctx.textAlign = 'right'; ctx.fillText('C = ', x0 - hh - 2, y0 + n * cw / 2); }
@@ -2422,16 +2439,20 @@ function drawMatrix(v, s, Q) {
     }
   }
   const L3 = ['max|CᵀC − I| = ' + residTxt(Q.res) + '  ·  det C = ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det)), 'CᵀC − I: ' + residTxt(Q.res) + ' · det ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det))];
-  const ty = y0 + n * cw + 10, fs = W < 300 ? 12 : 12.5;
+  const ty = y0 + n * cw + (tight ? 6 : 10), fs = W < 300 ? 12 : 12.5;
+  const roomLines = Math.floor((H - ty - 2) / lh);    // lines that fit: drop the orthogonality line first (it is in the status badge), then the formula
+  const order = roomLines >= 3 ? [0, 1, 2] : roomLines === 2 ? [0, 1] : roomLines === 1 ? [1] : [];
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  [[L1, c.text, 650], [L2, c.neu, 700], [L3, s.mirror ? c.amber : (s.tpreset === 'fixed' && s.mode === 'tensor' ? c.shear : c.old), 650]].forEach((r, q) => {
-    ctx.font = Viz.font(fs, r[2], q === 1);
+  const LINES = [[L1, c.text, 650], [L2, c.neu, 700], [L3, s.mirror ? c.amber : (s.tpreset === 'fixed' && s.mode === 'tensor' ? c.shear : c.old), 650]];
+  order.forEach((idx, q) => {                      // idx = which line (0 formula, 1 numbers, 2 orthogonality); q = its row
+    const r = LINES[idx], mono = idx === 1;
+    ctx.font = Viz.font(fs, r[2], mono);
     let alts = Array.isArray(r[0]) ? r[0].slice() : [r[0]];
-    if (q === 0) alts.push(alts[0].split('  ')[0]);                                    // drop the trailing hint on narrow views
-    if (q === 1) { const pre = alts[0].replace(/(−?\d\.\d{3})×(−?\d\.\d{3})/g, (m, a, b) => f3(parseFloat(a.replace('−', '-')) * parseFloat(b.replace('−', '-'))));  // pre-multiply the products
+    if (idx === 0) alts.push(alts[0].split('  ')[0]);                                  // drop the trailing hint on narrow views
+    if (idx === 1) { const pre = alts[0].replace(/(−?\d\.\d{3})×(−?\d\.\d{3})/g, (m, a, b) => f3(parseFloat(a.replace('−', '-')) * parseFloat(b.replace('−', '-'))));  // pre-multiply the products
       alts.push(pre, pre.replace(/ ([+−=]) /g, '$1').replace(/ Pa$/, '')); }
     let t = alts.find(a => ctx.measureText(a).width <= W - 12) || alts[alts.length - 1];
-    if (ctx.measureText(t).width > W - 12) { ctx.font = Viz.font(12, r[2], q === 1); }
+    if (ctx.measureText(t).width > W - 12) { ctx.font = Viz.font(12, r[2], mono); }
     ctx.fillStyle = r[1]; ctx.fillText(t, Math.max(6, (W - Math.min(W - 12, ctx.measureText(t).width)) / 2), ty + q * lh);
   });
   ctx.restore();
@@ -2490,7 +2511,7 @@ function onPointer(g, ev, s) {
     if (ev.type !== 'pointerdown' || !HIT.matrix) return false;
     const px = ev.vizView.pointer.x, py = ev.vizView.pointer.y;
     const hit = HIT.matrix.cells.find(cc => px >= cc.x && px <= cc.x + cc.s && py >= cc.y && py <= cc.y + cc.s);
-    if (hit) { A.set({ cell: { i: hit.i, j: hit.j }, selj: hit.j }); return true; }
+    if (hit) { A.play(false); A.set({ cell: { i: hit.i, j: hit.j }, selj: hit.j }); return true; }   // pause: the inspector traces this θ
     return false;
   }
   if (ev.viewId !== 'plane' || !HIT.plane) return false;
@@ -2538,6 +2559,7 @@ const app = Viz.app({
   },
   modes: { param: 'mode', label: 'Object', options: [['vector', 'vector'], ['tensor', 'tensor'], ['polar', 'polar']] },
   transport: { param: 'theta', min: -180, max: 180, rate: 30, end: 'loop', label: 'axes angle $\\theta$', unit: '°' },
+  autoplay: false,   // the trace steps quote numbers at a fixed θ; only step 4 presses ▶
   presets: [
     { label: 'θ = 0', set: { theta: 0 }, title: 'same axes: C = I' },
     { label: '45°', set: { theta: 45 }, title: 'half-way; the principal axes of pure shear' },
@@ -2700,7 +2722,7 @@ const app = Viz.app({
           why: 'Kronecker substitution (2.17): x\'_j δ_jk = x\'_k, because the sum over j has one nonzero term. We now have one new component alone on one side.',
           plain: 'The new component k is a weighted sum of the old ones.' },
         { did: 'Name the weights as direction cosines', tex: 'x\'_k = x_i\\,C_{ik},\\qquad C_{ik} \\equiv \\mathbf e_i\\cdot\\mathbf e\'_k',
-          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); giving them a name turns the projection into a matrix. For k = 1 this line is (2.4).',
+          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); naming them turns the projection into a matrix. For k = 1 this line is (2.4).',
           plain: 'The weights are the nine cosines between old and new axes.',
           live: s => { const Q = physics(s), C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C); return '\\begin{aligned} C_{11} &= ' + T(C[0][0]) + ',\\quad C_{21} = ' + T(C[1][0]) + '\\\\ x\'_1 &= ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]) + '\\end{aligned}'; },
           set: { selj: 0, cell: { i: 0, j: 0 } } },
@@ -2743,8 +2765,8 @@ const app = Viz.app({
           plain: 'C cannot stretch volumes; it may or may not flip them.',
           live: s => { const C = physics(s).C2; return '\\det\\mathbf C = ' + T(C[0][0]) + '\\times' + T(C[1][1]) + ' - (' + T(C[0][1]) + ')(' + T(C[1][0]) + ') = ' + (detC(C) > 0 ? '+' : '-') + T(Math.abs(detC(C))); } },
         { did: 'Fix the sign for a rotation', tex: '\\det\\mathbf C = +1',
-          why: 'Turning the axes gradually from θ = 0 changes det C continuously; it starts at det I = +1 and can never pass through 0 (it is ±1), so it stays +1. A mirror (−1) cannot be reached by turning.',
-          plain: 'A genuine rotation keeps the handedness of the axes.', set: { mirror: true }, watch: 'With the mirror on the status turns amber: det C = −1 while CᵀC − I stays 0 — orthogonal, but not a rotation.' }
+          why: 'Turning the axes gradually from θ = 0 changes det C continuously; it starts at det I = +1 and cannot pass through 0 (it is ±1), so it stays +1.',
+          plain: 'A genuine rotation keeps the handedness of the axes; a mirror (−1) cannot be reached by turning.', set: { mirror: true }, watch: 'With the mirror on the status turns amber: det C = −1 while CᵀC − I stays 0 — orthogonal, but not a rotation.' }
       ],
       result: { tex: 'C_{ij}C_{kj} = C_{ji}C_{jk} = \\delta_{ik},\\qquad\\det\\mathbf C = +1', plain: 'Cᵀ is the inverse of C, and C is a proper rotation.', set: { mirror: false } },
       interpret: s => { const Q = physics(s); return 'Orthogonality is why the length readout shows |x| = ' + f3(Q.norm) + ' = |x′| = ' + f3(Q.normp) + ' at θ = ' + fd(s.theta) + (s.mirror ? ' even with the mirror on (det C = −1: lengths kept, handedness lost).' : '.'); },
@@ -2807,21 +2829,21 @@ ur, ut = ch02.polar_components(x1, x2, th)    # Example 2.1: (u_r, u_θ) = ({{ur
   ],
   tour: [
     { title: 'One arrow, two rulers', text: 'The black arrow is a wind vector. <b class="c-teal">Teal</b> axes read it as (1, 2). Turn the rulers — the arrow does not care. What do the <b class="c-orange">orange</b> rulers read?',
-      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false, cell: null, selj: 0 }, readouts: ['xp'] },
+      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false, cell: null, selj: 0 }, play: false, readouts: ['xp'] },
     { title: 'Nine cosines (four here)', text: 'Every entry of C is the cosine between an old axis and a new one. Click a cell: the two unit vectors and their angle appear.',
-      set: { cell: { i: 0, j: 1 }, selj: 1 }, inspect: true, eq: 'Cdef' },
+      set: { theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, play: false, inspect: true, eq: 'Cdef' },
     { title: 'Shadows add up', text: 'x′₁ = x₁C₁₁ + x₂C₂₁ = 1×0.866 + 2×0.5 = 1.866. Watch the first column light as the sum is built.',
-      set: { cell: { i: 0, j: 0 }, selj: 0 }, eq: 'x5', derive: { id: 'D01', step: 5 } },
+      set: { theta: 30, x1: 1, x2: 2, cell: { i: 0, j: 0 }, selj: 0 }, play: false, eq: 'x5', derive: { id: 'D01', step: 5 } },
     { title: 'Nothing lost', text: 'CᵀC = I, det C = +1: the arrow\'s length 2.236 is the same in both frames — the status line says so at every θ. Press ▶ to sweep the axes.',
       set: { cell: null }, play: true, readouts: ['norm', 'resid'], derive: { id: 'D02', step: 4 } },
     { title: 'Which one really turned?', text: 'Flip the chip: now the arrow turns and the axes stay. Same C — but applied as C, not Cᵀ. This is the passive/active confusion, settled.',
       set: { what: 'arrow', theta: 30 }, play: false, controls: ['what'], notes: true },
     { title: 'Twice for a tensor', text: 'Tensor mode: a stress state with pure shear a. Its new components need C twice, once per index: τ′ = CᵀτC.',
-      set: { what: 'axes', mode: 'tensor', tpreset: 'shear', theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, eq: 'tau12', derive: { id: 'D06', step: 8 } },
-    { title: 'Find the quiet axes', text: 'Drag θ until τ′₁₂ = 0 (the <b class="c-rose">rose</b> curve crosses zero). At 45° the shear is gone and the normal stresses are ±a. §2.11 calls these principal axes.',
-      set: { theta: 20 }, play: false, controls: ['theta'], readouts: ['tau'] },
+      set: { what: 'axes', mode: 'tensor', tpreset: 'shear', theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, play: false, eq: 'tau12', derive: { id: 'D06', step: 8 } },
+    { title: 'Find the quiet axes', text: 'Drag θ until τ′₁₂ = 0: the <b class="c-rose">rose</b> curve crosses zero and the middle τ′ readout reads 0. At 45° the shear is gone and the normal stresses are ±a. §2.11 calls these principal axes.',
+      set: { theta: 20, cell: null }, play: false, controls: ['theta'], readouts: ['tau'] },
     { title: 'Your turn: polar', text: 'Polar mode is Example 2.1. Predict u_r and u_θ for the point at 60°, then drag θ there and read them off.',
-      set: { mode: 'polar', theta: 40, x1: 1, x2: 2 }, controls: ['theta', 'x1', 'x2'], readouts: ['xp'] }
+      set: { mode: 'polar', theta: 40, x1: 1, x2: 2 }, play: false, controls: ['theta', 'x1', 'x2'], readouts: ['xp'] }
   ],
   equations: [
     { id: 'Cdef', title: 'Direction cosines', ref: '§2.2', tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j',
