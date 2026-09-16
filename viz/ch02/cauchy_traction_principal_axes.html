@@ -455,6 +455,8 @@ button, input, select { font: inherit; color: inherit; }
 </style>
 <style>
   /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* vector readouts "(0.50, 0.87) Pa" may wrap on a narrow tablet side panel instead of overflowing it */
+  .viz-readout-value { white-space: normal; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -2121,94 +2123,661 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch02.traction ch02.traction_2d ch02.normal_shear_stress ch02.principal_axes ch02.diagonalize ch02.invariants ch02.mohr_circle_2d ch02.principal_angle_2d ch02.normal_stress_bounds ch02.example_2_2 ch02.example_2_4 (same symbols, same equation numbers, SI units).
-   --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+/* ===================================================================================================
+   PHYSICS — mirrors fluidpy (core.tensors, re-exported by ch02_cartesian_tensors), same symbols, SI units.
+   Kundu §2.4 (sign convention C04), §2.6 (Cauchy's formula, Ex. 2.2), §2.11 (principal axes, Ex. 2.4).
+   Convention: τ_ij = stress on the face whose outward normal is +e_i, acting in direction j; tensile positive;
+   on a −e_i face the arrows reverse. Cauchy (2.15): f_i = τ_ji n_j contracts the FIRST index (f = n·τ);
+   τ·n (second index) equals it only for a symmetric τ (Ch. 4 proves the stress is symmetric).
+     traction(tau, n)            ↔ ch02.traction(tau, n)                 Eq. (2.15)
+     tractionSecondIndex(tau, n) ↔ ch02.dot_tensor_vector(tau, n, index=2) (τ·n: the other contraction)
+     traction2d(tau, phi)        ↔ ch02.traction_2d(tau, phi)            n = (cos φ, sin φ), s = (−sin φ, cos φ)
+     normalShearStress(tau, n)   ↔ ch02.normal_shear_stress(tau, n)      σ_n = f·n, τ_s = |f − σ_n n|
+     invariants2d(tau)           ↔ ch02.invariants(tau)                  2 × 2: I₁ = trace, I₂ = det
+     principalAngle(tau)         ↔ ch02.principal_angle_2d(tau)          ½ atan2(2τ₁₂, τ₁₁ − τ₂₂)
+     mohr(tau)                   ↔ ch02.mohr_circle_2d(tau)              centre I₁/2, radius (λmax − λmin)/2
+     principal2d(tau)            ↔ ch02.principal_axes(tau)              λ ascending, columns of B, det B = +1
+     diagonalize2d(tau)          ↔ ch02.diagonalize(tau)                 τ' = Cᵀ τ C, Eq. (2.12)
+     ex22(a, phi)                ↔ ch02.example_2_2(a, phi)              channel shear, cut at φ
+     ex24(Gamma)                 ↔ ch02.example_2_4(Gamma)               S = [[0, Γ], [Γ, 0]] diagonalised
+     stressVsAngle(tau, phis)    ↔ ch02.stress_vs_angle(tau, phis)       the σ_n(φ), τ_s(φ) curves
+   =================================================================================================== */
+const DEG = Math.PI / 180;
+const mod2pi = x => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+const mod180 = x => ((x % 180) + 180) % 180;
+
+/** Eq. (2.15): f_i = τ_ji n_j — contract the FIRST (face-normal) index of τ with n. Any dimension. */
+function traction(tau, n) {
+  const d = n.length, f = new Array(d).fill(0);
+  for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) f[i] += tau[j][i] * n[j];   // row j = face j
+  return f;
+}
+/** The other contraction, (τ·n)_i = τ_ij n_j — equal to (2.15) only when τ_ij = τ_ji. */
+function tractionSecondIndex(tau, n) {
+  const d = n.length, f = new Array(d).fill(0);
+  for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) f[i] += tau[i][j] * n[j];
+  return f;
+}
+/** ch02.traction_2d: traction on the plane whose outward normal is n = (cos φ, sin φ); s = (−sin φ, cos φ). */
+function traction2d(tau, phi) {
+  const n = [Math.cos(phi), Math.sin(phi)], s = [-Math.sin(phi), Math.cos(phi)];
+  const f = traction(tau, n);
+  const sigma_n = f[0] * n[0] + f[1] * n[1], tau_s = f[0] * s[0] + f[1] * s[1];
+  return { n, s, f, sigma_n, tau_s, tau_s_mag: Math.abs(tau_s), magnitude: Math.hypot(f[0], f[1]), angle: mod2pi(Math.atan2(f[1], f[0])) };
+}
+/** ch02.normal_shear_stress: σ_n = f·n, τ_s = |f − σ_n n| (a magnitude), unit shear direction (zeros when τ_s = 0). */
+function normalShearStress(tau, n) {
+  const L = Math.hypot(...n), u = n.map(x => x / L), f = traction(tau, u);
+  const sigma_n = f.reduce((a, fi, i) => a + fi * u[i], 0);
+  const tv = f.map((fi, i) => fi - sigma_n * u[i]), tau_s = Math.hypot(...tv);
+  return { sigma_n, tau_s, shear_dir: tau_s > 0 ? tv.map(x => x / tau_s) : tv.map(() => 0), f };
+}
+/** ch02.invariants for 2 × 2: I₁ = A_ii, I₂ = ½(I₁² − A_ij A_ji) (= det for 2 × 2). */
+function invariants2d(A) {
+  const I1 = A[0][0] + A[1][1];
+  let chain = 0; for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) chain += A[i][j] * A[j][i];
+  return { I1, I2: 0.5 * (I1 * I1 - chain) };
+}
+/** ch02.principal_angle_2d: angle of the λ_max axis, ½ atan2(2S₁₂, S₁₁ − S₂₂), in (−π/2, π/2]. */
+function principalAngle(S) { return 0.5 * Math.atan2(2 * S[0][1], S[0][0] - S[1][1]); }
+/** ch02.mohr_circle_2d: centre (τ₁₁ + τ₂₂)/2, radius √(((τ₁₁ − τ₂₂)/2)² + τ₁₂²). */
+function mohr(t) { return { center: 0.5 * (t[0][0] + t[1][1]), radius: Math.hypot(0.5 * (t[0][0] - t[1][1]), t[0][1]) }; }
+/** ch02.principal_axes for a symmetric 2 × 2: λ ascending, B = [b_min b_max] (columns), det B = +1. */
+function principal2d(tau) {
+  const { center: c, radius: r } = mohr(tau), th = principalAngle(tau);
+  const bmax = [Math.cos(th), Math.sin(th)], bmin = [Math.sin(th), -Math.cos(th)];   // det [bmin bmax] = +1
+  return { lam: [c - r, c + r], B: [[bmin[0], bmax[0]], [bmin[1], bmax[1]]], angle: th, bmin, bmax };
+}
+/** Eq. (2.12): τ'_mn = C_im C_jn τ_ij  (= Cᵀ τ C). */
+function transformTensor2d(T, C) {
+  const out = [[0, 0], [0, 0]];
+  for (let m = 0; m < 2; m++) for (let n = 0; n < 2; n++) {
+    let a = 0; for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) a += C[i][m] * C[j][n] * T[i][j];
+    out[m][n] = a;
+  }
+  return out;
+}
+/** ch02.diagonalize: C = B (columns = principal axes), τ' = Cᵀ τ C = diag(λ_min, λ_max). */
+function diagonalize2d(tau) { const p = principal2d(tau); return { C: p.B, tauP: transformTensor2d(tau, p.B), lam: p.lam }; }
+/** Example 2.1's C for a rotation by φ: C_ij = e_i · e'_j = [[cos φ, −sin φ], [sin φ, cos φ]]. */
+function rotationMatrix2d(phi) { return [[Math.cos(phi), -Math.sin(phi)], [Math.sin(phi), Math.cos(phi)]]; }
+/** ch02.example_2_2: channel shear τ = [[0, a], [a, 0]], cut with normal at φ: f = (a sin φ, a cos φ), |f| = |a|. */
+function ex22(a, phi) {
+  const tau = [[0, a], [a, 0]], d = traction2d(tau, phi), C = rotationMatrix2d(phi), tauRot = transformTensor2d(tau, C);
+  return Object.assign({ tau, C, tauRot, sigma_n_formula: a * Math.sin(2 * phi), tau_s_formula: a * Math.cos(2 * phi), angle_deg: d.angle / DEG }, d);
+}
+/** ch02.example_2_4: S = [[0, Γ], [Γ, 0]] → λ = (Γ, −Γ), b¹ = (1, 1)/√2, b² = (−1, 1)/√2, C a 45° rotation. */
+function ex24(Gamma) {
+  const S = [[0, Gamma], [Gamma, 0]], q = Math.SQRT1_2, C = [[q, -q], [q, q]], Sp = transformTensor2d(S, C);
+  return { S, lam: [Sp[0][0], Sp[1][1]], C, S_prime: Sp, angle: Math.atan2(C[1][0], C[0][0]), angle_deg: Math.atan2(C[1][0], C[0][0]) / DEG };
+}
+/** ch02.stress_vs_angle: σ_n = n·τ·n and τ_s = s·τ·n over an array of normal angles. */
+function stressVsAngle(tau, phis) {
+  const sigma_n = [], tau_s = [];
+  phis.forEach(ph => { const d = traction2d(tau, ph); sigma_n.push(d.sigma_n); tau_s.push(d.tau_s); });
+  return { phi: phis, sigma_n, tau_s };
 }
 
 /* ---------------------------------------------------------------------------------------------------
-   APP
+   The explainer's state → one model object used by every view, readout, bar, badge and explanation
    --------------------------------------------------------------------------------------------------- */
+let CUR_UNIT = 'Pa';
+const unitOf = s => (s.mode === 'strain' ? '1/s' : 'Pa');
+const symOf = s => (s.mode === 'strain' ? 'S' : '\\tau');            // TeX symbol of the tensor
+const symTxt = s => (s.mode === 'strain' ? 'S' : 'τ');
+const tauOf = s => (s.nonsym ? [[s.t11, s.t12], [0, s.t22]] : [[s.t11, s.t12], [s.t12, s.t22]]);
+function model(s) {
+  CUR_UNIT = unitOf(s);
+  const tau = tauOf(s), phi = s.phi * DEG, d = traction2d(tau, phi), sym = !s.nonsym;
+  const pr = principal2d([[tau[0][0], 0.5 * (tau[0][1] + tau[1][0])], [0.5 * (tau[0][1] + tau[1][0]), tau[1][1]]]);   // of the symmetric part (= τ when symmetric)
+  const mo = mohr(tau), inv = invariants2d(tau), alt = tractionSecondIndex(tau, d.n);
+  const thpDeg = pr.angle / DEG, dphi = mod180(s.phi - thpDeg);   // angle of the cut normal past the λ_max axis
+  const onPrincipal = sym && mo.radius > 1e-9 && (dphi < 0.5 || dphi > 179.5 || Math.abs(dphi - 90) < 0.5);
+  const onMaxShear = sym && mo.radius > 1e-9 && (Math.abs(dphi - 45) < 0.5 || Math.abs(dphi - 135) < 0.5);
+  const hydro = sym && mo.radius < 1e-9;
+  const shearPct = mo.radius > 1e-12 ? 100 * Math.abs(d.tau_s) / mo.radius : 0;
+  return Object.assign({ tau, phi, sym, pr, mo, inv, alt, thpDeg, dphi, onPrincipal, onMaxShear, hydro, shearPct, unit: unitOf(s), sym2: symTxt(s) }, d);
+}
+/* number formatting: three decimals everywhere (0.500, −1.000), typographic minus in HTML, plain minus in TeX */
+function fx(v, d) { d = d === undefined ? 3 : d; let t = Number(v).toFixed(d); if (parseFloat(t) === 0) t = (0).toFixed(d); return t.replace('-', '−'); }
+function tx(v, d) { return fx(v, d).replace('−', '-'); }
+const fdeg = v => fx(v, 1) + '°';
+const P2 = (a, b) => '(' + fx(a) + ', ' + fx(b) + ')';
+const T2 = (a, b) => '(' + tx(a) + ',\\ ' + tx(b) + ')';
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---------------------------------------------------------------------------------------------------
+   Drawing helpers (all views share one state and one φ)
+   --------------------------------------------------------------------------------------------------- */
+const COL = { n: '#1a1f36', f: '#1a1f36', normal: Viz.color('blue'), shear: Viz.color('rose'), now: Viz.color('orange'), ghost: Viz.color('muted'), alt: Viz.color('amber'), band: Viz.color('blue') };
+function arrowLabel(P, x, y, str, color, small) { if (small) return; P.text(x, y, str, { color, weight: 650, size: 12.5, align: 'center', halo: true }); }
+/** Clip the square [-a,a]² to the half-plane n·x ≥ 0 (Sutherland–Hodgman with one edge). */
+function halfSquare(a, n) {
+  const sq = [[-a, -a], [a, -a], [a, a], [-a, a]], out = [];
+  for (let i = 0; i < 4; i++) {
+    const p = sq[i], q = sq[(i + 1) % 4], dp = p[0] * n[0] + p[1] * n[1], dq = q[0] * n[0] + q[1] * n[1];
+    if (dp >= 0) out.push(p);
+    if ((dp >= 0) !== (dq >= 0)) { const t = dp / (dp - dq); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); }
+  }
+  return out;
+}
+function fillPoly(P, pts, color, alpha) {
+  const ctx = P.ctx; ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath();
+  pts.forEach((p, i) => { if (i === 0) ctx.moveTo(P.X(p[0]), P.Y(p[1])); else ctx.lineTo(P.X(p[0]), P.Y(p[1])); });
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+/** View 1 — the stressed element, the cut, n, f = n·τ and its blue/rose split (C04 arrows on the faces). */
+function drawElement(v, s, app) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const m = model(s), small = Math.min(v.w, v.h) < 200;
+  const P = v.plot({ xlim: [-1.35, 1.35], ylim: [-1.35, 1.35], equal: true, pad: { l: 6, r: 6, t: 6, b: 6 } });
+  if (s.sketch === 'tetra' && app.tab === 'derive') { drawTetra(P, s, m, Math.min(v.w, v.h) < 170, v); return; }
+  const tau = m.tau, a = 0.95, k = 0.5 / Math.max(1, Math.abs(s.t11), Math.abs(s.t22), Math.abs(s.t12));
+  // the element and the removed half (the material on the +n side, which pushes with f)
+  fillPoly(P, [[-a, -a], [a, -a], [a, a], [-a, a]], Viz.color('accent'), 0.07);
+  fillPoly(P, halfSquare(a, m.n), Viz.color('muted'), 0.16);
+  P.poly([[-a, -a], [a, -a], [a, a], [-a, a], [-a, -a]], { color: Viz.alpha(Viz.color('text'), 0.55), width: 1.2 });
+  // C04: stresses on the four faces — normal (blue) and shear (rose); reversed on the − faces
+  const t11 = tau[0][0], t12 = tau[0][1], t21 = tau[1][0], t22 = tau[1][1], off = 0.04;
+  const nw = 2, sw = 2;
+  if (Math.abs(t11) > 1e-9) { P.arrow(a, 0, k * t11, 0, { color: COL.normal, width: nw }); P.arrow(-a, 0, -k * t11, 0, { color: COL.normal, width: nw }); }
+  if (Math.abs(t22) > 1e-9) { P.arrow(0, a, 0, k * t22, { color: COL.normal, width: nw }); P.arrow(0, -a, 0, -k * t22, { color: COL.normal, width: nw }); }
+  if (Math.abs(t12) > 1e-9) { P.arrow(a + off, -k * t12 / 2 + 0.3, 0, k * t12, { color: COL.shear, width: sw }); P.arrow(-a - off, k * t12 / 2 - 0.3, 0, -k * t12, { color: COL.shear, width: sw }); }
+  if (Math.abs(t21) > 1e-9) { P.arrow(-k * t21 / 2 + 0.3, a + off, k * t21, 0, { color: COL.shear, width: sw }); P.arrow(k * t21 / 2 - 0.3, -a - off, -k * t21, 0, { color: COL.shear, width: sw }); }
+  const S = m.sym2;
+  if (!small) {
+    if (Math.abs(t11) > 1e-9) arrowLabel(P, a + k * t11 + (t11 > 0 ? 0.16 : -0.16), -0.16, S + '₁₁', COL.normal);
+    if (Math.abs(t22) > 1e-9) arrowLabel(P, 0.2, a + k * t22 + (t22 > 0 ? 0.12 : -0.12), S + '₂₂', COL.normal);
+    if (Math.abs(t12) > 1e-9) arrowLabel(P, a + 0.2, 0.3 + k * t12 / 2 + (t12 > 0 ? 0.12 : -0.12), S + '₁₂', COL.shear);
+    if (Math.abs(t21) > 1e-9) arrowLabel(P, 0.3 + k * t21 / 2 + (t21 > 0 ? 0.16 : -0.16), a + 0.14, S + '₂₁', COL.shear);
+    else if (s.nonsym) arrowLabel(P, 0.45, a + 0.14, S + '₂₁ = 0', COL.shear);
+  }
+  // ghost principal axes with their λ (symmetric case only)
+  if (m.sym && m.mo.radius > 1e-9) {
+    const L = 1.3, bx = m.pr.bmax, bn = m.pr.bmin;
+    P.line([-L * bx[0], L * bx[0]], [-L * bx[1], L * bx[1]], { color: Viz.alpha(COL.ghost, 0.6), width: 1.2, dash: [6, 5] });
+    P.line([-L * bn[0], L * bn[0]], [-L * bn[1], L * bn[1]], { color: Viz.alpha(COL.ghost, 0.6), width: 1.2, dash: [6, 5] });
+    if (!small) {
+      const lx = bx[1] >= 0 ? 1 : -1, ln = bn[1] >= 0 ? 1 : -1;
+      // short labels at the upper end of each axis, written outward so they stay clear of the face arrows
+      const al = x => (x < -0.2 ? 'right' : x > 0.2 ? 'left' : 'center');
+      P.text(lx * L * bx[0] * 1.01, lx * L * bx[1] * 1.01 + 0.07, 'λmax', { color: COL.ghost, size: 12, align: al(lx * bx[0]), weight: 650, dx: lx * bx[0] > 0.2 ? 3 : lx * bx[0] < -0.2 ? -3 : 0 });
+      P.text(ln * L * bn[0] * 1.01, ln * L * bn[1] * 1.01 + 0.07, 'λmin', { color: COL.ghost, size: 12, align: al(ln * bn[0]), weight: 650, dx: ln * bn[0] > 0.2 ? 3 : ln * bn[0] < -0.2 ? -3 : 0 });
+    }
+  }
+  // the cut (perpendicular to n) through the centre
+  const cs = 1.12 * a;
+  P.line([-cs * m.s[0], cs * m.s[0]], [-cs * m.s[1], cs * m.s[1]], { color: COL.n, width: 3 });
+  // n (thin dark), f = n·τ (bold), blue normal part, rose shear part and the parallelogram
+  const fN = [k * m.sigma_n * m.n[0], k * m.sigma_n * m.n[1]], fS = [k * m.tau_s * m.s[0], k * m.tau_s * m.s[1]];
+  const fV = [k * m.f[0], k * m.f[1]];
+  if (Math.abs(m.sigma_n) > 1e-9) { P.arrow(0, 0, fN[0], fN[1], { color: COL.normal, width: 3 }); P.line([fN[0], fV[0]], [fN[1], fV[1]], { color: Viz.alpha(COL.shear, 0.7), width: 1, dash: [3, 3] }); }
+  if (Math.abs(m.tau_s) > 1e-9) { P.arrow(0, 0, fS[0], fS[1], { color: COL.shear, width: 3 }); P.line([fS[0], fV[0]], [fS[1], fV[1]], { color: Viz.alpha(COL.normal, 0.7), width: 1, dash: [3, 3] }); }
+  if (s.nonsym) P.arrow(0, 0, k * m.alt[0], k * m.alt[1], { color: COL.alt, width: 2.2, dash: [5, 4] });
+  if (m.magnitude > 1e-9) P.arrow(0, 0, fV[0], fV[1], { color: COL.f, width: 3.6, head: 11 });
+  P.arrow(0, 0, 0.55 * m.n[0], 0.55 * m.n[1], { color: Viz.alpha(COL.n, 0.75), width: 1.6, head: 7 });
+  P.dot(0, 0, 3.5, { color: COL.now, stroke: '#fff', strokeWidth: 1.5 });
+  if (!small) {
+    P.text(0.62 * m.n[0], 0.62 * m.n[1], 'n', { color: COL.n, weight: 700, size: 13, align: 'center' });
+    if (m.magnitude > 1e-9) P.text(fV[0] * 1.12 + 0.05, fV[1] * 1.12 + 0.05, 'f', { color: COL.f, weight: 800, size: 14, align: 'center' });
+    if (Math.abs(m.sigma_n) > 0.15 / k) P.text(fN[0] * 0.55 - 0.1 * m.s[0], fN[1] * 0.55 - 0.1 * m.s[1], 'σn n', { color: COL.normal, weight: 650, size: 12, align: 'center' });
+    if (Math.abs(m.tau_s) > 0.15 / k) P.text(fS[0] * 0.55 + 0.1 * m.n[0], fS[1] * 0.55 + 0.1 * m.n[1], 'τs s', { color: COL.shear, weight: 650, size: 12, align: 'center' });
+    if (s.nonsym) P.text(k * m.alt[0] * 1.15, k * m.alt[1] * 1.15 - 0.08, 'τ·n', { color: COL.alt, weight: 700, size: 12.5, align: 'center' });
+  }
+  // the removed side pushes across the cut: a hint label
+  if (!small && v.h > 300 && v.w > 230) { P.text(0, -1.17, 'grey half: the material on the +n side', { color: Viz.color('text-soft'), size: 12, align: 'center' }); P.text(0, -1.3, 'f = its push per unit area across the cut', { color: Viz.color('text-soft'), size: 12, align: 'center' }); }
+}
+
+/** The 2-D analogue of D05's tetrahedron: a triangle with two coordinate faces and one slanted face. */
+function drawTetra(P, s, m, small, v) {
+  const sh = clamp(s.shrink === undefined ? 1 : s.shrink, 0.08, 1);
+  const ph = clamp(m.phi, 20 * DEG, 70 * DEG), c = Math.cos(ph), sn = Math.sin(ph);
+  const hgt = 0.85 * sh, O = [0, 0], A = [hgt / c, 0], B = [0, hgt / sn];
+  const gx = (O[0] + A[0] + B[0]) / 3, gy = (O[1] + A[1] + B[1]) / 3;                  // centroid → keep it at the origin
+  const sx = x => x - gx, sy = y => y - gy;
+  const tri = [[sx(O[0]), sy(O[1])], [sx(A[0]), sy(A[1])], [sx(B[0]), sy(B[1])]];
+  fillPoly(P, tri, Viz.color('accent'), 0.08);
+  P.poly(tri.concat([tri[0]]), { color: Viz.alpha(Viz.color('text'), 0.7), width: 1.4 });
+  const k = 0.5 / Math.max(1, Math.abs(s.t11), Math.abs(s.t22), Math.abs(s.t12)), tau = m.tau;
+  // face midpoints
+  const m1 = [sx(0), sy(B[1] / 2)], m2 = [sx(A[0] / 2), sy(0)], m3 = [sx(A[0] / 2), sy(B[1] / 2)];
+  // coordinate faces: outward normals −e₁ and −e₂ → tractions −τ₁· and −τ₂· (C04)
+  const f1 = [-k * tau[0][0], -k * tau[0][1]], f2 = [-k * tau[1][0], -k * tau[1][1]];
+  if (Math.hypot(...f1) > 1e-6) P.arrow(m1[0], m1[1], f1[0], f1[1], { color: COL.shear, width: 2.6 });
+  if (Math.hypot(...f2) > 1e-6) P.arrow(m2[0], m2[1], f2[0], f2[1], { color: COL.shear, width: 2.6 });
+  // slanted face: outward normal n, traction f
+  const n = [c, sn], f = traction(tau, n);
+  P.arrow(m3[0], m3[1], 0.4 * n[0], 0.4 * n[1], { color: Viz.alpha(COL.n, 0.75), width: 1.6, head: 7 });
+  if (Math.hypot(...f) > 1e-9) P.arrow(m3[0], m3[1], k * f[0], k * f[1], { color: COL.f, width: 3.4, head: 11 });
+  // body force + inertia per unit slanted area ∝ h: shrinks with the element
+  const bodyLen = 0.4 * sh;
+  P.arrow(0, 0.02, 0, -bodyLen, { color: Viz.alpha(Viz.color('muted'), 0.9), width: 2, dash: [3, 3] });
+  if (!small) {
+    P.text(m1[0] - 0.08, m1[1] + 0.12, 'dA₁ = n₁dA', { color: Viz.color('text-soft'), size: 12, align: 'right' });
+    P.text(m2[0] - 0.05, m2[1] - 0.14, 'dA₂ = n₂dA', { color: Viz.color('text-soft'), size: 12, align: 'left' });
+    P.text(m3[0] + 0.42 * n[0] + 0.06, m3[1] + 0.42 * n[1] + 0.06, 'n, dA', { color: COL.n, weight: 700, size: 12.5, align: 'left' });
+    // face-traction labels sit just beyond each arrow tip, on the side the arrow points to
+    const tipLabel = (mid, fv, str) => { const L = Math.hypot(fv[0], fv[1]); if (L < 1e-6) return; const ux = fv[0] / L, uy = fv[1] / L;
+      P.text(mid[0] + fv[0] + 0.14 * ux, mid[1] + fv[1] + 0.14 * uy, str, { color: COL.shear, weight: 650, size: 12, align: ux < -0.3 ? 'right' : ux > 0.3 ? 'left' : 'center', baseline: uy < -0.3 ? 'top' : uy > 0.3 ? 'bottom' : 'middle' }); };
+    tipLabel(m1, f1, '−τ₁·'); tipLabel(m2, f2, '−τ₂·');
+    if (Math.hypot(...f) > 1e-9) P.text(m3[0] + k * f[0] * 1.15 + 0.06, m3[1] + k * f[1] * 1.15, 'f', { color: COL.f, weight: 800, size: 14, align: 'left' });
+    P.text(0.07, -bodyLen * 0.55, 'ρ(g−a) dV/dA ∝ h', { color: Viz.color('text-soft'), size: 12, align: 'left' });
+    if (v.w > 230) P.text(0, -1.3, 'face forces per unit area stay; the volume term shrinks with h', { color: Viz.color('text-soft'), size: 12, align: 'center' });
+    P.text(0, 1.27, 'element size h = ' + fx(sh, 2), { color: Viz.color('text-soft'), size: 12, align: 'center', weight: 600 });
+  }
+}
+
+/** View 2 — σ_n(φ) blue and τ_s(φ) rose over one half-turn, the bounds and the special cuts. */
+function drawCurves(v, s, app) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const m = model(s), narrow = v.w < 420, small = v.h < 150;
+  const N = 181, phis = Viz.num.linspace(0, Math.PI, N), sv = stressVsAngle(m.tau, phis);
+  let M = Math.max(Math.abs(m.pr.lam[0]), Math.abs(m.pr.lam[1]), Viz.num.max(sv.sigma_n.map(Math.abs)), Viz.num.max(sv.tau_s.map(Math.abs)), 0.05) * 1.25;
+  const P = v.plot({ xlim: [0, 180], ylim: [-M, M], xlabel: small ? null : 'φ = angle of the cut normal [°]', ylabel: narrow || small ? null : (m.sym2 === 'S' ? 'strain rate [1/s]' : 'stress [Pa]'), pad: { l: narrow ? 40 : 52, r: 12, t: 10, b: small ? 20 : 36 } });
+  P.axes({ xticks: [0, 45, 90, 135, 180] });
+  if (m.sym) {
+    P.fillBetween([0, 180], m.pr.lam[0], m.pr.lam[1], { color: COL.band, alpha: 0.07 });
+    [0, 1].forEach(i => { const L = m.pr.lam[i]; P.line([0, 180], [L, L], { color: Viz.alpha(COL.ghost, 0.8), width: 1.2, dash: [6, 4] }); if (!small) P.text(179, L, (i ? 'λmax ' : 'λmin ') + fx(L), { color: COL.ghost, size: 12, align: 'right', dy: i ? -9 : 10, weight: 600 }); });
+    if (m.mo.radius > 1e-9) {
+      const thp = mod180(m.thpDeg);
+      [thp, mod180(thp + 90)].forEach((x, i) => { P.line([x, x], [-M, M], { color: Viz.alpha(COL.normal, 0.45), width: 1, dash: [2, 3] }); if (!small && !narrow) P.text(x, i ? -M * 0.88 : M * 0.88, 'τs = 0', { color: COL.normal, size: 12, align: x < 12 ? 'left' : x > 168 ? 'right' : 'center', weight: 600 }); });
+      [mod180(thp + 45), mod180(thp + 135)].forEach((x, i) => { P.line([x, x], [-M, M], { color: Viz.alpha(COL.shear, 0.45), width: 1, dash: [2, 3] }); if (!small && !narrow) P.text(x, i ? M * 0.88 : -M * 0.88, 'max shear', { color: COL.shear, size: 12, align: x < 12 ? 'left' : x > 168 ? 'right' : 'center', weight: 600 }); });
+    }
+  }
+  const deg = phis.map(p => p / DEG);
+  P.line(deg, sv.sigma_n, { color: Viz.alpha(COL.normal, 0.3), width: 1.6 });
+  P.line(deg, sv.tau_s, { color: Viz.alpha(COL.shear, 0.3), width: 1.6 });
+  const upto = Math.max(1, Math.round(s.phi)) + 1;
+  P.line(deg.slice(0, upto), sv.sigma_n.slice(0, upto), { color: COL.normal, width: 2.8 });
+  P.line(deg.slice(0, upto), sv.tau_s.slice(0, upto), { color: COL.shear, width: 2.8 });
+  P.line([s.phi, s.phi], [-M, M], { color: Viz.alpha(COL.now, 0.6), width: 1 });
+  P.dot(s.phi, m.sigma_n, 5.5, { color: COL.normal, stroke: COL.now, strokeWidth: 2.5 });
+  P.dot(s.phi, m.tau_s, 5.5, { color: COL.shear, stroke: COL.now, strokeWidth: 2.5 });
+  if (!small && !narrow) { P.text(s.phi, m.sigma_n, 'σn ' + fx(m.sigma_n), { color: COL.normal, size: 12, weight: 700, dx: 8, dy: -10 }); P.text(s.phi, m.tau_s, 'τs ' + fx(m.tau_s), { color: COL.shear, size: 12, weight: 700, dx: 8, dy: 12 }); }
+}
+
+/** View 3 — Mohr's circle: every cut is one point (σ_n, τ_s); the current cut, its perpendicular partner, the λ's. */
+function drawMohr(v, s, app) {
+  v.clear(); if (v.w < 60 || v.h < 60) return;
+  const m = model(s), small = Math.min(v.w, v.h) < 220;
+  const c = m.mo.center, r = m.mo.radius, R = Math.max(r, 0.08 * Math.max(1, Math.abs(c)), 0.05);
+  const P = v.plot({ xlim: [c - 1.5 * R, c + 1.5 * R], ylim: [-1.5 * R, 1.5 * R], equal: true, xlabel: small ? null : 'σn [' + m.unit + ']', ylabel: small ? null : 'τs [' + m.unit + ']', pad: { l: small ? 40 : 52, r: 10, t: 8, b: small ? 22 : 36 } });
+  P.axes({ xticks: Viz.num.niceTicks(c - 1.5 * R, c + 1.5 * R, 3), yticks: Viz.num.niceTicks(-1.5 * R, 1.5 * R, 3) });
+  if (m.sym) {
+    const ts = Viz.num.linspace(0, 2 * Math.PI, 121);
+    P.line(ts.map(t => c + r * Math.cos(t)), ts.map(t => r * Math.sin(t)), { color: Viz.alpha(Viz.color('accent'), 0.85), width: 2 });
+    // the perpendicular cut (φ + 90°) is the antipode; the diameter joins them
+    const d2 = traction2d(m.tau, m.phi + Math.PI / 2);
+    P.line([m.sigma_n, d2.sigma_n], [m.tau_s, d2.tau_s], { color: Viz.alpha(COL.ghost, 0.8), width: 1.2, dash: [4, 3] });
+    P.dot(d2.sigma_n, d2.tau_s, 3.5, { color: COL.ghost });
+    // principal points
+    P.dot(m.pr.lam[0], 0, 4, { color: COL.ghost }); P.dot(m.pr.lam[1], 0, 4, { color: COL.ghost });
+    if (!small) { P.text(m.pr.lam[0], 0, 'λmin', { color: COL.ghost, size: 12, align: 'center', dy: 14, weight: 600 }); P.text(m.pr.lam[1], 0, 'λmax', { color: COL.ghost, size: 12, align: 'center', dy: 14, weight: 600 }); }
+    // the double angle 2(φ − θp), measured clockwise from the λmax point
+    if (r > 1e-9) {
+      const psi = -2 * (m.phi - m.pr.angle), ctx = P.ctx, ar = Math.min(P.sx(r) * 0.45, 40);
+      ctx.save(); ctx.strokeStyle = COL.now; ctx.lineWidth = 1.5; ctx.beginPath();
+      ctx.arc(P.X(c), P.Y(0), ar, 0, -psi, psi > 0 ? false : true); ctx.stroke(); ctx.restore();
+      if (!small) P.text(c, 0, '2(φ − θp) = ' + fx(-psi / DEG, 0) + '°', { color: COL.now, size: 12, align: 'center', dy: psi > 0 ? 18 + ar : -(14 + ar), weight: 600 });
+      P.line([c, m.sigma_n], [0, m.tau_s], { color: Viz.alpha(COL.now, 0.8), width: 1.3 });
+    }
+  } else {
+    // non-symmetric τ: the locus of (σ_n, τ_s) is not a circle — draw what it really is
+    const phis = Viz.num.linspace(0, Math.PI, 181), sv = stressVsAngle(m.tau, phis);
+    P.line(sv.sigma_n, sv.tau_s, { color: Viz.alpha(COL.alt, 0.9), width: 2 });
+    if (!small) P.text(c, 1.3 * R, 'not a circle: τ is not symmetric', { color: COL.alt, size: 12, align: 'center', weight: 600 });
+  }
+  P.dot(m.sigma_n, m.tau_s, 6, { color: COL.now, stroke: '#fff', strokeWidth: 2 });
+  if (!small) { const right = m.sigma_n > c; P.text(m.sigma_n, m.tau_s, 'your cut', { color: COL.now, size: 12, weight: 700, dx: right ? -9 : 9, dy: -9, align: right ? 'right' : 'left' }); }
+  if (r < 1e-9 && m.sym && !small) P.text(c, 0.6 * R, 'hydrostatic: the circle is a point', { color: Viz.color('text-soft'), size: 12, align: 'center' });
+}
+
+/* pointer → φ (all three views) */
+function setPhi(app, deg) { app.play(false); app.set({ phi: Math.round(mod180(deg)) }); }
+
+/* ---------------------------------------------------------------------------------------------------
+   The explainer
+   --------------------------------------------------------------------------------------------------- */
+const W = Viz.work;
 const app = Viz.app({
+  autoplay: false,
   title: 'Cut the point any way you like: what pushes on the cut?',
-  subtitle: 'Drag the normal n of a cut through a stressed point: the traction f = n·τ, its normal and shear parts, the Mohr point and the σ_n(φ), τ_s(φ) curves move together; the two shear-free cuts are the eigenvectors, and their normal stresses bound everything.',
+  subtitle: 'One stress state, every plane through it: the traction f = n·τ, its normal and shear parts, and the two shear-free cuts',
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    t11: { label: '$\\tau_{11}$ (normal, face 1)', min: -3, max: 3, step: 0.1, value: 0, help: 'tensile positive; in strain-rate mode this is S₁₁ [1/s]' },
+    t22: { label: '$\\tau_{22}$ (normal, face 2)', min: -3, max: 3, step: 0.1, value: 0, help: 'tensile positive; S₂₂ in strain-rate mode' },
+    t12: { label: '$\\tau_{12} = \\tau_{21}$ (shear)', min: -3, max: 3, step: 0.1, value: 1, help: 'the shear on both faces (symmetric τ); S₁₂ = Γ in strain-rate mode' },
+    phi: { label: 'Cut normal angle $\\phi$', min: 0, max: 180, step: 1, value: 30, unit: '°', help: 'angle of n from the 1-axis; the cut itself is perpendicular to n' },
+    nonsym: { type: 'toggle', label: 'non-symmetric demo ($\\tau_{21} = 0$)', value: false, optional: true, help: 'n·τ (black) against τ·n (amber)' },
+    mode: { type: 'select', display: 'chips', label: 'Quantity', options: [['stress', 'stress τ (Pa)'], ['strain', 'strain rate S (1/s)']], value: 'stress', help: 'strain-rate mode is Example 2.4: the same algebra on S_ij' }
+  },
+  transport: { param: 'phi', min: 0, max: 180, rate: 24, end: 'loop', label: 'Cut normal angle $\\phi$', unit: '°' },
+  presets: [
+    { label: 'shear $a>0$', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 30 }, title: 'Ex. 2.2: τ = [[0, a], [a, 0]] with a = 1 Pa, cut normal at 30°' },
+    { label: '$a<0$', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: -1, phi: 30 }, title: 'the other half of the channel: a = −1 Pa' },
+    { label: 'uniaxial', set: { mode: 'stress', nonsym: false, t11: 2, t22: 0, t12: 0 }, title: 'τ₁₁ = 2 Pa only' },
+    { label: 'hydrostatic', set: { mode: 'stress', nonsym: false, t11: -2, t22: -2, t12: 0 }, title: 'τ = −p δ with p = 2 Pa: a fluid at rest' },
+    { label: 'Couette', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: 0.1 }, title: 'τ₁₂ = μU/h = 1.0e-3 Pa s × 1 m/s / 1e-2 m = 0.1 Pa' },
+    { label: 'Ex. 2.4 strain', set: { mode: 'strain', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 30 }, title: 'strain rate S = [[0, Γ], [Γ, 0]], Γ = 1 1/s' }
+  ],
+  status: s => {
+    // three lengths: phones (< 520 px) get the verdict + one number, landscape phones a medium line, big screens the full text
+    const m = model(s), u = m.unit, Wd = window.innerWidth || 1000, short = Wd < 520, mid = Wd < 900;
+    if (s.nonsym) return { text: short ? '⚠️ n·τ ≠ τ·n: τ not symmetric' : mid ? '⚠️ non-symmetric τ: n·τ = ' + P2(m.f[0], m.f[1]) + ' ≠ τ·n = ' + P2(m.alt[0], m.alt[1]) + ' ' + u : '⚠️ non-symmetric τ: n·τ = ' + P2(m.f[0], m.f[1]) + ' ≠ τ·n = ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' — Ch. 4 shows the stress is symmetric', tone: 'warn' };
+    if (m.hydro) return { text: short ? '🌊 hydrostatic: f = −p n, p = ' + fx(-m.mo.center) + ' ' + u : '🌊 hydrostatic: every plane is principal, f = −p n with p = ' + fx(-m.mo.center) + ' ' + u, tone: 'info' };
+    if (m.onPrincipal) { const which = Math.abs(m.sigma_n - m.pr.lam[1]) < Math.abs(m.sigma_n - m.pr.lam[0]) ? 'λmax' : 'λmin'; return { text: short ? '🎯 principal plane: σn = ' + which + ' = ' + fx(m.sigma_n) + ' ' + u : '🎯 principal plane: τs = ' + fx(m.tau_s) + ', σn = ' + which + ' = ' + fx(m.sigma_n) + ' ' + u, tone: 'good' }; }
+    if (m.onMaxShear) return { text: short ? '🔪 max-shear plane: τs = ' + fx(m.tau_s) + ' ' + u : '🔪 maximum-shear plane: τs = ±(λmax − λmin)/2 = ' + fx(m.tau_s) + ' ' + u + ', σn = centre = ' + fx(m.mo.center) + ' ' + u, tone: 'good' };
+    return { text: short ? '↗ σn ' + fx(m.sigma_n) + ', τs ' + fx(m.tau_s) + ' ' + u + ' · ' + fx(m.shearPct, 0) + ' % of max shear' : mid ? '↗ f = ' + P2(m.f[0], m.f[1]) + ' ' + u + ': σn = ' + fx(m.sigma_n) + ', τs = ' + fx(m.tau_s) + ' (' + fx(m.shearPct, 0) + ' % of max shear)' : '↗ f = ' + P2(m.f[0], m.f[1]) + ' ' + u + ': σn = ' + fx(m.sigma_n) + ', τs = ' + fx(m.tau_s) + ' — ' + fx(m.shearPct, 0) + ' % of the maximum shear', tone: 'info' };
   },
   readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+    { id: 'f', label: 'Traction $\\mathbf f = (f_1, f_2)$', value: s => model(s).magnitude, fmt: (v, s) => { const m = model(s); return '(' + fx(m.f[0], 2) + ', ' + fx(m.f[1], 2) + ') ' + m.unit; } },
+    { id: 'sn', label: 'Normal part $\\sigma_n$', value: s => model(s).sigma_n, fmt: (v, s) => fx(v) + ' ' + unitOf(s), tone: v => (v > 1e-9 ? 'pos' : v < -1e-9 ? 'neg' : '') },
+    { id: 'ts', label: 'Shear part $\\tau_s$ (signed)', value: s => model(s).tau_s, fmt: (v, s) => fx(v) + ' ' + unitOf(s) },
+    { id: 'lam', label: '$\\lambda_{\\min},\\ \\lambda_{\\max}$', value: s => model(s).pr.lam[1], fmt: (v, s) => { const m = model(s); return fx(m.pr.lam[0], 2) + ', ' + fx(m.pr.lam[1], 2) + ' ' + m.unit; } },
+    { id: 'thp', label: 'Principal angle $\\theta_p$', value: s => model(s).thpDeg, fmt: v => fdeg(v) },
+    { id: 'r', label: 'Max shear = Mohr radius', value: s => model(s).mo.radius, fmt: (v, s) => fx(v) + ' ' + unitOf(s), optional: true }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
-    draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
-    }
+    rows: [1],
+    views: [
+      { id: 'element', row: 0, flex: 1.2, title: s => { const m = model(s); return '<b>The stressed point and your cut</b> · φ = ' + fx(s.phi, 0) + '° · <span class="c-blue">σn</span> ' + fx(m.sigma_n) + ' · <span class="c-rose">τs</span> ' + fx(m.tau_s) + ' ' + m.unit; }, draw: drawElement,
+        onPointer(v, ev, s, app) {
+          if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && v.pointer.down)) return false;
+          const P = v.plot({ xlim: [-1.35, 1.35], ylim: [-1.35, 1.35], equal: true, pad: { l: 6, r: 6, t: 6, b: 6 } });
+          const x = P.ix(v.pointer.x), y = P.iy(v.pointer.y); if (Math.hypot(x, y) < 0.08) return false;
+          setPhi(app, Math.atan2(y, x) / DEG); return true;
+        } },
+      { id: 'mohr', row: 0, flex: 1, hidePortrait: true, title: s => { const m = model(s); return '<b>Mohr\'s circle</b> · centre ' + fx(m.mo.center) + ', radius ' + fx(m.mo.radius) + ' ' + m.unit + ' · click to choose a cut'; }, draw: drawMohr,
+        onPointer(v, ev, s, app) {
+          if (ev.type !== 'pointerdown') return false;
+          const m = model(s), c = m.mo.center, r = m.mo.radius, R = Math.max(r, 0.08 * Math.max(1, Math.abs(c)), 0.05);
+          const P = v.plot({ xlim: [c - 1.5 * R, c + 1.5 * R], ylim: [-1.5 * R, 1.5 * R], equal: true, pad: { l: Math.min(v.w, v.h) < 220 ? 40 : 52, r: 10, t: 8, b: Math.min(v.w, v.h) < 220 ? 22 : 36 } });
+          const x = P.ix(v.pointer.x) - c, y = P.iy(v.pointer.y); if (Math.hypot(x, y) < 1e-9 || !m.sym) return false;
+          const psi = Math.atan2(y, x);                       // polar angle on the circle = −2(φ − θp)
+          setPhi(app, m.thpDeg - psi / DEG / 2); return true;
+        } },
+      { id: 'curves', row: 0, flex: 1.35, title: s => { const m = model(s); return '<span class="c-blue">σn(φ)</span> normal · <span class="c-rose">τs(φ)</span> shear · dashed = λmin, λmax · Mohr centre ' + fx(m.mo.center) + ', radius ' + fx(m.mo.radius) + ' ' + m.unit; }, draw: drawCurves,
+        onPointer(v, ev, s, app) {
+          if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && v.pointer.down)) return false;
+          const narrow = v.w < 420, small = v.h < 150;
+          const P = v.plot({ xlim: [0, 180], ylim: [-1, 1], pad: { l: narrow ? 40 : 52, r: 12, t: 10, b: small ? 20 : 36 } });
+          setPhi(app, clamp(P.ix(v.pointer.x), 0, 180)); return true;
+        } }
+    ],
+    draw(g, s) { /* each view draws itself (v.draw) */ }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Drag the normal $\\mathbf n$ on the element (or press ▶ to sweep the cut): the traction $\\mathbf f = \\mathbf n\\cdot\\boldsymbol\\tau$, its <span class="c-blue">normal</span> and <span class="c-rose">shear</span> parts, the curves and the Mohr point move together.',
+    controls: ['phi', 't12', 'mode', 't11', 't22', 'nonsym'],
+    readouts: ['f', 'sn', 'ts', 'lam', 'thp', 'r'],
+    callouts: [
+      { kind: 'try', html: 'Find the two cuts with no shear at all by dragging $\\phi$; then check them against $\\theta_p$ and $\\theta_p + 90°$.' },
+      { kind: 'watch', html: 'Add $\\tau_{11}$ and watch the circle slide along the $\\sigma_n$ axis while the grey principal axes turn.' }
+    ]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  terms: {
+    title: 'σn = n·τ·n term by term (what each stress component contributes)',
+    get unit() { return CUR_UNIT; },
+    items: [
+      { id: 'n1', label: '$\\tau_{11}\\,n_1^2$', color: Viz.color('blue'), value: s => { const m = model(s); return m.tau[0][0] * m.n[0] * m.n[0]; } },
+      { id: 'x12', label: '$(\\tau_{12} + \\tau_{21})\\,n_1 n_2$', color: Viz.color('rose'), value: s => { const m = model(s); return (m.tau[0][1] + m.tau[1][0]) * m.n[0] * m.n[1]; } },
+      { id: 'n2', label: '$\\tau_{22}\\,n_2^2$', color: Viz.color('teal'), value: s => { const m = model(s); return m.tau[1][1] * m.n[1] * m.n[1]; } }
+    ],
+    total: { label: '$\\sigma_n = \\mathbf n\\cdot\\boldsymbol\\tau\\cdot\\mathbf n$', value: s => model(s).sigma_n }
+  },
+  inspect: s => {
+    const m = model(s), t = m.tau, n = m.n, sv = m.s, S = symOf(s), u = m.unit;
+    return '<b>At φ = ' + fx(s.phi, 0) + '°</b> — $\\mathbf n = (\\cos\\phi, \\sin\\phi) = ' + T2(n[0], n[1]) + '$<br>' +
+      '$f_1 = ' + S + '_{11}n_1 + ' + S + '_{21}n_2 = ' + tx(t[0][0]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][0]) + '\\times' + tx(n[1]) + ' = \\mathbf{' + tx(m.f[0]) + '}$ ' + u + '<br>' +
+      '$f_2 = ' + S + '_{12}n_1 + ' + S + '_{22}n_2 = ' + tx(t[0][1]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][1]) + '\\times' + tx(n[1]) + ' = \\mathbf{' + tx(m.f[1]) + '}$ ' + u + '<br>' +
+      '$\\sigma_n = \\mathbf f\\cdot\\mathbf n = ' + tx(m.f[0]) + '\\times' + tx(n[0]) + ' + ' + tx(m.f[1]) + '\\times' + tx(n[1]) + ' = \\mathbf{' + tx(m.sigma_n) + '}$ ' + u + '<br>' +
+      '$\\tau_s = \\mathbf f\\cdot\\mathbf s,\\ \\mathbf s = ' + T2(sv[0], sv[1]) + ':\\ ' + tx(m.f[0]) + '\\times(' + tx(sv[0]) + ') + ' + tx(m.f[1]) + '\\times' + tx(sv[1]) + ' = \\mathbf{' + tx(m.tau_s) + '}$ ' + u +
+      (s.nonsym ? '<br><span class="c-orange">τ·n instead would give ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' — a different vector.</span>' : '');
+  },
+  inspectHint: 'Drag the normal on the element, or click a point on the curves or on Mohr\'s circle.',
+  notes: s => {
+    const m = model(s), u = m.unit;
+    if (s.nonsym) return '<p>With $\\tau_{21} \\ne \\tau_{12}$ the two contractions disagree: <b>n·τ</b> = ' + P2(m.f[0], m.f[1]) + ' is the traction (2.15), the amber <b>τ·n</b> = ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' is not. Ch. 4 proves the stress is symmetric, so for real stresses they never differ — and the Mohr locus is no longer a circle.</p>';
+    if (m.hydro) return '<p>$\\mathbf f = -p\\,\\mathbf n$ on every cut with $p = ' + tx(-m.mo.center) + '$ ' + u + ': the stress state of a fluid at rest (Ch. 1). No direction is special, so there is no principal direction to find — every direction is one, and the shear is zero everywhere.</p>';
+    if (s.mode === 'strain') return '<p>Strain-rate mode (Ex. 2.4): $\\lambda = ' + tx(m.pr.lam[0]) + ',\\ ' + tx(m.pr.lam[1]) + '$ 1/s are the squeezing and stretching rates along the grey axes at $\\theta_p = ' + fdeg(m.thpDeg) + '$ and $\\theta_p + 90°$; on your cut a line element along $\\mathbf n$ stretches at $' + tx(m.sigma_n) + '$ 1/s and shears at $' + tx(m.tau_s) + '$ 1/s (Ch. 3 makes this precise; E3 shows the element deform).</p>';
+    if (m.onPrincipal) return '<p>No slide across this cut: the material is pulled straight apart (or squeezed) by $\\sigma_n = ' + tx(m.sigma_n) + '$ ' + u + '. A crack would open on this plane. The other principal cut is 90° away.</p>';
+    if (m.onMaxShear) return '<p>The slide is as large as it can be, $|\\tau_s| = (\\lambda_{\\max} - \\lambda_{\\min})/2 = ' + tx(m.mo.radius) + '$ ' + u + ' — the plane a ductile material yields on. It sits 45° from the principal axes, and the normal stress here is the Mohr centre, $' + tx(m.mo.center) + '$ ' + u + '.</p>';
+    return '<p>Your cut carries both: $' + tx(m.sigma_n) + '$ ' + u + ' of ' + (m.sigma_n >= 0 ? 'pull' : 'squeeze') + ' and $' + tx(m.tau_s) + '$ ' + u + ' of slide (' + fx(m.shearPct, 0) + ' % of the maximum $' + tx(m.mo.radius) + '$). Turn $\\phi$ by ±45° to trade one for the other; the shear-free cuts are at $' + fdeg(mod180(m.thpDeg)) + '$ and $' + fdeg(mod180(m.thpDeg + 90)) + '$.</p>';
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const m = model(s), t = m.tau, n = m.n, sv = m.s, S = symOf(s), St = m.sym2, u = m.unit, mo = m.mo, pr = m.pr, inv = m.inv;
+      const u2 = s.mode === 'strain' ? '1/s²' : 'Pa²';
+      let out = W.step(0, 'What the windows show') +
+        W.say('<b>The element</b> is one point\'s ' + (s.mode === 'strain' ? 'strain-rate' : 'stress') + ' state drawn as a square in its own axes: <span class="c-blue">blue</span> arrows are the normal components, <span class="c-rose">rose</span> the shear ones, reversed on the − faces (C04\'s sign rule). The thick black line is your cut, <b>n</b> its normal, <b>f</b> the force per area that the grey half exerts across the cut, split into a <span class="c-blue">blue normal push/pull</span> and a <span class="c-rose">rose slide</span>. Faint grey dashed lines are the two directions with no slide at all. <b>The curves</b> show how the blue and rose parts change as the cut turns; <b>Mohr\'s circle</b> is the same information as one circle — every cut is a point on it, and <span class="c-orange">orange</span> marks your cut everywhere.') +
+        W.hint('On portrait phones Mohr\'s circle is hidden; its centre and radius are printed in the curve window\'s title and worked out in section 6.');
+      out += W.step(1, 'Your normal') +
+        W.line('$\\mathbf n = (\\cos\\phi, \\sin\\phi) = (\\cos ' + tx(s.phi, 0) + '°, \\sin ' + tx(s.phi, 0) + '°)$', P2(n[0], n[1]), 'a unit vector: n₁² + n₂² = 1; the cut itself is the line perpendicular to n');
+      out += W.step(2, 'Cauchy\'s formula term by term — Eq. (2.15)') +
+        W.say('$f_i = ' + S + '_{ji} n_j$ contracts the <b>first</b> index (row j = face j) with n:') +
+        W.line('$f_1 = ' + S + '_{11}n_1 + ' + S + '_{21}n_2 = ' + tx(t[0][0]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][0]) + '\\times' + tx(n[1]) + '$', fx(m.f[0]) + ' ' + u, 'row 1 (face 1) and row 2 (face 2), first column') +
+        W.line('$f_2 = ' + S + '_{12}n_1 + ' + S + '_{22}n_2 = ' + tx(t[0][1]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][1]) + '\\times' + tx(n[1]) + '$', fx(m.f[1]) + ' ' + u, 'second column') +
+        W.line('$|\\mathbf f| = \\sqrt{f_1^2 + f_2^2} = \\sqrt{' + tx(m.f[0] * m.f[0]) + ' + ' + tx(m.f[1] * m.f[1]) + '}$', fx(m.magnitude) + ' ' + u, 'direction atan2(f₂, f₁) = ' + fdeg(m.angle / DEG) + (Math.abs(s.t11) < 1e-9 && Math.abs(s.t22) < 1e-9 && Math.abs(Math.abs(s.t12) - 1) < 1e-9 && Math.abs(s.phi - 30) < 1e-9 && !s.nonsym ? ' — Ex. 2.2\'s numbers (60° for a > 0, 240° for a < 0)' : '')) +
+        W.box('$\\mathbf f = \\mathbf n\\cdot\\boldsymbol' + (s.mode === 'strain' ? '{S}' : '\\tau') + ' = \\mathbf{' + T2(m.f[0], m.f[1]) + '}$ ' + u);
+      if (s.nonsym) out += W.say('<span class="c-orange">The other contraction τ·n (second index) gives ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' — different. The index order is not a formality; only symmetry makes the two agree.</span>');
+      out += W.step(3, 'Normal and shear parts of f') +
+        W.line('$\\sigma_n = \\mathbf f\\cdot\\mathbf n = ' + tx(m.f[0]) + '\\times' + tx(n[0]) + ' + ' + tx(m.f[1]) + '\\times' + tx(n[1]) + '$', fx(m.sigma_n) + ' ' + u, m.sigma_n > 1e-9 ? 'positive: a pull (tension)' : m.sigma_n < -1e-9 ? 'negative: a push (compression)' : 'zero: no normal load') +
+        W.line('$\\tau_s = \\mathbf f\\cdot\\mathbf s,\\quad \\mathbf s = (-\\sin\\phi, \\cos\\phi) = ' + T2(sv[0], sv[1]) + '$', fx(m.tau_s) + ' ' + u, 'signed along the counter-clockwise tangent s; |τs| = |f − σn n|') +
+        W.box('<span class="c-blue">σn = ' + fx(m.sigma_n) + '</span>, <span class="c-rose">τs = ' + fx(m.tau_s) + '</span> ' + u + '; check: σn² + τs² = ' + fx(m.sigma_n * m.sigma_n + m.tau_s * m.tau_s) + ' = |f|² = ' + fx(m.magnitude * m.magnitude)) +
+        W.say('Both are sums of $\\cos 2\\phi$ and $\\sin 2\\phi$ terms (for pure shear exactly $a\\sin 2\\phi$ and $a\\cos 2\\phi$): the double angle is why the curves repeat every 180° and why Mohr\'s circle is traversed twice as fast as the cut turns.');
+      out += W.step(4, 'The invariants of your ' + St) +
+        W.line('$I_1 = ' + S + '_{11} + ' + S + '_{22} = ' + tx(t[0][0]) + ' + ' + tx(t[1][1]) + '$', fx(inv.I1) + ' ' + u, 'the trace: the same in every frame (D18)') +
+        W.line('$I_2 = \\det ' + S + ' = ' + S + '_{11}' + S + '_{22} - ' + S + '_{12}' + S + '_{21} = ' + tx(t[0][0] * t[1][1]) + ' - ' + tx(t[0][1] * t[1][0]) + '$', fx(inv.I2) + ' ' + u2, 'the determinant; the eigenvalues solve λ² − I₁λ + I₂ = 0');
+      if (m.sym) {
+        const disc = 0.25 * (t[0][0] - t[1][1]) * (t[0][0] - t[1][1]) + t[0][1] * t[0][1];
+        out += W.step(5, 'Principal values and axes (D17)') +
+          W.line('$\\lambda = \\tfrac{I_1}{2} \\pm \\sqrt{\\big(\\tfrac{' + S + '_{11} - ' + S + '_{22}}{2}\\big)^2 + ' + S + '_{12}^2} = ' + tx(mo.center) + ' \\pm \\sqrt{' + tx(disc) + '}$', fx(pr.lam[0]) + ', ' + fx(pr.lam[1]) + ' ' + u, 'the quadratic formula; the root is real because the discriminant is a sum of squares (D17 step 5)') +
+          W.line('$\\theta_p = \\tfrac12\\,\\mathrm{atan2}(2' + S + '_{12},\\ ' + S + '_{11} - ' + S + '_{22}) = \\tfrac12\\,\\mathrm{atan2}(' + tx(2 * t[0][1]) + ', ' + tx(t[0][0] - t[1][1]) + ')$', fdeg(m.thpDeg), 'direction of the λmax axis (grey dashed); λmin is 90° away') +
+          W.line('$\\mathbf b_{\\max} = ' + T2(pr.bmax[0], pr.bmax[1]) + ',\\quad \\mathbf b_{\\min} = ' + T2(pr.bmin[0], pr.bmin[1]) + '$', 'det [b_min b_max] = +1', 'unit eigenvectors, ordered as principal_axes does (λ ascending, a rotation)') +
+          W.box('Rotating the axes onto them (Eq. 2.12): $' + S + '\' = \\mathbf C^{\\rm T}' + S + '\\mathbf C = \\mathrm{diag}(' + tx(pr.lam[0]) + ',\\ ' + tx(pr.lam[1]) + ')$ ' + u + (s.mode === 'strain' && Math.abs(s.t11) < 1e-9 && Math.abs(s.t22) < 1e-9 ? ' — Ex. 2.4 with Γ = ' + fx(s.t12, 1) : ''));
+        out += W.step(6, 'The bounds — §2.11 fact (4), sharp form') +
+          W.line('$\\lambda_{\\min} \\le \\sigma_n \\le \\lambda_{\\max}$', fx(pr.lam[0]) + ' ≤ ' + fx(m.sigma_n) + ' ≤ ' + fx(pr.lam[1]) + ' ✓', 'σn is a weighted mean of the λ\'s with weights (n·b)² (D17 steps 13–14)') +
+          W.line('$|\\tau_s| \\le \\tfrac{\\lambda_{\\max} - \\lambda_{\\min}}{2} = \\tfrac{' + tx(pr.lam[1]) + ' - (' + tx(pr.lam[0]) + ')}{2}$', fx(mo.radius) + ' ' + u, 'yours is ' + fx(Math.abs(m.tau_s)) + ' = ' + fx(m.shearPct, 0) + ' % of it; the maximum is reached at θp ± 45° = ' + fdeg(mod180(m.thpDeg + 45)) + ', ' + fdeg(mod180(m.thpDeg + 135))) +
+          W.box('Mohr: centre $I_1/2 = ' + tx(mo.center) + '$, radius $' + tx(mo.radius) + '$ ' + u + '; your point sits at $2(\\phi - \\theta_p) = ' + tx(2 * (s.phi - m.thpDeg), 0) + '°$ clockwise from the λmax point');
+      } else {
+        out += W.step(5, 'Principal axes need symmetry') + W.say('With $\\tau_{21} = 0 \\ne \\tau_{12}$ the four facts of §2.11 (real λ, perpendicular axes, diagonal form, bounds) are not guaranteed — the grey axes are those of the symmetric part only, and the Mohr locus is not a circle. Switch the toggle off to see them return.') +
+          W.step(6, 'Two contractions') + W.line('$(\\mathbf n\\cdot\\boldsymbol\\tau)_i = \\tau_{ji}n_j$', P2(m.f[0], m.f[1]) + ' ' + u, 'the traction (2.15), black arrow') + W.line('$(\\boldsymbol\\tau\\cdot\\mathbf n)_i = \\tau_{ij}n_j$', P2(m.alt[0], m.alt[1]) + ' ' + u, 'the amber arrow: not the traction');
+      }
+      out += W.step(7, 'The tetrahedron behind (2.15) — D05') +
+        W.say('Open the Derivation tab: a small element with two coordinate faces and one slanted face of normal n. The coordinate faces carry the reversed rows $-' + S + '_{j\\cdot}$ (C04), the slanted face carries f, and the face areas are $dA_j = n_j\\,dA = ' + T2(n[0], n[1]) + '\\,dA$. Weight and inertia scale with the volume (h³), the face forces with the area (h²), so shrinking the element leaves $f_i = ' + S + '_{ji}n_j$.');
+      out += W.step(8, 'At the current cut') +
+        W.line('$\\phi$', Viz.live('phi') + '°') + W.line('<span class="c-blue">$\\sigma_n$</span>', Viz.live('sn') + ' ' + u) + W.line('<span class="c-rose">$\\tau_s$</span>', Viz.live('ts') + ' ' + u) +
+        W.line('share of the maximum shear', Viz.live('pct') + ' %');
+      let interp;
+      if (s.nonsym) interp = 'With τ₂₁ ≠ τ₁₂ the two contractions disagree; Ch. 4 proves the stress tensor is symmetric, so for a real stress they never do — this toggle only shows why the index order in (2.15) matters.';
+      else if (m.hydro) interp = 'f = −p n on every cut: the stress state of a fluid at rest (Ch. 1). No direction is special, so there is no principal direction to find; the curves are flat and the circle is a point.';
+      else if (s.mode === 'strain') interp = 'λ = ' + fx(pr.lam[0]) + ' and ' + fx(pr.lam[1]) + ' 1/s are the squeezing and stretching rates along the axes at θp = ' + fdeg(m.thpDeg) + ' and θp + 90° — Ex. 2.4 for pure shear; the fluid element in the strain-vs-rotation explainer does exactly this.';
+      else if (m.onPrincipal) interp = 'No slide across this cut — the material here is pulled straight apart (or squeezed) by ' + fx(m.sigma_n) + ' ' + u + '; a crack would open on this plane. The other shear-free cut is 90° away.';
+      else if (m.onMaxShear) interp = 'The slide is as large as it can be, ' + fx(Math.abs(m.tau_s)) + ' ' + u + ' — the plane a ductile material yields on; note it is 45° from the principal axes, where the normal stress equals the Mohr centre.';
+      else interp = 'Your cut carries both: ' + fx(m.sigma_n) + ' ' + u + ' of ' + (m.sigma_n >= 0 ? 'pull' : 'squeeze') + ' and ' + fx(m.tau_s) + ' ' + u + ' of slide (' + fx(m.shearPct, 0) + ' % of the maximum). Turn φ by ±45° to trade one for the other; at θp = ' + fdeg(mod180(m.thpDeg)) + ' the slide vanishes.';
+      return out + W.interpret(interp, 'Reading the current setting');
+    },
+    live: s => { const m = model(s); return { phi: fx(s.phi, 0), sn: fx(m.sigma_n), ts: fx(m.tau_s), pct: fx(m.shearPct, 0) }; }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D05', title: 'Cauchy\'s traction formula from a shrinking tetrahedron', short: 'D05 · (2.15)', ref: 'Eq. (2.15)', view: 'element',
+      goal: 'Find the force per unit area on a plane with any unit normal n from the nine stresses on the three coordinate planes.',
+      start: { tex: '\\sum\\mathbf F = m\\,\\mathbf a', plain: 'Newton\'s second law for the fluid inside a tetrahedron with three faces on the coordinate planes and one slanted face with outward normal n.' },
+      plan: ['List the forces: the slanted face, the three coordinate faces, weight and inertia.', 'Write the coordinate faces\' tractions with C04\'s sign rule.', 'Relate the face areas to n.', 'Shrink: volume terms vanish faster than face terms.'],
+      uses: ['free-body diagram and Newton\'s second law', 'the stress sign convention on the −e_j faces (C04)', 'vector area of a closed surface, $dA_j = n_j\\,dA$', 'orders of smallness h² vs h³', 'limits'],
+      set: { sketch: 'tetra', shrink: 1, phi: 30 },
+      steps: [
+        { did: 'Write the force balance on the tetrahedron', tex: '\\mathbf F_{\\rm slant} + \\mathbf F_1 + \\mathbf F_2 + \\mathbf F_3 + \\mathbf F_{\\rm body} = \\rho\\,dV\\,\\mathbf a',
+          why: 'Newton\'s second law for the mass ρ dV inside; every force on the boundary and in the volume is listed (free-body diagram).', plain: 'Four face forces plus the body force equal mass times acceleration.', set: { sketch: 'tetra', shrink: 1 },
+          watch: 'The sketch is the 2-D version: two coordinate faces and one slanted face with normal n.' },
+        { did: 'Write the slanted face\'s force', tex: '\\mathbf F_{\\rm slant} = \\mathbf f\\,dA',
+          why: 'By definition $\\mathbf f$ is the force per unit area on the plane with normal n, and dA is that face\'s area. This is the unknown we want.', plain: 'The slanted face carries the traction we are after.', set: { sketch: 'tetra', shrink: 1 } },
+        { did: 'Write the coordinate faces\' forces with the sign rule', tex: '(F_j)_i = -\\,\\tau_{ji}\\,dA_j\\qquad(j = 1, 2, 3\\text{, no sum})',
+          why: 'The face perpendicular to axis j has outward normal $-\\mathbf e_j$; by C04\'s rule the traction on a − face is the reversed row j, so its i-component is $-\\tau_{ji}$.', plain: 'Each coordinate face pushes with minus its row of τ.', set: { sketch: 'tetra', shrink: 1 },
+          watch: 'The rose arrows on the two coordinate faces are −τ₁· and −τ₂·: the rows of τ, reversed.' },
+        { did: 'Write body force and inertia together', tex: '\\mathbf F_{\\rm body} - \\rho\\,dV\\,\\mathbf a = \\rho(\\mathbf g - \\mathbf a)\\,dV',
+          why: 'Both are proportional to the mass, hence to the volume dV; we group them because they will share the same fate when the element shrinks.', plain: 'Weight and inertia scale with the volume.', set: { sketch: 'tetra', shrink: 1 } },
+        { did: 'Assemble the i-component', tex: '\\begin{aligned} f_i\\,dA &- \\tau_{1i}dA_1 - \\tau_{2i}dA_2 - \\tau_{3i}dA_3 \\\\ &+ \\rho(g_i - a_i)\\,dV = 0 \\end{aligned}',
+          why: 'Steps 2–4 substituted into step 1, component i. The book\'s first line is this one without the volume term (and for i = 1).', plain: 'Slanted face minus the three coordinate faces plus volume terms is zero.', set: { sketch: 'tetra', shrink: 1 } },
+        { did: 'Relate the face areas to the normal', tex: 'dA_j = n_j\\,dA',
+          why: 'The vector area of a closed surface vanishes: $\\mathbf n\\,dA - \\mathbf e_1dA_1 - \\mathbf e_2dA_2 - \\mathbf e_3dA_3 = 0$; reading component j gives this. Face j is the shadow of the slanted face.', plain: 'Each coordinate face is the slanted face times a cosine.', set: { sketch: 'tetra', shrink: 1 },
+          live: s => { const n = model(s).n; return '\\begin{aligned} dA_1 &= n_1\\,dA = ' + tx(n[0]) + '\\,dA \\\\ dA_2 &= n_2\\,dA = ' + tx(n[1]) + '\\,dA \\end{aligned}'; },
+          watch: 'In the sketch the vertical face has length n₁ dA and the horizontal face n₂ dA.' },
+        { did: 'Substitute the areas and write the sum with an index', tex: 'f_i\\,dA - \\tau_{ji}\\,n_j\\,dA + \\rho(g_i - a_i)\\,dV = 0',
+          why: 'Step 6 into step 5; the three face terms share the pattern $\\tau_{ji}n_j\\,dA$ with j summed (summation convention, C01).', plain: 'The three faces together give τ contracted with n on its first index.', set: { sketch: 'tetra', shrink: 1 } },
+        { did: 'Divide by dA and compare sizes', tex: '\\begin{aligned} f_i - \\tau_{ji}n_j &+ \\rho(g_i - a_i)\\,\\frac{dV}{dA} = 0 \\\\ \\frac{dV}{dA} &\\propto h \\end{aligned}',
+          why: 'dA ≠ 0. For a tetrahedron of size h, dA ∝ h² and dV ∝ h³, so dV/dA ∝ h (orders of smallness); ρ, g, a stay finite.', plain: 'The volume term is smaller than the face terms by the element\'s size.', set: { sketch: 'tetra', shrink: 0.5 },
+          watch: 'The element is drawn at half its size: the face arrows (per unit area) are unchanged, the dashed volume term has shrunk to half — it scales with h.' },
+        { did: 'Let the element shrink to the point', tex: 'f_i = \\tau_{ji}\\,n_j',
+          why: 'As h → 0 the last term of step 8 vanishes while the others do not depend on h (stresses continuous at the point). This is (2.15).', plain: 'The traction on any plane is τ contracted with the normal on its first index.', set: { sketch: 'tetra', shrink: 0.25 },
+          live: s => { const m = model(s), t = m.tau, n = m.n; return '\\begin{aligned} f_1 &= ' + tx(t[0][0]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][0]) + '\\times' + tx(n[1]) + ' = ' + tx(m.f[0]) + ' \\\\ f_2 &= ' + tx(t[0][1]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][1]) + '\\times' + tx(n[1]) + ' = ' + tx(m.f[1]) + '\\ \\text{' + m.unit + '} \\end{aligned}'; },
+          highlight: ['readout:f'] }
+      ],
+      result: { tex: 'f_i = \\tau_{ji}\\,n_j,\\qquad \\mathbf f = \\mathbf n\\cdot\\boldsymbol\\tau', plain: 'The nine numbers on the coordinate planes determine the force per area on every plane through the point. The formula contracts the first index; τ·n equals it only when τ is symmetric (Ch. 4 proves that for the stress).', set: { sketch: 'none', shrink: 1 } },
+      interpret: s => { const m = model(s); return 'The black arrow on the cut is this formula evaluated with your ' + m.sym2 + ' and φ = ' + fx(s.phi, 0) + '°: f = ' + P2(m.f[0], m.f[1]) + ' ' + m.unit + '. With n = e₂ (φ = 90°) it returns row 2 of ' + m.sym2 + ' itself: the formula reproduces its inputs.'; },
+      check: 'Units: Pa on both sides. Limit n = e₃: f_i = τ₃i, the traction on a coordinate face — the formula returns its inputs. Number (Ex. 2.2, a = 1 Pa, φ = 30°): f = (0·0.866 + 1·0.5, 1·0.866 + 0·0.5) = (0.5, 0.866) Pa. Pure pressure τ = −pδ: f = −p n for every n (Ch. 1\'s isotropic pressure). The selftest rows compare traction() with ch02.traction and ch02.example_2_2.' },
+    { id: 'D17', title: 'Real eigenvalues, orthogonal axes, diagonal form and the bounds — for a real symmetric tensor', short: 'D17 · principal axes', ref: '§2.11 facts (1)–(4)', view: 'curves',
+      goal: 'Prove the four facts §2.11 states without proof: for a real symmetric τ (1) the eigenvalues are real, (2) eigenvectors of distinct eigenvalues are perpendicular, (3) in the axes of the eigenvectors τ is diagonal, (4) the normal stress on every plane lies between the smallest and largest eigenvalue — and the shear is bounded by half their spread.',
+      start: { tex: '\\tau_{ij}\\,b_j = \\lambda\\,b_i,\\qquad \\tau_{ij} = \\tau_{ji}\\ \\text{real}', plain: 'A direction b that τ only scales (no shear on the plane ⊥ b); λ and b may be complex until we prove otherwise.' },
+      plan: ['Contract the eigen-equation with the conjugate eigenvector, conjugate, use symmetry: λ = λ̄.', 'Do the same with two eigenpairs: (λ¹ − λ²) b¹·b² = 0.', 'Put the unit eigenvectors as columns of C — exactly C02\'s C — and apply (2.12).', 'Expand any unit n in the eigenbasis and read the normal stress as a weighted mean of the λ\'s.'],
+      uses: ['eigenvalues and eigenvectors', 'complex conjugate and |z|² = z z̄', 'symmetry τ_ij = τ_ji', 'dummy renaming', 'orthonormality and completeness', 'the transformation rule (2.12)', 'quadratic form / Rayleigh quotient', 'Gram–Schmidt for repeated λ'],
+      set: { phi: 30, nonsym: false, sketch: 'none' },
+      steps: [
+        { did: 'Contract the eigen-equation with the conjugate eigenvector', tex: '\\bar b_i\\,\\tau_{ij}\\,b_j = \\lambda\\,\\bar b_i b_i',
+          why: 'Multiply both sides by $\\bar b_i$ and sum on i; $\\bar b_ib_i = \\sum|b_i|^2 > 0$ for a nonzero b. We conjugate one factor so that a real number appears on the right.', plain: 'A complex "normal stress" of τ along b equals λ times a positive number.' },
+        { did: 'Take the complex conjugate of the whole line', tex: 'b_i\\,\\bar\\tau_{ij}\\,\\bar b_j = \\bar\\lambda\\,b_i\\bar b_i',
+          why: 'Conjugating a product conjugates each factor; an equation stays true under conjugation. We do it to produce λ̄ next to λ.', plain: 'The mirror-image statement with λ̄.' },
+        { did: 'Use that τ is real', tex: 'b_i\\,\\tau_{ij}\\,\\bar b_j = \\bar\\lambda\\,b_i\\bar b_i',
+          why: '$\\bar\\tau_{ij} = \\tau_{ij}$ because the components are real numbers. The assumption "real" enters here.', plain: 'τ is unchanged by the mirror.' },
+        { did: 'Rename the dummies and use symmetry', tex: 'b_i\\,\\tau_{ij}\\,\\bar b_j = \\bar b_j\\,\\tau_{ji}\\,b_i = \\bar b_i\\,\\tau_{ij}\\,b_j',
+          why: 'Reorder the scalar factors, rename i ↔ j (both summed), then $\\tau_{ji} = \\tau_{ij}$ (symmetry, first use). The left side of step 3 has become the left side of step 1.', plain: 'Thanks to symmetry the two "normal stresses" are the same number.' },
+        { did: 'Subtract step 3 from step 1', tex: '(\\lambda - \\bar\\lambda)\\,\\bar b_ib_i = 0\\ \\Rightarrow\\ \\lambda = \\bar\\lambda',
+          why: 'Equal left sides give equal right sides; $\\bar b_ib_i > 0$ can be divided out, leaving λ = λ̄ — λ is real (fact 1). A real λ makes the linear system real, so b can be chosen real.', plain: 'The eigenvalues of a real symmetric tensor are real numbers.',
+          live: s => { const t = model(s).tau, disc = 0.25 * (t[0][0] - t[1][1]) * (t[0][0] - t[1][1]) + t[0][1] * t[0][1]; return '\\begin{aligned} \\big(\\tfrac{\\tau_{11} - \\tau_{22}}{2}\\big)^2 + \\tau_{12}^2 &= ' + tx(disc) + ' \\ge 0 \\\\ \\Rightarrow\\ \\lambda &\\ \\text{real (2-D check)} \\end{aligned}'; } },
+        { did: 'Contract two eigen-equations crosswise', tex: '\\begin{aligned} b^2_i\\,\\tau_{ij}\\,b^1_j &= \\lambda^1\\,b^2_ib^1_i \\\\ b^1_i\\,\\tau_{ij}\\,b^2_j &= \\lambda^2\\,b^1_ib^2_i \\end{aligned}',
+          why: 'Take eigenpairs (λ¹, b¹) and (λ², b²) (superscripts are labels, not powers); contract the first equation with $b^2_i$ and the second with $b^1_i$. Same trick as step 1 with two vectors.', plain: 'Two mixed "normal stresses", each equal to an eigenvalue times b¹·b².' },
+        { did: 'Show the two left sides are equal', tex: 'b^1_i\\,\\tau_{ij}\\,b^2_j = b^2_j\\,\\tau_{ji}\\,b^1_i = b^2_i\\,\\tau_{ij}\\,b^1_j',
+          why: 'Rename i ↔ j, then $\\tau_{ji} = \\tau_{ij}$ (symmetry, second use). Without symmetry this step fails and eigenvectors need not be perpendicular.', plain: 'τ between b¹ and b² does not care about the order.' },
+        { did: 'Subtract: orthogonality for distinct eigenvalues', tex: '\\begin{aligned} (\\lambda^1 - \\lambda^2)\\,\\mathbf b^1\\cdot\\mathbf b^2 &= 0 \\\\ \\Rightarrow\\ \\mathbf b^1\\cdot\\mathbf b^2 &= 0\\quad(\\lambda^1 \\ne \\lambda^2) \\end{aligned}',
+          why: 'Equal left sides in step 6 force the right sides equal. If λ¹ ≠ λ² the dot product must vanish (fact 2). If λ¹ = λ² any vector in the eigenplane is an eigenvector and an orthogonal pair can be chosen (Gram–Schmidt).', plain: 'Principal axes of different eigenvalues are perpendicular; equal ones let us choose them so.',
+          set: { phi: 45 }, watch: 'For the channel-shear preset θp = 45°; with another τ click the curves at the θp readout. At φ = θp the rose part is zero: f is along n. The grey dashed axes on the element are b¹ and b², 90° apart.',
+          live: s => { const m = model(s); return '\\theta_p = ' + tx(m.thpDeg, 1) + '°:\\quad \\mathbf b_{\\max}\\cdot\\mathbf b_{\\min} = ' + tx(m.pr.bmax[0] * m.pr.bmin[0] + m.pr.bmax[1] * m.pr.bmin[1]) + ',\\quad \\tau_s(\\theta_p) = ' + tx(traction2d(m.tau, m.pr.angle).tau_s); } },
+        { did: 'Build C from the unit eigenvectors', tex: 'C_{ij} \\equiv b^j_i = \\mathbf e_i\\cdot\\mathbf b^j,\\qquad \\mathbf C^{\\rm T}\\mathbf C = \\mathbf I',
+          why: 'Take the new axes $\\mathbf e\'_j = \\mathbf b^j$ (normalised, mutually perpendicular by step 8): then $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$ is precisely C02\'s matrix, orthogonal by D02. Flip the sign of one b if det C = −1.', plain: 'The columns of C are the principal axes.' },
+        { did: 'Apply the transformation rule (2.12)', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij} = b^m_i\\,\\tau_{ij}\\,b^n_j',
+          why: '(2.12) for a second-order tensor (D06) with step 9\'s C inserted. The right side is "τ between b^m and b^n" — the quantity of step 6.', plain: 'The new components are τ sandwiched between two principal axes.' },
+        { did: 'Use the eigen-equation on b^n', tex: '\\tau\'_{mn} = \\lambda^n\\,b^m_ib^n_i = \\lambda^n\\,\\delta_{mn}',
+          why: '$\\tau_{ij}b^n_j = \\lambda^nb^n_i$ (no sum on n), then orthonormality $\\mathbf b^m\\cdot\\mathbf b^n = \\delta_{mn}$ (steps 8–9). So τ\' is diagonal with the eigenvalues on the diagonal (fact 3).', plain: 'In the principal axes there is no shear at all — only λ¹, λ², λ³.',
+          live: s => { const d = diagonalize2d(model(s).tau); return '\\tau\' = \\mathbf C^{\\rm T}\\tau\\,\\mathbf C = \\begin{pmatrix} ' + tx(d.tauP[0][0]) + ' & ' + tx(d.tauP[0][1]) + ' \\\\ ' + tx(d.tauP[1][0]) + ' & ' + tx(d.tauP[1][1]) + ' \\end{pmatrix}'; } },
+        { did: 'Expand a unit normal in the eigenbasis', tex: '\\mathbf n = c_k\\,\\mathbf b^k,\\qquad c_k = \\mathbf n\\cdot\\mathbf b^k,\\qquad c_kc_k = 1',
+          why: 'Completeness of the orthonormal set {b^k}; $|\\mathbf n|^2 = c_kc_k$ by orthonormality. We expand n because τ is simple on the b\'s.', plain: 'Any cut direction is a mix of the principal axes, with weights whose squares add to 1.',
+          live: s => { const m = model(s), c1 = m.n[0] * m.pr.bmax[0] + m.n[1] * m.pr.bmax[1], c2 = m.n[0] * m.pr.bmin[0] + m.n[1] * m.pr.bmin[1]; return '\\begin{aligned} c_{\\max} &= \\mathbf n\\cdot\\mathbf b_{\\max} = ' + tx(c1) + ' \\\\ c_{\\min} &= \\mathbf n\\cdot\\mathbf b_{\\min} = ' + tx(c2) + ' \\\\ c_{\\max}^2 + c_{\\min}^2 &= ' + tx(c1 * c1 + c2 * c2) + ' \\end{aligned}'; } },
+        { did: 'Compute the normal stress on the plane ⊥ n', tex: 'n_i\\,\\tau_{ij}\\,n_j = c_kc_l\\,\\mathbf b^k\\cdot\\boldsymbol\\tau\\,\\mathbf b^l = \\lambda^k\\,c_k^2',
+          why: 'Insert step 12 twice; by steps 6–8 and 11, $\\mathbf b^k\\cdot\\boldsymbol\\tau\\,\\mathbf b^l = \\lambda^l\\delta_{kl}$, so only k = l survives. The normal stress is a weighted mean of the eigenvalues with weights $c_k^2$.', plain: 'The normal stress on any plane is an average of the principal stresses.',
+          live: s => { const m = model(s), c1 = m.n[0] * m.pr.bmax[0] + m.n[1] * m.pr.bmax[1], c2 = m.n[0] * m.pr.bmin[0] + m.n[1] * m.pr.bmin[1]; return '\\begin{aligned} \\sigma_n &= ' + tx(m.pr.lam[1]) + '\\times' + tx(c1) + '^2 + (' + tx(m.pr.lam[0]) + ')\\times' + tx(c2) + '^2 \\\\ &= ' + tx(m.pr.lam[1] * c1 * c1) + ' + (' + tx(m.pr.lam[0] * c2 * c2) + ') = ' + tx(m.sigma_n) + '\\ \\text{' + m.unit + '} \\end{aligned}'; } },
+        { did: 'Bound the weighted mean', tex: '\\lambda_{\\min} \\le n_i\\tau_{ij}n_j \\le \\lambda_{\\max}',
+          why: 'Replace every λ^k by λ_min (or λ_max) in $\\lambda^kc_k^2$: the sum can only decrease (increase), and $c_kc_k = 1$ gives the bound (Rayleigh quotient). Equality when n is the corresponding b^k (fact 4, sharp form).', plain: 'No cut carries more pull than λmax or more squeeze than λmin.',
+          watch: 'The blue curve never leaves the two dashed lines; it touches them exactly at θp and θp + 90°.', play: true },
+        { did: 'Bound the shear too', tex: '\\begin{aligned} \\tau_s^2 &= \\lambda^k\\lambda^k c_k^2 - (\\lambda^kc_k^2)^2 \\\\ &\\le \\Big(\\tfrac{\\lambda_{\\max} - \\lambda_{\\min}}{2}\\Big)^2 \\end{aligned}',
+          why: '$|\\mathbf f|^2 = f_if_i = \\lambda^k\\lambda^kc_k^2$ by the same expansion, and $\\tau_s^2 = |\\mathbf f|^2 - \\sigma_n^2$ is the variance of the λ^k under the weights $c_k^2$; a variance of numbers confined to an interval of length L is at most (L/2)².', plain: 'The shear on any plane is at most half the spread of the eigenvalues (Mohr\'s circle radius).',
+          live: s => { const m = model(s); return '\\begin{aligned} \\max|\\tau_s| &= \\tfrac{' + tx(m.pr.lam[1]) + ' - (' + tx(m.pr.lam[0]) + ')}{2} = ' + tx(m.mo.radius) + '\\ \\text{' + m.unit + '} \\\\ &\\text{at } \\theta_p \\pm 45° = ' + tx(mod180(m.thpDeg + 45), 1) + '°,\\ ' + tx(mod180(m.thpDeg + 135), 1) + '° \\end{aligned}'; }, play: false }
+      ],
+      result: { tex: '\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C = \\mathrm{diag}(\\lambda^k),\\quad \\lambda_{\\min} \\le \\mathbf n\\cdot\\boldsymbol\\tau\\cdot\\mathbf n \\le \\lambda_{\\max},\\quad |\\tau_s| \\le \\tfrac{\\lambda_{\\max} - \\lambda_{\\min}}{2}', plain: 'A real symmetric tensor is a pure stretch along perpendicular axes with real rates λ^k, and those stretches bound what any plane can feel: its normal stress lies between λmin and λmax, its shear below half their spread.' },
+      interpret: s => { const m = model(s); return m.sym ? 'With your ' + m.sym2 + ' the bounds are ' + fx(m.pr.lam[0]) + ' ≤ σn ≤ ' + fx(m.pr.lam[1]) + ' ' + m.unit + ' (yours: ' + fx(m.sigma_n) + '), and your cut is at ' + fx(m.shearPct, 0) + ' % of the shear bound ' + fx(m.mo.radius) + ' ' + m.unit + '. Symmetry was used twice — once for real λ (step 4), once for perpendicular axes (step 7).' : 'Switch the non-symmetric demo off: with τ₂₁ ≠ τ₁₂ steps 4 and 7 fail, so none of the four facts is guaranteed.'; },
+      check: 'Units: those of τ. Limit τ = −pδ: all λ = −p, every direction principal, τs = 0 (hydrostatic preset). Number (Ex. 2.4, Γ = 1): λ = ±1, b¹ = (1, 1)/√2, b² = (−1, 1)/√2, C = 45° rotation, S\' = diag(1, −1); on the 30° plane n·S·n = sin 60° = 0.866 ∈ [−1, 1], τs = cos 60° = 0.5 ≤ 1. The selftest rows check principal_axes, diagonalize and the bounds over 36 cuts; the notebook re-runs the construction in sympy.' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'cauchy', title: 'Cauchy\'s traction and its split (Python)', ref: 'Eq. (2.15)',
       src: `
-from fluidpy import ch02 as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import numpy as np
+from fluidpy import ch02_cartesian_tensors as ch02
+t11, t12, t22 = {{t11}}, {{t12}}, {{t22}}          # {{unit}}
+tau = np.array([[t11, t12], [t12, t22]])   # row = face, column = direction
+phi = np.deg2rad({{phi}})                    # cut normal, {{phi}} deg from the 1-axis
+n = np.array([np.cos(phi), np.sin(phi)])   # n = ({{n1}}, {{n2}})
+f = ch02.traction(tau, n)                  # (2.15): f_i = tau_ji n_j = ({{f1}}, {{f2}})
+sig_n, tau_s, _ = ch02.normal_shear_stress(tau, n)  # {{sn}} normal, {{tsm}} shear`,
+      live: s => { const m = model(s); return { t11: s.t11.toFixed(1), t12: s.t12.toFixed(1), t22: s.t22.toFixed(1), unit: m.unit, phi: s.phi.toFixed(0), n1: tx(m.n[0]), n2: tx(m.n[1]), f1: tx(m.f[0]), f2: tx(m.f[1]), sn: tx(m.sigma_n), tsm: tx(Math.abs(m.tau_s)) }; } },
+    { id: 'principal', title: 'Principal axes, Mohr\'s circle, diagonal form', ref: '§2.11, Eq. (2.12)',
+      src: `
+lam, B = ch02.principal_axes(tau)          # lam = ({{l1}}, {{l2}}), columns of B = axes
+theta_p = ch02.principal_angle_2d(tau)     # {{thp}} deg: the shear-free cut
+c, r = ch02.mohr_circle_2d(tau)            # centre {{c}}, radius {{r}} = max shear
+C, tau_p = ch02.diagonalize(tau)           # tau' = C^T tau C = diag({{l1}}, {{l2}})`,
+      live: s => { const m = model(s); return { l1: tx(m.pr.lam[0]), l2: tx(m.pr.lam[1]), thp: tx(m.thpDeg, 1), c: tx(m.mo.center), r: tx(m.mo.radius) }; } }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'Nine numbers, one point', text: 'This point in a channel flow carries a pure shear of 1 Pa: no push on its faces, only a slide along them. Cut it along any plane — what pushes across the cut? Drag the normal <b>n</b> and watch the black arrow <b>f</b>.', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 30, sketch: 'none' }, readouts: ['f'], play: false },
+    { title: 'Cauchy\'s formula', text: '$f_1 = \\tau_{11}n_1 + \\tau_{21}n_2 = 0 + 1\\times0.5 = 0.5$ Pa; $f_2 = 0.866$ Pa. Each row of τ is one face, and it is the <b>first</b> index that is contracted with n. Nine steps of a shrinking tetrahedron prove it.', eq: 'cauchy', derive: { id: 'D05', step: 9 }, set: { phi: 30 }, play: false },
+    { title: 'Split it', text: 'The <span class="c-blue">blue</span> part pulls straight across the cut ($\\sigma_n = 0.866$ Pa); the <span class="c-rose">rose</span> part slides along it ($\\tau_s = 0.5$ Pa). The bars show what each stress component contributes to σn. Both change with φ — the curves show how.', inspect: true, terms: true, set: { phi: 30 }, play: false },
+    { title: 'Find the quiet cuts', text: 'Turn φ to 45°: the rose part vanishes and only a pull of 1 Pa remains. At 135° there is a pure squeeze of −1 Pa. No other cut is shear-free. Drag φ and check the shear readout.', set: { phi: 45 }, controls: ['phi'], readouts: ['ts', 'sn'], play: false },
+    { title: 'Those are eigenvectors', text: 'A shear-free cut has f parallel to n: $\\tau\\cdot\\mathbf b = \\lambda\\mathbf b$. For a symmetric τ there are always two such directions (three in 3-D), perpendicular, with real λ — proved move by move in the Derivation tab.', eq: 'eigen', derive: { id: 'D17', step: 8 }, set: { phi: 45 }, play: false },
+    { title: 'Bounds and Mohr', text: 'Every cut\'s $(\\sigma_n, \\tau_s)$ lies on one circle: centre $(\\tau_{11} + \\tau_{22})/2$, radius $(\\lambda_{\\max} - \\lambda_{\\min})/2$. So σn never leaves $[\\lambda_{\\min}, \\lambda_{\\max}]$ and the shear never exceeds the radius. Watch the sweep.', eq: 'mohr', derive: { id: 'D17', step: 14 }, set: { phi: 0 }, play: true },
+    { title: 'A fluid at rest', text: 'Hydrostatic preset: the circle shrinks to a point and the curves go flat. $\\mathbf f = -p\\,\\mathbf n$ on every cut, no direction is special. That is Ch. 1\'s pressure, seen as a tensor: $\\tau = -p\\,\\delta$.', set: { mode: 'stress', nonsym: false, t11: -2, t22: -2, t12: 0, phi: 30 }, notes: true, play: false },
+    { title: 'Your turn: Ex. 2.4', text: 'Strain-rate mode with Γ = 1 1/s. Predict the direction of fastest stretching and its rate, then read λ and θp. Then add $S_{11} = 1$ and predict how θp moves before you look.', set: { mode: 'strain', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 30 }, controls: ['mode', 't11', 't12', 'phi'], readouts: ['lam', 'thp'], play: false }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'cauchy', title: 'Cauchy\'s traction formula', ref: 'Eq. (2.15)', tex: '\\begin{aligned} f_i &= \\sum_{j=1}^{3}\\tau_{ji}\\,n_j \\equiv \\tau_{ji}\\,n_j \\\\ \\mathbf f &= \\mathbf n\\cdot\\boldsymbol\\tau \\end{aligned}',
+      live: s => { const m = model(s); return '\\mathbf f = ' + T2(m.f[0], m.f[1]) + '\\ \\text{' + m.unit + '}\\ \\text{at}\\ \\phi = ' + tx(s.phi, 0) + '°'; },
+      note: 'the first index of τ (the face) is the one summed; n·τ = τ·n only for symmetric τ, which Ch. 4 proves for the stress',
+      symbols: [['f_i', 'force per unit area on the cut, component i', 'Pa'], ['n_j', 'outward unit normal of the cut', '–'], ['\\tau_{ji}', 'stress on face j in direction i', 'Pa']] },
+    { id: 'areas', title: 'Tetrahedron face areas', ref: '§2.6', tex: 'dA_j = n_j\\,dA',
+      live: s => { const n = model(s).n; return '(dA_1, dA_2) = ' + T2(n[0], n[1]) + '\\,dA'; }, note: 'the vector area of a closed surface is zero: each coordinate face is the slanted face\'s shadow',
+      symbols: [['dA', 'area of the slanted face', 'm²'], ['dA_j', 'area of the face perpendicular to axis j', 'm²']] },
+    { id: 'split', title: 'Normal and shear parts', ref: '§2.6, Example 2.2', tex: '\\sigma_n = \\mathbf f\\cdot\\mathbf n,\\qquad \\tau_s = \\mathbf f\\cdot\\mathbf s = \\pm|\\mathbf f - \\sigma_n\\mathbf n|',
+      live: s => { const m = model(s); return '\\sigma_n = ' + tx(m.sigma_n) + ',\\quad \\tau_s = ' + tx(m.tau_s) + '\\ \\text{' + m.unit + '}'; }, note: 's = (−sin φ, cos φ) is the counter-clockwise tangent of the cut; for pure shear a: σn = a sin 2φ, τs = a cos 2φ',
+      symbols: [['\\sigma_n', 'normal stress on the cut (tension +)', 'Pa'], ['\\tau_s', 'shear stress along the cut', 'Pa']] },
+    { id: 'eigen', title: 'Eigen-equation of the principal axes', ref: '§2.11', tex: '\\begin{aligned} \\det|\\tau_{ij} - \\lambda\\delta_{ij}| &= 0 \\\\ (\\tau_{ij} - \\lambda\\delta_{ij})\\,b_j &= 0 \\end{aligned}',
+      live: s => { const m = model(s); return '\\lambda = ' + tx(m.pr.lam[0]) + ',\\ ' + tx(m.pr.lam[1]) + '\\ \\text{' + m.unit + '}'; }, note: 'in 2-D the determinant is λ² − I₁λ + I₂ with I₁ the trace and I₂ the determinant of τ',
+      symbols: [['\\lambda', 'eigenvalue = principal stress', 'Pa'], ['b_j', 'eigenvector = principal axis (unit)', '–'], ['\\delta_{ij}', 'Kronecker delta, Eq. (2.16)', '–']] },
+    { id: 'diag', title: 'Diagonal form in the principal axes', ref: '§2.11 fact (3), Eq. (2.12)', tex: '\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C = \\mathrm{diag}(\\lambda^1, \\lambda^2),\\qquad \\mathbf C = [\\mathbf b^1\\ \\mathbf b^2]',
+      live: s => { const d = diagonalize2d(model(s).tau); return '\\tau\' = \\mathrm{diag}(' + tx(d.tauP[0][0]) + ',\\ ' + tx(d.tauP[1][1]) + '),\\quad \\tau\'_{12} = ' + tx(d.tauP[0][1]); }, note: 'the transformation rule (2.12) with the eigenvectors as the new axes: no shear component survives',
+      symbols: [['C_{ij}', 'direction cosines e_i · e\'_j', '–']] },
+    { id: 'mohr', title: 'Principal values in 2-D (Mohr\'s circle)', ref: 'Ch. 4 preview', tex: '\\lambda_{1,2} = \\tfrac{\\tau_{11}+\\tau_{22}}{2} \\pm \\sqrt{\\big(\\tfrac{\\tau_{11}-\\tau_{22}}{2}\\big)^2 + \\tau_{12}^2}',
+      live: s => { const m = model(s); return '\\lambda = ' + tx(m.mo.center) + ' \\pm ' + tx(m.mo.radius) + '\\ \\text{' + m.unit + '}'; }, note: 'centre and radius of the circle traced by (σn, τs) as the cut turns; the radius is the largest possible shear',
+      symbols: [['\\tfrac{\\tau_{11}+\\tau_{22}}{2}', 'Mohr centre = I₁/2', 'Pa'], ['\\sqrt{\\cdots}', 'Mohr radius = max shear', 'Pa']] }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Channel shear a = 1 Pa. At which two angles φ is the shear on the cut largest, and how large is it?', a: 'φ = 0° and 90° — the coordinate faces themselves: τs = ±1 Pa = (λmax − λmin)/2, and there σn = 0. Watch the rose curve peak at 0°, 90°, 180°.', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 0 } },
+    { q: 'Uniaxial pull τ₁₁ = 2 Pa, nothing else. Which cut carries the most shear, and how much?', a: 'The 45° cut: τs = 1 Pa, half the pull (the Mohr radius is (2 − 0)/2). The normal stress there is 1 Pa too — the centre of the circle.', set: { mode: 'stress', nonsym: false, t11: 2, t22: 0, t12: 0, phi: 45 } },
+    { q: 'Set τ₁₁ = 1, τ₂₂ = −1, τ₁₂ = 0. Where are the principal axes?', a: 'θp = 0°: the given axes are already principal because τ is diagonal; λ = ±1 Pa and the maximum-shear cuts are at 45° and 135°, where τs = ±1 Pa.', set: { mode: 'stress', nonsym: false, t11: 1, t22: -1, t12: 0, phi: 45 } },
+    { q: 'Turn on the non-symmetric demo (τ₂₁ = 0). Which arrow is the traction, the black or the amber one?', a: 'The black one, n·τ (first index contracted), by (2.15). The amber τ·n is a different vector; for a real stress Ch. 4 proves τ₁₂ = τ₂₁, so the two coincide and the question never arises.', set: { mode: 'stress', nonsym: true, t11: 0, t22: 0, t12: 1, phi: 30 } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const n30 = [0.8660254037844387, 0.5], ph = 0.5235987755982988, T = [[0, 1], [1, 0]], T2v = [[1, 0.5], [0.5, -1]], T3 = [[1.2, 0.3], [0.3, -0.4]];
+    let inside = 1, shearOK = 1;
+    [T, T2v, T3].forEach(tau => { const p = principal2d(tau), r = mohr(tau).radius; for (let k = 0; k < 36; k++) { const d = traction2d(tau, k * 5 * DEG); if (d.sigma_n < p.lam[0] - 1e-12 || d.sigma_n > p.lam[1] + 1e-12) inside = 0; if (Math.abs(d.tau_s) > r + 1e-12) shearOK = 0; } });
+    return [
+      { name: 'f₁ Ex. 2.2 (2.15), φ = 30°', js: traction(T, n30)[0], py: 'ch02.traction([[0.0, 1.0], [1.0, 0.0]], [0.8660254037844387, 0.5])[0]', rtol: 1e-12 },
+      { name: 'f₂ Ex. 2.2 (2.15), φ = 30°', js: traction(T, n30)[1], py: 'ch02.traction([[0.0, 1.0], [1.0, 0.0]], [0.8660254037844387, 0.5])[1]', rtol: 1e-12 },
+      { name: 'f₂ non-symmetric τ (first index)', js: traction([[0, 2], [0, 0]], n30)[1], py: 'ch02.traction([[0.0, 2.0], [0.0, 0.0]], [0.8660254037844387, 0.5])[1]', rtol: 1e-12 },
+      { name: 'σ_n traction_2d at 30°', js: traction2d(T, ph).sigma_n, py: 'ch02.traction_2d([[0.0, 1.0], [1.0, 0.0]], 0.5235987755982988)["sigma_n"]', rtol: 1e-12 },
+      { name: 'τ_s (signed) traction_2d at 30°', js: traction2d(T, ph).tau_s, py: 'ch02.traction_2d([[0.0, 1.0], [1.0, 0.0]], 0.5235987755982988)["tau_s"]', rtol: 1e-12 },
+      { name: 'direction of f, traction_2d', js: traction2d(T2v, 2.0).angle, py: 'ch02.traction_2d([[1.0, 0.5], [0.5, -1.0]], 2.0)["angle_rad"]', rtol: 1e-12 },
+      { name: '|τ_s| normal_shear_stress', js: normalShearStress(T2v, n30).tau_s, py: 'ch02.normal_shear_stress([[1.0, 0.5], [0.5, -1.0]], [0.8660254037844387, 0.5])[1]', rtol: 1e-12 },
+      { name: 'σ_n normal_shear_stress', js: normalShearStress(T2v, n30).sigma_n, py: 'ch02.normal_shear_stress([[1.0, 0.5], [0.5, -1.0]], [0.8660254037844387, 0.5])[0]', rtol: 1e-12 },
+      { name: 'λ_max pure shear (principal_axes)', js: principal2d(T).lam[1], py: 'ch02.principal_axes([[0.0, 1.0], [1.0, 0.0]])[0][1]', rtol: 1e-12 },
+      { name: 'λ_min general (principal_axes)', js: principal2d(T2v).lam[0], py: 'ch02.principal_axes([[1.0, 0.5], [0.5, -1.0]])[0][0]', rtol: 1e-12 },
+      { name: 'θ_p principal_angle_2d', js: principalAngle(T2v), py: 'ch02.principal_angle_2d([[1.0, 0.5], [0.5, -1.0]])', rtol: 1e-12 },
+      { name: 'Mohr radius', js: mohr(T2v).radius, py: 'ch02.mohr_circle_2d([[1.0, 0.5], [0.5, -1.0]])[1]', rtol: 1e-12 },
+      { name: 'Mohr centre', js: mohr(T3).center, py: 'ch02.mohr_circle_2d([[1.2, 0.3], [0.3, -0.4]])[0]', rtol: 1e-12 },
+      { name: 'I₁ invariants', js: invariants2d(T3).I1, py: 'ch02.invariants([[1.2, 0.3], [0.3, -0.4]])[0]', rtol: 1e-12 },
+      { name: 'I₂ = det, invariants', js: invariants2d(T2v).I2, py: 'ch02.invariants([[1.0, 0.5], [0.5, -1.0]])[1]', rtol: 1e-12 },
+      { name: 'diagonalize: τ′₁₁ = λ_min', js: diagonalize2d(T2v).tauP[0][0], py: 'ch02.diagonalize([[1.0, 0.5], [0.5, -1.0]])[1][0, 0]', rtol: 1e-12 },
+      { name: 'diagonalize: τ′₁₂ = 0', js: diagonalize2d(T3).tauP[0][1], py: 'ch02.diagonalize([[1.2, 0.3], [0.3, -0.4]])[1][0, 1]', atol: 1e-12 },
+      { name: 'Ex. 2.2 direction of f (a > 0)', js: ex22(1, ph).angle, py: 'ch02.example_2_2(1.0, 0.5235987755982988)["angle_rad"]', rtol: 1e-12 },
+      { name: 'Ex. 2.2 direction of f (a < 0)', js: ex22(-1, ph).angle, py: 'ch02.example_2_2(-1.0, 0.5235987755982988)["angle_rad"]', rtol: 1e-12 },
+      { name: 'Ex. 2.2 τ′₁₁ = a sin 2φ via (2.12)', js: ex22(1, ph).tauRot[0][0], py: 'ch02.example_2_2(1.0, 0.5235987755982988)["sigma_n"]', rtol: 1e-12 },
+      { name: 'Ex. 2.4 principal angle', js: ex24(1).angle, py: 'ch02.example_2_4(1.0)["angle_rad"]', rtol: 1e-12 },
+      { name: 'Ex. 2.4 λ¹ = Γ', js: ex24(1.5).lam[0], py: 'ch02.example_2_4(1.5)["lam"][0]', rtol: 1e-12 },
+      { name: 'stress_vs_angle σ_n(60°)', js: stressVsAngle(T2v, [Math.PI / 3]).sigma_n[0], py: 'ch02.stress_vs_angle([[1.0, 0.5], [0.5, -1.0]], [np.pi / 3])["sigma_n"][0]', rtol: 1e-12 },
+      { name: 'stress_vs_angle τ_s(60°)', js: stressVsAngle(T2v, [Math.PI / 3]).tau_s[0], py: 'ch02.stress_vs_angle([[1.0, 0.5], [0.5, -1.0]], [np.pi / 3])["tau_s"][0]', rtol: 1e-12 },
+      { name: 'non-symmetric: (n·τ)₂ − (τ·n)₂ = √3', js: traction([[0, 2], [0, 0]], n30)[1] - tractionSecondIndex([[0, 2], [0, 0]], n30)[1], expect: 1.7320508075688772, rtol: 1e-9 },
+      { name: 'σ_n within [λmin, λmax] (3 tensors × 36 cuts)', js: inside, expect: 1, atol: 0 },
+      { name: '|τ_s| ≤ Mohr radius (3 tensors × 36 cuts)', js: shearOK, expect: 1, atol: 0 }
+    ];
+  }
 });
 </script>
 </body>
