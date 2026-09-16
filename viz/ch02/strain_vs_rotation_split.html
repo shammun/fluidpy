@@ -453,6 +453,18 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* VIZ_BASE_CSS:END */
 </style>
+<style data-chapter>
+/* chapter CSS — strain_vs_rotation_split. On landscape phones and on short portrait phones the stage has room for one
+   view row only: keep the motion row (its title carries the three line angles; the matrix facts are in the status line
+   and the Explain tab) and drop the preset strip (every preset is reachable from the Explore sliders). The Derivation
+   tab is exempt because the engine keeps exactly the derivation's own view there. No overflow, no fixed widths. */
+.viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+.viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(2) { display: none !important; }
+@media (max-height: 720px) {
+  .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
+  .viz-app[data-layout="portrait"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(2) { display: none !important; }
+}
+</style>
 <style>
   /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
 </style>
@@ -2122,93 +2134,681 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch02_cartesian_tensors.symmetric_part (same symbols, same equation numbers, SI units).
+   PHYSICS — mirrors fluidpy.core.tensors (symmetric_part, antisymmetric_part, antisymmetric_from_vector,
+   vector_from_antisymmetric, principal_axes, symmetric_double_contraction) and fluidpy.ch02_cartesian_tensors
+   (velocity_gradient_preset, linear_flow_map, deform_square, material_line_angle, example_2_4).
+   Conventions: G[i][j] = ∂u_i/∂x_j [1/s]; S = ½(G + Gᵀ) (strain rate); the book's rotation tensor is
+   R = G − Gᵀ (fluidpy.rotation_tensor) with vector ω = ∇×u (the vorticity); A = ½(G − Gᵀ) = ½R is the antisymmetric
+   PART, whose vector is ½ω = ½∇×u (the angular velocity of a fluid element). In the plane the (2.26) block of A is
+   [[0, −½ω₃], [½ω₃, 0]], so hw3 ≡ ½ω₃ = A₂₁ = −A₁₂ [rad/s]. Never call A "R" or its vector "ω" in the text.
+   Trajectories of the linear flow u = M·x: x(t) = e^{Mt} x₀ (scipy.linalg.expm; here the exact 2×2 closed form).
    --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+const M2 = {
+  mv(A, x) { return [A[0][0] * x[0] + A[0][1] * x[1], A[1][0] * x[0] + A[1][1] * x[1]]; },
+  mul(A, B) { return [[A[0][0] * B[0][0] + A[0][1] * B[1][0], A[0][0] * B[0][1] + A[0][1] * B[1][1]], [A[1][0] * B[0][0] + A[1][1] * B[1][0], A[1][0] * B[0][1] + A[1][1] * B[1][1]]]; },
+  T(A) { return [[A[0][0], A[1][0]], [A[0][1], A[1][1]]]; },
+  det(A) { return A[0][0] * A[1][1] - A[0][1] * A[1][0]; },
+  tr(A) { return A[0][0] + A[1][1]; },
+  fro(A, B) { return A[0][0] * B[0][0] + A[0][1] * B[0][1] + A[1][0] * B[1][0] + A[1][1] * B[1][1]; },  // A_ij B_ij
+  maxAbs(A) { return Math.max(Math.abs(A[0][0]), Math.abs(A[0][1]), Math.abs(A[1][0]), Math.abs(A[1][1])); }
+};
+/** S_ij = ½(G_ij + G_ji) — fluidpy.symmetric_part / strain_rate_tensor (§2.10, unnumbered split). */
+function symPart(G) { return [[G[0][0], 0.5 * (G[0][1] + G[1][0])], [0.5 * (G[1][0] + G[0][1]), G[1][1]]]; }
+/** A_ij = ½(G_ij − G_ji) — fluidpy.antisymmetric_part / rotation_tensor. */
+function antiPart(G) { return [[0, 0.5 * (G[0][1] - G[1][0])], [0.5 * (G[1][0] - G[0][1]), 0]]; }
+/** The vector of a 2×2 antisymmetric block: the (2.26) block is [[0, −v], [v, 0]] → v = A₂₁ (fluidpy.vector_from_antisymmetric on 2×2).
+    For A = ½(G − Gᵀ) this v is ½ω₃ = ½(∇×u)₃, the angular velocity of a fluid element. */
+function omegaOf(A) { return A[1][0]; }
+/** ε_ijk (0-based indices) — the alternating tensor (2.18). */
+function eps3(i, j, k) { if (i === j || j === k || i === k) return 0; return ((i === 0 && j === 1 && k === 2) || (i === 1 && j === 2 && k === 0) || (i === 2 && j === 0 && k === 1)) ? 1 : -1; }
+/** R_ij = −ε_ijk ω_k, Eq. (2.27) first half → the matrix (2.26); fluidpy.antisymmetric_from_vector. */
+function antiFromOmega(w) {
+  const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { let v = 0; for (let k = 0; k < 3; k++) v -= eps3(i, j, k) * w[k]; R[i][j] = v; }
+  return R;
+}
+/** ω_k = −½ ε_ijk R_ij, Eq. (2.27) second half; fluidpy.vector_from_antisymmetric (3×3). */
+function vectorFromAnti(R) {
+  const w = [0, 0, 0];
+  for (let k = 0; k < 3; k++) { let v = 0; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) v += eps3(i, j, k) * R[i][j]; w[k] = -0.5 * v; }
+  return w;
+}
+/** e^{Gt} for a 2×2 G (fluidpy.linear_flow_map = scipy expm). Exact: G t = aI + N with N traceless, N² = d² I,
+    e^{aI+N} = e^a (cosh d · I + sinh d / d · N); d² < 0 gives cos / sin (rotation), d² = 0 the shear limit I + N. */
+function expm2(G, t) {
+  const M = [[G[0][0] * t, G[0][1] * t], [G[1][0] * t, G[1][1] * t]];
+  const a = 0.5 * (M[0][0] + M[1][1]);
+  const N = [[M[0][0] - a, M[0][1]], [M[1][0], M[1][1] - a]];
+  const d2 = -(N[0][0] * N[1][1] - N[0][1] * N[1][0]);         // N² = d2 · I
+  let c, sd;
+  if (Math.abs(d2) < 1e-12) { c = 1 + d2 / 2; sd = 1 + d2 / 6; }
+  else if (d2 > 0) { const d = Math.sqrt(d2); c = Math.cosh(d); sd = Math.sinh(d) / d; }
+  else { const d = Math.sqrt(-d2); c = Math.cos(d); sd = Math.sin(d) / d; }
+  const ea = Math.exp(a);
+  return [[ea * (c + sd * N[0][0]), ea * sd * N[0][1]], [ea * sd * N[1][0], ea * (c + sd * N[1][1])]];
+}
+/** Lattice of an n×n square of half-width 1 carried for time t — fluidpy.deform_square (meshgrid 'xy', row-major). */
+function deformSquare(G, t, n) {
+  n = n || 10;
+  const s = Viz.num.linspace(-1, 1, n), E = expm2(G, t), xs = [], ys = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const p = M2.mv(E, [s[i], s[j]]); xs.push(p[0]); ys.push(p[1]); }
+  return [xs, ys];
+}
+/** Perimeter of the square (closed polygon) after time t. */
+function squareOutline(G, t, n) {
+  n = n || 12; const s = Viz.num.linspace(-1, 1, n), E = expm2(G, t), pts = [];
+  for (let i = 0; i < n; i++) pts.push([s[i], -1]); for (let i = 0; i < n; i++) pts.push([1, s[i]]);
+  for (let i = n - 1; i >= 0; i--) pts.push([s[i], 1]); for (let i = n - 1; i >= 0; i--) pts.push([-1, s[i]]);
+  return pts.map(p => M2.mv(E, p));
+}
+/** Angle of a material line that started at θ₀ [rad] — fluidpy.material_line_angle. */
+function lineAngle(G, t, th0) { const v = M2.mv(expm2(G, t), [Math.cos(th0), Math.sin(th0)]); return Math.atan2(v[1], v[0]); }
+/** Eigenvalues (ascending) and principal axes of a symmetric 2×2 S — fluidpy.principal_axes (det B = +1).
+    θ_p = ½ atan2(2 S₁₂, S₁₁ − S₂₂) is the direction of the largest eigenvalue (fluidpy.principal_angle_2d). */
+function principal2d(S) {
+  const m = 0.5 * (S[0][0] + S[1][1]), hh = 0.5 * (S[0][0] - S[1][1]), r = Math.hypot(hh, S[0][1]);
+  const thp = 0.5 * Math.atan2(2 * S[0][1], S[0][0] - S[1][1]);
+  const bmax = [Math.cos(thp), Math.sin(thp)], bmin = [Math.sin(thp), -Math.cos(thp)];   // det [bmin bmax] = +1
+  return { lam: [m - r, m + r], B: [[bmin[0], bmax[0]], [bmin[1], bmax[1]]], theta: thp, bmax, bmin };
+}
+/** Example 2.4 with the book's Γ ≡ S₁₂: S = [[0, Γ], [Γ, 0]] → λ = (Γ, −Γ), b¹ = (1, 1)/√2, C the 45° rotation, S' = diag(Γ, −Γ).
+    ⚠ For the flow u₁ = γ̇ x₂ alone, S₁₂ = ½ γ̇, so Γ = γ̇/2 (the book's line "2S₁₂ = Γ" carries a stray 2). */
+function ex24(Gamma) {
+  const q = Math.SQRT1_2, C = [[q, -q], [q, q]];
+  return { S: [[0, Gamma], [Gamma, 0]], lam: [Gamma, -Gamma], B: C, C, S_prime: [[Gamma, 0], [0, -Gamma]], angle_deg: 45, G: [[0, 2 * Gamma], [0, 0]] };
+}
+/** The book's rotation tensor R = G − Gᵀ = 2A (fluidpy.rotation_tensor); its vector is the vorticity ω = ∇×u,
+    in the plane ω₃ = R₂₁ = ∂u₂/∂x₁ − ∂u₁/∂x₂ (fluidpy.vector_from_antisymmetric on the 2×2 R). */
+function rotationTensor(G) { return [[0, G[0][1] - G[1][0]], [G[1][0] - G[0][1], 0]]; }
+function curlOf(G) { return G[1][0] - G[0][1]; }
+/** τ_ij B_ij = τ_ij S_ij + τ_ij A_ij, Eqs. (2.28)–(2.29) — fluidpy.symmetric_double_contraction. */
+function symContraction(tau, B) { const S = symPart(B), A = antiPart(B), PS = M2.fro(tau, S), PA = M2.fro(tau, A); return { P: PS + PA, PS, PA }; }
+/** fluidpy.velocity_gradient_preset(name, Γ) — the classic linear flows (Γ = 1), matrices as in the design (Part C). */
+const PRESET_G = {
+  simple_shear: [[0, 1], [0, 0]], solid_body_rotation: [[0, -1], [1, 0]], pure_strain: [[1, 0], [0, -1]],
+  uniaxial_extension: [[1, 0], [0, 0]], irrotational_strain: [[0, 1], [1, 0]]
+};
+
+/* ---------------------------------------------------------------------------------------------------
+   DERIVED STATE (one place, every frame)
+   --------------------------------------------------------------------------------------------------- */
+const T_END = 1.5, DEG = 180 / Math.PI, TINY = 1e-9;
+function gradient(s) { return [[s.g11, s.g12], [s.g21, s.g22]]; }
+function regimeOf(G, S, A) {
+  const nG = M2.maxAbs(G), nS = M2.maxAbs(S), nA = M2.maxAbs(A);
+  if (nG < TINY) return 'rest';
+  if (nS < TINY) return 'rotation';
+  if (nA < TINY) return (Math.abs(S[0][0] - S[1][1]) < TINY && Math.abs(S[0][1]) < TINY) ? 'expansion' : 'strain';
+  const diagZero = Math.abs(G[0][0]) < TINY && Math.abs(G[1][1]) < TINY;
+  if (diagZero && ((Math.abs(G[0][1]) > TINY) !== (Math.abs(G[1][0]) > TINY))) return 'shear';
+  return 'mixed';
+}
+function phys(s) {
+  const G = gradient(s), S = symPart(G), A = antiPart(G), hw3 = omegaOf(A), pr = principal2d(S);
+  const SS = M2.fro(S, S), AA = M2.fro(A, A), SA = M2.fro(S, A), GG = M2.fro(G, G);
+  const Gamma = Math.abs(G[0][1]) > TINY ? G[0][1] : G[1][0];       // the shear rate when the regime is 'shear'
+  return { G, S, A, hw3, lam: pr.lam, B: pr.B, thp: pr.theta, bmax: pr.bmax, bmin: pr.bmin, div: M2.tr(G), SS, AA, SA, GG,
+    regime: regimeOf(G, S, A), Gamma, curl: curlOf(G) };
+}
+const MAT = { G: p => p.G, S: p => p.S, A: p => p.A };
+const COL = () => ({ G: Viz.color('text'), S: Viz.color('teal'), A: Viz.color('orange'), stretch: Viz.color('blue'), squeeze: Viz.color('rose'), ghost: Viz.color('muted') });
+const f2 = v => Viz.fmt(v, { sig: 3 });
+const f2z = v => (Math.abs(v) < 1e-9 ? 0 : v).toFixed(2).replace('-', '−');   // fixed two decimals, keeps 1.00
+const tz = v => (Math.abs(v) < 1e-9 ? 0 : v).toFixed(2);                        // TeX-safe two decimals
+const deg = v => f2(v * DEG);
+/** Common half-width of the motion panels: the largest excursion of any corner under G, S or A up to t = T_END. */
+function extent(p) {
+  let m = 1.2;
+  ['G', 'S', 'A'].forEach(k => [0.75, T_END].forEach(t => {
+    const E = expm2(MAT[k](p), t);
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(c => { const q = M2.mv(E, c); m = Math.max(m, Math.abs(q[0]), Math.abs(q[1])); });
+  }));
+  return Viz.clamp(1.08 * m, 1.6, 4.4);
+}
+function regimeName(p) {
+  return { rest: 'at rest (G = 0)', rotation: 'pure rotation', strain: 'pure strain', expansion: 'uniform expansion', shear: 'simple shear', mixed: 'mixed strain + rotation' }[p.regime];
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   DRAWING
+   --------------------------------------------------------------------------------------------------- */
+/** Panels of the motion view: three side by side when wide and 'all', else one panel (overlaying all three when 'all'). */
+function motionLayout(v, s) {
+  const wide = v.w >= 540;
+  const keys = s.show === 'all' ? (wide ? ['G', 'S', 'A'] : ['all']) : [s.show];
+  let pw = v.w / keys.length, x0 = 0;
+  if (keys.length === 1) { pw = Math.min(v.w, v.h * 1.2 + 44); x0 = (v.w - pw) / 2; }   // one panel: roughly square, centred
+  return keys.map((key, k) => ({ key, rect: { x: x0 + k * pw, y: 0, w: pw, h: v.h }, first: k === 0 }));
+}
+function panelPlot(v, pn, L) {
+  return v.plot({ rect: pn.rect, xlim: [-L, L], ylim: [-L, L], equal: true, pad: { l: pn.first ? 40 : 16, r: 10, t: 24, b: 30 }, xlabel: 'x₁ [m]', ylabel: pn.first ? 'x₂ [m]' : undefined });
+}
+function drawStreamlines(P, M, L, color) {
+  const n = M2.maxAbs(M); if (n < TINY) return;
+  const T = Math.min(4, 2.2 / n), taus = Viz.num.linspace(-T, T, 41);
+  P.clip(() => {
+    for (let k = 0; k < 12; k++) {
+      const a = 2 * Math.PI * k / 12, x0 = [0.62 * L * Math.cos(a), 0.62 * L * Math.sin(a)];
+      const pts = taus.map(tau => M2.mv(expm2(M, tau), x0));
+      P.line(pts.map(q => q[0]), pts.map(q => q[1]), { color: Viz.alpha(color, 0.16), width: 1 });
+      const mid = M2.mv(M, x0), sp = Math.hypot(mid[0], mid[1]);
+      if (sp > TINY) P.arrow(x0[0], x0[1], mid[0] / sp * 0.16 * L, mid[1] / sp * 0.16 * L, { color: Viz.alpha(color, 0.35), width: 1, head: 6 });
+    }
+  });
+}
+function drawShape(P, M, t, color, o) {
+  o = o || {};
+  const out = squareOutline(M, t), ctx = P.ctx;
+  P.clip(() => {
+    if (!o.ghost) {
+      ctx.save(); ctx.beginPath();
+      out.forEach((q, i) => { const X = P.X(q[0]), Y = P.Y(q[1]); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); });
+      ctx.closePath(); ctx.fillStyle = Viz.alpha(color, 0.10); ctx.fill(); ctx.restore();
+    }
+    P.poly(out, { color: o.ghost ? Viz.alpha(color, 0.55) : color, width: o.ghost ? 1.2 : 2, dash: o.ghost ? [4, 3] : [] });
+    if (!o.ghost) {
+      const [xs, ys] = deformSquare(M, t, 7), r = P.px.w < 150 ? 1.6 : 2.3;
+      for (let i = 0; i < xs.length; i++) P.dot(xs[i], ys[i], r, { color });
+    }
+  });
+}
+function drawPanel(P, key, p, s, L, C) {
+  const t = s.t, ctx = P.ctx, small = P.px.w < 150;
+  const keys = key === 'all' ? ['S', 'A', 'G'] : [key];
+  // faint streamlines of the field of this panel
+  if (key !== 'all') drawStreamlines(P, MAT[key](p), L, C[key]);
+  // the square at t = 0 (dashed grey)
+  P.poly(squareOutline([[0, 0], [0, 0]], 0), { color: Viz.alpha(C.ghost, 0.7), width: 1, dash: [3, 3] });
+  // ghosts on the G panel: what S alone and A alone would do
+  if (key === 'G') { drawShape(P, p.S, t, C.S, { ghost: true }); drawShape(P, p.A, t, C.A, { ghost: true }); }
+  keys.forEach(k => drawShape(P, MAT[k](p), t, C[k]));
+  // principal axes of S (blue = stretch, rose = squeeze), drawn on the S panel
+  if (key === 'S' || key === 'all') {
+    const len = 0.9 * Math.min(L, 1.6);
+    [[p.bmax, p.lam[1]], [p.bmin, p.lam[0]]].forEach(([b, lam]) => {
+      if (Math.abs(lam) < TINY) return;
+      const col = lam > 0 ? C.stretch : C.squeeze;
+      P.arrow(0, 0, b[0] * len, b[1] * len, { color: col, width: 2, head: 8 });
+      P.arrow(0, 0, -b[0] * len, -b[1] * len, { color: col, width: 2, head: 8 });
+      if (!small) P.text(b[0] * len * 1.08, b[1] * len * 1.08, (lam > 0 ? '+' : '−') + f2(Math.abs(lam)) + ' 1/s', { color: col, size: 12, align: b[0] >= 0 ? 'left' : 'right', weight: 650 });
+    });
+  }
+  // paddle wheel turning with A, on the A panel
+  if (key === 'A' || key === 'all') {
+    const R = 0.42, ang = p.hw3 * t;
+    for (let k = 0; k < 4; k++) { const a = ang + k * Math.PI / 2; P.line([0, R * Math.cos(a)], [0, R * Math.sin(a)], { color: C.A, width: 3 }); }
+    P.dot(0, 0, 4, { color: C.A, stroke: Viz.color('card'), strokeWidth: 1.5 });
+    const X = P.px.x + P.px.w - 14, Y = P.px.y + P.px.h - 14;   // bottom-right corner, clear of the panel label
+    ctx.save(); ctx.strokeStyle = C.A; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X, Y, 7, 0, 2 * Math.PI); ctx.stroke();
+    if (Math.abs(p.hw3) > TINY) {
+      if (p.hw3 > 0) { ctx.fillStyle = C.A; ctx.beginPath(); ctx.arc(X, Y, 2.2, 0, 2 * Math.PI); ctx.fill(); }
+      else { ctx.beginPath(); ctx.moveTo(X - 4.5, Y - 4.5); ctx.lineTo(X + 4.5, Y + 4.5); ctx.moveTo(X + 4.5, Y - 4.5); ctx.lineTo(X - 4.5, Y + 4.5); ctx.stroke(); }
+    }
+    ctx.restore();
+    if (!small && !s.__holding) Viz.text(ctx, '½ω₃ = ' + f2z(p.hw3) + ' rad/s', X - 11, Y, { color: C.A, size: 12, align: 'right', weight: 650 });
+  }
+  // panel label
+  const label = key === 'G' ? 'G = S + A: the full gradient' : key === 'S' ? 'S = ½(G + Gᵀ): strain rate' : key === 'A' ? 'A = ½(G − Gᵀ): rotation rate' : 'G (black) · S (teal) · A (orange)';
+  Viz.text(ctx, small ? label.split(':')[0] : label, P.px.x + 6, P.px.y + 12, { color: key === 'all' ? Viz.color('text') : C[key], size: 12, weight: 650, bg: true, maxWidth: P.px.w - 12 });
+  // probe ring
+  if (s.probe && s.probe.indexOf('tracer:') === 0) {
+    const [, pk, idx] = s.probe.split(':');
+    if (pk === key || key === 'all') { const [xs, ys] = deformSquare(MAT[pk === 'all' ? 'G' : pk](p), t, 7); P.dot(xs[+idx], ys[+idx], 6, { color: Viz.alpha(Viz.color('accent'), 0.25), stroke: Viz.color('accent'), strokeWidth: 2 }); }
+  }
+}
+function drawMotion(v, s, app) {
+  v.clear();
+  const p = phys(s), L = extent(p), C = COL();
+  const panels = motionLayout(v, s), sv = Object.assign({}, s, { __holding: !!app.holding });
+  panels.forEach(pn => { const P = panelPlot(v, pn, L); P.axes({ grid: false }); drawPanel(P, pn.key, p, sv, L, C); });
+  if (app.holding) {
+    const eS1 = Math.exp(p.lam[1] * T_END), eS2 = Math.exp(p.lam[0] * T_END), turn = p.hw3 * T_END;
+    const lines = [`after ${T_END} s:`,
+      `S: ×${f2(eS1)} along ${deg(p.thp)}°, ×${f2(eS2)} along ${deg(p.thp + Math.PI / 2)}°`,
+      `A: turned ${f2(turn)} rad = ${f2(turn * DEG)}°`,
+      p.regime === 'shear' ? `G: the shear x₁ → x₁ + ${f2(p.Gamma * T_END)} x₂` : `G: area × ${f2(M2.det(expm2(p.G, T_END)))}`];
+    const mw = Math.min(v.w - 16, 300);   // bottom-left corner: clear of the panel labels and the ½ω₃ badge
+    Viz.card(v.ctx, 8 + mw / 2, v.h - 46, lines, { color: Viz.color('accent'), colors: [Viz.color('text'), C.S, C.A, C.G], maxWidth: mw, align: 'left' });
+  }
+}
+/** Matrix view geometry: three 2×2 boxes G = S + A. */
+function matrixLayout(v) {
+  const W = v.w, H = v.h, sign = 18, gap = 10;
+  const facts = H >= 120 ? 58 : H >= 96 ? 40 : 26;                 // room kept under the boxes for the two fact lines
+  const boxW = Math.max(40, Math.min((W - 2 * sign - 4 * gap - 12) / 3, (H - facts) * 0.98));
+  const total = 3 * boxW + 2 * sign + 4 * gap, x0 = (W - total) / 2, top = 24 + Math.max(0, (H - facts - boxW) / 2 - 8);
+  const boxes = ['G', 'S', 'A'].map((key, k) => ({ key, x: x0 + k * (boxW + 2 * gap + sign), y: top, w: boxW, cell: boxW / 2 }));
+  return { boxes, sign, gap, top, boxW, below: top + boxW };
+}
+function drawMatrix(v, s) {
+  v.clear();
+  const p = phys(s), C = COL(), ctx = v.ctx, Lm = matrixLayout(v), scale = Math.max(M2.maxAbs(p.G), 0.5);
+  const probe = s.probe && s.probe.indexOf('entry:') === 0 ? s.probe.split(':').slice(1).map(Number) : null;
+  const heads = { G: 'G', S: 'S = ½(G + Gᵀ)', A: 'A = ½(G − Gᵀ)' };
+  Lm.boxes.forEach((b, k) => {
+    const M = MAT[b.key](p), col = C[b.key], small = b.cell < 48, tiny = b.cell < 36;
+    Viz.text(ctx, tiny ? b.key : small ? (b.key === 'G' ? 'G' : b.key === 'S' ? 'S = ½(G+Gᵀ)' : 'A = ½(G−Gᵀ)') : heads[b.key], b.x + b.w / 2, b.y - 12, { color: col, size: 12, align: 'center', weight: 650, maxWidth: b.w + 16 });
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+      const x = b.x + j * b.cell, y = b.y + i * b.cell, val = M[i][j], hot = probe && probe[0] === i && probe[1] === j;
+      ctx.save();
+      ctx.fillStyle = hot ? Viz.alpha(Viz.color('accent'), 0.12) : Viz.alpha(col, 0.05); ctx.fillRect(x, y, b.cell, b.cell);
+      ctx.strokeStyle = hot ? Viz.color('accent') : Viz.color('border'); ctx.lineWidth = hot ? 2 : 1; ctx.strokeRect(x + 0.5, y + 0.5, b.cell - 1, b.cell - 1);
+      const cx = x + b.cell / 2;
+      if (!tiny) {
+        // signed bar from the cell's centre line
+        const by = y + b.cell * 0.36, bh = Math.max(5, b.cell * 0.16), len = val / scale * b.cell * 0.44;
+        ctx.strokeStyle = Viz.alpha(col, 0.35); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, by - bh * 0.9); ctx.lineTo(cx, by + bh * 0.9); ctx.stroke();
+        ctx.fillStyle = Math.abs(val) < TINY ? Viz.alpha(col, 0.25) : col;
+        if (Math.abs(val) < TINY) ctx.fillRect(cx - 1, by - bh / 2, 2, bh); else ctx.fillRect(Math.min(cx, cx + len), by - bh / 2, Math.abs(len), bh);
+      }
+      ctx.restore();
+      Viz.text(ctx, tiny ? (Math.abs(val) < TINY ? '0' : (Math.round(val * 10) / 10).toString().replace('-', '−')) : f2z(val), cx, tiny ? y + b.cell / 2 : y + b.cell * 0.72, { color: Viz.color('text'), size: small ? 11.5 : 12.5, align: 'center', weight: 600 });
+      if (!small) Viz.text(ctx, b.key + '' + (i + 1) + (j + 1), x + 4, y + 8, { color: Viz.alpha(col, 0.8), size: 10.5, weight: 500, halo: false });
+    }
+    if (k < 2) Viz.text(ctx, k === 0 ? '=' : '+', b.x + b.w + Lm.gap + Lm.sign / 2, b.y + b.w / 2, { size: 18, align: 'center', weight: 600, color: Viz.color('text-soft') });
+  });
+  // the two facts under the boxes
+  const y1 = Lm.below + 16, y2 = Lm.below + 32;
+  if (y2 < v.h - 2) {
+    Viz.text(ctx, '½ω₃ = A₂₁ = −A₁₂ = ' + f2z(p.hw3) + ' rad/s  (ω = ∇×u)', v.w / 2, y1, { color: C.A, size: 12, align: 'center', weight: 650, maxWidth: v.w - 8 });
+    Viz.text(ctx, 'S:S = ' + f2z(p.SS) + '   A:A = ' + f2z(p.AA) + '   S:A = ' + f2z(p.SA) + '  (2.29)', v.w / 2, y2, { color: Viz.color('text-soft'), size: 12, align: 'center', weight: 600, maxWidth: v.w - 8 });
+  } else if (y1 < v.h - 2) {
+    Viz.text(ctx, '½ω₃ = A₂₁ = ' + f2z(p.hw3) + ' rad/s · S:A = ' + f2z(p.SA), v.w / 2, y1, { color: C.A, size: 12, align: 'center', weight: 650, maxWidth: v.w - 8 });
+  }
+}
+function angleCurves(p, th0) {
+  const ts = Viz.num.linspace(0, T_END, 91);
+  const unwrap = arr => { for (let i = 1; i < arr.length; i++) { while (arr[i] - arr[i - 1] > Math.PI) arr[i] -= 2 * Math.PI; while (arr[i] - arr[i - 1] < -Math.PI) arr[i] += 2 * Math.PI; } return arr; };
+  const cur = M => unwrap(ts.map(t => lineAngle(M, t, th0))).map(a => a * DEG);
+  const n = [Math.cos(th0), Math.sin(th0)], nperp = [-Math.sin(th0), Math.cos(th0)], Gn = M2.mv(p.G, n);
+  const rate0 = nperp[0] * Gn[0] + nperp[1] * Gn[1];      // initial turning rate of the line [rad/s]
+  return { ts, S: cur(p.S), A: cur(p.A), G: cur(p.G), ghost: ts.map(t => (th0 + rate0 * t) * DEG), rate0 };
+}
+function drawAngle(v, s) {
+  v.clear(); if (v.h < 60) return;
+  const p = phys(s), C = COL(), th0 = s.theta0 / DEG, cv = angleCurves(p, th0);
+  let lo = Infinity, hi = -Infinity;
+  [cv.S, cv.A, cv.G].forEach(a => a.forEach(x => { lo = Math.min(lo, x); hi = Math.max(hi, x); }));
+  if (hi - lo < 20) { const m = (hi + lo) / 2; lo = m - 10; hi = m + 10; }
+  const pad = 0.08 * (hi - lo);
+  const P = v.plot({ xlim: [0, T_END], ylim: [lo - pad, hi + pad], xlabel: 't [s]', ylabel: 'line angle θ [°]' }).axes();
+  const upto = cv.ts.filter(t => t <= s.t + 1e-9), k = upto.length;
+  P.clip(() => {
+    P.line(cv.ts, cv.ghost, { color: Viz.alpha(C.ghost, 0.7), width: 1.2, dash: [5, 4] });
+    [['S', C.S], ['A', C.A], ['G', C.G]].forEach(([key, col]) => {
+      P.line(cv.ts, cv[key], { color: Viz.alpha(col, 0.28), width: 1.5 });
+      P.line(upto, cv[key].slice(0, k), { color: col, width: 2.6 });
+    });
+    P.line([s.t, s.t], [lo - pad, hi + pad], { color: Viz.alpha(Viz.color('accent'), 0.6), width: 1, dash: [3, 3] });
+  });
+  [['S', C.S], ['A', C.A], ['G', C.G]].forEach(([key, col]) => {
+    const th = lineAngle(MAT[key](p), s.t, th0) * DEG, thu = cv[key][Math.max(0, k - 1)];
+    P.dot(s.t, Math.abs(th - thu) > 180 ? thu : th, 4, { color: col, stroke: Viz.color('card'), strokeWidth: 1.5 });
+  });
+  if (v.w > 300) P.text(T_END, lo - pad + (hi - lo) * 0.06, 'dashed: if the line kept its initial turning rate', { align: 'right', dx: -6, size: 11.5, color: Viz.color('muted') });
 }
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
+const SHEAR = { g11: 0, g12: 2, g21: 0, g22: 0 };
+function statusOf(s) {
+  const p = phys(s);
+  switch (p.regime) {
+    case 'rest': return { text: '⏸ nothing moves: G = 0', tone: 'info' };
+    case 'rotation': return { text: `🔄 pure rotation: S = 0 — shape kept, spin ½ω₃ = ${f2z(p.hw3)} rad/s`, tone: 'good' };
+    case 'strain': return { text: `↔ pure strain: A = 0 — no spin; stretch rates ${f2z(p.lam[1])}, ${f2z(p.lam[0])} 1/s`, tone: 'good' };
+    case 'expansion': return { text: `⤢ expansion: S ∝ I, ∇·u = G_ii = ${f2z(p.div)} 1/s, no spin`, tone: 'info' };
+    case 'shear': return { text: `🌀 simple shear: half stretch (±${f2z(Math.abs(p.lam[1]))} 1/s along ${deg(p.thp)}°), half spin (½ω₃ = ${f2z(p.hw3)} rad/s) — Ex. 2.4`, tone: 'warn' };
+    default: return { text: `mixed: stretch rates ${f2z(p.lam[1])}, ${f2z(p.lam[0])} 1/s along ${deg(p.thp)}°, spin ½ω₃ = ${f2z(p.hw3)} rad/s`, tone: 'info' };
+  }
+}
 const app = Viz.app({
   title: 'Is simple shear a rotation?',
-  subtitle: 'A square of fluid carried by u = G·x deforms and spins at once; the same square under S = ½(G + Gᵀ) only stretches, under A = ½(G − Gᵀ) only spins — three panels on one clock, the hidden vector ω of A, and the check that a symmetric tensor cannot see A.',
+  subtitle: 'One square of fluid, released into u = G·x, u = S·x and u = A·x on one clock: the lean is a stretch plus a spin',
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    g11: { label: '$G_{11} = \\partial u_1/\\partial x_1$', min: -2, max: 2, step: 0.1, value: 0, unit: '1/s', help: 'stretch rate along x₁' },
+    g12: { label: '$G_{12} = \\partial u_1/\\partial x_2$', min: -3, max: 3, step: 0.1, value: 2, unit: '1/s', help: 'how fast u₁ grows with height x₂ (the shear of Ex. 2.4)' },
+    g21: { label: '$G_{21} = \\partial u_2/\\partial x_1$', min: -3, max: 3, step: 0.1, value: 0, unit: '1/s', help: 'how fast u₂ grows with x₁' },
+    g22: { label: '$G_{22} = \\partial u_2/\\partial x_2$', min: -2, max: 2, step: 0.1, value: 0, unit: '1/s', help: 'stretch rate along x₂' },
+    theta0: { label: 'Material line start angle $\\theta_0$', min: 0, max: 180, step: 5, value: 0, unit: '°', optional: true, help: 'the line whose angle the lower graph tracks' }
   },
-  readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+  modes: { param: 'show', label: 'Show', options: [['all', 'G · S · A'], ['G', 'G only'], ['S', 'S only'], ['A', 'A only']], value: 'all' },
+  transport: { param: 't', min: 0, max: T_END, value: 0.6, rate: 0.5, end: 'hold', hold: 2.5, label: 'time $t$', unit: 's' },
+  presets: [
+    { label: 'simple shear (Ex. 2.4)', set: Object.assign({}, SHEAR, { t: 0 }), title: 'u₁ = 2 x₂: G₁₂ = 2, rest 0' },
+    { label: 'solid-body rotation (Ex. 2.3)', set: { g11: 0, g12: -1, g21: 1, g22: 0, t: 0 }, title: 'u = b × x with b = e₃: G₁₂ = −1, G₂₁ = 1' },
+    { label: 'pure strain', set: { g11: 1, g12: 0, g21: 0, g22: -1, t: 0 }, title: 'u = (x₁, −x₂): G = diag(1, −1), traceless, A = 0' },
+    { label: 'uniaxial extension', set: { g11: 1, g12: 0, g21: 0, g22: 0, t: 0 }, title: 'u = (x₁, 0): G = diag(1, 0), ∇·u = 1' },
+    { label: 'irrotational shear', set: { g11: 0, g12: 1, g21: 1, g22: 0, t: 0 }, title: 'G = [[0, 1], [1, 0]]: the shear with its rotation removed' },
+    { label: 'expansion a x', set: { g11: 1, g12: 0, g21: 0, g22: 1, t: 0 }, title: 'u = x: S = I, ∇·u = 2' }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
+  status: statusOf,
+  readouts: [
+    { id: 'omega', label: 'Spin $\\tfrac12\\omega_3 = A_{21}$', unit: 'rad/s', value: s => phys(s).hw3, help: 'half the vorticity ω = ∇×u: the angular velocity of a fluid element' },
+    { id: 'lam1', label: 'Stretch rate $\\lambda_1$', unit: '1/s', value: s => phys(s).lam[1], help: 'largest eigenvalue of S' },
+    { id: 'lam2', label: 'Stretch rate $\\lambda_2$', unit: '1/s', value: s => phys(s).lam[0], help: 'smallest eigenvalue of S (negative = squeeze)' },
+    { id: 'thp', label: 'Stretch axis $\\theta_p$', unit: '°', value: s => phys(s).thp * DEG },
+    { id: 'div', label: '$\\nabla\\cdot\\mathbf u = G_{ii}$', unit: '1/s', value: s => phys(s).div, optional: true }
+  ],
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
-    draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
+    rows: [1.45, 1],
+    views: [
+      { id: 'motion', row: 0, flex: 1, title: s => { const p = phys(s), th0 = s.theta0 / DEG; return `<b>One square, three flows</b> · t = ${s.t.toFixed(2)} s · line angle now: <b class="c-teal">S ${deg(lineAngle(p.S, s.t, th0))}°</b> · <b class="c-orange">A ${deg(lineAngle(p.A, s.t, th0))}°</b> · G ${deg(lineAngle(p.G, s.t, th0))}°`; } },
+      { id: 'matrix', row: 1, flex: 1, title: '<b>G = S + A, entry by entry</b> · click an entry for its arithmetic' },
+      { id: 'angle', row: 1, flex: 1.5, hidePortrait: true, title: '<b>Angle of a material line vs t</b> · <b class="c-teal">S</b> swings to the stretching axis · <b class="c-orange">A</b> turns uniformly · G does both' }
+    ],
+    draw(g, s) { drawMotion(g.view('motion'), s, g.app); drawMatrix(g.view('matrix'), s); drawAngle(g.view('angle'), s); },
+    onPointer(g, ev, s) {
+      if (ev.type !== 'pointerdown') return false;
+      const v = ev.vizView, pt = v.pointer;
+      if (ev.viewId === 'matrix') {
+        const Lm = matrixLayout(v);
+        for (const b of Lm.boxes) if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.w) {
+          const i = Math.min(1, Math.floor((pt.y - b.y) / b.cell)), j = Math.min(1, Math.floor((pt.x - b.x) / b.cell));
+          g.app.set('probe', `entry:${i}:${j}`); return true;
+        }
+        g.app.set('probe', null); return true;
+      }
+      if (ev.viewId === 'motion') {
+        const p = phys(s), L = extent(p);
+        let best = null, bd = 14;
+        motionLayout(v, s).forEach(pn => {
+          const P = panelPlot(v, pn, L), keys = pn.key === 'all' ? ['G', 'S', 'A'] : [pn.key];
+          keys.forEach(k => { const [xs, ys] = deformSquare(MAT[k](p), s.t, 7); for (let i = 0; i < xs.length; i++) { const d = Math.hypot(P.X(xs[i]) - pt.x, P.Y(ys[i]) - pt.y); if (d < bd) { bd = d; best = `tracer:${k}:${i}`; } } });
+        });
+        g.app.set('probe', best); return true;
+      }
+      return false;
     }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Press ▶. The <b>black</b> square follows the full gradient $G$, the <b class="c-teal">teal</b> one only its symmetric part $S$, the <b class="c-orange">orange</b> one only its antisymmetric part $A$. Then change $G$ entry by entry.',
+    controls: ['g12', 'g21', 'g11', 'g22', 'theta0'],
+    readouts: ['omega', 'lam1', 'lam2', 'thp'],
+    callouts: [{ kind: 'try', html: 'Make $G$ symmetric ($G_{21} = G_{12}$): the wheel must stop. Make it antisymmetric ($G_{21} = -G_{12}$): the square must keep its shape.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  terms: {
+    title: 'Frobenius products — Eq. (2.29) in every state',
+    unit: '1/s²',
+    items: [
+      { id: 'SS', label: 'S:S = $S_{ij}S_{ij}$', color: '#0fa39c', value: s => phys(s).SS },
+      { id: 'AA', label: 'A:A = $A_{ij}A_{ij}$', color: '#f97316', value: s => phys(s).AA },
+      { id: 'SA', label: '2 S:A (2.29) — always 0', color: '#e11d6a', value: s => 2 * phys(s).SA }
+    ],
+    total: { label: 'G:G = $G_{ij}G_{ij}$', value: s => phys(s).GG }
+  },
+  inspect: s => {
+    if (!s.probe) return null;
+    const p = phys(s), parts = s.probe.split(':');
+    if (parts[0] === 'entry') {
+      const i = +parts[1], j = +parts[2], gij = p.G[i][j], gji = p.G[j][i], a = i + 1, b = j + 1;
+      return `Entry (${a}, ${b}) of the split:<br>` +
+        `$S_{${a}${b}} = \\tfrac12(G_{${a}${b}} + G_{${b}${a}}) = \\tfrac12(${tz(gij)} + ${tz(gji)}) = \\mathbf{${tz(p.S[i][j])}}$ 1/s<br>` +
+        `$A_{${a}${b}} = \\tfrac12(G_{${a}${b}} - G_{${b}${a}}) = \\tfrac12(${tz(gij)} - ${tz(gji)}) = \\mathbf{${tz(p.A[i][j])}}$ 1/s<br>` +
+        `check: $S_{${a}${b}} + A_{${a}${b}} = ${tz(p.S[i][j])} + ${tz(p.A[i][j])} = ${tz(gij)} = G_{${a}${b}}$ ✓` +
+        (i === j ? '<br>On the diagonal $A_{ii} = 0$ always: the flip $i \\leftrightarrow j$ changes nothing there.' : '');
+    }
+    const k = parts[1], idx = +parts[2], n = 7, sgrid = Viz.num.linspace(-1, 1, n), x0 = [sgrid[idx % n], sgrid[Math.floor(idx / n)]];
+    const rows = ['G', 'S', 'A'].map(key => { const E = expm2(MAT[key](p), s.t), x = M2.mv(E, x0); return `<b class="${key === 'G' ? '' : key === 'S' ? 'c-teal' : 'c-orange'}">${key}</b>: $e^{${key}t} = \\begin{bmatrix}${tz(E[0][0])} & ${tz(E[0][1])}\\\\ ${tz(E[1][0])} & ${tz(E[1][1])}\\end{bmatrix}$ → $\\mathbf x = (${tz(x[0])},\\ ${tz(x[1])})$ m`; });
+    return `Tracer that started at $\\mathbf x_0 = (${tz(x0[0])},\\ ${tz(x0[1])})$ m, at $t = ${s.t.toFixed(2)}$ s (selected in the ${k} panel):<br>` + rows.join('<br>') +
+      '<br>Each position is $\\mathbf x(t) = e^{Mt}\\mathbf x_0$, the exact solution of $\\dot{\\mathbf x} = M\\mathbf x$.';
+  },
+  inspectHint: 'Click a tracer dot to see where the same fluid point sits under G, S and A; click a matrix entry for its ½(G ± Gᵀ) arithmetic.',
+  notes: s => {
+    const p = phys(s), t = s.t, W = Viz.work;
+    const rows = [
+      [`<b class="c-teal">S</b>: stretch along ${deg(p.thp)}°`, `× e^{λ₁t} = e^{${f2z(p.lam[1] * t)}} = <b>${f2(Math.exp(p.lam[1] * t))}</b>`],
+      [`<b class="c-teal">S</b>: along ${deg(p.thp + Math.PI / 2)}°`, `× e^{λ₂t} = <b>${f2(Math.exp(p.lam[0] * t))}</b>`],
+      ['<b class="c-orange">A</b>: turned by', `½ω₃t = ${f2z(p.hw3 * t)} rad = <b>${f2(p.hw3 * t * DEG)}°</b>`],
+      ['G: area factor', `det e^{Gt} = e^{(∇·u)t} = <b>${f2(M2.det(expm2(p.G, t)))}</b>`]
+    ];
+    if (p.regime === 'shear') rows[3] = ['G: shear displacement', `Γt · x₂ = <b>${f2z(p.Gamma * t)}</b> x₂ — a lean, not a turn`];
+    const meaning = {
+      rest: 'G = 0: nothing moves. Drag any slider.',
+      rotation: `S = 0: no deformation at all; the square is carried round rigidly at ½ω₃ = ${f2z(p.hw3)} rad/s, half the vorticity ω₃ = (∇×u)₃ = ${f2z(2 * p.hw3)} 1/s — Ex. 2.3.`,
+      strain: 'A = 0: no spin; the square stretches and squeezes along fixed axes. A paddle wheel would not turn — G is symmetric, so G = S.',
+      expansion: `S = ${f2z(p.div / 2)} I: every direction stretches equally (∇·u = ${f2z(p.div)} 1/s in 2-D); the square grows and keeps its shape; A = 0.`,
+      shear: `<b>Half stretch, half spin.</b> The lean under G is a stretch along ${deg(p.thp)}° plus a squeeze along ${deg(p.thp + Math.PI / 2)}° (teal) <i>and</i> a turn at ½ω₃ = −Γ/2 = ${f2z(p.hw3)} rad/s (orange; ω₃ = (∇×u)₃ = −Γ). A paddle wheel turns in this flow even though every streamline is straight.`,
+      mixed: `Both parts are present: stretch rates ${f2z(p.lam[1])} and ${f2z(p.lam[0])} 1/s along ${deg(p.thp)}° and ${deg(p.thp + Math.PI / 2)}°, spin ½ω₃ = ${f2z(p.hw3)} rad/s. Area changes at the rate ∇·u = ${f2z(p.div)} 1/s.`
+    }[p.regime];
+    return `<p><b>Right now</b> (${regimeName(p)}, t = ${t.toFixed(2)} s):</p>` + W.table(['motion', `after t = ${t.toFixed(2)} s`], rows) + `<p>${meaning}</p>`;
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const p = phys(s), W = Viz.work, G = p.G, S = p.S, A = p.A, t = s.t, th0 = s.theta0 / DEG;
+      const sdc = symContraction(S, G), thpDeg = deg(p.thp), th2Deg = deg(p.thp + Math.PI / 2);
+      let out = W.step(0, 'What the windows show') +
+        W.say('Three copies of one fluid square, released at $t = 0$ into three linear velocity fields that share one clock: <b>black</b> under the full gradient $G$, <b class="c-teal">teal</b> under its symmetric part $S$ (the strain rate), <b class="c-orange">orange</b> under its antisymmetric part $A$ (the rotation rate). <b class="c-blue">Blue</b>/<b class="c-rose">rose</b> double arrows are the principal axes of $S$ (stretch / squeeze); the wheel spins with $A$. The matrix view shows the split entry by entry; the lower graph tracks one material line.') +
+        W.hint('On a portrait phone the angle graph is hidden; its three current angles are in the title of the square view.');
+      out += W.step(1, 'Your velocity gradient') +
+        W.line(`$G = \\begin{bmatrix}${tz(G[0][0])} & ${tz(G[0][1])}\\\\ ${tz(G[1][0])} & ${tz(G[1][1])}\\end{bmatrix}$ 1/s`, '', '$G_{ij} = \\partial u_i/\\partial x_j$: first index the velocity component, second the coordinate') +
+        W.line(`$u_1 = ${tz(G[0][0])}\\,x_1 + ${tz(G[0][1])}\\,x_2,\\quad u_2 = ${tz(G[1][0])}\\,x_1 + ${tz(G[1][1])}\\,x_2$`, '', p.regime === 'shear' ? 'a simple shear: faster above, slower below (Couette-like)' : regimeName(p));
+      out += W.step(2, 'The split (D14)') +
+        W.line(`$S_{12} = \\tfrac12(G_{12} + G_{21}) = \\tfrac12(${tz(G[0][1])} + ${tz(G[1][0])})$`, tz(S[0][1]) + ' 1/s', 'the part that ignores the swap $i \\leftrightarrow j$; $S_{11} = G_{11}$, $S_{22} = G_{22}$') +
+        W.line(`$A_{12} = \\tfrac12(G_{12} - G_{21}) = \\tfrac12(${tz(G[0][1])} - ${tz(G[1][0])})$`, tz(A[0][1]) + ' 1/s', 'the part that flips sign: $A_{21} = -A_{12}$, $A_{11} = A_{22} = 0$') +
+        W.box(`$S + A = \\begin{bmatrix}${tz(S[0][0])} & ${tz(S[0][1])} + ${tz(A[0][1])}\\\\ ${tz(S[1][0])} + ${tz(A[1][0])} & ${tz(S[1][1])}\\end{bmatrix} = G$ ✓ — and no other symmetric + antisymmetric pair adds to $G$ (D14 step 5).`);
+      out += W.step(3, 'The hidden vector of A (D15): half the vorticity') +
+        W.say('The book\'s rotation tensor is $R_{ij} = \\partial u_i/\\partial x_j - \\partial u_j/\\partial x_i = G - G^{\\rm T}$ with vector $\\boldsymbol\\omega = \\nabla\\times\\mathbf u$ (the vorticity). Our antisymmetric part is $A = \\tfrac12 R$, so its vector is $\\tfrac12\\boldsymbol\\omega$.') +
+        W.line(`$\\tfrac12\\omega_3 = -\\tfrac12(\\varepsilon_{123}A_{12} + \\varepsilon_{213}A_{21}) = -\\tfrac12(${tz(A[0][1])} - (${tz(A[1][0])}))$`, tz(p.hw3) + ' rad/s', 'Eq. (2.27) applied to $A$: only $k = 3$ survives in the plane; ' + (p.hw3 < 0 ? 'negative = clockwise' : p.hw3 > 0 ? 'positive = counter-clockwise' : 'zero: no spin')) +
+        W.line(`$\\omega_3 = (\\nabla\\times\\mathbf u)_3 = \\partial u_2/\\partial x_1 - \\partial u_1/\\partial x_2 = ${tz(G[1][0])} - (${tz(G[0][1])})$`, tz(p.curl) + ' 1/s', '$= 2A_{21}$ ✓: the vector of $A$ is half the curl (C11) — the angular velocity of a fluid element') +
+        W.box(`$A\\cdot\\mathbf x = \\tfrac12\\boldsymbol\\omega\\times\\mathbf x$: for $\\mathbf x = (1, 0)$, $A\\cdot\\mathbf x = (${tz(A[0][0])}, ${tz(A[1][0])})$ and $\\tfrac12\\boldsymbol\\omega\\times\\mathbf x = (0, \\tfrac12\\omega_3) = (0, ${tz(p.hw3)})$ ✓ — $A$ is a solid-body rotation at $\\tfrac12\\omega_3$.`);
+      out += W.step(4, 'Principal axes and rates of S (Ex. 2.4, §2.11)') +
+        W.line(`$\\lambda = \\tfrac{S_{11}+S_{22}}{2} \\pm \\sqrt{\\big(\\tfrac{S_{11}-S_{22}}{2}\\big)^2 + S_{12}^2} = ${tz(0.5 * (S[0][0] + S[1][1]))} \\pm ${tz(Math.hypot(0.5 * (S[0][0] - S[1][1]), S[0][1]))}$`, `${tz(p.lam[1])}, ${tz(p.lam[0])} 1/s`, 'the roots of $\\det|S_{ij} - \\lambda\\delta_{ij}| = 0$; real because $S$ is symmetric') +
+        W.line(`$\\theta_p = \\tfrac12\\,\\mathrm{atan2}(2S_{12},\\ S_{11}-S_{22}) = \\tfrac12\\,\\mathrm{atan2}(${tz(2 * S[0][1])},\\ ${tz(S[0][0] - S[1][1])})$`, thpDeg + '°', 'direction of the largest eigenvalue; the other axis is 90° away') +
+        W.box(`stretching at <b class="c-blue">${f2z(p.lam[1])} 1/s along ${thpDeg}°</b>, ${p.lam[0] < 0 ? 'squeezing' : 'stretching'} at <b class="c-rose">${f2z(p.lam[0])} 1/s along ${th2Deg}°</b>.` + (p.regime === 'shear' ? ` This is Ex. 2.4 with $\\Gamma \\equiv S_{12} = ${tz(S[0][1])}$; note $du_1/dx_2 = ${tz(p.Gamma)} = 2S_{12}$.` : ''));
+      out += W.step(5, 'Where the square is at the current time') +
+        W.line('$t$', Viz.live('t') + ' s') +
+        W.line(`under $S$: length along $\\theta_p$ × $e^{\\lambda_1 t}$`, Viz.live('eS1'), 'exponential growth at the stretch rate') +
+        W.line(`under $S$: length along $\\theta_p + 90°$ × $e^{\\lambda_2 t}$`, Viz.live('eS2'), 'area factor $e^{(\\lambda_1+\\lambda_2)t} = e^{(\\nabla\\cdot\\mathbf u)t}$ = ' + Viz.live('area') + (Math.abs(p.div) < TINY ? ' — kept, because $S_{ii} = \\nabla\\cdot\\mathbf u = 0$' : '')) +
+        W.line('under $A$: turned by $\\tfrac12\\omega_3 t$', Viz.live('turn') + ' rad = ' + Viz.live('turnDeg') + '°', 'rigid rotation, shape kept') +
+        (p.regime === 'shear' ? W.line('under $G$: top edge slid by $\\Gamma t\\,x_2$', Viz.live('slide') + ' x₂', 'a lean, not a turn — every streamline is straight') : W.line('under $G$: area factor $\\det e^{Gt}$', Viz.live('areaG'), 'the same as under $S$: $A$ never changes area'));
+      out += W.step(6, 'A symmetric tensor cannot see A — Eqs. (2.28)–(2.29)') +
+        W.line(`$\\tau_{ij}S_{ij}$ with the probe $\\tau = S$: $S_{ij}S_{ij} = ${tz(S[0][0])}^2 + 2(${tz(S[0][1])})^2 + ${tz(S[1][1])}^2$`, tz(sdc.PS) + ' 1/s²', 'the teal bar') +
+        W.line(`$\\tau_{ij}A_{ij} = S_{12}A_{12} + S_{21}A_{21} = ${tz(S[0][1])}(${tz(A[0][1])}) + ${tz(S[1][0])}(${tz(A[1][0])})$`, tz(sdc.PA) + ' 1/s²', 'swapping $i \\leftrightarrow j$ flips $A$ but not $\\tau$, so the sum equals its own negative: zero') +
+        W.box(`$\\tau_{ij}G_{ij} = \\tau_{ij}S_{ij} + \\tau_{ij}A_{ij} = ${tz(sdc.PS)} + ${tz(sdc.PA)} = \\mathbf{${tz(sdc.P)}}$ 1/s² — this is why viscous dissipation (Ch. 4) sees only $S$.`);
+      out += W.step(7, 'The angle graph') +
+        W.line(`a material line starting at $\\theta_0 = ${s.theta0}°$: initial turning rate $\\mathbf n_\\perp\\cdot G\\,\\mathbf n$`, tz(angleCurves(p, th0).rate0 * DEG) + ' °/s', 'the dashed ghost keeps this rate; the real curves do not') +
+        W.line('<b class="c-orange">under $A$</b>: turns uniformly at $\\tfrac12\\omega_3$', tz(p.hw3 * DEG) + ' °/s', 'now at ' + Viz.live('thA') + '°') +
+        W.line(`<b class="c-teal">under $S$</b>: swings toward the stretching axis ${thpDeg}° and stays`, 'now ' + Viz.live('thS') + '°', 'a stretch turns every line toward the axis that grows fastest') +
+        W.line('under $G$: both at once', 'now ' + Viz.live('thG') + '°', p.regime === 'shear' ? 'the shear\'s actual line angle: $\\mathrm{atan2}(\\sin\\theta_0,\\ \\cos\\theta_0 + \\Gamma t\\sin\\theta_0)$' : 'the exact $e^{Gt}$ trajectory');
+      const reading = {
+        rest: 'G = 0: nothing moves. Choose a preset or drag a slider to start.',
+        rotation: `<b>S = 0.</b> No deformation at all — the square is carried round rigidly at $\\tfrac12\\omega_3 = ${tz(p.hw3)}$ rad/s, half the vorticity $\\omega_3 = (\\nabla\\times\\mathbf u)_3 = ${tz(2 * p.hw3)}$ 1/s. This is Ex. 2.3's $\\mathbf b\\times\\mathbf x$ read as a velocity field ($\\mathbf b = \\tfrac12\\boldsymbol\\omega$).`,
+        strain: `<b>A = 0.</b> $G$ is symmetric, so $G = S$: the square stretches along ${thpDeg}° and squeezes along ${th2Deg}° about fixed axes, and a paddle wheel would not turn. ${Math.abs(S[0][1] - 1) < TINY && Math.abs(S[0][0]) < TINY && Math.abs(S[1][1]) < TINY ? 'This is the same $S$ as the simple-shear preset — the stretch without the lean.' : ''}`,
+        expansion: `<b>S = aI.</b> Every direction stretches equally ($\\nabla\\cdot\\mathbf u = 2a = ${tz(p.div)}$ 1/s in 2-D): the square grows and keeps its shape; $A = 0$, so nothing turns.`,
+        shear: `<b>Half stretch, half spin.</b> The lean you see under $G$ is a stretch along ${thpDeg}° plus a squeeze along ${th2Deg}° (teal) <i>and</i> a ${p.hw3 < 0 ? 'clockwise' : 'counter-clockwise'} turn at $\\tfrac12\\omega_3 = ${tz(p.hw3)}$ rad/s (orange): the curl is $\\omega_3 = (\\nabla\\times\\mathbf u)_3 = -\\Gamma = ${tz(p.curl)}$ 1/s. Neither alone looks like shear; their sum is exactly shear. A paddle wheel turns at $|\\Gamma|/2$ even though every streamline is straight — that is why Ch. 3 says simple shear has vorticity.`,
+        mixed: `<b>Both parts at once.</b> Stretch rates ${f2z(p.lam[1])} and ${f2z(p.lam[0])} 1/s along ${thpDeg}° and ${th2Deg}°, spin $\\tfrac12\\omega_3 = ${tz(p.hw3)}$ rad/s, area rate $\\nabla\\cdot\\mathbf u = ${tz(p.div)}$ 1/s. The teal and orange squares show the two parts separately; the black one is their combination.`
+      }[p.regime];
+      out += W.interpret(reading, 'Reading the current setting');
+      return out;
+    },
+    live: s => {
+      const p = phys(s), t = s.t, th0 = s.theta0 / DEG;
+      return { t: t.toFixed(2), eS1: Math.exp(p.lam[1] * t).toFixed(2), eS2: Math.exp(p.lam[0] * t).toFixed(2), area: Math.exp(p.div * t).toFixed(2),
+        turn: (p.hw3 * t).toFixed(2), turnDeg: (p.hw3 * t * DEG).toFixed(1), slide: (p.Gamma * t).toFixed(2), areaG: M2.det(expm2(p.G, t)).toFixed(2),
+        thS: (lineAngle(p.S, t, th0) * DEG).toFixed(1), thA: (lineAngle(p.A, t, th0) * DEG).toFixed(1), thG: (lineAngle(p.G, t, th0) * DEG).toFixed(1) };
+    }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D14', title: 'The unique split into symmetric and antisymmetric parts', short: 'S + A', ref: '§2.10',
+      goal: 'Show that any second-order tensor is the sum of a symmetric and an antisymmetric tensor in exactly one way, and that both parts are themselves tensors — the basis of Ch. 3\'s strain rate and rotation rate.',
+      start: { tex: 'B_{ij}\\ \\text{— any second-order tensor}', plain: 'nine numbers that transform by (2.12).' },
+      plan: ['Add and subtract half the transpose.', 'Check the symmetry of each half.', 'Suppose a second split and show it coincides.', 'Transform each half with (2.12).'],
+      uses: ['transpose $B_{ji}$', 'definitions of symmetric and antisymmetric', 'linearity of (2.12)', 'dummy renaming', '"both symmetric and antisymmetric ⇒ zero"'],
+      view: 'matrix', set: Object.assign({}, SHEAR, { show: 'all' }),
+      steps: [
+        { did: 'Add and subtract $\\tfrac12 B_{ji}$', tex: 'B_{ij} = \\tfrac12(B_{ij} + B_{ji}) + \\tfrac12(B_{ij} - B_{ji})',
+          why: 'The right side is $\\tfrac12 B_{ij} + \\tfrac12 B_{ij}$ plus and minus the same $\\tfrac12 B_{ji}$ — an identity. We choose the transpose because swapping $i$ and $j$ is the operation we want to separate.',
+          plain: 'Split B into "the part that ignores the swap" and "the part that flips".', watch: 'The three boxes (on a phone: the status line): the black G is the sum of the teal S and the orange A, entry by entry.' },
+        { did: 'Name the first half and swap its indices', tex: 'S_{ij} \\equiv \\tfrac12(B_{ij} + B_{ji}),\\qquad S_{ji} = S_{ij}',
+          why: 'Swapping $i \\leftrightarrow j$ in the definition gives $\\tfrac12(B_{ji} + B_{ij})$, the same sum in the other order. S is symmetric by construction.',
+          plain: 'The first half does not notice the swap.',
+          live: s => { const p = phys(s); return `S_{12} = \\tfrac12(${tz(p.G[0][1])} + ${tz(p.G[1][0])}) = ${tz(p.S[0][1])} = S_{21}`; } },
+        { did: 'Name the second half and swap its indices', tex: '\\begin{aligned} A_{ij} &\\equiv \\tfrac12(B_{ij} - B_{ji}) \\\\ A_{ji} &= -A_{ij},\\qquad A_{ii} = 0 \\end{aligned}',
+          why: 'Swapping gives $\\tfrac12(B_{ji} - B_{ij}) = -A_{ij}$; for $i = j$ the difference vanishes. A is antisymmetric with zero diagonal — three independent entries in 3-D.',
+          plain: 'The second half changes sign under the swap and has an empty diagonal.',
+          live: s => { const p = phys(s); return `\\begin{aligned} A_{12} &= \\tfrac12(${tz(p.G[0][1])} - ${tz(p.G[1][0])}) = ${tz(p.A[0][1])} \\\\ A_{21} &= ${tz(p.A[1][0])},\\quad A_{11} = A_{22} = 0 \\end{aligned}`; } },
+        { did: 'Suppose another split and subtract', tex: '\\begin{aligned} B &= \\tilde S + \\tilde A \\\\ \\Rightarrow\\ \\tilde S_{ij} - S_{ij} &= A_{ij} - \\tilde A_{ij} \\equiv X_{ij} \\end{aligned}',
+          why: 'If a second symmetric $\\tilde S$ and antisymmetric $\\tilde A$ also add to B, subtracting the two splits and moving terms gives one object X written two ways — the uniqueness half the book omits.',
+          plain: 'Any other split differs from ours by one tensor X.' },
+        { did: 'Show X is zero', tex: 'X_{ij} = X_{ji} = -X_{ij}\\ \\Rightarrow\\ X_{ij} = 0',
+          why: 'X is a difference of symmetric tensors (so symmetric) and a difference of antisymmetric ones (so antisymmetric); a number equal to its own negative is zero. Hence $\\tilde S = S$, $\\tilde A = A$.',
+          plain: 'Only the zero tensor is both symmetric and antisymmetric — the split is unique.',
+          set: { show: 'all' }, watch: 'Both parts drawn: the teal square and the orange square together reproduce the black one — there is no other pair that would.' },
+        { did: 'Transform S with (2.12)', tex: '\\begin{aligned} S\'_{mn} &= \\tfrac12(B\'_{mn} + B\'_{nm}) \\\\ &= C_{im}C_{jn}\\,\\tfrac12(B_{ij} + B_{ji}) = C_{im}C_{jn}S_{ij} \\end{aligned}',
+          why: '(2.12) is linear, so it applies to each term; in $B\'_{nm} = C_{in}C_{jm}B_{ij}$ renaming the dummies $i \\leftrightarrow j$ gives $C_{im}C_{jn}B_{ji}$. The same lines with a minus give A.',
+          plain: 'The symmetric part of the transformed B is the transformed symmetric part — S and A are tensors.',
+          live: s => { const p = phys(s), C = [[p.bmax[0], -p.bmax[1]], [p.bmax[1], p.bmax[0]]], Sp = M2.mul(M2.T(C), M2.mul(p.S, C)); return `\\begin{aligned} C &= \\text{rotation by } ${deg(p.thp)}° \\\\ S\' = C^{\\rm T}SC &= \\mathrm{diag}(${tz(Sp[0][0])},\\ ${tz(Sp[1][1])}) \\end{aligned}`; },
+          watch: 'S in its own principal axes is diagonal: the blue/rose arrows of the S panel are those axes.' }
+      ],
+      result: { tex: '\\begin{aligned} B_{ij} &= S_{ij} + A_{ij} \\\\ S &= \\tfrac12(\\mathbf B + \\mathbf B^{\\rm T}),\\quad A = \\tfrac12(\\mathbf B - \\mathbf B^{\\rm T}) \\end{aligned}', plain: 'unique, both tensors; 6 + 3 = 9 components — every tensor is a stretch-like part plus a spin-like part, and every observer agrees on the split.' },
+      interpret: s => { const p = phys(s); return `Your $G$ splits into $S = \\begin{bmatrix}${tz(p.S[0][0])} & ${tz(p.S[0][1])}\\\\ ${tz(p.S[1][0])} & ${tz(p.S[1][1])}\\end{bmatrix}$ and $A = \\begin{bmatrix}0 & ${tz(p.A[0][1])}\\\\ ${tz(p.A[1][0])} & 0\\end{bmatrix}$ 1/s: the teal square shows $S$ (stretch ${f2z(p.lam[1])}, ${f2z(p.lam[0])} 1/s), the orange one $A$ (spin ${f2z(p.hw3)} rad/s). For the velocity gradient, $S$ is Ch. 3's strain rate and $A$ its rotation rate; Ch. 4's viscous dissipation sees only $S$.`; },
+      check: 'Units: those of B. Limits: B symmetric ⇒ A = 0 (pure-strain preset), B antisymmetric ⇒ S = 0 (solid-body preset). Number: B = [[0, 2], [0, 0]] gives S = [[0, 1], [1, 0]], A = [[0, 1], [−1, 0]], S + A = B — the selftest rows S12 and A21 compare with fluidpy.symmetric_part / antisymmetric_part.' },
+    { id: 'D15', title: 'The vector hidden in an antisymmetric tensor', short: 'vector of A', ref: 'Eqs. (2.26)–(2.27)',
+      goal: 'Show that the three independent numbers of any antisymmetric tensor R form a vector ω, give the two-way map, and show that R acting on x rotates it: R·x = ω × x. The book checks one entry; the inverse and the sign are ours. Applied to the velocity gradient: R = G − Gᵀ has ω = ∇×u (the vorticity), and our part A = ½R has the vector ½ω.',
+      start: { tex: 'R_{ij} \\equiv -\\varepsilon_{ijk}\\,\\omega_k', plain: 'pack a vector into a 3×3 array with the alternating tensor (2.27, first part). Here R and ω are any antisymmetric tensor and its vector.' },
+      plan: ['Check R is antisymmetric and read off its entries.', 'Contract R with ε to get ω back (the 2δ identity).', 'Apply R to a vector and recognise a cross product.'],
+      uses: ['index moves of $\\varepsilon$ (a one-place swap flips the sign)', '$\\varepsilon_{ijl}\\varepsilon_{ijk} = 2\\delta_{lk}$ (D09)', 'Kronecker substitution', 'the cross product in index form (2.21)'],
+      view: 'motion', set: Object.assign({}, SHEAR, { show: 'A' }),
+      steps: [
+        { did: 'Swap the indices of R', tex: '\\begin{aligned} R_{ji} &= -\\varepsilon_{jik}\\,\\omega_k \\\\ &= +\\varepsilon_{ijk}\\,\\omega_k = -R_{ij} \\end{aligned}',
+          why: 'Swapping two indices of $\\varepsilon$ flips its sign (one-place move). So R is antisymmetric — exactly the kind of object we want to represent.',
+          plain: 'The packed array is antisymmetric, as promised.' },
+        { did: 'Read off the entries', tex: '\\begin{aligned} R_{12} &= -\\varepsilon_{123}\\,\\omega_3 = -\\omega_3 \\\\ R_{13} &= -\\varepsilon_{132}\\,\\omega_2 = +\\omega_2 \\\\ R_{23} &= -\\varepsilon_{231}\\,\\omega_1 = -\\omega_1 \\end{aligned}',
+          why: 'For each $(i, j)$ only the $k$ different from both survives; $\\varepsilon_{123} = \\varepsilon_{231} = +1$, $\\varepsilon_{132} = -1$ (2.18). With the zero diagonal and step 1 for the lower triangle, this is (2.26).',
+          plain: 'Above the diagonal: −ω₃, +ω₂, −ω₁.',
+          live: s => { const p = phys(s); return `\\begin{aligned} \\text{for } A = \\tfrac12 R:\\quad A_{12} &= -\\varepsilon_{123}\\,(\\tfrac12\\omega_3) \\\\ &= -(${tz(p.hw3)}) = ${tz(-p.hw3)}\\ ✓ \\end{aligned}`; } },
+        { did: 'Contract R with ε to invert', tex: '\\varepsilon_{ijl}\\,R_{ij} = -\\varepsilon_{ijl}\\,\\varepsilon_{ijk}\\,\\omega_k',
+          why: 'Multiply the definition by $\\varepsilon_{ijl}$ and sum on $i, j$. We do this because a product of two ε\'s sharing two indices collapses to a δ (D09).',
+          plain: 'Contract both sides with the alternating tensor.' },
+        { did: 'Apply the 2δ contraction', tex: '\\varepsilon_{ijl}\\,R_{ij} = -2\\,\\delta_{lk}\\,\\omega_k = -2\\,\\omega_l',
+          why: '$\\varepsilon_{ijl}\\varepsilon_{ijk} = 2\\delta_{lk}$ (D09 step 8; the book\'s $\\varepsilon_{pqi}\\varepsilon_{pqj} = 2\\delta_{ij}$), then δ substitutes $k \\to l$ — not $3\\omega$.',
+          plain: 'The contraction returns minus twice the vector.',
+          live: s => { const p = phys(s); return `\\begin{aligned} \\varepsilon_{ij3}A_{ij} &= A_{12} - A_{21} = ${tz(p.A[0][1])} + ${tz(-p.A[1][0])} = ${tz(p.A[0][1] - p.A[1][0])} \\\\ &= -2\\,(\\tfrac12\\omega_3)\\ \\Rightarrow\\ \\tfrac12\\omega_3 = ${tz(p.hw3)} \\end{aligned}`; } },
+        { did: 'Solve for ω and rename', tex: '\\omega_k = -\\tfrac12\\,\\varepsilon_{ijk}\\,R_{ij}',
+          why: 'Divide by −2 and rename the free index $l \\to k$. This is the second half of (2.27); both sums run over 1..3 (the book\'s lower limit "i−1" is a misprint for i = 1).',
+          plain: 'Half the contraction of R with ε, sign reversed, gives ω back.' },
+        { did: 'Apply R to a vector x', tex: 'R_{ij}\\,x_j = -\\varepsilon_{ijk}\\,\\omega_k\\,x_j = +\\varepsilon_{ikj}\\,\\omega_k\\,x_j',
+          why: 'Insert the definition; then swap the last two indices of ε (one place, sign flips) to bring $k$ before $j$ — the order the cross-product formula needs.',
+          plain: 'R times x is ε contracted with ω and x in the cross-product order.',
+          set: { show: 'A', t: 0.6 }, watch: 'The wheel turns with A = ½R: for the shear preset clockwise, because ½ω points into the screen (⊗, ω₃ = (∇×u)₃ < 0).' },
+        { did: 'Recognise the cross product', tex: 'R_{ij}\\,x_j = (\\boldsymbol\\omega\\times\\mathbf x)_i',
+          why: '(2.21) in the form $(\\mathbf u\\times\\mathbf v)_i = \\varepsilon_{ikj}u_kv_j$ (free index first — a two-place move of $\\varepsilon_{kji}$, no sign change). With $\\mathbf u = \\boldsymbol\\omega$, $\\mathbf v = \\mathbf x$ this is step 6.',
+          plain: 'R rotates x about ω: R·x = ω × x.',
+          live: s => { const p = phys(s); return `\\begin{aligned} A\\cdot(1, 0) &= (${tz(p.A[0][0])},\\ ${tz(p.A[1][0])}) \\\\ \\tfrac12\\boldsymbol\\omega\\times(1, 0, 0) &= (0,\\ \\tfrac12\\omega_3,\\ 0) = (0,\\ ${tz(p.hw3)},\\ 0)\\ ✓ \\end{aligned}`; },
+          set: { show: 'A' }, watch: 'Every tracer of the orange square moves at ½ω × x: perpendicular to its radius, faster further out — a rigid turn.' }
+      ],
+      result: { tex: '\\begin{aligned} R_{ij} &= -\\varepsilon_{ijk}\\omega_k,\\qquad \\omega_k = -\\tfrac12\\varepsilon_{ijk}R_{ij} \\\\ \\mathbf R\\cdot\\mathbf x &= \\boldsymbol\\omega\\times\\mathbf x \\end{aligned}', plain: 'an antisymmetric tensor is a vector, and acting with it means "cross with that vector" — a solid-body rotation. For the velocity gradient: R = G − Gᵀ ↔ ω = ∇×u, and A = ½R ↔ ½ω.' },
+      interpret: s => { const p = phys(s); return `With your $G$: the book's $R = G - G^{\\rm T}$ has $\\boldsymbol\\omega = \\nabla\\times\\mathbf u = (0, 0, ${tz(2 * p.hw3)})$ 1/s — Ch. 3's vorticity — and our $A = \\tfrac12 R$ has the vector $\\tfrac12\\boldsymbol\\omega = (0, 0, ${tz(p.hw3)})$ rad/s. ${Math.abs(p.hw3) < TINY ? 'Here ω = 0: A vanishes and nothing turns.' : `The orange square turns ${p.hw3 < 0 ? 'clockwise' : 'counter-clockwise'} at ${f2z(Math.abs(p.hw3))} rad/s, exactly like Ex. 2.3's $\\mathbf b\\times\\mathbf x$ with $\\mathbf b = \\tfrac12\\boldsymbol\\omega$.`} The sign in (2.27) is chosen so that R·x = ω × x; with the opposite sign it would be −ω × x.`; },
+      check: 'Units: those of ω. Round trip ω = (1, 2, 3) → R → ω (selftest row "round trip"). Number: ω = (0, 0, −1), x = (1, 0, 0): R = [[0, 1, 0], [−1, 0, 0], [0, 0, 0]], R·x = (0, −1, 0) = ω × x — the sign-discrimination row "R12 from ω" compares with fluidpy.antisymmetric_from_vector. For the shear preset the 2×2 block of A = ½R is exactly this R with ω → ½ω = (0, 0, −1).' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'split', title: 'The split and its vector in Python', ref: '§2.10, Eq. (2.27)',
       src: `
-from fluidpy import ch02 as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import numpy as np
+from fluidpy import ch02_cartesian_tensors as ch02
+
+g11, g12, g21, g22 = {{g11}}, {{g12}}, {{g21}}, {{g22}}   # sliders [1/s]
+G = np.array([[g11, g12], [g21, g22]])    # G[i, j] = du_i/dx_j
+S = ch02.symmetric_part(G)                # ½(G + Gᵀ): S12 = {{s12}} 1/s
+A = ch02.antisymmetric_part(G)            # ½(G − Gᵀ): A12 = {{a12}}, A21 = {{a21}}
+assert np.allclose(S + A, G)              # the split is exact (D14)
+hw3 = ch02.vector_from_antisymmetric(A)   # A = ½R → ½ω3 = {{hw3}} rad/s
+R = ch02.rotation_tensor(G)               # book's R = G − Gᵀ = 2A
+omega3 = ch02.vector_from_antisymmetric(R)   # ω3 = (∇×u)3 = {{curl}} 1/s
+lam, B = ch02.principal_axes(S)           # λ = {{l2}}, {{l1}} 1/s (ascending)
+theta_p = np.degrees(ch02.principal_angle_2d(S))   # stretch axis: {{thp}}°
+t = {{t}}                                 # s — the transport clock
+x_t = ch02.deform_square(G, t)            # x(t) = expm(G t) x0, shape (2, 100)
+P, P_S, P_A = ch02.symmetric_double_contraction(S, G)
+# τ:S = {{PS}}, τ:A = {{PA}} → P = {{P}} 1/s² (Eqs. 2.28–2.29)`,
+      live: s => { const p = phys(s), sdc = symContraction(p.S, p.G); return { g11: tz(s.g11), g12: tz(s.g12), g21: tz(s.g21), g22: tz(s.g22), s12: tz(p.S[0][1]), a12: tz(p.A[0][1]), a21: tz(p.A[1][0]), hw3: tz(p.hw3), curl: tz(p.curl), l1: tz(p.lam[1]), l2: tz(p.lam[0]), thp: (p.thp * DEG).toFixed(1), t: s.t.toFixed(2), PS: tz(sdc.PS), PA: tz(sdc.PA), P: tz(sdc.P) }; } },
+    { id: 'expm', title: 'Trajectories of a linear flow', ref: 'our addition (Ch. 3 preview)',
+      src: `
+from scipy.linalg import expm
+
+def linear_flow_map(G, t):
+    """x(t) = e^{Gt} x0 solves dx/dt = G x exactly."""
+    return expm(np.asarray(G) * t)         # 2×2 matrix exponential
+
+E_G = linear_flow_map(G, t)     # [[{{e00}}, {{e01}}], [{{e10}}, {{e11}}]]
+E_A = linear_flow_map(A, t)     # a rotation by ½ω3 t = {{turn}} rad
+theta = ch02.material_line_angle(G, t, 0.0)   # line angle: {{thG}} rad`,
+      live: s => { const p = phys(s), E = expm2(p.G, s.t); return { e00: tz(E[0][0]), e01: tz(E[0][1]), e10: tz(E[1][0]), e11: tz(E[1][1]), turn: tz(p.hw3 * s.t), thG: tz(lineAngle(p.G, s.t, 0)) }; } }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'A square in a shear flow', text: 'Faster fluid above, slower below: $u_1 = 2x_2$, $u_2 = 0$. Press play. The black square leans. <b>Is it stretching? Turning? Both?</b>', set: Object.assign({}, SHEAR, { show: 'G', t: 0, probe: null }), play: true },
+    { title: 'Split the gradient', text: 'Write $G$ as $\\tfrac12(G + G^{\\rm T}) + \\tfrac12(G - G^{\\rm T})$. Both halves are simple: $S = [[0, 1], [1, 0]]$ ignores an index swap, $A = [[0, 1], [-1, 0]]$ flips sign under it.', eq: 'split', derive: { id: 'D14', step: 3 }, set: Object.assign({}, SHEAR, { show: 'all', t: 0 }) },
+    { title: 'S alone: stretch', text: 'Release the same square into $u = S\\cdot x$: it stretches along +45° and squeezes along −45° at 1 1/s each — no turning. Those axes are Ex. 2.4\'s principal axes (blue and rose arrows).', set: Object.assign({}, SHEAR, { show: 'S', t: 0 }), play: true, readouts: ['lam1', 'thp'] },
+    { title: 'A alone: spin', text: 'Now $u = A\\cdot x$: the square turns rigidly, clockwise, at 1 rad/s. The numbers of $A$ are a vector: half the vorticity, $\\tfrac12\\omega = \\tfrac12\\nabla\\times u = (0, 0, -1)$ rad/s, and $A\\cdot x = \\tfrac12\\omega\\times x$.', set: Object.assign({}, SHEAR, { show: 'A', t: 0 }), play: true, eq: 'omega', derive: { id: 'D15', step: 6 } },
+    { title: 'Add them back', text: 'All three on one clock: lean = stretch + spin. Simple shear is half pure strain, half solid-body rotation — Ex. 2.4 and Ex. 2.3 glued together.', set: Object.assign({}, SHEAR, { show: 'all', t: 0 }), play: true, notes: true },
+    { title: 'A symmetric tensor is blind to A', text: 'The bars: S:S = 2, A:A = 2, but S:A = 0 — always. Drag either slider and watch the S:A bar stay at zero. Ch. 4\'s viscous dissipation lives here.', terms: true, eq: 'blind', controls: ['g12', 'g21'], set: Object.assign({}, SHEAR, { show: 'all' }) },
+    { title: 'Your turn', text: 'Predict first: with $G_{21} = G_{12} = 1$, does the wheel turn? Then set $G_{21} = -G_{12}$: does the square change shape? Check the status line.', set: { g11: 0, g12: 1, g21: 1, g22: 0, show: 'all', t: 0 }, play: true, controls: ['g11', 'g12', 'g21', 'g22'], readouts: ['omega', 'lam1'] }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'split', title: 'Symmetric + antisymmetric parts', ref: '§2.10 (unnumbered)', tex: '\\begin{aligned} B_{ij} &= \\tfrac12(B_{ij} + B_{ji}) \\\\ &\\quad + \\tfrac12(B_{ij} - B_{ji}) \\\\ &= S_{ij} + A_{ij} \\end{aligned}',
+      live: s => { const p = phys(s); return `S_{12} = ${tz(p.S[0][1])},\\quad A_{12} = ${tz(p.A[0][1])}\\ \\text{1/s}`; },
+      note: 'For B = G (the velocity gradient) S is the strain rate and A the rotation rate — Ch. 3 §3.4.',
+      symbols: [['S_{ij}', 'symmetric part, 6 independent numbers', '1/s'], ['A_{ij}', 'antisymmetric part, 3 independent numbers', '1/s']] },
+    { id: 'R26', title: 'The tensor of a vector', ref: 'Eq. (2.26)', tex: '\\mathbf R = \\begin{bmatrix}0 & -\\omega_3 & \\omega_2\\\\ \\omega_3 & 0 & -\\omega_1\\\\ -\\omega_2 & \\omega_1 & 0\\end{bmatrix}',
+      live: s => { const p = phys(s); return `A = \\tfrac12 R:\\quad A_{12} = -\\tfrac12\\omega_3 = ${tz(-p.hw3)}`; },
+      note: 'Any antisymmetric R and its vector ω. For the velocity gradient, R = G − Gᵀ has ω = ∇×u (vorticity); our part A = ½R has ½ω, and in the plane only the (1, 2) block survives: A = [[0, −½ω₃], [½ω₃, 0]].',
+      symbols: [['\\omega_k', 'the vector associated with R', 'rad/s']] },
+    { id: 'omega', title: 'Two-way map', ref: 'Eq. (2.27)', tex: '\\begin{aligned} R_{ij} &= -\\varepsilon_{ijk}\\,\\omega_k \\\\ \\omega_k &= -\\tfrac12\\,\\varepsilon_{ijk}\\,R_{ij} \\end{aligned}',
+      live: s => { const p = phys(s); return `\\text{vector of } A:\\ \\tfrac12\\boldsymbol\\omega = (0,\\ 0,\\ ${tz(p.hw3)})\\ \\text{rad/s}`; },
+      note: 'The book\'s lower limit "i−1" reads i = 1. R·x = ω × x (D15). For the velocity gradient R = G − Gᵀ has ω = ∇×u; for u₁ = Γx₂ the curl is ω₃ = (∇×u)₃ = −Γ, so the vector of A = ½R is ½ω₃ = −Γ/2 (clockwise) and A·x = ½ω × x.',
+      symbols: [['\\varepsilon_{ijk}', 'alternating tensor (2.18)', '–']] },
+    { id: 'strain', title: 'Strain rate (Ex. 2.4)', ref: '§2.11', tex: 'S_{ij} = \\tfrac12\\Big(\\frac{\\partial u_i}{\\partial x_j} + \\frac{\\partial u_j}{\\partial x_i}\\Big)',
+      live: s => { const p = phys(s); return `S_{12} = \\tfrac12(${tz(p.G[0][1])} + ${tz(p.G[1][0])}) = ${tz(p.S[0][1])}\\ \\text{1/s}`; },
+      note: 'Γ ≡ S₁₂ in Ex. 2.4\'s matrix [[0, Γ], [Γ, 0]]; for u₁(x₂) alone S₁₂ = ½ du₁/dx₂, so du₁/dx₂ = 2Γ (the book\'s "2S₁₂ = Γ" line carries a stray 2).',
+      symbols: [['u_i', 'velocity component', 'm/s'], ['x_j', 'coordinate', 'm']] },
+    { id: 'blind', title: 'Symmetric × antisymmetric = 0', ref: 'Eqs. (2.28), (2.29)', tex: '\\tau_{ij}B_{ij} = \\tau_{ij}S_{ij},\\qquad \\tau_{ij}A_{ij} = 0',
+      live: s => { const p = phys(s), c = symContraction(p.S, p.G); return `S{:}G = S{:}S = ${tz(c.PS)},\\quad S{:}A = ${tz(c.PA)}`; },
+      note: 'τ symmetric. Renaming i ↔ j leaves τ_ij A_ij unchanged while A_ji = −A_ij, so the sum equals its own negative.',
+      symbols: [['\\tau_{ij}', 'any symmetric tensor (here τ = S)', '1/s']] },
+    { id: 'expm', title: 'Trajectories', ref: 'our addition', tex: '\\mathbf x(t) = e^{\\mathbf G t}\\,\\mathbf x_0',
+      live: s => { const p = phys(s), E = expm2(p.G, s.t); return `t = ${s.t.toFixed(2)}\\ \\text{s}:\\quad e^{Gt} = \\begin{bmatrix}${tz(E[0][0])} & ${tz(E[0][1])}\\\\ ${tz(E[1][0])} & ${tz(E[1][1])}\\end{bmatrix}`; },
+      note: 'The exact solution of dx/dt = G·x for a constant G (scipy.linalg.expm; here the 2×2 closed form). Under A it is a rotation by ½ω₃t; under S a stretch by e^{λt} along each principal axis.',
+      symbols: [['\\mathbf x_0', 'start position of a tracer', 'm']] }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'Simple shear with $G_{12} = 2$. At what rate does the paddle wheel turn, and which way?', a: 'At $\\tfrac12\\omega_3 = A_{21} = -G_{12}/2 = -1$ rad/s (half the vorticity $\\omega_3 = -2$ 1/s), clockwise: the fluid above moves right faster and drags the top of the wheel to the right.', set: Object.assign({}, SHEAR, { show: 'A', t: 0 }) },
+    { q: 'Set $G_{12} = G_{21} = 1$. Does the S panel differ from the simple-shear case?', a: 'No: S is the same [[0, 1], [1, 0]]; only A changed (to zero). The stretch is identical, the spin is gone — the status reads "pure strain".', set: { g11: 0, g12: 1, g21: 1, g22: 0, show: 'all', t: 0 } },
+    { q: 'Solid-body preset. What is $\\nabla\\cdot\\mathbf u$, and what does the S panel show?', a: '$\\nabla\\cdot\\mathbf u = G_{ii} = 0$ and S = 0: nothing happens in the S panel; the square is carried round rigidly at $\\tfrac12\\omega_3 = A_{21} = 1$ rad/s (counter-clockwise; the vorticity is $\\omega_3 = 2$ 1/s).', set: { g11: 0, g12: -1, g21: 1, g22: 0, show: 'all', t: 0 } },
+    { q: 'Why is the S:A bar zero for every slider setting, even random ones?', a: 'Renaming $i \\leftrightarrow j$ leaves $S_{ij}A_{ij}$ unchanged, but $A_{ji} = -A_{ij}$, so the sum equals its own negative — it must be zero (Eq. 2.29).', set: { g11: 0.7, g12: 1.3, g21: -0.4, g22: -0.2, t: 0 } }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const G = [[0, 2], [0, 0]], S = symPart(G);
+    const rt = vectorFromAnti(antiFromOmega([1, 2, 3]));
+    return [
+      { name: 'S12 of the shear', js: symPart(G)[0][1], py: 'ch02.symmetric_part([[0.0, 2.0], [0.0, 0.0]])[0][1]', rtol: 1e-12 },
+      { name: 'A21 of the shear', js: antiPart(G)[1][0], py: 'ch02.antisymmetric_part([[0.0, 2.0], [0.0, 0.0]])[1][0]', rtol: 1e-12 },
+      { name: 'ω3 from A (2×2 block)', js: omegaOf(antiPart(G)), py: 'ch02.vector_from_antisymmetric(ch02.antisymmetric_part([[0.0, 2.0], [0.0, 0.0]]))', rtol: 1e-12 },
+      { name: 'ω3 from A (3×3, Eq. 2.27)', js: vectorFromAnti([[0, 1, 0], [-1, 0, 0], [0, 0, 0]])[2], py: 'ch02.vector_from_antisymmetric([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 0.0]])[2]', rtol: 1e-12 },
+      { name: 'R12 from ω (sign)', js: antiFromOmega([0, 0, -1])[0][1], py: 'ch02.antisymmetric_from_vector([0.0, 0.0, -1.0])[0][1]', rtol: 1e-12 },
+      { name: 'R13 from ω = (1,2,3)', js: antiFromOmega([1, 2, 3])[0][2], py: 'ch02.antisymmetric_from_vector([1.0, 2.0, 3.0])[0][2]', rtol: 1e-12 },
+      { name: 'expm shear (0,1) at t=0.6', js: expm2(G, 0.6)[0][1], py: 'ch02.linear_flow_map([[0.0, 2.0], [0.0, 0.0]], 0.6)[0][1]', rtol: 1e-10 },
+      { name: 'expm rotation (0,0) at t=0.6', js: expm2([[0, -1], [1, 0]], 0.6)[0][0], py: 'ch02.linear_flow_map([[0.0, -1.0], [1.0, 0.0]], 0.6)[0][0]', rtol: 1e-10 },
+      { name: 'expm mixed (0,1) at t=1.1', js: expm2([[0.7, 1.3], [-0.4, -0.2]], 1.1)[0][1], py: 'ch02.linear_flow_map([[0.7, 1.3], [-0.4, -0.2]], 1.1)[0][1]', rtol: 1e-10 },
+      { name: 'deform_square point 2 (n=3)', js: deformSquare(G, 0.6, 3)[0][2], py: 'ch02.deform_square([[0.0, 2.0], [0.0, 0.0]], 0.6, n_side=3)[0][2]', rtol: 1e-10 },
+      { name: 'line angle (θ0 = 0.3)', js: lineAngle(G, 0.6, 0.3), py: 'ch02.material_line_angle([[0.0, 2.0], [0.0, 0.0]], 0.6, 0.3)', rtol: 1e-10 },
+      { name: 'principal λmax of S', js: principal2d(S).lam[1], py: 'ch02.principal_axes([[0.0, 1.0], [1.0, 0.0]])[0][1]', rtol: 1e-12 },
+      { name: 'principal angle', js: principal2d(S).theta, py: 'ch02.principal_angle_2d([[0.0, 1.0], [1.0, 0.0]])', rtol: 1e-12 },
+      { name: 'Ex. 2.4 λ¹ (Γ = 1)', js: ex24(1).lam[0], py: 'ch02.example_2_4(1.0)["lam"][0]', rtol: 1e-12 },
+      { name: 'Ex. 2.4 G12 = 2Γ', js: ex24(1).G[0][1], py: 'ch02.example_2_4(1.0)["G"][0][1]', rtol: 1e-12 },
+      { name: 'τ:A = 0 (2.29)', js: symContraction(S, G).PA, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[2]', atol: 1e-12 },
+      { name: 'τ:G = τ:S (2.28)', js: symContraction(S, G).P, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[0]', rtol: 1e-12 },
+      { name: 'solid-body preset G21', js: PRESET_G.solid_body_rotation[1][0], py: 'ch02.velocity_gradient_preset("solid_body_rotation", 1.0)[1][0]', rtol: 1e-12 },
+      { name: 'pure-strain preset G22', js: PRESET_G.pure_strain[1][1], py: 'ch02.velocity_gradient_preset("pure_strain", 1.0)[1][1]', rtol: 1e-12 },
+      { name: 'uniaxial preset trace = ∇·u', js: M2.tr(PRESET_G.uniaxial_extension), py: 'np.trace(ch02.velocity_gradient_preset("uniaxial_extension", 1.0))', rtol: 1e-12 },
+      { name: 'irrotational preset G21', js: PRESET_G.irrotational_strain[1][0], py: 'ch02.velocity_gradient_preset("irrotational_strain", 1.0)[1][0]', rtol: 1e-12 },
+      { name: 'vorticity ω3 = vector(R), R = G − Gᵀ', js: curlOf(G), py: 'ch02.vector_from_antisymmetric(ch02.rotation_tensor([[0.0, 2.0], [0.0, 0.0]]))', rtol: 1e-12 },
+      { name: 'R = 2A (shear, entry 21)', js: rotationTensor(G)[1][0], py: 'ch02.rotation_tensor([[0.0, 2.0], [0.0, 0.0]])[1][0]', rtol: 1e-12 },
+      { name: 'round trip ω → R → ω', js: rt[0] + 10 * rt[1] + 100 * rt[2], expect: 321, rtol: 1e-12 },
+      { name: 'area kept when S_ii = 0', js: M2.det(expm2(S, 0.6)), expect: 1, rtol: 1e-9 }
+    ];
+  }
 });
 </script>
 </body>
