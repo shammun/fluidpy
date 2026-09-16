@@ -459,10 +459,19 @@ button, input, select { font: inherit; color: inherit; }
    and the Explain tab) and drop the preset strip (every preset is reachable from the Explore sliders). The Derivation
    tab is exempt because the engine keeps exactly the derivation's own view there. No overflow, no fixed widths. */
 .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
-.viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(2) { display: none !important; }
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
 @media (max-height: 720px) {
   .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
   .viz-app[data-layout="portrait"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(2) { display: none !important; }
+}
+/* portrait phones of any height: the reference tabs (Explore, Explain, Equations, Code, Check) have tall side panels,
+   so the stage is short — keep the motion view alone there; the walkthrough and Derivation tabs keep both rows. */
+@media (max-width: 500px) {
+  .viz-app[data-layout="portrait"][data-tab="explore"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="portrait"][data-tab="explain"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="portrait"][data-tab="equations"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="portrait"][data-tab="code"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="portrait"][data-tab="check"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
 }
 </style>
 <style>
@@ -2256,14 +2265,15 @@ const f2 = v => Viz.fmt(v, { sig: 3 });
 const f2z = v => (Math.abs(v) < 1e-9 ? 0 : v).toFixed(2).replace('-', '−');   // fixed two decimals, keeps 1.00
 const tz = v => (Math.abs(v) < 1e-9 ? 0 : v).toFixed(2);                        // TeX-safe two decimals
 const deg = v => f2(v * DEG);
-/** Common half-width of the motion panels: the largest excursion of any corner under G, S or A up to t = T_END. */
-function extent(p) {
+/** Common half-width of the motion panels: the largest excursion of any corner under G, S or A up to t = T_END
+    (capped at 4.4 m; 3.6 m on narrow panels so the unit square stays legible — only the last 10 % of a shear run is clipped). */
+function extent(p, narrow) {
   let m = 1.2;
   ['G', 'S', 'A'].forEach(k => [0.75, T_END].forEach(t => {
     const E = expm2(MAT[k](p), t);
     [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(c => { const q = M2.mv(E, c); m = Math.max(m, Math.abs(q[0]), Math.abs(q[1])); });
   }));
-  return Viz.clamp(1.08 * m, 1.6, 4.4);
+  return Viz.clamp(1.08 * m, 1.6, narrow ? 3.6 : 4.4);
 }
 function regimeName(p) {
   return { rest: 'at rest (G = 0)', rotation: 'pure rotation', strain: 'pure strain', expansion: 'uniform expansion', shear: 'simple shear', mixed: 'mixed strain + rotation' }[p.regime];
@@ -2277,7 +2287,7 @@ function motionLayout(v, s) {
   const wide = v.w >= 540;
   const keys = s.show === 'all' ? (wide ? ['G', 'S', 'A'] : ['all']) : [s.show];
   let pw = v.w / keys.length, x0 = 0;
-  if (keys.length === 1) { pw = Math.min(v.w, v.h * 1.2 + 44); x0 = (v.w - pw) / 2; }   // one panel: roughly square, centred
+  if (keys.length === 1) { pw = Math.min(v.w, v.h * 1.6 + 44); x0 = (v.w - pw) / 2; }   // one panel: full width on phones, up to 1.6:1 elsewhere
   return keys.map((key, k) => ({ key, rect: { x: x0 + k * pw, y: 0, w: pw, h: v.h }, first: k === 0 }));
 }
 function panelPlot(v, pn, L) {
@@ -2358,17 +2368,26 @@ function drawPanel(P, key, p, s, L, C) {
 }
 function drawMotion(v, s, app) {
   v.clear();
-  const p = phys(s), L = extent(p), C = COL();
+  const p = phys(s), C = COL();
   const panels = motionLayout(v, s), sv = Object.assign({}, s, { __holding: !!app.holding });
-  panels.forEach(pn => { const P = panelPlot(v, pn, L); P.axes({ grid: false }); drawPanel(P, pn.key, p, sv, L, C); });
+  const L = extent(p, panels[0].rect.w < 420), plots = [];
+  panels.forEach(pn => { const P = panelPlot(v, pn, L); P.axes({ grid: false }); drawPanel(P, pn.key, p, sv, L, C); plots.push(P); });
   if (app.holding) {
     const eS1 = Math.exp(p.lam[1] * T_END), eS2 = Math.exp(p.lam[0] * T_END), turn = p.hw3 * T_END;
     const lines = [`after ${T_END} s:`,
       `S: ×${f2(eS1)} along ${deg(p.thp)}°, ×${f2(eS2)} along ${deg(p.thp + Math.PI / 2)}°`,
       `A: turned ${f2(turn)} rad = ${f2(turn * DEG)}°`,
       p.regime === 'shear' ? `G: the shear x₁ → x₁ + ${f2(p.Gamma * T_END)} x₂` : `G: area × ${f2(M2.det(expm2(p.G, T_END)))}`];
-    const mw = Math.min(v.w - 16, 300);   // bottom-left corner: clear of the panel labels and the ½ω₃ badge
-    Viz.card(v.ctx, 8 + mw / 2, v.h - 46, lines, { color: Viz.color('accent'), colors: [Viz.color('text'), C.S, C.A, C.G], maxWidth: mw, align: 'left' });
+    const style = { color: Viz.color('accent'), colors: [Viz.color('text'), C.S, C.A, C.G] };
+    if (panels.length === 3) {
+      // three panels: the free band under the A panel's circle (radius √2 inside the ±L frame)
+      const AP = plots[2], yc = AP.Y(-(Math.SQRT2 * 1.05 + L) / 2), cx = AP.px.x + AP.px.w / 2;
+      Viz.card(v.ctx, cx, yc, lines, Object.assign(style, { maxWidth: Math.min(AP.px.w - 8, 320) }));
+    } else {
+      // one panel (phones, "G only"): a compact two-line card over the axis band at the bottom, never over the shapes
+      const compact = [lines[0] + ' ' + lines[1].replace('S: ', 'S ').replace(/ along /g, ' @ '), lines[2].replace('A: turned', 'A turned') + ' · ' + lines[3]];
+      Viz.card(v.ctx, v.w / 2, v.h - 30, compact, Object.assign(style, { colors: [C.S, C.A], maxWidth: Math.min(v.w - 16, 600), size: 12 }));
+    }
   }
 }
 /** Matrix view geometry: three 2×2 boxes G = S + A. */
@@ -2492,7 +2511,7 @@ const app = Viz.app({
     { id: 'div', label: '$\\nabla\\cdot\\mathbf u = G_{ii}$', unit: '1/s', value: s => phys(s).div, optional: true }
   ],
   stage: {
-    rows: [1.45, 1],
+    rows: [1.6, 1],
     views: [
       { id: 'motion', row: 0, flex: 1, title: s => { const p = phys(s), th0 = s.theta0 / DEG; return `<b>One square, three flows</b> · t = ${s.t.toFixed(2)} s · line angle now: <b class="c-teal">S ${deg(lineAngle(p.S, s.t, th0))}°</b> · <b class="c-orange">A ${deg(lineAngle(p.A, s.t, th0))}°</b> · G ${deg(lineAngle(p.G, s.t, th0))}°`; } },
       { id: 'matrix', row: 1, flex: 1, title: '<b>G = S + A, entry by entry</b> · click an entry for its arithmetic' },
@@ -2511,9 +2530,9 @@ const app = Viz.app({
         g.app.set('probe', null); return true;
       }
       if (ev.viewId === 'motion') {
-        const p = phys(s), L = extent(p);
+        const p = phys(s), lay = motionLayout(v, s), L = extent(p, lay[0].rect.w < 420);
         let best = null, bd = 14;
-        motionLayout(v, s).forEach(pn => {
+        lay.forEach(pn => {
           const P = panelPlot(v, pn, L), keys = pn.key === 'all' ? ['G', 'S', 'A'] : [pn.key];
           keys.forEach(k => { const [xs, ys] = deformSquare(MAT[k](p), s.t, 7); for (let i = 0; i < xs.length; i++) { const d = Math.hypot(P.X(xs[i]) - pt.x, P.Y(ys[i]) - pt.y); if (d < bd) { bd = d; best = `tracer:${k}:${i}`; } } });
         });
@@ -2529,7 +2548,7 @@ const app = Viz.app({
     callouts: [{ kind: 'try', html: 'Make $G$ symmetric ($G_{21} = G_{12}$): the wheel must stop. Make it antisymmetric ($G_{21} = -G_{12}$): the square must keep its shape.' }]
   },
   terms: {
-    title: 'Frobenius products — Eq. (2.29) in every state',
+    title: 'S:S + 2 S:A + A:A = G:G — the middle bar is Eq. (2.29)\'s zero',
     unit: '1/s²',
     items: [
       { id: 'SS', label: 'S:S = $S_{ij}S_{ij}$', color: '#0fa39c', value: s => phys(s).SS },
