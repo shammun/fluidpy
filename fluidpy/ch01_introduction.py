@@ -137,35 +137,9 @@ def shear_deformation_history(t, tau, kind: str = "fluid", G=None, mu=None, t_of
     return as_scalar_if_0d(np.where(t < 0, 0.0, gamma))
 
 
-def traction_components(traction, normal):
-    """Split a traction (stress vector on a surface) into its normal stress and its shear-stress vector.
-
-    Book: §1.3 (normal vs shear stresses; compression and tension; a fluid at rest carries no shear, §1.7).
-
-    Parameters
-    ----------
-    traction : array_like, shape (3,) or (..., 3)
-        Force per unit area exerted on the face by the material outside it [Pa] (tuples and lists accepted).
-    normal : array_like, shape (3,) or (..., 3)
-        Outward normal of the face; normalised internally [-].
-
-    Returns
-    -------
-    (sigma_n, tau_vec, tau_mag) : tuple
-        ``sigma_n`` = t·n̂ [Pa], signed: positive = tension (pulling outward), negative = compression;
-        ``tau_vec`` = t − sigma_n n̂ [Pa], the tangential (shear) part, orthogonal to n̂;
-        ``tau_mag`` = |tau_vec| [Pa].
-
-    Validation: V1 on 50 random tractions and normals (seed 5): tau_vec · n̂ = 0 and sigma_n n̂ + tau_vec = t (1e-12);
-    pure pressure on a face gives sigma_n = −p, tau_mag = 0. Label: analytic.
-    """
-    t = np.asarray(traction, dtype=float)
-    n = np.asarray(normal, dtype=float)
-    n = n / np.linalg.norm(n, axis=-1, keepdims=True)
-    sigma_n = np.sum(t * n, axis=-1)  # dot product: normal component
-    tau_vec = t - np.asarray(sigma_n)[..., None] * n  # remaining tangential part
-    tau_mag = np.linalg.norm(tau_vec, axis=-1)
-    return as_scalar_if_0d(sigma_n), tau_vec, as_scalar_if_0d(tau_mag)
+# ``traction_components`` moved to ``fluidpy.core.tensors`` in ch02 (normal/shear split reused by Cauchy's
+# traction, §2.6); re-exported here so ``ch01.traction_components`` keeps working.
+from .core.tensors import traction_components  # noqa: E402,F401
 
 
 molecular_mass = molecule_mass  # alias (the chapter module's earlier name)
