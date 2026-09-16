@@ -1,4 +1,4 @@
-# Chapter 2 — explainer review (round 1)                          2026-09-16
+# Chapter 2 — explainer review (round 1 + round 2)                2026-09-16
 
 Reviewer: viz-reviewer (fresh eyes, Phase 7 gate). Everything below was re-run today:
 - `.venv/Scripts/python.exe tools/viz_lint.py --chapter ch02` → all five `ok`.
@@ -16,11 +16,11 @@ Reviewer: viz-reviewer (fresh eyes, Phase 7 gate). Everything below was re-run t
 
 | slug | lint | shot (sizes/views) | parity rows ok | explain | derivations (steps ok) | teaching | polish | verdict |
 |---|---|---|---|---|---|---|---|---|
-| rotation_of_axes (E1) | ok | PASS · 8 · 328 | 20/20 (rtol 1e-12; 4 invariants) | 10 sections + interpretation, 2 live | D01 6 ✓ · D02 8 ✓ · D06 8 ✓ | good story (arrow vs ruler, C twice for a tensor, polar = rotated Cartesian) | transport autoplays under the trace steps; labels collide in the plane view; matrix assembly line clipped on short views | **FAIL** (2 Must) |
-| cauchy_traction_principal_axes (E2) | ok | PASS · 8 · 328 | 27/27 (rtol 1e-12; 3 invariants) | 9 sections + interpretation, 4 live | D05 9 ✓ (2-D tetrahedron sketch, shrinks) · D17 15 ✓ (live numbers on 6 steps) | very good — the reference-depth panel of the chapter | 4 *why* lines > 35 words; strain-mode axis labels still say σn/τs | **PASS** |
-| strain_vs_rotation_split (E3) | ok | PASS · 8 · 232 | 25/25 (rtol ≤ 1e-9; 2 invariants) | 8 sections + interpretation, 10 live | D14 6 ✓ · D15 7 ✓ | very good; conventions pinned exactly (A = ½R, ½ω, never "ω") | motion view small on portrait phones in "all" mode; end card covers the G panel's axis | **PASS** |
-| gauss_flux_box (E4) | ok | PASS · 8 · 352 | 25/25 (rtol ≤ 1e-9 except the singular-source row at 2e-4, justified) | 8 sections + interpretation, 5 live | D25 9 ✓ · D22 9 ✓ · D21 7 ✓ | very good (tiles, Taylor faces, shrink, singular source) | bars gap label wrong in the singular regime; D21's key number hidden on portrait phones | **FAIL** (2 Must, both one-line) |
-| stokes_circulation_loop (E5) | ok | PASS · 8 · 256 | 30/30 (rtol ≤ 1e-8; 5 invariants) | 8 sections + interpretation, 5 live | D26 10 ✓ (tiles drawn, staircase → circle) · D12 5 ✓ | very good ("curl without curves", Stokes failing on purpose) | loop small on portrait phones (x-range grows to ±5); step 6 points at a hidden view | **PASS** |
+| rotation_of_axes (E1) | ok | PASS · 8 · 328 | 20/20 (rtol 1e-12; 4 invariants) | 10 sections + interpretation, 2 live | D01 6 ✓ · D02 8 ✓ · D06 8 ✓ | good story (arrow vs ruler, C twice for a tensor, polar = rotated Cartesian) | round 1: transport autoplayed under the trace steps, labels collided, matrix line clipped — **all fixed in round 2** | **PASS** (round 2) |
+| cauchy_traction_principal_axes (E2) | ok | PASS · 8 · 328 | 27/27 (rtol 1e-12; 3 invariants) | 9 sections + interpretation, 4 live | D05 9 ✓ (2-D tetrahedron sketch, shrinks) · D17 15 ✓ (live numbers on 6 steps) | very good — the reference-depth panel of the chapter | round-1 Should-fixes applied (why ≤ 35, strain-mode names, static result page) | **PASS** |
+| strain_vs_rotation_split (E3) | ok | PASS · 8 · 232 | 25/25 (rtol ≤ 1e-9; 2 invariants) | 8 sections + interpretation, 10 live | D14 6 ✓ · D15 7 ✓ | very good; conventions pinned exactly (A = ½R, ½ω, never "ω") | round-1 Should-fixes applied (portrait overlay panel, end card, terms label) | **PASS** |
+| gauss_flux_box (E4) | ok | PASS · 8 · 352 | 25/25 (rtol ≤ 1e-9 except the singular-source row at 2e-4, justified) | 8 sections + interpretation, 5 live | D25 9 ✓ · D22 9 ✓ · D21 7 ✓ | very good (tiles, Taylor faces, shrink, singular source) | round 1: bars gap label wrong in the singular regime, D21's key number hidden on portrait phones — **both fixed in round 2** | **PASS** (round 2) |
+| stokes_circulation_loop (E5) | ok | PASS · 8 · 256 | 30/30 (rtol ≤ 1e-8; 5 invariants) | 8 sections + interpretation, 5 live | D26 10 ✓ (tiles drawn, staircase → circle) · D12 5 ✓ | very good ("curl without curves", Stokes failing on purpose) | round-1 Should-fixes applied (portrait range, step-6 readouts, 8×8 tiles with live gap) | **PASS** |
 
 **Checks that apply to all five:** KaTeX renders everywhere (no fallback text); no overflow, no text below 12 px and no
 views below 60 px at any of the 8 sizes (audit); tabs Walkthrough · Explore · Explain · Derivation · Equations · Code ·
@@ -259,10 +259,30 @@ sides together).
 | `tilesOf` / `tileSums` | E5 (E4 has `tiled`) | promote `Viz.num.tiles(rect|disc, k)` |
 | hatched bars | E5 (ch01 E3 `hatchPattern`) | second use → `Viz.hatch(ctx, color)` |
 
-## Verdict: FAIL
+## Round 2 (re-check after the builders' fixes, same day)
 
-E2, E3 and E5 PASS. E1 and E4 each have two Must-fix items (E1: `autoplay: false` + `play: false` on the trace steps
-and label placement in the plane view; E4: the singular-regime gap label and D21 step 4's number on portrait phones).
-All four fixes are local edits; re-run `tools/shot.py --chapter ch02` afterwards and re-check
-`desktop__tour-step1…4`, `phone-tall__tour-step3`, `desktop__tour-step6` (E1) and `desktop__tour-step7`,
-`phone-tall__derive-d3p4` (E4).
+Re-run: `tools/viz_lint.py --chapter ch02` → all five `ok`; `tools/shot.py --chapter ch02` (full, 8 sizes, 1 496
+views) → all five PASS, 0 failures, parity rows unchanged and all ok (20/20 · 27/27 · 25/25 · 25/25 · 30/30);
+derivation step titles still match Part F; every *why* now ≤ 35 words (E1 D01 max 34, D02 max 31; E2 D17 max 35).
+Screenshots re-read for the items below (all rendered, none stale).
+
+| slug | round-1 items | what the round-2 screenshots show | verdict |
+|---|---|---|---|
+| rotation_of_axes (E1) | Must 1 autoplay drift · Must 2 label collisions · Should: matrix line clipped, why > 35 | `desktop__tour-step1…3` are paused at θ = 30°: the text's 1×0.866 + 2×0.5 = 1.866 is the number in the plane ("x′₁ = 1.866"), the matrix line and the Eq. (2.5) card ((1.866, 1.232)); step 2's inspector "cos(120°) = −0.500" equals the lit cell; step 4 alone plays (θ 33.5°, "2.236 = 2.236"). Labels no longer collide: shadow labels offset from the axes, the θ arc at 0.8R beyond the arrowhead, the cell-inspector arc label across the origin ("cos 30° = 0.866" bottom-left, clear of x₁/x′₂ at desktop and `phone-tall__tour-step3`); tensor mode puts τ′₁₁/τ′₂₂ on the + faces and τ′₁₂/τ′₂₁ on the − faces (`desktop__tour-step6/7`). `phone__explore` (360×640): the matrix window now shows a single fitted assembly line, nothing clipped. | **PASS** |
+| cauchy_traction_principal_axes (E2) | Should: strain-mode names, D17 why, result page playing | `desktop__tour-step8`: curves titled "n·S·n(φ) stretch rate · s·S·n(φ) shear rate", Mohr axes "n·S·n [1/s]" / "s·S·n [1/s]", status "S·n = … : n·S·n = 0.866, s·S·n = 0.500"; a legend line sits in the element's free space. `desktop__derive-d2p16`: φ = 45°, paused. | **PASS** |
+| strain_vs_rotation_split (E3) | Should: portrait motion view, end card, single panel width, terms label | `phone-tall__explore`: one overlay panel with the three squares ~90 px and the ±1 1/s axes readable; `desktop__tour-step1`: the "G only" panel now spans the view with its streamlines. | **PASS** |
+| gauss_flux_box (E4) | Must 1 singular gap label · Must 2 D21 step-4 number on phones · Should: portrait field, shrink start | `desktop__tour-step7`: "\|∮ − ∬\| = 1 m²/s: the delta at the origin carries the flux m = 1 — Gauss needs a smooth Q" (rose). `phone-tall__derive-d3p4`: bars title leads with "(1/A)∮ = 1.540 → ∇·Q(x₀) = 1.540 1/s"; step 4 has its live line. `desktop__tour-step5`: text "The box shrinks from h = 1 m to a point", h = 0.845 and falling, readouts (1/A)∮ = 2 = ∇·Q(x₀). | **PASS** |
+| stokes_circulation_loop (E5) | Should: portrait range, step-6 hidden view, D26 step 9 gap | `phone-tall__explore`: x-range ±4 (was ±5), loop ~90 px; `phone-tall__tour-step6`: "watch the Γ/A readout hold at the point curl (∇×u)₃ = −1" with Γ/A and curl readouts shown (−1 1/s both); `desktop__derive-d1p9`: 8×8 tiling (52 tiles) staircase −0.812 vs circle −0.785, gap printed live. | **PASS** |
+
+No regressions seen in the re-read screenshots (walkthrough numbers match the pictures in every step checked; KaTeX
+renders; no clipping or overflow reported by the audit at any of the 8 sizes).
+
+Remaining Should-fix (cosmetic, not blocking): E1 tensor mode — the unprimed "τ₁₂ = 1.000" label on the old element's
+−2 face is still crossed by its rose arrow (`desktop__tour-step6`); E3/E5 portrait field plots keep a wide x-range
+(±5 / ±4) because of the equal-aspect short panel — legible now, but a taller portrait row would still help.
+
+## Verdict: PASS
+
+All five explainers PASS after round 2 (E1 and E4 Must-fixes verified in the screenshots named above; E2, E3, E5
+unchanged in substance, Should-fixes applied). Library-promotion candidates for the knowledge-keeper are listed in the
+table above.
