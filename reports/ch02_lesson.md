@@ -1,4 +1,4 @@
-# Chapter 2 — lesson review (round 1)                          2026-09-16
+# Chapter 2 — lesson review (round 1 → round 2 below)          2026-09-16
 
 coverage_check: **OK** (0 errors, 28 warnings — all "ledger primer not found among the notebook's primers"; every one is
 a *reminder* or *gloss* row of design Part E, checked by hand below: 26 are present as 🔁 reminders / glosses, 2 are
@@ -277,7 +277,7 @@ the curation (I compared (2.5), (2.7), (2.12), (2.15), (2.19), (2.21), (2.25), (
   not only the first — clipped readouts (391) appear only once the numbers grow long; (iii) a Python idiom primer must be
   demoed on an object where a wrong statement would *fail* (189/190).
 
-## Verdict: FAIL
+## Verdict (round 1): FAIL
 
 Three Must-fix items, all small and local: the two `exact_div_curl` cells print `(0, [0, 0, 0])` while the text claims
 `(3a, 0)` / `(0, [0, 0, 2])` (a real symbol-mismatch bug, not a display issue); primer P73 states `np.transpose` wrongly;
@@ -285,3 +285,58 @@ the Stokes shrinking-loop animation clips the very number its caption tells the 
 coverage, all 16 CORE blocks, all 15 derivations, conventions, typo corrections, the spot-checked numbers, the figures —
 passes. After the builder fixes cells 242/262, 189 and 391 (and ideally Should-fix 1–3), re-execute, re-run
 `tools/coverage_check.py`, and this review can be flipped to PASS on a re-read of those cells.
+
+---
+
+## Round 2 (2026-09-16, after the notebook-builder's fixes)
+
+Re-read from the fresh `outputs/ch02/executed.ipynb` (rebuilt and re-executed: **405 cells, 96 code / 309 markdown, 0
+error outputs**; 11 PNG, 12 plotly, 5 animations, 5 explainer frames — the gauss_flux_box and stokes_circulation_loop
+iframes are now the built explainers, 278 kB and 270 kB). `tools/coverage_check.py ch02 --nb outputs/ch02/executed.ipynb`
+→ **COVERAGE OK (0 errors, 28 warnings)** — the same 28 name-matching warnings as round 1 (ledger reminders the tool cannot
+match by name; all present). I diffed the round-1 and round-2 cell dumps (`outputs/ch02/lesson_scratch/round2.diff`,
+170 changed lines): every change is one of the 18 requested fixes; nothing else changed, so no regression. I also
+re-extracted first/last frames of all five animations myself and compared them with the builder's dumps
+(`outputs/ch02/anim_stokes_loop_*_s.png`, `anim_ex25_box_*_s.png`) — identical content.
+
+**Must fix — all three verified fixed**
+
+1. Cells 242 / 262 · the sympy twins now use `X3 = sp.Matrix(ch02.coordinates(3))` and print **`3*a [0, 0, 0]`** and
+   **`0 [0, 0, 2]`**, each followed by assertions that the symbolic value is non-zero and equals the grid value
+   (`div.mean()` = 3; `w[:, 5, 5, 5]` = (0, 0, 2)). Cells 243 item 6 and 263 item 4 describe exactly what is printed. ✓
+2. Cell 189 (P73) · now reads "`np.transpose(a, axes)` puts old axis `axes[p]` in position p, so
+   `np.transpose(eps, (1, 2, 0))[i, j, k] = eps[k, i, j]`", and cell 190 demonstrates it on `np.arange(27).reshape(3,3,3)`:
+   printed `19 19 15` = new[0,1,2], a3[2,0,1], a3[1,2,0] — the correct reading matches and the wrong one visibly does not. ✓
+3. Cell 391 (Stokes shrinking-loop animation) · the readout is a two-line `fig.text` below the axes; units moved into
+   the title; the profile quiver moved to x₁ = −1.3. First frame: "side h = 2.00 m: Γ_circ = ∮ u·t ds = −4.0000, A = h² =
+   4.0000 / Γ_circ / A = −1.000 = (∇×u)₃ = −Γ"; last frame (h = 0.10): "−0.0100, 0.0100 / −1.000 = (∇×u)₃ = −Γ" — the
+   ratio cell 393 tells the reader to watch is visible in every frame, nothing clipped. The `constrained_layout` switch is
+   restored at the end of the cell; cell 394's figure is unchanged. ✓
+
+**Should fix — 15/15 verified at the builder's cell map**
+
+1 arctan2 primer P70 is now cell 128–129, before the tiny example (130) ✓ · 2 Mohr's circle: cell 159's comment gives
+centre (τ₁₁ + τ₂₂)/2 and the radius formula; cell 160 item 2 defines Mohr's circle in a sentence and calls the centre
+"half the trace, an invariant (C07)" ✓ · 3 eigen gloss at cell 169 item 3 (A·b = λb, principal frame) and D18 step 8's
+*why* now names it ✓ · 4 det(AB) gloss in D02 step 7 ("volume-scale factor … scale factors multiply", P53 credited only
+for the cofactor recipe) and D18 step 5 points back to it ✓ · 5 D17 step 15 now states Popoviciu's inequality with the
+one-line reason (Var X ≤ E[(X − c)²], c the midpoint) ✓ · 6 irrotational-vortex gloss at cell 266 (u_θ = K/r, K in m²/s,
+speed blowing up at r = 0) ✓ · 7 Rodrigues' formula glossed in cell 60's comment (cos θ I + sin θ [k×] + (1 − cos θ) k kᵀ)
+✓ · 8 cell 328 comment "0.3331 … undershoots a convex integrand by ∝ 1/n²" ✓ · 9 cell 336 comment and cell 337 item 3
+now say "agree to ~1e-14 — the spherical product rule integrates these low-degree polynomials essentially exactly" ✓ ·
+10 cell 55 states (2.5) in words before D03 uses it ✓ · 11 derivation titles read "(Exercise 2.8)", "(Exercise 2.9)",
+"(§2.10)", "(§2.11 facts (1)–(4))", "(2.32 → 2.23)" — no "Eq." prefix on non-numbered labels ✓ · 12 ch01 reminders:
+f-string (cell 4), tuple unpacking (cell 50), np.linspace (cell 68), imshow gloss (cells 206, 245), np.geomspace (cell
+391) ✓ · 13 cell 365's readout is now two lines top-left inside the axes, fully visible in the last frame ✓ · 14 P76 (cell
+216) states the two orders: arrays [k, j, i] = (z, y, x) vs `grid.h` and component index (x, y, z) ✓ · 15 D21's "delta
+function" glossed as "an infinitely concentrated source whose total is finite" ✓. Bonus: D26 step 7 glosses "Riemann sum";
+cell 242 glosses the `'ii...'` einsum ellipsis.
+
+**Regression skim.** All spot-checked numbers of round 1 unchanged (1.866; (0.5, 0.866); ±Γ at 45°; (9, 24, 18); 8π/3;
+tiled interior 0.0; ∇×∇φ 5.9e-13). Cell 134's output is now split into two stream chunks ("[0. 1.7321]" / " [1. 0.]") —
+same content, cosmetic. Cell indices of the CORE blocks, derivations and explainer embeds are unchanged.
+
+**Remaining items:** none that block. (Optional, not required: the 28 coverage warnings are the tool matching ledger
+reminder rows by exact name — a `reminder:` marker in `nb.md`/the ledger would silence them.)
+
+## Final verdict: PASS

@@ -69,13 +69,13 @@
       "design": "pass",
       "implement": "pass",
       "verify": "pass",
-      "review": "running",
+      "review": "pass",
       "viz": "running",
-      "notebook": "running",
+      "notebook": "pass",
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 94 rows (NEW 74/SEEN 20), 36/36 equations, CODE 55/DEMO 20/SKIP 19, 26 derivations; curate: A 16 / B+C 74 / RECAP 2 / SKIP 2 of 94; 15 derivations written, 11 demoted; explainers rotation_of_axes, cauchy_traction_principal_axes, strain_vs_rotation_split, gauss_flux_box, stokes_circulation_loop (+ backup index_machine); design: 16 A blocks, 94 ids placed, Part C 48 rows, Part E 124 rows, Part F 15 D / 122 steps; implement: core/{tensors,index_notation,grids,operators,fields,integral_theorems} + ch02 module (141 names), 14 scripts exit 0, ch01 traction_components promoted to core, 115 tests pass; verify PASS 91 tests (V1 41, V2 13, V3 15, V4 1, V5 6, V6 4, V7 12), stencil orders 1.97-2.03, integral defs 1.998, Simpson 4.00; benchmarks 8pi/3 sphere, Levi-Civita, Cauchy/Mohr, rotation, Stokes; open O1 gauss_gradient_box vector Q (xfail), O2 n_c docstring wording",
+      "notes": "analyze: 94 rows (NEW 74/SEEN 20), 36/36 equations, CODE 55/DEMO 20/SKIP 19, 26 derivations; curate: A 16 / B+C 74 / RECAP 2 / SKIP 2 of 94; 15 derivations written, 11 demoted; explainers rotation_of_axes, cauchy_traction_principal_axes, strain_vs_rotation_split, gauss_flux_box, stokes_circulation_loop (+ backup index_machine); design: 16 A blocks, 94 ids placed, Part C 48 rows, Part E 124 rows, Part F 15 D / 122 steps; implement: core/{tensors,index_notation,grids,operators,fields,integral_theorems} + ch02 module (141 names), 14 scripts exit 0, ch01 traction_components promoted to core, 115 tests pass; verify PASS 91 tests (V1 41, V2 13, V3 15, V4 1, V5 6, V6 4, V7 12), stencil orders 1.97-2.03, integral defs 1.998, Simpson 4.00; benchmarks 8pi/3 sphere, Levi-Civita, Cauchy/Mohr, rotation, Stokes; open O1 gauss_gradient_box vector Q (xfail), O2 n_c docstring wording; review PASS (2 must-fix fixed: rotation_tensor = G − Gᵀ, presets per design; 207 tests); notebook PASS round 2 (405 cells, 59 s, coverage OK, 3 must-fix + 15 should-fix applied)",
       "updated": "2026-09-16"
     },
     "ch03": {
