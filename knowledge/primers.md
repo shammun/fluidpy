@@ -3,7 +3,8 @@
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
-chapters (ch01 P01–P61, ch02 P62–P86); a new chapter starts at the next free number. Total so far: 86.
+chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110); a new chapter starts at the next free number (ch04: P111).
+Total so far: 110.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -110,6 +111,48 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | fundamental theorem of calculus (P84) | ch02 · §2.12 · C14 | ∫_a^b f′ dx = f(b) − f(a): Gauss' theorem in one dimension |
 | mean-value theorem for integrals (P85) | ch02 · §2.12 · C15 | ∭_V f dV = f(x*) V for some x* in V; as V shrinks to x₀, x* → x₀ (how the integral definitions become limits) |
 | line integral of a vector field around a loop (P86) | ch02 · §2.13 · C16 | parametrise the loop, add u·t ds; circle x = c + R(cos s, sin s), rectangle side by side; extends ch01 P35 (∫p dv) to vectors |
+| **ch03 — Python and numerics** | | |
+| scipy.integrate.quad and dblquad (P87) | ch03 · §3.1 · N03 (→ C01) | adaptive integration: `quad(f, a, b)` returns the integral and an error estimate; `dblquad` does area integrals (inner limits as functions); used for section averages and Ex. 3.2 |
+| solve_ivp options: t_eval, dense_output, events, backward integration (P94) | ch03 · §3.3 · C03 | extends P31: ask for chosen output times, get a continuous solution, stop at an event (a stagnation point), integrate backwards by giving t_span in decreasing order |
+| RK4 by hand (P95) | ch03 · §3.3 · C04 | four slope samples per step weighted 1-2-2-1; error ∝ Δt⁴; the from-scratch path line of Ex. 3.1 agrees with `pathline` (extends P30's Euler) |
+| np.expm1 and cancellation near zero (P107) | ch03 · §3.5 · C14 | 1 − e^{−x} for tiny x subtracts nearly equal numbers and loses digits; `-np.expm1(-x)` keeps them (Gaussian vortex near r = 0) |
+| scipy.optimize.brentq (P108) | ch03 · §3.5 · C14 | root of f(x) = 0 inside a bracket [a, b] where f changes sign; guaranteed and fast; pick the bracket from the physics and exclude trivial roots (x = 0 in 1 + 2x = eˣ) |
+| **ch03 — maths** | | |
+| cylindrical and spherical unit vectors (P88) | ch03 · §3.1 · N05 (→ C01) | at each point the curvilinear coordinates carry their own right-handed orthonormal unit vectors, which turn as the point moves; components are projections E[k]·u |
+| functions of time with parameters (P89) | ch03 · §3.2 · C01 | x = Xe^{αt} is a function of t once the label X is fixed; X picks which particle; differentiate in t with X held fixed |
+| inverse functions and sympy solve (P90) | ch03 · §3.2 · C01 | to go from Lagrangian to Eulerian, answer "which particle is at x now?": solve x = Xe^{αt} for X = xe^{−αt} (`sp.solve`) and substitute |
+| multivariable chain rule along a path (P91) | ch03 · §3.2 · C02 | f(t) = F(x(t), y(t), z(t), t) ⇒ df/dt = F_x ẋ + F_y ẏ + F_z ż + F_t (extends P49 to a trajectory with explicit t) |
+| parametric curves, tangent vector and arc length (P92) | ch03 · §3.3 · C03 | x(s) with tangent dx/ds; with arc length s the tangent is a unit vector, so a streamline solves dx/ds = u/\|u\| |
+| parallel vectors and the cross-product test (P93) | ch03 · §3.3 · C03 | a ∥ b ⇔ a = λb ⇔ a × b = 0; the cross-product form survives zero components, the ratio form dx/u = dy/v does not |
+| chain rule with a moving frame (P97) | ch03 · §3.3 · C05 | if g(x, t) = f(x − Ut, t) then ∂g/∂t at fixed x = ∂f/∂t − U ∂f/∂x: "∂/∂t" depends on what is held fixed (the trap of (3.9)) |
+| multivariable first-order Taylor expansion (P98) | ch03 · §3.4 · C06 | u_i(x + dx) ≈ u_i(x) + (∂u_i/∂x_j) dx_j with an O(\|dx\|²) remainder (extends P26 to several variables) |
+| small-angle approximation (P100) | ch03 · §3.4 · C08 | for ε in radians, tan ε ≈ ε and cos ε ≈ 1 with errors of order ε³ and ε²; why stretching changes angles only at second order |
+| linear map of a circle is an ellipse (P104) | ch03 · §3.4 · C12 | a matrix M maps the unit circle to an ellipse; for symmetric M its axes are the eigenvectors and its semi-axes the eigenvalues; SVD glossed for finite time |
+| polar coordinates as a moving basis (P105) | ch03 · §3.5 · C13 | e_r = (cos θ, sin θ), e_θ = (−sin θ, cos θ) change with θ; area element r dr dθ; line element on a circle r dθ e_θ |
+| substitution in an integral (P106) | ch03 · §3.5 · C14 | replace r by s = r²/σ² and convert dr too (ds = 2r dr/σ²); used for the Gaussian vortex's circulation Γ(r) |
+| differentiation under the integral sign (P109) | ch03 · §3.6 · C15 | with fixed limits, d/dt ∫_a^b F dx = ∫_a^b ∂F/∂t dx; moving limits add the Leibniz end terms |
+| **ch03 — physics vocabulary** | | |
+| frames of reference and relative velocity (P96) | ch03 · §3.3 · C05 | a frame = axes + a clock; two frames with parallel axes separating at constant U see velocities that differ by U (Galilean) |
+| material line element (P99) | ch03 · §3.4 · C07 | δx joins two nearby fluid particles and is carried with them, so D(δx)/Dt = δu; it stretches and turns with the flow |
+| rigid-body velocity Ω × x (P101) | ch03 · §3.4 · C08 | a body turning at Ω about an axis through the origin moves each point at Ω × x, perpendicular to both; its curl is 2Ω |
+| angular velocity of a line (P102) | ch03 · §3.4 · C10 | a segment at angle θ from +x turns at θ̇; counterclockwise positive; for a flow, θ̇ = e_θ·G·e(θ) |
+| rotating frame of reference (P103) | ch03 · §3.4 · C10 | an observer on a turntable (the Earth) at Ω sees u′ = u − Ω × x at the instant the frames coincide; vorticity drops by 2Ω (first look; Ch. 4 §4.7 develops it) |
+| signed swept volume of a moving surface (P110) | ch03 · §3.6 · C15 | in Δt a patch dA moving at b sweeps a prism of volume (b·n Δt) dA, positive when advancing along the outward n, negative when retreating, zero when sliding |
+
+Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
+animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
+integral, P29 lambda, P31 `solve_ivp`, P37 trapezoid, P38 product rule, P40 sympy, P41/P64 plotly 3-D, P46 `np.where`,
+P49 chain rule, P62 `np.einsum`, P68 orders of smallness, P70 `arctan2`, P74 right-hand rule, P75 directional
+derivative, P76 `meshgrid` and the grid layout, P77 broadcasting, P78 `streamplot`, P79 `expm`, P80 eigenvalues, P83
+midpoint sums, P84 FTC, P85 mean-value theorem, P86 line integral round a loop.
+
+Glosses in ch03 (one sentence where used): sin² + cos² = 1 to eliminate a parameter (D04), implicit differentiation
+(D05), three-factor product rule (D11), Jacobi's formula det e^{Gt} = e^{t tr G} (C09, checked with `expm`), SVD for
+finite-time ellipse axes (C12), Dirac delta as an infinitely concentrated finite total (N40, reminder of ch02 D21),
+piecewise functions and continuity at a join (D18), maximum ⇒ derivative zero (D20), Lambert W (D20 cross-check),
+Taylor in time F(x, t + Δt) ≈ F + Δt ∂F/∂t (D22), ∇·(Fu) = u·∇F + F∇·u (D24), plotly stream tubes (N15, code comment),
+the ψ streamfunction (u = ∂ψ/∂y, v = −∂ψ/∂x, constant along streamlines, with a two-line sympy proof), a Python/sympy
+idiom gloss in the setup cell.
 
 Reminders written in ch02 instead of new primers (point here): P01 matplotlib, P04 f-strings, P05 stress, P06 linspace
 (also `np.geomspace`), P09 Newton II, P10 random generator, P13 log–log slope (observed order), P14 tuple unpacking,

@@ -67,6 +67,45 @@ rim C that points **into A** (Fig. 2.10; some of our early text said "outward", 
 tangent, **counterclockwise seen from the tip of n**; (n_c, n, t) is right-handed. For a disc in the x–y plane with
 n = +e₃: n_c = −r̂ and t = +θ̂. Flipping n flips both sides of (2.34). Closed surfaces (Gauss) use the outward n.
 
+**⚠️ Γ, γ: four meanings for one Greek letter (ch01–ch03; review Should-fix 3).** Say which one in every docstring,
+slider label and callout.
+
+| Symbol | Meaning | SI unit | Where | Code |
+|---|---|---|---|---|
+| Γ (ch01) | environmental lapse rate dT/dz (Kundu) | K/m | §1.10 | `dT_dz`, `Gamma` in `core.stratification` |
+| Γ (preset rate) | velocity gradient du₁/dx₂ of the `simple_shear` preset u = (Γx₂, 0) (**= ch03's γ = 2S₁₂**); for the other presets just the rate scale (solid body: Γ = ω₀, so (∇×u)₃ = 2Γ) | 1/s | ch02 E3, ch03 E4/E5 presets | `velocity_gradient_preset(name, Gamma)` |
+| Γ (ch02 Ex. 2.4) | the strain-rate element S₁₂ itself (half of the preset's Γ); the book's "2S₁₂ = Γ" line is inconsistent with its own matrix | 1/s | §2.11 | `example_2_4(Gamma)` |
+| γ (ch03 §3.5) | shear rate du₁/dx₂ of the parallel shear flow; S₁₂ = γ/2, ω₃ = −γ | 1/s | §3.5, D14 | `parallel_shear_kinematics(gamma)`; E5 "Rate k" = γ in shear mode |
+| **Γ (ch03 →)** | **circulation** ∮u·ds = ∫ω·n dA (3.18) | m²/s | **already in ch03** (§3.4–3.5, `core/vortices.py`), not only from ch05 | `Gamma` in `rankine_vortex`, `gaussian_vortex`, `vortex_profile`; `circulation`, `circulation_circle` |
+
+ch02 wrote Γ_circ for circulation to avoid the clash; from ch03 on Γ is the circulation whenever a vortex or a loop is on
+screen, and the preset rate should be called γ or k in new text.
+
+**⚠️ R has no ½; ω = 2 × spin (ch03 (3.13), (3.15)).** R = G − Gᵀ, its vector ω = ∇×u (vorticity), G = S + ½R. A small
+element turns rigidly at **½ω** (`element_rotation_rate` = ½ω₃); a paddle wheel turns at ½ω; solid-body rotation at
+ω₀ has ω = 2ω₀. Vector of the antisymmetric part A = ½R is the spin ½ω, never "ω".
+
+**⚠️ Galilean frame sign (3.9) (ch03).** O′ moves at constant U with axes parallel to O: x = x′ + Ut + x′_o, t = t′,
+u = U + u′ (so u′ = u − U). Towed cylinder: in the body frame the far fluid moves at +U e_x (steady); in the fluid frame
+the cylinder moves at −U e_x (unsteady). `cylinder_flow(..., U_frame)`: observer moves at −U_frame e_x relative to the
+far fluid (0 = fluid frame, U = body frame). The sum ∂u/∂t + (u·∇)u is frame-free; the local/advective split is not.
+**Primes changed meaning**: ch02 x′ = Cᵀx is a *rotated* frame; ch03 x′ is a *translating* frame.
+
+**⚠️ Rotating vs Galilean (ch03 D13).** An observer rotating at Ω about z measures ω′_z = ω_z − 2Ω (not ω − Ω); the
+co-rotating frame Ω = ω_z/2 sees no spin. On the Earth: relative vorticity ζ vs absolute ζ + f (Ch. 4 §4.7, Ch. 13).
+
+**⚠️ Signed wall term in the Reynolds transport theorem (ch03 (3.35)).** ∫_{A*} F b·n dA with the **outward** n and
+the **sign** of b·n kept: an advancing wall (b·n > 0) sweeps F in, a retreating wall (b·n < 0) sweeps it out, a wall
+sliding tangentially sweeps nothing (b ≠ 0 but b·n = 0 — Ex. 3.2's base). `|b·n|` is wrong (5 tests fail). In Leibniz
+(3.30) the lower-limit term ȧF(a) is **subtracted** (`leibniz_terms(...).lower`).
+
+**⚠️ (3.6) needs F (book typo).** The book prints DF/Dt = ∂F/∂t + |u| ∂/∂s; the correct streamwise form is
+DF/Dt = ∂F/∂t + |u| ∂F/∂s (the printed one has units 1/s, not [F]/s). Code: `streamwise_derivative`.
+
+**⚠️ Explainer "Rate k" (ch03 E5).** One slider drives flows whose rate means different things: shear → γ = du₁/dx₂,
+solid body → ω₀, pure strain → S₁₁ = −S₂₂ = k/2, other presets → G = k × a fixed matrix. The slider is labelled
+"Rate k" and a meaning line (`kMeaning`) says which, next to G. Later explainers with mode-dependent rates copy this.
+
 **⚠️ Grid layout: two orders (ch02, project-wide).** Arrays are indexed `[k, j, i]` = (z, y, x) in 3-D and `[j, i]` in
 2-D, with x on the **last** axis (`np.meshgrid(z, y, x, indexing="ij")`; 2-D `indexing="xy"`). Vector components sit on
 axis 0 (`u[c, k, j, i]`). But `Grid.h`, direction numbers d, `gradient` components and field components are ordered
@@ -214,10 +253,10 @@ grids drop the duplicate end node (h = L/n).
 | S_ij | symmetric part ½(G + Gᵀ) (strain-rate tensor) | 1/s | Ex. 2.4 Γ ≡ S₁₂ (book's "2S₁₂ = Γ" is inconsistent) | ch02 → | `symmetric_part`, `strain_rate_tensor` |
 | A_ij ⚠️ | antisymmetric part ½(G − Gᵀ) = ½R | 1/s | its vector is ½∇×u; not the dimensional matrix of ch01 | ch02 → | `antisymmetric_part` |
 | R_ij ⚠️ | book's rotation tensor G − Gᵀ = −ε_ijk ω_k | 1/s | vector = ∇×u; not a gas constant or a radius here | ch02 → | `rotation_tensor`, `antisymmetric_from_vector` |
-| ω ⚠️ | vector of R = vorticity ∇×u | 1/s | ω_k = −½ ε_ijk R_ij; **ch07 uses ω for angular frequency** | ch02 → | `omega`, `vector_from_antisymmetric(rotation_tensor(G))` |
+| ω ⚠️ | vector of R = vorticity ∇×u | 1/s | ω_k = −½ ε_ijk R_ij; the element spins at ½ω (ch03); **ch03 Ex. 3.1 and ch07 also use ω for an angular frequency** | ch02 → | `omega`, `vector_from_antisymmetric(rotation_tensor(G))` |
 | ½ω₃ = A₂₁ | spin rate of a fluid element in a plane flow (E3 readout) | 1/s | never written "ω" | ch02 | `vector_from_antisymmetric(antisymmetric_part(G))` |
-| Γ ⚠️ | shear/strain rate of a linear flow (u₁ = Γx₂; Ex. 2.4 S₁₂) | 1/s | **ch01 Γ = lapse rate; ch05 Γ = circulation** | ch02 | `Gamma` |
-| Γ_circ ⚠️ | circulation ∮u·t ds | m²/s | + counterclockwise about n; the notebook writes Γ_circ to avoid the clash | ch02 → (ch05 calls it Γ) | `circulation` |
+| Γ ⚠️ | rate of a linear-flow preset: `simple_shear` u₁ = Γx₂ ⇒ Γ = du₁/dx₂ = 2S₁₂ (= ch03 γ); Ex. 2.4's Γ is S₁₂ itself (half as big) | 1/s | **ch01 Γ = lapse rate; ch03 Γ = circulation** — see the Γ trap table above | ch02, ch03 presets | `Gamma` in `velocity_gradient_preset`, `example_2_4` |
+| Γ_circ ⚠️ | circulation ∮u·t ds | m²/s | + counterclockwise about n; ch02 wrote Γ_circ to avoid the clash; **ch03 already calls it Γ** (not only ch05) | ch02 → (ch03 calls it Γ) | `circulation` |
 | K ⚠️ | strength of the irrotational vortex u_θ = K/r | m²/s | Γ_circ = 2πK round the core; not Taylor's K | ch02 | `K` in `irrotational_vortex_field` |
 | m ⚠️ | 2-D point-source strength (outflux per unit depth) | m²/s | not a molecule mass | ch02 | `m` in `point_source_field` |
 | V, A ⚠️ | volume of a region; area of an open surface (or of a loop) | m³; m² | A here is an area, not a tensor or matrix | ch02 → | `volume`, `Loop.area` |
@@ -226,9 +265,58 @@ grids drop the duplicate end node (h = L/n).
 | s ⚠️, ds | arc length along a curve (not entropy here) | m | | ch02 → | `Loop.ds` |
 | u_i,j | comma notation for ∂u_i/∂x_j (2.36) | 1/s | a comma index transforms as a vector index | ch02 → | `comma_to_partial` |
 | singular_at | point where a test field is not differentiable | m | Stokes/Gauss report `hypothesis_ok = False` | ch02 → | `VectorField.singular_at` |
+| **Particles, fields and flow lines (ch03 §3.1–3.3)** | | | | | |
+| u(x, t) | velocity field callable | m/s | x of shape (d,) or (d, N), coordinates on axis 0; returns the shape of x | ch03 → | `u` (kinematics convention), `as_coord_field`, `from_coord_field` |
+| F(x, t) | any scalar (or vector) field followed by D/Dt | [F] | | ch03 → | `F` |
+| r(t; r_o, t_o) | trajectory of the particle that was at r_o at time t_o (a label, not a variable) | m | labels constant along the path | ch03 → | `r_of_t`, `pathline` |
+| X ⚠️ | Lagrangian label of D01 (x = Xe^{αt}) | m | not a grid array | ch03 | `lagrangian_map_example(X, t, alpha)` |
+| α ⚠️ | stretching rate of D01's map | 1/s | not ch01's thermal expansion; not Fig. 3.11's angle | ch03 | `alpha` |
+| D/Dt | material derivative ∂/∂t + u·∇ (3.5) | [F]/s | local = ∂F/∂t, advective = u·∇F | ch03 → | `material_derivative(_terms)` (local, advective, total) |
+| s ⚠️, e_u | arc length along a streamline; unit vector along u | m; – | (3.6): DF/Dt = ∂F/∂t + \|u\| ∂F/∂s (book drops F) | ch03 | `streamwise_derivative`, `streamline(s_max=…)` |
+| t′ ⚠️, t_o, ξ_o | Ex. 3.1: drawing instant; release time (streak-line label); orbit amplitude | s; s; m | t′ ≠ t_o; primes here are NOT a moving frame | ch03 | `example_3_1(t_prime, xi0, omega)`, `streakline(t_release=…)` |
+| ω ⚠️ | Ex. 3.1's angular frequency of the uniform oscillating flow (its vorticity is 0) | rad/s | **not vorticity** in `example_3_1`, `unsteady_flow_preset(omega=…)` | ch03 (ch07 again) | `omega` |
+| U ⚠️ | constant velocity of the moving frame O′ (Galilean); free stream past the cylinder | m/s | x = x′ + Ut + x′_o, u′ = u − U | ch03 → | `U` in `galilean_transform`, `cylinder_flow` |
+| x′, u′, t′ ⚠️ | position, velocity and time in the translating frame O′ | m, m/s, s | ch02's primes were a rotated frame | ch03 | `xp`, `tp`, `x0p` |
+| U_frame | observer speed on E3's slider (0 = fluid frame, U = body frame) | m/s | observer moves at −U_frame e_x relative to the far fluid | ch03 | `U_frame` in `cylinder_flow`, `frame_acceleration_terms` |
+| a ⚠️ | cylinder radius (§3.1, §3.3); lower limit a(t) (Leibniz); ellipse semi-axis a(t) | m | | ch03 | `a` |
+| ψ | streamfunction, u = ∂ψ/∂y, v = −∂ψ/∂x | m²/s | constant along streamlines | ch03 → (Ch. 4, 6) | `cylinder_streamfunction` |
+| T ⚠️ | temperature field of the thermal front (E2) | K | southerly wind + north–south gradient = warm advection | ch03 | `thermal_front(..., grad_K_per_m, heating_K_per_s, front_speed)` |
+| **Coordinates (ch03 §3.1)** | | | | | |
+| R ⚠️, φ, z | cylindrical radius (capital R), azimuth, axial coordinate | m, rad, m | φ = atan2(y, x); φ = 0 on the axis | ch03 → | `cylindrical_from_cartesian` |
+| r ⚠️, θ ⚠️, φ ⚠️ | spherical radius, **polar angle from +z**, azimuth | m, rad, rad | θ ∈ [0, π]; physics convention | ch03 → | `spherical_from_cartesian` |
+| r, θ ⚠️ | plane polar radius and angle from +x (§3.5) | m, rad | counterclockwise positive | ch03 → | `polar_from_cartesian`, `core.vortices` |
+| e_r, e_θ, e_φ, E[k] | local unit vectors (move with the point) | – | returned as rows E[k] (E = Cᵀ of ch02) | ch03 → | `unit_vectors_*` |
+| u_r, u_θ; u_R, u_φ, u_z; u_r, u_θ, u_φ | velocity components in the local bases | m/s | projections E[k]·u | ch03 → | `velocity_components` |
+| **Strain and rotation (ch03 §3.4)** | | | | | |
+| dx, du | separation of a neighbour and its relative velocity du = G·dx (3.10) | m, m/s | | ch03 → | `relative_velocity(G, dx)` |
+| δx, δV | material line element and material volume (carried by the flow) | m, m³ | D(δx)/Dt = δu | ch03 → | `measured_strain_rates` |
+| n, n₁, n₂ ⚠️ | unit direction(s) of material lines | – | n₁ ⟂ n₂ required for the shear rate | ch03 | `linear_strain_rate(G, n)`, `shear_strain_rate(G, n1, n2)` |
+| α ⚠️, β | Fig. 3.11 angles: α clockwise from the vertical side, β counterclockwise from the horizontal side | rad | S₁₂ = ½D(α + β)/Dt; spin ½D(−α + β)/Dt | ch03 | (D09, D12) |
+| γ ⚠️ | shear rate du₁/dx₂ of the parallel shear flow | 1/s | S₁₂ = γ/2, ω₃ = −γ (clockwise) | ch03 | `parallel_shear_kinematics(gamma)` |
+| θ ⚠️, θ̇ | angle of a material line from +x; its turning rate | rad; rad/s | shear: θ̇ = −γ sin²θ; counterclockwise positive | ch03 | `material_line_rotation_rate(G, theta)` |
+| ½ω₃ | element rotation (spin) rate = average of two perpendicular lines | rad/s | = R₂₁/2; a paddle wheel's rate | ch03 → | `element_rotation_rate`, `perpendicular_pair_rotation_rate` |
+| Ω ⚠️ | angular velocity of a rigid motion or of a rotating observer | rad/s | rigid motion U + Ω × x has ω = 2Ω; rotating frame: ω′ = ω − 2Ω | ch03 → (Ch. 4, 13 Earth) | `rigid_body_velocity(U, Omega, x)`, `vorticity_in_rotating_frame(omega, Omega)` |
+| φ ⚠️ | velocity potential, u = ∇φ (3.17) (simply connected regions only) | m²/s | line vortex: φ = Bθ multivalued | ch03 → (Ch. 6) | `potential_velocity`, `velocity_potential_2d` |
+| λ ⚠️, S̄_αα | principal strain rates (eigenvalues of S) | 1/s | `principal_strain_rates` ascending; Greek index α = no sum | ch03 → | `principal_strain_rates`, `strain_velocity_principal` |
+| h ⚠️, ht | finite-difference step in space; its own step in time | m; s | never reuse h as a time step (review Should-fix 5) | ch03 → | `h`, `ht` in `material_derivative_terms`, `velocity_gradient_at` |
+| **Vortices (ch03 §3.5)** | | | | | |
+| ω₀ | angular velocity of solid-body rotation u_θ = ω₀r (3.22) | rad/s | ω_z = 2ω₀ | ch03 → | `omega0` in `solid_body_rotation` |
+| B | line-vortex strength, u_θ = B/r (3.25) | m²/s | Γ = 2πB (3.26); book's Fig. 3.16 writes C; ch02 wrote K | ch03 → | `B` in `line_vortex` |
+| ω_z | vorticity normal to the plane (polar form (3.23)) | 1/s | counterclockwise positive | ch03 → | `polar_vorticity_z`, second output of `rankine_vortex`/`gaussian_vortex` |
+| Γ ⚠️ | circulation (total circulation of a vortex; of a loop) | m²/s | see the Γ trap table | ch03 → | `Gamma`, `circulation_circle` |
+| σ ⚠️ | vortex core radius (Rankine, Gaussian) | m | **not surface tension (ch01)**; Lamb–Oseen σ² = 4νt | ch03 → | `sigma` |
+| x*, r_max | x* = r_max²/σ² = 1.2564312 (root of 1 + 2x = eˣ); r_max = 1.1209064σ | –; m | r_max = σ√x*, not σx* | ch03 → | `gaussian_vortex_max_radius(sigma, method)` |
+| **Transport (ch03 §3.6)** | | | | | |
+| V*(t), A*(t) | control volume and its closed surface (may move and deform) | m³, m² | 2-D: area and arc length | ch03 → (Ch. 4) | `ControlVolume` shapes |
+| b ⚠️ | velocity of the control surface | m/s | only b·n matters; b = u for a material volume; b = 0 for a fixed CV; **not** ch02's eigenvector or b × x | ch03 → | `surface_nodes(...)` fourth output |
+| n ⚠️ | outward unit normal of A* | – | b·n signed | ch03 → | `surface_nodes` |
+| a(t), b(t), ȧ, ḃ ⚠️ | Leibniz limits and their speeds (3.30) | m, m/s | lower term subtracted | ch03 | `leibniz_terms(F, dFdt, a, b, dadt, dbdt, t)` |
+| Δt, ΔV, T1–T4 | time step of the definition (3.31); signed swept volume; the four terms of (3.32) (T4 = ∫_ΔV Δt ∂F/∂t = O(Δt²)) | s, m³ | | ch03 | `swept_terms`, `swept_terms_sphere` |
+| h ⚠️, r_o, ṙ, θ | Ex. 3.2 cone height, base radius, its growth rate, half-angle | m, m, m/s, rad | b·n = 0 on the base | ch03 | `example_3_2(h, r0, rdot)`, `GrowingCone` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
 |---|---|---|---|---|---|
 | ch01 | z up (§1.7, §1.10); Couette y from fixed wall (0) to moving plate (h) | p0 at z = 0; θ reference p_ref = 1000 hPa; parcel rest height z_o | pressure absolute and isotropic, acts along the inward normal; τ_xy = +μ ∂u/∂y signed; lapse rate Kundu dT/dz; first law q in / w on | none fixed (Π groups carry their own; E2 uses the clock h²/ν) | dimensional SI throughout; only Π groups are dimensionless |
 | ch02 | right-handed x₁x₂x₃ (no preferred "up"); rotated frame shares the origin; angles counterclockwise about e₃; grid arrays `[k, j, i]` = (z, y, x), components and `h` in (x, y, z) | origin of both frames; boxes/loops centred at x0 | τ_ij tensile positive, +e_i face → +e_j; traction f = n·τ (first index); ∇·τ on the second index; pressure τ = −pδ; passive C (x' = Cᵀx); book A:B = A_ij B_ji; R = G − Gᵀ ↔ ω = ∇×u, A = ½R ↔ ½∇×u; Stokes n_c into A, t counterclockwise about n; outward n on closed surfaces | none (pure mathematics) | dimensional where physical (Pa, 1/s, m); most results unit-agnostic |
+| ch03 | right-handed Cartesian (no preferred "up"); plane polar (r, θ from +x), cylindrical (R, φ, z), spherical (r, θ from +z, φ); angles and rotation counterclockwise positive (shear spins clockwise: ω₃ = −γ); field callables `u(x, t)` with coordinates on axis 0; Galilean frame O′ at constant U (x = x′ + Ut + x′_o, u′ = u − U); rotating frame u = Ω × x + u′ at the coinciding instant | cylinder centre at the origin at t = 0 for every observer (E3); Ex. 3.1 port at the origin; vortices centred at the origin; RTT shapes with explicit reference geometry (E7 interval [1, 3] + ȧt, ḃt; ellipse a = 2 + ȧt, b = 1 + ḃt) | R = G − Gᵀ (no ½), ω = ∇×u, spin ½ω; γ = 2S₁₂; RTT outward n, signed b·n; Leibniz lower term subtracted | none (E6 draws in r/σ; its real-vortex modes use metres) | dimensional SI throughout |

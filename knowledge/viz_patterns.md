@@ -3,7 +3,13 @@
 Read by the curator, designer, viz-builders and viz-reviewer before any explainer work. Appended by the knowledge-keeper.
 Explainer short names: ch01 E1 `continuum_averaging_volume`, E2 `viscosity_momentum_diffusion`, E3 `heat_work_paths`,
 E4 `parcel_stability`, E5 `buckingham_pi_machine`; ch02 E1 `rotation_of_axes`, E2 `cauchy_traction_principal_axes`,
-E3 `strain_vs_rotation_split`, E4 `gauss_flux_box`, E5 `stokes_circulation_loop` (all PASS round 2, 127 parity rows).
+E3 `strain_vs_rotation_split`, E4 `gauss_flux_box`, E5 `stokes_circulation_loop` (all PASS round 2, 127 parity rows);
+ch03 E1 `flow_lines_unsteady`, E2 `material_derivative_probe`, E3 `galilean_frames_cylinder`, E4
+`fluid_element_deformation`, E5 `spin_and_principal_axes`, E6 `vortex_paddle_wheels`, E7 `reynolds_transport_cv` (all
+PASS round 2, 145 parity rows, every page of every pager audited). **Rule since ch03: 5–10 explainers per chapter, as
+many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
+in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
+lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
 
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
@@ -60,6 +66,23 @@ E3 `strain_vs_rotation_split`, E4 `gauss_flux_box`, E5 `stokes_circulation_loop`
 | Paddle wheel turning at ½(∇×u)₃ on a curl heat image, plus RK4 tracers; shear preset shows "curl without curved streamlines" | ch02 E5 | the curl's meaning in one glance |
 | Staircase → circle refinement in a derivation (8×8 tiles, gap printed live) | ch02 E5 D26 step 9 | the tiling limit is measured, not claimed |
 | Flip-n toggle that changes both sides of the theorem together, with the status saying so | ch02 E5 | orientation is a convention, the equality is not |
+| **Measured ◇ against the formula**: an independent measurement (a float's sampled rate, tracked segment lengths and corner angles, a finite difference of ∫F) drawn as a diamond on the formula's bar or curve | ch03 E2 (float rate on the DT/Dt bar), E4 (stretching/closing/area dots on n·S·n, 2n₁·S·n₂, e^{t tr G}), E7 (FD of ∫F on the budget total) | the formula is checked in front of the reader, every frame; the chapter's signature move |
+| **Answer-sheet view beside the experiment**: the closed-form result (Ex. 3.1's circles, line, centres) in its own view next to the simulated dye/particle/streamline, same clock; a ringed dot ties one simulated point to the inspector's arithmetic | ch03 E1 | the reader compares simulation and derivation without switching tabs |
+| **Presets at the regime threshold** (loops / no loops at U₀ = ωξ_o; stalled front; halfway and overtaking observers) | ch03 E1, E2, E3 | each preset is a qualitatively different picture the text names |
+| **Observer slider**: one parameter moves the observer continuously from one frame to another (lake → towed body); local and advective bars trade places while the total and a dashed body-frame reference stay put | ch03 E3 | frame dependence of the split vs frame independence of the sum is watched, not asserted |
+| u = U + u′ vector triangle next to the flow | ch03 E3 | the Galilean transformation as a picture |
+| **Single threads vs the flat pair average**: each material line's turning rate as a curve over θ, the pair average as a flat line at ½ω₃ | ch03 E5 | the "why ½ω, and why any pair" aha in one plot |
+| **Co-rotating observer** (Ω = ½ω₃ stops the paddle wheel; ω′ = ω − 2Ω readout) | ch03 E5 | frame dependence of vorticity; seed for Ch. 13 relative vs absolute vorticity |
+| **Mode-neutral slider name**: "Rate k" plus a meaning line next to G (shear → γ, solid body → ω₀, pure strain → S₁₁ = k/2) | ch03 E5 (round-1 Should) | one slider can drive several flows without mislabelling a quantity |
+| Split view with a small table (strain part, rotation part, exact ellipse axes) for the probe point | ch03 E5 | (3.19) as numbers per row |
+| **Orbit without turning**: paddle wheels carried round the line vortex keep their orientation while the draggable loop still reads Γ = 2πB | ch03 E6 | "going round is not spinning" is unmistakable |
+| Log–log mean vorticity in a disc vs radius (slope −2 for the line vortex, flat for solid body) | ch03 E6 | the δ-function core (3.27) as a measurable slope |
+| Derivation sector drawn on the phenomenon (D17's polar sector on the vortex, its four legs coloured) | ch03 E6 | the derivation's geometry is the picture |
+| **Real-world table with the current row lit** (bathtub, tornado, tropical cyclone), sliders switch to log scales in metres and the status leads with Γ and σ | ch03 E6 (after the round-1 fix) | non-dimensional picture, dimensional numbers |
+| **Swept band coloured by the sign of b·n** (advancing orange, retreating rose) + budget waterfall (volume term → swept in → swept out → total) landing on the measured ◇ | ch03 E7 | the signed wall term is visible; the budget closes on screen |
+| **Dropped-term log–log panel**: the (3.32) term T4 against Δt with slope 2 next to the O(Δt) terms | ch03 E7 | "orders of smallness" becomes a slope the reader measures |
+| Three geometries (1-D interval, deforming ellipse, growing cone) on one engine via modes; per-mode control hiding in Explore (`.rtt-off`) | ch03 E7 (Explore 15 → 11 pages at 360×640) | one theorem, three pictures, without a long control list |
+| `\textstyle` integrals inside `aligned` derivation rows (display style only on desktop via a width class) | ch03 E7 | avoids the tall ∫ glyph being clipped at a pager slice break (library bug 3) |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -111,6 +134,17 @@ E3 `strain_vs_rotation_split`, E4 `gauss_flux_box`, E5 `stokes_circulation_loop`
 | `test_viz_library_inlined_and_template_lints` failed while builders were mid-build ("STALE viz/ch02/…") | ch02 verify phase | expected while the viz phase runs; re-run `tools/viz_inline.py --all` before the merge gate |
 | **Pager: oversized items.** One paged item taller than its page (a walkthrough derivation quote, an Explain §0 paragraph, a "Right now" table, a code chunk with wrapped lines) was clipped by 24–209 px at 360×640; `shot.py` only saw page 1 of each pager, so all 10 ch01–ch02 explainers passed with it | review L1 (eq retrofit) | `Pager.layout` now slices such an item at natural breaks (paragraphs, text lines, list items, table rows, code rows, rows of an `aligned` formula; never through a line, a formula or a control), one slice per page with the cue "continued on the next page ›" and a "continued" rule at the top of the next page; a formula taller than a whole page sets `P.tall` and `fit()` moves the portrait split towards the text (`data-room="text"`). Equations on hidden pages are scaled too. The portrait stage's floor now includes `--viz-stage-need` (every visible view ≥ 60 px) and stays at that floor while a page would not fit (`data-paged`), so a page is never shorter than it was packed for (before, a short page let the stage grow and a long one was squeezed — the real cause of most L1 clips); live notes/inspector re-pack when their height changes; a text page < 110 px raises the density. `shot.py` pages through every page of every pager at every size and fails on clipping (`CLIP__*.png`). Builders: keep display lines short enough for 0.78× scaling at 360 px, and do not rely on paging to hold a 10-line formula |
 | Views squeezed below 60 px on a phone by a full text page (parcel_stability Explain needed a local floor) | ch01 E4 | library: when a view is < 60 px in portrait, `fit()` retries with `data-room="stage"` (multi-view stage floor `max(300px, 62%)`) and keeps it if fewer problems remain |
+| **Equation retrofit regressions** (ch01/ch02, "show every equation"): (a) an equation put into a heading/label that is also shown just below duplicated it and overflowed the page (gauss "Right now" +163 px); (b) TeX attached to the wrong number ((2.28)/(2.29) labelled with their consequences) | ch02 E4 R1, E3 R2 | (a) keep headings short, show the equation once in the body; (b) the TeX next to a number must be that numbered equation — the reviewer compares with the rendered page |
+| Long live lines in the Equations tab (428 px product in a 332 px card) | ch01 E1 P2 | split into `\begin{aligned}` (product on line 1, result on line 2) or show only the formula and the result |
+| **Presets overrode Γ and σ while the sliders still showed lab values** | ch03 E6 (round-1 Must) | a preset must set the slider values it uses (log sliders in metres for real vortices) and the status leads with them; a selftest row pins the status text |
+| One slider ("γ") meant a shear rate, a rotation rate or a strain rate depending on the flow | ch03 E5 (round 1) | "Rate k" + `kMeaning()` line (pattern above) |
+| Step 1's question fell onto page 2 at 360×640 | ch03 E4 (round 1) | step text ≤ 24 words when the stage is tall; check `phone__tour-step1.png` page 1 |
+| Explore paged to 15 pages on phones (every mode's controls listed) | ch03 E7 (round 1) | per-mode control hiding via a class toggled by the chapter script |
+| The "now" box of a derivation step on page 2 | ch03 E7 (round 1) | put the live line first on the step |
+| Negative waterfall segment drawn pointing the same way as a positive one | ch03 E2 (open) | arrowhead or hatch for negative segments (E7's hatched "swept out" bar) |
+| Legend strip covers the particle the step is about (portrait) | ch03 E3 (open) | legend into the view title on portrait (ch01 lesson, again) |
+| Explain 21 pages at 360×640; D22 result 19 pages (whole 12-line chain) | ch03 E3, E7 (open) | merge sections on phones; collapse long result chains to first + last line on phones |
+| Precomposed "ḃ" loses its dot at phone size; "36000 m" instead of "36 km"; labels cut inside ~45 px bars; touching y ticks in a ~70 px view; live numbers for a different particle than the view shows | ch03 E7, E6, E1 (open) | TeX `\dot b`; `Viz.fmt` with a unit switch; labels above narrow bars; draw only −1, 0, 1 below ~90 px; label which particle the live line is for |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -165,10 +199,60 @@ Python promotion candidate (same rule, `fluidpy/core/`, then `pytest -q`): `flui
 inside `matplotlib.rc_context({"figure.constrained_layout.use": False})`. matplotlib 3.11's `print_figure`
 re-installs constrained layout after the first saved frame, so builders currently toggle the rcParam by hand around
 `subplots_adjust` animations (`notebooks/build_ch02.py` l. 3482/3507). The ch02 kinematics helpers
-(`velocity_gradient_preset`, `linear_flow_map`, `deform_square`, `material_line_angle`) move to `core/` when Ch. 3
-calls them.
+(`velocity_gradient_preset`, `linear_flow_map`, `deform_square`, `material_line_angle`) **moved to
+`core.kinematics` in ch03** (done by the implementer; ch02 re-exports them). New Python candidate from ch03:
+`show_eqs(text, EQ)` from `notebooks/build_ch03.py` → `tools/nbkit.py` (every builder needs it under the equation rule).
+
+### ch03 candidates (listed, **not promoted**: the ch03 knowledge pass ran while the site-publisher was reading `viz/`)
+Counts are explainer files that define the helper locally (`function name(` or `const name =` after the inlined
+library), over ch01–ch03 (17 explainers). Same procedure as above; add `--chapter ch03 --quick` to the shot runs.
+Ranked by payoff:
+
+| Rank | Helper | Found in (file · local name) | Count | Proposed library name |
+|---|---|---|---|---|
+| 1 | fixed-decimal formatters (HTML minus / TeX minus, round-off → 0) | `fx` in ch01 `buckingham_pi_machine`, ch02 `cauchy_traction_principal_axes`, ch03 E1 E2 E3 E4 E5 E7; `tx` in ch02 cauchy, ch03 E1 E2 E3 E4 E5 E7; variants `fz`/`tz` in ch02 gauss, stokes, `f2z`/`tz` in ch02 strain; ch03 E6 `F`/`T` | **11 explainers** (fx 8, tx 7) | `Viz.fixed(v, d, {tex})` (+ `keepZeros`) |
+| 2 | per-layout view-row hide (portrait / landscape / short portrait), Derivation tab exempt; preset strip and mode chips dropped on short screens | scoped `<style data-chapter>` in **all 7 ch03** explainers + ch02 E3, E4, E5 | **10 explainers** | engine: `views[i].hideOn: ['portrait', 'landscape', 'short']`, `rows[i].hideOn`, `presets.hideOn`, `modes.hideOnTabs` (keep the `:not([data-tab="derive"])` rule built in) |
+| 3 | waterfall term bars with signed segments (`drawBars`) and hatched negatives (`hatchRect`, `hatch`, `hatchPattern`) | `drawBars` ch02 gauss, stokes; ch03 E2, E3, E7; hatch: ch01 `heat_work_paths` `hatchPattern`, ch03 E3 `hatch`, E7 `hatchRect` | **5 (bars) + 3 (hatch)** | `Viz.bars(v, items, {waterfall, measured, hatchNegative, arrowNegative})`, `Viz.hatch(ctx, rect, color)` |
+| 4 | 2×2 symmetric principal values/angle | `principal2d` ch02 cauchy, strain; ch03 E4; `principal` ch03 E5 | **4** | `Viz.num.principal2d(S)` |
+| 5 | closed-form 2×2 matrix exponential | `expm2` ch02 strain; ch03 E4, E5 | **3** | `Viz.num.expm2(M, t)` |
+| 6 | 2×2 SVD (finite-time ellipse axes of e^{Gt}) | `svd2` ch03 E5 | 1 (pairs with `expm2`; Ch. 13 frontogenesis will want it) | `Viz.num.svd2(M)` |
+| 7 | JS port of `show_eqs` (write the equation next to its first bare number) | `showEqs` ch03 E5 (Python twin `show_eqs` in `notebooks/build_ch03.py`) | 1 JS + 1 Python | `Viz.showEqs(text, EQ)` in the library and `nb.show_eqs(text, EQ)` in `tools/nbkit.py` (the rule is project-wide) |
+| 8 | ticks drawn inside narrow plots | `inTicks` ch03 E4, E7 | **2** | `P.axes({ticksInside: 'auto'})` below ~90 px |
+| 9 | inline legend that returns false when it does not fit (caller moves it into the title) | `legend` ch03 E7; E3 needs it (open Should-fix) | 1 (+1 needed) | `Viz.legend(v, P, items)` → fits |
+| 10 | Gauss–Legendre nodes mirroring `core.integral_theorems.gauss_legendre_nodes` | `gl`/`glStd` ch03 E7 (+ `midpoint`) | 1 | `Viz.num.gaussLegendre(n, a, b)`, `Viz.num.midpoint(a, b, n)` (Ch. 4 CV budgets will reuse) |
+| 11 | viewport width class (phone / mid / wide) for text variants | `widthClass` ch03 E4, E7 | **2** | `Viz.widthClass()` (or expose the engine's layout/density) |
+| 12 | scientific-notation formatters with Unicode exponents | `fsci`/`tsci` ch03 E4, `dec` + `fs3`/`ts3` ch03 E7 | **2** | `Viz.fmt(v, {sci: true})` / `Viz.tnum` exponent option |
+| 13 | filled polygon in plot coordinates | `fillPoly` ch02 cauchy; ch03 E4 (`polyFill` E7) | **3** | `P.fillPoly(pts, color, alpha)` |
+| 14 | label past an arrow tip | `tipLabel` ch02 rotation, cauchy | 2 (carried from ch02) | `P.tipLabel(from, to, str, opt)` |
+
+## Open library bugs (for the next library pass; `assets/viz_lib.js`, found by the ch03 viz-reviewer)
+Each is worked around in chapter CSS/JS today; fix in the engine, then drop the workarounds and re-run
+`tools/shot.py --chapter ch01/ch02/ch03 --quick`.
+
+| # | Bug | Symptom | Chapter workaround in use | Engine fix |
+|---|---|---|---|---|
+| 1 | **Pager has no keep-with-next** | a heading, a `W.step` title or a derivation *move* line can end a page alone, its body on the next page (also ch02 stokes Code title, S4) | keep headings short and put the first sentence in the same item (step title carries the equation; E7 D21/D22 short titles; the "now" live line first on a step) | mark headings/move lines `data-keep-next`; `Pager.layout` never ends a page on one |
+| 2 | **Page packed at a different height than shown at 360×640** | a page packed for 145 px is displayed at 135 px because layout runs before the final `fit()`, so its last line is clipped or the density changes after packing | drop the preset strip and the mode chips on short/portrait screens in chapter CSS (E1, E4, E5, E6, E7) so the stage height is stable before packing; leave slack on text-heavy pages | re-pack every pager after the final `fit()` (and whenever the stage height changes) |
+| 3 | **Tall `\int` glyph top clipped when a slice break falls just above it** | the slice boundary ignores the KaTeX `.vlist` overhang of display-style integrals | E7 writes derivation rows as `\textstyle` integrals inside `aligned` and uses display style only on desktop (`widthClass() === 'wide'`) | measure each row's ink box (including `.vlist` overhang) when choosing a cut |
+| 4 | **`optional` controls stay hidden on phones even when their value drives the picture** | E6 real-vortex modes set Γ and σ on log sliders that phones never show, so the reader could not see the values in use | E6's status line leads with the values ("🌀 cyclone Γ 1.8×10⁷ m²/s, σ 36000 m") at every size, pinned by a selftest row; E7 hides other modes' controls instead of marking them optional | an `optional` control whose value differs from its default (or that a preset/mode set) is shown, or its value is echoed as a chip |
 
 ### Lesson candidates for the skills (not promoted in this pass; one line each for the next pass that may edit skills)
+- (ch03 additions, not promoted) `interactive-viz` Lessons: a measured ◇ on the formula's bar/curve is the strongest
+  check an explainer can show · a preset that switches to real-world units must move the sliders and echo the values in
+  the status · a slider whose meaning depends on the mode gets a neutral name ("Rate k") and a meaning line · `\textstyle`
+  integrals in derivation rows until library bug 3 is fixed · the TeX next to an equation number must be that equation
+  (retrofit R2) and a heading must not repeat an equation shown below it (R1) · run `tools/eq_refs.py` before review.
+- (ch03) `math-to-python` §7: pin every reused letter with a discriminating test (γ = 2S₁₂ vs Γ ≡ S₁₂ vs Γ circulation) ·
+  a book typo is exposed by a dimension test and implemented corrected ((3.6), Ex. 3.2) · signed swept volume, never
+  |b·n| · extremum in x = r²/σ² returns r = σ√x · substitute generic polynomials before `simplify` when sympy produces
+  `Subs(Derivative(...))` · a time-step default is never the space step · trace over axes (0, 1) for (d, d, N) arrays.
+- (ch03) `verify-implementation`: form cross-checks against an encyclopedia are V1, not V5; a label says "converged" only
+  if an order is asserted · 13 wrong variants patched in, all caught.
+- (ch03) `teaching-style` Lessons: explain a measured deviation with a tiny example (the ellipse turns at ≈ γ/4, not
+  γ/2) · the observer-dependence thread (steady/unsteady, local/advective, relative/absolute vorticity) · check every
+  "Dxx step N" pointer by script after a split (again, round 2) · the ch03 derivation moves in `concept_map.md`.
+- (ch03) `colab-notebook` / nbkit: builder strings with LaTeX must be raw strings (coverage check 9 caught a form feed
+  from `\frac`) · promote `show_eqs` into nbkit.
 - `interactive-viz` Lessons: (ch02) `autoplay: false` + `play: false` on every step that quotes numbers ·
   `\begin{aligned}` for long live lines · scoped `<style data-chapter>` to drop a view row on phones with
   `:not([data-tab="derive"])` · `py:` parity expressions have no builtins · parallel builders use private scratch
@@ -192,7 +276,11 @@ calls them.
 (seeded from `book.yaml → viz_seeds`; the curator decides)
 - **Ch. 2 tensors** (done): the ch01 E5 matrix layout became ch02 E1's clickable direction-cosine matrix; the
   arrow-on-a-plane idea became ch02 E2's element + Mohr stage.
-- **Ch. 3 kinematics**: streamline/pathline/streakline stage = template field stage + ch01 E2's "ghost + trail" idea;
+- **Ch. 4 conservation laws (next)**: integral mass/momentum/energy of a moving CV = ch03 E7 (swept band by sign of
+  b·n, budget waterfall + measured ◇, three geometries) with a momentum-flux bar per face; Cauchy's equation = ch02 E2
+  element + ch03 E4 measured strain rates → Newtonian stress 2μS; rotating frame §4.7 = ch03 E3 observer slider plus a
+  Coriolis bar and ch03 E5's co-rotating observer; Bernoulli = E2's probe-vs-float along a streamline.
+- **Ch. 3 kinematics** (done — what was planned): streamline/pathline/streakline stage = template field stage + ch01 E2's "ghost + trail" idea;
   for linear flows use ch02 E3's `expm2` closed form for exact pathlines. **Deformation of a fluid element (§3.4)** =
   ch02 E3's "one clock, three squares" with the book's R = G − Gᵀ and ω = ∇×u. Keep the factor-2 readout
   ("spin ½ω₃") and the parity rows "vorticity = vector(R)", "R = 2A". Principal strain rates = ch02 E2 in strain mode.
@@ -220,3 +308,6 @@ feature: `templates/viz_example.html`, `templates/viz_example_field.html`, `temp
 models after ch01: E4 `parcel_stability` (linked views, conventions, 4 derivations) and E3 `heat_work_paths` (term bars,
 modes, linked diagrams). After ch02: `cauchy_traction_principal_axes` (the reference-depth Explain panel of the
 chapter: 9 sections, a ★★★ derivation with live numbers) and `strain_vs_rotation_split` (the cleanest one-clock story).
+After ch03: `reynolds_transport_cv` (★★★ D22 in 12 steps, three geometries, measured ◇, dropped-term panel) and
+`spin_and_principal_axes` (5 derivations, co-rotating observer, mode-neutral "Rate k"); best screenshots
+`reports/viz/ch03/flow_lines_unsteady/desktop__tour-step1.png`, `reports/viz/ch03/reynolds_transport_cv/desktop__tour-step5.png`.
