@@ -87,8 +87,8 @@
     "ch03": {
       "title": "Kinematics",
       "slug": "kinematics",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -98,7 +98,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
+      "notes": "analyze: 79 rows (62 NEW/15 SEEN), 55 CODE/11 DEMO/13 SKIP, 35 eqs (3.1-3.35), 33 derivations (1 star3: RTT), 7 explainer candidates + 2 backups; typos (3.6), Ex 3.2 noted",
       "updated": "2026-09-22"
     },
     "ch04": {
