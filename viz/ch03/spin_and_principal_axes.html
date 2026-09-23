@@ -2360,6 +2360,14 @@ button, input, select { font: inherit; color: inherit; }
    --------------------------------------------------------------------------------------------------- */
 const DEG = Math.PI / 180, EPS = 0.1, TMAX = 3;
 const FLOW_NAMES = { shear: 'parallel shear', solid: 'solid body', pure: 'pure strain', general: 'general' };
+/** What the slider's rate k means in each flow (ch03's γ = du₁/dx₂ = 2S₁₂ only in the shear flow). */
+function kMeaning(s) {
+  const k = fx(s.gamma, 2);
+  if (s.flow === 'shear') return 'shear rate du₁/dx₂ = γ = ' + k + ' 1/s';
+  if (s.flow === 'solid') return 'rotation rate ω₀ = ' + k + ' rad/s';
+  if (s.flow === 'pure') return 'rate k = ' + k + ' 1/s (S₁₁ = −S₂₂ = ' + fx(s.gamma / 2, 2) + ' 1/s)';
+  return 'rate k = ' + k + ' 1/s (G = k × fixed matrix)';
+}
 
 /** The four flows' velocity gradients G = ∂u_i/∂x_j [1/s] at rate γ (velocity_gradient_preset-like; "general" is ours). */
 function Gof(flow, g) {
@@ -2589,8 +2597,10 @@ function drawElement(v, s, app) {
   const pX = P.X(n.dxD[0]), pY = P.Y(n.dxD[1]);
   const ends = LAST.ends || [];
   if (v.w > 250 && ends.length) {
-    Viz.text(ctx, '1', P.X(ends[0][0]) + 8, P.Y(ends[0][1]) - 8, { size: 12.5, weight: 700, color: C.thread, bg: true });
-    Viz.text(ctx, '2', P.X(ends[1][0]) + 8, P.Y(ends[1][1]) - 8, { size: 12.5, weight: 700, color: C.thread, bg: true });
+    const away = e => { const X = P.X(e[0]), Y = P.Y(e[1]), dx = X - pX, dy = Y - pY, d = Math.hypot(dx, dy) || 1, f = d < 30 ? 16 / d : 0; return [X + 8 + dx * f, Y - 8 + dy * f]; };
+    const e1 = away(ends[0]), e2 = away(ends[1]);
+    Viz.text(ctx, '1', e1[0], e1[1], { size: 12.5, weight: 700, color: C.thread, bg: true });
+    Viz.text(ctx, '2', e2[0], e2[1], { size: 12.5, weight: 700, color: C.thread, bg: true });
   }
   if (s.ab && ends.length) {
     Viz.text(ctx, 'α: clockwise tilt of the vertical thread', P.px.x + 6, P.px.y + P.px.h - 30, { size: 12, weight: 650, color: C.thread, bg: true, maxWidth: P.px.w - 12 });
@@ -2613,7 +2623,7 @@ function drawElement(v, s, app) {
   // wheel at the centre: turned by ½ω₃t in the lab, plus the drawing's rotation
   const Rw = clamp(P.sx(0.3 * EPS), 12, 34);
   drawWheel(ctx, P.X(0), P.Y(0), Rw, n.turned + n.beta, C, s.sweep ? 0 : 0.5 * n.wp);
-  if (v.w > 240) {                                   // 'probe' just outside the ring, on the far side of its arrows
+  if (v.w >= 420) {                                  // 'probe' just outside the ring, on the far side of its arrows
     const ph = s.phi * DEG, ox = Math.cos(ph), oy = -Math.sin(ph);
     Viz.text(ctx, 'probe', clamp(pX + 22 * ox, P.px.x + 24, P.px.x + P.px.w - 24), clamp(pY + 22 * oy + (Math.abs(oy) < 0.5 ? 14 : 0), P.px.y + (s.flip ? 50 : 30), P.px.y + P.px.h - 10), { size: 12, weight: 650, color: C.du, bg: true, align: ox > 0.3 ? 'left' : ox < -0.3 ? 'right' : 'center' });
   }
@@ -2665,10 +2675,10 @@ function drawRates(v, s) {
   if (v.w > 280) {
     const a = f1(th), b2 = f2(th), right = th < 110, X = P.X(th) + (right ? 10 : -10), al = right ? 'left' : 'right';
     const cy = y => clamp(y, P.px.y + 8, P.px.y + P.px.h - 8);
-    Viz.text(ctx, 'thread 1: ' + sg(a, 3), X, cy(P.Y(a) + (a >= b2 ? -11 : 11)), { size: 12, weight: 650, color: C.thread, bg: true, align: al });
-    Viz.text(ctx, 'thread 2: ' + sg(b2, 3), X, cy(P.Y(b2) + (a >= b2 ? 11 : -11)), { size: 12, weight: 650, color: C.thread, bg: true, align: al });
+    Viz.text(ctx, (narrow ? '1: ' : 'thread 1: ') + sg(a, 3), X, cy(P.Y(a) + (a >= b2 ? -11 : 11)), { size: 12, weight: 650, color: C.thread, bg: true, align: al });
+    Viz.text(ctx, (narrow ? '2: ' : 'thread 2: ') + sg(b2, 3), X, cy(P.Y(b2) + (a >= b2 ? 11 : -11)), { size: 12, weight: 650, color: C.thread, bg: true, align: al });
     const ya = P.Y(n.sp - Om), top = ya - P.px.y > 26;
-    Viz.text(ctx, 'pair average ' + sg(n.sp - Om, 3) + (Math.abs(Om) > 1e-12 ? ' = ½ω′₃' : ' = ½ω₃'), P.px.x + P.px.w - 6, ya + (top ? -11 : 12), { size: 12, weight: 700, color: C.wheel, bg: true, align: 'right' });
+    Viz.text(ctx, (narrow ? 'avg ' : 'pair average ') + sg(n.sp - Om, 3) + (narrow ? '' : Math.abs(Om) > 1e-12 ? ' = ½ω′₃' : ' = ½ω₃'), P.px.x + P.px.w - 6, ya + (top ? -11 : 12), { size: 12, weight: 700, color: C.wheel, bg: true, align: 'right' });
   }
 }
 /** The probe's relative velocity enlarged, with its numbers, and the ellipse table (three methods). */
@@ -2754,7 +2764,7 @@ function regime(s) {
 }
 const READING = {
   shear: 'Straight streamlines, yet every element spins <b>clockwise at γ/2</b> and stretches along the <b class="c-blue">45° axis</b>: half of the shear is rotation, half is strain. A river near its bank or the wind near the ground turns every paddle wheel this way.',
-  solid: 'Every thread turns at the same rate γ: the element spins as a rigid body and <b>does not deform</b> (S = 0) — the ring stays a circle and the wheel turns exactly as fast as the threads.',
+  solid: 'Every thread turns at the same rate ω₀: the element spins as a rigid body and <b>does not deform</b> (S = 0) — the ring stays a circle and the wheel turns exactly as fast as the threads.',
   pure: '<b>No spin</b>: threads along the principal axes (0° and 90° here) do not turn at all, every other thread turns toward the stretching axis, and the circle becomes an ellipse whose axes never move.',
   general: 'Both at once: the element spins at ½ω₃ while S stretches it along its own principal axes; because the rotation keeps turning the shape, the exact long axis (purple) drifts away from the blue principal axis as time goes on.',
   corot: 'You rotate with the element: <b>ω′ = 0, the wheel stops</b> — vorticity depends on the frame, while S, which still stretches the ring, does not. On Earth the planetary part 2Ω sin φ = f enters the same way (Ch. 13).',
@@ -2772,7 +2782,7 @@ function explainHTML(s) {
     W.say('In <b>the element</b>, two <b class="c-teal">teal</b> threads start perpendicular (thread 2 dashed); the <b class="c-orange">orange</b> paddle wheel turns at the element\'s spin; dashed <b class="c-blue">blue</b> and <b class="c-rose">rose</b> lines are the stretching and squeezing axes of S; the black ring of tracers began as the dashed circle of radius ε = 0.1 m, and its long axis is <b class="c-accent">purple</b>. <b>How fast each thread turns</b> shows single threads (teal) and the pair average (orange). <b>The split</b> enlarges the probe\'s arrows.') +
     W.hint('On phones the split view is hidden: its numbers are in the inspector (Explore) and in section 5 below.');
   o += W.step(1, 'The vorticity of your flow') +
-    W.line('$\\mathbf G=\\partial u_i/\\partial x_j$', FLOW_NAMES[s.flow] + ', γ = ' + fx(s.gamma, 2) + ' 1/s: $' + Gtex(G) + '$', 'the velocity gradient of the flow you chose') +
+    W.line('$\\mathbf G=\\partial u_i/\\partial x_j$', FLOW_NAMES[s.flow] + ', ' + kMeaning(s) + ': $' + Gtex(G) + '$', 'the velocity gradient of the flow you chose') +
     W.line('(3.16), $\\omega_3=\\dfrac{\\partial u_2}{\\partial x_1}-\\dfrac{\\partial u_1}{\\partial x_2}$', tx(G[1][0], 2) + ' − (' + tx(G[0][1], 2) + ') = <b>' + fx(n.w3, 3) + '</b> 1/s', n.w3 < -1e-12 ? 'negative: clockwise' : n.w3 > 1e-12 ? 'positive: counterclockwise' : 'zero: no rotation') +
     W.line('(3.15), $R_{ij}=-\\varepsilon_{ijk}\\omega_k$', '$R_{21}=-\\varepsilon_{213}\\omega_3=\\omega_3$ = ' + fx(n.w3, 3) + ' 1/s', 'the book\'s R = G − Gᵀ carries the same number');
   o += W.step(2, 'The two threads') +
@@ -2853,9 +2863,9 @@ const DERIVATIONS = [
         plain: 'A small element spins with angular velocity ω/2.' }
     ],
     result: { tex: '\\begin{aligned}\\tfrac12\\frac{D(-\\alpha+\\beta)}{Dt}&=\\tfrac12\\Big(-\\frac{\\partial u_1}{\\partial x_2}+\\frac{\\partial u_2}{\\partial x_1}\\Big)\\\\&=-\\frac{R_{12}}2=\\frac{R_{21}}2=\\tfrac12\\omega_3\\end{aligned}', plain: 'vorticity is twice the spin of a small fluid element.' },
-    interpret: s => { const G = Gof(s.flow, s.gamma); return `With your flow (${FLOW_NAMES[s.flow]}, γ = ${fx(s.gamma, 2)} 1/s): $\\omega_3=${tx(vort3(G), 3)}$ 1/s, so the wheel turns at $${tx(spin(G), 3)}$ rad/s. A paddle wheel carried by the flow turns at ½ω; the vorticity field tells where fluid spins. Because single threads may turn at different rates, "the" rotation needs this average — D14 shows it is the same for <i>every</i> perpendicular pair. The spin depends on the observer's own rotation (D13).`; },
+    interpret: s => { const G = Gof(s.flow, s.gamma); return `With your flow (${FLOW_NAMES[s.flow]}, ${kMeaning(s)}): $\\omega_3=${tx(vort3(G), 3)}$ 1/s, so the wheel turns at $${tx(spin(G), 3)}$ rad/s. A paddle wheel carried by the flow turns at ½ω; the vorticity field tells where fluid spins. Because single threads may turn at different rates, "the" rotation needs this average — D14 shows it is the same for <i>every</i> perpendicular pair. The spin depends on the observer's own rotation (D13).`; },
     check: 'Units rad/s ✓. Solid-body rotation at ω₀: G = [[0, −ω₀], [ω₀, 0]]: ½(ω₀ + ω₀) = ω₀ — the element spins as fast as it revolves ✓ (Fig. 3.15). Shear γ: ½(−γ + 0) = −γ/2 ✓. Pure strain: 0 ✓. Trap: averaging α + β (that is the strain rate, D09) instead of −α + β; forgetting the ½.' }),
-  deriv({ id: 'D13', title: 'Vorticity depends on the observer\'s rotation: ω′_z = ω_z − 2Ω', short: 'D13 · ω′', ref: 'N28',
+  deriv({ id: 'D13', title: 'Vorticity depends on the observer\'s rotation: ω′ = ω − 2Ω (z-components)', short: 'D13 · ω′', ref: 'N28',
     view: 'element', set: withReset({ flow: 'solid', gamma: 1, Om: 0, t: 0, theta: 30, phi: 90 }),
     goal: 'Show how the vorticity changes for an observer who rotates — the book says only that it does (Exercise 3.19); the answer is the relation between relative and absolute vorticity that geophysical fluid dynamics runs on. <b>Assumptions.</b> Ω constant (step 3); the comparison is made at the instant the two sets of axes coincide, so components agree (step 2).',
     start: { tex: '\\begin{aligned}&\\mathbf u=\\boldsymbol\\Omega\\times\\mathbf x+\\mathbf u\'\\\\&\\boldsymbol\\Omega=\\Omega\\,\\mathbf e_z\\ \\text{constant, axes coincide now}\\end{aligned}', plain: 'the lab velocity is the velocity the rotating observer measures plus the velocity of the observer\'s own frame at that point.' },
@@ -2998,7 +3008,7 @@ const app = Viz.app({
   subtitle: 'Two perpendicular threads, a paddle wheel and a ring of tracers ride in the flow you choose — one clock for all three views',
   autoplay: false,
   params: {
-    gamma: { label: 'Rate $\\gamma$', min: 0.1, max: 2, step: 0.05, value: 1, unit: '1/s', help: 'the size of the velocity gradient' },
+    gamma: { label: 'Rate $k$', min: 0.1, max: 2, step: 0.05, value: 1, unit: '1/s', help: 'shear: du₁/dx₂ = γ = k · solid body: ω₀ = k · pure strain: S₁₁ = k/2' },
     theta: { label: 'Pair angle $\\theta$', min: 0, max: 180, step: 1, value: 30, fmt: v => fx(v, 0) + '°', help: 'direction of thread 1; thread 2 is 90° further' },
     phi: { label: 'Probe direction', min: 0, max: 360, step: 1, value: 90, fmt: v => fx(v, 0) + '°', help: 'where on the ring (radius ε = 0.1 m) the probe sits' },
     Om: { label: 'Observer rotation $\\Omega$', min: -2, max: 2, step: 0.05, value: 0, unit: 'rad/s', optional: true, help: 'watch from a turntable rotating at Ω (counterclockwise positive)' },
@@ -3168,7 +3178,7 @@ print(wp)                      # ω′₃ = ω₃ − 2Ω = {{wp}} 1/s`,
   check: [
     { q: 'In the shear flow, which thread direction does not turn at all?', a: 'The one along the flow (θ = 0): $\\dot\\theta=-\\gamma\\sin^2 0=0$; its partner turns at −γ.', set: withReset({ flow: 'shear', gamma: 1, theta: 0, t: 0, Om: 0 }) },
     { q: 'In pure strain, what is the pair average, and which threads keep their direction?', a: '0 (no vorticity); threads on the principal axes (0° and 90° here) do not turn, every other thread turns toward the stretching axis.', set: withReset({ flow: 'pure', gamma: 1, t: 0, Om: 0 }) },
-    { q: 'Solid body with γ = 1: what observer rotation Ω makes the wheel stop?', a: 'Ω = 1 rad/s: ω₃ = 2, so $\\omega\'_3=\\omega_3-2\\Omega=2-2\\times1=0$.', set: withReset({ flow: 'solid', gamma: 1, t: 0, Om: 0 }) },
+    { q: 'Solid body with ω₀ = 1 rad/s: what observer rotation Ω makes the wheel stop?', a: 'Ω = 1 rad/s: ω₃ = 2, so $\\omega\'_3=\\omega_3-2\\Omega=2-2\\times1=0$.', set: withReset({ flow: 'solid', gamma: 1, t: 0, Om: 0 }) },
     { q: 'Why is the exact ellipse\'s axis at 43.6°, not 45°, after 0.1 s of shear?', a: 'The rotation part (−0.5 rad/s) turns the ellipse while it forms; 45° is exact only at the first instant (D16 step 8).', set: withReset({ flow: 'shear', gamma: 1, method: 'exact', t: 0.1, Om: 0 }) }
   ],
   selftest: () => {

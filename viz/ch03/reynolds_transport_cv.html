@@ -490,6 +490,8 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 560px) {
   .viz-app[data-layout="portrait"]:not([data-tab="explore"]) .viz-stage-top [data-viz-key="param:mode"] { display: none !important; }
 }
+/* Explore shows only the current mode's controls (class set by the chapter script) */
+.rtt-off { display: none !important; }
 </style>
 </head>
 <body>
@@ -2979,7 +2981,7 @@ const B21 = { mode: '1d', F: 'warming', adot: -0.2, bdot: 0.4, cdot: 0, dt: 0.05
 const B22 = { mode: '2d', F: 'warming', adot: 0.3, bdot: -0.1, cdot: 0.3, dt: 0.1, t: 0, probe: null, mark: null };
 const B23 = { mode: '2d', F: 'uniform', adot: 0.2, bdot: 0.1, cdot: 0, dt: 0.05, t: 0, probe: null, mark: null };
 function at(base, extra) { return Object.assign({}, base, extra || {}); }
-const app = Viz.app({
+const CFG = ({
   title: 'What changes inside a moving box?',
   subtitle: 'A control volume whose walls move: the swept band is coloured by the sign of b·n, the two terms of the Reynolds transport theorem add up to the measured rate, and shrinking Δt shows the dropped second-order term vanish',
   autoplay: false,
@@ -3089,8 +3091,8 @@ const app = Viz.app({
     live: s => { const B = budget(s); return { t: fx(s.t, 2), I: fx(B.I, 4), L: s.mode === '1d' ? 'length ' + fx(B.g.b - B.g.a) + ' m' : s.mode === '2d' ? 'area ' + fx(Math.PI * B.E.a * B.E.b) + ' m²' : 'r = ' + fx(B.r) + ' m', R: fx(B.total, 4) }; }
   },
   derivations: [
-    { id: 'D21', title: 'Leibniz’s theorem, $\\frac{d}{dt}\\int_{a(t)}^{b(t)}F\\,dx=\\int_a^b\\frac{\\partial F}{\\partial t}dx+\\frac{db}{dt}F(b,t)-\\frac{da}{dt}F(a,t)$ (3.30)', short: 'D21 Leibniz', ref: 'Eq. (3.30)', view: 'cv',
-      goal: 'Prove the rule for differentiating an integral whose limits move — the book cites it without proof and builds the Reynolds transport theorem on it. <b>Assumptions.</b> F and ∂F/∂t continuous (steps 1, 5); a(t), b(t) differentiable (step 3).',
+    { id: 'D21', title: 'Leibniz’s theorem', short: 'D21 Leibniz', ref: 'Eq. (3.30)', view: 'cv',
+      goal: 'Prove Leibniz’s theorem (3.30), $\\frac{d}{dt}\\int_{a(t)}^{b(t)}F\\,dx=\\int_a^b\\frac{\\partial F}{\\partial t}dx+\\frac{db}{dt}F(b,t)-\\frac{da}{dt}F(a,t)$, the rule for differentiating an integral whose limits move — the book cites it without proof and builds the Reynolds transport theorem on it. <b>Assumptions.</b> F and ∂F/∂t continuous (steps 1, 5); a(t), b(t) differentiable (step 3).',
       start: { tex: 'I(t)=\\int_{a(t)}^{b(t)}F(x,t)\\,dx', plain: 'The amount of F between two moving end points.' },
       plan: ['Write I with an antiderivative.', 'Differentiate each end with the chain rule.', 'Turn the leftover time derivatives into an integral of ∂F/∂t.'],
       uses: ['fundamental theorem of calculus (ch02 P84)', 'chain rule (ch01 P49)', 'differentiation under the integral sign (primer in C15)'],
@@ -3128,8 +3130,8 @@ const app = Viz.app({
       result: { tex: '\\begin{aligned}\\textstyle &\\textstyle \\frac{d}{dt}\\int_{x=a(t)}^{x=b(t)}F(x,t)\\,dx\\\\\\textstyle &\\textstyle =\\int_a^b\\frac{\\partial F}{\\partial t}dx+\\frac{db}{dt}F(b,t)\\\\\\textstyle &\\textstyle \\quad-\\frac{da}{dt}F(a,t)\\quad\\text{(3.30)}\\end{aligned}', plain: 'Interior change plus the gain at the moving upper limit minus the loss at the moving lower limit (the three strips of the picture).' },
       interpret: s => { const g = seg(s, s.t), L = leibniz({ F: s.F, a: g.a, b: g.b, adot: s.adot, bdot: s.bdot, t: s.t }); return `With your ends: ${fx(L.interior)} + ${fx(L.upper)} − (${fx(L.lower)}) = ${fx(L.total)} u/s. This is the 1-D Reynolds transport theorem: (3.35), $\\frac{d}{dt}\\int_{V^*}F\\,dV=\\int_{V^*}\\frac{\\partial F}{\\partial t}dV+\\int_{A^*}F\\,\\mathbf b\\cdot\\mathbf n\\,dA$, with the “surface” reduced to two end points with normals ±1 (D22 step 12). Layer budgets (Ch. 13) and the boundary-layer momentum integral (Ch. 9) are Leibniz in action.`; },
       check: 'Units: [F]·m/s on every term ✓. Fixed limits: only the integral of ∂F/∂t ✓. F = 1: dI/dt = ḃ − ȧ, the rate the length changes ✓. Numbers: F = x²t, a = t, b = t² at t = 2: 18.667 + 128 − 8 = 138.667 = d/dt[(t⁷ − t⁴)/3] = (7·64 − 4·8)/3 ✓ (ch03.leibniz_example(2.0)); this explainer’s default 0.6 + 1.0 + 0.3 = 1.9 ✓. The notebook’s sympy cell runs the case F = x²t, a = t, b = t².' },
-    { id: 'D22', title: 'The Reynolds transport theorem, $\\frac{d}{dt}\\int_{V^*}F\\,dV=\\int_{V^*}\\frac{\\partial F}{\\partial t}dV+\\int_{A^*}F\\,\\mathbf b\\cdot\\mathbf n\\,dA$ (3.35)', short: 'D22 RTT ★★★', ref: 'Eq. (3.35)', view: 'cv',
-      goal: 'Find the rate of change of the amount of F inside a volume V*(t) whose surface moves with any velocity b — the tool that turns every conservation law of Ch. 4 into equations. The book gives the steps; we fill the gaps (the sign of the sliver, the orders of smallness, the value of F in the sliver, the 1-D reduction). <b>Assumptions.</b> F and ∂F/∂t continuous (steps 2, 9); b continuous and A* piecewise smooth, so the sliver has thickness O(Δt) everywhere (steps 5, 8); Δt → 0 at the end.',
+    { id: 'D22', title: 'The Reynolds transport theorem', short: 'D22 RTT ★★★', ref: 'Eq. (3.35)', view: 'cv',
+      goal: 'Find the rate of change of the amount of F inside a volume V*(t) whose surface moves with any velocity b, the Reynolds transport theorem (3.35), $\\frac{d}{dt}\\int_{V^*}F\\,dV=\\int_{V^*}\\frac{\\partial F}{\\partial t}dV+\\int_{A^*}F\\,\\mathbf b\\cdot\\mathbf n\\,dA$ — the tool that turns every conservation law of Ch. 4 into equations. The book gives the steps; we fill the gaps (the sign of the sliver, the orders of smallness, the value of F in the sliver, the 1-D reduction). <b>Assumptions.</b> F and ∂F/∂t continuous (steps 2, 9); b continuous and A* piecewise smooth, so the sliver has thickness O(Δt) everywhere (steps 5, 8); Δt → 0 at the end.',
       start: { tex: '\\begin{aligned}\\textstyle &\\textstyle \\text{(3.31):}\\ \\frac{d}{dt}\\int_{V^*(t)}F(\\mathbf x,t)dV\\\\\\textstyle &\\textstyle =\\lim_{\\Delta t\\to0}\\frac{1}{\\Delta t}\\Big\\{\\int_{V^*(t+\\Delta t)}F(\\mathbf x,t+\\Delta t)dV\\\\\\textstyle &\\textstyle \\qquad-\\int_{V^*(t)}F(\\mathbf x,t)dV\\Big\\}\\end{aligned}', plain: 'The definition of a time derivative, applied to an integral whose region moves (the book’s starting point).' },
       plan: ['Split the new region into the old one plus a thin sliver ΔV, and Taylor-expand F in time → (3.32), $\\int_{V^*(t+\\Delta t)}F(t+\\Delta t)dV\\cong\\int_{V^*}F\\,dV+\\int_{V^*}\\Delta t\\frac{\\partial F}{\\partial t}dV+\\int_{\\Delta V}F\\,dV+\\int_{\\Delta V}\\Delta t\\frac{\\partial F}{\\partial t}dV$.',
         'Cancel and drop what is second order → (3.33), $\\frac{d}{dt}\\int_{V^*}F\\,dV=\\lim_{\\Delta t\\to0}\\frac{1}{\\Delta t}\\Big\\{\\int_{V^*}\\Delta t\\frac{\\partial F}{\\partial t}dV+\\int_{\\Delta V}F\\,dV\\Big\\}$.',
@@ -3142,7 +3144,7 @@ const app = Viz.app({
           why: 'Integrals add over regions. ΔV is signed: where the surface retreats (b·n < 0) the sliver is subtracted (primer) — one formula covers growth and shrinking; the book leaves this implicit.',
           plain: 'New region = old region + the band the walls swept.', play: false, set: at(B22, { mark: 'band' }),
           watch: 'Orange slivers are added, rose ones subtracted: the right side advances, the rest of the wall retreats.' },
-        { did: 'Taylor-expand F in time', tex: 'F(\\mathbf x,t+\\Delta t)=F(\\mathbf x,t)+\\Delta t\\,\\frac{\\partial F}{\\partial t}(\\mathbf x,t)+O(\\Delta t^2)',
+        { did: 'Taylor-expand F in time', tex: '\\textstyle F(\\mathbf x,t+\\Delta t)=F(\\mathbf x,t)+\\Delta t\\,\\frac{\\partial F}{\\partial t}(\\mathbf x,t)+O(\\Delta t^2)',
           why: 'First-order Taylor expansion in t at fixed x (gloss; P26); F is continuously differentiable. We want everything at time t.',
           plain: 'F a moment later ≈ F now + its local rate × Δt.', set: B22 },
         { did: 'Insert both into the first integral', tex: '\\begin{aligned}\\textstyle &\\textstyle \\int_{V^*(t+\\Delta t)}F(t+\\Delta t)\\,dV\\\\\\textstyle &\\textstyle \\cong\\int_{V^*}F\\,dV+\\int_{V^*}\\Delta t\\,\\frac{\\partial F}{\\partial t}dV\\\\\\textstyle &\\textstyle \\quad+\\int_{\\Delta V}F\\,dV+\\int_{\\Delta V}\\Delta t\\,\\frac{\\partial F}{\\partial t}dV\\end{aligned}',
@@ -3341,6 +3343,22 @@ print(ex["direct"], ex["rtt_dblquad"])   # {{cone}} m³/s twice`,
     ];
   }
 });
+/* the tall derivation lines use text-style integrals only where the pager must slice them (narrow or short windows); large
+   windows get the book's display style */
+const NARROW = (window.innerWidth || 1200) < 700 || (window.innerHeight || 800) < 560;
+if (!NARROW) {
+  const strip = t => typeof t === 'string' ? t.split('\\textstyle ').join('') : t;
+  CFG.derivations.forEach(d => { d.start.tex = strip(d.start.tex); d.result.tex = strip(d.result.tex); d.steps.forEach(st => { st.tex = strip(st.tex); }); });
+}
+const app = Viz.app(CFG);
+/* (Explore) each mode shows only its own controls: the others get a hide class, and the pager re-packs */
+const MODE_CTRL = { '1d': ['F', 'adot', 'bdot', 'dt'], '2d': ['F', 'adot', 'bdot', 'dt', 'cdot'], cone: ['rdot', 'r0', 'h', 'dt'] };
+function applyModeControls(s) {
+  const keep = MODE_CTRL[s.mode] || [];
+  ['F', 'adot', 'bdot', 'dt', 'cdot', 'rdot', 'r0', 'h'].forEach(k => document.querySelectorAll('.viz-side [data-viz-key="param:' + k + '"]').forEach(el => el.classList.toggle('rtt-off', keep.indexOf(k) < 0)));
+}
+CFG.onChange = (s, key, a) => { if (key === 'mode') { applyModeControls(s); a.fit(); } };
+applyModeControls(app.state); app.fit();
 </script>
 </body>
 </html>

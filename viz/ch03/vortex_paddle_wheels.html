@@ -491,6 +491,9 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(2),
 .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-view[data-view="circ"] { display: none !important; }
 .viz-app[data-layout="landscape"][data-tab="derive"] .viz-der-off { display: none !important; }
+/* the one row kept next to a derivation fills the stage (its weight 0.8 < 1 left an empty band below it) */
+.viz-app[data-tab="derive"] .viz-views > .viz-row.viz-der-off ~ .viz-row:not(.viz-der-off),
+.viz-app[data-tab="derive"] .viz-views > .viz-row:not(.viz-der-off):has(~ .viz-row.viz-der-off) { flex-grow: 1 !important; }
 </style>
 </head>
 <body>
@@ -2417,7 +2420,14 @@ function meanVort(kind, R, G, sig) { return 2 * profile(kind, R, G, sig)[0] / R;
 function gammaIn(kind, r, G, sig) { return TWO_PI * r * profile(kind, r, G, sig)[0]; }   // Γ(r) of the centred circle
 
 /* ---- state helpers ---- */
-function eff(s) { const R = REALMS[s.realm] || REALMS.lab; return R.G ? { G: R.G, sig: R.sig } : { G: s.Gamma, sig: s.sigma }; }
+/** The vortex in use: always the sliders. A real-vortex chip moves the sliders to its row of the table, so what the
+    sliders show is what the picture uses. */
+function eff(s) { return { G: s.Gamma, sig: s.sigma }; }
+function REAL(k) { return { realm: k, Gamma: REALMS[k].G || TWO_PI, sigma: REALMS[k].sig || 1 }; }
+const REALM_ICON = { lab: '🧪', bath: '🛁', tornado: '🌪️', cyclone: '🌀' };
+function realmMatches(s) { const R = REALMS[s.realm]; return !R || !R.G || (Math.abs(s.Gamma / R.G - 1) < 1e-9 && Math.abs(s.sigma / R.sig - 1) < 1e-9); }
+/** Status prefix: which vortex, with its Γ and σ (visible at every size). */
+function realmTag(s) { const k = s.realm || 'lab'; return `${REALM_ICON[k]} ${k === 'lab' ? 'lab' : REALMS[k].name.replace('tropical ', '')} Γ ${F(s.Gamma, 3)} m²/s, σ ${F(s.sigma, 3)} m · `; }
 function T0(s) { const e = eff(s); return 4 * Math.PI * Math.PI * e.sig * e.sig / e.G; }   // orbit period at r = σ (solid/line/Rankine)
 function isSector(s) { return s.shape === 'sector'; }
 function centred(s) { return isSector(s) || (Math.abs(s.cx) < 1e-9 && Math.abs(s.cy) < 1e-9); }
@@ -2623,7 +2633,8 @@ function peakText(s) {
   return 'u_θ → ∞ at the axis';
 }
 function inCore(s) { const a = atR(s), W0 = a.e.G / (Math.PI * a.e.sig * a.e.sig); return a.w > 0.1 * W0; }
-function statusOf(s) {
+function statusOf(s) { const st = statusCore(s); return { text: realmTag(s) + st.text, tone: st.tone }; }
+function statusCore(s) {
   const a = atR(s), G = loopGamma(s), narrow = (window.innerWidth || 1000) < 620;   // phones: one short line
   if (s.kind === 'line') {
     if (encloses(s)) return { text: narrow ? '⚠️ loop round the axis: Γ = 2πB, ω_z = 0 on it' : `⚠️ loop encloses the singular axis: Γ = 2πB = ${F(G, 3)} m²/s, yet ω_z = 0 on it`, tone: 'warn' };
@@ -2636,7 +2647,7 @@ function statusOf(s) {
 function realmRow(s) { return ['lab', 'bath', 'tornado', 'cyclone'].indexOf(s.realm || 'lab'); }
 function notesHtml(s) {
   const e = eff(s), W = Viz.work, rows = ['lab', 'bath', 'tornado', 'cyclone'].map(k => {
-    const R = REALMS[k], G = R.G || s.Gamma, sg = R.sig || s.sigma;
+    const R = REALMS[k], lab = (s.realm || 'lab') === 'lab', G = R.G || (lab ? s.Gamma : TWO_PI), sg = R.sig || (lab ? s.sigma : 1);
     return [k === 'lab' ? 'lab tank' : R.name, F(sg, 2) + ' m', F(uMaxGauss(G, sg), 2) + ' m/s', F(G, 2) + ' m²/s'];
   });
   let o = W.table(['vortex', 'σ', 'u_max (Gaussian)', 'Γ'], rows, realmRow(s)) + '<p style="margin:4px 0">Our order-of-magnitude numbers; the current row is lit.</p>';
@@ -2766,25 +2777,29 @@ const app = Viz.app({
   subtitle: 'Four vortices on one clock: paddle wheels orbit and turn at half the local vorticity, a draggable loop measures the circulation, and the profiles show where the core is',
   autoplay: false,
   params: {
-    Gamma: { label: 'Circulation $\\Gamma$', min: 0.5, max: 20, step: 0.001, value: TWO_PI, unit: 'm²/s', help: 'total circulation of the vortex (not the shear rate γ)' },
-    sigma: { label: 'Core size $\\sigma$', min: 0.2, max: 2, step: 0.01, value: 1, unit: 'm', help: 'core radius; the picture is drawn in r/σ' },
+    Gamma: { label: 'Circulation $\\Gamma$', min: 0.01, max: 1e8, log: true, value: TWO_PI, unit: 'm²/s', help: 'total circulation of the vortex (not the shear rate γ)' },
+    sigma: { label: 'Core size $\\sigma$', min: 1e-3, max: 1e5, log: true, value: 1, unit: 'm', help: 'core radius; the picture is drawn in r/σ' },
     R: { label: 'Loop radius $R/\\sigma$', min: 0.05, max: 3, step: 0.01, value: 1, help: 'or drag the loop’s rim' },
     shape: { type: 'select', label: 'Loop', options: [['circle', 'circle'], ['sector', 'sector ABCD']], value: 'circle', display: 'chips', optional: true },
-    realm: { type: 'select', label: 'Real vortex', options: [['lab', 'lab'], ['bath', 'bathtub'], ['tornado', 'tornado'], ['cyclone', 'cyclone']], value: 'lab', display: 'chips', optional: true, help: 'sets Γ and σ from the table; a slider returns to the lab' },
+    realm: { type: 'select', label: 'Real vortex', options: [['lab', 'lab'], ['bath', 'bathtub'], ['tornado', 'tornado'], ['cyclone', 'cyclone']], value: 'lab', display: 'chips', optional: true, help: 'moves the Γ and σ sliders to the table’s values; moving a slider returns to the lab' },
     cx: { label: 'Loop centre $x/\\sigma$', min: -3, max: 3, step: 0.01, value: 0, optional: true },
     cy: { label: 'Loop centre $y/\\sigma$', min: -3, max: 3, step: 0.01, value: 0, optional: true }
   },
   modes: { param: 'kind', label: 'Vortex', value: 'gaussian', options: [['solid', 'solid body'], ['line', 'line vortex'], ['rankine', 'Rankine'], ['gaussian', 'Gaussian']] },
   transport: { param: 'tau', min: 0, max: 4, rate: 0.25, end: 'loop', label: 'time $t/T_0$', unit: 'T₀' },
   presets: [
-    { label: 'bathtub 🛁', set: { realm: 'bath', kind: 'gaussian' }, title: 'σ = 5 mm, Γ = 0.015 m²/s' },
-    { label: 'tornado 🌪️', set: { realm: 'tornado', kind: 'gaussian' }, title: 'σ = 100 m, Γ = 5.9 × 10⁴ m²/s' },
-    { label: 'cyclone 🌀', set: { realm: 'cyclone', kind: 'gaussian' }, title: 'σ = 36 km, Γ = 1.8 × 10⁷ m²/s' },
+    { label: 'bathtub 🛁', set: Object.assign(REAL('bath'), { kind: 'gaussian' }), title: 'σ = 5 mm, Γ = 0.015 m²/s' },
+    { label: 'tornado 🌪️', set: Object.assign(REAL('tornado'), { kind: 'gaussian' }), title: 'σ = 100 m, Γ = 5.9 × 10⁴ m²/s' },
+    { label: 'cyclone 🌀', set: Object.assign(REAL('cyclone'), { kind: 'gaussian' }), title: 'σ = 36 km, Γ = 1.8 × 10⁷ m²/s' },
     { label: 'off-axis loop', set: { shape: 'circle', cx: 1.5, cy: 0, R: 0.5 }, title: 'loop of radius 0.5σ centred at (1.5σ, 0)' },
     { label: 'core edge', set: { shape: 'circle', cx: 0, cy: 0, R: 1 }, title: 'centred loop at r = σ' }
   ],
   status: s => statusOf(s),
-  onChange(s, k, app) { if ((k === 'Gamma' || k === 'sigma') && s.realm && s.realm !== 'lab') app.set('realm', 'lab'); },
+  onChange(s, k, app) {
+    if (k === 'realm' && s.realm !== 'lab' && !realmMatches(s)) app.set(REAL(s.realm));          // chip → sliders
+    else if (k === 'realm' && s.realm === 'lab' && ['bath', 'tornado', 'cyclone'].some(q => Math.abs(s.Gamma / REALMS[q].G - 1) < 1e-9)) app.set({ Gamma: TWO_PI, sigma: 1 });
+    else if ((k === 'Gamma' || k === 'sigma') && s.realm !== 'lab' && !realmMatches(s)) app.set('realm', 'lab');   // own values
+  },
   readouts: [
     { id: 'ut', label: '$u_\\theta$ at $r=R$', value: s => atR(s).u, fmt: v => F(v) + ' m/s' },
     { id: 'G', label: 'Γ of the loop', value: s => loopGamma(s), fmt: v => F(Math.abs(v) < 1e-12 ? 0 : v) + ' m²/s' },
@@ -2972,7 +2987,7 @@ print(ch03.gaussian_vortex_max_radius(sig))  # σ√x* = {{rstar}} m`,
     { title: 'Smooth core', text: 'Gaussian (3.29): $u_\\theta=\\frac{\\Gamma}{2\\pi r}(1-e^{-r^2/\\sigma^2})$. The peak moves out to $r=1.1209\\sigma$, where $1+2r^2/\\sigma^2=e^{r^2/\\sigma^2}$ — solved numerically.',
       set: S({ kind: 'gaussian', R: 1.12 }), play: false, derive: { id: 'D20', step: 6 } },
     { title: 'Your turn', text: 'The tropical cyclone: $\\sigma=36$ km, $\\Gamma=1.8\\times10^7$ m²/s. Predict the radius of maximum wind $1.1209\\sigma$ and the core vorticity $\\Gamma/\\pi\\sigma^2$, then check them in the Explain tab.',
-      set: S({ realm: 'cyclone', kind: 'gaussian' }), play: false, notes: true }
+      set: S(Object.assign(REAL('cyclone'), { kind: 'gaussian' })), play: false, notes: true }
   ],
   equations: [
     { id: 'sb', title: 'Solid body and its circulation', ref: 'Eqs. (3.22), (3.24)', tex: '\\begin{aligned}&u_r=0,\\quad u_\\theta=\\omega_0r\\\\ &\\Gamma=\\oint_C\\mathbf u\\cdot d\\mathbf s=2\\pi ru_\\theta=2\\pi r^2\\omega_0\\end{aligned}',
@@ -2997,10 +3012,19 @@ print(ch03.gaussian_vortex_max_radius(sig))  # σ√x* = {{rstar}} m`,
     { q: 'Halve σ at fixed Γ in the Gaussian mode. What happens to the peak speed and its radius?', a: 'u_max doubles (it scales as Γ/σ: 0.638 → 1.277 m/s); its radius halves (1.1209σ: 1.121 → 0.560 m).', set: S({ kind: 'gaussian', sigma: 0.5 }) },
     { q: 'Why does the Rankine speed have a kink at σ but the Gaussian does not?', a: 'Rankine’s vorticity jumps from Γ/πσ² to 0 at σ, so u_θ = Γ(r)/2πr changes slope abruptly there. The Gaussian’s vorticity is smooth, so is its speed.', set: S({ kind: 'rankine' }) }
   ],
-  selftest: () => {
+  selftest: (app) => {
     const G = TWO_PI, gs = 'Gamma=6.283185307179586, sigma=1.0';
+    // the cyclone chip: the Γ slider (state) and the Γ the picture uses (eff) must both be the table's value
+    const keep = Object.assign({}, app.state); app.set(Object.assign(REAL('cyclone'), { realm: 'cyclone' }));
+    const shownG = app.state.Gamma, usedG = eff(app.state).G, chipTag = realmTag(app.state); app.set(keep);
+    const keep2 = Object.assign({}, app.state); app.set({ realm: 'tornado' }); const chipG = app.state.Gamma, chipS = app.state.sigma; app.set(keep2);
     const cont = Math.abs(profile('rankine', 0.8, 3, 0.8)[0] - profile('rankine', 0.8 * (1 + 1e-12), 3, 0.8)[0]);
     return [
+      { name: 'cyclone: Γ on the slider = Γ used (eff)', js: shownG - usedG, expect: 0, atol: 0 },
+      { name: 'cyclone: Γ on the slider = 1.8e7 m²/s', js: shownG, expect: 1.8e7, rtol: 1e-12 },
+      { name: 'tornado chip moves the Γ slider', js: chipG, expect: 5.9e4, rtol: 1e-12 },
+      { name: 'tornado chip moves the σ slider', js: chipS, expect: 100, rtol: 1e-12 },
+      { name: 'status names the cyclone and its Γ', js: chipTag.indexOf('cyclone Γ 1.8×10⁷ m²/s, σ 36000 m') >= 0 ? 1 : 0, expect: 1, atol: 0 },
       { name: 'r* / σ (brentq)', js: rMax(1.0), py: 'ch03.gaussian_vortex_max_radius(1.0)', rtol: 1e-10 },
       { name: 'r* (Lambert W, σ = 2)', js: rMax(2.0), py: 'ch03.gaussian_vortex_max_radius(2.0, "lambertw")', rtol: 1e-10 },
       { name: 'Gaussian u_θ(1)', js: profile('gaussian', 1, G, 1)[0], py: 'ch03.gaussian_vortex(1.0, 6.283185307179586, 1.0)[0]', rtol: 1e-12 },

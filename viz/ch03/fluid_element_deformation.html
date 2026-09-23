@@ -3016,7 +3016,7 @@ print(exact - du)                     # ({{r1}}, {{r2}}): O(|dx|²)`,
       live: s => { const k = probeK(s) == null ? 3 : probeK(s), q = track(s).ring[k], G = Gof(s), du = relVel(G, q), e = [du[0] + q[0] * q[0], du[1] + q[0] * q[1]], r = remainder(q); return { dx1: fx(q[0], 4).replace('−', '-'), dx2: fx(q[1], 4).replace('−', '-'), du1: fx(du[0], 4), du2: fx(du[1], 4), e1: fx(e[0], 4), e2: fx(e[1], 4), r1: fsci(r[0]), r2: fsci(r[1]) }; } }
   ],
   tour: [
-    { title: 'Nine numbers, one blob', text: 'Each purple arrow is how fast a neighbour moves relative to the centre O: $du_i=(\\partial u_i/\\partial x_j)\\,dx_j$ (3.10). The ringed tracer’s arithmetic is traced below. What does each entry of G do to this blob?',
+    { title: 'Nine numbers, one blob', text: 'Purple arrows: each neighbour’s velocity relative to the centre O, $du_i=(\\partial u_i/\\partial x_j)\\,dx_j$ (3.10). What does each entry of G do to this blob?',
       set: Object.assign({ field: 'linear', theta: 0, t: 0, ring: 0.1, dt: 0.01, probe: 3, mark: null }, C06), play: false, inspect: true },
     { title: 'Zoom out: the remainder', text: 'In the curved C06 field $u=(x_1+2x_2+x_1^2,\\ -x_2+x_1x_2)$ black arrows are the exact du, purple ones G·dx. Drag the ring radius down: they merge, the gap falling like r².',
       set: Object.assign({ field: 'nonlinear', theta: 0, t: 0, ring: 0.4, probe: null, mark: null }, C06), play: false, controls: ['ring'], derive: { id: 'D07', step: 3 } },
