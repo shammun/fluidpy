@@ -1195,14 +1195,14 @@ Part F word for word.
 83. `nb.worked_example("shear γ = 1 s⁻¹, a 1 mm drop after 0.1 s", "1. Principal rates ±γ/2 = ±0.5 s⁻¹ at +45° and
     −45° (Ch. 2 Ex. 2.4, now with γ = 2S₁₂). 2. First order (D16): semi-axes $1\times(1\pm0.5\times0.1)=1.05$ and 0.95
     mm. 3. The strain acting alone: $e^{\pm0.05}=1.0513$ and 0.9512 mm. 4. Strain + rotation together (the true shear
-    flow): singular values of $e^{\mathbf Gt}$ = [[1, 0.1], [0, 1]]: 1.0513 and 0.9513 mm, long axis at 43.6° — the
+    flow): singular values of $e^{\mathbf Gt}$ = [[1, 0.1], [0, 1]]: 1.0512 and 0.9512 mm, long axis at 43.6° — the
     rotation part (clockwise 0.5 rad/s × 0.1 s ≈ 2.9°) has already turned it a little off 45°.")`
 84. `nb.code` — *code:* `lam, axes = ch03.principal_strain_rates(Gsh)`; `print(lam, axes[:, 1])` · for `m in
     ("first_order", "strain_only", "exact")`: `a, d = ch03.strain_ellipse_axes(Gsh, 0.1, method=m)`;
     `print(m, np.round(a, 4), np.round(np.degrees(np.arctan2(d[1, 0], d[0, 0])), 1))` · `du_bar, dx_bar =
     ch03.strain_velocity_principal(Gsh, [0.001, 0.0])`; `print(du_bar/dx_bar)` (componentwise where dx̄ ≠ 0).
     *expect:* `[-0.5  0.5] [0.7071 0.7071]` · first_order [1.05 0.95] 45.0 · strain_only [1.0513 0.9512] 45.0 · exact
-    [1.0513 0.9513] 43.6 · `[-0.5  0.5]` (in the eigenframe ordered as λ). *explain:* 1. eigenvalues and eigenvectors of
+    [1.0512 0.9512] 43.6 · `[-0.5  0.5]` (in the eigenframe ordered as λ). *explain:* 1. eigenvalues and eigenvectors of
     S; 2. three answers to "what shape after 0.1 s": the book's first-order statement, the strain alone, and the exact
     linear flow; 3. in the eigenframe each velocity component is its own eigenvalue × its own coordinate (3.21).
 85. `nb.animation` — `player="video"`, 48 frames (FAST 24), t ∈ [0, 3] s in the shear flow γ = 1: a circle of 72 tracers
@@ -2222,7 +2222,7 @@ on portrait phones never carries a step's key number (its number is repeated in 
      ½ω × dx (0.050, 0) m/s. The orange part is a rigid rotation at ω/2 — it never changes the distance to the
      neighbour." (boxed)
   6. *The ellipse after t* — "First order (D16): semi-axes 1 ± 0.5t = **1.05, 0.95** at t = 0.1 s along 45°; strain alone
-     e^{±0.05} = 1.051, 0.951; exact linear flow 1.0513, 0.9513 at **43.6°** — the rotation part has turned it."
+     e^{±0.05} = 1.051, 0.951; exact linear flow 1.0512, 0.9512 at **43.6°** — the rotation part has turned it."
   7. *A rotating observer* (or hint "set Ω in Explore") — "$\omega'_3=\omega_3-2\Omega=-1.0-2\times(-0.5)=$ **0**: rotating
      with the element, the wheel stands still."
   8. *At the current time* — "t = `live t` s; the wheel has turned `live turned` rad; long axis at `live ang`°."
@@ -3579,7 +3579,7 @@ a table bar; absolute values are written with \lvert \rvert or in words.)
   along the principal axes of S, turned by ½ω dt — *in words:* S decides the shape, ω/2 its orientation.
 - **Check.** Units: S̄dt dimensionless ✓. Volume ratio $\prod(1+\bar S_{\alpha\alpha}dt)\approx1+S_{ii}dt$ = (3.14) ✓. Numbers
   (shear γ = 1, ε = 1 mm, dt = 0.1 s): 1.05 and 0.95 mm at ±45° (first order); strain alone e^{±0.05} = 1.0513, 0.9512;
-  exact 1.0513, 0.9513 at 43.6° ✓.
+  exact 1.0512, 0.9512 at 43.6° ✓.
 - **What it means.** Blobs of dye, plankton patches and temperature anomalies are pulled out along the stretching axis
   — filaments in the ocean, fronts in the atmosphere (frontogenesis, Ch. 13). In pure strain the axes stay put; in shear
   the rotation keeps turning the ellipse toward the flow direction.
