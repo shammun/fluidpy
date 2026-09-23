@@ -219,6 +219,10 @@ def biot_savart_2d(omega_z, X, Y, x, eps: float = 0.0, dA: float | None = None):
     -------
     (2,) or (2, N) array (u, v) [m/s].
 
+    Accuracy inside the vorticity: with eps = 0 the recovery is accurate only at dual-grid points (cell corners
+    midway between nodes); at arbitrary interior points the singular kernel makes the error 1–7 % and it does not
+    converge with the grid — use eps ≈ the grid spacing there. Outside the vorticity eps = 0 is spectrally accurate.
+
     Validation: V1 Gaussian vortex → u_θ(r) = (Γ/2πr)(1 − e^{−r²/σ²}) outside and inside the core; Rankine outside the
     core; V3 grid convergence. Label: analytic, converged.
     """

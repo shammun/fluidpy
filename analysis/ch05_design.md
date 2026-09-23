@@ -3534,8 +3534,8 @@ words.)
   4. *did:* Take the cross product · *tex:* $\nabla\rho\times\nabla p=\frac{(\rho_2-\rho_1)\bar\rho g}{\delta}\,\mathbf e_z$ · *why:* e_x × e_y = e_z
      (right-hand rule); the two minus signs (ρ₁ − ρ₂ < 0 and −ρ̄g) cancel. · *plain:* The source points out of the
      page: counterclockwise.
-  5. *did:* Divide by the density squared · *tex:* $\frac{D\omega_z}{Dt}=\frac{(\rho_2-\rho_1)g}{\bar\rho\,\delta}$ · *why:* ρ² ≈ ρ̄² because the density
-     contrast is small (2.5 % here); one ρ̄ cancels. · *plain:* Rate = reduced gravity divided by the interface
+  5. *did:* Divide by the density squared · *tex:* $\frac{D\omega_z}{Dt}=\frac{(\rho_2-\rho_1)g}{\bar\rho\,\delta}$ · *why:* at the interface centre ρ = ρ̄ exactly, so ρ² = ρ̄²
+     there (off the centre the small contrast, 2.5 % here, keeps ρ² ≈ ρ̄²); one ρ̄ cancels. · *plain:* Rate = reduced gravity divided by the interface
      thickness.
   6. *did:* Substitute the mean density · *tex:* $\frac{D\omega_z}{Dt}=\frac{2(\rho_2-\rho_1)g}{(\rho_2+\rho_1)\delta}$ · *why:* ρ̄ = (ρ₁ + ρ₂)/2. This is
      the form the exercise asks for. · *plain:* The heavier the contrast and the sharper the interface, the faster the
@@ -3826,8 +3826,8 @@ words.)
      lines are nearly parallel, so the unit vector e_ω is the same across the section. · *plain:* The vorticity points
      along the tube.
   3. *did:* Freeze the kernel across the section · *tex:* $\frac{\mathbf x-\mathbf x'}{\lvert\mathbf x-\mathbf x'\rvert^3}\approx\text{const over }\Delta A'$ · *why:* Far
-     field (gloss): moving x′ across a core of radius a changes the kernel by about 3a/\|x − x′\| — 3 % at 10 core
-     radii. This is the book's "sufficiently distant". · *plain:* From far away the tube looks like a line.
+     field (gloss): moving x′ across a core of radius a changes the kernel by about 3a/\|x − x′\| — 30 % at 10 core
+     radii, 3 % at 100. This is the book's "sufficiently distant". · *plain:* From far away the tube looks like a line.
   4. *did:* Pull kernel and direction out · *tex:* $d\mathbf u\cong\frac{1}{4\pi}\Big[\int_{\Delta A'}\lvert\boldsymbol\omega\rvert d^2x'\Big]\mathbf e_\omega\times\frac{\mathbf x-\mathbf x'}{\lvert\mathbf x-\mathbf x'\rvert^3}dl$ ·
      *why:* Constants leave the integral (linearity). ≅ marks the far-field approximation. · *plain:* Only the total
      vorticity of the slice matters.

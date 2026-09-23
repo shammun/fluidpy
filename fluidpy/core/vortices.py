@@ -406,7 +406,7 @@ def _hill_parts(R, z, A, a, outside):
         r = np.sqrt(np.where(ins, a_ ** 2, r2))
         k = a_ ** 3 / r ** 3
         psi_out = -0.5 * U * R_ ** 2 * (1.0 - k)  # uniform stream −U e_z past a sphere
-        uR_out = -1.5 * U * a_ ** 3 * R_ * z_ / r ** 5  # u_R = −R⁻¹∂ψ/∂z
+        uR_out = 1.5 * U * a_ ** 3 * R_ * z_ / r ** 5  # u_R = −R⁻¹∂ψ/∂z = +(3U/2)a³Rz/r⁵
         uz_out = -U * (1.0 - k) - 1.5 * U * a_ ** 3 * R_ ** 2 / r ** 5  # u_z = R⁻¹∂ψ/∂R
         w_out = 0.0 * R_
     else:

@@ -1041,7 +1041,10 @@ def vortex_pressure_scenario(kind: str, r, z: float = 0.0, rho: float = 1000.0, 
     ``net_viscous_force`` [N/m³] (θ-component, (1/r²)d(r²σ_rθ)/dr), ``centripetal`` u_θ²/r [m/s²], ``dp_dr`` [Pa/m]
     (central difference of p — (5.5a) says dp_dr/ρ = centripetal), ``radial_residual`` dp_dr/ρ − centripetal,
     ``surface_z`` (free-surface/isobar height through the reference point) [m], ``torque`` 2πr²σ_rθ [N m/m],
-    ``in_fluid``, ``status``.
+    ``in_fluid``, ``status``, ``edge_line_force`` [N/m²]. At r = a (Rankine core edge, cylinder wall) σ_rθ and the
+    torque are the fluid-side (r → a⁺) values −μΓ/πa² and −2μΓ; the viscous force there is concentrated on the edge
+    (σ_rθ jumps by −μΓ/πa², reported as ``edge_line_force`` per unit edge area) and ``net_viscous_force`` is NaN (no
+    finite value per volume).
 
     Book: §5.1, Eqs. (5.1), (5.2), (5.5)–(5.7), Figs. 5.2–5.3. Validation: V1 the full balance of each kind (radial
     residual ≈ 0; σ and F per kind). Label: analytic.
@@ -1083,6 +1086,10 @@ def vortex_pressure_scenario(kind: str, r, z: float = 0.0, rho: float = 1000.0, 
         if rigid:
             status = ("inside the core: rigid rotation, no viscous stress" if kind == "rankine"
                       else "inside the solid cylinder (not fluid)")
+        elif a > 0.0 and r_ <= a * (1.0 + 1e-12):
+            status = ("Rankine core edge: the vorticity jumps, σ_rθ jumps from 0 to −μΓ/πa² — a concentrated (line) "
+                      "viscous force on the edge, no finite value per volume" if kind == "rankine" else
+                      "cylinder wall: the fluid's shear stress −μΓ/πa² transmits the torque −2μΓ")
         else:
             status = "irrotational: viscous stress ≠ 0 but no net viscous force"
     else:
@@ -1090,15 +1097,22 @@ def vortex_pressure_scenario(kind: str, r, z: float = 0.0, rho: float = 1000.0, 
     hh = 1e-5 * max(r_, 1e-9)
     ut = uf(r_)
     dpdr = (pf(r_ + hh) - pf(r_ - hh)) / (2.0 * hh)
-    if rigid:
+    edge_force = 0.0
+    if rigid or kind == "solid":
         sig = fnet = 0.0  # S = 0: no viscous stress at all
     else:
-        visc = polar_net_viscous_force(lambda q: np.vectorize(uf)(q), r_, mu)
+        # r ≥ a is the irrotational region: differentiate its own profile u_θ = Γ/2πr (one-sided from the fluid side
+        # at r = a — never a stencil straddling the kink of the Rankine/cylinder profile)
+        visc = polar_net_viscous_force(lambda q: Gam / (2.0 * np.pi * _F(q)), r_, mu)
         sig, fnet = float(visc["sigma_rtheta"]), float(visc["force_metric"])
+        if a > 0.0 and r_ <= a * (1.0 + 1e-12):
+            edge_force = sig  # jump of σ_rθ across the edge: a force per unit edge area [N/m²], not per volume
+            fnet = float("nan")
     cent = ut ** 2 / r_
     return dict(kind=kind, r=r_, u_theta=float(ut), omega_z=float(wz), p=float(pf(r_)), B=B, sigma_rtheta=sig,
                 net_viscous_force=fnet, centripetal=cent, dp_dr=dpdr, radial_residual=dpdr / rho - cent,
-                surface_z=zs, torque=2.0 * np.pi * r_ ** 2 * sig, in_fluid=bool(in_fluid), status=status)
+                surface_z=zs, torque=2.0 * np.pi * r_ ** 2 * sig, in_fluid=bool(in_fluid), status=status,
+                edge_line_force=edge_force)
 
 
 def baroclinic_element_scenario(tilt: float = 0.5, grad_rho: float = 5.0, R: float = 0.05, rho0: float = 1000.0,
