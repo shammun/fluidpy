@@ -422,97 +422,11 @@ def example_2_4(Gamma=1.0) -> dict:
             "G": np.array([[0.0, 2.0 * Gam], [0.0, 0.0]])}
 
 
-VELOCITY_GRADIENT_PRESETS = ("simple_shear", "solid_body_rotation", "pure_strain", "uniaxial_extension", "irrotational_strain")
-
-
-def velocity_gradient_preset(name: str, Gamma: float = 1.0, dim: int = 2) -> np.ndarray:
-    """Velocity-gradient matrices G[i, j] = ∂u_i/∂x_j of the standard linear flows (E3 presets), rate scale Γ [1/s].
-
-    Book: §2.10 (S + A split of ∂u_i/∂x_j), Examples 2.3 and 2.4; the names and matrices are the design's Part C 6.6
-    / E3 preset list.
-
-    * ``simple_shear``: u = (Γ x₂, 0) → G = [[0, Γ], [0, 0]] (Example 2.4's flow; S₁₂ = Γ/2 and A₁₂ = Γ/2 —
-      half strain, half rotation; ∇·u = 0)
-    * ``solid_body_rotation``: u = Γ e₃ × x = (−Γ x₂, Γ x₁) → G = [[0, −Γ], [Γ, 0]] (Example 2.3 with b = Γ e₃;
-      S = 0, ∇·u = 0, (∇×u)₃ = 2Γ)
-    * ``pure_strain``: u = (Γ x₁, −Γ x₂) → G = diag(Γ, −Γ) (A = 0, traceless: stretch along x₁, squeeze along x₂,
-      area preserved; Example 2.4's S' in its principal frame)
-    * ``uniaxial_extension``: u = (Γ x₁, 0) → G = diag(Γ, 0) (A = 0, **∇·u = Γ ≠ 0**: stretch along x₁ only, the
-      area grows as e^{Γt})
-    * ``irrotational_strain``: u = (Γ x₂, Γ x₁) → G = [[0, Γ], [Γ, 0]] (A = 0, traceless; Example 2.4's S itself as
-      a flow — the simple shear with its rotation removed, principal axes at ±45°)
-
-    In 3-D the matrices are embedded in the (1, 2) block with ∂u₃/∂x₃ = 0.
-
-    Validation: V1 S/A split of each preset (A = 0 for the three strain presets, S = 0 for the rotation);
-    trace(G) = ∇·u (Γ for uniaxial extension, 0 otherwise); ``linear_flow_map`` limits. Label: analytic.
-    """
-    if name not in VELOCITY_GRADIENT_PRESETS:
-        raise ValueError(f"unknown preset {name!r}; choose from {VELOCITY_GRADIENT_PRESETS}")
-    Gam = float(Gamma)
-    G2 = {"simple_shear": [[0.0, Gam], [0.0, 0.0]],  # u₁ = Γ x₂
-          "solid_body_rotation": [[0.0, -Gam], [Gam, 0.0]],  # u = Γ e₃ × x
-          "pure_strain": [[Gam, 0.0], [0.0, -Gam]],  # u = (Γ x₁, −Γ x₂)  (traceless)
-          "uniaxial_extension": [[Gam, 0.0], [0.0, 0.0]],  # u = (Γ x₁, 0)  (∇·u = Γ)
-          "irrotational_strain": [[0.0, Gam], [Gam, 0.0]]}[name]  # u = (Γ x₂, Γ x₁)  (simple shear minus its rotation)
-    G = np.array(G2)
-    if dim == 3:
-        G3 = np.zeros((3, 3))
-        G3[:2, :2] = G
-        return G3
-    return G
-
-
-def linear_flow_map(G, t) -> np.ndarray:
-    """Position map of the linear flow u = G·x after time t: x(t) = e^{Gt} x₀ (``scipy.linalg.expm``).
-
-    Book: §2.10 (S + A decomposition seen as motion; E3), previewing Ch. 3 §3.4. Units: G [1/s], t [s].
-
-    Validation: V1 pure rotation G = A gives a rotation matrix by angle ω₃ t; uniaxial strain gives diag(e^{Γt}, e^{−Γt});
-    d/dt of the map at t = 0 equals G. Label: analytic.
-    """
-    return expm(_F(G) * float(t))  # x(t) = e^{Gt} x₀ solves dx/dt = G x
-
-
-def deform_square(G, t, n_side: int = 10, half_width: float = 1.0, boundary_only: bool = False) -> np.ndarray:
-    """Tracer positions of a square of material points carried by the linear flow u = G·x for time t.
-
-    Returns an array ``(2, N)`` (or ``(3, N)`` for a 3 × 3 G — a square in the (1, 2) plane) of positions at time t;
-    ``boundary_only`` samples the perimeter (4 n_side points, closed) instead of the filled n_side × n_side lattice.
-
-    Book: E3 "strain vs rotation split" and Fig. 2.8's deforming square. Label: analytic.
-    """
-    G_ = _F(G)
-    d = G_.shape[0]
-    s = np.linspace(-half_width, half_width, n_side)
-    if boundary_only:
-        pts = np.concatenate([np.stack([s, np.full_like(s, -half_width)]), np.stack([np.full_like(s, half_width), s]),
-                              np.stack([s[::-1], np.full_like(s, half_width)]), np.stack([np.full_like(s, -half_width), s[::-1]])],
-                             axis=1)
-    else:
-        X, Y = np.meshgrid(s, s, indexing="xy")
-        pts = np.stack([X.ravel(), Y.ravel()])
-    if d == 3:
-        pts = np.vstack([pts, np.zeros((1, pts.shape[1]))])
-    return linear_flow_map(G_, t) @ pts
-
-
-def material_line_angle(G, t, theta0=0.0):
-    """Angle of a material line element that starts at angle θ₀ after time t in the linear flow u = G·x (2-D).
-
-    Book: §2.10 (S + A split), previewing Ch. 3 §3.4. Under solid-body rotation the line turns uniformly at the
-    angular velocity of the fluid element, which is the vector of the antisymmetric part A: Ω = ½(∇×u)₃ = ½ω₃ (ω the
-    book's vorticity, = the vector of ``rotation_tensor``); for the ``solid_body_rotation`` preset with G = [[0, −Γ],
-    [Γ, 0]] that is Ω = Γ, so θ(t) = θ₀ + Γt. Under pure strain the line tends to the stretching axis; under simple
-    shear it does both (E3 view 3). Units: rad (θ₀ may be an array).
-
-    Validation: V1 solid-body rotation: θ(t) = θ₀ + Γ t (= θ₀ + ½(∇×u)₃ t); pure strain: θ → 0 as t → ∞.
-    Label: analytic.
-    """
-    M = linear_flow_map(G, t)[:2, :2]
-    th0 = _F(theta0)
-    v = M @ np.stack([np.cos(th0), np.sin(th0)])
-    return as_scalar_if_0d(np.arctan2(v[1], v[0]))
+# The linear-flow kinematics (E3 presets, x(t) = e^{Gt}x₀, deforming squares, material-line angles) moved to
+# ``fluidpy.core.kinematics`` when Ch. 3 became their second user; re-exported here unchanged.
+from .core.kinematics import (  # noqa: E402,F401
+    VELOCITY_GRADIENT_PRESETS, deform_square, linear_flow_map, material_line_angle, velocity_gradient_preset,
+)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
