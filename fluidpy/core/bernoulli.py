@@ -370,8 +370,10 @@ def _status(valid: list[str], B_along, B_across) -> str:
         if flat(B_along) and not flat(B_across):
             return "rotational: constant along each streamline, differs across them"
         return "(4.71): constant along this streamline"
-    if "4.82" in valid or "4.75" in valid:
-        return "unsteady: the ∂φ/∂t term carries the difference ((4.75)/(4.82))"
+    if "4.75" in valid:
+        return "unsteady, inviscid: the ∂φ/∂t term carries the difference ((4.75))"
+    if "4.82" in valid:
+        return "unsteady, viscous irrotational: ∫∂u/∂t·ds carries the difference ((4.82))"
     if "4.78" in valid:
         return "(4.78): h + ½u² constant on the streamline"
     return ", ".join(valid)
@@ -387,7 +389,9 @@ def bernoulli_scenario(name: str, **p) -> dict:
     * "rankine" (Gamma = 1 m²/s, sigma = 0.1 m, rho, r_along = σ/2): B on a circle (flat) and across radii (varies inside
       the core, flat outside) — rotational: (4.71) only;
     * "cylinder" (U, a): ideal flow, B at random points (flat everywhere, (4.72));
-    * "u_tube" (L = 1 m, h0 = 0.05 m, t): the two free surfaces — B differs; L dU/dt closes (4.82);
+    * "u_tube" (L = 1 m, h0 = 0.05 m, t): a frictionless column (L dU/dt + 2gh = 0, no damping; inviscid, unsteady,
+      irrotational, constant ρ → (4.75)); B differs between the two free surfaces and the ∂φ/∂t term L dU/dt closes the
+      balance (``numbers["residual_4_82"]`` checks it in the streamline form (4.82) with μ = 0);
     * "hot_nozzle" (T0 = 600 K, U = 300 m/s, cp): h + ½U² along the nozzle ((4.78)).
 
     Returns dict(name, hypotheses, valid (labels), status (text), s_along, B_along, s_across, B_across [m²/s²],
@@ -452,7 +456,7 @@ def bernoulli_scenario(name: str, **p) -> dict:
         nums = dict(theta_surface=th_s, Cp_surface=1.0 - 4.0 * np.sin(th_s) ** 2)  # C_p on r = a from (4.72)
     elif name == "u_tube":
         L, h0, t = float(p.get("L", 1.0)), float(p.get("h0", 0.05)), float(p.get("t", 0.3))
-        hyp = dict(steady=False, viscous=True, irrotational=True, constant_density=True)
+        hyp = dict(steady=False, viscous=False, irrotational=True, constant_density=True)  # frictionless column
         w = np.sqrt(2.0 * g / L)
         x = h0 * np.cos(w * t)
         U = -h0 * w * np.sin(w * t)
