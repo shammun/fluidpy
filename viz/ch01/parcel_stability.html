@@ -482,6 +482,8 @@ button, input, select { font: inherit; color: inherit; }
   /* landscape phones: the three views side by side (column + profile | ζ(t)), titles give their height to the plots */
   .viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
   .viz-app[data-layout="landscape"] .viz-view-title { display: none; }
+  /* phones, Explain tab: a full text page must not squeeze the two views below 60 px (the pager packs to the rest) */
+  .viz-app[data-layout="portrait"][data-tab="explain"] .viz-stage.multi { min-height: max(300px, 62%); }
   @media (max-height: 700px) {
     .viz-app[data-layout="portrait"] .viz-view-title { display: none; }
   }
@@ -2437,6 +2439,14 @@ function fmtT(sec, md) {
 function fmtZ(z, md) { return md === 'lab' ? Viz.fmt(z * 100, { sig: 3 }) + ' cm' : Viz.fmt(z, { sig: 3 }) + ' m'; }
 function regimeColor(code) { return Viz.color(code === 1 ? 'teal' : code === 0 ? 'amber' : 'rose'); }
 function regimeWord(code) { return code === 1 ? 'stable' : code === 0 ? 'neutral' : 'unstable'; }
+// long interpretation -> two pager items (interpretation + follow-on sentence) so each fits a 360x640 page
+function interpretSplit(W, text, label) {
+  const cuts = []; let i = text.indexOf('. ');
+  while (i >= 0) { cuts.push(i + 1); i = text.indexOf('. ', i + 1); }
+  if (!cuts.length || text.length < 140) return W.interpret(text, label);
+  const mid = text.length / 2, c = cuts.reduce((a, b) => Math.abs(b - mid) < Math.abs(a - mid) ? b : a);
+  return W.interpret(text.slice(0, c), label) + W.say(text.slice(c + 1));
+}
 function tsText(M) { return M.ts.kind === 'period' ? 'period ' + fmtT(M.ts.seconds, M.medium) : M.ts.kind === 'efold' ? 'e-folds every ' + fmtT(M.ts.seconds, M.medium) : 'no time scale'; }
 const DEFAULTS = { medium: 'atm', dTdz: -6.5, conv: 'kundu', zeta0: 100, inv: false, drhodz: -0.01, invRate: 10, zo: 1500, T0: 288.15, showTheta: false, compress: false, u: 0 };
 const cur = () => S_NOW || DEFAULTS;
@@ -2635,10 +2645,10 @@ function drawZeta(v, s, N) {
    =================================================================================================== */
 function convTable(s, M) {
   const ok = M.code === 1 ? '<span class="ps-ok">✓ stable</span>' : M.code === 0 ? '<span class="ps-amber">= neutral</span>' : '<span class="ps-no">✗ unstable</span>';
-  return '<div class="ps-conv">' + Viz.work.table(['convention', 'stable if', 'Γ vs Γa now'], [
-    ['<b>Kundu</b><br>Γ = dT/dz', 'Γ > Γa', M.bareK + ' ' + ok],
-    ['<b>meteorology</b><br>Γ = −dT/dz', 'Γ < Γa', M.bareM + ' ' + ok]
-  ], s.conv === 'kundu' ? 0 : 1) + '</div>';
+  // one small table per convention: two pager items, so each fits a 360x640 page
+  const H = ['convention', 'stable if', 'Γ vs Γa now'];
+  return '<div class="ps-conv">' + Viz.work.table(H, [['<b>Kundu</b><br>Γ = dT/dz', 'Γ > Γa', M.bareK + ' ' + ok]], s.conv === 'kundu' ? 0 : -1) + '</div>' +
+    '<div class="ps-conv">' + Viz.work.table(H, [['<b>meteorology</b><br>Γ = −dT/dz', 'Γ < Γa', M.bareM + ' ' + ok]], s.conv === 'kundu' ? -1 : 0) + '</div>';
 }
 function densityTable(s, M) {
   const ok = M.code === 1 ? '<span class="ps-ok">✓ stable</span>' : M.code === 0 ? '<span class="ps-amber">= neutral</span>' : '<span class="ps-no">✗ unstable</span>';
@@ -2792,7 +2802,9 @@ const app = Viz.app({
       const M = model(s), W = Viz.work;
       let o = W.step(0, 'What the windows show') +
         W.say('The <b>column</b> is the ' + (M.medium === 'atm' ? 'air, coloured by potential temperature θ (blue cool, red warm)' : M.medium === 'ocean' ? 'sea, coloured by density (dark = dense)' : 'salt-stratified tank, coloured by density') +
-          '; the disc is your parcel and its arrow the buoyant force (<span class="c-teal">teal = pushed back</span>, <span class="c-rose">rose = pushed away</span>). In the <b>profile</b> the black line is the environment and the <span class="c-accent">dashed purple</span> line the parcel\'s own ' + (M.medium === 'atm' ? 'adiabat' : 'density') + ' through $z_o$. <b>ζ(t)</b> shows its height: grey dashed is the linear solution, the coloured curve the full nonlinear motion.') +
+          '; the disc is your parcel and its arrow the buoyant force (<span class="c-teal">teal = pushed back</span>, <span class="c-rose">rose = pushed away</span>).') +
+        W.say('In the <b>profile</b> the black line is the environment and the <span class="c-accent">dashed purple</span> line the parcel\'s own ' + (M.medium === 'atm' ? 'adiabat' : 'density') + ' through $z_o$.') +
+        W.say('<b>ζ(t)</b> shows its height: grey dashed is the linear solution, the coloured curve the full nonlinear motion.') +
         W.hint('On a phone the column view is hidden (the parcel is also drawn in the profile); turn the phone sideways to see all three.');
       if (M.medium === 'atm') {
         const N = Math.sqrt(Math.abs(M.N2));
@@ -2805,7 +2817,7 @@ const app = Viz.app({
           W.line('meteorology $\\Gamma_{\\rm met} = -dT/dz$', kmKp(-M.G) + ' K/km', 'same air, opposite sign') +
           W.box('$\\Gamma = \\mathbf{' + tn(M.G * 1e3) + '}$ K/km (Kundu) &nbsp;⇔&nbsp; $\\Gamma_{\\rm met} = \\mathbf{' + tn(-M.G * 1e3) + '}$ K/km');
         o += W.step(3, '$N^2$ and its time scale') +
-          W.line('$N^2 = \\frac{g}{T}(\\Gamma - \\Gamma_a) = \\frac{9.807}{' + tn(M.T0, 5) + '}(' + tn(M.G * 1e3) + ' + ' + tn(-GA * 1e3) + ')\\times10^{-3}$', f3(M.N2, '1/s²'), 'D36 with $\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32)') +
+          W.line('$N^2 = \\frac{g}{T}(\\Gamma - \\Gamma_a) = \\frac{9.807}{' + tn(M.T0, 5) + '}(' + tn(M.G * 1e3) + ' + ' + tn(-GA * 1e3) + ')\\times10^{-3}$', f3(M.N2, '1/s²'), 'D36, $\\tfrac{T}{\\theta}\\tfrac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32)') +
           (M.ts.kind === 'period' ? W.line('$N = \\sqrt{N^2}$', f3(N, '1/s')) + W.box('period $2\\pi/N = \\mathbf{' + tn(M.ts.seconds) + '}$ s $= ' + tn(M.ts.seconds / 60) + '$ min')
             : M.ts.kind === 'efold' ? W.line('$\\sigma = \\sqrt{-N^2}$', f3(N, '1/s'), 'the growth rate') + W.box('e-folding time $1/\\sigma = \\mathbf{' + tn(M.ts.seconds) + '}$ s $= ' + tn(M.ts.seconds / 60) + '$ min')
               : W.box('$N^2 = 0$: no restoring force and no time scale'));
@@ -2820,8 +2832,9 @@ const app = Viz.app({
         o += W.step(6, 'The parcel now') +
           W.line('$t$', Viz.live('t')) + W.line('$\\zeta$ nonlinear (bold)', Viz.live('zeta')) + W.line('$\\zeta$ linear (grey)', Viz.live('zlin')) +
           W.line('$T_p = T_0 + \\Gamma_a\\zeta$', Viz.live('Tp')) + W.line('$T_e(z_o + \\zeta)$', Viz.live('Te')) + W.line('$a = g(T_p - T_e)/T_e$', Viz.live('acc'), 'the arrow in the column');
-        o += W.step(7, 'Ocean and lab tank') + W.hint('Use the thermocline or salt tank preset (or the Medium chips on larger screens) to see the density form $N^2 = -\\frac{g}{\\rho}(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz})$ (1.29) and the ocean criterion $\\frac{d\\rho_\\theta}{dz} \\cong \\frac{d\\rho}{dz} + \\frac{\\rho g}{c^2}$ (1.35).');
-        o += W.interpret(regimeText(s, M) + ' <i>Climate note:</i> lapse-rate-feedback papers write Γ = −dT/dz; a warming that lowers their Γ (toward the moist adiabat) warms the upper troposphere more than the surface.', 'Reading the current setting');
+        o += W.step(7, 'Ocean and lab tank') + W.hint('Use the thermocline or salt tank preset (or the Medium chips on larger screens) to see $N^2 = -(g/\\rho)(d\\rho/dz - d\\rho_a/dz)$ (1.29) and $d\\rho_\\theta/dz \\cong d\\rho/dz + \\rho g/c^2$ (1.35).');
+        o += interpretSplit(W, regimeText(s, M), 'Reading the current setting');
+        o += W.interpret('Lapse-rate-feedback papers write Γ = −dT/dz; a warming that lowers their Γ (toward the moist adiabat) warms the upper troposphere more than the surface.', 'Climate note');
         return o;
       }
       const lab = M.medium === 'lab';
@@ -2838,7 +2851,7 @@ const app = Viz.app({
         W.line('$N^2 = -\\frac{g}{\\rho_0}\\big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\big) = -\\frac{9.807}{1025}(' + tn(M.drho) + ' - (' + tn(M.drhoa) + '))$', f3(M.N2, '1/s²')) +
         (M.ts.kind === 'period' ? W.box('period $2\\pi/N = \\mathbf{' + tn(M.ts.seconds) + '}$ s' + (lab ? '' : ' $= ' + tn(M.ts.seconds / 60) + '$ min'))
           : M.ts.kind === 'efold' ? W.box('e-folding time $1/\\sqrt{-N^2} = \\mathbf{' + tn(M.ts.seconds) + '}$ s') : W.box('$N^2 = 0$: neutral'));
-      o += W.step(4, 'Criterion $\\frac{d\\rho_\\theta}{dz} \\cong \\frac{d\\rho}{dz} + \\frac{\\rho g}{c^2}$ (1.35)') +
+      o += W.step(4, 'Criterion $d\\rho_\\theta/dz \\cong d\\rho/dz + \\rho g/c^2$ (1.35)') +
         W.line('$d\\rho_\\theta/dz = d\\rho/dz - d\\rho_a/dz$', f3(M.drhoth, 'kg/m⁴'), 'negative = stable') +
         (M.medium === 'ocean' ? W.line('with compressibility $d\\rho/dz + \\rho g/c^2$', f3(oceanCriterion(M.drho, 1025, 1500), 'kg/m⁴'), 'the book\'s ocean form') : '') +
         W.box('sign ' + (M.drhoth < 0 ? 'negative ⇒ <b>stable</b>' : M.drhoth > 0 ? 'positive ⇒ <b>unstable</b>' : 'zero ⇒ <b>neutral</b>'));
@@ -2847,7 +2860,7 @@ const app = Viz.app({
         W.line('$t$', Viz.live('t')) + W.line('$\\zeta$ nonlinear (bold)', Viz.live('zeta')) + W.line('$\\zeta$ linear (grey)', Viz.live('zlin')) +
         W.line('$\\rho_p - \\rho_e$', Viz.live('drho')) + W.line('$a = -g(\\rho_p - \\rho_e)/\\rho_p$', Viz.live('acc'), 'the arrow in the column');
       o += W.step(7, 'The atmosphere') + W.hint('Use an atmosphere preset (or the Medium chips on larger screens) to see the same test written with lapse rates, in both sign conventions.');
-      o += W.interpret(regimeText(s, M), 'Reading the current setting');
+      o += interpretSplit(W, regimeText(s, M), 'Reading the current setting');
       return o;
     },
     live: s => {
@@ -2892,7 +2905,7 @@ const app = Viz.app({
       goal: 'Find how fast the temperature of a parcel changes as it rises isentropically through a fluid in hydrostatic balance, for any fluid, then read it in both sign conventions.',
       start: { tex: 'T\\,ds = dh - v\\,dp,\\quad ds = 0,\\quad \\frac{dp}{dz} = -\\rho g', plain: "The parcel's entropy stays constant, and the pressure it feels is the hydrostatic pressure of its surroundings." },
       plan: ['Write dh for the isentropic parcel.', 'Expand dh in T and p: this brings in C_p and an unknown $(\\partial h/\\partial p)_T$.', 'Find that unknown with the Gibbs free energy, a Maxwell relation and α.', 'Divide by dz and use hydrostatics.'],
-      uses: ['Gibbs $T\\,ds = dh - v\\,dp$ (1.18)', '$C_p \\equiv (\\partial h/\\partial T)_p$ (1.14)', '$\\alpha \\equiv -\\frac{1}{\\rho}(\\partial\\rho/\\partial T)_p$ (1.20)', 'chain rule in two variables', 'Maxwell relation', '$dp/dz = -\\rho g$ (1.8)'],
+      uses: ['Gibbs $T\\,ds = dh - v\\,dp$ (1.18)', '$C_p \\equiv (\\partial h/\\partial T)_p$ (1.14)', '$\\alpha \\equiv -\\tfrac{1}{\\rho}(\\partial\\rho/\\partial T)_p$ (1.20)', 'chain rule in two variables', 'Maxwell relation', '$dp/dz = -\\rho g$ (1.8)'],
       set: { medium: 'atm', dTdz: -6.5, conv: 'kundu', showTheta: false, inv: false, u: 0 },
       steps: [
         { did: 'Set $ds = 0$ in the Gibbs relation', tex: 'dh = v\\,dp', why: 'No heat and no friction, so the entropy is constant. We use the enthalpy form because it contains dp, which hydrostatics will supply.', plain: "The parcel's enthalpy changes only through the pressure it meets." },
@@ -2902,7 +2915,7 @@ const app = Viz.app({
         { did: 'Introduce the Gibbs free energy', tex: 'g \\equiv h - Ts,\\qquad dg = v\\,dp - s\\,dT', why: 'dg = dh − T ds − s dT (product rule) and dh = T ds + v dp; the T ds terms cancel. Its natural variables are exactly p and T.', plain: 'A helper state function whose changes involve only dp and dT.' },
         { did: 'Read off its partial derivatives', tex: '\\Big(\\frac{\\partial g}{\\partial p}\\Big)_T = v,\\qquad \\Big(\\frac{\\partial g}{\\partial T}\\Big)_p = -s', why: 'Compare dg = v dp − s dT term by term with the chain rule dg = (∂g/∂p)_T dp + (∂g/∂T)_p dT.', plain: 'v and −s are the slopes of g.' },
         { did: 'Equate the mixed second derivatives', tex: '\\Big(\\frac{\\partial v}{\\partial T}\\Big)_p = -\\Big(\\frac{\\partial s}{\\partial p}\\Big)_T', why: 'g is smooth, so ∂²g/∂T∂p = ∂²g/∂p∂T. This Maxwell relation turns an entropy derivative into a measurable one.', plain: 'How entropy changes with pressure is set by thermal expansion.' },
-        { did: 'Express $(\\partial v/\\partial T)_p$ with α', tex: '\\Big(\\frac{\\partial v}{\\partial T}\\Big)_p = v\\,\\alpha', why: 'v = 1/ρ gives (∂v/∂T)_p = −(1/ρ²)(∂ρ/∂T)_p, and $\\alpha \\equiv -\\frac{1}{\\rho}(\\partial\\rho/\\partial T)_p$ (1.20) gives (∂ρ/∂T)_p = −ρα, so the result is α/ρ = vα.', plain: 'Heating at fixed pressure swells unit mass by vα per kelvin.' },
+        { did: 'Express $(\\partial v/\\partial T)_p$ with α', tex: '\\Big(\\frac{\\partial v}{\\partial T}\\Big)_p = v\\,\\alpha', why: 'v = 1/ρ gives (∂v/∂T)_p = −(1/ρ²)(∂ρ/∂T)_p, and $\\alpha \\equiv -\\tfrac{1}{\\rho}(\\partial\\rho/\\partial T)_p$ (1.20) gives (∂ρ/∂T)_p = −ρα, so the result is α/ρ = vα.', plain: 'Heating at fixed pressure swells unit mass by vα per kelvin.' },
         { did: 'Insert into the Maxwell relation', tex: '\\Big(\\frac{\\partial s}{\\partial p}\\Big)_T = -\\,v\\,\\alpha', why: 'Steps 7 and 8. The sign matters: squeezing at fixed T lowers the entropy when α > 0.', plain: 'Entropy falls with pressure at the rate vα.' },
         { did: 'Complete $(\\partial h/\\partial p)_T$', tex: '\\Big(\\frac{\\partial h}{\\partial p}\\Big)_T = v\\,(1 - \\alpha T)', why: 'Substitute step 9 into step 4: −Tvα + v.', plain: 'The pressure part of dh, now in measurable properties.' },
         { did: 'Equate the two expressions for $dh$', tex: 'C_p\\,dT + v(1 - \\alpha T)\\,dp = v\\,dp', why: 'Step 3 (with step 10) and step 1 describe the same change of the same parcel.', plain: 'Two bookkeepings of one enthalpy change.' },
@@ -2935,10 +2948,10 @@ const app = Viz.app({
       interpret: s => { const M = model(s); if (M.medium !== 'atm') return 'Switch to the atmosphere to see θ.'; return 'At $z_o$: $T = ' + tn(M.T0, 5) + '$ K, $p = ' + tn(M.p0 / 100, 4) + '$ hPa, so $\\theta = ' + tn(M.theta0, 5) + '$ K. In the θ view the parcel keeps this value (dashed vertical line).'; },
       check: 'p = p_o gives θ = T ✓. 500 hPa and 250 K → θ = 250 × 2^{2/7} = 304.8 K ✓ (selftest row vs potential_temperature).' },
     { id: 'D36', title: '$N^2$ from the θ gradient', short: 'D36 · N²(θ)', ref: 'D36 · (1.32)', view: 'profile',
-      goal: 'Show that for a perfect-gas atmosphere the density-based $N^2 = -\\frac{g}{\\rho}(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz})$ (1.29) is g/θ times the vertical gradient of θ, so stability means "θ increases upward".',
+      goal: 'Show that for a perfect-gas atmosphere the density-based $N^2 = -(g/\\rho)(d\\rho/dz - d\\rho_a/dz)$ (1.29) is g/θ times the vertical gradient of θ, so stability means "θ increases upward".',
       start: { tex: 'N^2 = -\\frac{g}{\\rho}\\Big(\\frac{d\\rho}{dz} - \\frac{d\\rho_a}{dz}\\Big)', plain: 'The parcel result of D18, at the height where parcel and environment share the density ρ.' },
-      plan: ['Write both density gradients as relative (logarithmic) rates.', 'Environment from p = ρRT; parcel from the isentropic ratio.', 'Subtract: the pressure terms combine into θ.', 'Use $\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32) for the lapse-rate form.'],
-      uses: ['$N^2$ (1.29)', 'logarithmic differentiation', '$p = \\rho R T$', '$\\rho/\\rho_0 = (p/p_0)^{1/\\gamma}$ (1.26)', '$T = \\theta(p/p_o)^{(\\gamma-1)/\\gamma}$ (1.31)', '$\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\frac{dT}{dz} + \\frac{g}{C_p}$ (1.32)'],
+      plan: ['Write both density gradients as relative (logarithmic) rates.', 'Environment from p = ρRT; parcel from the isentropic ratio.', 'Subtract: the pressure terms combine into θ.', 'Use $\\tfrac{T}{\\theta}\\tfrac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32) for the lapse-rate form.'],
+      uses: ['$N^2$ (1.29)', 'logarithmic differentiation', '$p = \\rho R T$', '$\\rho/\\rho_0 = (p/p_0)^{1/\\gamma}$ (1.26)', '$T = \\theta(p/p_o)^{(\\gamma-1)/\\gamma}$ (1.31)', '$\\tfrac{T}{\\theta}\\tfrac{d\\theta}{dz} = \\tfrac{dT}{dz} + \\tfrac{g}{C_p}$ (1.32)'],
       set: { medium: 'atm', showTheta: true, dTdz: -6.5, u: 0 },
       steps: [
         { did: 'Take ρ inside the bracket', tex: 'N^2 = -g\\Big(\\frac1\\rho\\frac{d\\rho}{dz} - \\frac1\\rho\\frac{d\\rho_a}{dz}\\Big)', why: "Distribute 1/ρ; at the rest height the parcel's density equals ρ, so each term is a relative rate, which logs make easy.", plain: 'N² compares relative density changes.' },
@@ -2950,7 +2963,7 @@ const app = Viz.app({
         { did: 'Substitute into step 1', tex: 'N^2 = \\frac{g}{\\theta}\\,\\frac{d\\theta}{dz}', why: '−g × (−(1/θ)dθ/dz): the two minus signs cancel.', plain: 'N² is g over θ times the θ gradient.',
           live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return '\\tfrac{9.807}{' + tn(M.theta0, 5) + '}\\times' + tn(M.dth) + ' = ' + tn(N2FromTheta(M.theta0, M.dth)) + '\\ \\text{s}^{-2}'; },
           watch: 'It equals the N² readout, which is computed from the lapse rate.' },
-        { did: 'Use $\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32)', tex: 'N^2 = \\frac{g}{T}\\Big(\\frac{dT}{dz} + \\frac{g}{C_p}\\Big) = \\frac{g}{T}\\,(\\Gamma - \\Gamma_a)', why: '$\\frac{T}{\\theta}\\frac{d\\theta}{dz} = \\frac{dT}{dz} + \\frac{g}{C_p}$ (1.32) gives (1/θ)dθ/dz = (1/T)(dT/dz + g/C_p); with Γa = −g/C_p (D19) the bracket is Γ − Γa in Kundu\'s sign.', plain: 'N² is proportional to how much more slowly the environment cools than a parcel.',
+        { did: 'Use $\\tfrac{T}{\\theta}\\tfrac{d\\theta}{dz} = \\Gamma - \\Gamma_a$ (1.32)', tex: 'N^2 = \\frac{g}{T}\\Big(\\frac{dT}{dz} + \\frac{g}{C_p}\\Big) = \\frac{g}{T}\\,(\\Gamma - \\Gamma_a)', why: '$\\tfrac{T}{\\theta}\\tfrac{d\\theta}{dz} = \\tfrac{dT}{dz} + \\tfrac{g}{C_p}$ (1.32) gives (1/θ)dθ/dz = (1/T)(dT/dz + g/C_p); with Γa = −g/C_p (D19) the bracket is Γ − Γa in Kundu\'s sign.', plain: 'N² is proportional to how much more slowly the environment cools than a parcel.',
           live: s => { const M = model(s); if (M.medium !== 'atm') return '\\text{(atmosphere mode)}'; return '\\tfrac{9.807}{' + tn(M.T0, 5) + '}(' + tn(M.G) + ' - (' + tn(GA) + ')) = ' + tn(M.N2) + '\\ \\text{s}^{-2}'; } }
       ],
       result: { tex: 'N^2 = \\frac{g}{\\theta}\\frac{d\\theta}{dz} = \\frac{g}{T}(\\Gamma - \\Gamma_a) = \\frac{g}{T}(\\Gamma_{a,\\rm met} - \\Gamma_{\\rm met})', plain: 'A perfect-gas atmosphere is stable exactly where θ increases upward; in lapse rates, where the environment cools more slowly than 9.76 K/km.' },
