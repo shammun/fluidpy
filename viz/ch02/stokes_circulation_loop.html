@@ -2515,14 +2515,14 @@ function explainHtml(s) {
   let out = W.step(0, 'What the windows show') +
     W.say('<b>The flow</b> is coloured by the z-component of its curl (<b class="c-accent">purple</b> = counterclockwise spin, <b class="c-teal">teal</b> = clockwise, white = none); grey streamlines and <b class="c-blue">blue</b> dots show the velocity itself (press ▶). The <b class="c-accent">purple loop</b> is yours — drag its inside to move it, its edge to resize it; the arrows along it are the velocity component <i>along</i> the loop, u·t. The <b class="c-orange">orange wheel</b> at the centre turns at half the local curl. <b>u·t along the loop</b> unrolls the loop into a graph whose shaded area is the circulation. <b>Bars</b> compare the circulation with the curl added up inside, and Γ/A against the loop size.') +
     W.hint('On a portrait phone the bars view is hidden; its two numbers stay in the flow view\'s title and in the Γ and curl-flux readouts of the Explore tab.');
-  out += W.step(1, 'The field at the loop\'s centre and its curl — Eq. (2.25)') +
+  out += W.step(1, 'The field at the loop\'s centre and its curl $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25)') +
     W.line(`$${F.tex}$`, '', F.word + (F.singular ? ' — singular at the origin (⚠)' : ''));
   if (isFinite(p.curlC)) {
     out += W.line(`$\\mathbf u(${tz(s.cx)}, ${tz(s.cy)}) = (${tz(p.uC[0])},\\ ${tz(p.uC[1])})$ m/s`, '', 'the velocity at the centre of your loop') +
       W.line(`$(\\nabla\\times\\mathbf u)_3 = \\dfrac{\\partial u_2}{\\partial x_1} - \\dfrac{\\partial u_1}{\\partial x_2} = ${F.curlTex}$`, fz(p.curlC) + ' 1/s', s.preset === 'solid' ? 'twice the angular velocity b (Ex. 2.3)' : s.preset === 'shear' ? 'no u₂ at all; u₁ grows with x₂ at rate Γ — the minus sign makes it clockwise' : s.preset === 'smooth' ? 'evaluated at x₁ = ' + tz(s.cx) : 'curl-free where the field is smooth') +
-      W.line(`central differences, h = 0.01: $${tz(p.fd.du2dx)} - ${tzs(p.fd.du1dy)}$`, fz(p.fd.curl) + ' 1/s', 'fluidpy.core.operators.curl forms (2.25) exactly this way on a grid');
+      W.line(`central differences, h = 0.01: $${tz(p.fd.du2dx)} - ${tzs(p.fd.du1dy)}$`, fz(p.fd.curl) + ' 1/s', 'fluidpy.core.operators.curl forms $\\partial_1 u_2 - \\partial_2 u_1$ (2.25) this way on a grid');
   } else out += W.say('The centre sits on the singular core: u and its curl are undefined there. Move the loop a little.');
-  out += W.step(2, 'The circulation, added up round the loop — Eq. (2.34), right side');
+  out += W.step(2, 'The circulation round the loop, $\\Gamma = \\oint_C \\mathbf u\\cdot\\mathbf t\\,ds$ — right side of Stokes (2.34)');
   if (lp.kind === 'circle') {
     const utC = s.preset === 'solid' ? 'b\\,R(\\sin^2\\theta + \\cos^2\\theta) = ' + tz(sgn * s.R) : null;
     out += W.line(`$\\mathbf t = ${sgn < 0 ? '-' : ''}(-\\sin\\theta,\\ \\cos\\theta),\\quad ds = R\\,d\\theta = ${tz(s.R)}\\times\\frac{2\\pi}{400}$`, fz(lp.ds[0]) + ' m', '400 midpoint samples, counterclockwise about n (fluidpy.planar_loop)');
@@ -2538,21 +2538,21 @@ function explainHtml(s) {
     });
     out += W.box(`$\\Gamma = ${p.sides.map(tzs).join(' + ')} = \\mathbf{${tz(p.Gamma)}}$ m²/s — Ex. 2.6's four sides`);
   }
-  out += W.step(3, 'The curl added up inside — Eq. (2.34), left side') +
+  out += W.step(3, 'The curl added up inside, $\\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ — left side of Stokes (2.34)') +
     W.line(`$A = ${lp.kind === 'circle' ? '\\pi R^2 = \\pi\\times' + tz(s.R) + '^2' : '\\Delta x_1\\Delta x_2 = ' + tz(lp.a) + '\\times' + tz(lp.b)}$`, fz(p.area) + ' m²', 'the flat surface bounded by the loop, n = ' + (s.flip ? '−e₃' : '+e₃'));
   if (s.preset === 'solid' || s.preset === 'shear') out += W.line(`$\\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA = ${tzs(sgn * p.curlC)}\\times${tz(p.area)}$`, fz(p.flux) + ' m²/s', 'the curl is uniform, so the flux is curl × area');
   else out += W.line(`$\\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA \\approx \\sum_k (\\nabla\\times\\mathbf u)_3(\\mathbf x_k)\\,n_3\\,\\Delta A_k$`, fz(p.flux) + ' m²/s', lp.kind === 'circle' ? 'polar midpoint grid 40 × 80 with the exact curl (fluidpy.curl_flux)' : '32 × 32 midpoints with the exact curl (fluidpy.curl_flux)');
   out += W.box(p.singularInside ? `gap $\\Gamma - \\text{flux} = ${tz(p.Gamma)} - ${tzs(p.flux)} = \\mathbf{${tz(p.gap)}}$ m²/s — <b>the theorem does not apply</b>: u is not differentiable at the core inside A (fluidpy: <code>hypothesis_ok = False</code>)`
     : `gap $\\Gamma - \\text{flux} = \\mathbf{${Viz.tnum(p.gap, 2, { keepTiny: true })}}$ m²/s — ${s.preset === 'smooth' ? 'round-off for the circle (midpoint on a periodic integrand is spectrally exact); for the rectangle the gap falls as 1/n²' : 'round-off: a midpoint loop on a linear field is exact'} (<code>hypothesis_ok = True</code>)`);
-  out += W.step(4, 'Circulation per unit area — Eq. (2.35)') +
+  out += W.step(4, 'Circulation per unit area, $\\mathbf n\\cdot(\\nabla\\times\\mathbf u) = \\lim_{A\\to 0}\\Gamma/A$ (2.35)') +
     W.line(`$\\Gamma/A = ${tz(p.Gamma)}/${tz(p.area)}$`, fz(p.ratio) + ' 1/s', isFinite(p.curlC) ? `compare $(\\nabla\\times\\mathbf u)_3(\\mathbf c) = ${tz(sgn * p.curlC)}$` : 'no point value at the core') +
-    W.line(`square of side $h = 0.1$ m about the centre: $\\frac{1}{h^2}\\oint\\mathbf u\\cdot\\mathbf t\\,ds$`, isFinite(p.w35) ? fz(p.w35) + ' 1/s' : '—', 'fluidpy.integral_curl_component — (2.35) with a small A');
+    W.line(`square of side $h = 0.1$ m about the centre: $\\frac{1}{h^2}\\oint\\mathbf u\\cdot\\mathbf t\\,ds$`, isFinite(p.w35) ? fz(p.w35) + ' 1/s' : '—', 'fluidpy.integral_curl_component — $\\Gamma/A \\to \\mathbf n\\cdot(\\nabla\\times\\mathbf u)$ (2.35) with a small A');
   out += W.say(p.singularInside ? 'With the core inside, Γ stays 2πK while A shrinks: Γ/A ∝ 1/A grows without limit — the bars view\'s curve rises instead of levelling off.' :
     (s.preset === 'solid' || s.preset === 'shear' ? 'For a uniform curl the ratio is exact at every size — the curve in the bars view is flat at the dashed line.' : 'The ratio only converges as A → 0 — follow the curve in the bars view toward the dashed line (shrink the loop).'));
   out += W.step(5, 'Orientation — t = n_c × n (Fig. 2.10)') +
     W.line(`$\\mathbf n = ${s.flip ? '-' : '+'}\\mathbf e_3$, $\\mathbf n_c$ into the loop: $\\mathbf t = \\mathbf n_c\\times\\mathbf n$ runs ${s.flip ? 'clockwise' : 'counterclockwise'}`, '', 'right hand: thumb along n, fingers along t') +
     W.line(`at $(${tz(s.cx + (lp.kind === 'circle' ? s.R : lp.a / 2))}, ${tz(s.cy)})$: $\\mathbf n_c = (-1, 0, 0)$, $\\mathbf t = (-1,0,0)\\times(0,0,${s.flip ? '-1' : '1'})$`, `(0, ${s.flip ? '−1' : '1'}, 0)`, 'fluidpy.boundary_tangent') +
-    W.box(`flipping n reverses t and both sides of (2.34) together: $\\Gamma \\to ${tz(-p.Gamma)}$, flux $\\to ${tz(-p.flux)}$ m²/s — the theorem holds either way.`);
+    W.box(`flipping n reverses t and both sides of $\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ (2.34) together: $\\Gamma \\to ${tz(-p.Gamma)}$, flux $\\to ${tz(-p.flux)}$ m²/s — the theorem holds either way.`);
   out += W.step(6, 'The wheel') +
     W.line(`$\\omega_{\\rm wheel} = \\tfrac12(\\nabla\\times\\mathbf u)_3(\\mathbf c)$`, isFinite(p.curlC) ? fz(p.wheelRate) + ' rad/s ' + (p.wheelRate > 0 ? 'counterclockwise' : p.wheelRate < 0 ? 'clockwise' : '(still)') : 'undefined at the core', s.preset === 'shear' ? 'clockwise at Γ/2 although no streamline is curved — curl is a difference of speeds across the wheel, not curvature' : s.preset === 'vortex' ? 'the dots orbit the core but a wheel among them does not turn: curl-free away from the core' : 'half the curl (C12: the rotation-rate part of the velocity gradient)');
   out += W.step(7, 'At the current time') +
@@ -2567,7 +2567,7 @@ function explainHtml(s) {
     solid: `<b>Uniform spin.</b> The whole plane spins like a disc at b = 1 rad/s; every loop, anywhere, has Γ = 2b × area = 2 × ${fz(p.area)} = ${fz(p.Gamma)} m²/s. Move the loop: Γ stays; resize it: Γ ∝ A. The wheel turns at b, half the curl.`,
     shear: `<b>Curl without curves.</b> Straight flow, faster above: your loop is pushed along on top and dragged back below, so it has net clockwise circulation −Γ × A = ${fz(p.Gamma)} m²/s. The wheel turns clockwise at Γ/2 = 0.5 rad/s though no streamline bends — that is Ch. 3's vorticity of simple shear.`,
     'core-outside': `<b>Irrotational here.</b> The flow goes round the core, yet inside your loop there is no spin: Γ = ${gapStr(p.Gamma)} m²/s and Γ/A → 0 as the loop shrinks. The dots orbit the origin without rotating about themselves — the wheel stands still.`,
-    'core-inside': `<b>Stokes fails — on purpose.</b> Γ = 2πK = ${fz(p.Gamma)} m²/s for every loop enclosing the core, big or small, while the curl flux is ${fz(p.flux)}: the curl is all concentrated in the singular centre where u is not differentiable, so (2.34) has no right to hold. Ch. 5's line vortex and Ch. 6's lift live here.`,
+    'core-inside': `<b>Stokes fails — on purpose.</b> Γ = 2πK = ${fz(p.Gamma)} m²/s for every loop enclosing the core, big or small, while the curl flux is ${fz(p.flux)}: the curl is all concentrated in the singular centre where u is not differentiable, so Stokes $\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ (2.34) has no right to hold. Ch. 5's line vortex and Ch. 6's lift live here.`,
     'source-inside': `<b>Singular, but curl-free.</b> The source is singular at the origin, so the theorem does not apply — here both sides are ${fz(p.Gamma)} anyway because a radial flow is perpendicular to every circle about it. The divergence, not the curl, is what this field concentrates (E4's Gauss box).`,
     potential: `<b>A gradient field has no circulation.</b> u = ∇φ with φ = x₁² − x₂²: along any loop ∇φ·t ds = dφ, and the total change of φ round a closed path is 0 (D26 step 10, Exercise 2.20). Hence ∇×∇φ = 0 — the white field. Γ = ${gapStr(p.Gamma)} m²/s here.`,
     smooth: `<b>Mixed signs.</b> The curl 2x₁ is purple right of the axis and teal left of it; your loop has Γ = ${fz(p.Gamma)} m²/s = the net of both. ${Math.abs(s.cx) < s.R ? 'It straddles x₁ = 0, so positive and negative curl partly cancel — shrink it or move it to isolate one sign.' : 'It sits on one side, so the sign is uniform inside; Γ/A → 2x₁ = ' + fz(2 * s.cx) + ' 1/s as it shrinks.'}`
@@ -2593,7 +2593,7 @@ function inspectOf(s) {
 const SHEAR_RECT = { preset: 'shear', shape: 'rect', cx: 0, cy: 0, R: 0.5, aspect: 1, flip: false, tiles: 0 };
 const app = Viz.app({
   title: 'How much does the flow go round a loop?',
-  subtitle: 'Drag and resize a loop over a velocity field: the circulation round its edge equals the curl added up inside — Stokes, Eq. (2.34)',
+  subtitle: 'Drag and resize a loop: the circulation round its edge equals the curl added up inside — Stokes $\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ (2.34)',
   params: {
     preset: { type: 'select', display: 'chips', label: 'Velocity field', value: 'solid', options: [['solid', 'b × x'], ['shear', 'shear'], ['vortex', 'vortex'], ['potential', '∇φ'], ['source', 'source'], ['smooth', 'smooth']] },
     R: { label: 'Radius $R$ (or half-side)', min: 0.05, max: 1.8, value: 1, log: true, unit: 'm', help: 'log slider: shrink the loop to see Γ/A → (∇×u)₃' },
@@ -2698,7 +2698,7 @@ const app = Viz.app({
       goal: 'Prove Stokes\' theorem for a flat surface — the circulation round the boundary equals the curl integrated inside — by doing one tiny rectangle exactly (Ex. 2.6\'s bookkeeping run backwards) and tiling; then read off the corollary ∇×∇φ = 0.',
       start: { tex: '\\text{rectangle } \\Delta x_1\\times\\Delta x_2 \\text{ about } (x_1, x_2),\\quad \\mathbf n = \\mathbf e_3', plain: 'the smallest loop we can integrate around by hand, t counterclockwise about n.' },
       plan: ['Fix the orientation of the four sides.', 'Midpoint values on each side.', 'Add bottom + top and right + left: Taylor differences.', 'Recognise the curl.', 'Tile the surface: interior edges cancel; refine.', 'Corollary for gradient fields.'],
-      uses: ['line integral round a loop', 'orientation t = n_c × n (Fig. 2.10)', 'first-order Taylor expansion', 'midpoint value of a side', 'the curl\'s third component (2.25), D12', 'Ex. 2.6\'s bookkeeping', 'chain rule dφ = ∇φ·t ds'],
+      uses: ['line integral round a loop', 'orientation t = n_c × n (Fig. 2.10)', 'first-order Taylor expansion', 'midpoint value of a side', 'the curl\'s third component $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25), D12', 'Ex. 2.6\'s bookkeeping', 'chain rule dφ = ∇φ·t ds'],
       view: 'field', set: Object.assign({}, SHEAR_RECT),
       steps: [
         { did: 'Fix the four sides and their tangents', tex: '\\begin{aligned} \\text{bottom}:\\ \\mathbf t &= +\\mathbf e_1, & \\text{right}:\\ \\mathbf t &= +\\mathbf e_2 \\\\ \\text{top}:\\ \\mathbf t &= -\\mathbf e_1, & \\text{left}:\\ \\mathbf t &= -\\mathbf e_2 \\end{aligned}',
@@ -2720,8 +2720,8 @@ const app = Viz.app({
           plain: 'If u₂ grows to the right, the right side walks with it: an anticlockwise contribution.',
           live: s => { const p = phys(s), lp = p.loop; if (lp.kind !== 'rect') return '\\text{switch to the rectangle to see the numbers}'; const ur = p.F.u(s.cx + lp.a / 2, s.cy)[1], ul = p.F.u(s.cx - lp.a / 2, s.cy)[1]; return `\\text{right + left: } [${tz(ur)} - ${tzs(ul)}]\\times${tz(lp.b)} = ${tz((ur - ul) * lp.b)}`; } },
         { did: 'Add the four sides and recognise the curl', tex: '\\begin{aligned} \\oint_{\\rm rect}\\mathbf u\\cdot\\mathbf t\\,ds &= \\Big(\\frac{\\partial u_2}{\\partial x_1} - \\frac{\\partial u_1}{\\partial x_2}\\Big)\\Delta A \\\\ &\\quad + O(\\Delta^4) \\\\ &= (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,\\Delta A \\end{aligned}',
-          why: 'Steps 4 and 5 added, with ΔA = Δx₁Δx₂; the bracket is (∇×u)₃ by (2.25) (D12), and n = e₃ picks exactly that component.',
-          plain: 'One small loop\'s circulation is the normal curl times its area — divide by ΔA and let Δ → 0 and this is (2.35), Ex. 2.6 in the x₃-plane.',
+          why: 'Steps 4 and 5 added, with ΔA = Δx₁Δx₂; the bracket is $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25, D12), and n = e₃ picks exactly that component.',
+          plain: 'One small loop\'s circulation is the normal curl times its area — divide by ΔA and let Δ → 0 and this is $\\mathbf n\\cdot(\\nabla\\times\\mathbf u) = \\lim_{A\\to 0}\\Gamma/A$ (2.35), Ex. 2.6 in the x₃-plane.',
           live: s => { const p = phys(s), lp = p.loop; if (lp.kind !== 'rect') return '\\text{switch to the rectangle to see the numbers}'; const c = p.fd; return `\\begin{aligned} \\Gamma_{\\rm rect} &= (${tz(c.du2dx)} - ${tzs(c.du1dy)})\\times${tz(lp.area)} \\\\ &= ${tz(p.sign * c.curl * lp.area)}\\quad\\text{vs}\\quad \\oint = ${tz(p.Gamma)}\\ ✓ \\end{aligned}`; },
           highlight: ['readout:Gamma', 'readout:flux'] },
         { did: 'Tile the surface with small rectangles and add', tex: '\\begin{aligned} \\sum_k\\oint_{C_k}\\mathbf u\\cdot\\mathbf t\\,ds &= \\sum_k(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,\\Delta A_k \\\\ &\\to \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA \\end{aligned}',
@@ -2735,12 +2735,12 @@ const app = Viz.app({
           live: s => { const p = phys(s); return p.tileSums ? `\\sum_k\\oint_{C_k} = ${tz(p.tileSums.sum)},\\qquad \\oint_{\\rm outer} = ${tz(p.tileSums.outer)}` : ''; },
           watch: 'The dashed interior edges carry a blue and an orange arrow: equal and opposite. Only the solid outer edges remain.' },
         { did: 'Refine: the outer edges become C', tex: '\\oint_C\\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA',
-          why: 'As the tiles shrink, the staircase of outer edges tends to the boundary curve C with tangent t, so step 8\'s left side becomes the circulation round C; with step 7 this is (2.34).',
+          why: 'As the tiles shrink, the staircase of outer edges tends to the boundary curve C with tangent t, so step 8\'s left side becomes the circulation round C; with step 7 this is Stokes (2.34), the line above.',
           plain: 'Stokes\' theorem: circulation round the edge equals curl flux through the surface (u continuous, C piecewise smooth). A curved A is done the same way on each flat patch, with t = n_c × n at the rim.',
           set: { shape: 'circle', tiles: 8 }, live: s => { const p = phys(s); if (!p.tileSums) return ''; const gap = Math.abs(p.Gamma) > 1e-9 ? Math.abs((p.tileSums.outer - p.Gamma) / p.Gamma) * 100 : 0; return `\\begin{aligned} \\oint_{\\rm staircase}\\ (${p.tileSums.n}\\ \\text{tiles}) &= ${tz(p.tileSums.outer)} \\\\ \\oint_C\\ \\text{(circle)} &= ${tz(p.Gamma)}\\quad\\text{gap } ${gap.toFixed(1)}\\,\\% \\to 0\\ \\text{as } k\\to\\infty \\\\ \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA &= ${tz(p.flux)} \\end{aligned}`; },
           watch: 'The staircase of 8 × 8 tiles still overshoots the circle by the printed gap — the corners it cuts are O(1/k) of the area; the gap shrinks as the Tiles slider (Explore) is raised.' },
         { did: 'Corollary for a gradient field', tex: '\\begin{aligned} \\oint_C\\nabla\\phi\\cdot\\mathbf t\\,ds &= \\oint_C d\\phi = 0 \\\\ \\Rightarrow\\ \\nabla\\times\\nabla\\phi &= 0 \\end{aligned}',
-          why: 'Along the curve ∇φ·t ds = dφ (chain rule); the total of an exact change round a closed loop is φ(end) − φ(start) = 0. Then (2.34) forces ∬(∇×∇φ)·n dA = 0 for every A.',
+          why: 'Along the curve ∇φ·t ds = dφ (chain rule); the total of an exact change round a closed loop is φ(end) − φ(start) = 0. Then Stokes $\\oint_C = \\iint_A$ (2.34) forces $\\iint_A(\\nabla\\times\\nabla\\phi)\\cdot\\mathbf n\\,dA = 0$ for every A.',
           plain: 'A field that is the slope of something has no circulation — and since the flux vanishes for every surface, no curl either (Exercise 2.20).',
           set: { preset: 'potential', tiles: 0 }, live: s => { const p = phys(s); return s.preset === 'potential' ? `\\begin{aligned} \\oint_C \\nabla\\phi\\cdot\\mathbf t\\,ds &= ${Viz.tnum(p.Gamma, 2, { keepTiny: true })} \\\\ (\\nabla\\times\\nabla\\phi)_3 &= 0 - 0 = 0 \\end{aligned}` : `\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = ${tz(p.Gamma)}\\ \\text{(not a gradient field)}`; },
           watch: 'The field turned white (curl 0) and the u·t graph\'s positive and negative areas cancel exactly: Γ = 0 for any loop you drag.' }
@@ -2750,32 +2750,32 @@ const app = Viz.app({
       check: 'Units: (1/s)·m² = (m/s)·m = m²/s. Limit: u uniform → both sides 0. Numbers: b × x on the unit disc: 2πR = 6.283 = 2 × π (selftest "Γ solid R = 1"); shear on the unit square: −1 = −1 ("Γ shear rect", "curl flux shear rect"); ∇(x₁² − x₂²): 0 ("Γ potential ≈ 0"); the vortex with the core inside: 2πK vs 0 and fluidpy\'s hypothesis_ok = False ("hypothesis flag").' },
     { id: 'D12', title: 'The three components of the curl', short: 'curl (2.25)', ref: 'Eq. (2.25)',
       goal: 'Turn the index form of the curl into the three explicit component formulas — and see why only two of the nine terms survive for each component.',
-      start: { tex: '(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\,\\frac{\\partial u_k}{\\partial x_j}', plain: 'the cross product (2.21) with the first vector replaced by the operator ∇ = e_j ∂/∂x_j, acting to the right (2.24).' },
+      start: { tex: '(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\,\\frac{\\partial u_k}{\\partial x_j}', plain: 'the cross product $(\\mathbf u\\times\\mathbf v)_k = \\varepsilon_{ijk}u_i v_j$ (2.21) with the first vector replaced by the operator $\\nabla = \\mathbf e_j\\,\\partial/\\partial x_j$, acting to the right: this is (2.24).' },
       plan: ['Fix i = 1.', 'Keep only the (j, k) pairs where ε ≠ 0.', 'Insert ±1.', 'Relabel cyclically for i = 2, 3.'],
-      uses: ['enumeration of ε (2.18)', 'the cross product in index form (2.21)', 'operator ordering: ∂ acts on u_k', 'partial derivatives'],
+      uses: ['$\\varepsilon_{ijk} = +1$ cyclic, $-1$ anticyclic, 0 with a repeat (2.18)', '$(\\mathbf u\\times\\mathbf v)_k = \\varepsilon_{ijk}u_i v_j$ (2.21)', 'operator ordering: ∂ acts on u_k', 'partial derivatives'],
       view: 'field', set: { preset: 'solid', R: 0.5, shape: 'circle', cx: 0, cy: 0, flip: false, tiles: 0 },
       steps: [
-        { did: 'Write (2.24) for i = 1 with both sums', tex: '(\\nabla\\times\\mathbf u)_1 = \\sum_{j=1}^{3}\\sum_{k=1}^{3}\\varepsilon_{1jk}\\,\\frac{\\partial u_k}{\\partial x_j}',
-          why: 'The summation convention hides a double sum over j and k — nine terms. We write it out to see which terms are nonzero.',
+        { did: 'Write the index form for i = 1 with both sums', tex: '(\\nabla\\times\\mathbf u)_1 = \\sum_{j=1}^{3}\\sum_{k=1}^{3}\\varepsilon_{1jk}\\,\\frac{\\partial u_k}{\\partial x_j}',
+          why: 'In $(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\partial_j u_k$ (2.24) the summation convention hides a double sum over j and k — nine terms. We write it out to see which terms are nonzero.',
           plain: 'Nine candidate terms for the first component.' },
         { did: 'Drop the terms with a repeated index', tex: '(\\nabla\\times\\mathbf u)_1 = \\varepsilon_{123}\\,\\frac{\\partial u_3}{\\partial x_2} + \\varepsilon_{132}\\,\\frac{\\partial u_2}{\\partial x_3}',
-          why: 'ε vanishes whenever two indices agree (2.18); with i = 1 fixed, only (j, k) = (2, 3) and (3, 2) avoid a repeat. Seven terms die.',
+          why: 'By (2.18), $\\varepsilon_{ijk} = 0$ whenever two indices agree; with i = 1 fixed, only (j, k) = (2, 3) and (3, 2) avoid a repeat. Seven terms die.',
           plain: 'Only the two "other" directions contribute.' },
         { did: 'Insert the values of ε', tex: '(\\nabla\\times\\mathbf u)_1 = \\frac{\\partial u_3}{\\partial x_2} - \\frac{\\partial u_2}{\\partial x_3}',
-          why: '123 is cyclic, so ε₁₂₃ = +1; 132 is anticyclic, so ε₁₃₂ = −1 (2.18). The minus sign comes from ε, not from the derivative.',
+          why: 'By (2.18), $\\varepsilon_{ijk} = +1$ for cyclic and $-1$ for anticyclic order: 123 gives ε₁₂₃ = +1, 132 gives ε₁₃₂ = −1. The minus sign comes from ε, not from the derivative.',
           plain: 'The first component is a difference of two cross-derivatives.' },
         { did: 'Relabel cyclically for i = 2', tex: '(\\nabla\\times\\mathbf u)_2 = \\frac{\\partial u_1}{\\partial x_3} - \\frac{\\partial u_3}{\\partial x_1}',
           why: 'Replacing every index by its cyclic successor 1 → 2 → 3 → 1 leaves ε unchanged (a two-place move, N43), so step 3 maps onto this line.',
           plain: 'Second component: the same pattern one step round the cycle — the survivors are now (j, k) = (3, 1) and (1, 3).' },
         { did: 'Relabel once more for i = 3 and assemble', tex: '(\\nabla\\times\\mathbf u)_3 = \\frac{\\partial u_2}{\\partial x_1} - \\frac{\\partial u_1}{\\partial x_2}',
-          why: 'Another cyclic step; survivors (1, 2) and (2, 1). The three lines together are (2.25). Throughout, ∂/∂x_j acts on u_k — u_k ∂_j would be an operator, not a number.',
+          why: 'Another cyclic step; survivors (1, 2) and (2, 1). The three lines together are (2.25): $\\varepsilon_{ijk}\\partial_j u_k$ written out. ∂/∂x_j acts on u_k — u_k ∂_j would be an operator, not a number.',
           plain: 'Third component: does u₂ grow along 1 more than u₁ grows along 2?',
           live: s => { const p = phys(s); return isFinite(p.curlC) ? `\\begin{aligned} (\\nabla\\times\\mathbf u)_3 &= ${tz(p.fd.du2dx)} - ${tzs(p.fd.du1dy)} \\\\ &= ${tz(p.fd.curl)}\\ \\text{1/s at the centre} \\end{aligned}` : '\\text{undefined at the core — move the loop}'; },
           highlight: ['readout:curl'], watch: 'The colour of the plane is this number (purple > 0, teal < 0); the wheel turns at half of it.' }
       ],
-      result: { tex: '\\begin{aligned} (\\nabla\\times\\mathbf u)_1 &= \\partial_2 u_3 - \\partial_3 u_2 \\\\ (\\nabla\\times\\mathbf u)_2 &= \\partial_3 u_1 - \\partial_1 u_3 \\\\ (\\nabla\\times\\mathbf u)_3 &= \\partial_1 u_2 - \\partial_2 u_1 \\end{aligned}', plain: 'each component of the curl is the "cross-derivative" of the other two velocity components (2.25).' },
-      interpret: s => { const p = phys(s); return isFinite(p.curlC) ? `For the ${p.F.word} at (${fz(s.cx)}, ${fz(s.cy)}): (∇×u)₃ = ${fz(p.curlC)} 1/s, so the wheel turns at half of this, ${fz(p.wheelRate)} rad/s ${p.wheelRate > 0 ? 'counterclockwise' : p.wheelRate < 0 ? 'clockwise' : '— it stands still'}. ${s.preset === 'shear' ? 'Nonzero for a straight shear flow: spin is about differences of speed across a point, not curved paths.' : s.preset === 'vortex' ? 'Zero away from the core: the dots orbit but do not spin about themselves. At the core the formula is undefined and the circulation (D26) takes over.' : ''}` : 'The centre is on the singular core, where (2.25) is undefined — the circulation (D26) takes over there.'; },
-      check: 'Units: (m/s)/m = 1/s. Number (Ex. 2.3, u = b × x = (−x₂, x₁, 0)): (∇×u)₃ = 1 − (−1) = 2 = 2b₃, the other two 0 (selftest "curl (2.25) solid"); shear u₁ = Γx₂: 0 − Γ = −Γ ("(2.35) shear").' }
+      result: { tex: '\\begin{aligned} (\\nabla\\times\\mathbf u)_1 &= \\partial_2 u_3 - \\partial_3 u_2 \\\\ (\\nabla\\times\\mathbf u)_2 &= \\partial_3 u_1 - \\partial_1 u_3 \\\\ (\\nabla\\times\\mathbf u)_3 &= \\partial_1 u_2 - \\partial_2 u_1 \\end{aligned}', plain: 'each component of the curl is the "cross-derivative" of the other two velocity components, e.g. $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25).' },
+      interpret: s => { const p = phys(s); return isFinite(p.curlC) ? `For the ${p.F.word} at (${fz(s.cx)}, ${fz(s.cy)}): (∇×u)₃ = ${fz(p.curlC)} 1/s, so the wheel turns at half of this, ${fz(p.wheelRate)} rad/s ${p.wheelRate > 0 ? 'counterclockwise' : p.wheelRate < 0 ? 'clockwise' : '— it stands still'}. ${s.preset === 'shear' ? 'Nonzero for a straight shear flow: spin is about differences of speed across a point, not curved paths.' : s.preset === 'vortex' ? 'Zero away from the core: the dots orbit but do not spin about themselves. At the core the formula is undefined and the circulation (D26) takes over.' : ''}` : 'The centre is on the singular core, where $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25) is undefined — the circulation (D26) takes over there.'; },
+      check: 'Units: (m/s)/m = 1/s. Number (Ex. 2.3, u = b × x = (−x₂, x₁, 0)): (∇×u)₃ = 1 − (−1) = 2 = 2b₃, the other two 0 (selftest "curl (2.25) solid"); shear u₁ = Γx₂: $\\partial_1 u_2 - \\partial_2 u_1 = 0 - \\Gamma = -\\Gamma$ (selftest "(2.35) shear").' }
   ],
   code: [
     { id: 'stokes', title: 'Both sides of Stokes\' theorem in Python', ref: 'Eqs. (2.34), (2.35)',
@@ -2795,7 +2795,7 @@ w3 = ch02.integral_curl_component(u, [cx, cy], None, h=0.1)  # {{w35}} 1/s
 rect = ch02.rectangle_loop([cx, cy], None, 2*R, 2*R*{{aspect}}, 100)
 Gamma_rect = ch02.circulation(u, rect)   # Ex. 2.6's loop: {{Grect}} m²/s`,
       live: s => { const p = phys(s), F = p.F, rl = rectLoop([s.cx, s.cy], 2 * s.R, 2 * s.R * s.aspect, 100), cl = circleLoop([s.cx, s.cy], s.R, 400); const G = circulation(F.u, cl), Fl = curlFlux(F.curl, cl); return { upy: F.py, preset: s.preset, cx: tz(s.cx), cy: tz(s.cy), R: Viz.fmt(s.R, { sig: 4 }), Gamma: tz(G), flux: tz(Fl), gap: Viz.fmt(Fl - G, { sig: 2, keepTiny: true }), ok: contains(cl, F.singular) ? 'False' : 'True', w35: isFinite(p.w35) ? tz(p.w35) : 'nan', aspect: tz(s.aspect), Grect: tz(circulation(F.u, rl)) }; } },
-    { id: 'curl', title: 'The curl by (2.25) and the orientation of C', ref: 'Eq. (2.25), Fig. 2.10',
+    { id: 'curl', title: 'The curl $\\partial_1 u_2 - \\partial_2 u_1$ (2.25) and the orientation of C', ref: 'Eq. (2.25), Fig. 2.10',
       src: `
 x1, x2 = {{cx}}, {{cy}}                 # the loop's centre [m]
 h = 0.01                              # central-difference step [m]
@@ -2810,16 +2810,16 @@ t = ch02.boundary_tangent(n_c, n)   # n_c × n = {{t}}: {{dir}}`,
   tour: [
     { title: 'A loop in a whirlpool', text: 'The plane spins like a record: u = b × x. Put a loop anywhere and add up the velocity <i>along</i> it — that sum is the <b>circulation</b>. Press ▶ to see the dots orbit and the wheel turn.', set: { preset: 'solid', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0, t: 0, probe: null }, play: true, highlight: ['view:field'] },
     { title: 'Unroll the loop', text: 'Along this circle u·t = 1 m/s at every point (a rigid spin is tangent to every circle). Unrolled, the graph is flat and its shaded area is 1 × 2π = 6.283 m²/s. Click the loop to read one term.', eq: 'stokes', inspect: true, set: { preset: 'solid', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0, probe: 50 }, highlight: ['view:ut'] },
-    { title: 'Stokes: it equals the curl inside', text: 'The curl is 2 everywhere (Ex. 2.3): 2 × π = 6.283. Circulation round the edge = total spin inside — the two bars match. The curl itself comes from (2.25).', derive: { id: 'D12', step: 5 }, readouts: ['Gamma', 'flux'], set: { preset: 'solid', cx: 0, cy: 0, R: 1, probe: null }, highlight: ['view:bars'] },
+    { title: 'Stokes: it equals the curl inside', text: 'The curl is 2 everywhere (Ex. 2.3): 2 × π = 6.283. Circulation round the edge = total spin inside — the two bars match. The curl is $(\\nabla\\times\\mathbf u)_3 = \\partial_1 u_2 - \\partial_2 u_1$ (2.25).', derive: { id: 'D12', step: 5 }, readouts: ['Gamma', 'flux'], set: { preset: 'solid', cx: 0, cy: 0, R: 1, probe: null }, highlight: ['view:bars'] },
     { title: 'Straight flow, still spinning', text: 'Shear: every streamline is straight, yet the wheel turns and Γ ≠ 0. Faster on top, slower below — that difference <i>is</i> curl. Watch the wheel turn clockwise.', set: { preset: 'shear', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0 }, play: true, notes: true },
     { title: 'One rectangle proves it', text: 'Rectangle mode is Ex. 2.6: bottom + top give −∂u₁/∂x₂ ΔA, right + left give +∂u₂/∂x₁ ΔA. Tile any surface with rectangles and the interior edges cancel — that is Stokes\' theorem.', set: Object.assign({}, SHEAR_RECT), terms: true, derive: { id: 'D26', step: 6 } },
-    { title: 'Shrink it', text: 'Circulation per unit area → the normal curl, Eq. (2.35). Drag R down and watch the Γ/A readout hold at the point curl (∇×u)₃ = −1. Try the smooth field: then Γ/A only converges as R → 0.', set: { preset: 'shear', shape: 'circle', tiles: 0 }, controls: ['R'], readouts: ['ratio', 'curl'] },
+    { title: 'Shrink it', text: 'Circulation per unit area → the normal curl: $\\lim_{A\\to 0}\\Gamma/A = \\mathbf n\\cdot(\\nabla\\times\\mathbf u)$ (2.35). Drag R down and watch the Γ/A readout hold at the point curl (∇×u)₃ = −1. Try the smooth field: then Γ/A only converges as R → 0.', set: { preset: 'shear', shape: 'circle', tiles: 0 }, controls: ['R'], readouts: ['ratio', 'curl'] },
     { title: 'When Stokes fails', text: 'Irrotational vortex: curl zero everywhere — except at the core. Miss the core: Γ → 0. Enclose it: Γ = 2πK at any size. The field is not smooth inside, so the theorem does not apply.', set: { preset: 'vortex', cx: 0, cy: 0, R: 1, shape: 'circle', flip: false, tiles: 0 }, readouts: ['Gamma', 'flux'], play: true },
-    { title: 'Your turn: potential flow', text: 'Predict the circulation of u = ∇φ round any loop — then drag and resize to test it. Then flip the orientation: what happens to both sides of (2.34)?', set: { preset: 'potential', cx: 0.5, cy: 0.3, R: 0.8, shape: 'circle', flip: false, tiles: 0 }, controls: ['cx', 'cy', 'R', 'flip'], readouts: ['Gamma', 'flux'] }
+    { title: 'Your turn: potential flow', text: 'Predict the circulation of u = ∇φ round any loop — then drag and resize to test it. Then flip the orientation: what happens to both sides of $\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ (2.34)?', set: { preset: 'potential', cx: 0.5, cy: 0.3, R: 0.8, shape: 'circle', flip: false, tiles: 0 }, controls: ['cx', 'cy', 'R', 'flip'], readouts: ['Gamma', 'flux'] }
   ],
   equations: [
     { id: 'curl24', title: 'Curl, index form', ref: 'Eq. (2.24)', tex: '(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\,\\frac{\\partial u_k}{\\partial x_j}',
-      note: 'The cross product (2.21) with ∇ = e_j ∂/∂x_j as the first factor; ∂ acts on u_k (D12).', symbols: [['\\varepsilon_{ijk}', 'alternating tensor (2.18)', '–'], ['u_k', 'velocity component', 'm/s']] },
+      note: 'The cross product $(\\mathbf u\\times\\mathbf v)_k = \\varepsilon_{ijk}u_i v_j$ (2.21) with $\\nabla = \\mathbf e_j\\,\\partial/\\partial x_j$ as the first factor; ∂ acts on u_k (D12).', symbols: [['\\varepsilon_{ijk}', 'alternating tensor: $\\pm 1$ cyclic/anticyclic, 0 with a repeat (2.18)', '–'], ['u_k', 'velocity component', 'm/s']] },
     { id: 'curl25', title: 'z-component of the curl', ref: 'Eq. (2.25)', tex: '(\\nabla\\times\\mathbf u)_3 = \\frac{\\partial u_2}{\\partial x_1} - \\frac{\\partial u_1}{\\partial x_2}',
       live: s => { const p = phys(s); return isFinite(p.fd.curl) ? `= ${tz(p.fd.du2dx)} - ${tzs(p.fd.du1dy)} = ${tz(p.fd.curl)}\\ \\text{1/s at the centre}` : '\\text{undefined at the core}'; },
       note: 'The only component a plane flow has; a paddle wheel turns at half of it.' },
@@ -2843,7 +2843,7 @@ t = ch02.boundary_tangent(n_c, n)   # n_c × n = {{t}}: {{dir}}`,
     { q: 'b × x with R = 0.5 at centre (1, 1). What is the circulation?', a: '2 × π × 0.25 = 1.571 m²/s: the curl is uniform (2), so only the area matters, not where the loop is.', set: { preset: 'solid', cx: 1, cy: 1, R: 0.5, shape: 'circle', flip: false, tiles: 0 } },
     { q: 'Shear flow Γ = 1, unit square loop. Sign and size of the circulation?', a: '−1.000 m²/s: the top side is pushed in +x at speed 0.5 but walked in −x, the bottom is walked in +x at speed −0.5; both negative (−0.5 each); the vertical sides add nothing because u₂ = 0.', set: Object.assign({}, SHEAR_RECT) },
     { q: 'Vortex K = 1: a loop of radius 0.4 at (1.5, 0) versus radius 1 at the origin?', a: '≈ 0 versus 6.283 = 2πK: the curl lives only in the core; Γ counts whether the core is inside — and does not care about the size once it is.', set: { preset: 'vortex', cx: 1.5, cy: 0, R: 0.4, shape: 'circle', flip: false, tiles: 0 } },
-    { q: 'Flip n. What changes?', a: 't reverses, so u·t and Γ change sign — and so does (∇×u)·n, because n did. Both sides of (2.34) flip together; the theorem holds either way.', set: { preset: 'solid', cx: 0, cy: 0, R: 1, shape: 'circle', flip: true, tiles: 0 } }
+    { q: 'Flip n. What changes?', a: 't reverses, so u·t and Γ change sign — and so does (∇×u)·n, because n did. Both sides of $\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = \\iint_A (\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA$ (2.34) flip together; the theorem holds either way.', set: { preset: 'solid', cx: 0, cy: 0, R: 1, shape: 'circle', flip: true, tiles: 0 } }
   ],
   selftest: () => {
     const solid = FIELDS.solid, shear = FIELDS.shear, vortex = FIELDS.vortex, pot = FIELDS.potential, sm = FIELDS.smooth, src = FIELDS.source;

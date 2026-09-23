@@ -2708,12 +2708,12 @@ const app = Viz.app({
           'On the <b>p–v diagram</b> the <span class="c-blue">blue</span> area under the route is the work the gas does ($-w$). On the <b>T–s diagram</b> the <span class="c-orange">orange</span> area is the heat $q$. Grey curves are the other routes between the same states.') +
         W.hint('On a phone the T–s diagram is hidden; turn the phone sideways to see it.');
       out += W.step(1, 'The two end states') +
-        W.line(`$v_1 = RT_1/p_1 = ${tn(R_AIR, 5)} \\times 300 / 10^5$`, f3(V1, 4) + ' m³/kg', 'perfect gas, Eq. (1.22) with v = 1/ρ') +
+        W.line(`$v_1 = RT_1/p_1 = ${tn(R_AIR, 5)} \\times 300 / 10^5$`, f3(V1, 4) + ' m³/kg', 'perfect gas $p = \\rho RT$ (1.22), $v = 1/\\rho$') +
         W.line(`$v_2 = (v_2/v_1)\\,v_1 = ${tn(M.vr)} \\times ${tn(V1, 4)}$`, f3(M.v2, 4) + ' m³/kg', 'your volume ratio') +
         W.line(`$T_2 = (T_2/T_1)\\,T_1 = ${tn(M.Tr, 4)} \\times 300$`, f3(M.T2, 4) + ' K') +
         W.box(`$p_2 = RT_2/v_2 = ${tn(R_AIR, 5)} \\times ${tn(M.T2, 4)}/${tn(M.v2, 4)} = \\mathbf{${tn(M.p2 / 1000)}}$ kPa (start: 100 kPa)`);
       out += W.step(2, 'Internal energy: a state function') +
-        W.line(`$C_v = R/(\\gamma - 1) = ${tn(R_AIR, 5)}/${tn(M.gamma - 1, 3)}$`, f3(M.cv, 4) + ' J/(kg K)', 'Eqs. (1.23)–(1.24)') +
+        W.line(`$C_v = R/(\\gamma - 1) = ${tn(R_AIR, 5)}/${tn(M.gamma - 1, 3)}$`, f3(M.cv, 4) + ' J/(kg K)', '$R = C_p - C_v$ (1.23), $\\gamma = C_p/C_v$ (1.24)') +
         W.box(`$\\Delta e = C_v(T_2 - T_1) = ${tn(M.cv, 4)} \\times ${tp(M.T2 - T1, 4)} = \\mathbf{${tn(M.de / 1000)}}$ kJ/kg`) +
         W.say('For a perfect gas $e$ depends on $T$ only, so this number is the same for every route and for stirring or free expansion.');
       if (rev) {
@@ -2737,11 +2737,11 @@ const app = Viz.app({
         });
         out += W.say('All five routes between your two states (kJ/kg; Δs in J/(kg K)):') +
           W.table(['route', '$q$', '$w$', '$\\Delta e$', '$\\Delta s$'], rows, M.kind === 'isothermal-isochoric' && s.path === 'isothermal' ? 4 : cur);
-        out += W.step(4, 'Heat from the first law, Eq. (1.10)');
+        out += W.step(4, 'Heat from the first law $\\delta q + \\delta w = \\Delta e$ (1.10)');
         M.legs.forEach((L, k) => { if (!L.zero) out += W.line(`${M.legs.length > 1 ? 'leg ' + (k + 1) : 'the leg'}: $q = \\Delta e - w = ${tn(L.tot.de / 1000, 4)} - (${tn(L.tot.w / 1000, 4)})$`, kJ(L.tot.q) + ' kJ/kg'); });
         out += W.box(`$q = \\Delta e - w = ${tn(M.tot.de / 1000)} - (${tn(M.tot.w / 1000)}) = \\mathbf{${tn(M.tot.q / 1000)}}$ kJ/kg`);
         out += W.step(5, 'Entropy two ways') +
-          W.line(`Gibbs (1.18): $\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)} + ${tn(R_AIR, 4)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)', 'only the end states enter');
+          W.line(`Gibbs $T\\,ds = de + p\\,dv$ (1.18): $\\Delta s = C_v\\ln\\tfrac{T_2}{T_1} + R\\ln\\tfrac{v_2}{v_1} = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)} + ${tn(R_AIR, 4)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)', 'only the end states enter');
         M.legs.forEach((L, k) => {
           if (L.zero) return;
           const f = L.kind === 'isothermal' ? `$q/T = ${tn(L.tot.q, 4)}/${tn(L.Ta, 4)}$` : L.kind === 'isochoric' ? `$C_v\\ln(T_b/T_a) = ${tn(M.cv, 4)}\\ln ${tn(L.Tb / L.Ta, 4)}$`
@@ -2754,18 +2754,18 @@ const app = Viz.app({
       } else if (M.proc === 'stir') {
         out += W.step(3, 'Where the energy comes from') +
           W.line('$q$', '0', 'the jacket blocks heat') + W.line('$p\\,dv$ work', '0', 'the tank is rigid') +
-          W.box(`paddle work $w = \\Delta e = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg (1.10) — irreversible work, not $-p\\,dv$, so (1.11) does not apply`) +
+          W.box(`paddle work $w = \\Delta e = \\mathbf{${tn(M.tot.w / 1000)}}$ kJ/kg by $\\delta q + \\delta w = \\Delta e$ (1.10) — irreversible work, not $-p\\,dv$, so $de = dq - p\\,dv$ (1.11) does not apply`) +
           W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dv = 0$: $\\Delta s = C_v\\ln(T_2/T_1) = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)') +
+          W.line(`Gibbs $T\\,ds = de + p\\,dv$ (1.18) at $dv = 0$: $\\Delta s = C_v\\ln(T_2/T_1) = ${tn(M.cv, 4)}\\ln ${tn(M.Tr, 4)}$`, f3(M.ds, 4) + ' J/(kg K)') +
           W.line('actual $\\int \\delta q/T$', '0', 'no heat crossed the boundary') +
           W.box(`$\\Delta s = ${tn(M.ds)} > \\int\\delta q/T = 0$: Clausius–Duhem, entropy made by friction`) +
-          W.step(5, 'The T–s window') + W.say('The dashed rose curve joins equilibrium states, but its area is <b>not</b> heat: here $T\\,ds = de$ is the stirring work (1.18).');
+          W.step(5, 'The T–s window') + W.say('The dashed rose curve joins equilibrium states, but its area is <b>not</b> heat: here $T\\,ds = de + p\\,dv$ (1.18) with $dv = 0$ gives $T\\,ds = de$, the stirring work.');
       } else {
         out += W.step(3, 'Nothing crosses the boundary') +
           W.line('$q$', '0', 'insulated') + W.line('$w$', '0', 'the vacuum pushes back on nothing') +
           W.box(`$\\Delta e = q + w = 0$, so $T_2 = T_1 = 300$ K ($e = e(T)$)`) +
           W.step(4, 'Entropy two ways') +
-          W.line(`Gibbs (1.18) at $dT = 0$: $\\Delta s = R\\ln(v_2/v_1) = ${tn(R_AIR, 5)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 5) + ' J/(kg K)') +
+          W.line(`Gibbs $T\\,ds = de + p\\,dv$ (1.18) at $dT = 0$: $\\Delta s = R\\ln(v_2/v_1) = ${tn(R_AIR, 5)}\\ln ${tn(M.vr, 4)}$`, f3(M.ds, 5) + ' J/(kg K)') +
           W.line('actual $\\int \\delta q/T$', '0') +
           W.box(`$\\Delta s = ${tn(M.ds, 5)} > 0$: an isolated system's entropy rose (§1.8 ii)`) +
           W.step(5, 'The same end states, reversibly') +
@@ -2794,16 +2794,16 @@ const app = Viz.app({
   derivations: [
     { id: 'D10', title: 'The Gibbs relations: removing heat from the first law', short: 'Gibbs (1.18)', ref: 'Eq. (1.18)', view: 'pv',
       goal: 'Eliminate heat, which depends on the route, from the reversible first law, leaving relations between state functions only. Those relations then hold for <b>any</b> process.',
-      start: { tex: 'T\\,ds = dq \\quad\\text{and}\\quad de = dq - p\\,dv', plain: 'For a reversible change the heat received is $T\\,ds$ (1.17), and the first law with boundary work $-p\\,dv$ (1.11).' },
+      start: { tex: 'T\\,ds = dq \\quad\\text{and}\\quad de = dq - p\\,dv', plain: 'For a reversible change the heat received is $T\\,ds = dq$ (1.17), and the first law with boundary work is $de = dq - p\\,dv$ (1.11).' },
       plan: ['Solve the first law for $dq$ and substitute into $T\\,ds = dq$.', 'Rewrite with enthalpy using the product rule.', 'Explain why a route-independent relation holds for every process.'],
       uses: ['(1.17) $T\\,ds = dq$', '(1.11) $de = dq - p\\,dv$', '$h = e + pv$ (1.13)', 'differentials', 'product rule for differentials'],
       set: { path: 'isochoric-isobaric', vr: 2, Tr: 1, proc: 'rev' },
       steps: [
         { did: 'Solve the reversible first law for $dq$', tex: 'dq = de + p\\,dv',
-          why: 'Add $p\\,dv$ to both sides of (1.11). We isolate $dq$ because it is the route-dependent quantity we want to replace.',
+          why: 'Add $p\\,dv$ to both sides of $de = dq - p\\,dv$ (1.11). We isolate $dq$ because it is the route-dependent quantity we want to replace.',
           plain: 'Heat in = rise of internal energy + work done by the gas.' },
         { did: 'Substitute into $T\\,ds = dq$', tex: 'T\\,ds = de + p\\,dv',
-          why: '(1.17) says the same $dq$ equals $T\\,ds$ on a reversible route; equal things can replace each other.',
+          why: '$T\\,ds = dq$ (1.17): the same $dq$ equals $T\\,ds$ on a reversible route; equal things can replace each other.',
           plain: 'The first Gibbs relation: no heat left in it.',
           live: s => { const M = model(s); return `\\int\\tfrac{de}{T} + \\int\\tfrac{p\\,dv}{T} = ${tn(M.cv * Math.log(M.Tr), 4)} + ${tn(R_AIR * Math.log(M.vr), 4)} = ${tn(M.ds, 4)}`; },
           watch: 'For a perfect gas with constant $C_v$, both integrals need only the end states: $C_v\\ln(T_2/T_1) + R\\ln(v_2/v_1)$ J/(kg K).' },
@@ -2832,7 +2832,7 @@ const app = Viz.app({
       check: 'Units: J/kg on every term. Perfect gas, 300 → 600 K at constant p: form 1 gives C_v ln 2 + R ln 2 = 696.4 J/(kg K), form 2 gives C_p ln 2 − R ln 1 = 696.4. The notebook checks both residuals with sympy; the selftest compares Δs with ch01.perfect_gas_entropy_change.' },
     { id: 'D14', title: 'The isentropic law $p/\\rho^\\gamma = $ const', short: 'Isentrope (1.25)', ref: 'Eq. (1.25)', view: 'pv',
       goal: 'Find how pressure follows density when a perfect gas is compressed or expanded with no heat and no friction.',
-      start: { tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp', plain: 'The Gibbs relations (1.18), valid for any process.' },
+      start: { tex: 'T\\,ds = de + p\\,dv = dh - v\\,dp', plain: 'The Gibbs relations $T\\,ds = de + p\\,dv = dh - v\\,dp$ (1.18), valid for any process.' },
       plan: ['Set $ds = 0$ in both forms.', 'Use $e = e(T)$ and $h = h(T)$ to bring in $C_v$ and $C_p$.', 'Divide the two equations so $T$ drops out.', 'Switch from $v$ to $\\rho$ and integrate.'],
       uses: ['Gibbs relations (D10)', '$e = e(T)$, $h = h(T)$ for a perfect gas', '$\\gamma = C_p/C_v$ (1.24)', 'separation of variables', '$\\int dx/x = \\ln x$', 'log and exponent rules'],
       set: { path: 'isentropic-isochoric', vr: 0.5, Tr: PRESET_PUMP_TR, gas: '7/5', proc: 'rev', prog: 0.6 },
@@ -2841,13 +2841,13 @@ const app = Viz.app({
           why: 'Isentropic means $s$ does not change, so $T\\,ds = 0$ ($T > 0$). We start with the energy form because the work $p\\,dv$ appears in it.',
           plain: 'All the work done on the gas goes into internal energy.' },
         { did: 'Use $e = e(T)$', tex: 'C_v\\,dT = -p\\,dv',
-          why: 'For a perfect gas $e$ depends on $T$ only, so the partial derivative in (1.15) is an ordinary one and $de = C_v\\,dT$.',
+          why: 'For a perfect gas $e$ depends on $T$ only, so $C_v \\equiv (\\partial e/\\partial T)_v$ (1.15) is an ordinary derivative and $de = C_v\\,dT$.',
           plain: 'Compression ($dv < 0$) warms the gas.' },
         { did: 'Set $ds = 0$ in the second Gibbs form', tex: '0 = dh - v\\,dp',
           why: 'Isentropic, so $T\\,ds = 0$ in $T\\,ds = dh - v\\,dp$; we want a second equation that contains $dp$.',
           plain: 'At constant entropy the enthalpy changes only through the pressure.' },
         { did: 'Use $h = h(T)$', tex: 'C_p\\,dT = v\\,dp',
-          why: 'For a perfect gas $h$ depends on $T$ only, so $dh = C_p\\,dT$ (1.14).',
+          why: 'For a perfect gas $h$ depends on $T$ only, so $C_p \\equiv (\\partial h/\\partial T)_p$ (1.14) gives $dh = C_p\\,dT$.',
           plain: 'Raising the pressure raises the temperature.' },
         { did: 'Divide step 4 by step 2', tex: '\\frac{C_p}{C_v} = \\frac{v\\,dp}{-\\,p\\,dv}',
           why: 'Along a compression $dT \\neq 0$, so both sides of step 2 are nonzero and we may divide; $dT$ cancels, removing temperature from the problem.',

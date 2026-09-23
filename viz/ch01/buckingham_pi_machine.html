@@ -3104,7 +3104,7 @@ const app = Viz.app({
           (M.natural ? W.line('in units with ' + syms(M, M.rep) + ' = 1', '$' + q.tex + '$ reads ' + nf(M.cur[q.id]), 'which is exactly $\\Pi_1$ (Derivation step 12)') : '');
       }
       // 6 · the law
-      out += W.step(6, 'The dimensionless law') + W.line('$' + lawTex(M) + '$', '', M.groups ? 'Eq. (1.37) for your problem' : '') + W.say(physicsNote(M));
+      out += W.step(6, 'The dimensionless law') + W.line('$' + lawTex(M) + '$', '', M.groups ? 'Eq. (1.37), $\\phi(\\Pi_1,\\dots,\\Pi_{n-r}) = 0$, for your problem' : '') + W.say(physicsNote(M));
       if (M.groups && P === PROBLEMS.pipe && M.drop === 'none' && M.repId === 'book') {
         const lam = 32 * M.vals[1].SI * M.vals[3].SI;
         out += W.line('laminar: $32\\,\\Pi_2\\Pi_4 = 32 \\times ' + tn(M.vals[1].SI) + ' \\times ' + tn(M.vals[3].SI) + '$', nf(lam), 'Poiseuille (Ch. 8) would give Δp = ' + nf(lam * M.si.rho * M.si.U * M.si.U) + ' Pa; the 100 Pa here is just a sample value');
@@ -3196,9 +3196,9 @@ const app = Viz.app({
         plain: 'The law depends only on the $n - r$ groups.', set: { units: 'SI' },
         live: s => lawTex(machine(s)) }
     ],
-    result: { tex: '\\phi(\\Pi_1, \\Pi_2, \\dots, \\Pi_{n-r}) = 0', plain: '$n$ variables with $r$ independent dimensions can always be traded for $n - r$ independent dimensionless groups (Eq. 1.37).' },
+    result: { tex: '\\phi(\\Pi_1, \\Pi_2, \\dots, \\Pi_{n-r}) = 0', plain: '$n$ variables with $r$ independent dimensions can always be traded for $n - r$ independent dimensionless groups: $\\phi(\\Pi_1,\\dots,\\Pi_{n-r}) = 0$, Eq. (1.37).' },
     interpret: s => { const M = machine(s); return 'Your problem (' + M.P.title + '): $n = ' + M.n + '$, $r = ' + M.r + '$, so ' + (M.n - M.r) + ' group' + (M.n - M.r === 1 ? '' : 's') + (M.groups ? ': $' + M.groups.map(g => groupTex(g, M.V)).join(',\\ ') + '$.' : '. ' + errText(M).t + '.'); },
-    check: 'sympy: the null space of (1.39) has $4 = 7 - 3$ vectors, each with $A\\mathbf k = 0$, and $(1,0,0,0,-2,-1,0)$ lies in their span. Pipe: $\\Pi_1 = 10$ in SI and cgs. Blast (n = 4, r = 3): one group, a constant. The selftest rows check the same numbers against fluidpy.'
+    check: 'sympy: the null space of the pipe matrix $A$ of Eq. (1.39) (rows M, L, T; columns $\\Delta p, \\Delta x, d, \\varepsilon, U, \\rho, \\mu$) has $4 = 7 - 3$ vectors, each with $A\\mathbf k = 0$, and $(1,0,0,0,-2,-1,0)$ lies in their span. Pipe: $\\Pi_1 = 10$ in SI and cgs. Blast (n = 4, r = 3): one group, a constant. The selftest rows check the same numbers against fluidpy.'
   }],
   code: [
     { id: 'machine', title: 'The Π machine in Python', ref: 'Eqs. (1.37)–(1.40)',
@@ -3244,7 +3244,7 @@ ok = ch01.groups_independent(groups)   # {{ok}}`,
           scales: BASIS.map(b => b + ' ×' + cnum(M.scales[b])).join(' '), sol: M.P.solution, solnew: cnum(M.cur[q.id]),
           pis: M.groups ? '[' + M.vals.map(x => cnum(x.cur)).join(', ') + ']' : '—', ok: M.groups ? String(M.indep).replace(/^./, c => c.toUpperCase()) : '—' };
       } },
-    { id: 'sympy', title: 'Check D28 with sympy (pipe, Eq. 1.39)', ref: 'D28',
+    { id: 'sympy', title: 'Check D28 with sympy (pipe matrix A)', ref: 'D28 · Eq. (1.39)',
       src: `
 import sympy as sp          # exact linear algebra
 # (1.39): columns dp dx d eps U rho mu
@@ -3261,7 +3261,7 @@ print(sp.Matrix.hstack(*ns, k1).rank() == 4)  # True` }
   tour: [
     { title: 'Seven variables', text: 'The pressure drop $\\Delta p$ along a pipe depends on the tap distance $\\Delta x$, diameter $d$, roughness $\\varepsilon$, speed $U$, density $\\rho$ and viscosity $\\mu$. <b>Does a law really need all seven separately?</b>',
       set: Object.assign({}, START), play: false },
-    { title: 'Dimensions as columns', text: 'Write each dimension as powers of mass M, length L and time T, and stack the exponents as columns: the dimensional matrix (1.39). Orange = M row, blue = L, teal = T.',
+    { title: 'Dimensions as columns', text: 'Write each dimension as powers of M, L, T and stack the exponents as columns, e.g. $[\\mu] = \\mathrm{M\\,L^{-1}T^{-1}} \\to (1, -1, -1)$: the dimensional matrix $A$ of Eq. (1.39). Orange = M row, blue = L, teal = T.',
       set: Object.assign({}, START, { sel: { kind: 'cell', id: 'mu', row: 'L' } }), eq: 'matrix', inspect: true, play: false },
     { title: 'Rank 3', text: 'Watch the search: the first two 3×3 blocks have determinant 0; the third, (Δp, Δx, U), gives −1, so r = 3. The map then shows all 35 blocks: 21 are nonzero.',
       set: Object.assign({}, START, { scan: 0 }), play: true, readouts: ['rank', 'det'], code: { id: 'machine', lines: [7, 8] }, highlight: ['readout:rank'] },

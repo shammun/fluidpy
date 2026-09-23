@@ -2553,7 +2553,7 @@ const app = Viz.app({
     items: [
       { id: 'SS', label: 'S:S = $S_{ij}S_{ij}$', color: '#0fa39c', value: s => phys(s).SS },
       { id: 'AA', label: 'A:A = $A_{ij}A_{ij}$', color: '#f97316', value: s => phys(s).AA },
-      { id: 'SA', label: '2 S:A (2.29) — always 0', color: '#e11d6a', value: s => 2 * phys(s).SA }
+      { id: 'SA', label: '2 S:A — $\\tau_{ij}A_{ij} = 0$ (2.29)', color: '#e11d6a', value: s => 2 * phys(s).SA }
     ],
     total: { label: 'G:G = $G_{ij}G_{ij}$', value: s => phys(s).GG }
   },
@@ -2622,7 +2622,7 @@ const app = Viz.app({
         W.line(`under $S$: length along $\\theta_p + 90°$ × $e^{\\lambda_2 t}$`, Viz.live('eS2'), 'area factor $e^{(\\lambda_1+\\lambda_2)t} = e^{(\\nabla\\cdot\\mathbf u)t}$ = ' + Viz.live('area') + (Math.abs(p.div) < TINY ? ' — kept, because $S_{ii} = \\nabla\\cdot\\mathbf u = 0$' : '')) +
         W.line('under $A$: turned by $\\tfrac12\\omega_3 t$', Viz.live('turn') + ' rad = ' + Viz.live('turnDeg') + '°', 'rigid rotation, shape kept') +
         (p.regime === 'shear' ? W.line('under $G$: top edge slid by $\\Gamma t\\,x_2$', Viz.live('slide') + ' x₂', 'a lean, not a turn — every streamline is straight') : W.line('under $G$: area factor $\\det e^{Gt}$', Viz.live('areaG'), 'the same as under $S$: $A$ never changes area'));
-      out += W.step(6, 'A symmetric tensor cannot see A — Eqs. (2.28)–(2.29)') +
+      out += W.step(6, 'A symmetric tensor cannot see A — $\\tau_{ij}B_{ij} = \\tau_{ij}S_{ij}$ (2.28), $\\tau_{ij}A_{ij} = 0$ (2.29)') +
         W.line(`$\\tau_{ij}S_{ij}$ with the probe $\\tau = S$: $S_{ij}S_{ij} = ${tz(S[0][0])}^2 + 2(${tz(S[0][1])})^2 + ${tz(S[1][1])}^2$`, tz(sdc.PS) + ' 1/s²', 'the teal bar') +
         W.line(`$\\tau_{ij}A_{ij} = S_{12}A_{12} + S_{21}A_{21} = ${tz(S[0][1])}(${tz(A[0][1])}) + ${tz(S[1][0])}(${tz(A[1][0])})$`, tz(sdc.PA) + ' 1/s²', 'swapping $i \\leftrightarrow j$ flips $A$ but not $\\tau$, so the sum equals its own negative: zero') +
         W.box(`$\\tau_{ij}G_{ij} = \\tau_{ij}S_{ij} + \\tau_{ij}A_{ij} = ${tz(sdc.PS)} + ${tz(sdc.PA)} = \\mathbf{${tz(sdc.P)}}$ 1/s² — this is why viscous dissipation (Ch. 4) sees only $S$.`);
@@ -2652,9 +2652,9 @@ const app = Viz.app({
   derivations: [
     { id: 'D14', title: 'The unique split into symmetric and antisymmetric parts', short: 'S + A', ref: '§2.10',
       goal: 'Show that any second-order tensor is the sum of a symmetric and an antisymmetric tensor in exactly one way, and that both parts are themselves tensors — the basis of Ch. 3\'s strain rate and rotation rate.',
-      start: { tex: 'B_{ij}\\ \\text{— any second-order tensor}', plain: 'nine numbers that transform by (2.12).' },
-      plan: ['Add and subtract half the transpose.', 'Check the symmetry of each half.', 'Suppose a second split and show it coincides.', 'Transform each half with (2.12).'],
-      uses: ['transpose $B_{ji}$', 'definitions of symmetric and antisymmetric', 'linearity of (2.12)', 'dummy renaming', '"both symmetric and antisymmetric ⇒ zero"'],
+      start: { tex: 'B_{ij}\\ \\text{— any second-order tensor}', plain: 'nine numbers that transform by $B\'_{mn} = C_{im}C_{jn}B_{ij}$ (2.12).' },
+      plan: ['Add and subtract half the transpose.', 'Check the symmetry of each half.', 'Suppose a second split and show it coincides.', 'Transform each half with $B\'_{mn} = C_{im}C_{jn}B_{ij}$ (2.12).'],
+      uses: ['transpose $B_{ji}$', 'definitions of symmetric and antisymmetric', 'linearity of $B\'_{mn} = C_{im}C_{jn}B_{ij}$ (2.12)', 'dummy renaming', '"both symmetric and antisymmetric ⇒ zero"'],
       view: 'matrix', set: Object.assign({}, SHEAR, { show: 'all' }),
       steps: [
         { did: 'Add and subtract $\\tfrac12 B_{ji}$', tex: 'B_{ij} = \\tfrac12(B_{ij} + B_{ji}) + \\tfrac12(B_{ij} - B_{ji})',
@@ -2675,8 +2675,8 @@ const app = Viz.app({
           why: 'X is a difference of symmetric tensors (so symmetric) and a difference of antisymmetric ones (so antisymmetric); a number equal to its own negative is zero. Hence $\\tilde S = S$, $\\tilde A = A$.',
           plain: 'Only the zero tensor is both symmetric and antisymmetric — the split is unique.',
           set: { show: 'all' }, watch: 'Both parts drawn: the teal square and the orange square together reproduce the black one — there is no other pair that would.' },
-        { did: 'Transform S with (2.12)', tex: '\\begin{aligned} S\'_{mn} &= \\tfrac12(B\'_{mn} + B\'_{nm}) \\\\ &= C_{im}C_{jn}\\,\\tfrac12(B_{ij} + B_{ji}) = C_{im}C_{jn}S_{ij} \\end{aligned}',
-          why: '(2.12) is linear, so it applies to each term; in $B\'_{nm} = C_{in}C_{jm}B_{ij}$ renaming the dummies $i \\leftrightarrow j$ gives $C_{im}C_{jn}B_{ji}$. The same lines with a minus give A.',
+        { did: 'Transform S with the tensor rule', tex:'\\begin{aligned} S\'_{mn} &= \\tfrac12(B\'_{mn} + B\'_{nm}) \\\\ &= C_{im}C_{jn}\\,\\tfrac12(B_{ij} + B_{ji}) = C_{im}C_{jn}S_{ij} \\end{aligned}',
+          why: 'The rule $B\'_{mn} = C_{im}C_{jn}B_{ij}$ (2.12) is linear, so it applies to each term; in $B\'_{nm} = C_{in}C_{jm}B_{ij}$ renaming the dummies $i \\leftrightarrow j$ gives $C_{im}C_{jn}B_{ji}$. The same lines with a minus give A.',
           plain: 'The symmetric part of the transformed B is the transformed symmetric part — S and A are tensors.',
           live: s => { const p = phys(s), C = [[p.bmax[0], -p.bmax[1]], [p.bmax[1], p.bmax[0]]], Sp = M2.mul(M2.T(C), M2.mul(p.S, C)); return `\\begin{aligned} C &= \\text{rotation by } ${deg(p.thp)}° \\\\ S\' = C^{\\rm T}SC &= \\mathrm{diag}(${tz(Sp[0][0])},\\ ${tz(Sp[1][1])}) \\end{aligned}`; },
           watch: 'S in its own principal axes is diagonal: the blue/rose arrows of the S panel are those axes.' }
@@ -2686,16 +2686,16 @@ const app = Viz.app({
       check: 'Units: those of B. Limits: B symmetric ⇒ A = 0 (pure-strain preset), B antisymmetric ⇒ S = 0 (solid-body preset). Number: B = [[0, 2], [0, 0]] gives S = [[0, 1], [1, 0]], A = [[0, 1], [−1, 0]], S + A = B — the selftest rows S12 and A21 compare with fluidpy.symmetric_part / antisymmetric_part.' },
     { id: 'D15', title: 'The vector hidden in an antisymmetric tensor', short: 'vector of A', ref: 'Eqs. (2.26)–(2.27)',
       goal: 'Show that the three independent numbers of any antisymmetric tensor R form a vector ω, give the two-way map, and show that R acting on x rotates it: R·x = ω × x. The book checks one entry; the inverse and the sign are ours. Applied to the velocity gradient: R = G − Gᵀ has ω = ∇×u (the vorticity), and our part A = ½R has the vector ½ω.',
-      start: { tex: 'R_{ij} \\equiv -\\varepsilon_{ijk}\\,\\omega_k', plain: 'pack a vector into a 3×3 array with the alternating tensor (2.27, first part). Here R and ω are any antisymmetric tensor and its vector.' },
+      start: { tex: 'R_{ij} \\equiv -\\varepsilon_{ijk}\\,\\omega_k', plain: 'pack a vector into a 3×3 array with the alternating tensor, $R_{ij} = -\\varepsilon_{ijk}\\omega_k$ (2.27, first part). Here R and ω are any antisymmetric tensor and its vector.' },
       plan: ['Check R is antisymmetric and read off its entries.', 'Contract R with ε to get ω back (the 2δ identity).', 'Apply R to a vector and recognise a cross product.'],
-      uses: ['index moves of $\\varepsilon$ (a one-place swap flips the sign)', '$\\varepsilon_{ijl}\\varepsilon_{ijk} = 2\\delta_{lk}$ (D09)', 'Kronecker substitution', 'the cross product in index form (2.21)'],
+      uses: ['index moves of $\\varepsilon$ (a one-place swap flips the sign)', '$\\varepsilon_{ijl}\\varepsilon_{ijk} = 2\\delta_{lk}$ (D09)', 'Kronecker substitution', 'the cross product in index form $(\\mathbf u\\times\\mathbf v)_k = \\varepsilon_{ijk}u_iv_j$ (2.21)'],
       view: 'motion', set: Object.assign({}, SHEAR, { show: 'A' }),
       steps: [
         { did: 'Swap the indices of R', tex: '\\begin{aligned} R_{ji} &= -\\varepsilon_{jik}\\,\\omega_k \\\\ &= +\\varepsilon_{ijk}\\,\\omega_k = -R_{ij} \\end{aligned}',
           why: 'Swapping two indices of $\\varepsilon$ flips its sign (one-place move). So R is antisymmetric — exactly the kind of object we want to represent.',
           plain: 'The packed array is antisymmetric, as promised.' },
         { did: 'Read off the entries', tex: '\\begin{aligned} R_{12} &= -\\varepsilon_{123}\\,\\omega_3 = -\\omega_3 \\\\ R_{13} &= -\\varepsilon_{132}\\,\\omega_2 = +\\omega_2 \\\\ R_{23} &= -\\varepsilon_{231}\\,\\omega_1 = -\\omega_1 \\end{aligned}',
-          why: 'For each $(i, j)$ only the $k$ different from both survives; $\\varepsilon_{123} = \\varepsilon_{231} = +1$, $\\varepsilon_{132} = -1$ (2.18). With the zero diagonal and step 1 for the lower triangle, this is (2.26).',
+          why: 'For each $(i, j)$ only the $k$ different from both survives; $\\varepsilon_{123} = \\varepsilon_{231} = +1$, $\\varepsilon_{132} = -1$ (2.18). With the zero diagonal and step 1 for the lower triangle, this is the matrix (2.26), $R_{21} = \\omega_3$.',
           plain: 'Above the diagonal: −ω₃, +ω₂, −ω₁.',
           live: s => { const p = phys(s); return `\\begin{aligned} \\text{for } A = \\tfrac12 R:\\quad A_{12} &= -\\varepsilon_{123}\\,(\\tfrac12\\omega_3) \\\\ &= -(${tz(p.hw3)}) = ${tz(-p.hw3)}\\ ✓ \\end{aligned}`; } },
         { did: 'Contract R with ε to invert', tex: '\\varepsilon_{ijl}\\,R_{ij} = -\\varepsilon_{ijl}\\,\\varepsilon_{ijk}\\,\\omega_k',
@@ -2706,7 +2706,7 @@ const app = Viz.app({
           plain: 'The contraction returns minus twice the vector.',
           live: s => { const p = phys(s); return `\\begin{aligned} \\varepsilon_{ij3}A_{ij} &= A_{12} - A_{21} = ${tz(p.A[0][1])} + ${tz(-p.A[1][0])} = ${tz(p.A[0][1] - p.A[1][0])} \\\\ &= -2\\,(\\tfrac12\\omega_3)\\ \\Rightarrow\\ \\tfrac12\\omega_3 = ${tz(p.hw3)} \\end{aligned}`; } },
         { did: 'Solve for ω and rename', tex: '\\omega_k = -\\tfrac12\\,\\varepsilon_{ijk}\\,R_{ij}',
-          why: 'Divide by −2 and rename the free index $l \\to k$. This is the second half of (2.27); both sums run over 1..3 (the book\'s lower limit "i−1" is a misprint for i = 1).',
+          why: 'Divide by −2 and rename the free index $l \\to k$. This is the second half of (2.27), $\\omega_k = -\\tfrac12\\varepsilon_{ijk}R_{ij}$; both sums run over 1..3 (the book\'s lower limit "i−1" is a misprint for i = 1).',
           plain: 'Half the contraction of R with ε, sign reversed, gives ω back.' },
         { did: 'Apply R to a vector x', tex: 'R_{ij}\\,x_j = -\\varepsilon_{ijk}\\,\\omega_k\\,x_j = +\\varepsilon_{ikj}\\,\\omega_k\\,x_j',
           why: 'Insert the definition; then swap the last two indices of ε (one place, sign flips) to bring $k$ before $j$ — the order the cross-product formula needs.',
@@ -2719,7 +2719,7 @@ const app = Viz.app({
           set: { show: 'A' }, watch: 'Every tracer of the orange square moves at ½ω × x: perpendicular to its radius, faster further out — a rigid turn.' }
       ],
       result: { tex: '\\begin{aligned} R_{ij} &= -\\varepsilon_{ijk}\\omega_k,\\qquad \\omega_k = -\\tfrac12\\varepsilon_{ijk}R_{ij} \\\\ \\mathbf R\\cdot\\mathbf x &= \\boldsymbol\\omega\\times\\mathbf x \\end{aligned}', plain: 'an antisymmetric tensor is a vector, and acting with it means "cross with that vector" — a solid-body rotation. For the velocity gradient: R = G − Gᵀ ↔ ω = ∇×u, and A = ½R ↔ ½ω.' },
-      interpret: s => { const p = phys(s); return `With your $G$: the book's $R = G - G^{\\rm T}$ has $\\boldsymbol\\omega = \\nabla\\times\\mathbf u = (0, 0, ${tz(2 * p.hw3)})$ 1/s — Ch. 3's vorticity — and our $A = \\tfrac12 R$ has the vector $\\tfrac12\\boldsymbol\\omega = (0, 0, ${tz(p.hw3)})$ rad/s. ${Math.abs(p.hw3) < TINY ? 'Here ω = 0: A vanishes and nothing turns.' : `The orange square turns ${p.hw3 < 0 ? 'clockwise' : 'counter-clockwise'} at ${f2z(Math.abs(p.hw3))} rad/s, exactly like Ex. 2.3's $\\mathbf b\\times\\mathbf x$ with $\\mathbf b = \\tfrac12\\boldsymbol\\omega$.`} The sign in (2.27) is chosen so that R·x = ω × x; with the opposite sign it would be −ω × x.`; },
+      interpret: s => { const p = phys(s); return `With your $G$: the book's $R = G - G^{\\rm T}$ has $\\boldsymbol\\omega = \\nabla\\times\\mathbf u = (0, 0, ${tz(2 * p.hw3)})$ 1/s — Ch. 3's vorticity — and our $A = \\tfrac12 R$ has the vector $\\tfrac12\\boldsymbol\\omega = (0, 0, ${tz(p.hw3)})$ rad/s. ${Math.abs(p.hw3) < TINY ? 'Here ω = 0: A vanishes and nothing turns.' : `The orange square turns ${p.hw3 < 0 ? 'clockwise' : 'counter-clockwise'} at ${f2z(Math.abs(p.hw3))} rad/s, exactly like Ex. 2.3's $\\mathbf b\\times\\mathbf x$ with $\\mathbf b = \\tfrac12\\boldsymbol\\omega$.`} The sign in $R_{ij} = -\\varepsilon_{ijk}\\omega_k$ (2.27) is chosen so that R·x = ω × x; with the opposite sign it would be −ω × x.`; },
       check: 'Units: those of ω. Round trip ω = (1, 2, 3) → R → ω (selftest row "round trip"). Number: ω = (0, 0, −1), x = (1, 0, 0): R = [[0, 1, 0], [−1, 0, 0], [0, 0, 0]], R·x = (0, −1, 0) = ω × x — the sign-discrimination row "R12 from ω" compares with fluidpy.antisymmetric_from_vector. For the shear preset the 2×2 block of A = ½R is exactly this R with ω → ½ω = (0, 0, −1).' }
   ],
   code: [
@@ -2777,7 +2777,7 @@ theta = ch02.material_line_angle(G, t, 0.0)   # line angle: {{thG}} rad`,
     { id: 'omega', title: 'Two-way map', ref: 'Eq. (2.27)', tex: '\\begin{aligned} R_{ij} &= -\\varepsilon_{ijk}\\,\\omega_k \\\\ \\omega_k &= -\\tfrac12\\,\\varepsilon_{ijk}\\,R_{ij} \\end{aligned}',
       live: s => { const p = phys(s); return `\\text{vector of } A:\\ \\tfrac12\\boldsymbol\\omega = (0,\\ 0,\\ ${tz(p.hw3)})\\ \\text{rad/s}`; },
       note: 'The book\'s lower limit "i−1" reads i = 1. R·x = ω × x (D15). For the velocity gradient R = G − Gᵀ has ω = ∇×u; for u₁ = Γx₂ the curl is ω₃ = (∇×u)₃ = −Γ, so the vector of A = ½R is ½ω₃ = −Γ/2 (clockwise) and A·x = ½ω × x.',
-      symbols: [['\\varepsilon_{ijk}', 'alternating tensor (2.18)', '–']] },
+      symbols: [['\\varepsilon_{ijk}', 'alternating tensor (2.18): $\\varepsilon_{123} = +1$, sign flips on any swap', '–']] },
     { id: 'strain', title: 'Strain rate (Ex. 2.4)', ref: '§2.11', tex: 'S_{ij} = \\tfrac12\\Big(\\frac{\\partial u_i}{\\partial x_j} + \\frac{\\partial u_j}{\\partial x_i}\\Big)',
       live: s => { const p = phys(s); return `S_{12} = \\tfrac12(${tz(p.G[0][1])} + ${tz(p.G[1][0])}) = ${tz(p.S[0][1])}\\ \\text{1/s}`; },
       note: 'Γ ≡ S₁₂ in Ex. 2.4\'s matrix [[0, Γ], [Γ, 0]]; for u₁(x₂) alone S₁₂ = ½ du₁/dx₂, so du₁/dx₂ = 2Γ (the book\'s "2S₁₂ = Γ" line carries a stray 2).',

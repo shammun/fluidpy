@@ -2560,7 +2560,7 @@ const app = Viz.app({
   inspectHint: 'Drag the normal on the element, or click a point on the curves or on Mohr\'s circle.',
   notes: s => {
     const m = model(s), u = m.unit;
-    if (s.nonsym) return '<p>With $\\tau_{21} \\ne \\tau_{12}$ the two contractions disagree: <b>n·τ</b> = ' + P2(m.f[0], m.f[1]) + ' is the traction (2.15), the amber <b>τ·n</b> = ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' is not. Ch. 4 proves the stress is symmetric, so for real stresses they never differ — and the Mohr locus is no longer a circle.</p>';
+    if (s.nonsym) return '<p>With $\\tau_{21} \\ne \\tau_{12}$ the two contractions disagree: <b>n·τ</b> = ' + P2(m.f[0], m.f[1]) + ' is the traction $f_i = \\tau_{ji}n_j$ (2.15), the amber <b>τ·n</b> = ' + P2(m.alt[0], m.alt[1]) + ' ' + u + ' is not. Ch. 4 proves the stress is symmetric, so for real stresses they never differ — and the Mohr locus is no longer a circle.</p>';
     if (m.hydro) return '<p>$\\mathbf f = -p\\,\\mathbf n$ on every cut with $p = ' + tx(-m.mo.center) + '$ ' + u + ': the stress state of a fluid at rest (Ch. 1). No direction is special, so there is no principal direction to find — every direction is one, and the shear is zero everywhere.</p>';
     if (s.mode === 'strain') return '<p>Strain-rate mode (Ex. 2.4): $\\lambda = ' + tx(m.pr.lam[0]) + ',\\ ' + tx(m.pr.lam[1]) + '$ 1/s are the squeezing and stretching rates along the grey axes at $\\theta_p = ' + fdeg(m.thpDeg) + '$ and $\\theta_p + 90°$; on your cut a line element along $\\mathbf n$ stretches at $' + tx(m.sigma_n) + '$ 1/s and shears at $' + tx(m.tau_s) + '$ 1/s (Ch. 3 makes this precise; E3 shows the element deform).</p>';
     if (m.onPrincipal) return '<p>No slide across this cut: the material is pulled straight apart (or squeezed) by $\\sigma_n = ' + tx(m.sigma_n) + '$ ' + u + '. A crack would open on this plane. The other principal cut is 90° away.</p>';
@@ -2576,7 +2576,7 @@ const app = Viz.app({
         W.hint('On portrait phones Mohr\'s circle is hidden; its centre and radius are printed in the curve window\'s title and worked out in section 6.');
       out += W.step(1, 'Your normal') +
         W.line('$\\mathbf n = (\\cos\\phi, \\sin\\phi) = (\\cos ' + tx(s.phi, 0) + '°, \\sin ' + tx(s.phi, 0) + '°)$', P2(n[0], n[1]), 'a unit vector: n₁² + n₂² = 1; the cut itself is the line perpendicular to n');
-      out += W.step(2, 'Cauchy\'s formula term by term — Eq. (2.15)') +
+      out += W.step(2, 'Cauchy $f_i = \\tau_{ji}n_j$ (2.15) term by term') +
         W.say('$f_i = ' + S + '_{ji} n_j$ contracts the <b>first</b> index (row j = face j) with n:') +
         W.line('$f_1 = ' + S + '_{11}n_1 + ' + S + '_{21}n_2 = ' + tx(t[0][0]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][0]) + '\\times' + tx(n[1]) + '$', fx(m.f[0]) + ' ' + u, 'row 1 (face 1) and row 2 (face 2), first column') +
         W.line('$f_2 = ' + S + '_{12}n_1 + ' + S + '_{22}n_2 = ' + tx(t[0][1]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][1]) + '\\times' + tx(n[1]) + '$', fx(m.f[1]) + ' ' + u, 'second column') +
@@ -2604,15 +2604,15 @@ const app = Viz.app({
           W.box('Mohr: centre $I_1/2 = ' + tx(mo.center) + '$, radius $' + tx(mo.radius) + '$ ' + u + '; your point sits at $2(\\phi - \\theta_p) = ' + tx(2 * (s.phi - m.thpDeg), 0) + '°$ clockwise from the λmax point');
       } else {
         out += W.step(5, 'Principal axes need symmetry') + W.say('With $\\tau_{21} = 0 \\ne \\tau_{12}$ the four facts of §2.11 (real λ, perpendicular axes, diagonal form, bounds) are not guaranteed — the grey axes are those of the symmetric part only, and the Mohr locus is not a circle. Switch the toggle off to see them return.') +
-          W.step(6, 'Two contractions') + W.line('$(\\mathbf n\\cdot\\boldsymbol\\tau)_i = \\tau_{ji}n_j$', P2(m.f[0], m.f[1]) + ' ' + u, 'the traction (2.15), black arrow') + W.line('$(\\boldsymbol\\tau\\cdot\\mathbf n)_i = \\tau_{ij}n_j$', P2(m.alt[0], m.alt[1]) + ' ' + u, 'the amber arrow: not the traction');
+          W.step(6, 'Two contractions') + W.line('$(\\mathbf n\\cdot\\boldsymbol\\tau)_i = \\tau_{ji}n_j$', P2(m.f[0], m.f[1]) + ' ' + u, 'the traction $f_i = \\tau_{ji}n_j$ (2.15), black arrow') + W.line('$(\\boldsymbol\\tau\\cdot\\mathbf n)_i = \\tau_{ij}n_j$', P2(m.alt[0], m.alt[1]) + ' ' + u, 'the amber arrow: not the traction');
       }
-      out += W.step(7, 'The tetrahedron behind (2.15) — D05') +
+      out += W.step(7, 'The tetrahedron behind $f_i = \\tau_{ji}n_j$ (2.15)') +
         W.say('Open the Derivation tab: a small element with two coordinate faces and one slanted face of normal n. The coordinate faces carry the reversed rows $-' + S + '_{j\\cdot}$ (C04), the slanted face carries f, and the face areas are $dA_j = n_j\\,dA = ' + T2(n[0], n[1]) + '\\,dA$. Weight and inertia scale with the volume (h³), the face forces with the area (h²), so shrinking the element leaves $f_i = ' + S + '_{ji}n_j$.');
       out += W.step(8, 'At the current cut') +
         W.line('$\\phi$', Viz.live('phi') + '°') + W.line('<span class="c-blue">$\\sigma_n$</span>', Viz.live('sn') + ' ' + u) + W.line('<span class="c-rose">$\\tau_s$</span>', Viz.live('ts') + ' ' + u) +
         W.line('share of the maximum shear', Viz.live('pct') + ' %');
       let interp;
-      if (s.nonsym) interp = 'With τ₂₁ ≠ τ₁₂ the two contractions disagree; Ch. 4 proves the stress tensor is symmetric, so for a real stress they never do — this toggle only shows why the index order in (2.15) matters.';
+      if (s.nonsym) interp = 'With τ₂₁ ≠ τ₁₂ the two contractions disagree; Ch. 4 proves the stress tensor is symmetric, so for a real stress they never do — this toggle only shows why the index order in $f_i = \\tau_{ji}n_j$ (2.15) matters.';
       else if (m.hydro) interp = 'f = −p n on every cut: the stress state of a fluid at rest (Ch. 1). No direction is special, so there is no principal direction to find; the curves are flat and the circle is a point.';
       else if (s.mode === 'strain') interp = 'λ = ' + fx(pr.lam[0]) + ' and ' + fx(pr.lam[1]) + ' 1/s are the squeezing and stretching rates along the axes at θp = ' + fdeg(m.thpDeg) + ' and θp + 90° — Ex. 2.4 for pure shear; the fluid element in the strain-vs-rotation explainer does exactly this.';
       else if (m.onPrincipal) interp = 'No slide across this cut — the material here is pulled straight apart (or squeezed) by ' + fx(m.sigma_n) + ' ' + u + '; a crack would open on this plane. The other shear-free cut is 90° away.';
@@ -2652,7 +2652,7 @@ const app = Viz.app({
           why: 'dA ≠ 0. For a tetrahedron of size h, dA ∝ h² and dV ∝ h³, so dV/dA ∝ h (orders of smallness); ρ, g, a stay finite.', plain: 'The volume term is smaller than the face terms by the element\'s size.', set: { sketch: 'tetra', shrink: 0.5 },
           watch: 'The element is drawn at half its size: the face arrows (per unit area) are unchanged, the dashed volume term has shrunk to half — it scales with h.' },
         { did: 'Let the element shrink to the point', tex: 'f_i = \\tau_{ji}\\,n_j',
-          why: 'As h → 0 the last term of step 8 vanishes while the others do not depend on h (stresses continuous at the point). This is (2.15).', plain: 'The traction on any plane is τ contracted with the normal on its first index.', set: { sketch: 'tetra', shrink: 0.25 },
+          why: 'As h → 0 the last term of step 8 vanishes while the others do not depend on h (stresses continuous at the point). This is $f_i = \\tau_{ji}n_j$ (2.15).', plain: 'The traction on any plane is τ contracted with the normal on its first index.', set: { sketch: 'tetra', shrink: 0.25 },
           live: s => { const m = model(s), t = m.tau, n = m.n; return '\\begin{aligned} f_1 &= ' + tx(t[0][0]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][0]) + '\\times' + tx(n[1]) + ' = ' + tx(m.f[0]) + ' \\\\ f_2 &= ' + tx(t[0][1]) + '\\times' + tx(n[0]) + ' + ' + tx(t[1][1]) + '\\times' + tx(n[1]) + ' = ' + tx(m.f[1]) + '\\ \\text{' + m.unit + '} \\end{aligned}'; },
           highlight: ['readout:f'] }
       ],
@@ -2662,8 +2662,8 @@ const app = Viz.app({
     { id: 'D17', title: 'Real eigenvalues, orthogonal axes, diagonal form and the bounds — for a real symmetric tensor', short: 'D17 · principal axes', ref: '§2.11 facts (1)–(4)', view: 'curves',
       goal: 'Prove the four facts §2.11 states without proof: for a real symmetric τ (1) the eigenvalues are real, (2) eigenvectors of distinct eigenvalues are perpendicular, (3) in the axes of the eigenvectors τ is diagonal, (4) the normal stress on every plane lies between the smallest and largest eigenvalue — and the shear is bounded by half their spread.',
       start: { tex: '\\tau_{ij}\\,b_j = \\lambda\\,b_i,\\qquad \\tau_{ij} = \\tau_{ji}\\ \\text{real}', plain: 'A direction b that τ only scales (no shear on the plane ⊥ b); λ and b may be complex until we prove otherwise.' },
-      plan: ['Contract the eigen-equation with the conjugate eigenvector, conjugate, use symmetry: λ = λ̄.', 'Do the same with two eigenpairs: (λ¹ − λ²) b¹·b² = 0.', 'Put the unit eigenvectors as columns of C — exactly C02\'s C — and apply (2.12).', 'Expand any unit n in the eigenbasis and read the normal stress as a weighted mean of the λ\'s.'],
-      uses: ['eigenvalues and eigenvectors', 'complex conjugate and |z|² = z z̄', 'symmetry τ_ij = τ_ji', 'dummy renaming', 'orthonormality and completeness', 'the transformation rule (2.12)', 'quadratic form / Rayleigh quotient', 'Gram–Schmidt for repeated λ'],
+      plan: ['Contract the eigen-equation with the conjugate eigenvector, conjugate, use symmetry: λ = λ̄.', 'Do the same with two eigenpairs: (λ¹ − λ²) b¹·b² = 0.', 'Put the unit eigenvectors as columns of C — exactly C02\'s C — and apply $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12).', 'Expand any unit n in the eigenbasis and read the normal stress as a weighted mean of the λ\'s.'],
+      uses: ['eigenvalues and eigenvectors', 'complex conjugate and |z|² = z z̄', 'symmetry τ_ij = τ_ji', 'dummy renaming', 'orthonormality and completeness', 'the transformation rule $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12)', 'quadratic form / Rayleigh quotient', 'Gram–Schmidt for repeated λ'],
       set: { phi: 30, nonsym: false, sketch: 'none' },
       steps: [
         { did: 'Contract the eigen-equation with the conjugate eigenvector', tex: '\\bar b_i\\,\\tau_{ij}\\,b_j = \\lambda\\,\\bar b_i b_i',
@@ -2687,8 +2687,8 @@ const app = Viz.app({
           live: s => { const m = model(s); return '\\theta_p = ' + tx(m.thpDeg, 1) + '°:\\quad \\mathbf b_{\\max}\\cdot\\mathbf b_{\\min} = ' + tx(m.pr.bmax[0] * m.pr.bmin[0] + m.pr.bmax[1] * m.pr.bmin[1]) + ',\\quad \\tau_s(\\theta_p) = ' + tx(traction2d(m.tau, m.pr.angle).tau_s); } },
         { did: 'Build C from the unit eigenvectors', tex: 'C_{ij} \\equiv b^j_i = \\mathbf e_i\\cdot\\mathbf b^j,\\qquad \\mathbf C^{\\rm T}\\mathbf C = \\mathbf I',
           why: 'Take the new axes $\\mathbf e\'_j = \\mathbf b^j$ (unit, mutually perpendicular by step 8): then $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$ is precisely C02\'s direction-cosine matrix, orthogonal by D02.', plain: 'The columns of C are the principal axes; flip the sign of one b if det C = −1, to keep a rotation.' },
-        { did: 'Apply the transformation rule (2.12)', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij} = b^m_i\\,\\tau_{ij}\\,b^n_j',
-          why: '(2.12) for a second-order tensor (D06) with step 9\'s C inserted. The right side is "τ between b^m and b^n" — the quantity of step 6.', plain: 'The new components are τ sandwiched between two principal axes.' },
+        { did: 'Apply the tensor transformation rule', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij} = b^m_i\\,\\tau_{ij}\\,b^n_j',
+          why: 'The rule $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) for a second-order tensor (D06) with step 9\'s C inserted. The right side is "τ between b^m and b^n" — the quantity of step 6.', plain: 'The new components are τ sandwiched between two principal axes.' },
         { did: 'Use the eigen-equation on b^n', tex: '\\tau\'_{mn} = \\lambda^n\\,b^m_ib^n_i = \\lambda^n\\,\\delta_{mn}',
           why: '$\\tau_{ij}b^n_j = \\lambda^nb^n_i$ (no sum on n), then orthonormality $\\mathbf b^m\\cdot\\mathbf b^n = \\delta_{mn}$ (steps 8–9). So τ\' is diagonal with the eigenvalues on the diagonal (fact 3).', plain: 'In the principal axes there is no shear at all — only λ¹, λ², λ³.',
           live: s => { const d = diagonalize2d(model(s).tau); return '\\tau\' = \\mathbf C^{\\rm T}\\tau\\,\\mathbf C = \\begin{pmatrix} ' + tx(d.tauP[0][0]) + ' & ' + tx(d.tauP[0][1]) + ' \\\\ ' + tx(d.tauP[1][0]) + ' & ' + tx(d.tauP[1][1]) + ' \\end{pmatrix}'; } },
@@ -2752,9 +2752,9 @@ C, tau_p = ch02.diagonalize(tau)           # tau' = C^T tau C = diag({{l1}}, {{l
       symbols: [['\\sigma_n', 'normal stress on the cut (tension +)', 'Pa'], ['\\tau_s', 'shear stress along the cut', 'Pa']] },
     { id: 'eigen', title: 'Eigen-equation of the principal axes', ref: '§2.11', tex: '\\begin{aligned} \\det|\\tau_{ij} - \\lambda\\delta_{ij}| &= 0 \\\\ (\\tau_{ij} - \\lambda\\delta_{ij})\\,b_j &= 0 \\end{aligned}',
       live: s => { const m = model(s); return '\\lambda = ' + tx(m.pr.lam[0]) + ',\\ ' + tx(m.pr.lam[1]) + '\\ \\text{' + m.unit + '}'; }, note: 'in 2-D the determinant is λ² − I₁λ + I₂ with I₁ the trace and I₂ the determinant of τ',
-      symbols: [['\\lambda', 'eigenvalue = principal stress', 'Pa'], ['b_j', 'eigenvector = principal axis (unit)', '–'], ['\\delta_{ij}', 'Kronecker delta, Eq. (2.16)', '–']] },
+      symbols: [['\\lambda', 'eigenvalue = principal stress', 'Pa'], ['b_j', 'eigenvector = principal axis (unit)', '–'], ['\\delta_{ij}', 'Kronecker delta: $\\delta_{ij} = 1$ if $i = j$, else 0 (2.16)', '–']] },
     { id: 'diag', title: 'Diagonal form in the principal axes', ref: '§2.11 fact (3), Eq. (2.12)', tex: '\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C = \\mathrm{diag}(\\lambda^1, \\lambda^2),\\qquad \\mathbf C = [\\mathbf b^1\\ \\mathbf b^2]',
-      live: s => { const d = diagonalize2d(model(s).tau); return '\\tau\' = \\mathrm{diag}(' + tx(d.tauP[0][0]) + ',\\ ' + tx(d.tauP[1][1]) + '),\\quad \\tau\'_{12} = ' + tx(d.tauP[0][1]); }, note: 'the transformation rule (2.12) with the eigenvectors as the new axes: no shear component survives',
+      live: s => { const d = diagonalize2d(model(s).tau); return '\\tau\' = \\mathrm{diag}(' + tx(d.tauP[0][0]) + ',\\ ' + tx(d.tauP[1][1]) + '),\\quad \\tau\'_{12} = ' + tx(d.tauP[0][1]); }, note: 'the transformation rule $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) with the eigenvectors as the new axes: no shear component survives',
       symbols: [['C_{ij}', 'direction cosines e_i · e\'_j', '–']] },
     { id: 'mohr', title: 'Principal values in 2-D (Mohr\'s circle)', ref: 'Ch. 4 preview', tex: '\\lambda_{1,2} = \\tfrac{\\tau_{11}+\\tau_{22}}{2} \\pm \\sqrt{\\big(\\tfrac{\\tau_{11}-\\tau_{22}}{2}\\big)^2 + \\tau_{12}^2}',
       live: s => { const m = model(s); return '\\lambda = ' + tx(m.mo.center) + ' \\pm ' + tx(m.mo.radius) + '\\ \\text{' + m.unit + '}'; }, note: 'centre and radius of the circle traced by (σn, τs) as the cut turns; the radius is the largest possible shear',
@@ -2764,7 +2764,7 @@ C, tau_p = ch02.diagonalize(tau)           # tau' = C^T tau C = diag({{l1}}, {{l
     { q: 'Channel shear a = 1 Pa. At which two angles φ is the shear on the cut largest, and how large is it?', a: 'φ = 0° and 90° — the coordinate faces themselves: τs = ±1 Pa = (λmax − λmin)/2, and there σn = 0. Watch the rose curve peak at 0°, 90°, 180°.', set: { mode: 'stress', nonsym: false, t11: 0, t22: 0, t12: 1, phi: 0 } },
     { q: 'Uniaxial pull τ₁₁ = 2 Pa, nothing else. Which cut carries the most shear, and how much?', a: 'The 45° cut: τs = 1 Pa, half the pull (the Mohr radius is (2 − 0)/2). The normal stress there is 1 Pa too — the centre of the circle.', set: { mode: 'stress', nonsym: false, t11: 2, t22: 0, t12: 0, phi: 45 } },
     { q: 'Set τ₁₁ = 1, τ₂₂ = −1, τ₁₂ = 0. Where are the principal axes?', a: 'θp = 0°: the given axes are already principal because τ is diagonal; λ = ±1 Pa and the maximum-shear cuts are at 45° and 135°, where τs = ±1 Pa.', set: { mode: 'stress', nonsym: false, t11: 1, t22: -1, t12: 0, phi: 45 } },
-    { q: 'Turn on the non-symmetric demo (τ₂₁ = 0). Which arrow is the traction, the black or the amber one?', a: 'The black one, n·τ (first index contracted), by (2.15). The amber τ·n is a different vector; for a real stress Ch. 4 proves τ₁₂ = τ₂₁, so the two coincide and the question never arises.', set: { mode: 'stress', nonsym: true, t11: 0, t22: 0, t12: 1, phi: 30 } }
+    { q: 'Turn on the non-symmetric demo (τ₂₁ = 0). Which arrow is the traction, the black or the amber one?', a: 'The black one, n·τ (first index contracted), by Cauchy $f_i = \\tau_{ji}n_j$ (2.15). The amber τ·n is a different vector; for a real stress Ch. 4 proves τ₁₂ = τ₂₁, so the two coincide and the question never arises.', set: { mode: 'stress', nonsym: true, t11: 0, t22: 0, t12: 1, phi: 30 } }
   ],
   selftest: () => {
     const n30 = [0.8660254037844387, 0.5], ph = 0.5235987755982988, T = [[0, 1], [1, 0]], T2v = [[1, 0.5], [0.5, -1]], T3 = [[1.2, 0.3], [0.3, -0.4]];

@@ -2234,7 +2234,7 @@ function phys(s) {
 }
 const COL = () => ({ out: Viz.color('orange'), in: Viz.color('blue'), total: Viz.color('teal'), inside: Viz.color('accent'), interior: Viz.color('rose'), ghost: Viz.color('muted'), box: Viz.color('accent') });
 const signCol = (v, C) => v > TINY ? C.out : v < -TINY ? C.in : C.ghost;
-const regimeName = p => ({ singular: 'singular point inside', solenoidal: 'solenoidal field', small: 'small box: the limit (2.32)', source: 'net outflow: a source inside', sink: 'net inflow: a sink inside', balanced: 'in = out for this box' })[p.regime];
+const regimeName = p => ({ singular: 'singular point inside', solenoidal: 'solenoidal field', small: 'small box: the limit $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32)', source: 'net outflow: a source inside', sink: 'net inflow: a sink inside', balanced: 'in = out for this box' })[p.regime];
 /** Relative error of (1/A)∮ against ∇·Q(x₀) as a percentage, or the absolute error where the exact value is 0. */
 const pctErr = p => Math.abs(p.exact) > 1e-9 ? Viz.fmt(100 * Math.abs(p.err) / Math.abs(p.exact), { sig: 2 }) + ' %' : fe(p.err) + ' 1/s';
 function statusOf(s) {
@@ -2513,7 +2513,7 @@ let drag = null;
 const app = Viz.app({
   title: 'What leaks out of a box?',
   autoplay: false,
-  subtitle: 'A plane field, a box you can move, tile and shrink: the four face fluxes always add up to the divergence inside — Gauss\' theorem (2.30) and the outflux definition (2.32) as one experiment',
+  subtitle: 'A plane field, a box you can move, tile and shrink: the four face fluxes always add up to the divergence inside — Gauss\' theorem and the outflux definition of the divergence as one experiment',
   params: {
     preset: { type: 'select', label: 'Field $\\mathbf Q$', value: 'radial', options: Object.keys(FIELDS).map(k => [k, FIELDS[k].label]) },
     shrink: { label: 'Box side $h = 10^{-\\sigma}$', min: -0.5, max: 2, step: 'any', value: 0, fmt: v => 'h = ' + Viz.fmt(Math.pow(10, -v), { sig: 3 }) + ' m', help: 'drag right to shrink the box (σ = −log₁₀ h); ▶ shrinks it for you' },
@@ -2539,7 +2539,7 @@ const app = Viz.app({
   readouts: [
     { id: 'rhs', label: 'Faces $\\oint \\mathbf n\\cdot\\mathbf Q\\,ds$', unit: 'm²/s', value: s => phys(s).rhs, help: 'sum of the four face fluxes, per metre of depth' },
     { id: 'lhs', label: 'Inside $\\iint \\nabla\\cdot\\mathbf Q\\,dA$', unit: 'm²/s', value: s => phys(s).lhs, help: 'the divergence integrated over the box' },
-    { id: 'ratio', label: '$(1/A)\\oint \\mathbf n\\cdot\\mathbf Q\\,ds$', unit: '1/s', value: s => phys(s).ratio, help: 'outflux per unit area — Eq. (2.32) before the limit' },
+    { id: 'ratio', label: '$(1/A)\\oint \\mathbf n\\cdot\\mathbf Q\\,ds$', unit: '1/s', value: s => phys(s).ratio, help: 'outflux per unit area — the divergence before the limit V → 0' },
     { id: 'exact', label: '$\\nabla\\cdot\\mathbf Q(\\mathbf x_0)$', unit: '1/s', value: s => phys(s).exact, help: 'the exact divergence at the box centre' },
     { id: 'h', label: 'Box side $h$', unit: 'm', value: s => hOf(s), optional: true },
     { id: 'gap', label: 'Gap $|\\oint - \\iint|$', value: s => Math.abs(phys(s).gap), fmt: v => fe(v) + ' m²/s', optional: true }
@@ -2588,7 +2588,7 @@ const app = Viz.app({
     callouts: [{ kind: 'try', html: 'Choose <b>b × x</b> and put the box anywhere: predict the total before reading the bars. Then <b>source</b> with the origin inside and outside.' }]
   },
   terms: {
-    title: 'Face by face — Eq. (2.30) on this box',
+    title: 'Face by face — Gauss on this box',
     unit: 'm²/s',
     items: [
       { id: 'left', label: 'left face ($\\mathbf n = -\\mathbf e_1$)', color: '#2563eb', value: s => phys(s).faces.left },
@@ -2625,8 +2625,8 @@ const app = Viz.app({
       source: `<b>More leaves than enters:</b> ${fz(p.rhs)} m²/s (m³/s per metre of depth) flows out of this box. Per unit area that is ${fz(p.ratio)} 1/s — the divergence. Fluid would have to be created inside at this rate (or, in Ch. 4, its density would have to fall).`,
       sink: `<b>More enters than leaves:</b> ${fz(-p.rhs)} m²/s flows <i>in</i> — convergence; per unit area ${fz(p.ratio)} 1/s. In Ch. 4 the density inside would rise at this rate.`,
       solenoidal: `<b>In = out for every box:</b> what enters through one face leaves through another (∇·Q = 0 everywhere${p.F.singular ? ' away from the origin' : ''}). The incompressible flows of Ch. 4–9 look like this everywhere.`,
-      small: `<b>The box is small enough</b> that (1/A)∮ = ${fz(p.ratio)} has converged to the point value ∇·Q(x₀) = ${fz(p.exact)} 1/s (error ${fe(p.err)}): this is the divergence <i>defined</i> without coordinates, Eq. (2.32).`,
-      singular: `<b>The field is not differentiable at the origin.</b> The flux ${fz(p.rhs)} ≈ m = ${p.F.m} m²/s is the same for every box enclosing it, however small — Gauss' theorem needs a smooth Q inside, and (2.32) gives a delta function, not a number.`,
+      small: `<b>The box is small enough</b> that (1/A)∮ = ${fz(p.ratio)} has converged to the point value ∇·Q(x₀) = ${fz(p.exact)} 1/s (error ${fe(p.err)}): this is the divergence <i>defined</i> without coordinates, $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32).`,
+      singular: `<b>The field is not differentiable at the origin.</b> The flux ${fz(p.rhs)} ≈ m = ${p.F.m} m²/s is the same for every box enclosing it, however small — Gauss' theorem needs a smooth Q inside, and the limit $\\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) gives a delta function, not a number.`,
       balanced: `<b>The outflow through some faces balances the inflow through others</b> for this box: the divergence inside (${p.F.divTex.indexOf('cos') >= 0 ? '2 cos x₁ cos x₂' : '∇·Q'}) is positive in part of the box and negative in the rest, and integrates to ${fe(p.lhs)}.`
     }[p.regime];
     return `<p><b>Right now</b> (${regimeName(p)}, h = ${f3(p.h)} m at (${fz(p.cx)}, ${fz(p.cy)})):</p>` + W.table(['face', 'flux [m²/s]'], rows) + `<p>${meaning}</p>`;
@@ -2648,11 +2648,11 @@ const app = Viz.app({
         W.line(`top ($x_2 = ${tz(p.box[1][1])}$, $\\mathbf n = +\\mathbf e_2$): $\\overline{Q_2}\\,h$`, `<b class="${fc.top >= 0 ? 'c-orange' : 'c-blue'}">${fs(fc.top)}</b>`) +
         W.line(`bottom ($x_2 = ${tz(p.box[1][0])}$, $\\mathbf n = -\\mathbf e_2$): $-\\overline{Q_2}\\,h$`, `<b class="${fc.bottom >= 0 ? 'c-orange' : 'c-blue'}">${fs(fc.bottom)}</b>`) +
         W.box(`$\\oint \\mathbf n\\cdot\\mathbf Q\\,ds = ${tz(fc.right)}${pm(fc.left)}${pm(fc.top)}${pm(fc.bottom)} = \\mathbf{${tz(p.rhs)}}$ m²/s — <b class="c-teal">the teal bar</b>, per metre of depth.`);
-      out += W.step(3, 'The inside — Eq. (2.30)') +
+      out += W.step(3, 'The inside — Gauss $\\iint_A \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$ (2.30)') +
         W.line(`$\\iint_A \\nabla\\cdot\\mathbf Q\\,dA$ on the $${p.n}\\times${p.n}$ midpoint grid` + (F.constDiv ? ` $= ${tz(p.exact)} \\times ${tz(p.area)}$` : ''), tz(p.lhs) + ' m²/s', (F.constDiv ? 'a constant divergence times the area' : 'the divergence summed cell by cell, times the cell area') + ' — <b class="c-accent">the purple bar</b>') +
         W.box(`Difference from the face sum: $|\\oint - \\iint| = ${Viz.tnum(Math.abs(p.gap), 2, { keepTiny: true })}$ m²/s — Gauss' theorem ` + (F.poly ? 'to round-off: for this polynomial field the midpoint rule is exact on both sides.' : `up to the quadrature error, which shrinks like $1/n^2$ (raise $n$ in Explore and watch the gap fall).`));
       out += W.step(4, 'Tiling — D25 step 8') +
-        (p.tiles > 1 ? W.line(`${p.tiles * p.tiles} tiles, each obeying (2.30); their ${p.tiles * p.tiles} boundary sums add to`, tz(p.td.sumTiles) + ' m²/s', 'Gauss on every tile, summed (step 7)') +
+        (p.tiles > 1 ? W.line(`${p.tiles * p.tiles} tiles, each obeying Gauss $\\iint_{A_k} \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$ (2.30); their ${p.tiles * p.tiles} boundary sums add to`, tz(p.td.sumTiles) + ' m²/s', 'Gauss on every tile, summed (step 7)') +
           W.line(`the ${2 * p.tiles * (p.tiles - 1)} interior faces appear twice, with opposite normals and the same $\\mathbf Q$`, `<b class="c-rose">${fe(p.td.interior)}</b> m²/s in total`, 'n·Q + (−n)·Q = 0 on every shared face') +
           W.box(`Only the outer ${4 * p.tiles} face segments survive: outer flux $= \\mathbf{${tz(p.td.outer)}}$ m²/s $= \\oint$ for the whole box ✓`) :
           W.hint('Set tiles to 2×2 or 4×4 (chips) to see the interior faces cancel: the sum of all tile boundaries equals the outer boundary alone.'));
@@ -2661,9 +2661,9 @@ const app = Viz.app({
           W.line(`$Q_1(\\text{left}) = ${tz(t.Q0[0])}${pm(-0.5 * h * t.d1)}$`, tz(t.left), 'the same slope with the opposite sign') +
           W.line(`right − left, times the face length: $(${tz(t.right)} - ${tz(t.left)})\\,h = h^2\\,\\dfrac{\\partial Q_1}{\\partial x_1}$`, tz((t.right - t.left) * h) + ' m²/s', `the $${tz(t.Q0[0])}$'s cancel, the slopes add`) +
           W.line(`same for $x_2$: $(${tz(t.top)} - ${tz(t.bottom)})\\,h$`, tz((t.top - t.bottom) * h) + ' m²/s') +
-          W.box(`Divide by the area $h^2 = ${tz(p.area)}$: $\\dfrac{\\partial Q_1}{\\partial x_1} + \\dfrac{\\partial Q_2}{\\partial x_2} = ${tz(t.d1)}${pm(t.d2)} = \\mathbf{${tz(t.d1 + t.d2)}}$ 1/s $= \\nabla\\cdot\\mathbf Q(\\mathbf x_0)$` + (F.poly ? ' — exact for this field: the second-order terms cancel between opposite faces.' : ` — the true face means differ by $O(h^2)$, which is why (2.32) needs the limit.`)) +
+          W.box(`Divide by the area $h^2 = ${tz(p.area)}$: $\\dfrac{\\partial Q_1}{\\partial x_1} + \\dfrac{\\partial Q_2}{\\partial x_2} = ${tz(t.d1)}${pm(t.d2)} = \\mathbf{${tz(t.d1 + t.d2)}}$ 1/s $= \\nabla\\cdot\\mathbf Q(\\mathbf x_0)$` + (F.poly ? ' — exact for this field: the second-order terms cancel between opposite faces.' : ` — the true face means differ by $O(h^2)$, which is why $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) needs the limit.`)) +
         (s.taylor ? '' : W.hint('Toggle "Ex. 2.5 face values" in Explore to print these four numbers on the faces.'));
-      out += W.step(6, 'The limit — Eqs. (2.31)–(2.32), D21') +
+      out += W.step(6, 'The limit $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) — D21') +
         W.line(`$\\dfrac1A\\oint \\mathbf n\\cdot\\mathbf Q\\,ds = \\dfrac{${tz(p.rhs)}}{${tz(p.area)}}$ at $h = ${tz(h)}$ m`, `<b class="c-accent">${tz(p.ratio)}</b> 1/s`, 'the purple dot on the purple curve') +
         W.line(`exact $\\nabla\\cdot\\mathbf Q(\\mathbf x_0)$`, tz(p.exact) + ' 1/s', 'the dashed grey line') +
         W.box(`error $= ${Viz.tnum(p.err, 2, { keepTiny: true })}$ 1/s. ` + (p.singular ? 'The origin is inside: the flux stays m while the area shrinks, so the ratio grows like m/h² — no limit exists (the field is not smooth inside).' : F.poly ? 'For this field the ratio is exact at every h (a linear field along each face is what the midpoint rule integrates exactly); the limit is trivial.' : 'For the smooth field the error falls like h² (slope 2 on the log–log inset): the definition needs the limit V → 0.'));
@@ -2675,8 +2675,8 @@ const app = Viz.app({
         source: `<b>More leaves than enters:</b> ${fz(p.rhs)} m²/s (m³/s per metre of depth) flows out of this box. Per unit area that is the divergence ${fz(p.ratio)} 1/s — the fluid inside would have to be created at this rate (or, in Ch. 4, its density would have to fall). Gauss' theorem says the four faces <i>must</i> add to exactly the inside sum, wherever you put the box.`,
         sink: `<b>More enters than leaves:</b> ${fz(-p.rhs)} m²/s flows <i>in</i> — convergence; per unit area ${fz(p.ratio)} 1/s. In Ch. 4 this is how density rises: ∂ρ/∂t = −∇·(ρu).`,
         solenoidal: `<b>In = out for every box:</b> what enters through one face leaves through another, because ∇·Q = 0${F.singular ? ' away from the origin' : ' everywhere'}. Move and resize the box: the teal bar stays at zero to round-off. The incompressible flows of Ch. 4–9 look like this everywhere.`,
-        small: `<b>The box is small enough</b> that (1/A)∮ = ${fz(p.ratio)} has converged to the point value ∇·Q(x₀) = ${fz(p.exact)} 1/s: this is the divergence <i>defined</i> without coordinates (2.32) — a boundary sum per unit area, the same recipe in any coordinate system.`,
-        singular: `<b>The field is not differentiable at the origin.</b> The flux ${fz(p.rhs)} ≈ m = ${F.m} m²/s is the same for every box enclosing it — Gauss' theorem needs a smooth Q inside V, and (2.32) gives a delta function, not a number. Move the box so the origin is outside: the flux drops to zero.`,
+        small: `<b>The box is small enough</b> that (1/A)∮ = ${fz(p.ratio)} has converged to the point value ∇·Q(x₀) = ${fz(p.exact)} 1/s: this is the divergence <i>defined</i> without coordinates, $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) — a boundary sum per unit area, the same recipe in any coordinate system.`,
+        singular: `<b>The field is not differentiable at the origin.</b> The flux ${fz(p.rhs)} ≈ m = ${F.m} m²/s is the same for every box enclosing it — Gauss' theorem needs a smooth Q inside V, and the limit $\\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) gives a delta function, not a number. Move the box so the origin is outside: the flux drops to zero.`,
         balanced: `<b>This box has outflow through some faces and inflow through others that balance:</b> the divergence is positive in part of the box and negative in the rest, and integrates to ${fe(p.lhs)}. Shrink the box to see the local value ${fz(p.exact)} 1/s emerge.`
       }[p.regime];
       out += W.interpret(reading, 'Reading the current setting');
@@ -2685,10 +2685,10 @@ const app = Viz.app({
     live: s => { const p = phys(s); return { h: f3(p.h), cx: fz(p.cx), cy: fz(p.cy), faces: [p.faces.left, p.faces.bottom, p.faces.right, p.faces.top].map(fs).join(' · '), totals: `${fz(p.rhs)} · ${fz(p.lhs)} m²/s · ${fz(p.ratio)} 1/s` }; }
   },
   derivations: [
-    { id: 'D25', title: 'Gauss\' theorem, from the fundamental theorem of calculus', short: 'Gauss (2.30)', ref: 'Eq. (2.30)',
+    { id: 'D25', title: 'Gauss\' theorem, from the fundamental theorem of calculus', short: 'Gauss', ref: 'Eq. (2.30)',
       goal: 'Prove the theorem the book only states: the volume integral of a derivative equals the surface integral of the field with the outward normal — first for a box, then for any volume by tiling.',
       start: { tex: '\\int_a^b f\'(x)\\,dx = f(b) - f(a)', plain: 'the fundamental theorem of calculus: integrating a derivative gives the values at the two ends.' },
-      plan: ['On a box, write the volume integral of ∂Q/∂x₁ as an iterated integral and do the x₁ integral first.', 'Read the right side of (2.30) face by face: n₁ = ±1 on two faces, 0 on four.', 'Repeat for i = 2, 3.', 'Tile a general volume with boxes; interior faces cancel.'],
+      plan: ['On a box, write the volume integral of ∂Q/∂x₁ as an iterated integral and do the x₁ integral first.', 'Read the right side $\\iint_A n_1Q\\,dA$ of Gauss (2.30) face by face: n₁ = ±1 on two faces, 0 on four.', 'Repeat for i = 2, 3.', 'Tile a general volume with boxes; interior faces cancel.'],
       uses: ['fundamental theorem of calculus', 'iterated integrals', 'outward normals of a box (±e_i)', 'additivity of integrals over disjoint regions', 'opposite normals on a shared face'],
       view: 'field', set: setField('radial'),
       steps: [
@@ -2701,11 +2701,11 @@ const app = Viz.app({
         { did: 'Insert and split into two face integrals', tex: '\\begin{aligned} \\iiint_V \\frac{\\partial Q}{\\partial x_1}\\,dV &= \\iint Q(b_1, x_2, x_3)\\,dx_2\\,dx_3 \\\\ &\\quad - \\iint Q(a_1, x_2, x_3)\\,dx_2\\,dx_3 \\end{aligned}',
           why: 'Step 2 into step 1; the remaining double integrals run over the face [a₂, b₂]×[a₃, b₃] — the two faces perpendicular to x₁.',
           plain: 'The inside adds up to "Q on the far face minus Q on the near face".' },
-        { did: 'Read the right side of (2.30) face by face', tex: '\\begin{aligned} n_1 &= +1\\ \\text{on}\\ x_1 = b_1,\\qquad n_1 = -1\\ \\text{on}\\ x_1 = a_1 \\\\ n_1 &= 0\\ \\text{on the other four faces} \\end{aligned}',
+        { did: 'Read the surface side face by face', tex: '\\begin{aligned} n_1 &= +1\\ \\text{on}\\ x_1 = b_1,\\qquad n_1 = -1\\ \\text{on}\\ x_1 = a_1 \\\\ n_1 &= 0\\ \\text{on the other four faces} \\end{aligned}',
           why: 'The outward normal of a box face is ±e_i; its first component is nonzero only on the two faces perpendicular to x₁. Four of the six faces contribute nothing to the i = 1 term.',
           plain: 'Only the two faces facing ±x₁ count for the x₁-derivative.', set: { hl: 'x' }, watch: 'The left and right faces are highlighted: in the plane they are the only faces with n₁ ≠ 0.' },
-        { did: 'Conclude (2.30) for i = 1 on the box', tex: '\\begin{aligned} \\iint_A n_1Q\\,dA &= \\iint Q(b_1,\\cdot)\\,dA - \\iint Q(a_1,\\cdot)\\,dA \\\\ &= \\iiint_V\\frac{\\partial Q}{\\partial x_1}\\,dV \\end{aligned}',
-          why: 'Step 4 makes the surface integral exactly the two face integrals of step 3 with the signs of n₁. Left and right sides of (2.30) coincide for i = 1.',
+        { did: 'Conclude Gauss\' theorem for i = 1 on the box', tex: '\\begin{aligned} \\iint_A n_1Q\\,dA &= \\iint Q(b_1,\\cdot)\\,dA - \\iint Q(a_1,\\cdot)\\,dA \\\\ &= \\iiint_V\\frac{\\partial Q}{\\partial x_1}\\,dV \\end{aligned}',
+          why: 'Step 4 makes the surface integral exactly the two face integrals of step 3 with the signs of n₁. Both sides of $\\iiint_V \\frac{\\partial Q}{\\partial x_1}dV = \\iint_A n_1Q\\,dA$ (2.30) coincide.',
           plain: 'Gauss\' theorem holds for the x₁-derivative on a box.',
           live: s => { const p = phys(s); return `\\begin{aligned} \\int Q_1\\,ds\\Big|_{\\rm right} - \\int Q_1\\,ds\\Big|_{\\rm left} &= ${tz(p.faces.right)} - ${tz(-p.faces.left)} = ${tz(p.faces.right + p.faces.left)} \\\\ \\iint \\frac{\\partial Q_1}{\\partial x_1}\\,dA &= ${tz(p.dIn)}\\ ✓ \\end{aligned}`; }, set: { hl: 'x' } },
         { did: 'Repeat for i = 2 and i = 3', tex: '\\begin{aligned} \\iiint_V\\frac{\\partial Q}{\\partial x_i}\\,dV &= \\iint_A n_iQ\\,dA \\\\ &\\quad (i = 1, 2, 3;\\ \\text{any box}) \\end{aligned}',
@@ -2724,14 +2724,14 @@ const app = Viz.app({
           why: 'As the boxes shrink, the tiled region fills V and its staircase boundary tends to A with normals tending to n (A piecewise smooth, Q continuous); both sides converge. Q may carry any other indices.',
           plain: 'Gauss\' theorem for any volume and any field.', set: { tiles: '1' }, watch: 'Only the outer faces are left: the same total as before the tiling.' }
       ],
-      result: { tex: '\\iiint_V\\frac{\\partial Q}{\\partial x_i}\\,dV = \\iint_A n_iQ\\,dA', plain: 'for Q of any order: a derivative integrated over the inside equals the field weighted by the outward normal on the boundary (2.30).', set: { hl: null } },
+      result: { tex: '\\iiint_V\\frac{\\partial Q}{\\partial x_i}\\,dV = \\iint_A n_iQ\\,dA', plain: 'for Q of any order: a derivative integrated over the inside equals the field weighted by the outward normal on the boundary — Gauss\' theorem, the line above.', set: { hl: null } },
       interpret: s => { const p = phys(s); return `For your box (${p.F.name}, h = ${f3(p.h)} m at (${fz(p.cx)}, ${fz(p.cy)})): inside ${fz(p.lhs)} = outside ${fz(p.rhs)} m²/s (gap ${fe(Math.abs(p.gap))}). Every conservation law of Ch. 4 passes through this line: the rate of change of what is inside a volume equals the flux through its boundary. The theorem needs Q differentiable inside — the point-source preset breaks it.`; },
       check: 'Units: [Q]·m² on both sides (m²/s here, per unit depth). Limit Q constant: left 0, right ∮ n_i dA = 0 (the vector area of a closed surface). Number: Q = (x, y) on the unit box: ∬ 2 dA = 2; faces 1 + 0 + 1 + 0 = 2 ✓ (selftest rows "rhs sum a x", "lhs a x"); the tiled rows report interior faces summing to 0 to round-off.' },
     { id: 'D22', title: 'Ex. 2.5: the Cartesian divergence recovered from the outflux definition', short: 'Ex. 2.5', ref: 'Eq. (2.32) → (2.23)',
-      goal: 'Evaluate (2.32) on a small box and watch the formula ∂Q_i/∂x_i (2.23) come back — face by face — so that the coordinate formula is seen as a consequence of "outflux per volume".',
-      start: { tex: '\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA', plain: 'the outflux definition (2.32), applied to a small rectangular box Δx₁Δx₂Δx₃ centred at x with faces perpendicular to the axes (Fig. 2.4\'s letters: EADH/FBCG ⊥ x₁, ABCD/EFGH ⊥ x₂, ABFE/DCGH ⊥ x₃).' },
+      goal: 'Evaluate $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) on a small box and watch $\\nabla\\cdot\\mathbf Q = \\partial Q_i/\\partial x_i$ (2.23) come back — face by face — so that the coordinate formula is seen as a consequence of "outflux per volume".',
+      start: { tex: '\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA', plain: 'the outflux definition above, applied to a small rectangular box Δx₁Δx₂Δx₃ centred at x with faces perpendicular to the axes (Fig. 2.4\'s letters: EADH/FBCG ⊥ x₁, ABCD/EFGH ⊥ x₂, ABFE/DCGH ⊥ x₃).' },
       plan: ['Take the two faces ⊥ x₁; write their outward normals.', 'Taylor-expand Q from the centre to each face centre.', 'Integrate over each face (midpoint rule).', 'Add the pair: constants cancel, slopes add.', 'Same for the other two pairs; add; divide by the volume; take the limit.'],
-      uses: ['first-order Taylor expansion', 'midpoint rule: a face integral of a linear function equals the centre value × area', 'face normals ±e₁', 'orders of smallness', 'e₁·∂Q/∂x₁ = ∂Q₁/∂x₁', 'Eq. (2.23)'],
+      uses: ['first-order Taylor expansion', 'midpoint rule: a face integral of a linear function equals the centre value × area', 'face normals ±e₁', 'orders of smallness', 'e₁·∂Q/∂x₁ = ∂Q₁/∂x₁', '$\\nabla\\cdot\\mathbf Q = \\partial Q_i/\\partial x_i$ (2.23)'],
       view: 'field', set: setField('radial', { taylor: true }),
       steps: [
         { did: 'Name the two faces perpendicular to x₁', tex: '\\begin{aligned} \\text{EADH}&:\\ \\mathbf n = +\\mathbf e_1\\ \\text{at}\\ x_1 + \\tfrac{\\Delta x_1}2 \\\\ \\text{FBCG}&:\\ \\mathbf n = -\\mathbf e_1\\ \\text{at}\\ x_1 - \\tfrac{\\Delta x_1}2 \\end{aligned}',
@@ -2764,22 +2764,22 @@ const app = Viz.app({
           plain: 'Outflux per unit volume tends to the sum of the three directional slopes.', set: { shrink: 1 },
           watch: 'h = 0.1 m: (1/A)∮ stays the same — exact for a linear field, where the O(Δx²) remainder is zero.' },
         { did: 'Recognise the Cartesian divergence', tex: '\\begin{aligned} \\nabla\\cdot\\mathbf Q &= \\frac{\\partial Q_1}{\\partial x_1} + \\frac{\\partial Q_2}{\\partial x_2} + \\frac{\\partial Q_3}{\\partial x_3} \\\\ &= \\frac{\\partial Q_i}{\\partial x_i} \\end{aligned}',
-          why: 'e_i·∂Q/∂x_i = ∂(e_i·Q)/∂x_i = ∂Q_i/∂x_i because the unit vectors are constant (Cartesian). This is (2.23): the recipe returns from the definition.',
+          why: 'e_i·∂Q/∂x_i = ∂(e_i·Q)/∂x_i = ∂Q_i/∂x_i because the unit vectors are constant (Cartesian). This is $\\nabla\\cdot\\mathbf Q = \\partial Q_i/\\partial x_i$ (2.23): the recipe returns from the definition.',
           plain: 'Divergence = the three stretching rates added — now because that is what leaks out of a tiny box.',
           live: s => { const p = phys(s), t = p.tf, pm = v => (v < 0 ? ' - ' : ' + ') + tz(Math.abs(v)); return `\\nabla\\cdot\\mathbf Q = \\frac{\\partial Q_1}{\\partial x_1} + \\frac{\\partial Q_2}{\\partial x_2} = ${tz(t.d1)}${pm(t.d2)} = ${tz(t.d1 + t.d2)}\\ \\text{1/s}`; } }
       ],
-      result: { tex: '\\nabla\\cdot\\mathbf Q = \\frac{\\partial Q_i}{\\partial x_i}', plain: 'the Cartesian formula (2.23) is the outflux per unit volume of a shrinking box; opposite faces cancel the value of Q and keep its slope.', set: { hl: null } },
+      result: { tex: '\\nabla\\cdot\\mathbf Q = \\frac{\\partial Q_i}{\\partial x_i}', plain: 'the Cartesian formula is the outflux per unit volume of a shrinking box; opposite faces cancel the value of Q and keep its slope.', set: { hl: null } },
       interpret: s => { const p = phys(s), t = p.tf; return `With your field and box (h = ${f3(p.h)} m at (${fz(p.cx)}, ${fz(p.cy)})): the right face sees Q₁ = ${fz(t.right)}, the left ${fz(t.left)}; their difference times h is ${fz((t.right - t.left) * p.h)} m²/s, and top − bottom gives ${fz((t.top - t.bottom) * p.h)} m²/s. Divided by the area h² = ${fz(p.area)} m²: ${fz(t.d1 + t.d2)} 1/s = ∇·Q(x₀). Ch. 4 §4.2 runs exactly this argument with Q = ρu to get the continuity equation.`; },
       check: 'Units: [Q]/m (1/s here). Limit: linear Q — the O(Δx⁵) terms vanish identically and the box formula is exact at any size (a x, sink presets). Number: Q = (x², 0), x₀ = 1, h = 0.2: right 1.21 × 0.2, left −0.81 × 0.2, net 0.08, /0.04 = 2.000 = 2x₀ ✓ (selftest row "ratio (x², 0)").' },
-    { id: 'D21', title: 'The integral definitions as small-volume limits of Gauss\' theorem', short: 'limits (2.31)–(2.33)', ref: 'Eqs. (2.31)–(2.33)',
-      goal: 'Turn Gauss\' theorem, read on a shrinking volume, into coordinate-free definitions of the gradient, the divergence and the curl — the book calls (2.31) "the limiting form" and leaves the limit implicit.',
-      start: { tex: '\\iiint_V \\frac{\\partial Q}{\\partial x_i}\\,dV = \\iint_A n_iQ\\,dA', plain: 'Gauss\' theorem (2.30, D25) for any Q, applied to a small region V around x₀.' },
+    { id: 'D21', title: 'The integral definitions as small-volume limits of Gauss\' theorem', short: 'Limits', ref: 'Eqs. (2.31)–(2.33)',
+      goal: 'Turn Gauss\' theorem, read on a shrinking volume, into coordinate-free definitions of the gradient, the divergence and the curl — the book calls $\\mathcal DQ = \\lim_{V\\to0}\\frac1V\\iint_A n_iQ\\,dA$ (2.31) "the limiting form" and leaves the limit implicit.',
+      start: { tex: '\\iiint_V \\frac{\\partial Q}{\\partial x_i}\\,dV = \\iint_A n_iQ\\,dA', plain: 'Gauss\' theorem (proved in D25) for any Q, applied to a small region V around x₀.' },
       plan: ['Replace the volume integral by "value at some interior point × volume" (mean-value theorem).', 'Divide by V.', 'Shrink V to x₀.', 'Contract with e_i for the divergence, cross with ε for the curl.'],
-      uses: ['Gauss\' theorem (2.30)', 'mean-value theorem for integrals', 'limits and continuity', 'the index form of ∇· (2.23)', 'the index form of ∇× (2.24)'],
+      uses: ['Gauss $\\iiint_V \\frac{\\partial Q}{\\partial x_i}dV = \\iint_A n_iQ\\,dA$ (2.30)', 'mean-value theorem for integrals', 'limits and continuity', '$\\nabla\\cdot\\mathbf u = \\partial u_i/\\partial x_i$ (2.23)', '$(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\,\\partial u_k/\\partial x_j$ (2.24)'],
       view: 'bars', set: setField('smooth', { shrink: sigmaOf(2) }),
       steps: [
         { did: 'Apply Gauss\' theorem to a small V around x₀', tex: '\\iiint_V \\frac{\\partial Q}{\\partial x_i}\\,dV = \\iint_A n_iQ\\,dA',
-          why: '(2.30) holds for any volume with a piecewise smooth boundary; we pick a small one around the point where we want a derivative.',
+          why: 'Gauss\' theorem holds for any volume with a piecewise smooth boundary; we pick a small one around the point where we want a derivative.',
           plain: 'The inside sum of the derivative equals the boundary sum of Q.', set: { shrink: sigmaOf(2) } },
         { did: 'Replace the volume integral by an interior value times V', tex: '\\iiint_V \\frac{\\partial Q}{\\partial x_i}\\,dV = \\frac{\\partial Q}{\\partial x_i}(\\mathbf x^*)\\;V',
           why: 'Mean-value theorem for integrals: a continuous integrand over V equals its value at some point x* in V times the volume. We do this to turn an integral into a single value.',
@@ -2790,7 +2790,7 @@ const app = Viz.app({
           plain: 'The derivative at an interior point equals the flux per unit volume.',
           live: s => { const p = phys(s); return `\\begin{aligned} \\tfrac1A\\oint \\mathbf n\\cdot\\mathbf Q\\,ds &= \\tfrac{${tz(p.rhs)}}{${tz(p.area)}} = ${tz(p.ratio)}\\ \\text{1/s} \\\\ \\nabla\\cdot\\mathbf Q(\\mathbf x_0) &= ${tz(p.exact)}\\ \\text{1/s} \\end{aligned}`; } },
         { did: 'Shrink V to the point', tex: '\\frac{\\partial Q}{\\partial x_i}(\\mathbf x_0) = \\lim_{V\\to0}\\frac1V\\iint_A n_iQ\\,dA \\equiv \\mathcal D Q',
-          why: 'x* is trapped in V, so x* → x₀; continuity of ∂Q/∂x_i carries the left side to its value at x₀, and the left side never knew the shape of V. This is (2.31).',
+          why: 'x* is trapped in V, so x* → x₀; continuity of ∂Q/∂x_i carries the left side to its value at x₀, and the left side never knew the shape of V. The line is (2.31), $\\mathcal DQ = \\lim_{V\\to0}\\frac1V\\iint_A n_iQ\\,dA$.',
           plain: 'The derivative of Q is the limit of the boundary flux per unit volume — no coordinates, and no dependence on the shape of V.', set: { shrink: sigmaOf(0.05) },
           live: s => { const p = phys(s); return `\\begin{aligned} \\tfrac1A\\oint \\mathbf n\\cdot\\mathbf Q\\,ds &= ${tz(p.ratio)}\\ \\text{at } h = ${tz(p.h)}\\ \\text{m} \\\\ \\nabla\\cdot\\mathbf Q(\\mathbf x_0) &= ${tz(p.exact)},\\quad \\text{gap } ${Viz.tnum(p.err, 2, { keepTiny: true })} \\end{aligned}`; },
           watch: 'At h = 0.05 m the ratio (1/A)∮ (your numbers above, and first in the bars title) has converged to ∇·Q(x₀); on a wide screen the limit view\'s dot has slid down the purple curve onto the dashed line.' },
@@ -2798,16 +2798,16 @@ const app = Viz.app({
           why: 'Put Q → Q_j in step 4 (Gauss holds component by component, the theorem being linear in Q), then set j = i and sum — contraction on both sides.',
           plain: 'Adding the three diagonal derivatives adds the three flux components.' },
         { did: 'Recognise the divergence and the outflux', tex: '\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA',
-          why: '∂Q_i/∂x_i is (2.23) and n_iQ_i = n·Q is the outward flux density. This is (2.32).',
+          why: '$\\partial Q_i/\\partial x_i = \\nabla\\cdot\\mathbf Q$ is (2.23) and $n_iQ_i = \\mathbf n\\cdot\\mathbf Q$ is the outward flux density. The line is (2.32).',
           plain: 'Divergence = what leaks out per unit volume.',
           live: s => { const p = phys(s); return `\\begin{aligned} \\tfrac1A\\oint \\mathbf n\\cdot\\mathbf Q\\,ds &= ${tz(p.ratio)}\\ \\text{at } h = ${tz(p.h)}\\ \\text{m} \\\\ \\nabla\\cdot\\mathbf Q(\\mathbf x_0) &= ${tz(p.exact)} \\\\ \\text{error} &= ${Viz.tnum(p.err, 2, { keepTiny: true })} \\end{aligned}`; } },
         { did: 'Cross instead of dot', tex: '\\begin{aligned} (\\nabla\\times\\mathbf Q)_k &= \\varepsilon_{kij}\\frac{\\partial Q_j}{\\partial x_i} \\\\ &= \\lim_{V\\to0}\\frac1V\\iint_A (\\mathbf n\\times\\mathbf Q)_k\\,dA \\end{aligned}',
-          why: 'Multiply step 4 for Q_j by ε_kij and sum on i, j: a fixed linear combination passes through the limit. ε_kij ∂_iQ_j is (2.24), ε_kij n_iQ_j = (n × Q)_k is (2.21); this is (2.33).',
+          why: 'Multiply step 4 for Q_j by ε_kij and sum on i, j: a fixed linear combination passes through the limit. $\\varepsilon_{kij}\\partial Q_j/\\partial x_i = (\\nabla\\times\\mathbf Q)_k$ is (2.24), $\\varepsilon_{kij}n_iQ_j = (\\mathbf n\\times\\mathbf Q)_k$ is (2.21); the line is (2.33).',
           plain: 'Curl = the boundary\'s "n × Q" per unit volume.', watch: 'The Stokes explainer (E5) does the same experiment with a loop: circulation per unit area → the curl.' }
       ],
-      result: { tex: '\\begin{aligned} \\mathcal DQ &= \\lim_{V\\to0}\\tfrac1V\\iint_A n_iQ\\,dA \\\\ \\nabla\\cdot\\mathbf Q &= \\lim_{V\\to0}\\tfrac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA \\\\ \\nabla\\times\\mathbf Q &= \\lim_{V\\to0}\\tfrac1V\\iint_A \\mathbf n\\times\\mathbf Q\\,dA \\end{aligned}', plain: 'gradient, divergence and curl are boundary sums per unit volume in the limit of a vanishing volume — (2.31), (2.32), (2.33).' },
-      interpret: s => { const p = phys(s); return `At h = ${f3(p.h)} m the ratio (1/A)∮ = ${fz(p.ratio)} 1/s is within ${Viz.fmt(100 * Math.abs(p.err) / Math.max(1e-12, Math.abs(p.exact)), { sig: 2 })} % of ∇·Q(x₀) = ${fz(p.exact)} 1/s${p.F.poly ? ' — exactly, because this field is linear along every face' : ' — and the error falls like h² as you shrink further'}. The operators of §2.9 are properties of the field, not of the axes: the same recipe in cylindrical or spherical coordinates gives Appendix B\'s formulas, and Ch. 4 derives continuity from exactly (2.32) on a fluid box. ${p.singular ? 'Here the origin is inside: the flux stays fixed while V → 0, so (1/V)∮ diverges — a delta function, not a derivative.' : ''}`; },
-      check: 'Units: (2.32) — [Q]·m²/m³ = [Q]/m on both sides ✓. Limit: Q constant — the boundary integral of n vanishes, so all three derivatives are 0. Number: Q = (x², 0), x₀ = (1, 0), h = 0.2: (1/A)∮ = (1.21 − 0.81) × 0.2/0.04 = 2.000 = 2x₀ exactly ✓; the smooth field at (0.5, 0.5): 1.093 at h = 2, 1.5400 at h = 0.05 vs 1.5403 — order 2 (selftest rows "ratio smooth").' }
+      result: { tex: '\\begin{aligned} \\mathcal DQ &= \\lim_{V\\to0}\\tfrac1V\\iint_A n_iQ\\,dA \\\\ \\nabla\\cdot\\mathbf Q &= \\lim_{V\\to0}\\tfrac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA \\\\ \\nabla\\times\\mathbf Q &= \\lim_{V\\to0}\\tfrac1V\\iint_A \\mathbf n\\times\\mathbf Q\\,dA \\end{aligned}', plain: 'gradient, divergence and curl are boundary sums per unit volume in the limit of a vanishing volume — the three lines above, the book\'s 2.31–2.33.' },
+      interpret: s => { const p = phys(s); return `At h = ${f3(p.h)} m the ratio (1/A)∮ = ${fz(p.ratio)} 1/s is within ${Viz.fmt(100 * Math.abs(p.err) / Math.max(1e-12, Math.abs(p.exact)), { sig: 2 })} % of ∇·Q(x₀) = ${fz(p.exact)} 1/s${p.F.poly ? ' — exactly, because this field is linear along every face' : ' — and the error falls like h² as you shrink further'}. The operators of §2.9 are properties of the field, not of the axes: the same recipe in cylindrical or spherical coordinates gives Appendix B\'s formulas, and Ch. 4 derives continuity from exactly $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) on a fluid box. ${p.singular ? 'Here the origin is inside: the flux stays fixed while V → 0, so (1/V)∮ diverges — a delta function, not a derivative.' : ''}`; },
+      check: 'Units of $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32): [Q]·m²/m³ = [Q]/m on both sides ✓. Limit: Q constant — the boundary integral of n vanishes, so all three derivatives are 0. Number: Q = (x², 0), x₀ = (1, 0), h = 0.2: (1/A)∮ = (1.21 − 0.81) × 0.2/0.04 = 2.000 = 2x₀ exactly ✓; the smooth field at (0.5, 0.5): 1.093 at h = 2, 1.5400 at h = 0.05 vs 1.5403 — order 2 (selftest rows "ratio smooth").' }
   ],
   code: [
     { id: 'main', title: 'The same computation in Python', ref: 'Eqs. (2.30), (2.32)',
@@ -2851,7 +2851,7 @@ def flux_through_faces(Q, box, n=8):
     { title: 'Add the faces', text: 'Right +1, top +1, left 0, bottom 0: net outflow 2 m²/s. Now the <b class="c-accent">purple</b> bar: the divergence $\\nabla\\cdot\\mathbf Q = 2$ integrated over the inside — also 2. Move the box: always equal.', play: false, set: setField('radial'), terms: true, eq: 'gauss', highlight: ['readout:rhs', 'readout:lhs'] },
     { title: 'Why always? Cut it up', text: 'Tile the box 4×4. Every interior face is shared by two tiles with opposite normals: their fluxes cancel (<b class="c-rose">interior bar = 0</b>). Only the outer faces remain — and on each tile Gauss is a 1-D fundamental theorem.', play: false, set: setField('radial', { tiles: '4' }), derive: { id: 'D25', step: 8 }, readouts: ['rhs'] },
     { title: 'Read the faces with Taylor', text: 'Ex. 2.5: on the right face $Q_1 = Q_1(\\mathbf x_0) + \\tfrac h2\\,\\partial Q_1/\\partial x_1$, on the left $Q_1(\\mathbf x_0) - \\tfrac h2\\,\\partial Q_1/\\partial x_1$. Subtract: the centre value cancels, the slope survives.', play: false, set: setField('radial', { taylor: true }), derive: { id: 'D22', step: 4 }, eq: 'taylor' },
-    { title: 'Shrink it', text: 'The box shrinks from $h = 1$ m to a point. The flux falls like $h^2$, the area like $h^2$, their ratio holds at 2 $= \\nabla\\cdot\\mathbf Q$. That ratio <i>is</i> the divergence — no coordinates needed, Eq. (2.32).', set: setField('radial', { shrink: 0 }), play: true, eq: 'limit', readouts: ['ratio', 'exact'] },
+    { title: 'Shrink it', text: 'The box shrinks from $h = 1$ m to a point. The flux falls like $h^2$, the area like $h^2$, their ratio holds at 2 $= \\nabla\\cdot\\mathbf Q$. That ratio <i>is</i> the divergence: $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32).', set: setField('radial', { shrink: 0 }), play: true, eq: 'limit', readouts: ['ratio', 'exact'] },
     { title: 'A field that never leaks', text: '$\\mathbf b\\times\\mathbf x$: the flow goes round. Every box, anywhere, any size: in = out, $\\nabla\\cdot\\mathbf Q = 0$. Incompressible flow looks like this. Drag the box and watch the <b class="c-teal">teal</b> bar stay at zero.', play: false, set: setField('solid'), controls: ['cx', 'cy', 'shrink'], readouts: ['rhs'] },
     { title: 'When it fails', text: 'Point source: the field is singular at the origin. Enclose it: the flux is $m = 1$ however small the box — shrink it and see. Gauss needs a smooth field inside; move the origin outside and the flux drops to 0.', play: false, set: setField('source', { cx: 0, cy: 0 }), notes: true, controls: ['cx', 'shrink'] },
     { title: 'Your turn', text: 'Smooth preset, $h = 2$ m. Predict: does $(1/A)\\oint$ overshoot or undershoot $\\nabla\\cdot\\mathbf Q(\\mathbf x_0) = 1.54$? Then shrink the box and read the slope of the error curve. Click any face for its arithmetic.', play: false, set: setField('smooth', { shrink: sigmaOf(2) }), controls: ['shrink', 'cx', 'cy'], readouts: ['ratio', 'exact'] }
@@ -2863,7 +2863,7 @@ def flux_through_faces(Q, box, n=8):
       symbols: [['Q', 'a field of any order, continuously differentiable in V', 'any'], ['n_i', 'outward unit normal of the surface element dA', '–']] },
     { id: 'divthm', title: 'Divergence theorem', ref: '§2.12 (unnumbered)', tex: '\\iiint_V \\nabla\\cdot\\mathbf Q\\,dV = \\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA',
       live: s => { const p = phys(s); return `\\begin{aligned} \\iint \\nabla\\cdot\\mathbf Q\\,dA &= ${tz(p.lhs)} \\\\ \\oint \\mathbf n\\cdot\\mathbf Q\\,ds &= ${tz(p.rhs)} \\end{aligned}`; },
-      note: '(2.30) with Q a vector and i contracted: the volume integral of the divergence equals the surface integral of the outflux n·Q.',
+      note: 'Gauss $\\iiint_V \\frac{\\partial Q}{\\partial x_i}dV = \\iint_A n_iQ\\,dA$ (2.30) with Q a vector and i contracted: the volume integral of the divergence equals the surface integral of the outflux n·Q.',
       symbols: [['\\mathbf n\\cdot\\mathbf Q', 'outward flux density', '[Q]']] },
     { id: 'gen', title: 'Generalised derivative', ref: 'Eq. (2.31)', tex: '\\mathcal D Q = \\lim_{V\\to 0}\\frac1V\\iint_A n_i\\,Q\\,dA',
       note: 'Gauss\' theorem read on a vanishing volume defines the gradient of a field of any order without coordinates (D21 step 4).',
@@ -2877,7 +2877,7 @@ def flux_through_faces(Q, box, n=8):
       symbols: [['\\mathbf n\\times\\mathbf Q', 'the boundary cross product', '[Q]']] },
     { id: 'cart', title: 'Cartesian divergence', ref: 'Eq. (2.23)', tex: '\\nabla\\cdot\\mathbf u = \\frac{\\partial u_1}{\\partial x_1} + \\frac{\\partial u_2}{\\partial x_2} + \\frac{\\partial u_3}{\\partial x_3} = \\frac{\\partial u_i}{\\partial x_i}',
       live: s => { const p = phys(s), t = p.tf; return `\\text{at } \\mathbf x_0:\\ ${tz(t.d1)} ${t.d2 < 0 ? '-' : '+'} ${tz(Math.abs(t.d2))} = ${tz(p.exact)}\\ \\text{1/s (plane: two terms)}`; },
-      note: 'Recovered from (2.32) on a shrinking box in Example 2.5 (Derivation tab, D22).',
+      note: 'Recovered from $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) on a shrinking box in Example 2.5 (Derivation tab, D22).',
       symbols: [['u_i', 'components of the field', 'm/s'], ['x_i', 'Cartesian coordinates', 'm']] },
     { id: 'taylor', title: 'Ex. 2.5 face values', ref: '§2.12, Example 2.5', tex: '[\\mathbf Q]_{\\rm EADH} = \\mathbf Q(\\mathbf x) + \\frac{\\Delta x_1}{2}\\,\\frac{\\partial\\mathbf Q(\\mathbf x)}{\\partial x_1} + \\dots',
       live: s => { const p = phys(s), t = p.tf; return `Q_1(\\text{right}) = ${tz(t.Q0[0])} ${0.5 * p.h * t.d1 < 0 ? '-' : '+'} ${tz(Math.abs(0.5 * p.h * t.d1))} = ${tz(t.right)}`; },

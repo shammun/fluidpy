@@ -2469,7 +2469,7 @@ function drawCurves(v, s, Q) {
     const tau = Q.tau, tp = t => transformTensor(tau, CC(t));
     if (s.tpreset === 'fixed') {
       curves.push({ f: () => tau[0][0], color: c.normal, w: 2.4, label: 'declared τ′₁₁' }, { f: () => tau[0][1], color: c.shear, w: 2.4, label: 'declared τ′₁₂' });
-      curves.push({ f: t => tp(t)[0][0], color: Viz.alpha(c.normal, 0.45), w: 1.4, dash: [5, 4], label: '(2.12) would give' }, { f: t => tp(t)[0][1], color: Viz.alpha(c.shear, 0.45), w: 1.4, dash: [5, 4] });
+      curves.push({ f: t => tp(t)[0][0], color: Viz.alpha(c.normal, 0.45), w: 1.4, dash: [5, 4], label: 'τ′ = CᵀτC would give' }, { f: t => tp(t)[0][1], color: Viz.alpha(c.shear, 0.45), w: 1.4, dash: [5, 4] });
     } else {
       curves.push({ f: t => tp(t)[0][0], color: c.normal, w: 2.4, label: 'τ′₁₁' }, { f: t => tp(t)[1][1], color: c.normal, w: 2, dash: [6, 4], label: 'τ′₂₂' }, { f: t => tp(t)[0][1], color: c.shear, w: 2.4, label: 'τ′₁₂' });
       if (Q.thetaP !== null) { const tpd = Q.thetaP / D2R; [tpd, tpd + 90, tpd - 90, tpd + 180, tpd - 180].filter(a => a >= -180 && a <= 180).forEach(a => marks.push({ t: a, label: 'τ′₁₂ = 0' })); }
@@ -2571,7 +2571,7 @@ const app = Viz.app({
   status: s => {
     const Q = physics(s);
     if (s.mirror) return { text: '⚠️ det C = ' + (Q.det < 0 ? '−1' : '+1') + ': a mirror, not a rotation', tone: 'warn' };
-    if (s.mode === 'tensor' && s.tpreset === 'fixed') return { text: '❌ not a tensor: (2.12) residual ' + Viz.fmt(Q.fixedRes) + ' Pa', tone: 'bad' };
+    if (s.mode === 'tensor' && s.tpreset === 'fixed') return { text: '❌ not a tensor: misses $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ (2.12) by ' + Viz.fmt(Q.fixedRes) + ' Pa', tone: 'bad' };
     if (s.mode === 'vector' && s.what === 'arrow') return { text: '🔄 active: arrow turned, axes fixed — C, not Cᵀ', tone: 'info' };
     return { text: '✅ orthogonal: CᵀC − I = ' + residTxt(Q.res) + ', det C = +' + f3(Q.det).replace('−', ''), tone: 'good' };
   },
@@ -2622,13 +2622,13 @@ const app = Viz.app({
     if (s.mode === 'vector' && s.what === 'arrow') return `<p><b>Active view.</b> The axes stayed; the arrow turned by ${fd(th)}. Its components are $\\mathbf C\\mathbf x = ${pair(Q.xa)}$ — the same matrix the book applies as $\\mathbf C^{\\rm T}$. Turning the arrow by $+\\theta$ looks, to the arrow, exactly like turning the axes by $-\\theta$: $\\mathbf C(\\theta) = \\mathbf C^{\\rm T}(-\\theta)$.</p>`;
     if (s.mirror) return `<p><b>Mirror on.</b> The 2′ axis was flipped: $\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I$ still holds (lengths kept: $|\\mathbf x'| = ${f3(Q.normp)}$) but $\\det\\mathbf C = −1$. A mirror cannot be reached by turning; the book\'s "rotation" excludes it, and $\\varepsilon_{ijk}$ would change sign in such a frame.</p>`;
     if (s.mode === 'tensor') {
-      if (s.tpreset === 'fixed') return `<p><b>A matrix is not a tensor.</b> These numbers claim to be the same in every frame. (2.12) says the components must become $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$; at ${fd(th)} the claim misses by ${Viz.fmt(Q.fixedRes)} Pa. Nine numbers are a tensor only if they obey the rule.</p>`;
+      if (s.tpreset === 'fixed') return `<p><b>A matrix is not a tensor.</b> These numbers claim to be the same in every frame. The rule $\\tau'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) says the components must become $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$; at ${fd(th)} the claim misses by ${Viz.fmt(Q.fixedRes)} Pa. Nine numbers are a tensor only if they obey the rule.</p>`;
       if (s.tpreset === 'hydro') return `<p><b>Hydrostatic.</b> $\\boldsymbol\\tau = -p\\,\\mathbf I$ looks the same in every frame: $\\mathbf C^{\\rm T}(-p\\mathbf I)\\mathbf C = -p\\,\\mathbf C^{\\rm T}\\mathbf C = -p\\,\\mathbf I$. Every axis is a principal axis; there is no shear on any cut.</p>`;
       const tpd = Q.thetaP === null ? null : Q.thetaP / D2R, near = tpd !== null && Math.abs(((th - tpd + 90) % 90 + 90) % 90) < 3;
       if (near) return `<p><b>Principal axes.</b> At θ ≈ ${fd(Math.round(tpd))} (+ multiples of 90°) the shear $\\tau'_{12} = ${T(Q.taup[0][1])}$ Pa vanishes and only normal stresses remain: $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. §2.11 (and E2) calls these the principal axes.</p>`;
       return `<p>At θ = ${fd(th)} the same stress state reads $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{12} = ${T(Q.taup[0][1])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. Trace $\\tau'_{11} + \\tau'_{22} = ${T(Q.taup[0][0] + Q.taup[1][1])}$ = $\\tau_{11} + \\tau_{22}$: an invariant (C07). Drag θ to where the <b class="c-rose">rose</b> curve crosses zero.</p>`;
     }
-    if (s.mode === 'polar') return `<p><b>Example 2.1.</b> The point sits at angle ${fd(th)}; $\\mathbf e_r$ is the Cartesian frame\'s 1-axis turned by that angle. So $(u_r, u_\\theta) = ${pair(Q.pol)}$ is just (2.5) with $j \\in \\{r, \\theta\\}$ — polar components are rotated Cartesian components.</p>`;
+    if (s.mode === 'polar') return `<p><b>Example 2.1.</b> The point sits at angle ${fd(th)}; $\\mathbf e_r$ is the Cartesian frame\'s 1-axis turned by that angle. So $(u_r, u_\\theta) = ${pair(Q.pol)}$ is just $x'_j = x_iC_{ij}$ (2.5) with $j \\in \\{r, \\theta\\}$ — polar components are rotated Cartesian components.</p>`;
     if (Math.abs(th) < 0.5) return '<p><b>θ = 0.</b> The frames coincide: C = I and x′ = x. Every entry on the diagonal is cos 0 = 1.</p>';
     if (Math.abs(Math.abs(th) - 90) < 0.5) return `<p><b>θ = ±90°.</b> The axes have swapped roles: $x'_1 = ${T(Q.xp[0])} = ${th > 0 ? '+' : '−'}x_2$, $x'_2 = ${T(Q.xp[1])} = ${th > 0 ? '−' : '+'}x_1$. C has zeros on the diagonal.</p>`;
     if (Math.abs(Math.abs(th) - 180) < 0.5) return '<p><b>θ = ±180°.</b> Both components change sign — a half turn is still a rotation (det C = +1); C = −I.</p>';
@@ -2646,7 +2646,7 @@ const app = Viz.app({
         W.line('$C_{12} = \\mathbf e_1\\cdot\\mathbf e\'_2 = \\cos(90° + \\theta) = -\\sin\\theta$', T(C[0][1]), 'new 2′ is 90° + θ from old 1') +
         W.line('$C_{22} = \\mathbf e_2\\cdot\\mathbf e\'_2 = \\cos\\theta$', T(C[1][1]), '') +
         W.box('The columns $(' + T(C[0][0]) + ', ' + T(C[1][0]) + ')$ and $(' + T(C[0][1]) + ', ' + T(C[1][1]) + ')$ are the <b class="c-orange">new unit vectors</b> written in old components — read them off the orange arrows.' + (s.mirror ? ' <b class="c-amber">Mirror on:</b> the second column has its sign flipped.' : ''));
-      out += W.step(2, 'The new components term by term — Eq. (2.5)') +
+      out += W.step(2, 'The new components term by term — $x\'_j = x_iC_{ij}$ (2.5)') +
         W.line('$x\'_1 = x_1C_{11} + x_2C_{21} = ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + '$', T(xp[0]), 'column 1 of C weights the old components') +
         W.line('$x\'_2 = x_1C_{12} + x_2C_{22} = ' + T(x[0]) + '\\times(' + T(C[0][1]) + ') + ' + T(x[1]) + '\\times' + T(C[1][1]) + '$', T(xp[1]), 'column 2 of C') +
         W.box('$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x = (\\mathbf{' + T(xp[0]) + '},\\ \\mathbf{' + T(xp[1]) + '})$ — the <i>first</i> index of C is summed.');
@@ -2655,12 +2655,12 @@ const app = Viz.app({
         W.line('$\\det\\mathbf C = C_{11}C_{22} - C_{12}C_{21} = ' + T(C[0][0] * C[1][1]) + ' - (' + T(C[0][1] * C[1][0]) + ')$', (detC(C) > 0 ? '+' : '−') + T(Math.abs(detC(C))), s.mirror ? 'a mirror (−1), not a rotation' : 'a rotation, not a mirror') +
         W.box('$|\\mathbf x\'|^2 = ' + T(xp[0] * xp[0]) + ' + ' + T(xp[1] * xp[1]) + ' = \\mathbf{' + T(xp[0] * xp[0] + xp[1] * xp[1]) + '} = |\\mathbf x|^2 = ' + T(x[0] * x[0]) + ' + ' + T(x[1] * x[1]) + '$ — a rotation keeps lengths (D02).');
       const back = inverseTransform(xp, C);
-      out += W.step(4, 'Back again — Eq. (2.7)') +
+      out += W.step(4, 'Back again — $x_j = x\'_iC_{ji}$ (2.7)') +
         W.line('$x_1 = x\'_1C_{11} + x\'_2C_{12} = ' + T(xp[0]) + '\\times' + T(C[0][0]) + ' + ' + T(xp[1]) + '\\times(' + T(C[0][1]) + ')$', T(back[0]), 'now the <i>second</i> index of C is summed: x = Cx′ (D03)') +
         W.line('$x_2 = x\'_1C_{21} + x\'_2C_{22}$', T(back[1]), 'row 2 of C');
       if (s.mode === 'tensor') {
         const tau = Q.tau, tp = Q.taup, terms = (m, n) => { const t = []; for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) if (Math.abs(tau[i][j]) > 1e-12) t.push('C_{' + (i + 1) + (m + 1) + '}C_{' + (j + 1) + (n + 1) + '}\\tau_{' + (i + 1) + (j + 1) + '}'); return t.join(' + ') || '0'; };
-        out += W.step(5, 'Tensor mode — Eq. (2.12) entry by entry') +
+        out += W.step(5, 'Tensor mode — $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) entry by entry') +
           W.say('Stress state: <b>' + TPRESETS[s.tpreset] + '</b>, $\\boldsymbol\\tau = \\begin{pmatrix}' + T(tau[0][0]) + ' & ' + T(tau[0][1]) + '\\\\' + T(tau[1][0]) + ' & ' + T(tau[1][1]) + '\\end{pmatrix}$ Pa. Two C\'s because τ has two indices; zero entries of τ drop out.') +
           W.line('$\\tau\'_{11} = C_{i1}C_{j1}\\tau_{ij} = ' + terms(0, 0) + '$', T(tp[0][0]) + ' Pa', '<b class="c-blue">normal</b> stress on the 1′ face') +
           W.line('$\\tau\'_{12} = C_{i1}C_{j2}\\tau_{ij} = ' + terms(0, 1) + '$', T(tp[0][1]) + ' Pa', '<b class="c-rose">shear</b> on the 1′ face') +
@@ -2668,13 +2668,13 @@ const app = Viz.app({
           W.box('Trace $\\tau\'_{11} + \\tau\'_{22} = ' + T(tp[0][0] + tp[1][1]) + ' = \\tau_{11} + \\tau_{22}$: an invariant (C07).' + (s.tpreset === 'shear' ? ' For pure shear: $\\tau\'_{11} = a\\sin 2\\theta = ' + T(shearRotated(s.a, Q.th)[0]) + '$, $\\tau\'_{12} = a\\cos 2\\theta = ' + T(shearRotated(s.a, Q.th)[1]) + '$ Pa (Example 2.2).' : ''));
         if (s.tpreset === 'fixed') out += W.result('The array declared "the same in every frame" differs from $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ by <b>' + Viz.fmt(Q.fixedRes) + ' Pa</b> at this θ — it is a matrix, not a tensor (N27).', 'warn');
       } else {
-        out += W.step(5, 'Tensor mode — Eq. (2.12)') + W.hint('Switch the object to <b>tensor</b> (chips above the picture) to see $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ worked out entry by entry with your θ.');
+        out += W.step(5, 'Tensor mode — $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12)') + W.hint('Switch the object to <b>tensor</b> (chips above the picture) to see $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ worked out entry by entry with your θ.');
       }
       if (s.mode === 'polar') {
         out += W.step(6, 'Polar mode — Example 2.1') +
           W.line('$u_r = u_1\\cos\\theta + u_2\\sin\\theta = ' + T(x[0]) + '\\times' + T(c) + ' + ' + T(x[1]) + '\\times' + T(sn) + '$', T(Q.pol[0]), 'the radial component') +
           W.line('$u_\\theta = -u_1\\sin\\theta + u_2\\cos\\theta$', T(Q.pol[1]), 'the azimuthal component') +
-          W.box('Exactly (2.5) with $j \\in \\{r, \\theta\\}$: the polar frame is the Cartesian frame turned by the point\'s angle θ.');
+          W.box('Exactly $x\'_j = x_iC_{ij}$ (2.5) with $j \\in \\{r, \\theta\\}$: the polar frame is the Cartesian frame turned by the point\'s angle θ.');
       } else {
         out += W.step(6, 'Polar mode — Example 2.1') + W.hint('Switch the object to <b>polar</b>: the same rule with $j \\in \\{r, \\theta\\}$ gives $(u_r, u_\\theta) = ' + pair(Q.pol) + '$ at θ = ' + fd(th) + '.');
       }
@@ -2683,12 +2683,12 @@ const app = Viz.app({
         W.table(['what turns', 'formula', 'x′ now'], [['axes (book)', '$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x$', '$' + pair(xp) + '$'], ['arrow (Wikipedia R)', '$\\mathbf x\' = \\mathbf C\\mathbf x$', '$' + pair(Q.xa) + '$']], cur) +
         W.say('Same matrix, opposite job. Turning the axes by $+\\theta$ is, from the axes\' point of view, turning the arrow by $-\\theta$: the two rows agree when θ → −θ.');
       const rows = VECTOR_TESTS.map(tst => { const r = vectorTestResidual(tst.fn, C, TEST_POINTS); return ['$' + tst.tex + '$', Viz.fmt(r), r < 1e-9 ? '<b class="c-teal">vector</b>' : '<b class="c-rose">not a vector</b>']; });
-      out += W.step(8, 'Is it a vector? The test of Eq. (2.8)') +
+      out += W.step(8, 'Is it a vector? The test $u\'_j = u_iC_{ij}$ (2.8)') +
         W.say('A triple of numbers is a vector only if its components obey $u\'_j = u_iC_{ij}$. Evaluate each rule in the old frame and in the new one at three sample points; the residual is $\\max|u\'_j - u_iC_{ij}|$ with your C.') +
         W.table(['rule', 'residual', 'verdict'], rows);
       let reading;
       if (s.mirror) reading = 'det C = −1: lengths are kept but handedness is not; ε<sub>ijk</sub> would change sign (N42). Turn the mirror off to get back to a rotation.';
-      else if (s.mode === 'tensor' && s.tpreset === 'fixed') reading = 'The numbers refuse to change with the frame, so they cannot describe a physical stress: the residual ' + Viz.fmt(Q.fixedRes) + ' Pa is the size of the lie. Only (2.12)-obedient arrays are tensors.';
+      else if (s.mode === 'tensor' && s.tpreset === 'fixed') reading = 'The numbers refuse to change with the frame, so they cannot describe a physical stress: the residual ' + Viz.fmt(Q.fixedRes) + ' Pa is the size of the lie. Only arrays obeying $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) are tensors.';
       else if (s.mode === 'tensor') { const tpd = Q.thetaP === null ? null : Q.thetaP / D2R; reading = tpd !== null && Math.abs((((th - tpd) % 90) + 135) % 90 - 45) > 42 ? 'τ′₁₂ = ' + T(Q.taup[0][1]) + ' Pa ≈ 0: in these axes the shear has vanished and only normal stresses remain — the principal axes of §2.11 (E2).' : 'The same stress state, described from axes turned by ' + fd(th) + ': τ′₁₁ = ' + T(Q.taup[0][0]) + ', τ′₁₂ = ' + T(Q.taup[0][1]) + ', τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa. The trace ' + T(Q.taup[0][0] + Q.taup[1][1]) + ' Pa never moves.' + (tpd !== null ? ' Drag to θ = ' + fd(Math.round(tpd)) + ' to make the shear vanish.' : ''); }
       else if (s.mode === 'polar') reading = 'The point at ' + fd(th) + ' carries u = ' + pair(x) + '; its polar components (' + T(Q.pol[0]) + ', ' + T(Q.pol[1]) + ') are the Cartesian ones read off a frame turned with the point. Nothing new was defined — one rule, one more application.';
       else if (s.what === 'arrow') reading = 'You are watching the active rotation: the arrow moved to Cx = ' + pair(Q.xa) + ' while the axes stayed. The book never does this; it turns the axes and applies Cᵀ. Same C, opposite job — flip the chip back to compare.';
@@ -2704,13 +2704,13 @@ const app = Viz.app({
   derivations: [
     { id: 'D01', title: 'The transformation rule for components', short: 'Eq. (2.5)', ref: 'Eq. (2.5)', view: 'plane',
       goal: 'Find how the three numbers that describe a vector change when the axes are rotated — the rule that will define what a vector is.',
-      start: { tex: '\\mathbf x = x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j', plain: 'The same arrow written once in the old basis (2.1) and once in the new basis (2.3); only the numbers differ.' },
+      start: { tex: '\\mathbf x = x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j', plain: 'The same arrow written once in the old basis, $\\mathbf x = x_i\\mathbf e_i$ (2.1), and once in the new basis, $\\mathbf x = x\'_j\\mathbf e\'_j$ (2.3); only the numbers differ.' },
       plan: ['Dot both spellings with one new unit vector.', 'On the primed side orthonormality kills every term but one.', 'Name the cosines that remain: that is C.', 'Do it for a general new axis, not only $\\mathbf e\'_1$.'],
-      uses: ['dot product (2.2)', 'bilinearity of the dot product', 'orthonormality $\\mathbf e\'_i\\cdot\\mathbf e\'_j = \\delta_{ij}$', 'Kronecker substitution (2.17)', 'direction cosines $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$'],
+      uses: ['dot product $\\mathbf a\\cdot\\mathbf b = a_ib_i$ (2.2)', 'bilinearity of the dot product', 'orthonormality $\\mathbf e\'_i\\cdot\\mathbf e\'_j = \\delta_{ij}$', 'Kronecker substitution $\\delta_{ij}u_j = u_i$ (2.17)', 'direction cosines $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$'],
       set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false },
       steps: [
         { did: 'Write the arrow in both bases', tex: 'x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j',
-          why: 'Equations (2.1) and (2.3) describe one and the same arrow, so their right sides are equal. We put them side by side to compare coefficients.',
+          why: 'Equations $\\mathbf x = x_i\\mathbf e_i$ (2.1) and $\\mathbf x = x\'_j\\mathbf e\'_j$ (2.3) describe one and the same arrow, so their right sides are equal. We compare coefficients.',
           plain: 'Two spellings, one vector.', watch: 'The black arrow has teal shadows and orange shadows: the two spellings.' },
         { did: 'Dot both sides with $\\mathbf e\'_k$', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_j\\,(\\mathbf e\'_j\\cdot\\mathbf e\'_k)',
           why: 'The dot product is bilinear: it distributes over the sums and lets the scalars x_i, x\'_j pull out. We dot with a new unit vector to isolate one new component.',
@@ -2719,10 +2719,10 @@ const app = Viz.app({
           why: 'The new unit vectors are perpendicular and of length 1, so e\'_j·e\'_k is 1 for j = k and 0 otherwise — that is δ. This is the move the book leaves silent.',
           plain: 'On the primed side only the k-th term can survive.' },
         { did: 'Let δ substitute its summed index', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_k',
-          why: 'Kronecker substitution (2.17): x\'_j δ_jk = x\'_k, because the sum over j has one nonzero term. We now have one new component alone on one side.',
+          why: 'Kronecker substitution $\\delta_{ij}u_j = u_i$ (2.17): x\'_j δ_jk = x\'_k, because the sum over j has one nonzero term. We now have one new component alone on one side.',
           plain: 'The new component k is a weighted sum of the old ones.' },
         { did: 'Name the weights as direction cosines', tex: 'x\'_k = x_i\\,C_{ik},\\qquad C_{ik} \\equiv \\mathbf e_i\\cdot\\mathbf e\'_k',
-          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); naming them turns the projection into a matrix. For k = 1 this line is (2.4).',
+          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); naming them turns the projection into a matrix. For k = 1 this is (2.4), $\\mathbf x\\cdot\\mathbf e\'_1 = x\'_1$.',
           plain: 'The weights are the nine cosines between old and new axes.',
           live: s => { const Q = physics(s), C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C); return '\\begin{aligned} C_{11} &= ' + T(C[0][0]) + ',\\quad C_{21} = ' + T(C[1][0]) + '\\\\ x\'_1 &= ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]) + '\\end{aligned}'; },
           set: { selj: 0, cell: { i: 0, j: 0 } } },
@@ -2738,7 +2738,7 @@ const app = Viz.app({
       goal: 'Show that the direction-cosine matrix undoes itself when transposed, so that going back to the old components is free (D03), lengths are preserved, and contracted index pairs of C become δ. The book leaves this to Exercise 2.8.',
       start: { tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j', plain: 'The definition of the direction cosines (C02).' },
       plan: ['Expand an old unit vector in the new basis (completeness).', 'Dot with another old unit vector: δ on one side, a product of two C\'s on the other.', 'Repeat with the roles of the bases swapped.', 'Take determinants for the sign.'],
-      uses: ['completeness $\\mathbf v = (\\mathbf v\\cdot\\mathbf e\'_j)\\mathbf e\'_j$', 'orthonormality of both bases', 'bilinearity', 'matrix product as an index sum (2.9)', '$\\det(AB) = \\det A\\det B$', 'continuity for the sign'],
+      uses: ['completeness $\\mathbf v = (\\mathbf v\\cdot\\mathbf e\'_j)\\mathbf e\'_j$', 'orthonormality of both bases', 'bilinearity', 'matrix product as an index sum $P_{ij} = A_{ik}B_{kj}$ (2.9)', '$\\det(AB) = \\det A\\det B$', 'continuity for the sign'],
       set: { mode: 'vector', what: 'axes', mirror: false, axis3d: false },
       steps: [
         { did: 'Write the product we want to evaluate', tex: 'C_{ij}C_{kj} = (\\mathbf e_i\\cdot\\mathbf e\'_j)(\\mathbf e_k\\cdot\\mathbf e\'_j)',
@@ -2772,26 +2772,26 @@ const app = Viz.app({
       interpret: s => { const Q = physics(s); return 'Orthogonality is why the length readout shows |x| = ' + f3(Q.norm) + ' = |x′| = ' + f3(Q.normp) + ' at θ = ' + fd(s.theta) + (s.mirror ? ' even with the mirror on (det C = −1: lengths kept, handedness lost).' : '.'); },
       check: 'θ = 30°: row 1 · row 1 = 0.75 + 0.25 = 1, row 1 · row 2 = 0.866(0.5) + (−0.5)(0.866) = 0; det = 0.866² + 0.5² = 1 (orthogonality_residual ≈ 2e-16). Limit: C = I trivially. The selftest rows check the residual and det C.' },
     { id: 'D06', title: 'The tensor transformation rule from Cauchy\'s formula', short: 'Eq. (2.12)', ref: 'Eq. (2.12)', view: 'plane',
-      goal: 'Show how the nine stress components must change under a rotation of axes, given only that force per area and the normal are vectors. The book states (2.12) and cites Sommerfeld\'s tetrahedron; we have the tetrahedron result (2.15) already, so we derive (2.12) from it.',
+      goal: 'Show how the nine stress components must change under a rotation of axes, given only that force per area and the normal are vectors. The book states the rule $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) via a tetrahedron; we already have Cauchy\'s $f_i = \\tau_{ji}n_j$ (2.15), so we derive (2.12) from it.',
       start: { tex: '\\begin{aligned} f_i &= \\tau_{ji}n_j\\quad\\text{(old frame)}\\\\ f\'_n &= \\tau\'_{mn}n\'_m\\quad\\text{(new frame)}\\end{aligned}', plain: 'Cauchy\'s formula holds for every observer, each with their own components of τ.' },
       plan: ['Transform f as a vector.', 'Insert Cauchy\'s formula in the old frame.', 'Express the old n through the new n′.', 'Compare with Cauchy\'s formula in the new frame, for every n′.'],
-      uses: ['f and n are vectors, (2.8)', 'Cauchy\'s formula (2.15)', 'the inverse transformation (2.7)', 'dummy renaming (N12)', '"true for every n′ ⇒ the coefficients agree"'],
+      uses: ['f and n are vectors: $u\'_j = u_iC_{ij}$ (2.8)', 'Cauchy\'s formula $f_i = \\tau_{ji}n_j$ (2.15)', 'the inverse rule $x_j = x\'_iC_{ji}$ (2.7)', 'dummy renaming (N12)', '"true for every n′ ⇒ the coefficients agree"'],
       set: { mode: 'tensor', tpreset: 'shear', theta: 30, what: 'axes', mirror: false },
       steps: [
         { did: 'Transform the traction as a vector', tex: 'f\'_n = f_i\\,C_{in}',
-          why: 'f is a physical force per area, hence a vector, so its components obey (2.8) with the first index of C summed. We start from f because both frames must agree on it.',
+          why: 'f is a physical force per area, hence a vector, so its components obey $u\'_j = u_iC_{ij}$ (2.8), first index of C summed. We start from f because both frames must agree on it.',
           plain: 'The new observer\'s traction components come from the old ones by C.' },
         { did: 'Insert Cauchy\'s formula in the old frame', tex: 'f\'_n = \\tau_{ji}\\,n_j\\,C_{in}',
-          why: '(2.15) gives f_i in terms of the old τ and the old n; substituting expresses the new traction through old quantities.',
+          why: 'Cauchy\'s $f_i = \\tau_{ji}n_j$ (2.15) gives f_i in terms of the old τ and the old n; substituting expresses the new traction through old quantities.',
           plain: 'The new traction, written with the old stresses and the old normal.', set: { cell: { i: 0, j: 0 }, selj: 0 }, watch: 'The orange element\'s 1′ face: its traction is the blue τ′₁₁ arrow plus the rose τ′₁₂ arrow.' },
         { did: 'Write the old normal through the new one', tex: 'n_j = n\'_m\\,C_{jm}',
-          why: 'n is a unit vector, so the inverse rule (2.7) applies (second index of C summed). We need n′ because the new observer measures n′.',
+          why: 'n is a unit vector, so the inverse rule $x_j = x\'_iC_{ji}$ (2.7) applies (second index of C summed). We need n′ because the new observer measures n′.',
           plain: 'The old components of the normal from the new ones.' },
         { did: 'Substitute the normal', tex: 'f\'_n = C_{jm}\\,C_{in}\\,\\tau_{ji}\\,n\'_m',
           why: 'Step 3 into step 2; the factors are reordered (scalars commute) so that both C\'s sit in front. Everything on the right is now old τ, two C\'s and the new normal.',
           plain: 'The new traction equals two C\'s times the old τ times the new normal.' },
         { did: 'Write Cauchy\'s formula in the new frame', tex: 'f\'_n = \\tau\'_{mn}\\,n\'_m',
-          why: 'The new observer sees the same physics, so (2.15) holds with primed components everywhere — this defines the new observer\'s τ′.',
+          why: 'The new observer sees the same physics, so $f_i = \\tau_{ji}n_j$ (2.15) holds with primed components everywhere — this defines the new observer\'s τ′.',
           plain: 'The new observer\'s own stress tensor gives the same traction.',
           live: s => { const Q = physics(s); return '\\begin{aligned} \\mathbf n\' &= (1, 0):\\quad f\'_1 = \\tau\'_{11}n\'_1 + \\tau\'_{21}n\'_2 = \\tau\'_{11} = ' + T(Q.taup[0][0]) + '\\ \\text{Pa}\\\\ f\'_2 &= \\tau\'_{12} = ' + T(Q.taup[0][1]) + '\\ \\text{Pa}\\end{aligned}'; } },
         { did: 'Equate steps 4 and 5', tex: '\\big(\\tau\'_{mn} - C_{jm}C_{in}\\tau_{ji}\\big)\\,n\'_m = 0',
@@ -2801,7 +2801,7 @@ const app = Viz.app({
           why: 'Step 6 holds for every unit n′; choose n′ = e′₁, e′₂, e′₃ in turn and each picks out one column of the bracket, which must be zero (compare coefficients).',
           plain: 'The new stress components are fixed by the old ones and C.' },
         { did: 'Rename the dummies (j → i, i → j)', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij}\\qquad(\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C)',
-          why: 'Swapping the names of two summed letters changes nothing (N12); this is the book\'s (2.12). In matrix form C_im = (Cᵀ)_mi, so Cᵀ stands on the left and C on the right.',
+          why: 'Swapping the names of two summed letters changes nothing (N12); the line is the book\'s $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12). In matrix form C_im = (Cᵀ)_mi, so Cᵀ stands on the left and C on the right.',
           plain: 'One C per index — the vector rule applied twice.', set: { theta: 45 }, watch: 'At 45° the rose τ′₁₂ arrow is gone: the shear vanished, only ±a normal stresses remain (the curve crosses zero).' }
       ],
       result: { tex: '\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij},\\qquad\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C', plain: 'A second-order tensor transforms with one direction-cosine matrix per index; whatever obeys this is a tensor.' },
@@ -2854,7 +2854,7 @@ ur, ut = ch02.polar_components(x1, x2, th)    # Example 2.1: (u_r, u_θ) = ({{ur
       symbols: [['x_i', 'components in the old frame', 'same as x'], ['x\'_1', 'first component in the new frame', 'same as x']] },
     { id: 'x5', title: 'Components transform', ref: 'Eq. (2.5)', tex: 'x\'_j = x_i C_{ij}\\qquad(\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x)',
       live: s => { const Q = physics(s); return '\\mathbf x\' = ' + pair(transformVector([s.x1, s.x2], Q.C2)).replace('−', '-').replace('−', '-'); },
-      note: 'the first index of C is summed; (2.6) is the same line with the letters i, k', symbols: [['j', 'free index: one equation per new axis', '–'], ['i', 'summed index', '–']] },
+      note: 'the first index of C is summed; $x\'_i = x_kC_{ki}$ (2.6) is the same line with the letters i, k', symbols: [['j', 'free index: one equation per new axis', '–'], ['i', 'summed index', '–']] },
     { id: 'x7', title: 'Inverse', ref: 'Eq. (2.7)', tex: 'x_j = x\'_i C_{ji}\\qquad(\\mathbf x = \\mathbf C\\,\\mathbf x\')',
       live: s => { const Q = physics(s), b = inverseTransform(transformVector([s.x1, s.x2], Q.C2), Q.C2); return '\\mathbf x = ' + pair(b).replace(/−/g, '-'); },
       note: 'now the second index of C is summed (D03)' },

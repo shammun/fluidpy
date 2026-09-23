@@ -2219,9 +2219,9 @@ const T_HALF = Math.log(2) / (Math.PI * Math.PI);               // half-life of 
 
 /* ---- properties and the three modes ---- */
 const MODE = {
-  momentum: { word: 'momentum', Dtex: '\\nu', Dtxt: 'ν', fSym: 'u', fTex: 'u', xlabel: 'u [m/s]', unitF: 'm/s', flux: 'τ', fluxTex: '\\tau', fluxUnit: 'Pa', law: 'Newton (1.3)', steady: 'steady Couette flow' },
-  heat:     { word: 'heat', Dtex: '\\kappa', Dtxt: 'κ', fSym: 'T − T₀', fTex: 'T - T_0', xlabel: 'T − T₀ [K]', unitF: 'K', flux: 'q', fluxTex: 'q', fluxUnit: 'W/m²', law: 'Fourier (1.2)', steady: 'steady conduction' },
-  species:  { word: 'species', Dtex: '\\kappa_m', Dtxt: 'κₘ', fSym: 'Y', fTex: 'Y', xlabel: 'Y [kg/kg]', unitF: 'kg/kg', flux: 'J', fluxTex: 'J_m', fluxUnit: 'kg/(m² s)', law: 'Fick (1.1)', steady: 'steady diffusion' }
+  momentum: { word: 'momentum', Dtex: '\\nu', Dtxt: 'ν', fSym: 'u', fTex: 'u', xlabel: 'u [m/s]', unitF: 'm/s', flux: 'τ', fluxTex: '\\tau', fluxUnit: 'Pa', law: 'Newton $\\tau = \\mu\\,du/dy$ (1.3)', steady: 'steady Couette flow' },
+  heat:     { word: 'heat', Dtex: '\\kappa', Dtxt: 'κ', fSym: 'T − T₀', fTex: 'T - T_0', xlabel: 'T − T₀ [K]', unitF: 'K', flux: 'q', fluxTex: 'q', fluxUnit: 'W/m²', law: 'Fourier $\\mathbf q = -k\\,\\nabla T$ (1.2)', steady: 'steady conduction' },
+  species:  { word: 'species', Dtex: '\\kappa_m', Dtxt: 'κₘ', fSym: 'Y', fTex: 'Y', xlabel: 'Y [kg/kg]', unitF: 'kg/kg', flux: 'J', fluxTex: 'J_m', fluxUnit: 'kg/(m² s)', law: 'Fick $\\mathbf J_m = -\\rho\\,\\kappa_m\\nabla Y$ (1.1)', steady: 'steady diffusion' }
 };
 function props(s) {
   const named = !!FLUIDS[s.fluid], baseKey = named ? s.fluid : (FLUIDS[s.base] ? s.base : 'water'), b = FLUIDS[baseKey];
@@ -2575,7 +2575,7 @@ const app = Viz.app({
         W.line('$\\mu$', fm(p.mu) + ' Pa s', p.named ? p.name + ' at 20 °C (fluidpy FLUIDS)' : 'your override') +
         W.line('$\\rho$', fm(p.rho) + ' kg/m³', '') +
         W.box(`$\\nu = \\mu/\\rho = ${tn(p.mu)}/${tn(p.rho)} = \\mathbf{${tn(p.nu)}}$ m²/s`) +
-        W.say('Why divide by ρ: τ is a flux of momentum, and momentum per volume is ρu. Dividing (1.3) by ρ gives a diffusivity for u itself, in m²/s like $\\kappa$ and $\\kappa_m$.');
+        W.say('Why divide by ρ: τ is a flux of momentum, and momentum per volume is ρu. Dividing $\\tau = \\mu\\,du/dy$ (1.3) by ρ gives a diffusivity for u itself, in m²/s like $\\kappa$ and $\\kappa_m$.');
       o += W.step(2, 'The clock of this diffusion') +
         W.line(`$D = ${MT.Dtex}$`, fm(M.D) + ' m²/s', M.mode === 'momentum' ? 'momentum diffuses with ν' : M.mode === 'heat' ? 'heat diffuses with κ = k/ρC_p' : 'the species diffuses with κₘ') +
         W.box(`$t_D = h^2/D = (${tn(h)})^2/${tn(M.D)} = \\mathbf{${tn(M.clock)}}$ s`) +
@@ -2612,7 +2612,7 @@ const app = Viz.app({
         W.line('largest |FTCS − exact|', Viz.live('err'), 'of the top value; large only while the layer is thinner than a few cells (Δy = h/40)');
       const Pr = p.nu / p.kappa, Sc = p.nu / p.km;
       o += W.step(6, 'The same law for heat and species') +
-        W.line(`$\\kappa = k/(\\rho C_p) = ${tn(p.k)}/(${tn(p.rho)} \\times ${tn(p.cp)})$`, fm(p.kappa) + ' m²/s', 'Fourier (1.2) divided by the heat content ρCₚ') +
+        W.line(`$\\kappa = k/(\\rho C_p) = ${tn(p.k)}/(${tn(p.rho)} \\times ${tn(p.cp)})$`, fm(p.kappa) + ' m²/s', 'Fourier $\\mathbf q = -k\\,\\nabla T$ (1.2) divided by the heat content ρCₚ') +
         W.line(`$Pr = \\nu/\\kappa$`, fm(Pr), 'momentum diffuses Pr times faster than heat') +
         W.line('$\\kappa_m$', fm(p.km) + ' m²/s', SOLUTE[p.baseKey]) +
         W.line(`$Sc = \\nu/\\kappa_m$`, fm(Sc), 'momentum diffuses Sc times faster than the species') +
@@ -2690,7 +2690,7 @@ def ftcs_step(f, r):  # ends held fixed (Dirichlet)
       set: { mode: 'momentum', fluid: 'water', h: 1, U: 1, tau: 0.06, probe: null }, play: true, eq: 'newton', readouts: ['fluxTop', 'fluxBot'] },
     { title: 'ν, not μ, sets the clock', text: 'Now air. Its μ is 55× smaller than water’s, yet it settles 15× faster: the clock is h²/ν and ν = μ/ρ. Read the clock: 66 ms instead of 1.00 s.',
       set: { mode: 'momentum', fluid: 'air', h: 1, tau: 0, probe: null }, play: true, readouts: ['nu', 'clock'] },
-    { title: 'Check any height', text: 'Click the profile at any height. The inspector takes the two neighbouring grid values, forms the slope and multiplies by μ: Newton’s law (1.3), number by number.',
+    { title: 'Check any height', text: 'Click the profile at any height. The inspector takes the two neighbouring grid values, forms the slope and multiplies by μ: Newton’s law $\\tau = \\mu\\,du/dy$ (1.3), number by number.',
       set: { mode: 'momentum', fluid: 'water', h: 1, U: 1, tau: 0.1, probe: 30 }, play: false, inspect: true },
     { title: 'Same law, three things', text: 'Heat: the profile is temperature and the flux is Fourier’s q = −k dT/dy. Species gives Fick’s J. Same equation, another D: in water heat spreads 7× slower than momentum.',
       set: { mode: 'heat', fluid: 'water', h: 1, tau: 0, probe: null }, play: true, code: { id: 'modes', lines: [1, 3] } },
