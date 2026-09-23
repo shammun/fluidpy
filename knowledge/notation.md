@@ -81,6 +81,59 @@ slider label and callout.
 ch02 wrote Γ_circ for circulation to avoid the clash; from ch03 on Γ is the circulation whenever a vortex or a loop is on
 screen, and the preset rate should be called γ or k in new text.
 
+**⚠️ Γ / γ in ch05 — five meanings in the project, and the book adds a per-length one.** The table above plus:
+
+| Symbol | Meaning | SI unit | Where | Code |
+|---|---|---|---|---|
+| Γ (ch05) | circulation of a loop / strength of a vortex tube, filament, line or point vortex; **counterclockwise positive** | m²/s | §5.1–5.7 | `Gamma` everywhere in `core.vorticity`, `core.biot_savart`, `ch05` |
+| Γ_a (ch05) | absolute circulation Γ + 2∫Ω·n dA = Γ + 2Ω·A_vec (5.33) | m²/s | §5.6 | `absolute_circulation(u, pts, Omega)` → (Γ, Γ_a) |
+| γ (ch05, book writes Γ) | **vortex-sheet strength per unit length** = jump in tangential velocity, γ = u₂ − u₁ = u_below − u_above (counterclockwise circuit) | m/s | §5.8, Fig. 5.16 | `gamma` in `vortex_sheet_strength(u_above, u_below, convention="ccw")`, `diffusing_vortex_sheet`, `sheet_rollup` |
+
+Rule: `Gamma` [m²/s] is always a circulation; `gamma` [m/s] in ch05 is always a sheet strength (ch03's γ was a shear rate,
+ch04's the third isotropic coefficient, ch01's C_p/C_v). The Fig. 5.16 caption's u₁ − u₂ is the clockwise count
+(`convention="caption"`, −2 for the text's +2).
+
+**⚠️ ω is the vorticity in (5.1); the tank turns at ω/2 (ch05).** u_θ = ωr/2 with ω = ∇×u. A tank turning at Ω = 1 rad/s
+has ω = 2 s⁻¹; Fig. 5.2's "2ω" label is a slip. ch03's `solid_body_rotation(r, omega0)` takes the *rate* ω₀;
+`ch05.solid_body_from_vorticity(r, omega)` converts (passing ω as the rate makes the pressure 4× too big, a planted
+variant caught by 5 tests). Elsewhere ω still means angular frequency in ch03 Ex. 3.1 and Ch. 7.
+
+**⚠️ Baroclinic vector: order and angle (ch05 (5.28), E4).** The source is (1/ρ²)∇ρ × ∇p — ∇ρ first (the reversed order
+fails 5 tests). E4 and the notebook write ∇p = (0, −ρ₀g) (hydrostatic) and **∇ρ = |∇ρ|(sin θ, −cos θ)**, θ = the tilt of the
+isopycnals from the isobars: θ = 0 stable, no torque; (∇ρ × ∇p)_z = −|∇ρ|ρ₀g sin θ, so 0 < θ < 180° spins **clockwise**
+(−0.0981 s⁻² at θ = 90°, |∇ρ| = 10 kg/m⁴, ρ₀ = 1000) and θ = 270° counterclockwise. Lock exchange with the heavy fluid on
+the left: +2.42 s⁻² (counterclockwise). The design first had this angle reversed; the builders caught it by computing.
+
+**⚠️ Natural coordinates: e_n = −(Frenet N) (ch05 (5.31), Fig. 5.9).** e_s along ω; the book's e_n points **away** from
+the centre of curvature (the Frenet normal N points toward it); e_m = e_s × e_n. For a helix of radius a and pitch 2πc,
+e_n is radially outward, κ = a/(a² + c²), τ = c/(a² + c²) (τ = torsion here, not stress). `ch05.helix_frame`,
+`frenet_frame` return the book's frame; the Frenet variant fails 2 tests.
+
+**⚠️ (5.14) sign and ∇′ (ch05).** The book prints u = −(1/4π)∫(∇′×ω)/|x − x′| d³x′; the right factor is **+1/(4π)** (∇²u =
+−∇×ω, G = −1/(4π|x − x′|)). Its integrand rewrite flips a second sign, so (5.16) is right. ∇′(1/|x − x′|) =
++(x − x′)/|x − x′|³ (derivative with respect to the source point = minus the derivative with respect to x).
+`core.biot_savart.velocity_from_curl_omega(..., sign=+1)`; `sign=-1` reproduces the printed form (reverses the swirl).
+
+**⚠️ Elliptic integrals take the parameter m = k² (scipy).** `scipy.special.ellipk(m)`, `ellipe(m)`; the modulus k is the
+square root. `ring_ring_velocity` passes m (the modulus variant misses by > 5 %). Explainers mirror it in `ellipKE`
+(AGM). K(m) → ∞ as m → 1 (a point on the filament).
+
+**⚠️ Burgers' α (ch05 N21, D18).** The book's u_z = αz, u_R = −½αR; Wikipedia writes the same flow with α_w = α/2. Core
+radius √(4ν/α) in the book's α. `core.vortices.burgers_vortex(R, z, Gamma, alpha, nu)` uses the book's.
+
+**⚠️ Book slips taught corrected (ch05, analysis §9).** (5.14) −1/(4π) → +1/(4π), with a compensating slip in the
+integrand rewrite (so (5.16) is right) · (5.27) silently drops u_{j,j}(ω_n + 2Ω_n) (zero by (5.19)) · "Π" for Φ in (5.26) ·
+the Lamb step writes ∇(u·u) for ∇(½u·u) (harmless under the curl) · Fig. 5.2's "2ω" (the tank turns at ω/2) · "ρ and p
+single-valued" is not why ∮dp/ρ = 0 — barotropy ρ = ρ(p) is · "irrotational C ⇒ no viscous term" holds only for
+incompressible constant-μ flow · Fig. 5.11's G is the centre of vorticity, not a stagnation point · Fig. 5.16 caption
+u₁ − u₂ vs text u₂ − u₁ · "hyperboloids of the second degree" (Fig. 5.3) are cubic surfaces (c − z)r² = const · exercise
+pointers "5.8" after (5.14) → 5.9 and "5.11" after (5.33) → 5.10.
+
+**⚠️ Rotating tank is not geostrophic (ch05 lesson review).** Water at rest in a rotating tank has no Coriolis force
+(u′ = 0); its paraboloid is gravity + centrifugal folded into an effective gravity (a geopotential surface, the reason
+for the Earth's equatorial bulge). Geostrophy is Coriolis against a pressure gradient and needs motion relative to the
+frame.
+
 **⚠️ R has no ½; ω = 2 × spin (ch03 (3.13), (3.15)).** R = G − Gᵀ, its vector ω = ∇×u (vorticity), G = S + ½R. A small
 element turns rigidly at **½ω** (`element_rotation_rate` = ½ω₃); a paddle wheel turns at ½ω; solid-body rotation at
 ω₀ has ω = 2ω₀. Vector of the antisymmetric part A = ½R is the spin ½ω, never "ω".
@@ -469,6 +522,59 @@ grids drop the duplicate end node (h = L/n).
 | Ec, Pr | Eckert U²/(C_pδT), Prandtl ν/κ = μC_p/k | – | air 0.71, water ≈ 7 at 20 °C; monatomic 2/3 | ch04 → | `eckert_number`, `prandtl_number`, `eucken_prandtl`, `prandtl_of` |
 | We, Bo, Ca | ρU²l/σ, ρgl²/σ, μU/σ (force ratios, not per volume) | – | Ca = We/Re | ch04 → | `weber_number`, `bond_number`, `capillary_number` |
 | λ ⚠️ (model scale) | l_m/l_p (Ex. 4.8 uses 1/25) | – | Froude matching U_m = U_p√λ; wave drag × λ⁻³; Re ratio λ^{3/2} | ch04 | `froude_scaled_speed`, `model_prototype`, `ship_drag_extrapolation` |
+| **Vortex lines, tubes and the basic vortices (ch05 §5.1)** | | | | | |
+| ω ⚠️ | vorticity ∇×u; in (5.1) u_θ = ωr/2 the fluid turns at ω/2 | 1/s | counterclockwise positive in the plane; **ch03 `omega0` = rotation rate ω/2; ω = angular frequency in ch03 Ex. 3.1 and Ch. 7** | ch02 → | `omega`; `solid_body_from_vorticity(r, omega)` |
+| Ω ⚠️ (tank) | rotation rate of a tank = ω/2 | rad/s | **Ω also the frame rotation (ch04, §5.6) and ch04's imposed frequency scale** | ch05 | `Omega_tank` in `rotating_tank_free_surface` |
+| dx/ω_x = dy/ω_y = dz/ω_z | vortex line (5.3); parametric dx/ds = ω/\|ω\| | – | traced both ways from x₀ | ch05 → | `vortex_line(omega, x0, s_max, both)` |
+| Γ (tube) | tube strength ∮u·dx = ∫ω·n dA, the same at every section (5.4) | m²/s | loop counterclockwise about the section normal | ch05 → | `vortex_tube_strength` → `TubeStrength`, `tube_flux_budget` → `TubeFlux(lower, side, upper, total)` |
+| a ⚠️ | core radius (Rankine, rotating cylinder, ring core, Gaussian tube a₀) | m | **also ring radius R vs core a; Hill's sphere radius a** | ch05 → | `a`, `a0` |
+| p_o, p_∞ | pressure on the axis at z = 0 (tank); far-field pressure (line vortex) | Pa | gauge-like references, default 0 | ch05 | `p_o`, `p_inf` |
+| σ_rθ ⚠️ | viscous shear stress in polar coordinates = μ[(1/r)∂u_r/∂θ + r∂(u_θ/r)/∂r]; line vortex −μΓ/πr² | Pa | net force per volume (1/r²)∂(r²σ_rθ)/∂r (the r² trap); **σ = surface tension (ch01), core radius (ch03, `sigma_core` here)** | ch05 | `polar_viscous_stress`, `line_vortex_viscous_stress`, `polar_net_viscous_force` |
+| torque per length | 2πr²σ_rθ = −2μΓ at every r outside a rotating cylinder | N m/m | on the fluid inside radius r | ch05 | `torque_per_length`, `edge_line_force` (jump −μΓ/πa² at r = a) |
+| B (vortex) | u_θ²/2 + gz + p/ρ; grows as ω²r²/4 in the tank, uniform for the line vortex | m²/s² | B − B(0) | ch04 → | `bernoulli_across_vortex(kind, r)` |
+| **Circulation and Kelvin (ch05 §5.2–5.3)** | | | | | |
+| C, x(s, t) | material loop with fixed particle labels s ∈ [0, 1) | m | points advected in one `solve_ivp` call (DOP853) | ch05 → | `material_loop(u, pts0, t_eval)` → (n_t, 3, N) |
+| A_vec | vector area ½∮x × dx (planar loop: area × normal) | m² | right-hand rule with the loop direction | ch05 → | `loop_vector_area(pts)` |
+| 𝒫 | barotropic pressure function ∫dp/ρ(p) | m²/s² | ∮d𝒫 = 0 only if ρ = ρ(p) | ch04 → | `core.bernoulli.pressure_function` |
+| δ ⚠️ | thickness of the smoothed (tanh) density interface in the lock exchange | m | rate ∝ 1/δ | ch05 | `delta` in `lock_exchange_*` |
+| ρ₁, ρ₂ | light and heavy densities | kg/m³ | heavy fluid on the left ⇒ counterclockwise | ch05 | `rho1`, `rho2` |
+| θ ⚠️ (tilt) | angle of the isopycnals from the isobars in E4 | rad | ∇ρ = \|∇ρ\|(sin θ, −cos θ); **θ also polar angle, segment end angles** | ch05 | `tilt` in `baroclinic_element_scenario` |
+| x_G, I_G | centre of mass of the disc (offset R²∇ρ/4ρ₀) and its moment of inertia ½πρ₀R⁴ | m, kg m²/m | torque about G | ch05 | `pressure_torque_on_element`, `baroclinic_element_scenario` |
+| **Vorticity equation (ch05 §5.4, §5.6)** | | | | | |
+| (ω·∇)u | stretching + tilting term | 1/s² | = Gω with G[i, j] = ∂u_i/∂x_j | ch05 → | `vorticity_terms`, `stretching_tilting_split(omega, G)` |
+| 2Ω, ω + 2Ω | planetary and absolute vorticity | 1/s | planetary term 2(Ω·∇)u = 2Ω∂u/∂z for Ω = Ωe_z | ch03 → | `absolute_vorticity`, `planetary_vorticity_terms(G, Omega)` |
+| ∇ρ × ∇p/ρ² | baroclinic source (5.28) | 1/s² | order ∇ρ × ∇p | ch05 → | `baroclinic_term(rho, p, x)`, `baroclinic_rate_2d` |
+| u_{i,j} | comma notation ∂u_i/∂x_j | – | free index renamed n → i at the end of D15 | ch02 → | (sympy in D14, D15) |
+| α ⚠️ | strain rate of the Burgers / uniform-strain flows (u_z = αz) | 1/s | book's α = 2 × Wikipedia's (Burgers); **α also thermal expansion (ch01), E4 cube spin (ch04)** | ch05 | `alpha` in `burgers_vortex`, `strain_preset(name, rate)` |
+| s ⚠️ | shear rate of the `shear_tilt` preset (w = s x) | 1/s | **s also arc length along a vortex line** | ch05 | `rate` in `strain_preset("shear_tilt")` |
+| γ (sheet, diffusing) | strength of a diffusing vortex sheet (Ex. 5.6) | m/s | ω = γ/(2√(πνt))e^{−y²/4νt}, u(∞) = −γ/2 | ch05 | `diffusing_vortex_sheet(y, t, gamma, nu)` |
+| A (Hill) ⚠️ | Hill's vortex constant, ω = AR e_φ; U = 2Aa²/15 | 1/(m s) | **A also area** | ch05 | `hill_spherical_vortex(R, z, A, a)` |
+| **Natural coordinates (ch05 (5.31)–(5.32))** | | | | | |
+| e_s, e_n, e_m | unit tangent to the vortex line, normal **away** from the centre of curvature (= −Frenet N), e_m = e_s × e_n | – | see the sign trap | ch05 | `helix_frame(s, a, c)`, `frenet_frame(curve, s)` |
+| κ, τ ⚠️ | curvature, torsion of a vortex line | 1/m | helix κ = a/(a² + c²), τ = c/(a² + c²); **τ = stress elsewhere, κ = thermal diffusivity** | ch05 | `curvature`, `torsion` keys |
+| ω_s, ω_n, ω_m | vorticity components in the natural frame (ω_n = ω_m = 0 at the point) | 1/s | D/Dt of each = ω ∂u_{s,n,m}/∂s | ch05 | `stretching_tilting_split` → `stretching`, `tilting` |
+| **Rotating frame and columns (ch05 (5.33))** | | | | | |
+| ζ ⚠️ | relative vorticity ω_z of a column | 1/s | cyclonic > 0 in the NH; **ζ = parcel displacement (ch01), cap/meniscus height (ch04)** | ch04 (gloss) → Ch. 13 | `zeta`, `zeta0` in `column_relative_vorticity` |
+| f | local planetary vorticity 2Ω sin φ | 1/s | NH > 0 | ch04 → | `coriolis_parameter`, `f=` |
+| h ⚠️ | column height | m | (ζ + f)/h conserved; **h also vortex spacing (§5.7), wall distance** | ch05 → Ch. 13 | `h`, `h0` |
+| φ | latitude | ° at interfaces | `*_deg` names; radians inside | ch04 → | `lat_deg`, `lat0_deg`, `lat1_deg` |
+| **Biot–Savart and filaments (ch05 §5.5)** | | | | | |
+| G(x, x′) | Green's function of ∇² in 3-D, −1/(4π\|x − x′\|) | 1/m | ∇²G = δ | ch05 → | `poisson_green_3d(x, xp)` |
+| x, x′ | field point and source point | m | ∇′ acts on x′ | ch05 → | `x`, `xp`, `nodes` |
+| e_ω, dl | unit vector along a filament, element length | –, m | du = (Γdl/4π)e_ω × (x − x′)/\|x − x′\|³ | ch05 → | `filament_velocity(x, polyline, Gamma, closed)` |
+| d, θ_a, θ_b ⚠️ | perpendicular distance to a segment; angles at its ends | m, rad | (Γ/4πd)(cos θ_a − cos θ_b) | ch05 → | `segment_speed(d, theta_a, theta_b, Gamma)` |
+| ε (kernel) ⚠️ | smoothing length r² → r² + ε² | m | ≈ grid spacing inside a core; **ε = Levi-Civita / dissipation elsewhere** | ch05 | `eps` in `biot_savart_*`, `point_vortex_velocity` |
+| R, a (ring) | ring radius, core radius | m | self-speed Γ/4πR[ln(8R/a) − C], C = ¼ uniform, ½ hollow, 0.558 Gaussian (a = √(4νt)) | ch05 → Ch. 14 | `ring_self_velocity(R, a, Gamma, core)`, `RING_CORES` |
+| m ⚠️ | elliptic-integral parameter k² | – | **not the modulus k; m = mass elsewhere** | ch05 | inside `ring_ring_velocity` |
+| M ⚠️ | number of segments of a polygon filament | – | error ∝ 1/M² at a ring centre | ch05 | `M` in `filament_preset` |
+| **Point vortices, images, sheets (ch05 §5.7–5.8)** | | | | | |
+| x_k, Γ_k | point-vortex positions and strengths | m, m²/s | counterclockwise positive; self excluded | ch05 → | `point_vortex_velocity(x, xv, Gamma)`, `point_vortex_evolve` |
+| h ⚠️ | vortex separation (pairs); distance to a wall; channel position | m | V = Γ/2πh (pair), Γ/4πh (wall) | ch05 | `vortex_pair(G1, G2, h)`, `vortex_near_wall_speed(Gamma, h)` |
+| G ⚠️ | centre of vorticity ΣΓ_kx_k/ΣΓ_k | m | **not a stagnation point** (Fig. 5.11 caption); **G = velocity gradient, g in ch04** | ch05 | `centre_of_vorticity` |
+| P, I, H ⚠️ | linear impulse ΣΓx, angular impulse ΣΓ\|x\|², Kirchhoff energy −(1/2π)ΣΓ_jΓ_k ln\|x_j − x_k\| | m³/s, m⁴/s, m⁴/s² | conserved; **H also channel width** | ch05 | `point_vortex_invariants` |
+| H ⚠️ (channel) | channel width | m | drift (Γ/4H)cot(πh/H) | ch05 | `channel_image_velocity(h, H, Gamma)` |
+| u₁, u₂ | tangential velocity above / below a sheet | m/s | γ = u₂ − u₁ | ch05 | `vortex_sheet_strength(u_above, u_below)` |
+| N ⚠️ | number of filaments in a discrete sheet | – | L1 error ∝ 1/N; **N² = buoyancy frequency elsewhere** | ch05 | `discrete_sheet_u(x, y, gamma, N)` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -477,3 +583,4 @@ grids drop the duplicate end node (h = L/n).
 | ch02 | right-handed x₁x₂x₃ (no preferred "up"); rotated frame shares the origin; angles counterclockwise about e₃; grid arrays `[k, j, i]` = (z, y, x), components and `h` in (x, y, z) | origin of both frames; boxes/loops centred at x0 | τ_ij tensile positive, +e_i face → +e_j; traction f = n·τ (first index); ∇·τ on the second index; pressure τ = −pδ; passive C (x' = Cᵀx); book A:B = A_ij B_ji; R = G − Gᵀ ↔ ω = ∇×u, A = ½R ↔ ½∇×u; Stokes n_c into A, t counterclockwise about n; outward n on closed surfaces | none (pure mathematics) | dimensional where physical (Pa, 1/s, m); most results unit-agnostic |
 | ch03 | right-handed Cartesian (no preferred "up"); plane polar (r, θ from +x), cylindrical (R, φ, z), spherical (r, θ from +z, φ); angles and rotation counterclockwise positive (shear spins clockwise: ω₃ = −γ); field callables `u(x, t)` with coordinates on axis 0; Galilean frame O′ at constant U (x = x′ + Ut + x′_o, u′ = u − U); rotating frame u = Ω × x + u′ at the coinciding instant | cylinder centre at the origin at t = 0 for every observer (E3); Ex. 3.1 port at the origin; vortices centred at the origin; RTT shapes with explicit reference geometry (E7 interval [1, 3] + ȧt, ḃt; ellipse a = 2 + ȧt, b = 1 + ḃt) | R = G − Gᵀ (no ½), ω = ∇×u, spin ½ω; γ = 2S₁₂; RTT outward n, signed b·n; Leibniz lower term subtracted | none (E6 draws in r/σ; its real-vortex modes use metres) | dimensional SI throughout |
 | ch04 | right-handed Cartesian, **z up**, g = −g e_z, Φ = gz (4.18); cylindrical (R, φ, z) for rotating flows and Ex. 4.5; noninertial frame O′ translating at U(t) and rotating at Ω(t) with basis e′_i; NH Ω_z > 0; latitude φ | CVs with explicit geometry (E1 boxes around the wake, bore, jet, rocket, balloon); hydrostatic base state p_s(z), ρ_s(z) for Boussinesq; free surface η = 0 | τ = −pδ + σ, tensile positive; traction f_j = n_iτ_ij and Cauchy's divergence on the **first** index; outward n, signed (u − b)·n; drag on the body +x, on the fluid −F_D; acceleration terms +2Ω × u′, +Ω × (Ω × x′) (4.43) vs forces −2Ω × u′, −Ω × (Ω × x′) (4.45); Stokes assumption μ_v = 0; 2-D ψ: u = ∂ψ/∂y; primes: rotating frame (§4.7), perturbation (§4.9), dummy (4.67) | `core.similarity.Scales` holds one set per use with its time scale (1/Ω (4.100) or l/U (4.109)) and pressure scale (ρU², μU/l or ρgl); Ro = U/(2Ωl) forward pointer | dimensional SI in functions; non-dimensional via `Scales` and the `nondimensional_*` coefficient routines; g default 9.81 in `ch04`, 9.80665 in `core` |
+| ch05 | right-handed Cartesian, **z up**, g = 9.81 (`core.thermo.G_BOOK`); plane polar (r, θ) and cylindrical (R, φ, z) for vortices and rings; material loops with fixed labels s ∈ [0, 1); rotating frame Ω = Ωe_z (NH > 0); natural frame (e_s, e_n = −Frenet N, e_m) on vortex lines; wall at y = 0 with the fluid above; sheet along x with u₁ above, u₂ below | vortices and rings centred on the axis; tank p_o on the axis at z = 0; line vortex p_∞ far away; lock-exchange interface at x = 0 (heavy on the left); column undisturbed depth h₀ | counterclockwise-positive ω_z, Γ, point-vortex strengths and sheet strength γ = u₂ − u₁; ∇ρ × ∇p order; (5.14) with +1/(4π); ω = vorticity (tank turns at ω/2); σ_rθ viscous stress with the polar metric; Γ_a = Γ + 2Ω·A_vec | none fixed (every function dimensional; the E-series use lab or planetary numbers directly) | dimensional SI throughout; latitudes in degrees only at `*_deg` interfaces |

@@ -147,8 +147,8 @@
       "review": "pass",
       "viz": "pass",
       "notebook": "pass",
-      "knowledge": "running",
-      "publish": "running",
+      "knowledge": "done",
+      "publish": "pass",
       "explainers": [
         "vortex_tubes_cannot_end",
         "vortex_pressure_funnel",
@@ -160,7 +160,7 @@
         "point_vortex_lab",
         "vortex_sheet_rollup"
       ],
-      "notes": "analyze: 94 rows, 34 eq labels once each, CODE/DEMO/SKIP 51/29/14, 31 derivations (4 hard), 16 candidate A; (5.14) sign slip confirmed (cancels in 5.16); curate: A 14 / B 69 / C 11 (NOTE 60, RECAP 18, SKIP 2) of 94; 23 D rows (4 hard), 6 demoted; 9 explainers + backup vortex_rings; design: 14 CORE blocks, 9+1 explainer storyboards, Part C 118 names, Part E 247 rows, Part F 23 D / 194 steps, 15 primers; implement: core/vorticity.py + core/biot_savart.py + vortices/integral_theorems additions + ch05 module, 9 scripts exit 0; (5.14) sign fixed; Fig 5.11 G is centre of vorticity; verify PASS loop 2: 133 tests (V1 86, V2 23, V3 10, V4 8, V5 2, V6 4), 611 total, orders ~2.00, 40 wrong variants caught; F1 core-edge stress/torque and F2 Hill u_R sign fixed; review: no must-fix, 7 should-fix resolved (circle-centre image, ring validity stop 3a, V1 labels), 135 ch05 / 613 total; viz PASS round 2 (9/9, 2776 views, 268 parity rows; E2/E3/E7 phone legibility fixed); notebook PASS (496 cells, lesson round 2 + orchestrator eq-number fix, 67 s, coverage 0/0, embed OK); design fixes: θ convention, D12 2a/|x−x′|, D23 short sides → 0 as dn → 0; open viz should-fix: long Explain pagers at 360x640, E1 step 5 6 pages, E2 isobar labels stack at 360",
+      "notes": "analyze: 94 rows, 34 eq labels once each, CODE/DEMO/SKIP 51/29/14, 31 derivations (4 hard), 16 candidate A; (5.14) sign slip confirmed (cancels in 5.16); curate: A 14 / B 69 / C 11 (NOTE 60, RECAP 18, SKIP 2) of 94; 23 D rows (4 hard), 6 demoted; 9 explainers + backup vortex_rings; design: 14 CORE blocks, 9+1 explainer storyboards, Part C 118 names, Part E 247 rows, Part F 23 D / 194 steps, 15 primers; implement: core/vorticity.py + core/biot_savart.py + vortices/integral_theorems additions + ch05 module, 9 scripts exit 0; (5.14) sign fixed; Fig 5.11 G is centre of vorticity; verify PASS loop 2: 133 tests (V1 86, V2 23, V3 10, V4 8, V5 2, V6 4), 611 total, orders ~2.00, 40 wrong variants caught; F1 core-edge stress/torque and F2 Hill u_R sign fixed; review: no must-fix, 7 should-fix resolved (circle-centre image, ring validity stop 3a, V1 labels), 135 ch05 / 613 total; viz PASS round 2 (9/9, 2776 views, 268 parity rows; E2/E3/E7 phone legibility fixed); notebook PASS (496 cells, lesson round 2 + orchestrator eq-number fix, 67 s, coverage 0/0, embed OK); design fixes: θ convention, D12 2a/|x−x′|, D23 short sides → 0 as dn → 0; open viz should-fix: long Explain pagers at 360x640, E1 step 5 6 pages, E2 isobar labels stack at 360; knowledge: ch05.md + CUMULATIVE rewrite (356 lines), concept_map +14 A / +29 B/C / +23 D rows / +21 moves, notation (Γ/γ, ω vs Ω, ∇ρ×∇p angle, e_n = −N, m = k²), primers P134–P148 (148 total), viz_patterns ch05 patterns + 20 ranked promotion candidates (not promoted: publisher reading viz/); publish: page 6.31 MB, notebook 67 s, 9 explainers, shot --page PASS, check_public OK",
       "updated": "2026-09-23"
     },
     "ch06": {

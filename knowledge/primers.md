@@ -3,8 +3,8 @@
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
-chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133); a new chapter starts at the next free number
-(ch05: P134). Total so far: 133.
+chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148); a new chapter starts at the
+next free number (ch06: P149). Total so far: 148.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -164,6 +164,24 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | latitude, Earth's rotation rate and the local vertical (P126) | ch04 · §4.7 · C09 | Ω = 2π/86 164 s = 7.292×10⁻⁵ rad/s; at latitude φ its local vertical part is Ω sin φ, so f = 2Ω sin φ (named here, taught in Ch. 13); NH Ω_z > 0 deflects right |
 | power of a force and heat flux through a surface (P127) | ch04 · §4.8 · C10 | a force does work at F·u; per area the stress does f·u, per volume gravity ρg·u; heat leaves through dA at q·n dA (outward positive, so the budget has −∮q·n) |
 | reduced gravity and buoyancy (P131) | ch04 · §4.9 · C13 | a parcel lighter by Δρ feels g′ = gΔρ/ρ₀ upward; the field version is b = −gρ′/ρ₀; 2 K of warm water (α = 2×10⁻⁴) gives g′ ≈ 0.004 m/s² |
+| **ch05 — Python and numerics** | | |
+| periodic trapezoid rule on a closed loop (P136) | ch05 · §5.2 · C03 | for a smooth closed loop sampled at N equal parameter steps, the plain average is spectrally accurate (errors cancel round a periodic curve); ∮u·dx with dx/ds from an FFT derivative (`loop_circulation`); glosses: FFT derivative multiplies a wave by 2πik, `np.roll` for the next point |
+| advecting many points in one `solve_ivp` call (P137) | ch05 · §5.2 · C03 | one long state vector (all x's, then all y's), a right-hand side that reshapes to (2, N), evaluates the velocity vectorised and flattens back; one adaptive step for the whole loop (`material_loop`) |
+| Fourier modes and the FFT Poisson solver (P142) | ch05 · §5.5 · C07 | on a periodic box ∂/∂x → ik_x, ∇² → −\|k\|²; ∇²ψ = −ω becomes ψ̂ = ω̂/\|k\|² per wave (k = 0 set to 0); `np.fft.fft2`/`ifft2` (`velocity_from_vorticity_fft`; → Ch. 10 spectral methods, Ch. 13 PV inversion) |
+| Gauss–Legendre quadrature in 3-D and a smoothed kernel (P143) | ch05 · §5.5 · C07 | n nodes per axis integrate polynomials of degree 2n − 1 exactly; a box uses all n³ products of weights (`cylinder_quadrature` does R, φ, z); near a 1/r³ kernel replace r² by r² + ε² so no node divides by zero |
+| systems of ODEs for interacting bodies and their invariants (P147) | ch05 · §5.7 · C12 | N vortices = 2N coupled ODEs in one state vector; the exact motion conserves ΣΓx, ΣΓ\|x\|² and Kirchhoff's H = −(1/2π)ΣΓ_jΓ_k ln\|x_j − x_k\|, so watching them stay flat checks the integrator |
+| complete elliptic integrals with the parameter m (P148) | ch05 · §5.7 · C13 | K(m) = ∫dθ/√(1 − m sin²θ), E(m) = ∫√(1 − m sin²θ) dθ over [0, π/2]; ⚠️ `scipy.special.ellipk(m)`, `ellipe(m)` take m = k², not the modulus k (a silent 5 % bug); K → ∞ as m → 1 (ring velocities) |
+| **ch05 — maths** | | |
+| partial integration with an unknown function (P134) | ch05 · §5.1 · C02 | integrating ∂p/∂r in r leaves a "constant" f(z) (∂f/∂r = 0), fixed by the other equation ∂p/∂z (D02, the rotating tank; sympy `dsolve` demo) |
+| closed-loop integral of an exact differential (P135) | ch05 · §5.2 · C03 | ∮dF = 0 for a single-valued F; fails for a multi-valued one such as the polar angle round the origin (2π); Kelvin uses it for ½u² and for the pressure function (needs ρ = ρ(p)) |
+| loop vector area ½∮x × dx (P138) | ch05 · §5.3 · C05 (reused in C11) | a vector of length = enclosed area (flat loop) along the loop's right-hand normal; for a curved loop ∫n dA over any spanning surface; 2-D = the shoelace formula (`loop_vector_area`) |
+| Poisson equation and Green's function (P139) | ch05 · §5.5 · C07 | ∇²φ = q; the response to a unit point source G = −1/(4π\|x − x′\|) solves ∇²G = δ (flux of ∇(1/r) through a small sphere = −4π); superposition φ = ∫Gq d³x′ (glosses: Dirac delta as a point source, superposition) |
+| gradient of 1/distance with respect to the source point (P140) | ch05 · §5.5 · C07 | ∇′(1/\|x − x′\|) = +(x − x′)/\|x − x′\|³ points from the source to the field point; ∇ with respect to x flips the sign — the book's two §5.5 slips |
+| curl of a product (P141) | ch05 · §5.5 · C07 | ∇×(fA) = f∇×A + ∇f × A, order of the cross product kept (gloss: a × b = −b × a); moves the curl off ω in D11 (was a ch04 gloss for χ∇ψ) |
+| improper integral as a limit (P144) | ch05 · §5.5 · C08 | integrate to a finite end, then let it run away: ∫₀^∞ e^{−x}dx = lim(1 − e^{−b}) = 1; a segment grows into an infinite line in D13 |
+| Frenet frame of a curve (P145) | ch05 · §5.6 · C10 | unit tangent, principal normal (toward the centre of curvature), binormal; ⚠️ the book's e_n points **away** (= −N); helix curvature a/(a² + c²), torsion c/(a² + c²) (gloss: plotly dropdown menus for the frame figure) |
+| **ch05 — physics vocabulary** | | |
+| angular momentum of a spinning cylinder (P146) | ch05 · §5.6 · C10 | L = IΩ with I = ½mR² = mA/2π; no torque ⇒ L fixed, so stretching at fixed mass and volume shrinks A and spins it up ∝ length (the skater; vortex stretching D17, D18) |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -217,3 +235,32 @@ the barotropic pressure function ∫dp/ρ(p) (N87, D24), `np.cross` broadcasting
 `scipy.integrate.tplquad` (N07). Python idioms first met in ch04 and explained by their line comment only:
 `sp.lambdify`, `np.ma.masked_where`, `contourpy`, plotly `make_subplots`, `sp.KroneckerDelta`, `sp.solve`/`.coeff`,
 `np.outer` (the lesson reviewer accepted this; a ch03-style idiom gloss would be better).
+
+Reminders written in ch05 instead of new primers (point here; each "Tools from earlier chapters" 🔁 cell names the
+chapter): P29 lambda, numpy arrays, P04 f-strings, P92 parametric curves and arc length, P93 parallel vectors, P74
+right-hand rule, P111 named results (NamedTuple), P76 `meshgrid` (with `indexing="ij"`, moved before first use in lesson
+round 1), P83 midpoint sums, P15 `assert np.allclose`, P41/P64 plotly 3-D, log axes (P13), P01 matplotlib, P18 show_viz,
+P88 cylindrical unit vectors, P124 rotating unit vector, P40 sympy, P108 `brentq`, P37 trapezoid and
+`cumulative_trapezoid`, P116 torque and moment of inertia, P127 power of a force, P87 `quad`/`dblquad`, P17
+slider_figure, P115 conservative force, P103 rotating frame, P70 `arctan2`/`unwrap`, P31/P94 `solve_ivp` (DOP853,
+t_eval), P89 functions with parameters, P109 differentiation under the integral sign, P99 material line element, P98
+Taylor, P128 chain rule for kinetic energy, P91 chain rule along a path, P95 RK4 by hand, P16 animate, P28 net pressure
+force, P13 observed order, P66 `np.deg2rad` (moved before first use), P131 reduced gravity, P112 small-patch
+localisation, `np.cross`/`np.linalg.norm`/`@` (added in lesson round 1), P121 Schwarz, P75 directional derivative, P123
+erfc, P21/P22 finite differences and FTCS, P122 curl of a curl, P106 substitution, P10 random generator, P62
+`np.einsum`, P72 parity of ε, P38 product rule, P65 projection and completeness, P79 `expm`, P44 separation of
+variables, exp/log, P126 latitude and f, P125 product rule for a cross product, P22 `np.gradient` (added in lesson round
+1).
+
+Glosses in ch05 (one sentence where used, no demo unless noted): polar strain rate and polar stress divergence
+(1/r²)∂(r²σ_rθ)/∂r (D03), **polar vector Laplacian (∇²u)_θ = u_θ″ + u_θ′/r − u_θ/r²** with a 2-line sympy check (added in
+lesson round 1; the −u_θ/r² because e_θ turns), centre of mass of a non-uniform disc and disc I = ½MR² (D06), **moment
+transfer M_G = M_O + (r_O − r_G) × F** (D06, round 1), quotient rule ∇(1/ρ) = −∇ρ/ρ² (D05 step 9, D15), smoothed step with
+`np.tanh` (D07), **Taylor–Green flow** u = (sin x cos y, −cos x sin y)e^{−2νt}, the viscous twin of C03's cellular flow
+(added in round 1), frozen-kernel far field with its 2a/distance estimate (D12), 1 + cot² = csc² (D13), cylindrical
+Laplacian of ω_z(R) (D18), column mass Ah = const (D20), lever rule and circular motion (D21), mirror symmetry (D22),
+erf = 1 − erfc (N22), limit of N filaments → a sheet (N44), comma notation and renaming the free index (D14, D15), Krasny
+smoothing and the periodic sheet kernel (C14), "cat's eye" (C14), Gauss–Legendre pointer before its first use in C04
+(round 1). Python idioms explained inline: `itertools.product`, `np.ndindex`, `np.roll`, `np.ptp`, `np.hypot`, symlog
+axes, plotly `updatemenus`.
+

@@ -893,7 +893,7 @@ Gaussian field, with its lids at z = 0 (blue) and z = 1 m (orange).
 nb.plotly(r"""
 nL = 12 if not FAST else 8                                           # lines per tube
 fig = make_subplots(rows=1, cols=2, specs=[[{"type": "scene"}, {"type": "scene"}]],
-                    subplot_titles=("stream tube in Burgers' vortex [mm]", "vortex tube, narrowing Gaussian field [m]"))
+                    subplot_titles=("stream tube (Burgers) [mm]", "vortex tube (Gaussian) [m]"))
 u_burg = vortices.burgers_vortex_field(1e-3, 1.0, 1e-6)             # Burgers: Γ = 1e-3 m²/s, α = 1 1/s, ν = 1e-6 m²/s
 for k in range(nL):                                                  # seeds on a circle of radius 3 mm at z = 1 mm
     th = 2*np.pi*k/nL                                                # seed angle [rad]

@@ -9,7 +9,10 @@ ch03 E1 `flow_lines_unsteady`, E2 `material_derivative_probe`, E3 `galilean_fram
 PASS round 2, 145 parity rows, every page of every pager audited); ch04 E1 `control_volume_budgets`, E2
 `stream_function_spacing`, E3 `newtonian_stress_lab`, E4 `navier_stokes_term_balance`, E5 `rotating_frame_coriolis`, E6
 `which_bernoulli`, E7 `viscous_dissipation_heating`, E8 `boussinesq_buoyancy`, E9 `dynamic_similarity_models` (all PASS
-round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script). **Rule since ch03: 5–10 explainers per chapter, as
+round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script); ch05 E1
+`vortex_tubes_cannot_end`, E2 `vortex_pressure_funnel`, E3 `kelvin_material_loop`, E4 `baroclinic_torque`, E5
+`vorticity_stretching_tilting`, E6 `biot_savart_filament`, E7 `vorticity_equation_rotating`, E8 `point_vortex_lab`, E9
+`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched). **Rule since ch03: 5–10 explainers per chapter, as
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
@@ -113,6 +116,28 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | Per-mode control **and readout** hiding via a scoped `.xxx-off` class toggled in `applyMode` (ch03 E7 pattern) | ch04 E1, E2, E3, E5, E6, E9 | keeps Explore short; now used by 7 explainers (engine request below) |
 | Exact-text parity rows for rendered strings (status verdicts, signed term labels, `which_bernoulli_text`) | ch04 E5, E6 (after ch01 E4) | catches sign and wording drift a numeric row misses |
 | Scenario tables mirrored byte for byte from fluidpy (`SCEN` = `BOUSSINESQ_SCENARIOS`, 20 rows parity-checked) | ch04 E8 | the explainer cannot drift from the notebook's numbers |
+| **A contrast chip where the theorem fails**: four vorticity fields plus "broken ⚠" (∇·ω ≠ 0) whose Gauss sum −0.40 m²/s equals ∫∇·ω dV (selftest row) | ch05 E1 | "cannot end" is taught by the one field where it does end — and fails by exactly the violated hypothesis |
+| **Key numbers in the scene caption in the bar colours** (lower / wall / upper / sum) so hiding the budget view on phones loses nothing | ch05 E1 | a cheaper alternative to "repeat the number in a visible title" (ch01 lesson) |
+| **Needed = supplied bars with a measured slope**: "forces on the probe" (centripetal ρu²/r needed vs −∂p/∂r supplied) with the finite-difference slope of p(r) drawn beside the formula | ch05 E2 | "the pressure field really does the pushing" is measured, not asserted |
+| **A deliberate miss**: the measured ◇ dΓ/dt lands on the (5.9) formula for a material loop and visibly misses it for a fixed loop ("the bars are for material loops") | ch05 E3 | the hypothesis (material loop) is taught by the mode that violates it |
+| ✓/✗ hypothesis table (inviscid, barotropic, conservative, inertial) with the surviving (5.10) term as a bar, six flows on one clock | ch05 E3 | ch04 E6's decision table, now with the *consequence* (which term survives) drawn |
+| **Finite element → point law with an R² gap panel**: the torque route ◇ (2M_G/I_G) rides the formula's sine; a log–log panel shows (route − formula) falling as R² | ch05 E4 | why a law derived on a finite disc is exact at a point, as a slope |
+| "Order matters" step: θ = 270° flips the spin; quiz and a selftest invariant pin ∇ρ × ∇p (not ∇p × ∇ρ) | ch05 E4 | a sign convention becomes a visible reversal |
+| **Colour-coded decomposition on a 3-D line**: purple stretching (along e_s), blue tilting (across e_n) arrows, bars split the same way; closed-form e^{Gt} presets + scaling-and-squaring `expm` for a custom G (parity 1e-11) | ch05 E5 | (5.32) read off the picture; the same colours in notebook, bars and Derivation |
+| A transient that *settles* into a balance (Burgers core 4 → 2 mm) instead of starting at the steady state | ch05 E5 | "stretching balances diffusion" is watched happening |
+| **"Build the sum" transport**: integrand pieces laid tip to tail onto the closed form, plus an unrolled integrand whose shaded area equals the result | ch05 E6 | an integral (Biot–Savart) becomes a running sum the reader can scrub (best screenshot `reports/viz/ch05/biot_savart_filament/desktop__tour-step4.png`) |
+| **Book-slip toggle that flips the whole curve**: the printed −1/(4π) reverses u_θ(r) (rose) with a "⚠ printed" status; the second slip in rose beside the correct line in D11 step 5 | ch05 E6 | a sign slip is impossible to miss and its cancellation is visible |
+| **Conserved quantity drawn flat in amber** against the changing ζ or Γ (column over a ridge, ring moved poleward), f-by-latitude table lit | ch05 E7 | (ζ + f)/h and Γ_a are seen staying put while everything else moves — the PV idea |
+| Budget scenes that each isolate one new term (planetary in the stretched column, baroclinic in the lock, inertial in Burgers) | ch05 E7 | a 7-term equation is taught one term at a time |
+| **Click-to-place, drag and delete point vortices with singular guards** (≥ 5 cm apart, clamped inside walls/bucket, halt at 4 mm, sub-stepping near close approaches) | ch05 E8 | free play without NaNs; reusable for any N-body or image system |
+| Invariants plotted as Q/Q(0) flat lines + the measured orbit rate ◇ next to (Γ₁ + Γ₂)/2πh² in the title ("rate 0.637 · formula 0.637") | ch05 E8 | the integrator is checked live; the formula is checked by a measurement |
+| A book-caption correction with a number and an arrow (fluid at G moves at −1.70 m/s) | ch05 E8 | "G is not a stagnation point" is seen |
+| **Draggable circuit whose side bars trade while the total stays γ ds** | ch05 E9 | "circulation = vorticity inside" as bookkeeping (ch02 E4's waterfall on a sheet) |
+| Convention toggle that flips only the sign (caption u₁ − u₂ vs text u₂ − u₁), with a status line | ch05 E9 | two conventions, one physics |
+| Result page of a long derivation = the boxed result + the 5 key lines + "all steps" (D15: 25 → 5 pages at 360×640) | ch05 E7 (round 2) | the whole chain is one click away, the phone page stays short |
+| Short plots (< 60 px): only the 0 tick and the current value at the dot ("Γ 0.02335 m²/s"); region labels in opposite corners on `bg: true` boxes ("ρ₂ heavy" top-left, "ρ₁ light" top-right) | ch05 E3 (round 2) | the ch01 narrow-view lesson, applied to labels as well as ticks |
+| Collapse zero term rows below ~25 px per row ("zero: advective, baroclinic, diffusion") and hide a schematic row that carries no number on portrait | ch05 E7 (round 2) | seven term rows legible in ~120 px |
+| Lazy trajectory cache keyed by the parameters (compute once; scrubbing reads the cache) | ch05 E3, E6 | smooth scrubbing of RK4/DOP853 runs without recomputing per frame |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -188,6 +213,18 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | A half arrow barely visible at t = 0.5 s on phones | ch04 E5 D15 step 6 (Should, open) | minimum drawn length 18 px, or set the step's time larger |
 | Status "work in = heat out = 0.998 W/m²" while 0.2 % is still stored; wall fluxes without units | ch04 E7 (round 1, fixed) | "nearly steady: 99.8 % of the work in leaves as heat"; units on every number |
 | The only `eq_refs` hit was a `<meta name="viz:concept">` string citing numbers bare | ch04 E6 (Should, open) | reword the meta without numbers, or teach `tools/eq_refs.py` to skip `<meta>` (it also flagged selftest names — see library/tool quirks) |
+| **Rotated y title covered the minus sign of tick labels** ("−100" read as "100") at 390×844 — the ch01 E4 lesson, again | ch05 E2 (round-1 Must) | y title in its own strip on narrow views; **the engine should do this by default** (library candidate since ch01) |
+| Two region labels drawn on top of each other ("heavy light 1000 kg/m³" suggested the heavy side was 1000) and overlapping ticks in a ~45 px Γ(t) plot | ch05 E3 (round-1 Must) | labels in opposite corners on `bg: true` boxes; below 60 px only the 0 tick + the value at the dot |
+| **Seven term rows in ~120 px** at 390×844 — the step's key bar unreadable | ch05 E7 (round-1 Must) | hide the schematic row in budget mode on portrait; collapse zero rows; ≥ ~25 px per row |
+| A derivation result page ("the whole chain", 15 steps) paged to 25 pages at 360×640 and 8 in the notebook frame | ch05 E7 D15 (fixed round 2) | result page = boxed result + 5 key lines + "all steps" |
+| Walkthrough cards of 5–6 pages at 360×640 from a derivation quote + a 3-line code excerpt + readouts | ch05 E1 s5 (open), E2 s3/5/6 (fixed: 5 → 4) | one extra per step; quote a one-line derivation step |
+| Round-off printed as a result ("Γ = −1.036×10⁻¹⁶") | ch05 E3 Helmholtz title (open) | print "Γ ≈ 0 (round-off 10⁻¹⁶)" (`termRO` in E3's bars already does this) |
+| Combining diacritic in a canvas label ("ω̄" at 12 px renders "ω¯" with the bar offset) | ch05 E1 (open) | write "mean ω" or draw the bar |
+| Isobar labels "+200 / +400 / +600 Pa" stack at 360×640 | ch05 E2 (open) | label only the middle isobar below 200 px, or stagger in r |
+| Two readouts of one running sum computed from different counters (0.001843 vs 0.003868 m/s while playing) | ch05 E6 (open) | derive every "sum so far" from one `builtCount` |
+| A parity row at rtol 1e-3 where JS and Python agree to 5e-11 | ch05 E9 (open) | set the tolerance near the achieved agreement (1e-8; 1e-4 for the N = 1000 Simpson row) — loose rows hide regressions |
+| **Design claims copied would have shipped wrong physics**: the baroclinic angle convention reversed, D12's kernel variation 3a/\|x − x′\| (really 2a), D23 "short sides cancel" (really O(dn·ds), vanishing as dn → 0) | ch05 E4, E6, E9 builders (caught by computing) | builders recompute every design number and sign before coding it and report the correction so the design itself is fixed |
+| Labels clipped at a view edge (Burgers "outflow u_z = αz" at the bottom; "arc length s along the filament [m]" at 844×390) | ch05 E5, E6 (open) | keep labels inside the plot rectangle; short titles below ~420 px |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -311,6 +348,73 @@ before Ch. 13.
 | Q7 | `Viz.num.erf`/`erfc` precision ~1.2e-7 | parity rows at 1e-8 fail; second differences of erfc profiles are noise | local `erfHP`, `erfcHi` (rank 12) | double-precision implementations |
 | Q8 | `tools/eq_refs.py` flags selftest row names (and `<meta name="viz:concept">`) that cite an equation number, although both are meant to be exempt | false hits during review (E6's meta is the only one left) | reword names/meta without numbers | exempt `selftest` `name:` strings and `<meta>` content in the scanner |
 
+### ch05 candidates (listed, **not promoted**: the ch05 knowledge pass ran while the site-publisher was reading `viz/`)
+Counts = explainer files that define the helper locally after the inlined library, counted by script over **ch04 + ch05
+(18 files)**; "(ch05 n)" = how many are ch05's; "all" = over all 35 explainers ch01–ch05 where it matters. Same
+procedure as above, plus `tools/shot.py --chapter ch05 --quick`. Ranked by payoff:
+
+| Rank | Helper | Found in (file · local name) | Count ch04+ch05 | Proposed library name |
+|---|---|---|---|---|
+| 1 | **number formatters** (fixed decimals, sig figs, TeX vs HTML minus, round-off → 0) | ch05: `fz`/`tz` (E3, E5, E6, E8), `f3`/`t3`/`t4` (E2, E4, E5, E7), `f4` (E2, E4, E5), `fm`/`tn` (E1, E9), `tp` (E3, E6, E8); ch04 all nine | **18 of 18** (all 35 of 35) | `Viz.fixed(v, d, {tex, keepZeros, roundoff})` — still the most duplicated code |
+| 2 | **per-mode control/readout hiding** (`.xxx-off` class toggled in `applyMode`) | ch05 all nine (`.vtc-off`, `.vpf-off`, `.kml-off`, `.bt-off`, `.vst-off`, `.bsf-off`, `.ver-off`, `.pvl-off`, `.vsr-off`); ch04 E1, E2, E3, E5, E6, E9 | **15** (ch05 9; 16 with ch03 E7) | engine: `params[k].modes`, `readouts[i].modes` (quirk Q4) |
+| 3 | **arrow in pixel coordinates** | `arrowPx` ch04 E4; ch05 E2, E4, E5, E6, E7, E8; variants `pxArrow` ch04 E1, `arrowScale` ch04 E5 | **7** (+2 variants = 9; ch05 6) | `Viz.arrowPx(ctx, x0, y0, x1, y1, {color, width, head, minLen})` (`P.arrow` is plot-space only; a `minLen` closes the ch04 E5 "half arrow" Should-fix) |
+| 4 | **3-vector maths** (`add`, `sub`, `dot`, `cross`, `norm`, `scale`, `vec`) | ch04 E5; ch05 E2 (`norm`), E5, E6, E8 (`add`) | **5** (ch05 4) | `Viz.vec3.{add, sub, scale, dot, cross, norm, unit}` — Ch. 13 (3-D Coriolis, Ekman) and Ch. 14 filaments need it |
+| 5 | **log axes with decade ticks** | `logAxes` ch04 E9, ch05 E4, E6; `logTicks` ch05 E3, E6, E9 | **5** (ch05 4) | `P.axes({xlog: true, ylog: true})` |
+| 6 | waterfall / term bars | `drawBars` ch04 E1, E4, E5, E8; ch05 E5, E7 | **6** (11 overall) | `Viz.bars(v, items, {waterfall, measured, collapseZeros, minRowPx: 25})` — add the E7 zero-row collapse |
+| 7 | image of a scalar field from a callable | `washImage` ch05 E2, E4; `heatImage` ch04 E8, `bandImage` ch04 E2 | **4** (7 overall) | `Viz.field.image(P, f, {vmin, vmax, cmap, diverging, bands})` |
+| 8 | Gauss–Legendre nodes mirroring `gauss_legendre_nodes` | `glNodes` ch05 E3, E6; `glStd` ch04 E2, `gl` ch04 E9 | **4** (5 with ch03 E7) | `Viz.num.gaussLegendre(n, a, b)` |
+| 9 | vector RK4 step / integrator for many points | `rk4` ch05 E1, E3, E8 (library `rk4Step` works on one state; these carry arrays of points) | **3** | `Viz.num.rk4Many(f, X, t, dt)` or document `rk4Step` on flat arrays |
+| 10 | light 3-D canvas projector (orbit angles → 2-D, depth sort) without three.js | `projector` ch05 E3, E5; `proj` ch05 E6 | **3** | `Viz.proj3(view, {theta, phi, scale})` with `.p(x)`, drag-to-orbit — cheaper than `Viz.three` for line drawings |
+| 11 | `app.set` wrapper that re-applies a step's values after `onChange` (quirk Q5 workaround) | ch05 E5, E8 | **2** | engine fix Q5: apply `set()` after `onChange` (or pass `fromStep`) |
+| 12 | lazy trajectory cache keyed by the parameters | `cache` ch05 E3, E6 | **2** | `Viz.memo(fn, keyOf)` |
+| 13 | length in everyday units | `fmtLen` ch05 E2, E4; ch01 E1 `lenLabel` | **2** (3 overall) | `Viz.fmtLength(m)` |
+| 14 | polygon in pixel coordinates | `polyPx` ch05 E6, E8; `fillPoly` (plot space) ch04 E3 | **3** | `P.fillPoly` + `Viz.polyPx(ctx, pts, opt)` |
+| 15 | `clamp(x, a, b)` | ch04 E3, E4, E7; ch05 E9 | **4** (7 overall) | `Viz.num.clamp` |
+| 16 | complete elliptic integrals K(m), E(m) by AGM with the parameter m | `ellipKE` ch05 E6 | 1 | `Viz.num.ellipKE(m)` — Ch. 14 rings/filaments will reuse; document m = k² |
+| 17 | round-off-aware term value ("≈ 0 (round-off)") | `termRO` ch05 E3 | 1 (E3's Helmholtz title needs it too) | option `roundoff: true` on `Viz.tnum` / term items |
+| 18 | general 3 × 3 matrix exponential (scaling and squaring) | `expm` ch05 E5; `expm2` ch04 E3 (4 overall) | **2** | `Viz.num.expm(M, t)` (2 × 2 closed form as a fast path) |
+| 19 | double-precision erf/erfc | `erfHP` ch04 E1, `erfcHi` ch04 E4; none in ch05 | 2 | fix `Viz.num.erf/erfc` (quirk Q7) |
+| 20 | label past an arrow tip | `tipLabel` ch04 E5 (ch02 ×2); none in ch05 (ch05 labels arrows inline) | 1 (3 overall) | `P.tipLabel(from, to, str, opt)` |
+
+**Top five for the next library pass** (unchanged in spirit, re-ranked with ch05): formatters (35/35), per-mode hiding
+(16, engine flag), `arrowPx` (9 arrow helpers), `vec3` (5) and log axes (5); then the narrow-view y-title strip as an
+engine default (three phone Must-fixes in ch01 and ch05 came from it), `Viz.bars` with zero-row collapse, field image,
+Gauss–Legendre, and the Q5 fix that removes the `app.set` wrappers. No ch05 builder reported a new engine quirk beyond
+Q1–Q8; Q4 (per-mode controls) was hit in all nine ch05 explainers and Q5 (`onChange` after `set`) in two.
+
+### ch05 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch05) **phone legibility checklist** — all three round-1 Must-fixes were phone legibility at
+  390×844: a rotated y title over tick minus signs (third time since ch01: make the strip an engine default), two
+  labels drawn over each other, seven term rows in ~120 px; check every view at 360×640 and 390×844 for overlapping
+  labels, ≥ ~25 px per term row (else collapse zero rows or hide a schematic row), and only the 0 tick + the value in
+  views < 60 px · a derivation's result page is the boxed result + 2–5 key lines + "all steps" (25 → 5 pages) · print
+  round-off as "≈ 0 (round-off)", never as a value · no combining diacritics in canvas labels · every "sum so far"
+  from one counter · parity tolerances near the achieved agreement · **builders compute, not copy, design claims**
+  (three design errors — θ convention, 2a vs 3a, "short sides cancel" — were caught this way) · guard interactive
+  singularities (min separation, clamping, halt distance, sub-stepping) before shipping click-to-place.
+- `verify-implementation`: (ch05) **probe every piecewise function exactly at its boundaries** (r = a, 0.999a, 1.001a) —
+  a central difference straddling the Rankine/cylinder kink gave half the torque and a 1/h "force" (F1) · check a
+  velocity field against its own stream function (Hill's exterior u_R sign, F2) · a convention test needs a field where
+  the wrong variant differs (a symmetric G hid the planetary-term transpose; add a tilting field) · published closed
+  forms reproduced identically are V1 form cross-checks, not V5 (ring speed, García–Haziot) · 40 wrong variants + 5
+  re-planted fixes all caught.
+- `math-to-python` §7: (ch05) `scipy.special.ellipk/ellipe` take m = k² · when the book's sign slips cancel, code the
+  corrected intermediate and keep the printed sign as an option with a test that it reverses the physics ((5.14)) ·
+  thin-core or other limited models return `stop_time`/`valid` instead of running silently out of range · user-reachable
+  singular inputs (a vortex at the circle centre) are handled, not NaN-propagated · stencil-residual tolerances relative
+  to the cancelling terms (|u||ω|/σ), not to the residual.
+- `teaching-style` Lessons: (ch05) **keep the term the book drops** in the ★★★ sympy check (D15 carries u_{j,j}(ω_n + 2Ω_n)
+  for a generic u) · teach a book slip by computing both versions as curves or numbers (printed −1/(4π) as a dashed
+  trace, fluid at G at −1.70 m/s) · every number in prose is the printed number (four Must-fixes; numpy print options
+  hid 2.9e-9 as 0 — use format strings) · physical analogies are checked like equations (rotating tank ≠ geostrophy:
+  no Coriolis force at rest) · "what would change if" predictions are computed (viscous cellular flow: Γ ∝ e^{−2νt}
+  whatever the loop shape) · a named flow (Taylor–Green) or tool (polar vector Laplacian, moment transfer) needs its
+  gloss before first use · the ch05 derivation moves in `concept_map.md`.
+- `colab-notebook` / nbkit: (ch05) fix the design when a derivation text is wrong; builder `pf_sub` text patches break
+  as soon as the design is corrected upstream · notebook runtime depends on machine load (67 s alone, 345 s during
+  parallel browser audits) — set execution timeouts from a loaded run · a derivation "check" must describe exactly what
+  its cell runs (two ★★★ checks again in round 1).
+
 ### ch04 lesson candidates for the skills (not promoted in this pass)
 - `interactive-viz` Lessons: (ch04) a sign-convention toggle must flip labels as well as values — pin the label text
   with exact-text rows · every scenario of a multi-scene budget reports its full balance per direction, not just the
@@ -392,9 +496,22 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   E5's two observers + side toggle; Bernoulli became E6's hypothesis decision table with probes along and across
   streamlines; similarity became E9 (prototype/model pair, paired group bars, sphere collapse); Boussinesq became E8
   (rising blob + validity chart). `Viz.Frac` was not promoted (no second user yet).
-- **Ch. 5 vorticity**: E4's term bars for the vorticity equation (stretching, tilting, diffusion, baroclinic) at a
-  clicked point; ch03 E6 paddle wheels + E4's Lamb–Oseen with σ² = 4νt animated; ch02 E5 + E6's B-along-vortex-lines
-  view for Kelvin/Helmholtz; E5's side toggle for absolute vs relative vorticity.
+- **Ch. 5 vorticity (done — what came of the plans above)**: the term-bar idea became E7's budget mode (seven terms,
+  zero rows collapsed) and E5's stretching/tilting split; Kelvin became E3 (six flows, ✓/✗ hypothesis table, measured ◇
+  that misses for a fixed loop); absolute vs relative vorticity became E7's column and ring modes with the conserved
+  quantity flat in amber; new: E1 tubes with a "broken" field, E4 torque ◇ with an R² gap panel, E6 "build the sum",
+  E8 click-to-place point vortices, E9 sheet + roll-up. Backup B1 `vortex_rings` (ring toward a wall, leap-frogging)
+  not built — reuse E8's stage with `ring_dynamics` (stop at `stop_time`) if Ch. 14 wants it.
+- **Ch. 6 potential flow (from ch05)**: E8's wall/bucket images and click-to-place vortices for images of cylinders and
+  a cylinder with circulation; E3's hypothesis table for "why the flow stays irrotational"; E6's sum of pieces for
+  superposition of elements.
+- **Ch. 11 instability (from ch05)**: E9's sheet + roll-up with the linear-theory ghost is the Kelvin–Helmholtz start.
+- **Ch. 12 turbulence (from ch05)**: E5's stretching/tilting arrows and Burgers balance for the cascade and fine scales.
+- **Ch. 13 GFD (from ch05)**: E7's column over topography ((ζ + f)/h flat), ring moved poleward and the f-table are
+  the seeds of PV conservation, Taylor columns and Rossby waves; E4's disc with tilted isopycnals for thermal wind and
+  fronts; E2's four-vortex section for gradient-wind (cyclostrophic vs geostrophic) balance.
+- **Ch. 14 aerodynamics (from ch05)**: E6's filament stage (segments, square, ring, "build the sum") for the horseshoe
+  vortex, lifting line and downwash; E8's wall image for ground effect.
 - **Ch. 6 potential flow**: E2's ψ contours at equal Δψ + spacing = speed + draggable gate, E6's B uniform check, the
   ch03 cylinder flow; superposition toggles per element.
 - **Ch. 7 waves**: the C14 surface-particle animation as an explainer (backup `kinematic_free_surface` storyboard is in
@@ -443,3 +560,8 @@ After ch04 (reviewer "excellent"): `newtonian_stress_lab` (★★★ D09 in 13 s
 `rotating_frame_coriolis` (5 derivations, ★★★ D15 with the split Coriolis arrow, signed side toggle, 31 rows) and
 `which_bernoulli` (hypothesis decision table, 4 derivations, a book slip with live numbers); best screenshot
 `reports/viz/ch04/rotating_frame_coriolis/desktop__tour-step5.png` (signed side panel, force side).
+After ch05 (reviewer "excellent"): `biot_savart_filament` (four derivations incl. two ★★★ with both book slips shown,
+"build the sum" transport, 23 rows), `kelvin_material_loop` (three derivations, six flows, hypothesis table, deliberate
+miss for a fixed loop), `baroclinic_torque` (torque ◇ with an R² gap panel, real-case table) and `point_vortex_lab`
+(click-to-place with guards, invariants, a caption correction with a number); best screenshot
+`reports/viz/ch05/biot_savart_filament/desktop__tour-step4.png` (pieces tip to tail, unrolled integrand, live code).
