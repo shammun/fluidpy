@@ -45,6 +45,7 @@ GAMMA_AIR: float = 1.4             #: ratio of specific heats of air (USSA-1976 
 CP_AIR: float = GAMMA_AIR * R_AIR / (GAMMA_AIR - 1.0)   #: derived C_p of air [J/(kg K)], ≈ 1004.7
 CV_AIR: float = R_AIR / (GAMMA_AIR - 1.0)               #: derived C_v of air [J/(kg K)], ≈ 717.6
 G0: float = 9.80665                #: standard gravitational acceleration [m/s^2] (exact)
+G_BOOK: float = 9.81               #: the book's rounded g, the default of the Ch. 4 modules (its examples use 9.81)
 P_ATM: float = 101325.0            #: standard atmospheric pressure [Pa] (exact)
 P_REF: float = 1.0e5               #: reference pressure p_o for potential temperature/density [Pa]
 
@@ -1390,7 +1391,18 @@ def van_der_waals_internal_energy(T, v, a, cv, e_ref=0.0):
     return as_scalar_if_0d(cv * np.asarray(T, dtype=float) - a / np.asarray(v, dtype=float) + e_ref)
 
 
+def helmholtz_free_energy(e, T, s):
+    """Helmholtz free energy per unit mass f = e − Ts [J/kg], Eq. (4.94) (Ch. 4 §4.10, surface tension revisited).
+
+    Book: §4.10, Eqs. (4.94)–(4.95): df = de − T ds − s dT; for a reversible isothermal change (1.18) gives
+    df = −p dv, the work done on the system. Parameters: e [J/kg], T [K], s [J/(kg K)].
+    Validation: V2 sympy: a perfect gas at constant T has df = −p dv. Label: analytic, symbolic.
+    """
+    return as_scalar_if_0d(np.asarray(e, dtype=float) - np.asarray(T, dtype=float) * np.asarray(s, dtype=float))
+
+
 __all__ = [
+    "helmholtz_free_energy", "G_BOOK",
     "K_B", "N_A", "N_A_KMOL", "R_U", "M_W_AIR", "R_AIR", "GAMMA_AIR", "CP_AIR", "CV_AIR", "G0", "P_ATM", "P_REF",
     "MOLAR_MASS", "GAMMA_BY_ATOMICITY", "GAMMA_IDEAL", "VDW_CO2_MOLAR", "VDW_CO2", "TAIT_N_WATER",
     "molecular_gas_pressure", "gas_constant", "molecule_mass", "molecular_mass", "perfect_gas_pressure", "perfect_gas_density", "perfect_gas_state",
