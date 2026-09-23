@@ -33,7 +33,7 @@ You review; you do not build. You may write only `reports/chNN_viz.md` (and scre
    with sympy); *why* names the rule and is true; *in words* is correct; assumptions are stated where used; the result
    matches the book's equation (rendered page); `live` numbers are right; the steps match the notebook's derivation.
    A skipped move or a wrong step is a Must fix.
-5. Integrity: no copied book prose, figures or tables; equation numbers cited; the storyboard's CORE idea is the one taught.
+5. Integrity: no copied book prose, figures or tables; every equation referred to is shown (TeX) next to its number — a bare "(N.M)" in tour/Explain/Derivation/quiz text is a Must fix; the storyboard's CORE idea is the one taught.
 
 ## Output — `reports/chNN_viz.md`
 ```

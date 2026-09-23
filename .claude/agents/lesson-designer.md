@@ -26,8 +26,9 @@ Map every row to one `nbkit` call: `section`, `core(id, title, question)`, `reca
 2. **The idea** — one mental picture (ASCII sketch or small table if it helps).
 3. **Primers** for any prerequisite from Part E that is first used here (plain words + a 2–4-line numeric demo in code
    for maths tools and Python functions).
-4. **The maths step by step** — one algebraic move per line, each with a short reason; symbols defined with units; book
-   equation numbers. Every `D` row of the curation that belongs to this block is an `nb.derivation("D03", …)` cell
+4. **The maths step by step** — one algebraic move per line, each with a short reason; symbols defined with units; every
+   book equation written out in LaTeX **with** its number (never the number alone — also in Part F steps: "substitute
+   (3.5), $…$"). Every `D` row of the curation that belongs to this block is an `nb.derivation("D03", …)` cell
    storyboarded in **Part F**; place it here, after the primers its tools need.
 5. **Tiny example with easy numbers** traced by hand.
 6. **Code** calling the tested fluidpy function, every line commented, followed by "What does the code above do?".

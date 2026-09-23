@@ -26,7 +26,7 @@ page (`tools/render_pages.py chNN --eq N.M`) and compare.
    tiny example with easy numbers → commented code with "What does the code above do?" → at least one visualization whose
    output actually shows the idea (look at the images) → What you see / How to read it / What would change if. Missing
    pieces are Must fix; weak pieces Should fix.
-4. Correctness: equations match the book's numbers and signs; claims in the prose are true; numbers printed by code match
+4. Correctness: equations match the book's numbers and signs; every equation referred to is SHOWN (LaTeX) next to its number — a bare "(3.5)" / "Eq. 3.5" without the equation is a Must fix; claims in the prose are true; numbers printed by code match
    what the text says; units present; no book prose copied (paraphrase check: long sentences that read like a textbook).
 5. Style (skill `teaching-style`): recurring headings, short paragraphs, tables/ASCII where useful, emoji markers only as
    section markers, connections to earlier/later chapters and climate relevance where real.

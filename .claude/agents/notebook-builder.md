@@ -32,7 +32,7 @@ check the rendered page (`tools/render_pages.py chNN --eq N.M`) and show its boo
    your reply.
 2. Markdown in **your own words** (never the book's prose). No term, symbol, maths operation or Python function appears
    before it is explained (CORE block, recap, or primer) — follow Part E; if you need something Part E missed, add a
-   primer and list it in your reply.
+   primer and list it in your reply. **Show the equation, not just its number**: wherever a book equation is used or referred to, write the equation itself (LaTeX) together with its number, e.g. $\frac{DF}{Dt} = \frac{\partial F}{\partial t} + \mathbf{u}\cdot\nabla F$ (3.5) — never "by (3.5)" or "Eq. 3.5" alone, also in derivation steps ("substitute (3.5), $…$"), traps, recaps and cross-chapter references; `tools/coverage_check.py` errors on a markdown cell that cites a number with no maths.
 3. Code cells: short, every line commented for a novice (meaning + unit + equation number); call `fluidpy` functions;
    physics never lives only in the notebook.
 4. Visuals: `figure(src, see, read, change)` for static plots (house style from `setup_notebook`); animations via

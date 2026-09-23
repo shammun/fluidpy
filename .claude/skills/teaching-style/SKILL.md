@@ -18,8 +18,10 @@ Distilled from Shammunul's own annotated notebooks (`fast.ai/shammunul-fastai-no
    shallow:     particles move in flat ellipses ──► the bottom squashes them
    ```
 3. **The maths, step by step** — one algebraic move per line, each with a short reason ("substitute (7.22) into the
-   Laplace equation", "the sinh cancels"). Define every symbol with its unit the first time it appears. Cite the
-   book's equation number: *(Eq. 7.27)*. Anything longer than a line or two is a full **derivation** (§1c).
+   Laplace equation", "the sinh cancels"). Define every symbol with its unit the first time it appears. Show every
+   book equation you use **in full together with its number**, e.g. $c = \sqrt{g/k}$ *(Eq. 7.27)*; never refer to an
+   equation by its number alone — not in prose, derivation steps, traps, recaps or explainer text (a repeat mention
+   may use a compact inline form, but the equation is still written). Anything longer than a line or two is a full **derivation** (§1c).
 4. **A tiny example with easy numbers** — traced by hand before any code: H = 1 m, k = 1 m⁻¹, g ≈ 10 m s⁻². Show the
    intermediate numbers. The reader should be able to check it on paper.
 5. **Code** — short cells that call the tested `fluidpy` function; every line commented for a novice.

@@ -14,7 +14,9 @@ Checks (exit 1 on any error):
      — ★★★ rows also need a sympy check cell (no error when executed), and every explainer named in the row's last
      column lists the id in its ``viz:derivations`` meta;
   7. no code cell is left uncommented: code cells with ≥ 4 non-blank lines need a comment on at least half of them
-     (warning — the lesson-reviewer judges quality; this catches the obvious case).
+     (warning — the lesson-reviewer judges quality; this catches the obvious case);
+  8. equations are shown, not just cited: a markdown cell that names a book equation number — ``(3.5)``, ``Eq. 3.5`` —
+     must also contain the equation in LaTeX (``$…$``/``$$…$$``) (error). The reviewer checks it is the RIGHT equation.
 
 Usage::
 
@@ -165,7 +167,19 @@ def check(chapter: str, nb_path: Path | None = None, executed: bool = False) -> 
         lines = [l for l in c.source.splitlines() if l.strip()]
         if len(lines) >= 4 and sum("#" in l for l in lines) < len(lines) / 2:
             warns.append(f"cell {i}: {len(lines)} lines but only {sum('#' in l for l in lines)} commented")
+
+    # 8 equations shown, not just cited: a markdown cell naming a book equation number must also show maths
+    for i, c in enumerate(nb.cells):
+        if c.cell_type != "markdown":
+            continue
+        nums = sorted(set(EQ_REF.findall(c.source)))
+        if nums and "$" not in c.source and "\\begin{" not in c.source:
+            errors.append(f"cell {i}: cites Eq. {', '.join(nums)} by number only — show the equation next to its number")
     return errors, warns
+
+
+# "(3.5)", "Eq. 3.5", "Eqs. (3.5)", "(3.11, 3.12)" — a book equation number (chapter digits or an appendix letter)
+EQ_REF = re.compile(r"(?:\bEqs?\.\s*\(?|\()((?:\d+|[A-D])\.\d+)(?=[\s,)–-])")
 
 
 def main(argv: list[str] | None = None) -> int:

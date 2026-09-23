@@ -8,6 +8,8 @@ description: How fluidpy interactive explainers are designed, built, fitted to t
 ## 1. The contract (checked by `tools/viz_lint.py`, `tools/shot.py`, `tools/embed_check.py`)
 - **5–10 per chapter** (`book.yaml → project.min/max_explainers_per_chapter`), each tied to CORE ideas of
   `analysis/chNN_curation.md`, plus one backup idea in the curation in case one fails review.
+- Equations are **shown, not just numbered**: any tour, Explain, Derivation or quiz text that refers to a book equation writes
+  it out (TeX) next to its number.
 - One self-contained file `viz/chNN/<slug>.html`, created with `tools/new_viz.py`; `assets/viz_base.css` and
   `assets/viz_lib.js` are inlined between marker comments by `tools/viz_inline.py` (edit the assets, never the copies).
   External resources: only KaTeX and (for 3-D) three.js, both loaded by the library from CDNs with fallbacks.
