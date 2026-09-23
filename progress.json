@@ -113,9 +113,9 @@
       "title": "Conservation Laws",
       "slug": "conservation_laws",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -123,7 +123,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 185 rows, 124 eq labels once each, CODE/DEMO/SKIP 126/14/45, 60 derivations (4 hard), 17 candidate A ideas",
+      "notes": "analyze: 185 rows, 124 eq labels once each, CODE/DEMO/SKIP 126/14/45, 60 derivations (4 hard), 17 candidate A ideas; curate: A 15 / B 151 / C 19 / RECAP 12 / SKIP 2 of 185; 30 D rows (2 hard), 27 demoted; 9 explainers + backup",
       "updated": "2026-09-23"
     },
     "ch05": {
