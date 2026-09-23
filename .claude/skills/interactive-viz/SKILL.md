@@ -99,6 +99,24 @@ const app = Viz.app({
   items, the Explore intro, view titles on phones), pages every long list (Explore, Explain, Derivation steps, Equations, Code in
   5-line chunks, Check, and the walkthrough card itself: a step's extras continue on "›"), shortens tab labels, hides the
   transport's step buttons and speed on phones, and flags views smaller than 60 px.
+- **Pager, oversized items** (`Pager.layout`): an item taller than a whole page is never clipped — it is shown in
+  slices, one per page, cut only at natural breaks (between paragraphs, text lines, list items, table rows, code rows, the
+  rows of an `aligned`/`cases` formula; never through a line of text, a formula or a control). A slice that continues
+  shows "continued on the next page ›" at the bottom; the next page starts with a "continued" rule. A single atom taller
+  than a page (a huge formula) sets `P.tall`, and on portrait `fit()` gives the text more of the window
+  (`data-room="text"`); views squeezed below 60 px make it give the picture more (`data-room="stage"`) — each kept only
+  if it leaves fewer problems. Equations on hidden pages are scaled (≥ 0.78) like the visible ones. The portrait
+  stage's floor also guarantees every visible view ≥ 60 px (`--viz-stage-need`: strip + transport + weighted rows);
+  the stage grows into a short page but, when a page would not fit, stays at that floor (`data-paged`), so a page is
+  never shorter than the height it was packed for; live notes/inspector that change height re-pack the pager. A
+  text page under 110 px also raises the density (titles hidden on phones). **What is left for text is the explainer's
+  budget**: at 360×640 a stage with a 2-line status, two view rows and a transport leaves ~60–100 px for the
+  walkthrough card — hide a row on portrait (`hidePortrait`, or the scoped-CSS row hide), shorten the status, or
+  accept many short pages.
+- The audit pages through **every page of every pager** (walkthrough card, Explore, Explain, Derivation, Equations,
+  Code, Check) at every size and fails on anything clipped or too wide on any page
+  (`[phone] tour-step3: viz-step-card page 6/8: viz-der-mini '…' clipped 12px`, screenshot `CLIP__<size>__<view>__pgK.png`).
+  Slicing is the safety net, not the design: a quote card that needs three slices on a phone is too long.
 - You: step text ≤ 45 words; ≤ 2 extras per step; ≤ 5 controls in Explore (mark the rest `optional`); readout labels ≤ 22
   chars; at most 3 views, `hidePortrait` on the least important; wide equations use `\begin{aligned}`; code lines ≤ 70 chars;
   derivation lines short enough for a 1000×700 notebook iframe (the audit fails `equation-too-wide`) — split a long line

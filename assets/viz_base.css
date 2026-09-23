@@ -161,14 +161,14 @@ button, input, select { font: inherit; color: inherit; }
 .viz-readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; }
 .viz-readout { background: var(--viz-card-2); border: 1px solid var(--viz-border); border-radius: var(--viz-radius-sm); padding: 4px 8px; min-width: 0; }
 .viz-readout-label { font-size: 12px; color: var(--viz-muted); line-height: 1.25; overflow-wrap: anywhere; }
-.viz-readout-value { font-family: var(--viz-mono); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.viz-readout-value { font-family: var(--viz-mono); font-size: 13.5px; font-weight: 600; overflow-wrap: break-word; }   /* a long value wraps at its spaces, never clipped */
 .viz-readout.pos .viz-readout-value { color: var(--viz-teal); }
 .viz-readout.neg .viz-readout-value { color: var(--viz-rose); }
 
 /* ---------- equations ---------- */
 .viz-eq { min-width: 0; }
 .viz-eq + .viz-eq { border-top: 1px dashed var(--viz-border); padding-top: 8px; margin-top: 8px; }
-.viz-eq-head { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; color: var(--viz-text-soft); }
+.viz-eq-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; font-size: 13px; font-weight: 600; color: var(--viz-text-soft); }
 .viz-eq-ref { font-family: var(--viz-mono); font-size: 12px; color: var(--viz-muted); font-weight: 400; white-space: nowrap; }
 .viz-eq-body { overflow: hidden; padding: 2px 0; font-size: 15px; min-width: 0; }
 .viz-eq-inner { display: inline-block; transform-origin: 0 0; white-space: nowrap; }
@@ -245,7 +245,9 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="portrait"] .viz-title { font-size: 14.5px; }
 .viz-app[data-layout="portrait"] .viz-subtitle { display: none; }
 .viz-app[data-layout="portrait"] .viz-main { display: flex; flex-direction: column; gap: 6px; }
-.viz-app[data-layout="portrait"] .viz-stage { flex: 1 1 auto; min-height: max(150px, 36%); }
+/* basis 0: the stage takes exactly its floor when the text is long and grows when it is short, so the text panel's
+   height does not depend on how much text the current page shows (the pager packs to a stable height) */
+.viz-app[data-layout="portrait"] .viz-stage { flex: 1 1 0; min-height: max(150px, 36%); }
 .viz-app[data-layout="portrait"] .viz-side { flex: 0 1 auto; }
 .viz-app[data-layout="portrait"][data-tab="equations"] .viz-stage,
 .viz-app[data-layout="portrait"][data-tab="check"] .viz-stage { display: none; }
@@ -329,7 +331,7 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="portrait"][data-dense="3"] .viz-presets-label { display: none; }
 .viz-step-card .viz-card-title { text-transform: none; letter-spacing: 0; }
 .viz-subhead-like { margin-top: 2px; }
-.viz-app[data-layout="portrait"] .viz-stage.multi { min-height: max(260px, 54%); }
+.viz-app[data-layout="portrait"] .viz-stage.multi { min-height: max(260px, 54%, var(--viz-stage-need, 0px)); }
 
 /* ---------- stage top strip: modes · presets · status ---------- */
 .viz-stage-top { flex: 0 0 auto; display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; padding: 4px 6px; }
@@ -441,7 +443,7 @@ button, input, select { font: inherit; color: inherit; }
 
 /* ---------- code tab ---------- */
 .viz-code-card { min-width: 0; }
-.viz-code-title { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; color: var(--viz-text-soft); margin-bottom: 3px; }
+.viz-code-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; font-size: 13px; font-weight: 600; color: var(--viz-text-soft); margin-bottom: 3px; }
 .viz-code { background: #1f2940; color: #dce6f5; border-radius: 9px; padding: 6px 8px; font-family: var(--viz-mono); font-size: 12.5px; line-height: 1.5; }
 .viz-code-ln { white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 4px; padding: 0 4px 0 30px; position: relative; }
 .viz-code-ln.cur { background: rgba(123,92,214,.5); box-shadow: inset 3px 0 0 #b9a5ec; }
@@ -450,6 +452,24 @@ button, input, select { font: inherit; color: inherit; }
 .viz-code .kw { color: #f290c8; } .viz-code .fn { color: #7ce0d3; }
 .viz-code-live { color: #ffe08a; font-weight: 700; }
 .viz-step-code .viz-code { font-size: 12.5px; }
+
+/* ---------- pager: an item taller than a page is shown in slices (Pager in viz_lib.js) ---------- */
+.viz-pages { position: relative; }
+.viz-pager-cue { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; display: flex; align-items: flex-end; justify-content: flex-end;
+  font-size: 12px; line-height: 16px; font-style: italic; color: var(--viz-accent-dark); pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--viz-card) 45%); padding-right: 2px; }
+.viz-pager-cue[hidden] { display: none; }
+.viz-pages.viz-cont-top { box-shadow: inset 0 2px 0 0 color-mix(in srgb, var(--viz-accent) 45%, transparent); }
+/* a paged text panel on portrait keeps exactly the height its pages were packed for: the stage stays at its floor */
+.viz-app[data-layout="portrait"][data-paged] .viz-stage { flex-grow: 0; }
+.viz-app[data-layout="portrait"][data-paged] .viz-side { flex: 1 1 0; }
+.viz-pages > .viz-sliced { flex-shrink: 0; position: relative; }   /* contains KaTeX's hidden MathML, else it overflows the page */
+/* room: fit() moves the portrait split between picture and text when one side cannot fit its content —
+   "stage": views were squeezed below 60 px (a full text page); "text": one formula/row is taller than a text page */
+.viz-app[data-layout="portrait"][data-room="stage"] .viz-stage.multi { min-height: max(300px, 62%, var(--viz-stage-need, 0px)); }
+.viz-app[data-layout="portrait"][data-room="text"] .viz-stage { min-height: max(140px, 26%); }
+.viz-app[data-layout="portrait"][data-room="text"] .viz-stage.multi { min-height: max(140px, 26%, var(--viz-stage-need, 0px)); }
+.viz-app[data-layout="portrait"][data-room="text"][data-tab="derive"] .viz-stage { height: max(140px, 24%); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* VIZ_BASE_CSS:END */

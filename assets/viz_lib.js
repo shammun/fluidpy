@@ -42,8 +42,10 @@
 
    Layout: header (title | tabs | actions) + main (stage [top strip · views · transport] | side panel of the active tab).
    Fit algorithm (Viz.fit): choose data-layout (wide | portrait | landscape) from the box size → raise data-dense
-   0..3 until nothing overflows → paginate long lists (equations, questions, controls) into pages → if anything
-   still overflows, console.warn('VIZ-OVERFLOW', …) so tools/shot.py fails the build.
+   0..3 until nothing overflows → paginate long lists (equations, questions, controls) into pages; an item taller than
+   a page is shown in slices cut at natural breaks (Pager) → on portrait, move the picture/text split (data-room) if
+   views are < 60 px or a formula is taller than a page → if anything still overflows, console.warn('VIZ-OVERFLOW', …)
+   so tools/shot.py fails the build (shot.py also pages through every pager page).
 
    Audit hooks for tools/shot.py: window.VIZ = { app, ready, audit(), selftest(), setTab(id), goStep(i), goDerive(i, s),
    tabs, steps, derivations, explainStats(), features }.
@@ -1006,7 +1008,7 @@
       if (inspectBody && isFn(cfg.inspect)) {
         var html; try { html = cfg.inspect(app.state, app); } catch (e) { html = null; }
         html = html || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point: its exact arithmetic appears here.') + '</span>';
-        if (html !== lastInspect) { lastInspect = html; inspectBody.innerHTML = mathify(html); typeset(inspectBody); }
+        if (html !== lastInspect) { lastInspect = html; var ih0 = inspectBody.offsetHeight; inspectBody.innerHTML = mathify(html); typeset(inspectBody); if (explorePager && app.tab === 'explore' && (inspectBody.offsetHeight !== ih0 || inspectBody.parentNode._vizSlices)) explorePager.layout(); }
       }
       if (notesBody && isFn(cfg.notes)) {
         var nh; try { nh = cfg.notes(app.state, app); } catch (e) { nh = ''; }
@@ -1014,43 +1016,166 @@
       }
     }
 
-    /* ---------- pager: packs children into pages that fit the box (no scrollbars, ever) ---------- */
+    /* ---------- pager: packs children into pages that fit the box (no scrollbars, ever) ----------
+       Items are packed top to bottom; an item that does not fit on the rest of a page starts a new one (a sub-heading
+       moves with the item after it). An item TALLER than a whole page is never clipped: it is shown in slices, one per
+       page, each slice ending at a natural break — between paragraphs, list items, table rows, code lines, derivation
+       lines or text lines — never through a line of text, a formula or a control. A slice that continues shows the cue
+       "continued on the next page ›" at the bottom; the next page starts with a dashed "continued" rule. An atom that
+       is itself taller than the page (a huge formula) sets P.tall so fit() gives the panel more of the window. */
+    var ATOM_SEL = '.katex-display, .katex, tr, button, input, select, textarea, canvas, svg, img, .viz-control, .viz-readout, .viz-term, .viz-chip, .viz-seg';
+    function katexAtoms(el, top0, out) {
+      // a formula is atomic, except a multi-line one (aligned, cases, array): its ROWS are, plus whatever spans rows
+      // (a big brace, the "x =" before an aligned block) — so a tall aligned derivation line can continue on the next page
+      Array.prototype.forEach.call(el.children, function (c) {
+        var r;
+        if (c.classList.contains('strut') || c.classList.contains('pstrut')) return;       // invisible height props
+        if (c.classList.contains('mtable')) {
+          Array.prototype.forEach.call(c.querySelectorAll(':scope > span > .vlist-t > .vlist-r > .vlist > span'), function (row) {
+            var t = Infinity, b = -Infinity;
+            Array.prototype.forEach.call(row.children, function (x) { if (x.classList.contains('pstrut')) return; var q = x.getBoundingClientRect(); if (q.height) { t = Math.min(t, q.top); b = Math.max(b, q.bottom); } });
+            if (b > t) out.push([t - top0, b - top0]);
+          });
+          // a vertical rule (array with |) or a big brace ties the rows together: then the table is one atom
+          Array.prototype.forEach.call(c.querySelectorAll('.vertical-separator'), function (x) { var q = x.getBoundingClientRect(); if (q.height) out.push([q.top - top0, q.bottom - top0]); });
+        } else if (c.querySelector('.mtable')) katexAtoms(c, top0, out);
+        else { r = c.getBoundingClientRect(); if (r.height) out.push([r.top - top0, r.bottom - top0]); }
+      });
+    }
+    function atomsOf(it, top0) {
+      // [top, bottom] (relative to the item's top) of everything a cut must not pass through
+      var out = [];
+      (function walk(el) {
+        for (var c = el.firstChild; c; c = c.nextSibling) {
+          if (c.nodeType === 3) {
+            if (!c.textContent.trim()) continue;
+            var rg = doc.createRange(); rg.selectNodeContents(c);
+            Array.prototype.forEach.call(rg.getClientRects(), function (r) { if (r.height > 0) out.push([r.top - top0, r.bottom - top0]); });
+          } else if (c.nodeType === 1) {
+            var r = c.getBoundingClientRect(); if (!r.height && !r.width) continue;
+            if (c.matches('.katex-display, .katex') && c.querySelector('.mtable')) katexAtoms(c.querySelector('.katex-html') || c, top0, out);
+            else if (c.matches(ATOM_SEL)) out.push([r.top - top0, r.bottom - top0]); else walk(c);
+          }
+        }
+      })(it);
+      return out.sort(function (a, b) { return a[0] - b[0]; });
+    }
+    function bestCut(atoms, y0, yMax) {
+      // the lowest y in (y0, yMax] just above or below an atom that does not cut through any atom (0 = none)
+      var best = 0, lo = y0 + Math.min(40, (yMax - y0) / 3);
+      atoms.forEach(function (a) {
+        [a[0], a[1]].forEach(function (y) {                      // (neighbouring table rows touch: 1 px tolerance)
+          if (y <= lo || y > yMax || y <= best) return;
+          for (var k = 0; k < atoms.length; k++) { var b = atoms[k]; if (b[0] < y - 1 && b[1] > y + 1) return; }
+          best = y;
+        });
+      });
+      return best;
+    }
+    var CUE_H = 18;
     function Pager(title, items, headEl, extraClass) {
       var body = h('div', { class: 'viz-pages' }), label = h('span', { class: 'viz-pager-label' });
+      var cue = h('div', { class: 'viz-pager-cue', 'aria-hidden': 'true', text: 'continued on the next page ›' });
       var prev = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Previous page', text: '‹' });
       var next = h('button', { class: 'viz-pager-btn', type: 'button', 'aria-label': 'Next page', text: '›' });
       var pager = h('span', { class: 'viz-pager', hidden: true }, prev, label, next);
       var card = h('div', { class: 'viz-card grow viz-paged' + (extraClass ? ' ' + extraClass : '') }, h('div', { class: 'viz-card-title' }, headEl || h('span', { html: mathify(title) }), pager), body);
       var pages = [0], page = 0;
+      function unslice(it) {
+        if (!it._vizSlices) return;
+        it._vizSlices = null; it.classList.remove('viz-sliced');
+        it.style.marginTop = ''; it.style.height = ''; it.style.overflow = ''; it.style.flexShrink = '';
+      }
       function show(p) {
         page = clamp(p, 0, pages.length - 1);
-        items.forEach(function (it) { it.style.display = (it._vizPage === page) ? '' : 'none'; });
+        var more = false, cont = false;
+        items.forEach(function (it) {
+          if (it._vizSlices) {
+            var sl = null; it._vizSlices.forEach(function (s) { if (s.pg === page) sl = s; });
+            it.style.display = sl ? '' : 'none';
+            if (sl) {
+              it.style.marginTop = sl.y0 ? (-sl.y0) + 'px' : '';
+              it.style.height = sl.last ? '' : sl.y1 + 'px'; it.style.overflow = sl.last ? '' : 'hidden';
+              if (!sl.last) more = true; if (sl.y0) cont = true;
+            }
+          } else it.style.display = (it._vizPage === page) ? '' : 'none';
+        });
+        cue.hidden = !more; body.classList.toggle('viz-cont-top', cont);
+        // on portrait the stage may grow into a short page; if this page then no longer fits, the text takes back
+        // exactly the height it was packed for (data-paged: the stage stays at its floor)
+        if (card.offsetParent) { root.removeAttribute('data-paged'); if (body.scrollHeight > body.clientHeight + 1) root.setAttribute('data-paged', ''); }
         label.textContent = (page + 1) + ' / ' + pages.length; prev.disabled = page === 0; next.disabled = page === pages.length - 1;
       }
       prev.onclick = function () { show(page - 1); }; next.onclick = function () { show(page + 1); };
       var P = {
-        card: card, body: body,
-        setItems: function (list) { items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); page = 0; },
+        card: card, body: body, tall: false,
+        pageCount: function () { return pages.length; }, page: function () { return page; }, show: function (p) { show(p); return page; },
+        setItems: function (list) { items.forEach(unslice); items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); body.appendChild(cue); page = 0; },
         layout: function () {
-          items.forEach(function (it) { it.style.display = ''; it._vizPage = 0; });
-          var avail = body.clientHeight; if (avail <= 0) return;
-          var top0 = body.getBoundingClientRect().top, pageStart = 0, pg = 0; pages = [0];
-          items.forEach(function (it, i) {
-            var r = it.getBoundingClientRect(), top = r.top - top0, bottom = r.bottom - top0;
-            if (bottom - pageStart > avail + 0.5 && top > pageStart + 0.5) {
-              // keep a sub-heading together with the item that follows it
-              var prevIt = items[i - 1];
-              if (prevIt && (prevIt.classList.contains('viz-subhead') || prevIt.classList.contains('viz-work-h')) && prevIt._vizPage === pg && prevIt.getBoundingClientRect().top - top0 > pageStart + 0.5) { pg += 1; pageStart = prevIt.getBoundingClientRect().top - top0; prevIt._vizPage = pg; }
-              else { pg += 1; pageStart = top; }
-              pages.push(pg);
+          cue.hidden = true; body.classList.remove('viz-cont-top');
+          items.forEach(function (it) { unslice(it); it.style.display = ''; it._vizPage = 0; });
+          Array.prototype.forEach.call(body.querySelectorAll('.viz-eq-inner'), scaleEq);   // every page, not only the first
+          P.tall = false;
+          var avail = body.clientHeight; P.avail = avail; if (avail <= 0) return;
+          var top0 = body.getBoundingClientRect().top, pg = 0, used = 0, prevBottom = null, prevIt = null;
+          var gap = parseFloat(getComputedStyle(body).rowGap) || 0;
+          items.forEach(function (it) {
+            var r = it.getBoundingClientRect();
+            if (!r.height && !r.width) { it._vizPage = pg; return; }          // hidden by CSS (density, optional)
+            var mt = parseFloat(getComputedStyle(it).marginTop) || 0, hgt = r.height;
+            var sep = prevBottom === null ? mt : Math.max(gap, r.top - top0 - prevBottom);
+            var start = used ? used + sep : mt;
+            if (start + hgt <= avail + 0.5) { it._vizPage = pg; used = start + hgt; }
+            else if (used && mt + hgt <= avail + 0.5) {
+              // new page; a sub-heading at the bottom of the old page moves with its item
+              var carry = prevIt && prevIt._vizPage === pg && !prevIt._vizSlices && (prevIt.classList.contains('viz-subhead') || prevIt.classList.contains('viz-work-h')) && prevIt._vizFirst === false;
+              pg += 1;
+              if (carry) {
+                var pr = prevIt.getBoundingClientRect(), pmt = parseFloat(getComputedStyle(prevIt).marginTop) || 0;
+                prevIt._vizPage = pg; used = pmt + pr.height;
+                start = used + sep;
+                if (start + hgt > avail + 0.5) { prevIt._vizPage = pg - 1; used = 0; start = mt; }  // cannot keep them together
+              } else { used = 0; start = mt; }
+              it._vizPage = pg; used = start + hgt;
+            } else {
+              // taller than a page: slice it at natural breaks (start on this page if at least a third of it is left)
+              if (used && avail - start < Math.max(90, avail / 3)) {
+                pg += 1; used = 0; start = mt;
+                if (prevIt && prevIt._vizPage === pg - 1 && !prevIt._vizSlices && prevIt._vizFirst === false && (prevIt.classList.contains('viz-subhead') || prevIt.classList.contains('viz-work-h'))) {
+                  prevIt._vizPage = pg; start = (parseFloat(getComputedStyle(prevIt).marginTop) || 0) + prevIt.getBoundingClientRect().height + sep;
+                }
+              }
+              var atoms = atomsOf(it, r.top), y0 = 0, slices = [], guard = 0;
+              var off = start;
+              while (guard++ < 60) {
+                var room = avail - off;
+                if (hgt - y0 <= room + 0.5) { slices.push({ pg: pg, y0: y0, y1: hgt, last: true }); used = off + hgt - y0; break; }
+                var y1 = bestCut(atoms, y0, y0 + room - CUE_H);
+                if (!y1) {
+                  var a0 = null; atoms.forEach(function (a) { if (!a0 && a[1] > y0 + room - CUE_H) a0 = a; });
+                  // cut just above the atom that does not fit, so it starts a page of its own …
+                  if (a0 && a0[0] > y0 + 4 && !atoms.some(function (b) { return b[0] < a0[0] - 1 && b[1] > a0[0] + 1; })) y1 = a0[0];
+                }
+                if (!y1) {                                                       // … an atom taller than the page
+                  P.tall = true;
+                  y1 = Math.max(y0 + room - CUE_H, a0 ? a0[1] + 1 : 0);
+                  if (y1 >= hgt - 0.5) { slices.push({ pg: pg, y0: y0, y1: hgt, last: true }); used = off + hgt - y0; break; }
+                }
+                slices.push({ pg: pg, y0: y0, y1: y1, last: false });
+                y0 = y1; pg += 1; off = 0;
+              }
+              it._vizSlices = slices; it._vizPage = slices[0].pg; it.classList.add('viz-sliced'); it.style.flexShrink = '0';
             }
-            it._vizPage = pg;
+            it._vizFirst = start <= mt + 0.5 && it._vizPage === pg;
+            prevBottom = r.bottom - top0; prevIt = it;
           });
           pages = []; for (var q = 0; q <= pg; q++) pages.push(q);
           pager.hidden = pages.length < 2; show(Math.min(page, pages.length - 1));
         }
       };
+      card._vizPager = P;
       items.forEach(function (it) { body.appendChild(it); });
+      body.appendChild(cue); cue.hidden = true;
       return P;
     }
     var pagers = [];
@@ -1146,7 +1271,8 @@
       try {
         var b = popWin.document.getElementById('viz-pop-body'); if (!b) return;
         b.innerHTML = calcPager.body.innerHTML;
-        Array.prototype.forEach.call(b.children, function (el) { el.style.display = ''; });
+        Array.prototype.forEach.call(b.querySelectorAll('.viz-pager-cue'), function (el) { el.remove(); });
+        Array.prototype.forEach.call(b.children, function (el) { el.style.display = ''; el.style.marginTop = ''; el.style.height = ''; el.style.overflow = ''; });
       } catch (e) { popWin = null; }
     }
 
@@ -1479,8 +1605,8 @@
       if (tourEls.card && force !== false) refreshStepExtras();
     }
     function refreshStepExtras() {
-      var ins = tourEls.card.querySelector('.viz-step-inspect'); if (ins && isFn(cfg.inspect)) { var hh = cfg.inspect(app.state, app) || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point.') + '</span>'; if (ins._h !== hh) { ins._h = hh; ins.innerHTML = mathify(hh); typeset(ins); } }
-      var nt = tourEls.card.querySelector('.viz-step-notes'); if (nt && isFn(cfg.notes)) { var nh = cfg.notes(app.state, app); if (nt._h !== nh) { nt._h = nh; nt.innerHTML = mathify(nh); typeset(nt); } }
+      var ins = tourEls.card.querySelector('.viz-step-inspect'); if (ins && isFn(cfg.inspect)) { var hh = cfg.inspect(app.state, app) || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point.') + '</span>'; if (ins._h !== hh) { ins._h = hh; var h0 = ins.offsetHeight; ins.innerHTML = mathify(hh); typeset(ins); if ((ins.offsetHeight !== h0 || ins._vizSlices) && app.tab === 'tour') tourEls.pager.layout(); } }
+      var nt = tourEls.card.querySelector('.viz-step-notes'); if (nt && isFn(cfg.notes)) { var nh = cfg.notes(app.state, app); if (nt._h !== nh) { nt._h = nh; var n0 = nt.offsetHeight; nt.innerHTML = mathify(nh); typeset(nt); if ((nt.offsetHeight !== n0 || nt._vizSlices) && app.tab === 'tour') tourEls.pager.layout(); } }
     }
     function queueLive() {
       if (liveQueued) return; liveQueued = true;
@@ -1496,6 +1622,7 @@
     }
     function scaleEq(inner) {
       if (!inner || !inner.parentNode) return;
+      if (!inner.offsetParent) return;                    // hidden (another page): keep the scale set by Pager.layout
       inner.style.transform = ''; var avail = inner.parentNode.clientWidth - 2, need = inner.scrollWidth;
       if (avail > 0 && need > avail) inner.style.transform = 'scale(' + Math.max(0.78, avail / need) + ')';
       inner.parentNode.classList.toggle('viz-eq-too-wide', avail > 0 && need * 0.78 > avail);
@@ -1619,7 +1746,7 @@
         if (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1) bad.push({ el: (e.className || e.tagName).split(' ').slice(0, 2).join('.'), h: e.scrollHeight, H: e.clientHeight, w: e.scrollWidth, W: e.clientWidth });
       }
       views.forEach(function (v) { if (v.el.offsetParent && v.holder.clientHeight < 60) bad.push({ el: 'view-too-small:' + v.id, h: v.holder.clientHeight }); });
-      Array.prototype.forEach.call(root.querySelectorAll('.viz-panel.is-active .viz-eq-too-wide'), function (e) { bad.push({ el: 'equation-too-wide', w: e.firstChild ? e.firstChild.scrollWidth : 0, W: e.clientWidth }); });
+      Array.prototype.forEach.call(root.querySelectorAll('.viz-panel.is-active .viz-eq-too-wide'), function (e) { if (e.offsetParent) bad.push({ el: 'equation-too-wide', w: e.firstChild ? e.firstChild.scrollWidth : 0, W: e.clientWidth }); });
       return bad;
     }
     app.fit = function () {
@@ -1633,13 +1760,77 @@
       var cramped = function () { return nav.scrollWidth > nav.clientWidth + 1 || header.scrollWidth > header.clientWidth + 1 || (layout !== 'portrait' && titleBox.clientWidth < 200); };
       if (cramped()) root.classList.add('short-tabs');
       if (cramped() && layout === 'wide') { root.classList.remove('short-tabs'); root.classList.add('tabs-row'); if (cramped()) root.classList.add('short-tabs'); }
-      var bad = [];
-      for (var d = 0; d <= 3; d++) {
-        root.setAttribute('data-dense', String(d));
-        pagers.forEach(function (p) { if (p.card.offsetParent) p.layout(); });
-        scaleAllEq();
-        bad = overflowing();
-        if (!bad.length) break;
+      function stageNeed() {
+        // portrait: the stage's floor also guarantees every visible view >= 60 px (chrome + weighted rows), so the
+        // text pages can be packed to what is left and a view is never squeezed by a long page
+        root.style.removeProperty('--viz-stage-need');
+        if (root.getAttribute('data-layout') !== 'portrait' || !multi || !stageEl.offsetParent) return;
+        var rows = [], sumW = 0;
+        Array.prototype.forEach.call(rowsEl.children, function (row) {
+          if (!row.offsetParent) return;
+          // views side by side need the tallest one; views stacked (chapter CSS may turn a row into a column) share it by weight
+          var need = 0, col = /column/.test(getComputedStyle(row).flexDirection), vs = [], sumF = 0;
+          views.forEach(function (v) { if (v.el.offsetParent && row.contains(v.el)) {
+            var cs = getComputedStyle(v.el), ch = (v.titleEl && v.titleEl.offsetParent ? v.titleEl.offsetHeight : 0) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+            var f = parseFloat(cs.flexGrow) || 1; vs.push([60 + ch, f]); sumF += f;
+          } });
+          if (col) { var rg = parseFloat(getComputedStyle(row).rowGap) || 0; vs.forEach(function (x) { need = Math.max(need, x[0] * sumF / x[1]); }); if (need) need += rg * (vs.length - 1); }
+          else vs.forEach(function (x) { need = Math.max(need, x[0]); });
+          if (!need) return;
+          var w = parseFloat(getComputedStyle(row).flexGrow) || 1; rows.push([need, w]); sumW += w;
+        });
+        if (!rows.length) return;
+        var gap = parseFloat(getComputedStyle(rowsEl).rowGap) || 0, hv = 0;
+        rows.forEach(function (r) { hv = Math.max(hv, r[0] * sumW / r[1]); });
+        var chrome = stageEl.clientHeight - rowsEl.clientHeight, est = Math.ceil(chrome + hv + gap * (rows.length - 1) + 2);
+        // check the estimate with the stage held at that height (chapter CSS may lay the views out as a grid)
+        function minView(hpx) {
+          stageEl.style.flex = '0 0 auto'; stageEl.style.height = hpx + 'px'; stageEl.style.minHeight = '0';
+          var m = Infinity; views.forEach(function (v) { if (v.el.offsetParent) m = Math.min(m, v.holder.clientHeight); });
+          return m;
+        }
+        var m1 = minView(est);
+        if (m1 < 59.5 && isFinite(m1)) {
+          var m2 = minView(est + 80), slope = (m2 - m1) / 80;
+          est = Math.ceil(est + (60 - m1) / Math.max(slope, 0.1) + 1);
+        }
+        stageEl.style.flex = ''; stageEl.style.height = ''; stageEl.style.minHeight = '';
+        root.style.setProperty('--viz-stage-need', Math.min(est, main.clientHeight) + 'px');
+      }
+      function tallPage() { return pagers.some(function (p) { return p.card.offsetParent && p.tall; }); }
+      // a text page under ~6 lines is as bad as a clipped one: raise the density for it too, and count it when
+      // choosing the picture/text split
+      function textCramped() { return pagers.some(function (p) { return p.card.offsetParent && p.avail > 0 && p.avail < 110; }); }
+      function dense() {
+        var b = [];
+        for (var d = 0; d <= 3; d++) {
+          root.setAttribute('data-dense', String(d));
+          stageNeed();
+          pagers.forEach(function (p) { if (p.card.offsetParent) p.layout(); });
+          scaleAllEq();
+          b = overflowing();
+          if (!b.length && !textCramped()) break;
+        }
+        return b;
+      }
+      function score(b) { return b.length + (tallPage() ? 2 : 0) + (textCramped() ? 2 : 0); }
+      root.removeAttribute('data-room');
+      var bad = dense();
+      if (layout === 'portrait') {
+        // move the split between picture and text: views squeezed below 60 px → "stage"; a formula taller than a
+        // text page → "text". Keep the change only if it leaves fewer problems.
+        var small = bad.some(function (b) { return /^view-too-small/.test(b.el); }), tall = tallPage();
+        var tries = (tall ? ['text'] : []).concat(small ? ['stage'] : []);
+        if (tries.length) {
+          var best = { room: '', bad: bad, score: score(bad) }, last = '';
+          tries.forEach(function (room) {
+            root.setAttribute('data-room', room); last = room;
+            var b2 = dense(), sc = score(b2);
+            if (sc < best.score) best = { room: room, bad: b2, score: sc };
+          });
+          if (best.room !== last) { if (best.room) root.setAttribute('data-room', best.room); else root.removeAttribute('data-room'); best.bad = dense(); }
+          bad = best.bad;
+        }
       }
       resizeCanvas(); drawNow();
       app.lastAudit = { layout: layout, dense: Number(root.getAttribute('data-dense')), overflow: bad, W: W, H: H, tab: app.tab, step: app.step };

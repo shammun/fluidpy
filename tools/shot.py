@@ -6,6 +6,12 @@ EXPLAINER mode — for each ``viz/chNN/<slug>.html`` (or any explainer path):
   * fails on: page or panel overflow (the no-scroll rule), console ``VIZ-OVERFLOW`` / ``VIZ-ERROR`` / JS errors,
     visible text below 12 px, tap targets below 24 px on phones, a walkthrough with < 4 or > 8 steps,
     no equations tab, missing ``viz:*`` meta tags; visits every page of every derivation too;
+  * pages through EVERY page of every pager in the active panel (walkthrough card, Explore, Explain, Derivation,
+    Equations, Code, Check) of every view and fails on any item whose content is clipped by its page (below the
+    page, or a slice cut through a line of text / a formula / a code line) or wider than it, or on a page that
+    squeezes a visible view below 60 px — reported as
+    ``[size] view: pager page k/n: item 'text' clipped N px``; a screenshot ``CLIP__<size>__<view>__pgK.png`` is
+    saved for the first few;
   * quality floor: Explain tab with >= 3 numbered sections + an interpretation, Code tab, >= 2 depth features,
     >= 3 questions; every derivation listed in ``viz:derivations`` exists and each step has tex, did, why, plain;
   * runs ``selftest()``: rows with ``expect`` are checked in JS; rows with ``py`` are evaluated here in Python with the
@@ -22,7 +28,7 @@ Usage (repo root)::
 
     .venv/Scripts/python.exe tools/shot.py viz/ch07/dispersion_relation.html
     .venv/Scripts/python.exe tools/shot.py --chapter ch07                 # all explainers of a chapter
-    .venv/Scripts/python.exe tools/shot.py --chapter ch07 --quick         # 3 sizes, no step screenshots
+    .venv/Scripts/python.exe tools/shot.py --chapter ch07 --quick         # 4 sizes (360x640, 390x844, notebook, desktop)
     .venv/Scripts/python.exe tools/shot.py --page notebooks/ch07_gravity_waves.html
     .venv/Scripts/python.exe tools/shot.py templates/viz_example.html
 
@@ -55,7 +61,7 @@ SIZES: dict[str, tuple[int, int, bool]] = {
     "desktop": (1366, 768, False),
     "full-hd": (1920, 1080, False),
 }
-QUICK = ("phone-tall", "notebook", "desktop")
+QUICK = ("phone", "phone-tall", "notebook", "desktop")   # 360x640 is where pages overflow first
 SHOT_STEPS_AT = ("phone-tall", "desktop")   # every step is screenshotted at these sizes
 REQUIRED_META = ("chapter", "slug", "title", "summary", "concept", "sections", "equations", "fluidpy", "derivations")
 
@@ -79,6 +85,88 @@ JS_TEXT_AUDIT = r"""
     if (r.height < 23.5 || r.width < 23.5) phoneTargets.push({ cls: b.className || b.tagName, w: Math.round(r.width), h: Math.round(r.height) });
   });
   return { small: small.slice(0, 12), nSmall: small.length, targets: phoneTargets.slice(0, 12), nTargets: phoneTargets.length };
+}
+"""
+
+
+JS_PAGER_AUDIT = r"""
+(shoot) => {
+  // Page through EVERY page of every pager in the active panel and measure clipping.
+  // shoot = [cardIndex, page] → just show that page (for a screenshot) and return.
+  const ATOMS = '.katex-display, .katex, tr, button, input, select, canvas, svg, img';
+  const cards = [...document.querySelectorAll('.viz-panel.is-active .viz-paged')].filter(c => c.offsetParent);
+  const nav = (card) => {
+    const P = card._vizPager;
+    if (P && P.pageCount) return { n: P.pageCount(), cur: P.page(), show: k => P.show(k) };
+    const prev = card.querySelector('.viz-pager-btn[aria-label="Previous page"]'), next = card.querySelector('.viz-pager-btn[aria-label="Next page"]');
+    const lab = card.querySelector('.viz-pager-label'), m = lab && lab.textContent.match(/(\d+)\s*\/\s*(\d+)/);
+    const n = m && !card.querySelector('.viz-pager').hidden ? +m[2] : 1, cur = m ? +m[1] - 1 : 0;
+    return { n, cur, show: k => { let g = 0; while (prev && !prev.disabled && g++ < 99) prev.click(); for (let i = 0; i < k; i++) next.click(); } };
+  };
+  if (shoot) { const c = cards[shoot[0]]; if (c) nav(c).show(shoot[1]); return null; }
+  const vis = el => { const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; };
+  // a multi-line formula (aligned, cases) may continue on the next page between its rows: its rows are the atoms
+  const katexBoxes = (el, boxes) => [...el.children].forEach(c => {
+    if (c.classList.contains('strut') || c.classList.contains('pstrut')) return;
+    if (c.classList.contains('mtable'))
+      c.querySelectorAll(':scope > span > .vlist-t > .vlist-r > .vlist > span').forEach(row => {
+        let t = Infinity, b = -Infinity, l = Infinity, r = -Infinity;
+        [...row.children].forEach(x => { if (x.classList.contains('pstrut')) return; const q = x.getBoundingClientRect(); if (q.height) { t = Math.min(t, q.top); b = Math.max(b, q.bottom); l = Math.min(l, q.left); r = Math.max(r, q.right); } });
+        if (b > t) boxes.push({ top: t, bottom: b, left: l, right: r });
+      }), c.querySelectorAll('.vertical-separator').forEach(x => { const q = x.getBoundingClientRect(); if (q.height) boxes.push(q); });
+    else if (c.querySelector('.mtable')) katexBoxes(c, boxes);
+    else { const q = c.getBoundingClientRect(); if (q.height) boxes.push(q); }
+  });
+  const out = [];
+  cards.forEach((card, ci) => {
+    const N = nav(card), body = card.querySelector('.viz-pages');
+    if (!body) return;
+    const pages = [];
+    for (let k = 0; k < N.n; k++) {
+      N.show(k);
+      const br = body.getBoundingClientRect(), issues = [];
+      [...body.children].forEach(it => {
+        if (it.classList.contains('viz-pager-cue') || !vis(it)) return;
+        const r = it.getBoundingClientRect(); if (!r.height && !r.width) return;
+        const own = getComputedStyle(it).overflow === 'hidden';          // a slice: the item clips itself on purpose
+        const clip = own ? Math.min(br.bottom, r.bottom) : br.bottom;
+        const txt = (it.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+        const boxes = [];
+        const walk = el => {
+          for (let c = el.firstChild; c; c = c.nextSibling) {
+            if (c.nodeType === 3) {
+              if (!c.textContent.trim()) continue;
+              const rg = document.createRange(), pre = /pre/.test(getComputedStyle(el).whiteSpace); rg.selectNodeContents(c);
+              [...rg.getClientRects()].forEach(q => q.height && boxes.push(pre ? { top: q.top, bottom: q.bottom, left: q.left, right: Math.min(q.right, el.getBoundingClientRect().right) } : q));
+            }
+            else if (c.nodeType === 1 && vis(c)) { const q = c.getBoundingClientRect(); if (!q.height && !q.width) continue;
+              if (c.matches('.katex-display, .katex') && c.querySelector('.mtable')) katexBoxes(c.querySelector('.katex-html') || c, boxes);
+              else if (c.matches(ATOMS)) boxes.push(q); else walk(c); }
+          }
+        };
+        walk(it);
+        let below = 0, cut = 0, wide = 0;
+        boxes.forEach(q => {
+          if (own && q.top >= r.bottom - 1) return;                           // the next slice of a sliced item
+          if (q.bottom > clip + 1) { if (q.top < clip - 1) cut = Math.max(cut, q.bottom - clip); else below = Math.max(below, q.bottom - clip); }
+          if (q.right > br.right + 1) wide = Math.max(wide, q.right - br.right);
+        });
+        if (r.bottom > br.bottom + 1) below = Math.max(below, r.bottom - br.bottom);
+        it.querySelectorAll('.viz-eq-too-wide').forEach(e => { if (e.offsetParent && e.firstChild) wide = Math.max(wide, e.firstChild.getBoundingClientRect().right - e.getBoundingClientRect().right, 1.5); });
+        if (below > 1 || cut > 1 || wide > 1)
+          issues.push({ item: (it.className || it.tagName).toString().split(' ')[0], text: txt, clipped: Math.round(Math.max(below, cut)), cut: cut > 1, wide: Math.round(wide) });
+      });
+      // the page shown may move the picture/text split: every visible view must stay >= 60 px on every page
+      document.querySelectorAll('.viz-view').forEach(v => {
+        const hh = v.querySelector('.viz-view-holder'); if (!v.offsetParent || !hh) return;
+        if (hh.clientHeight < 59.5) issues.push({ item: 'view-too-small', text: v.getAttribute('data-view') || v.className, clipped: 0, cut: false, wide: 0, small: Math.round(hh.clientHeight) });
+      });
+      pages.push(issues);
+    }
+    N.show(N.cur);
+    out.push({ card: ci, cls: card.className.replace('viz-card grow viz-paged', '').trim() || 'pager', n: N.n, pages });
+  });
+  return out;
 }
 """
 
@@ -175,6 +263,9 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
         rep["derivations"], rep["explain_stats"], rep["der_steps"] = info["derivations"], info["explain"], info["derSteps"]
         meta = info["meta"]
         srep = {"viewport": [w, h], "load_s": round(time.perf_counter() - t0, 2), "katex": info["katex"], "views": []}
+        n_clip_shots = [0]
+        for old in out_dir.glob(f"CLIP__{name}__*.png"):
+            old.unlink()
         for tab in info["tabs"]:
             views = [(tab, None)]
             if tab == "tour":
@@ -201,9 +292,32 @@ def audit_explainer(browser, path: Path, sizes: list[str], out_dir: Path, shots:
                 if phone and text["nTargets"] and step in (None, 0, (0, 1)):
                     view["small_targets"] = text["targets"]
                     fails.append(f"[{name}] {label}: {text['nTargets']} tap target(s) below 24px, e.g. {text['targets'][:3]}")
-                srep["views"].append(view)
                 if shots and (step is None or step == 0 or name in SHOT_STEPS_AT):
                     page.screenshot(path=str(out_dir / f"{name}__{label}.png"))
+                # every page of every pager in this panel: nothing may be clipped (the first page is not enough)
+                pg = page.evaluate(JS_PAGER_AUDIT, None)
+                view["pages"] = sum(p["n"] for p in pg)
+                clipped = []
+                for p in pg:
+                    for k, issues in enumerate(p["pages"]):
+                        for it in issues:
+                            clipped.append({"pager": p["cls"], "page": k + 1, "of": p["n"], **it})
+                            what = (f"clipped {it['clipped']}px" + (" (cut through a line)" if it["cut"] else "")) if it["clipped"] else ""
+                            what += (", " if what else "") + (f"{it['wide']}px too wide" if it["wide"] else "")
+                            if it["item"] == "view-too-small":
+                                what = f"view only {it.get('small')}px high on this page"
+                                if a["overflow"] and any(str(o.get("el", "")).startswith("view-too-small") for o in a["overflow"]):
+                                    continue            # already reported for page 1 by VIZ.audit()
+                            fails.append(f"[{name}] {label}: {p['cls']} page {k + 1}/{p['n']}: {it['item']} "
+                                         f"'{it['text'][:40]}' {what}")
+                            if shots and n_clip_shots[0] < 6:
+                                n_clip_shots[0] += 1
+                                page.evaluate(JS_PAGER_AUDIT, [p["card"], k])
+                                page.screenshot(path=str(out_dir / f"CLIP__{name}__{label}__pg{k + 1}.png"))
+                                page.evaluate(JS_PAGER_AUDIT, [p["card"], 0])
+                if clipped:
+                    view["clipped"] = clipped
+                srep["views"].append(view)
         errs = [l for l in logs if ("VIZ-ERROR" in l or l.startswith("pageerror") or l.startswith("error"))
                 and "katex" not in l.lower() and "net::" not in l]
         if errs:
@@ -339,7 +453,7 @@ def audit_page(browser, path: Path, out_dir: Path) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("paths", nargs="*", help="explainer HTML files")
-    ap.add_argument("--chapter", help="audit every viz/<chapter>/*.html")
+    ap.add_argument("--chapter", action="append", help="audit every viz/<chapter>/*.html (repeatable)")
     ap.add_argument("--page", help="audit a published chapter page (notebooks/chNN_<slug>.html)")
     ap.add_argument("--quick", action="store_true", help=f"only {QUICK}")
     ap.add_argument("--sizes", help="comma-separated subset of " + ",".join(SIZES))
@@ -350,8 +464,8 @@ def main(argv: list[str] | None = None) -> int:
     from playwright.sync_api import sync_playwright
 
     files = [Path(p) if Path(p).is_absolute() else ROOT / p for p in a.paths]
-    if a.chapter:
-        files += sorted(p for p in (ROOT / "viz" / a.chapter).glob("*.html") if p.name != "index.html")
+    for ch in a.chapter or []:
+        files += sorted(p for p in (ROOT / "viz" / ch).glob("*.html") if p.name != "index.html")
     if not files and not a.page:
         ap.error("give explainer paths, --chapter chNN or --page notebooks/<page>.html")
     sizes = a.sizes.split(",") if a.sizes else (list(QUICK) if a.quick else list(SIZES))
