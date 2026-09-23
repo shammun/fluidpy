@@ -2740,7 +2740,7 @@ const app = Viz.app({
           set: { shape: 'circle', tiles: 8 }, live: s => { const p = phys(s); if (!p.tileSums) return ''; const gap = Math.abs(p.Gamma) > 1e-9 ? Math.abs((p.tileSums.outer - p.Gamma) / p.Gamma) * 100 : 0; return `\\begin{aligned} \\oint_{\\rm staircase}\\ (${p.tileSums.n}\\ \\text{tiles}) &= ${tz(p.tileSums.outer)} \\\\ \\oint_C\\ \\text{(circle)} &= ${tz(p.Gamma)}\\quad\\text{gap } ${gap.toFixed(1)}\\,\\% \\to 0\\ \\text{as } k\\to\\infty \\\\ \\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA &= ${tz(p.flux)} \\end{aligned}`; },
           watch: 'The staircase of 8 × 8 tiles still overshoots the circle by the printed gap — the corners it cuts are O(1/k) of the area; the gap shrinks as the Tiles slider (Explore) is raised.' },
         { did: 'Corollary for a gradient field', tex: '\\begin{aligned} \\oint_C\\nabla\\phi\\cdot\\mathbf t\\,ds &= \\oint_C d\\phi = 0 \\\\ \\Rightarrow\\ \\nabla\\times\\nabla\\phi &= 0 \\end{aligned}',
-          why: 'Along the curve ∇φ·t ds = dφ (chain rule); the total of an exact change round a closed loop is φ(end) − φ(start) = 0. Then Stokes $\\oint_C = \\iint_A$ (2.34) forces $\\iint_A(\\nabla\\times\\nabla\\phi)\\cdot\\mathbf n\\,dA = 0$ for every A.',
+          why: 'Along C, ∇φ·t ds = dφ (chain rule), and an exact change totals φ(end) − φ(start) = 0 round a closed loop. Stokes $\\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA = \\oint_C\\mathbf u\\cdot\\mathbf t\\,ds$ (2.34) with u = ∇φ then forces zero curl flux for every A.',
           plain: 'A field that is the slope of something has no circulation — and since the flux vanishes for every surface, no curl either (Exercise 2.20).',
           set: { preset: 'potential', tiles: 0 }, live: s => { const p = phys(s); return s.preset === 'potential' ? `\\begin{aligned} \\oint_C \\nabla\\phi\\cdot\\mathbf t\\,ds &= ${Viz.tnum(p.Gamma, 2, { keepTiny: true })} \\\\ (\\nabla\\times\\nabla\\phi)_3 &= 0 - 0 = 0 \\end{aligned}` : `\\oint_C \\mathbf u\\cdot\\mathbf t\\,ds = ${tz(p.Gamma)}\\ \\text{(not a gradient field)}`; },
           watch: 'The field turned white (curl 0) and the u·t graph\'s positive and negative areas cancel exactly: Γ = 0 for any loop you drag.' }
@@ -2795,7 +2795,7 @@ w3 = ch02.integral_curl_component(u, [cx, cy], None, h=0.1)  # {{w35}} 1/s
 rect = ch02.rectangle_loop([cx, cy], None, 2*R, 2*R*{{aspect}}, 100)
 Gamma_rect = ch02.circulation(u, rect)   # Ex. 2.6's loop: {{Grect}} m²/s`,
       live: s => { const p = phys(s), F = p.F, rl = rectLoop([s.cx, s.cy], 2 * s.R, 2 * s.R * s.aspect, 100), cl = circleLoop([s.cx, s.cy], s.R, 400); const G = circulation(F.u, cl), Fl = curlFlux(F.curl, cl); return { upy: F.py, preset: s.preset, cx: tz(s.cx), cy: tz(s.cy), R: Viz.fmt(s.R, { sig: 4 }), Gamma: tz(G), flux: tz(Fl), gap: Viz.fmt(Fl - G, { sig: 2, keepTiny: true }), ok: contains(cl, F.singular) ? 'False' : 'True', w35: isFinite(p.w35) ? tz(p.w35) : 'nan', aspect: tz(s.aspect), Grect: tz(circulation(F.u, rl)) }; } },
-    { id: 'curl', title: 'The curl $\\partial_1 u_2 - \\partial_2 u_1$ (2.25) and the orientation of C', ref: 'Eq. (2.25), Fig. 2.10',
+    { id: 'curl', title: 'The curl and the orientation of C', ref: 'Eq. (2.25), Fig. 2.10',
       src: `
 x1, x2 = {{cx}}, {{cy}}                 # the loop's centre [m]
 h = 0.01                              # central-difference step [m]

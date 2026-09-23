@@ -2430,7 +2430,7 @@ function drawMatrix(v, s) {
   const y1 = Lm.below + 16, y2 = Lm.below + 32;
   if (y2 < v.h - 2) {
     Viz.text(ctx, '½ω₃ = A₂₁ = −A₁₂ = ' + f2z(p.hw3) + ' rad/s  (ω = ∇×u)', v.w / 2, y1, { color: C.A, size: 12, align: 'center', weight: 650, maxWidth: v.w - 8 });
-    Viz.text(ctx, 'S:S = ' + f2z(p.SS) + '   A:A = ' + f2z(p.AA) + '   S:A = ' + f2z(p.SA) + '  (2.29)', v.w / 2, y2, { color: Viz.color('text-soft'), size: 12, align: 'center', weight: 600, maxWidth: v.w - 8 });
+    Viz.text(ctx, 'S:S = ' + f2z(p.SS) + '   A:A = ' + f2z(p.AA) + '   S:A = ' + f2z(p.SA) + ' (always 0)', v.w / 2, y2, { color: Viz.color('text-soft'), size: 12, align: 'center', weight: 600, maxWidth: v.w - 8 });
   } else if (y1 < v.h - 2) {
     Viz.text(ctx, '½ω₃ = A₂₁ = ' + f2z(p.hw3) + ' rad/s · S:A = ' + f2z(p.SA), v.w / 2, y1, { color: C.A, size: 12, align: 'center', weight: 650, maxWidth: v.w - 8 });
   }
@@ -2548,12 +2548,12 @@ const app = Viz.app({
     callouts: [{ kind: 'try', html: 'Make $G$ symmetric ($G_{21} = G_{12}$): the wheel must stop. Make it antisymmetric ($G_{21} = -G_{12}$): the square must keep its shape.' }]
   },
   terms: {
-    title: 'S:S + 2 S:A + A:A = G:G — the middle bar is Eq. (2.29)\'s zero',
+    title: 'S:S + 2 S:A + A:A = G:G — the middle bar is always 0',
     unit: '1/s²',
     items: [
       { id: 'SS', label: 'S:S = $S_{ij}S_{ij}$', color: '#0fa39c', value: s => phys(s).SS },
       { id: 'AA', label: 'A:A = $A_{ij}A_{ij}$', color: '#f97316', value: s => phys(s).AA },
-      { id: 'SA', label: '2 S:A — $\\tau_{ij}A_{ij} = 0$ (2.29)', color: '#e11d6a', value: s => 2 * phys(s).SA }
+      { id: 'SA', label: '2 S:A: $\\tau_{ij}A_{ij} = 0$ by (2.28)–(2.29)', color: '#e11d6a', value: s => 2 * phys(s).SA }
     ],
     total: { label: 'G:G = $G_{ij}G_{ij}$', value: s => phys(s).GG }
   },
@@ -2622,7 +2622,7 @@ const app = Viz.app({
         W.line(`under $S$: length along $\\theta_p + 90°$ × $e^{\\lambda_2 t}$`, Viz.live('eS2'), 'area factor $e^{(\\lambda_1+\\lambda_2)t} = e^{(\\nabla\\cdot\\mathbf u)t}$ = ' + Viz.live('area') + (Math.abs(p.div) < TINY ? ' — kept, because $S_{ii} = \\nabla\\cdot\\mathbf u = 0$' : '')) +
         W.line('under $A$: turned by $\\tfrac12\\omega_3 t$', Viz.live('turn') + ' rad = ' + Viz.live('turnDeg') + '°', 'rigid rotation, shape kept') +
         (p.regime === 'shear' ? W.line('under $G$: top edge slid by $\\Gamma t\\,x_2$', Viz.live('slide') + ' x₂', 'a lean, not a turn — every streamline is straight') : W.line('under $G$: area factor $\\det e^{Gt}$', Viz.live('areaG'), 'the same as under $S$: $A$ never changes area'));
-      out += W.step(6, 'A symmetric tensor cannot see A — $\\tau_{ij}B_{ij} = \\tau_{ij}S_{ij}$ (2.28), $\\tau_{ij}A_{ij} = 0$ (2.29)') +
+      out += W.step(6, 'A symmetric tensor cannot see A — $P = \\tau_{kl}S_{kl} \\pm \\tau_{kl}A_{kl}$ (2.28)–(2.29), so $\\tau_{ij}A_{ij} = 0$') +
         W.line(`$\\tau_{ij}S_{ij}$ with the probe $\\tau = S$: $S_{ij}S_{ij} = ${tz(S[0][0])}^2 + 2(${tz(S[0][1])})^2 + ${tz(S[1][1])}^2$`, tz(sdc.PS) + ' 1/s²', 'the teal bar') +
         W.line(`$\\tau_{ij}A_{ij} = S_{12}A_{12} + S_{21}A_{21} = ${tz(S[0][1])}(${tz(A[0][1])}) + ${tz(S[1][0])}(${tz(A[1][0])})$`, tz(sdc.PA) + ' 1/s²', 'swapping $i \\leftrightarrow j$ flips $A$ but not $\\tau$, so the sum equals its own negative: zero') +
         W.box(`$\\tau_{ij}G_{ij} = \\tau_{ij}S_{ij} + \\tau_{ij}A_{ij} = ${tz(sdc.PS)} + ${tz(sdc.PA)} = \\mathbf{${tz(sdc.P)}}$ 1/s² — this is why viscous dissipation (Ch. 4) sees only $S$.`);
@@ -2782,7 +2782,7 @@ theta = ch02.material_line_angle(G, t, 0.0)   # line angle: {{thG}} rad`,
       live: s => { const p = phys(s); return `S_{12} = \\tfrac12(${tz(p.G[0][1])} + ${tz(p.G[1][0])}) = ${tz(p.S[0][1])}\\ \\text{1/s}`; },
       note: 'Γ ≡ S₁₂ in Ex. 2.4\'s matrix [[0, Γ], [Γ, 0]]; for u₁(x₂) alone S₁₂ = ½ du₁/dx₂, so du₁/dx₂ = 2Γ (the book\'s "2S₁₂ = Γ" line carries a stray 2).',
       symbols: [['u_i', 'velocity component', 'm/s'], ['x_j', 'coordinate', 'm']] },
-    { id: 'blind', title: 'Symmetric × antisymmetric = 0', ref: 'Eqs. (2.28), (2.29)', tex: '\\tau_{ij}B_{ij} = \\tau_{ij}S_{ij},\\qquad \\tau_{ij}A_{ij} = 0',
+    { id: 'blind', title: 'Symmetric × antisymmetric = 0', ref: 'Eqs. (2.28), (2.29)', tex: '\\begin{aligned} P &= \\tau_{kl}S_{kl} + \\tau_{kl}A_{kl} \\quad (2.28) \\\\ P &= \\tau_{kl}S_{kl} - \\tau_{kl}A_{kl} \\quad (2.29) \\\\ \\Rightarrow\\ \\tau_{ij}A_{ij} &= 0,\\quad \\tau_{ij}B_{ij} = \\tau_{ij}S_{ij} \\end{aligned}',
       live: s => { const p = phys(s), c = symContraction(p.S, p.G); return `S{:}G = S{:}S = ${tz(c.PS)},\\quad S{:}A = ${tz(c.PA)}`; },
       note: 'τ symmetric. Renaming i ↔ j leaves τ_ij A_ij unchanged while A_ji = −A_ij, so the sum equals its own negative.',
       symbols: [['\\tau_{ij}', 'any symmetric tensor (here τ = S)', '1/s']] },
@@ -2795,7 +2795,7 @@ theta = ch02.material_line_angle(G, t, 0.0)   # line angle: {{thG}} rad`,
     { q: 'Simple shear with $G_{12} = 2$. At what rate does the paddle wheel turn, and which way?', a: 'At $\\tfrac12\\omega_3 = A_{21} = -G_{12}/2 = -1$ rad/s (half the vorticity $\\omega_3 = -2$ 1/s), clockwise: the fluid above moves right faster and drags the top of the wheel to the right.', set: Object.assign({}, SHEAR, { show: 'A', t: 0 }) },
     { q: 'Set $G_{12} = G_{21} = 1$. Does the S panel differ from the simple-shear case?', a: 'No: S is the same [[0, 1], [1, 0]]; only A changed (to zero). The stretch is identical, the spin is gone — the status reads "pure strain".', set: { g11: 0, g12: 1, g21: 1, g22: 0, show: 'all', t: 0 } },
     { q: 'Solid-body preset. What is $\\nabla\\cdot\\mathbf u$, and what does the S panel show?', a: '$\\nabla\\cdot\\mathbf u = G_{ii} = 0$ and S = 0: nothing happens in the S panel; the square is carried round rigidly at $\\tfrac12\\omega_3 = A_{21} = 1$ rad/s (counter-clockwise; the vorticity is $\\omega_3 = 2$ 1/s).', set: { g11: 0, g12: -1, g21: 1, g22: 0, show: 'all', t: 0 } },
-    { q: 'Why is the S:A bar zero for every slider setting, even random ones?', a: 'Renaming $i \\leftrightarrow j$ leaves $S_{ij}A_{ij}$ unchanged, but $A_{ji} = -A_{ij}$, so the sum equals its own negative — it must be zero (Eq. 2.29).', set: { g11: 0.7, g12: 1.3, g21: -0.4, g22: -0.2, t: 0 } }
+    { q: 'Why is the S:A bar zero for every slider setting, even random ones?', a: 'Renaming $i \\leftrightarrow j$ leaves $S_{ij}A_{ij}$ unchanged, but $A_{ji} = -A_{ij}$, so the sum equals its own negative — it must be zero: $P = \\tau_{kl}S_{kl} + \\tau_{kl}A_{kl}$ (2.28) and $P = \\tau_{kl}S_{kl} - \\tau_{kl}A_{kl}$ (2.29) agree only if $\\tau_{kl}A_{kl} = 0$.', set: { g11: 0.7, g12: 1.3, g21: -0.4, g22: -0.2, t: 0 } }
   ],
   selftest: () => {
     const G = [[0, 2], [0, 0]], S = symPart(G);
@@ -2816,8 +2816,8 @@ theta = ch02.material_line_angle(G, t, 0.0)   # line angle: {{thG}} rad`,
       { name: 'principal angle', js: principal2d(S).theta, py: 'ch02.principal_angle_2d([[0.0, 1.0], [1.0, 0.0]])', rtol: 1e-12 },
       { name: 'Ex. 2.4 λ¹ (Γ = 1)', js: ex24(1).lam[0], py: 'ch02.example_2_4(1.0)["lam"][0]', rtol: 1e-12 },
       { name: 'Ex. 2.4 G12 = 2Γ', js: ex24(1).G[0][1], py: 'ch02.example_2_4(1.0)["G"][0][1]', rtol: 1e-12 },
-      { name: 'τ:A = 0 (2.29)', js: symContraction(S, G).PA, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[2]', atol: 1e-12 },
-      { name: 'τ:G = τ:S (2.28)', js: symContraction(S, G).P, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[0]', rtol: 1e-12 },
+      { name: 'τ:A = 0 (from 2.28–2.29)', js: symContraction(S, G).PA, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[2]', atol: 1e-12 },
+      { name: 'τ:G = τ:S (from 2.28–2.29)', js: symContraction(S, G).P, py: 'ch02.symmetric_double_contraction([[0.0, 1.0], [1.0, 0.0]], [[0.0, 2.0], [0.0, 0.0]])[0]', rtol: 1e-12 },
       { name: 'solid-body preset G21', js: PRESET_G.solid_body_rotation[1][0], py: 'ch02.velocity_gradient_preset("solid_body_rotation", 1.0)[1][0]', rtol: 1e-12 },
       { name: 'pure-strain preset G22', js: PRESET_G.pure_strain[1][1], py: 'ch02.velocity_gradient_preset("pure_strain", 1.0)[1][1]', rtol: 1e-12 },
       { name: 'uniaxial preset trace = ∇·u', js: M2.tr(PRESET_G.uniaxial_extension), py: 'np.trace(ch02.velocity_gradient_preset("uniaxial_extension", 1.0))', rtol: 1e-12 },

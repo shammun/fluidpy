@@ -2234,7 +2234,7 @@ function phys(s) {
 }
 const COL = () => ({ out: Viz.color('orange'), in: Viz.color('blue'), total: Viz.color('teal'), inside: Viz.color('accent'), interior: Viz.color('rose'), ghost: Viz.color('muted'), box: Viz.color('accent') });
 const signCol = (v, C) => v > TINY ? C.out : v < -TINY ? C.in : C.ghost;
-const regimeName = p => ({ singular: 'singular point inside', solenoidal: 'solenoidal field', small: 'small box: the limit $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32)', source: 'net outflow: a source inside', sink: 'net inflow: a sink inside', balanced: 'in = out for this box' })[p.regime];
+const regimeName = p => ({ singular: 'singular point inside', solenoidal: 'solenoidal field', small: 'small box, close to the limit V → 0', source: 'net outflow: a source inside', sink: 'net inflow: a sink inside', balanced: 'in = out for this box' })[p.regime];
 /** Relative error of (1/A)∮ against ∇·Q(x₀) as a percentage, or the absolute error where the exact value is 0. */
 const pctErr = p => Math.abs(p.exact) > 1e-9 ? Viz.fmt(100 * Math.abs(p.err) / Math.abs(p.exact), { sig: 2 }) + ' %' : fe(p.err) + ' 1/s';
 function statusOf(s) {
@@ -2629,6 +2629,19 @@ const app = Viz.app({
       singular: `<b>The field is not differentiable at the origin.</b> The flux ${fz(p.rhs)} ≈ m = ${p.F.m} m²/s is the same for every box enclosing it, however small — Gauss' theorem needs a smooth Q inside, and the limit $\\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) gives a delta function, not a number.`,
       balanced: `<b>The outflow through some faces balances the inflow through others</b> for this box: the divergence inside (${p.F.divTex.indexOf('cos') >= 0 ? '2 cos x₁ cos x₂' : '∇·Q'}) is positive in part of the box and negative in the rest, and integrates to ${fe(p.lhs)}.`
     }[p.regime];
+    // Phones (narrow or landscape): the walkthrough card is 84–190 px tall and the face values are already in the bars view above,
+    // so the note is one short verdict (the table and the long reading stay on wider screens).
+    if (typeof window !== 'undefined' && (window.innerWidth < 520 || window.innerHeight < 500)) {
+      const lead = {
+        source: `<b class="c-teal">∮ = ${fz(p.rhs)}</b> m²/s leaves the box: a source inside, ∇·Q > 0.`,
+        sink: `${fz(-p.rhs)} m²/s flows <i>in</i>: convergence, ∇·Q < 0.`,
+        solenoidal: `in = out for every box, because ∇·Q = 0.`,
+        small: `(1/A)∮ = ${fz(p.ratio)} has converged to ∇·Q(x₀) = ${fz(p.exact)} 1/s.`,
+        singular: `∮ ≈ m = ${p.F.m} m²/s for any box around the origin: Gauss needs a smooth Q.`,
+        balanced: `outflow and inflow balance: ∬ ∇·Q dA = ${fe(p.lhs)} m²/s.`
+      }[p.regime];
+      return `<p><b>Right now</b> (${regimeName(p)}): ${lead}</p>`;
+    }
     return `<p><b>Right now</b> (${regimeName(p)}, h = ${f3(p.h)} m at (${fz(p.cx)}, ${fz(p.cy)})):</p>` + W.table(['face', 'flux [m²/s]'], rows) + `<p>${meaning}</p>`;
   },
   explain: {
@@ -2648,11 +2661,11 @@ const app = Viz.app({
         W.line(`top ($x_2 = ${tz(p.box[1][1])}$, $\\mathbf n = +\\mathbf e_2$): $\\overline{Q_2}\\,h$`, `<b class="${fc.top >= 0 ? 'c-orange' : 'c-blue'}">${fs(fc.top)}</b>`) +
         W.line(`bottom ($x_2 = ${tz(p.box[1][0])}$, $\\mathbf n = -\\mathbf e_2$): $-\\overline{Q_2}\\,h$`, `<b class="${fc.bottom >= 0 ? 'c-orange' : 'c-blue'}">${fs(fc.bottom)}</b>`) +
         W.box(`$\\oint \\mathbf n\\cdot\\mathbf Q\\,ds = ${tz(fc.right)}${pm(fc.left)}${pm(fc.top)}${pm(fc.bottom)} = \\mathbf{${tz(p.rhs)}}$ m²/s — <b class="c-teal">the teal bar</b>, per metre of depth.`);
-      out += W.step(3, 'The inside — Gauss $\\iint_A \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$ (2.30)') +
+      out += W.step(3, 'The inside — $\\iint_A \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$, the 2-D form of Gauss (2.30)') +
         W.line(`$\\iint_A \\nabla\\cdot\\mathbf Q\\,dA$ on the $${p.n}\\times${p.n}$ midpoint grid` + (F.constDiv ? ` $= ${tz(p.exact)} \\times ${tz(p.area)}$` : ''), tz(p.lhs) + ' m²/s', (F.constDiv ? 'a constant divergence times the area' : 'the divergence summed cell by cell, times the cell area') + ' — <b class="c-accent">the purple bar</b>') +
         W.box(`Difference from the face sum: $|\\oint - \\iint| = ${Viz.tnum(Math.abs(p.gap), 2, { keepTiny: true })}$ m²/s — Gauss' theorem ` + (F.poly ? 'to round-off: for this polynomial field the midpoint rule is exact on both sides.' : `up to the quadrature error, which shrinks like $1/n^2$ (raise $n$ in Explore and watch the gap fall).`));
       out += W.step(4, 'Tiling — D25 step 8') +
-        (p.tiles > 1 ? W.line(`${p.tiles * p.tiles} tiles, each obeying Gauss $\\iint_{A_k} \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$ (2.30); their ${p.tiles * p.tiles} boundary sums add to`, tz(p.td.sumTiles) + ' m²/s', 'Gauss on every tile, summed (step 7)') +
+        (p.tiles > 1 ? W.line(`${p.tiles * p.tiles} tiles, each obeying $\\iint_{A_k} \\nabla\\cdot\\mathbf Q\\,dA = \\oint \\mathbf n\\cdot\\mathbf Q\\,ds$ (the 2-D form of (2.30)); their ${p.tiles * p.tiles} boundary sums add to`, tz(p.td.sumTiles) + ' m²/s', 'Gauss on every tile, summed (step 7)') +
           W.line(`the ${2 * p.tiles * (p.tiles - 1)} interior faces appear twice, with opposite normals and the same $\\mathbf Q$`, `<b class="c-rose">${fe(p.td.interior)}</b> m²/s in total`, 'n·Q + (−n)·Q = 0 on every shared face') +
           W.box(`Only the outer ${4 * p.tiles} face segments survive: outer flux $= \\mathbf{${tz(p.td.outer)}}$ m²/s $= \\oint$ for the whole box ✓`) :
           W.hint('Set tiles to 2×2 or 4×4 (chips) to see the interior faces cancel: the sum of all tile boundaries equals the outer boundary alone.'));
@@ -2853,7 +2866,7 @@ def flux_through_faces(Q, box, n=8):
     { title: 'Read the faces with Taylor', text: 'Ex. 2.5: on the right face $Q_1 = Q_1(\\mathbf x_0) + \\tfrac h2\\,\\partial Q_1/\\partial x_1$, on the left $Q_1(\\mathbf x_0) - \\tfrac h2\\,\\partial Q_1/\\partial x_1$. Subtract: the centre value cancels, the slope survives.', play: false, set: setField('radial', { taylor: true }), derive: { id: 'D22', step: 4 }, eq: 'taylor' },
     { title: 'Shrink it', text: 'The box shrinks from $h = 1$ m to a point. The flux falls like $h^2$, the area like $h^2$, their ratio holds at 2 $= \\nabla\\cdot\\mathbf Q$. That ratio <i>is</i> the divergence: $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A \\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32).', set: setField('radial', { shrink: 0 }), play: true, eq: 'limit', readouts: ['ratio', 'exact'] },
     { title: 'A field that never leaks', text: '$\\mathbf b\\times\\mathbf x$: the flow goes round. Every box, anywhere, any size: in = out, $\\nabla\\cdot\\mathbf Q = 0$. Incompressible flow looks like this. Drag the box and watch the <b class="c-teal">teal</b> bar stay at zero.', play: false, set: setField('solid'), controls: ['cx', 'cy', 'shrink'], readouts: ['rhs'] },
-    { title: 'When it fails', text: 'Point source: the field is singular at the origin. Enclose it: the flux is $m = 1$ however small the box — shrink it and see. Gauss needs a smooth field inside; move the origin outside and the flux drops to 0.', play: false, set: setField('source', { cx: 0, cy: 0 }), notes: true, controls: ['cx', 'shrink'] },
+    { title: 'When it fails', text: 'Point source, singular at the origin. Enclose it: the flux is $m = 1$ however small the box. Gauss needs a smooth field inside; move the origin outside and the flux drops to 0.', play: false, set: setField('source', { cx: 0, cy: 0 }), notes: true, controls: ['cx', 'shrink'] },
     { title: 'Your turn', text: 'Smooth preset, $h = 2$ m. Predict: does $(1/A)\\oint$ overshoot or undershoot $\\nabla\\cdot\\mathbf Q(\\mathbf x_0) = 1.54$? Then shrink the box and read the slope of the error curve. Click any face for its arithmetic.', play: false, set: setField('smooth', { shrink: sigmaOf(2) }), controls: ['shrink', 'cx', 'cy'], readouts: ['ratio', 'exact'] }
   ],
   equations: [
