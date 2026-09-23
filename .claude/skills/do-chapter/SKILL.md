@@ -1,6 +1,6 @@
 ---
 name: do-chapter
-description: Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate (exhaustive coverage, tiered depth: 12–18 A ideas get code and a visual), design, implement, verify, review, 5–10 interactive explainers, notebook with lesson review, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult
+description: 'Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate (exhaustive coverage, tiered depth: 12–18 A ideas get code and a visual), design, implement, verify, review, 5–10 interactive explainers, notebook with lesson review, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult'
 disable-model-invocation: true
 ---
 
