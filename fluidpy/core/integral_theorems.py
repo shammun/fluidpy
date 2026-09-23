@@ -33,7 +33,7 @@ __all__ = ["midpoint_nodes", "simpson_nodes", "gauss_legendre_nodes", "volume_in
            "integral_divergence", "integral_curl", "flux_through_faces", "divergence_theorem_rect2d",
            "integral_divergence_2d", "TiledFlux", "divergence_theorem_tiled", "Loop", "Surface", "boundary_tangent", "planar_loop", "rectangle_loop",
            "planar_disc", "planar_rectangle", "circulation", "curl_flux", "StokesCheck", "stokes_theorem_check",
-           "integral_curl_component", "fd_partials"]
+           "integral_curl_component", "fd_partials", "CurlCheck", "curl_theorem_box"]
 
 _F = lambda a: np.asarray(a, dtype=float)  # noqa: E731
 
@@ -757,3 +757,62 @@ def integral_curl_component(u_fn: Callable, x0, n=None, h: float = 0.1, n_side: 
     """
     loop = rectangle_loop(x0, n, h, h, n_side)
     return circulation(u_fn, loop) / (h * h)  # Eq. (2.35)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Ch. 5: Gauss' theorem in curl form (5.15)
+# ----------------------------------------------------------------------------------------------------------------------
+class CurlCheck(NamedTuple):
+    """Both sides of ∭_V ∇×F dV = ∯_A n×F dA (vectors, shape (3,)) and their difference ``diff`` = volume − surface."""
+
+    volume: np.ndarray
+    surface: np.ndarray
+    diff: np.ndarray
+
+
+def curl_theorem_box(F_fn: Callable, bounds, n: int = 24, rule: str = "gauss", curl_fn: Callable | None = None,
+                     fd_step: float = 1e-3) -> CurlCheck:
+    """Gauss' theorem in curl form on a box: ∭_V ∇×F dV = ∯_A n × F dA.
+
+    Book: §5.5, Eq. (5.15): ∫_V′ ∇′×(ω/|x − x′|) d³x′ = ∫_V′ ε_kij ∂/∂x′_i(ω_j/|x − x′|) d³x′ = ∫_A′ ε_kij
+    (ω_j/|x − x′|) n_i d²x′ = ∫_A′ n × ω/|x − x′| d²x′ — Gauss (2.30) applied to each Cartesian component with the
+    Levi-Civita symbol; here for a general smooth vector field F. The companion of ``divergence_theorem_box``.
+
+    Parameters
+    ----------
+    F_fn : callable ``F(X, Y, Z) → (3, …)`` (ch02 coordinate convention)
+    bounds : ((x0, x1), (y0, y1), (z0, z1)) [m] or (lo, hi)
+    n : quadrature nodes per direction;  rule : "gauss" (default; exact for polynomials of degree ≤ 2n − 1),
+        "simpson" or "midpoint"
+    curl_fn : exact ∇ × F(X, Y, Z) → (3, …), or None (fourth-order differences of ``F_fn`` with step ``fd_step``)
+
+    Returns
+    -------
+    CurlCheck(volume, surface, diff) — vectors [F unit × m²].
+
+    Validation: V1 polynomial F (Gauss nodes → equal to round-off); F = b × x on the unit cube → 2b·V; V3 order of the
+    midpoint rule on a smooth non-polynomial F. Label: analytic, converged.
+    """
+    b = _bounds3(bounds)
+    if curl_fn is None:
+        def curl_fn(X, Y, Z):
+            d = fd_partials(F_fn, (X, Y, Z), fd_step)  # d[i, j, ...] = ∂F_j/∂x_i
+            return np.einsum("kij,ij...->k...", levi_civita(), d)  # (∇×F)_k = ε_kij ∂F_j/∂x_i
+    vol = _F(volume_integral_box(curl_fn, b, n, rule))
+    eps = levi_civita()
+    surf = np.zeros(3)
+    for d in range(3):
+        others = [k for k in range(3) if k != d]
+        (s, ws), (t, wt) = (_nodes(*b[k], n, rule) for k in others)
+        T, S = np.meshgrid(t, s, indexing="ij")
+        W = np.einsum("j,i->ji", wt, ws)
+        for sign in (+1.0, -1.0):
+            coords = [None, None, None]
+            coords[d] = np.full_like(S, b[d, 1] if sign > 0 else b[d, 0])
+            coords[others[0]], coords[others[1]] = S, T
+            Fv = _eval(F_fn, *coords)  # (3, …)
+            nvec = np.zeros(3)
+            nvec[d] = sign
+            nxF = np.einsum("kij,i,j...->k...", eps, nvec, Fv)  # (n × F)_k = ε_kij n_i F_j   (5.15)
+            surf += (nxF * W).reshape(3, -1).sum(axis=1)
+    return CurlCheck(vol, surf, vol - surf)
