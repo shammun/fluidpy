@@ -238,7 +238,7 @@ def capillary_length(sigma, rho, g: float = G0, rho_other: float = 0.0):
 
     Book: §4.10, "(σ/ρg)^{1/2}" (the book's air-bubble-in-water number lives in the private JSON).
     Parameters: sigma [N/m]; rho [kg/m³]; g [m/s²]; rho_other : density of the other fluid [kg/m³].
-    Validation: V1 ``capillary_length(0.0728, 998.0)`` = 2.7266 mm; V5 water at 20 °C with IAPWS σ = 72.74 mN/m gives
+    Validation: V1 ``capillary_length(0.0728, 998.0)`` = 2.7269 mm; V5 water at 20 °C with IAPWS σ = 72.74 mN/m gives
     2.72 mm (Wikipedia "Capillary length": 2.71 mm). Label: analytic, benchmark.
     """
     return _S(np.sqrt(_F(sigma) / ((_F(rho) - float(rho_other)) * float(g))))

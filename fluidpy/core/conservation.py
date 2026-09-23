@@ -15,7 +15,9 @@ fields obey the law:
 * ``outflux`` ∮ (·)(u − b)·n dA — the flux relative to the moving surface (u and b in the same frame).
 
 Sign conventions: n points out of the CV; forces are those exerted **on the fluid inside** (a drag on a body is −F_D on
-the fluid, Example 4.1); z is up and g = (0, 0, −g), g = 9.81 m/s² by default (the book's value).
+the fluid, Example 4.1); z is up and g = (0, 0, −g), g = 9.81 m/s² by default (the book's value). A 2-D control
+volume (e.g. ``MovingEllipse2D`` in the x–y plane) keeps only the first two components of g, so the default vertical
+gravity is **dropped** (a horizontal plane); pass ``g=(0.0, -9.81)`` to put gravity along −y in a vertical plane.
 Book typos handled: (4.15) ends with a spurious "= 0" (it is an identity — (3.35) rearranged); (4.51) writes dA for the
 volume integrals (dV) — analysis §9 items 1–2.
 """

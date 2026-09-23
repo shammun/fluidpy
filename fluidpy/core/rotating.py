@@ -40,11 +40,25 @@ _S = as_scalar_if_0d
 
 
 def _vec3(v) -> np.ndarray:
-    """A 3-vector (or (3, N) array); a scalar Ω means rotation about z."""
+    """A 3-vector (or (3, N) array); a scalar means a vector along z (used for Ω and dΩ/dt: rotation about z); a
+    2-component vector (plane motion in x–y) is padded with a zero z-component."""
     a = _F(v)
     if a.ndim == 0:
         return np.array([0.0, 0.0, float(a)])
+    if a.shape[0] == 2:
+        return np.concatenate([a, np.zeros((1,) + a.shape[1:])], axis=0)
     return a
+
+
+def _translation(v) -> np.ndarray:
+    """dU/dt of the frame origin: a 3-vector (2-vectors padded); only the scalar 0 is accepted as a scalar (a scalar
+    would otherwise be read silently as a z-component)."""
+    a = _F(v)
+    if a.ndim == 0:
+        if float(a) != 0.0:
+            raise ValueError("dU_dt must be a vector (3 components, or 2 for plane motion); a scalar is ambiguous")
+        return np.zeros(3)
+    return _vec3(a)
 
 
 def _bc(a, b):
@@ -105,13 +119,14 @@ def frame_acceleration_terms(a_prime, u_prime, x_prime, Omega, dOmega_dt=0.0, dU
     """The five parts of a fluid particle's inertial acceleration seen from a noninertial frame, Eq. (4.43)/(4.44).
 
     Book: §4.7, Eq. (4.43): a = dU/dt + a′ + 2Ω × u′ + (dΩ/dt) × x′ + Ω × (Ω × x′) — frame acceleration, relative
-    acceleration, Coriolis acceleration, angular-acceleration term, centripetal acceleration (our D24 ★★★ derives it:
+    acceleration, Coriolis acceleration, angular-acceleration term, centripetal acceleration (our D15 ★★★ derives it:
     one Ω × u′ comes from the turning axes, the other from the moving position).
 
     Parameters
     ----------
-    a_prime [m/s²], u_prime [m/s], x_prime [m] : in the rotating frame (3-vectors or (3, N));
-    Omega [rad/s] (scalar → about z); dOmega_dt [rad/s²]; dU_dt [m/s²] (frame-origin acceleration)
+    a_prime [m/s²], u_prime [m/s], x_prime [m] : in the rotating frame (3-vectors or (3, N); 2-vectors are plane
+    motion and get a zero z-component); Omega [rad/s] and dOmega_dt [rad/s²] (a scalar means about z);
+    dU_dt [m/s²] : frame-origin acceleration, a vector (a scalar other than 0 raises ``ValueError``)
 
     Returns
     -------
@@ -122,7 +137,7 @@ def frame_acceleration_terms(a_prime, u_prime, x_prime, Omega, dOmega_dt=0.0, dU
     variant fails. Label: analytic, symbolic.
     """
     ap, up = _bc(a_prime, u_prime)
-    fr = _bc(dU_dt, ap)[0] * np.ones_like(ap)
+    fr = _bc(_translation(dU_dt), ap)[0] * np.ones_like(ap)
     cor = 2.0 * _cross(Omega, up)
     ang = _cross(dOmega_dt, x_prime)
     cen = _cross(Omega, _cross(Omega, x_prime))
@@ -140,12 +155,14 @@ def apparent_body_forces(u_prime, x_prime, Omega, dOmega_dt=0.0, dU_dt=0.0, g=(0
 
     Returns dict(gravity=g, frame=−dU/dt, coriolis=−2Ω × u′, angular=−(dΩ/dt) × x′, centrifugal=−Ω × (Ω × x′),
     total) [m/s²]. With Ω = (0, 0, Ω): centrifugal = Ω²R e_R (points away from the axis).
+    Inputs: u′, x′ 3-vectors or (3, N) (2-vectors are plane motion, padded with a zero z-component, so the result has
+    3 components); Ω, dΩ/dt scalar → about z; dU/dt a vector (a nonzero scalar raises ``ValueError``); g a 3-vector.
     Validation: V1 total = g − (terms of :func:`frame_acceleration_terms` other than a′); inertial frame → g only.
     Label: analytic.
     """
     up = _vec3(u_prime)
     gv, _ = _bc(_F(g), up)
-    fr = -_bc(dU_dt, up)[0] * np.ones_like(up)
+    fr = -_bc(_translation(dU_dt), up)[0] * np.ones_like(up)
     cor = -2.0 * _cross(Omega, up)
     ang, _ = _bc(-_cross(dOmega_dt, x_prime), up)
     cen, _ = _bc(-_cross(Omega, _cross(Omega, x_prime)), up)
@@ -183,7 +200,7 @@ def centrifugal_acceleration(Omega, x) -> np.ndarray:
 
 
 def centrifugal_potential(R, Omega):
-    """Potential of the centrifugal acceleration, Φ_c = −½Ω²R² [J/kg], so −∇Φ_c = Ω²R e_R (Exercise 4.43; our D27).
+    """Potential of the centrifugal acceleration, Φ_c = −½Ω²R² [J/kg], so −∇Φ_c = Ω²R e_R (Exercise 4.43; our D18).
 
     Book: §4.7, text after Fig. 4.9 ("a body-force potential for the new term can be found"). Label: analytic.
     """

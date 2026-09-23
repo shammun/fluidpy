@@ -176,23 +176,41 @@ def newtonian_stress(G, p=0.0, mu=1.0e-3, lam=None, mu_v=None, incompressible: b
     return total_stress(p, viscous_stress(G_, mu, mv))  # Eq. (4.37)
 
 
-def mean_pressure(tau):
-    """Mean (mechanical) pressure p̄ = −⅓ τ_ii, Eq. (4.33) (−τ_ii/d in d dimensions).
+def _trace3(T: np.ndarray, tau33):
+    """τ_ii summed over all three directions: a 3 × 3 tensor as is; a 2 × 2 (plane-flow) tensor needs τ₃₃ explicitly."""
+    if T.shape[0] == 3 and T.shape[1] == 3:
+        if tau33 is not None:
+            raise ValueError("tau33 is only for a 2 × 2 (plane-flow) tensor; a 3 × 3 tensor already contains τ₃₃")
+        return _trace(T)
+    if T.shape[0] == 2 and T.shape[1] == 2:
+        if tau33 is None:
+            raise ValueError("(4.32)–(4.34) need the full trace τ₁₁ + τ₂₂ + τ₃₃: for a 2 × 2 (plane-flow) tensor pass "
+                             "tau33 (e.g. −p + (μ_v − ⅔μ)∇·u for a Newtonian fluid with u₃ = 0) or use the 3 × 3 tensor")
+        return _trace(T) + _F(tau33)
+    raise ValueError(f"tau must be 3 × 3 (or 2 × 2 with tau33); got shape {T.shape[:2]}")
 
-    Book: §4.5, Eq. (4.33). Parameters: tau (d, d[, N]) [Pa]. Returns p̄ [Pa].
-    Validation: V1 τ = −pδ gives p; V2 (4.34) p − p̄ = μ_v∇·u. Label: analytic.
+
+def mean_pressure(tau, tau33=None):
+    """Mean (mechanical) pressure p̄ = −⅓ τ_ii (sum over i = 1, 2, 3), Eq. (4.33).
+
+    Book: §4.5, Eq. (4.33). Parameters: tau (3, 3[, N]) [Pa]; for a 2 × 2 plane-flow tensor pass ``tau33`` [Pa] (the
+    out-of-plane normal stress, which is not zero: τ₃₃ = −p + (μ_v − ⅔μ)∇·u when u₃ = 0) — otherwise ``ValueError``
+    (a 2 × 2 trace alone would give a wrong p̄). Returns p̄ [Pa].
+    Validation: V1 τ = −pδ gives p; V2 (4.34) p − p̄ = μ_v∇·u (G = diag(1, 0), p = 100, μ = 1, μ_v = 0.5: 0.5 Pa with
+    the 3 × 3 tensor or with tau33). Label: analytic.
     """
     T = _F(tau)
-    return as_scalar_if_0d(-_trace(T) / T.shape[0])  # Eq. (4.33)
+    return as_scalar_if_0d(-_trace3(T, tau33) / 3.0)  # Eq. (4.33)
 
 
-def thermodynamic_pressure_from_stress(tau, div_u, mu, lam):
+def thermodynamic_pressure_from_stress(tau, div_u, mu, lam, tau33=None):
     """Thermodynamic pressure recovered from the trace of the stress, p = −⅓τ_ii + (⅔μ + λ)∇·u, Eq. (4.32).
 
-    Book: §4.5, Eq. (4.32) (the trace of (4.31) with δ_ii = 3). Parameters: tau [Pa]; div_u [1/s]; mu, lam [Pa s].
-    Returns p [Pa]. Validation: V1 round trip with :func:`newtonian_stress`. Label: analytic.
+    Book: §4.5, Eq. (4.32) (the trace of (4.31) with δ_ii = 3). Parameters: tau [Pa] (3 × 3, or 2 × 2 with ``tau33`` as
+    in :func:`mean_pressure`); div_u [1/s]; mu, lam [Pa s]. Returns p [Pa].
+    Validation: V1 round trip with :func:`newtonian_stress`. Label: analytic.
     """
-    return as_scalar_if_0d(mean_pressure(tau) + (2.0 / 3.0 * _F(mu) + _F(lam)) * _F(div_u))  # Eq. (4.32)
+    return as_scalar_if_0d(mean_pressure(tau, tau33) + (2.0 / 3.0 * _F(mu) + _F(lam)) * _F(div_u))  # Eq. (4.32)
 
 
 def pressure_difference(div_u, mu=None, lam=None, mu_v=None):

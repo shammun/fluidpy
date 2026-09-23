@@ -2698,6 +2698,97 @@ def test_scripts_V1_drawing_helpers_run():  # V1 smoke (C.12)
     plt.close("all")
 
 
+# =====================================================================================================================
+# Review follow-up (reports/ch04_review.md): paths the loop-1/2 tests did not reach
+# =====================================================================================================================
+def _jet_along_residual(rho, V, A, th, split):
+    """Along-plate momentum balance of a jet on a fixed plate, by hand: in ρV²A cos θ, out ρV²(A₁ − A₂); no shear."""
+    A1, A2 = split
+    return -rho * V ** 2 * A * np.cos(th) + rho * V ** 2 * A1 - rho * V ** 2 * A2
+
+
+def test_jet_on_plate_V1_split_from_along_plate_momentum():  # V1 (E1 "jet", (4.17) along the plate)
+    rho, V, A = 1000.0, 10.0, 1e-3
+    s = ch04.cv_scenario("jet", rho=rho, V=V, A=A, theta=np.pi / 4)
+    f = {x["name"]: x for x in s["faces"]}
+    assert f["sheet_up"]["mass_flux"] == pytest.approx(8.5355339, rel=1e-7)  # ρVA(1 + cos 45°)/2
+    assert f["sheet_down"]["mass_flux"] == pytest.approx(1.4644661, rel=1e-7)  # ρVA(1 − cos 45°)/2
+    assert s["result"] == pytest.approx(70.710678, rel=1e-7)  # ρV²A sin θ
+    # per-face along-plate fluxes by hand: jet −ρV²A cos θ, sheets ±ρV²A₁,₂
+    assert f["jet"]["momentum_flux_along"] == pytest.approx(-rho * V ** 2 * A * np.cos(np.pi / 4), rel=1e-14)
+    assert f["sheet_up"]["momentum_flux_along"] == pytest.approx(V * f["sheet_up"]["mass_flux"], rel=1e-14)  # +ρV²A₁
+    assert f["sheet_down"]["momentum_flux_along"] == pytest.approx(-V * f["sheet_down"]["mass_flux"], rel=1e-14)
+    for th in np.deg2rad([5.0, 20.0, 45.0, 60.0, 90.0, 120.0, 170.0]):
+        s = ch04.cv_scenario("jet", rho=rho, V=V, A=A, theta=th)
+        f = {x["name"]: x for x in s["faces"]}
+        split = (f["sheet_up"]["area"], f["sheet_down"]["area"])
+        assert split == pytest.approx((A * (1 + np.cos(th)) / 2, A * (1 - np.cos(th)) / 2), rel=1e-13, abs=1e-18)
+        assert abs(_jet_along_residual(rho, V, A, th, split)) < 1e-13 * rho * V ** 2 * A  # our hand balance
+        assert abs(s["residual_momentum_along"]) < 1e-13 * rho * V ** 2 * A  # the function's own residual
+        assert abs(s["residual_mass"]) < 1e-12 and abs(s["residual_momentum"]) < 1e-12
+        assert s["result"] == pytest.approx(rho * V ** 2 * A * np.sin(th), rel=1e-13)
+    # discrimination: the old 50/50 split leaves an along-plate residual ρV²A cos θ ≠ 0 except at θ = 90°
+    for th in np.deg2rad([20.0, 45.0, 60.0]):
+        r = _jet_along_residual(rho, V, A, th, (A / 2, A / 2))
+        assert r == pytest.approx(-rho * V ** 2 * A * np.cos(th), rel=1e-13) and abs(r) > 1.0
+    assert abs(_jet_along_residual(rho, V, A, np.pi / 2, (A / 2, A / 2))) < 1e-12
+    for other in ("wake", "bore", "rocket"):
+        assert ch04.cv_scenario(other)["residual_momentum_along"] == 0.0
+
+
+def test_mean_pressure_V1_plane_tensor_needs_tau33():  # V1 ((4.33)–(4.34) for a 2 × 2 plane-flow tensor)
+    p, mu, muv = 100.0, 1.0, 0.5
+    G2 = np.diag([1.0, 0.0])
+    G3 = np.diag([1.0, 0.0, 0.0])
+    tau2 = ch04.newtonian_stress(G2, p, mu, mu_v=muv)
+    tau3 = ch04.newtonian_stress(G3, p, mu, mu_v=muv)
+    with pytest.raises(ValueError):
+        ch04.mean_pressure(tau2)
+    with pytest.raises(ValueError):
+        ch04.thermodynamic_pressure_from_stress(tau2, 1.0, mu, ch04.lam_from_bulk(muv, mu))
+    divu = 1.0
+    tau33 = -p + (muv - 2.0 / 3.0 * mu) * divu  # out-of-plane normal stress when u₃ = 0
+    assert tau33 == pytest.approx(tau3[2, 2], rel=1e-15)
+    pbar2 = ch04.mean_pressure(tau2, tau33=tau33)
+    assert pbar2 == pytest.approx(ch04.mean_pressure(tau3), rel=1e-15)
+    assert p - pbar2 == pytest.approx(0.5, rel=1e-13) and p - pbar2 == pytest.approx(muv * divu, rel=1e-13)  # (4.34)
+    lam = ch04.lam_from_bulk(muv, mu)
+    assert ch04.thermodynamic_pressure_from_stress(tau2, divu, mu, lam, tau33=tau33) == pytest.approx(p, rel=1e-14)
+    assert ch04.thermodynamic_pressure_from_stress(tau3, divu, mu, lam) == pytest.approx(p, rel=1e-14)
+    with pytest.raises(ValueError):
+        ch04.mean_pressure(tau3, tau33=tau33)
+    with pytest.raises(ValueError):
+        ch04.thermodynamic_pressure_from_stress(tau3, divu, mu, lam, tau33=tau33)
+
+
+def test_rotating_frame_V1_translation_vector_and_plane_inputs():  # V1 (review: scalar dU/dt, 2-vector inputs)
+    with pytest.raises(ValueError):
+        ch04.frame_acceleration_terms(np.zeros(3), np.zeros(3), np.zeros(3), 0.3, dU_dt=2.0)
+    with pytest.raises(ValueError):
+        ch04.apparent_body_forces(np.zeros(3), np.zeros(3), 0.3, dU_dt=-1.0)
+    z = ch04.apparent_body_forces(np.zeros(3), np.zeros(3), 0.3, dU_dt=0.0)
+    assert np.allclose(z["frame"], 0.0)
+    f2 = ch04.apparent_body_forces([1, 0], [0.5, 0.2], 0.3)
+    f3 = ch04.apparent_body_forces([1, 0, 0], [0.5, 0.2, 0], 0.3)
+    for k in f3:
+        assert np.shape(f2[k]) == (3,) and np.allclose(f2[k], f3[k], atol=1e-15), k
+    assert np.allclose(f2["coriolis"], [0.0, -0.6, 0.0]) and np.allclose(f2["centrifugal"], [0.045, 0.018, 0.0])
+    a2 = ch04.frame_acceleration_terms([0, 0], [1, 0], [0.5, 0.2], 0.3, dU_dt=[0.1, 0.0])
+    a3 = ch04.frame_acceleration_terms([0, 0, 0], [1, 0, 0], [0.5, 0.2, 0], 0.3, dU_dt=[0.1, 0.0, 0.0])
+    assert all(np.allclose(a2[k], a3[k], atol=1e-15) for k in a3)
+
+
+def test_boussinesq_validity_V1_mach_rule_agrees_with_incompressible_regime():  # V1 (§4.2 rule M < 0.3)
+    c = 100.0 / ch04.mach_number(100.0, T=288.15)  # √(γRT) at 288.15 K, the same c as is_incompressible_regime
+    for M in (0.1, 0.2, 0.29, 0.31, 0.5):
+        b = ch04.boussinesq_validity(2e-4, 5.0, 10.0, M * c, c=c, nu=1.5e-5, cp=1004.5)
+        flagged = "Mach" in b["verdict"]
+        assert b["mach"] == pytest.approx(M, rel=1e-12)
+        assert flagged == (not ch04.is_incompressible_regime(M * c, T=288.15)), M
+    b2 = ch04.boussinesq_validity(2e-4, 5.0, 10.0, 0.2 * c, c=c, nu=1.5e-5, cp=1004.5)
+    assert b2["valid"] and b2["verdict"] == "Boussinesq valid"
+
+
 def test_scalar_callable_V1_explainer_parity_functions_return_floats():  # V1 (selftest parity rows need floats)
     vals = [ch04.bore_speed(1.0, 1.1), ch04.torricelli_speed(1.0), ch04.pitot_speed(500.0, 0.0, 1.2),
             ch04.cube_spin_acceleration(1.0, 0.0, 1000.0, 0.01), ch04.stagnation_temperature(300.0, 100.0),

@@ -145,8 +145,10 @@ def material_mass(X0: float, X1: float, t: float, a: float = 1.0, rho0: float = 
     """Mass per unit cross-section (dim = 1) of the material interval that was [X0, X1] at t = 0, integrated with
     ``quad`` over its current extent X(1 + at) [kg/m²]; dim > 1: the material cube of side X1 − X0 [kg·m^(dim−3)].
 
-    Book: §4.2, Eq. (4.1): d/dt∫_{V(t)}ρ dV = 0. Validation: V4 equals ρ₀(X1 − X0)^dim at every t
-    (``material_mass(1.0, 2.0, 1.0)`` = 1.0). Label: conserved.
+    Book: §4.2, Eq. (4.1): d/dt∫_{V(t)}ρ dV = 0. Validation: V4 (dim = 1) the ``quad`` integral over the moving interval
+    equals ρ₀(X1 − X0) at every t (``material_mass(1.0, 2.0, 1.0)`` = 1.0); V1 (dim > 1) the cube's value is a closed-form
+    identity ρ₀(1 + at)^(−dim)·((X1 − X0)(1 + at))^dim = ρ₀(X1 − X0)^dim (no independent computation). Label: conserved
+    (dim = 1), analytic (dim > 1).
     """
     x0, x1 = material_interval(X0, X1, t, a)
     if dim == 1:
@@ -336,7 +338,7 @@ def bore_speed(h_in, h_out, g: float = G):
 
     Book: §4.4, Example 4.3 (moving CV b = −U e_x; mass U h_in = (U_out + U)h_out; hydrostatic side pressures; p_o
     cancels); U ≈ √(gh) when the depths are close. Parameters: h_in (still side), h_out (disturbed side) [m]; g.
-    Scalar-callable (``bore_speed(1.0, 1.1)`` = 3.3660 m/s). Validation: V1 → √(gh) as h_out → h_in (error O(Δh/h)); V1
+    Scalar-callable (``bore_speed(1.0, 1.1)`` = 3.3661 m/s). Validation: V1 → √(gh) as h_out → h_in (error O(Δh/h)); V1
     equals Bélanger's jump relation h₂/h₁ = (√(1 + 8Fr₁²) − 1)/2 in the wave frame (Wikipedia "Hydraulic jump", form).
     Label: analytic.
     """
@@ -421,9 +423,9 @@ def jet_plate_force(rho: float, V: float, A: float, theta: float = np.pi / 2) ->
 CV_SCENARIOS = ("wake", "bore", "jet", "rocket")
 
 
-def _face(name, area, un_rel, mass_flux, momentum_flux_x):
+def _face(name, area, un_rel, mass_flux, momentum_flux_x, momentum_flux_along=0.0):
     return dict(name=name, area=float(area), un_rel=float(un_rel), mass_flux=float(mass_flux),
-                momentum_flux_x=float(momentum_flux_x))
+                momentum_flux_x=float(momentum_flux_x), momentum_flux_along=float(momentum_flux_along))
 
 
 def cv_scenario(name: str, **p) -> dict:
@@ -437,12 +439,16 @@ def cv_scenario(name: str, **p) -> dict:
     * "bore" (h_in = 1, h_out = 1.1, rho = 1000, g, b = CV speed leftward, default the bore speed U): if b ≠ U the jump
       drifts inside the CV and the storage terms pick up the difference; result = bore speed U [m/s].
     * "jet" (rho = 1000, V = 10, A = 1e-3, theta = π/2): fixed CV; faces jet, sheet_up, sheet_down; momentum = plate-normal
-      component; result = plate force [N].
+      component; result = plate force [N]. With no plate shear and both sheets leaving at V, along-plate momentum splits
+      the flow Q₁,₂ = Q(1 ± cos θ)/2 (sheet_up on the side of the jet's along-plate component); the along-plate budget
+      (in ρV²A cos θ, out ρV²A(Q₁ − Q₂)/Q) is returned as ``residual_momentum_along`` (0). θ = π/4, ρ = 1000, V = 10,
+      A = 1e-3: sheet mass fluxes 8.536 and 1.464 kg/s.
     * "rocket" (M0 = 1, mdot = 0.05, Ve = 500, t = 2, g): CV riding with the rocket; face nozzle; momentum = z-component;
       result = rocket speed b(t) [m/s].
 
-    Returns dict(name, faces (list of dict(name, area, un_rel = (u − b)·n, mass_flux, momentum_flux_x)), mass_out,
-    momentum_out_x, storage_mass, storage_x, body_x, surface_x, residual_mass, residual_momentum, result, result_label).
+    Returns dict(name, faces (list of dict(name, area, un_rel = (u − b)·n, mass_flux, momentum_flux_x,
+    momentum_flux_along)), mass_out, momentum_out_x, storage_mass, storage_x, body_x, surface_x, residual_mass,
+    residual_momentum, residual_momentum_along (jet only; 0 otherwise), result, result_label).
     Validation: V1 both residuals vanish (to quad accuracy) for every scenario; b ≠ U in "bore" still closes.
     Label: analytic.
     """
@@ -477,9 +483,13 @@ def cv_scenario(name: str, **p) -> dict:
     elif name in ("jet", "jet_plate"):
         rho, V, A = float(p.get("rho", 1000.0)), float(p.get("V", 10.0)), float(p.get("A", 1e-3))
         th = float(p.get("theta", np.pi / 2))
-        faces = [_face("jet", A, -V, -rho * V * A, -rho * V ** 2 * A * np.sin(th)),
-                 _face("sheet_up", A / 2, V, 0.5 * rho * V * A, 0.0),
-                 _face("sheet_down", A / 2, V, 0.5 * rho * V * A, 0.0)]
+        c = np.cos(th)
+        # split fixed by along-plate momentum (no plate shear, both sheets leave at V): Q₁,₂ = Q(1 ± cos θ)/2;
+        # sheet_up is the side toward which the jet's along-plate component V cos θ points
+        A1, A2 = A * (1.0 + c) / 2.0, A * (1.0 - c) / 2.0
+        faces = [_face("jet", A, -V, -rho * V * A, -rho * V ** 2 * A * np.sin(th), -rho * V ** 2 * A * c),
+                 _face("sheet_up", A1, V, rho * V * A1, 0.0, rho * V ** 2 * A1),
+                 _face("sheet_down", A2, V, rho * V * A2, 0.0, -rho * V ** 2 * A2)]
         sm = sx = body = 0.0
         Fp = jet_plate_force(rho, V, A, th)
         surface = -Fp  # the plate pushes the fluid back along its normal
@@ -500,10 +510,11 @@ def cv_scenario(name: str, **p) -> dict:
         raise ValueError(f"unknown scenario {name!r}; choose from {CV_SCENARIOS}")
     mo = sum(f["mass_flux"] for f in faces)
     po = sum(f["momentum_flux_x"] for f in faces)
+    pa = sum(f["momentum_flux_along"] for f in faces)  # along-plate (jet) momentum: no shear, no storage ⇒ 0
     return {"name": name, "faces": faces, "mass_out": float(mo), "momentum_out_x": float(po),
             "storage_mass": float(sm), "storage_x": float(sx), "body_x": float(body), "surface_x": float(surface),
             "residual_mass": float(sm + mo), "residual_momentum": float(sx + po - body - surface),
-            "result": float(result), "result_label": label}
+            "residual_momentum_along": float(pa), "result": float(result), "result_label": label}
 
 
 def cube_spin_acceleration(tau12, tau21, rho, h):
@@ -533,7 +544,9 @@ def stokes_first_problem(y, t, U: float = 1.0, nu: float = 1e-6):
 
 def plane_poiseuille(y, G: float = 100.0, h: float = 0.01, mu: float = 1e-3):
     """Plane Poiseuille profile u = Gy(h − y)/(2μ) [m/s] between walls y = 0 and h, G = −dp/dx [Pa/m] (C08 figure).
-    Book: §4.6 (pressure and viscous terms of (4.39b) balance: μ d²u/dy² = −G; Ch. 8 derives it). Label: analytic."""
+    Name clash: the parameter ``G`` here is the pressure gradient −dp/dx, **not** the module constant ``ch04.G`` (= g,
+    gravity, 9.81 m/s²). Book: §4.6 (pressure and viscous terms of (4.39b) balance: μ d²u/dy² = −G; Ch. 8 derives it).
+    Label: analytic."""
     y_ = _F(y)
     return _S(G * y_ * (h - y_) / (2.0 * mu))
 
@@ -894,9 +907,11 @@ def boussinesq_validity(alpha: float, dT: float, L: float, U: float, c: float = 
     """The small parameters of the Boussinesq approximation and the verdict.
 
     Book: §4.9: (i) (1/ρ)(Dρ/Dt)/∇·u ~ δρ/ρ = αδT ≪ 1; (ii) L ≪ H_c = c²/g (the height over which hydrostatic pressure
-    changes the density, ~10 km in air); (iii) viscous heating ρε/(ρC_pDT/Dt) ~ νU/(C_pδT L) ≪ 1 (typically ~1e-7).
+    changes the density, ~10 km in air); (iii) viscous heating ρε/(ρC_pDT/Dt) ~ νU/(C_pδT L) ≪ 1 (typically ~1e-7);
+    (iv) low Mach number, judged by the §4.2 rule M < 0.3 (U²/c² < 0.09, as :func:`is_incompressible_regime`).
 
-    Parameters: alpha [1/K]; dT [K]; L [m]; U [m/s]; c [m/s]; g [m/s²]; nu [m²/s]; cp [J/(kg K)]; small : threshold.
+    Parameters: alpha [1/K]; dT [K]; L [m]; U [m/s]; c [m/s]; g [m/s²]; nu [m²/s]; cp [J/(kg K)]; small : threshold
+    for (i)–(iii).
     Returns dict(alpha_dT, H_c [m], L_over_Hc, heating_ratio, g_prime = gαδT [m/s²], mach, valid (bool), verdict (text)).
     Validation: V1 ``boussinesq_validity(2e-4, 10.0, 10.0, 0.1, c=1500.0, nu=1e-6, cp=4186.0)`` → alpha_dT 2.0e-3,
     g_prime 0.01962 m/s². Label: analytic.
@@ -906,7 +921,9 @@ def boussinesq_validity(alpha: float, dT: float, L: float, U: float, c: float = 
            "g_prime": g * alpha * dT, "mach": U / c}
     names = {"alpha_dT": "αδT not small", "L_over_Hc": "deep layer: L ≈ c²/g", "heating_ratio": "viscous heating",
              "mach": "Mach number not small"}
-    fails = [names[k] for k in ("alpha_dT", "L_over_Hc", "heating_ratio", "mach") if out[k] >= small]
+    fails = [names[k] for k in ("alpha_dT", "L_over_Hc", "heating_ratio") if out[k] >= small]
+    if out["mach"] >= 0.3:  # §4.2: M < 0.3 ⇔ nearly incompressible (same rule as is_incompressible_regime)
+        fails.append(names["mach"])
     out["valid"] = not fails
     out["verdict"] = "Boussinesq valid" if not fails else "not Boussinesq: " + ", ".join(fails)
     return out

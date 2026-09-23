@@ -290,3 +290,30 @@ suite 474/474; every computable CORE row has ≥ 2 independent levels (one of V1
 all 203 Part C names are exercised, every ★★/★★★ derivation is re-derived symbolically, and 22 wrong variants are each
 caught. F1 is fixed and confirmed by an independent quadrature of the series coefficients; the only open item (O5) is
 a documented property-table difference.
+
+## Review follow-up (reports/ch04_review.md) — 2026-09-23
+The code review found four paths the suite did not reach; the implementer fixed them and the verifier added tests (no
+`fluidpy/` edits, no tolerances loosened). New tests, all V1:
+
+| test | what it pins | numbers |
+|---|---|---|
+| `test_jet_on_plate_V1_split_from_along_plate_momentum` | E1 "jet": Q₁,₂ = Q(1 ± cos θ)/2 from the along-plate momentum balance, derived by hand in the test (in ρV²A cos θ, out ρV²(A₁ − A₂), no plate shear) and compared with the function's `residual_momentum_along` and per-face `momentum_flux_along`; θ = 5°…170° sweep; normal force ρV²A sin θ | θ = 45°, ρ = 1000, V = 10, A = 1e-3: sheets 8.5355 / 1.4645 kg/s, force 70.711 N; along-plate residual < 1e-13 ρV²A for all θ; the old 50/50 split leaves −ρV²A cos θ (≠ 0 except at 90°); other scenarios report 0 |
+| `test_mean_pressure_V1_plane_tensor_needs_tau33` | (4.33)–(4.34) for 2 × 2 plane-flow stress: ValueError without `tau33` (both `mean_pressure` and `thermodynamic_pressure_from_stress`); with τ₃₃ = −p + (μ_v − ⅔μ)∇·u = the 3 × 3 result; 3 × 3 input plus `tau33` raises | G = diag(1, 0), p = 100, μ = 1, μ_v = 0.5: p − p̄ = 0.5 = μ_v∇·u (1e-13); p recovered (1e-14) |
+| `test_rotating_frame_V1_translation_vector_and_plane_inputs` | a nonzero scalar dU/dt raises (both frame functions), scalar 0 accepted; 2-component inputs are padded to 3 components and equal the 3-vector call with z = 0 | `apparent_body_forces([1, 0], [0.5, 0.2], 0.3)`: Coriolis (0, −0.6, 0), centrifugal (0.045, 0.018, 0) |
+| `test_boussinesq_validity_V1_mach_rule_agrees_with_incompressible_regime` | the Mach flag of `boussinesq_validity` uses the §4.2 rule M < 0.3, the same as `is_incompressible_regime` | M = 0.1, 0.2, 0.29 not flagged, 0.31, 0.5 flagged, identical to `is_incompressible_regime` at the same c; M = 0.2 "Boussinesq valid" |
+
+Discrimination (the pre-fix behaviour planted back into a scratch copy, one at a time; scratchpad `disc_review.py`):
+| wrong variant | tests that fail |
+|---|---|
+| jet: the old 50/50 split | 1 |
+| Boussinesq Mach flagged at the generic threshold 0.1 | 1 |
+| scalar dU/dt read silently as a z-component | 1 |
+| `mean_pressure` as −tr τ/d for a 2 × 2 tensor (the old behaviour) | 1 |
+
+Runs: `tests/test_ch04.py` → **151 passed** (114 s); full suite `pytest -q` → **478 passed** (209 s).
+Collected items per evidence tag: **V1 83 · V2 41 · V3 9 · V4 6 · V5 6 · V6 3 · V7 3** (= 151; 144 test functions,
+the exact-solution test parametrised over 8). 26 wrong variants caught in total (17 + 5 + 4).
+
+### Verdict after review follow-up: PASS
+Open items unchanged: O5 (property-table note on the book's Prandtl numbers) only.
+

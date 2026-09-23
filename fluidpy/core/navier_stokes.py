@@ -738,7 +738,7 @@ def kinetic_energy_budget(rho, u: Callable, p, sigma: Callable | None, g=(0.0, 0
     """Mechanical-energy equation ρD(½u_j²)/Dt = ρg_ju_j − u_j∂p/∂x_j + u_j∂σ_ij/∂x_i, Eq. (4.56).
 
     Book: §4.8, Eq. (4.56) (Cauchy's (4.24) dotted with u_j; the book says "multiplying (4.22)", from which one must also
-    subtract u_j × continuity — our D32 uses (4.24)). Holds only for fields that satisfy the momentum equation.
+    subtract u_j × continuity — our D21 uses (4.24)). Holds only for fields that satisfy the momentum equation.
 
     Parameters: rho [kg/m³]; u [m/s]; p [Pa]; sigma : viscous stress field [Pa] (None → 0); g [m/s²]; x [m]; t [s];
     h [m]; ht [s].
@@ -876,11 +876,11 @@ def energy_identities_sym(coords=None, t=None) -> dict:
     Book: §4.8, Eqs. (4.53)–(4.57), (4.60), (4.112). With C = ∂ρ/∂t + ∂(ρu_i)/∂x_i (4.7), Cauchy_j = ρDu_j/Dt − ρg_j −
     ∂τ_ij/∂x_i (4.24) and R_N = (left − right) of equation N, each entry expands to exactly 0:
 
-    * "4.53_to_4.55": R53 − R55 − (e + ½u²)C  (expanding (4.53) with continuity gives (4.55); D31)
-    * "4.24_dot_u_to_4.56": u_j·Cauchy_j − R56  ((4.56) is u·(4.24); D32)
-    * "4.55_minus_4.56_to_4.57": R55 − R56 − ρR57 − (p/ρ)C  ((4.57) with v = 1/ρ and (4.8); D33)
+    * "4.53_to_4.55": R53 − R55 − (e + ½u²)C  (expanding (4.53) with continuity gives (4.55); D20)
+    * "4.24_dot_u_to_4.56": u_j·Cauchy_j − R56  ((4.56) is u·(4.24); D21)
+    * "4.55_minus_4.56_to_4.57": R55 − R56 − ρR57 − (p/ρ)C  ((4.57) with v = 1/ρ and (4.8); D22)
     * "4.54_split": ∂(τ_iju_j)/∂x_i − [(−p∂u_j/∂x_j + σ_ij∂u_j/∂x_i) + (−u_j∂p/∂x_j + u_j∂σ_ij/∂x_i)]  ((4.54))
-    * "4.60_to_4.112": R112 − R60 + (p/ρ)C  (enthalpy form with h = e + p/ρ, μ_v = 0, q = −k∇T; D58)
+    * "4.60_to_4.112": R112 − R60 + (p/ρ)C  (enthalpy form with h = e + p/ρ, μ_v = 0, q = −k∇T; analysis a-D58)
 
     Returns dict name → expanded expression (all 0). ≈ 1–3 s in 2-D coordinates (default x, y). Label: symbolic.
     """
