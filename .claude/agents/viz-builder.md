@@ -26,7 +26,7 @@ API), and the Python function your physics mirrors
    `.venv/Scripts/python.exe tools/new_viz.py chNN <slug> --order <n> --title "…" --summary "…" --concept "…" --sections "…" --equations "…" --fluidpy "<module>.<function>" --derivations "D03"` (or `none`)
 2. Write the chapter script: `physics()` functions (same symbols and units as the Python), `Viz.app({...})` with params,
    readouts, stage (draw/step/onPointer), explore, tour (4–8 steps, text ≤ 45 words each, plain words first), equations
-   (`ref: 'Eq. (N.M)'`, TeX from the page image, `live:` substitutions; in tour, Explain, Derivation and quiz text every equation referred to is written out with its number, never the number alone), **explain** (the live "Explanation &
+   (`ref: 'Eq. (N.M)'`, TeX from the page image, `live:` substitutions; in tour, Explain, Derivation and quiz text every equation referred to is written out with its number, never the number alone — check with `tools/eq_refs.py <file>`), **explain** (the live "Explanation &
    interpretation": numbered `Viz.work.step` sections computing every displayed number with the reader's settings, boxed
    results, colours matching the curves, values at the current time, a regime-dependent `Viz.work.interpret` — write it
    like `forced_damped_vibrations.html`'s panel), **derivations** for every D id in the storyboard (steps copied from
