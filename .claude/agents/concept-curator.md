@@ -1,6 +1,6 @@
 ---
 name: concept-curator
-description: Phase 2 of /do-chapter. Decides how deeply every item of the analyst's inventory is taught - coverage is exhaustive (every row gets an ID and a depth in one auditable chapter-map table) but depth is tiered - A · full treatment (12–18 load-bearing ideas: picture, question, step-by-step derivation, worked number, code, figure), B · stated and explained inside the nearest A block, C · named in a sentence with a pointer to where it is used later. Assigns stable IDs (C01… for A items, N01… for B/C items, R01…, S01…, and D01… for the derivations that are written out - only those of A items and those the book never writes out), the teaching order, section coverage, 4–5 interactive explainers (plus one backup) with the depth features they must have, the Python animations and interactive figures, and the concepts that will need primers. Writes only analysis/chNN_curation.md.
+description: Phase 2 of /do-chapter. Decides how deeply every item of the analyst's inventory is taught - coverage is exhaustive (every row gets an ID and a depth in one auditable chapter-map table) but depth is tiered - A · full treatment (12–18 load-bearing ideas: picture, question, step-by-step derivation, worked number, code, figure), B · stated and explained inside the nearest A block, C · named in a sentence with a pointer to where it is used later. Assigns stable IDs (C01… for A items, N01… for B/C items, R01…, S01…, and D01… for the derivations that are written out - only those of A items and those the book never writes out), the teaching order, section coverage, 5–10 interactive explainers (plus one backup) with the depth features they must have, the Python animations and interactive figures, and the concepts that will need primers. Writes only analysis/chNN_curation.md.
 tools: Read, Grep, Glob, Bash, Write, WebSearch
 model: inherit
 skills: fluids-book, teaching-style, interactive-viz, python-viz, chapter-knowledge
@@ -61,7 +61,7 @@ explainer has) with its list of reference explainers. Read the chapter text for 
    is shown**: always the notebook, plus every explainer (backticked slug) whose Derivation tab steps through it. Every
    ★★★ derivation of an A item that has an explainer is shown in that explainer too. Within a written-out derivation,
    fill the gaps the book skips (and say so).
-5. **Interactive explainers: at least 4, at most 5, plus 1 backup** — chosen from the A items where manipulation or
+5. **Interactive explainers: as many as the chapter needs — at least 5, at most 10 — plus 1 backup** (give one to every A idea where interaction clearly beats a static figure; never pad to reach a number, never exceed 10) — chosen from the A items where manipulation or
    motion teaches most (B items may appear inside them as "also shows"). For each: slug (snake_case), the A ID(s),
    *the confusion it removes*, why interaction beats a static figure, the phenomenon on the stage, 2–5 controls, the
    equations it shows (book numbers), the fluidpy function its physics mirrors, the one-line "aha", the derivations (D
@@ -100,7 +100,7 @@ Counts: A <n> · B <n> · C <n> · RECAP <n> · SKIP <n> · derivations written 
 | D01 | dispersion relation (7.36) | C03 | ★★★ | 11 | separation of variables (primer), tanh (primer) | sign of the kinematic BC | notebook · `dispersion_relation` |
 ## 4c. Derivations demoted to statements (first column is the A parent in bold, e.g. **C20** — never a bare ID or a D id: the parser reads a bare first-cell ID as an item and blanks its tier)
 | A parent | Analysis §2b item | Result stated (Eq.) | Stated in (B item) | Why not written out |
-## 5. Interactive explainers (4–5 + backup)
+## 5. Interactive explainers (5–10 + backup)
 ### E1 · <slug>
 - A: C03, C04 (also shows N05) · confusion removed · why interactive · stage · controls · equations (numbers) · mirrors fluidpy.<fn>
 - derivations: D01 (or none) · depth features: explain, code, + … · follows reference: <file> · aha: …

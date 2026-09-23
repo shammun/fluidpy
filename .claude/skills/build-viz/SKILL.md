@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 
 # /build-viz N <slug | new> ["request"]
-1. Read `progress.json` and `analysis/chNN_curation.md` §5. Count existing `viz/chNN/*.html` (a chapter always keeps 4–5); a new one must not exceed
+1. Read `progress.json` and `analysis/chNN_curation.md` §5. Count existing `viz/chNN/*.html` (a chapter always keeps 5–10); a new one must not exceed
    `book.yaml → project.max_explainers_per_chapter` — if it would, ask the user which one to replace.
 2. **New explainer** (`new "<idea>"`): brief `concept-curator` to add a `### E<k> · <slug>` entry (CORE idea, why
    interactive, mirrored function) to the curation, then `lesson-designer` to add its storyboard to

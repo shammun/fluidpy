@@ -9,7 +9,7 @@ Turn each chapter of the book into **one learning package** that makes the chapt
 | `notebooks/chNN_<slug>.ipynb` | The teaching notebook, **executed**: plain words → step-by-step maths (hard results as full **derivations**, one move per step, each explained) → tiny worked example → commented Python → figure → how to read it; Python animations, plotly slider figures, live widgets; the chapter's explainers embedded |
 | `notebooks/chNN_<slug>_colab.ipynb` | The same notebook for Google Colab (outputs stripped; its setup cell clones this repo; explainers load from GitHub Pages) |
 | `notebooks/chNN_<slug>.html` | The published page: executed notebook, every explainer a **full-window block** (100 % width × 100 % height), Open-in-Colab button, prev/next, contents |
-| `viz/chNN/<slug>.html` (**4–5**) | Self-contained vanilla-JS explainers at the depth of Shammunul's reference explainers (preferred: the Unit 4 mathlets — forced damped vibrations, amplitude & phase, angular frequency explorer): linked views of the phenomenon, controls and presets, guided walkthrough, a live **Explain** tab (every number worked out with your settings + interpretation), a step-by-step **Derivation** tab for derivation-heavy ideas, synced code, live equations, quiz — fitting any window with **no scrolling** |
+| `viz/chNN/<slug>.html` (**5–10**) | Self-contained vanilla-JS explainers at the depth of Shammunul's reference explainers (preferred: the Unit 4 mathlets — forced damped vibrations, amplitude & phase, angular frequency explorer): linked views of the phenomenon, controls and presets, guided walkthrough, a live **Explain** tab (every number worked out with your settings + interpretation), a step-by-step **Derivation** tab for derivation-heavy ideas, synced code, live equations, quiz — fitting any window with **no scrolling** |
 
 Plus the machinery that makes it trustworthy and cumulative: `fluidpy/` (the physics as tested functions), `tests/`,
 `reports/`, `knowledge/`. Site: `index.html` (chapters) and `viz/index.html` (explainer gallery), served at
@@ -27,7 +27,7 @@ to an A item or the book never writes it out (other results are stated, not deri
 did · the line · why it is allowed · in words), the book's skipped moves filled in, then checked (units, limits, sympy
 for ★★★) and interpreted — in the notebook (hence Colab and the page) and in the Derivation tab of the explainer for that
 idea. Every concept, symbol, maths tool and
-Python function is explained where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 4–5 interactive explainers
+Python function is explained where it is first used (CORE block, recap, or 📎 primer), tracked in a prerequisite ledger. 5–10 interactive explainers
 are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`, `tools/coverage_check.py`, the
 `lesson-reviewer` and `tools/shot.py` enforce all of this.
 
@@ -41,7 +41,7 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
 | 2 | curate | `concept-curator` | `analysis/chNN_curation.md` |
 | 3 | design ∥ 4 implement | `lesson-designer` ∥ `concept-implementer` | `analysis/chNN_design.md` ∥ `fluidpy/`, `scripts/` |
 | 5 | verify | `math-verifier` (⟲ implementer, ≤ 3 loops) | `tests/`, `reference/`, `reports/chNN_verification.md` |
-| 6 | review ∥ 7 viz ∥ 8 notebook | `derivation-reviewer` ∥ `viz-builder` ×4–5 → `viz-reviewer` ∥ `notebook-builder` → `lesson-reviewer` | `reports/chNN_review.md` ∥ `viz/chNN/`, `reports/chNN_viz.md` ∥ `notebooks/`, `reports/chNN_lesson.md` |
+| 6 | review ∥ 7 viz ∥ 8 notebook | `derivation-reviewer` ∥ `viz-builder` ×5–10 → `viz-reviewer` ∥ `notebook-builder` → `lesson-reviewer` | `reports/chNN_review.md` ∥ `viz/chNN/`, `reports/chNN_viz.md` ∥ `notebooks/`, `reports/chNN_lesson.md` |
 | 9 | knowledge ∥ 10 publish | `knowledge-keeper` ∥ `site-publisher` | `knowledge/` ∥ pages, Colab twin, index, gallery |
 
 ## Where things live
@@ -50,7 +50,7 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
 | `*.pdf` (repo root) | the book — read-only, never modified | **never** |
 | `book.yaml` | project config + chapter map (exact PDF pages from the outline, sections, explainer seeds) | yes |
 | `chapters/chNN.{pdf,txt}`, `chapters/pages/` | split chapter, extracted text, rendered page images | **never** |
-| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory (NEW/SEEN, prerequisites, derivations and the moves the book skips) · IDs + tiers + derivations (D rows) + section coverage + 4–5 explainers · storyboards + prerequisite ledger + derivations written out step by step | yes |
+| `analysis/chNN.md`, `chNN_curation.md`, `chNN_design.md` | inventory (NEW/SEEN, prerequisites, derivations and the moves the book skips) · IDs + tiers + derivations (D rows) + section coverage + 5–10 explainers · storyboards + prerequisite ledger + derivations written out step by step | yes |
 | `fluidpy/core/` | primitives: `project`, `embed` (show_viz), `anim`, `interact` (plotly sliders), `style`, `units`, `refdata`, + physics reused by ≥2 chapters | yes |
 | `fluidpy/chNN_<slug>.py`, `scripts/chNN_*.py` | chapter physics + runnable demos | yes |
 | `viz/chNN/<slug>.html` | explainers (library inlined from `assets/viz_lib.js` + `assets/viz_base.css` by `tools/viz_inline.py`) | yes |
@@ -76,7 +76,7 @@ are chosen from the CORE ideas where interaction teaches most. `tools/nbkit.py`,
    recap or 📎 primer. **Derivations are never skipped or compressed**: goal and plan in plain words, one small move
    per step with *what we did*, *why we can do this* (the rule, the assumption) and *in words*, then a check and what
    the result means (`teaching-style` §1c, `nb.derivation`).
-4. **4–5 interactive explainers per chapter** (plus a backup idea), each attached to CORE ideas and justified by "why
+4. **5–10 interactive explainers per chapter — as many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`) (plus a backup idea), each attached to CORE ideas and justified by "why
    interaction beats a static figure here", built to the depth of the reference explainers (skill `interactive-viz`
    §4–§5): a required live **Explain** tab ("Explanation & interpretation" in numbered sections, as in
    `forced_damped_vibrations.html`), a **Derivation** tab for every derivation the curation assigns to it, a synced

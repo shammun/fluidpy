@@ -1,6 +1,6 @@
 ---
 name: do-chapter
-description: Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate (exhaustive coverage, tiered depth: 12–18 A ideas get code and a visual), design, implement, verify, review, 4–5 interactive explainers, notebook with lesson review, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult
+description: Run the whole fluidpy pipeline for one book chapter autonomously - analyze, curate (exhaustive coverage, tiered depth: 12–18 A ideas get code and a visual), design, implement, verify, review, 5–10 interactive explainers, notebook with lesson review, knowledge, publish - with parallel subagents where safe, gates, fix loops, progress tracking and a commit per phase. Usage - /do-chapter 7   ·   /do-chapter 7 --from viz   ·   /do-chapter 7 --only notebook   ·   /do-chapter 7 --consult
 disable-model-invocation: true
 ---
 
@@ -52,7 +52,7 @@ Brief: header + the output format lives in the agent definition; add the chapter
 
 ## 2. CURATE — `concept-curator` → `analysis/chNN_curation.md`
 Brief: header + `book.yaml` `viz_seeds` for the chapter (as priors) + `book.yaml → policy` (tier_a_full_treatment,
-coverage) + "4–5 explainers plus one backup".
+coverage) + "as many explainers as the chapter needs — 5 minimum, 10 maximum — plus one backup".
 **Coverage is exhaustive, depth is tiered.** Every inventory row gets an ID and a depth in the §2 chapter map:
 **A** · full treatment (CORE `C..`: picture → question → step-by-step derivation → worked number → code → figure;
 `policy.tier_a_full_treatment` = [12, 18], 18 is a hard max, A is always the minority) · **B** · stated and explained
@@ -72,7 +72,7 @@ statement with the result given (§4c).
   "book never writes it out") with difficulty, step estimate and "Shown in", or a §4c statement row — none missing; no
   §4b row belongs to a non-A item unless the book never writes it out; every ★★★ D row of an A item that has an
   explainer is shown in that explainer;
-- §5 has 4–5 explainers + 1 backup, each with A IDs, why-interactive, mirrored fluidpy function, derivations (D ids
+- §5 has 5–10 explainers + 1 backup, each with A IDs, why-interactive, mirrored fluidpy function, derivations (D ids
   or none), depth features (explain + code + ≥ 2 more) and a named reference explainer.
 Print the A list (one line each with its reason), the counts per depth (A/B/C/RECAP/SKIP), the derivations written out
 by difficulty and the number demoted, the teaching order (A items grouped by section) and the explainer list (slug +
@@ -117,14 +117,14 @@ Must-fix code items → `concept-implementer` (fluidpy only; signatures stable),
 tests/test_chNN.py -q` and, if tests had to change, `math-verifier` for those tests. Doc findings you fix yourself.
 **When all viz-builders return**: `viz-reviewer` → `reports/chNN_viz.md`. Must-fix items → re-brief the specific
 `viz-builder` with its list (max 2 rounds per explainer), then `viz-reviewer` again. An explainer that still fails is
-removed (delete the file, note it in `knowledge/viz_patterns.md` as a failed idea) and — if fewer than 4 remain — the
+removed (delete the file, note it in `knowledge/viz_patterns.md` as a failed idea) and — if fewer than 5 remain — the
 **backup** (`### B1`) is built by a `viz-builder` and reviewed the same way; the notebook-builder swaps the embed. Never
-publish a failing explainer and never publish fewer than 4.
+publish a failing explainer and never publish fewer than 5.
 **Merge gate** (all done):
 `.venv/Scripts/python.exe -m pytest -q` (full) · `.venv/Scripts/python.exe tools/shot.py --chapter chNN --quick`
 (parity after any physics fix) · `.venv/Scripts/python.exe tools/run_notebook.py chNN --save` ·
 `.venv/Scripts/python.exe tools/coverage_check.py chNN --nb outputs/chNN/executed.ipynb` · `.venv/Scripts/python.exe
-tools/embed_check.py chNN` (4–5 explainers, each embedded once) · `reports/chNN_lesson.md` and `reports/chNN_viz.md`
+tools/embed_check.py chNN` (5–10 explainers, each embedded once) · `reports/chNN_lesson.md` and `reports/chNN_viz.md`
 Verdict PASS. All clean → `review: pass`, `viz: pass` (+ `explainers: [slugs]`), `notebook: pass`, commit.
 
 ## 9 ∥ 10. KNOWLEDGE ∥ PUBLISH (launch together)

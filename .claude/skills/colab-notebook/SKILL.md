@@ -14,7 +14,7 @@ from nbkit import ChapterNotebook
 
 nb = ChapterNotebook("ch07")
 nb.title(big_idea="…", roadmap=["…", "…"], prerequisites=["Bernoulli (Ch. 4)", "potential flow (Ch. 6)"])
-nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed"), …])   # 4–5 rows
+nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed"), …])   # 5–10 rows
 nb.setup()                                          # ⚙️ setup markdown + the setup code cell (tag: setup)
 nb.section("7.2", "Linear surface waves", intro="**What is this section about?** …")   # one per book section
 nb.recap("R02", "Bernoulli's equation", "…one paragraph…", where="Ch. 4 §4.9")        # RECAP tier
@@ -49,7 +49,7 @@ nb.save()                                           # → notebooks/ch07_gravity
 ```
 `save()` refuses to write the notebook when a book section has no `nb.section(...)`, a CORE/RECAP id from the curation
 has no block, a CORE block has no code or no visual, a derivation (D id) is missing, sits in the wrong CORE block, has a
-step without why / in words, or is ★★★ without a sympy check, or the explainer count is outside 4–5. After executing,
+step without why / in words, or is ★★★ without a sympy check, or the explainer count is outside 5–10. After executing,
 `tools/coverage_check.py chNN --nb outputs/chNN/executed.ipynb` repeats the checks on real outputs and checks the
 prerequisite ledger (design Part E).
 Markdown is our own words; equations in LaTeX with their book numbers. Physics lives in `fluidpy/`, never only in a cell.

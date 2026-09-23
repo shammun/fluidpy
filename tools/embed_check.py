@@ -1,7 +1,7 @@
 """Integration gate: are a chapter's explainers built, current, lint-clean and embedded exactly once?
 
 Checks for chapter ``chNN``:
-  1. ``viz/chNN/*.html`` holds 4–5 explainers (``book.yaml → project.min/max_explainers_per_chapter``);
+  1. ``viz/chNN/*.html`` holds 5–10 explainers (``book.yaml → project.min/max_explainers_per_chapter``);
   2. each is inlined with the current ``assets/viz_lib.js`` + ``viz_base.css`` (``tools/viz_inline.py --check``) and
      passes ``tools/viz_lint.py``; every id in its ``viz:derivations`` meta is a D row of the curation;
   3. the notebook ``notebooks/chNN_<slug>.ipynb`` calls ``show_viz("chNN", "<slug>")`` exactly once per explainer,
@@ -31,8 +31,8 @@ def check(chapter: str) -> list[str]:
     from nbkit import explainer_calls
 
     book = yaml.safe_load((ROOT / "book.yaml").read_text(encoding="utf-8"))
-    limit = int(book.get("project", {}).get("max_explainers_per_chapter", 5))
-    minimum = int(book.get("project", {}).get("min_explainers_per_chapter", 4))
+    limit = int(book.get("project", {}).get("max_explainers_per_chapter", 10))
+    minimum = int(book.get("project", {}).get("min_explainers_per_chapter", 5))
     row = next((c for c in book["chapters"] if c["id"] == chapter), None)
     if row is None:
         return [f"{chapter} not in book.yaml"]

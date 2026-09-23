@@ -6,7 +6,7 @@ and the coverage rules are checked the moment the notebook is saved.
 
     nb = ChapterNotebook("ch07")
     nb.title(big_idea="…", roadmap=["…"], prerequisites=["…"])
-    nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed"), …])  # 4–5
+    nb.explainer_index([("dispersion_relation", "Why long waves outrun short ones", "phase vs group speed"), …])  # 5–10
     nb.setup()
     nb.section("7.2", "Linear liquid-surface gravity waves")   # one per book section; save() checks all are present
     nb.core("C03", "The dispersion relation")                  # every NEW idea is a CORE block (IDs from the curation)
@@ -32,7 +32,7 @@ and the coverage rules are checked the moment the notebook is saved.
     block, or its block has no code cell or no visual (figure, animation, plotly figure or explainer);
   * a DERIVATION listed in the curation (IDs ``D01``… in the derivations table) has no ``derivation(...)``, sits in
     another CORE block, or is ★★★ (hard) without a sympy check;
-  * the number of explainers is outside ``book.yaml → project.min/max_explainers_per_chapter`` (4–5).
+  * the number of explainers is outside ``book.yaml → project.min/max_explainers_per_chapter`` (5–10).
 ``tools/coverage_check.py chNN`` repeats these checks on the executed notebook (real outputs) and checks the
 prerequisite ledger.
 
@@ -61,7 +61,7 @@ def _book() -> dict:
 
 def explainer_limits(book: dict | None = None) -> tuple[int, int]:
     proj = (book or _book()).get("project", {})
-    return int(proj.get("min_explainers_per_chapter", 4)), int(proj.get("max_explainers_per_chapter", 5))
+    return int(proj.get("min_explainers_per_chapter", 5)), int(proj.get("max_explainers_per_chapter", 10))
 
 
 MAX_EXPLAINERS = explainer_limits()[1] if (ROOT / "book.yaml").exists() else 5

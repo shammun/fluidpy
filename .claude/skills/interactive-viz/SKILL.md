@@ -1,12 +1,12 @@
 ---
 name: interactive-viz
-description: How fluidpy interactive explainers are designed, built, fitted to the window, verified and embedded - the explainer contract (4–5 per chapter), the assets/viz_lib.js API (Viz.app with linked views, transport, presets, status, terms, inspector, notes, the live Explain tab (explanation & interpretation), the step-by-step Derivation tab, synced code, modes, 3-D via three.js; Plot, field tools, particles, pager), the quality bar distilled from Shammunul's reference explainers (with their paths; the three Unit 4 mathlets are preferred), no-scroll layout rules, patterns for fluid phenomena, the lint/shot audit loop, and how show_viz and the publish tool put explainers full-window into notebooks, Colab and the web page. Load when choosing, storyboarding, building, reviewing or embedding an explainer.
+description: How fluidpy interactive explainers are designed, built, fitted to the window, verified and embedded - the explainer contract (5–10 per chapter), the assets/viz_lib.js API (Viz.app with linked views, transport, presets, status, terms, inspector, notes, the live Explain tab (explanation & interpretation), the step-by-step Derivation tab, synced code, modes, 3-D via three.js; Plot, field tools, particles, pager), the quality bar distilled from Shammunul's reference explainers (with their paths; the three Unit 4 mathlets are preferred), no-scroll layout rules, patterns for fluid phenomena, the lint/shot audit loop, and how show_viz and the publish tool put explainers full-window into notebooks, Colab and the web page. Load when choosing, storyboarding, building, reviewing or embedding an explainer.
 ---
 
 # interactive-viz — explainers that fit the window and make an idea click
 
 ## 1. The contract (checked by `tools/viz_lint.py`, `tools/shot.py`, `tools/embed_check.py`)
-- **4–5 per chapter** (`book.yaml → project.min/max_explainers_per_chapter`), each tied to CORE ideas of
+- **5–10 per chapter** (`book.yaml → project.min/max_explainers_per_chapter`), each tied to CORE ideas of
   `analysis/chNN_curation.md`, plus one backup idea in the curation in case one fails review.
 - One self-contained file `viz/chNN/<slug>.html`, created with `tools/new_viz.py`; `assets/viz_base.css` and
   `assets/viz_lib.js` are inlined between marker comments by `tools/viz_inline.py` (edit the assets, never the copies).

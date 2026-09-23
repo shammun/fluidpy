@@ -20,13 +20,13 @@ For every chapter you get **one learning package**:
 | Notebook | `notebooks/chNN_<slug>.ipynb` (executed) | plain-words explanations → maths step by step → tiny worked example → commented code → figures with "how to read it" → animations, plotly slider figures, live widgets → the chapter's explainers embedded |
 | Colab notebook | `notebooks/chNN_<slug>_colab.ipynb` | the same, outputs stripped; its first cell clones the repo; explainers load from GitHub Pages |
 | Web page | `notebooks/chNN_<slug>.html` | the executed notebook in the site theme; each explainer fills 100 % of the window's width and height; Open-in-Colab; prev/next; contents |
-| Explainers (4–5) | `viz/chNN/<slug>.html` | walkthrough · explore (sliders, presets) · step-by-step working · equations (live numbers) · code · check yourself; linked views; fits any screen with no scrolling |
+| Explainers (5–10) | `viz/chNN/<slug>.html` | walkthrough · explore (sliders, presets) · step-by-step working · equations (live numbers) · code · check yourself; linked views; fits any screen with no scrolling |
 
 The **kit** that produces them:
 
 | Component | Role |
 |---|---|
-| `CLAUDE.md` | the rules Claude Code reads every session (sequential chapters, equations from page images, teaching style, exhaustive coverage with tiered depth, 4–5 explainers that fit the window, evidence, public-repo safety, Windows specifics) |
+| `CLAUDE.md` | the rules Claude Code reads every session (sequential chapters, equations from page images, teaching style, exhaustive coverage with tiered depth, 5–10 explainers that fit the window, evidence, public-repo safety, Windows specifics) |
 | `book.yaml` | chapter map with exact PDF pages (from the PDF's own outline), sections, blurbs, explainer seeds; project URLs |
 | `.claude/agents/` (12) | analyst · curator · lesson-designer · implementer · verifier · reviewer · viz-builder · viz-reviewer · notebook-builder · lesson-reviewer · knowledge-keeper · site-publisher |
 | `.claude/skills/` (17) | 8 commands (`/do-chapter`, `/status`, …) + 9 background skills (teaching style, explainer engine, Python viz, maths→Python, verification, …) |
@@ -87,7 +87,7 @@ The designer keeps a *prerequisite ledger*; `knowledge/primers.md` stops later c
 This is enforced mechanically: the notebook kit refuses to save a notebook with a missing section, a missing CORE/RECAP
 block, or a CORE block without code or a visual; `tools/coverage_check.py` repeats the checks on the executed notebook
 and checks the ledger; and the `lesson-reviewer` reads the notebook as a first-time learner and fails anything used
-before it is explained. The **4–5 explainers** are chosen from the CORE ideas where manipulation or motion teaches what
+before it is explained. The **5–10 explainers** are chosen from the CORE ideas where manipulation or motion teaches what
 a static figure cannot; every other CORE idea gets its figures, animations and plotly sliders.
 
 **Correctness without an answer key.** The book has no code, so each function proves itself: V1 analytic solutions ·
@@ -181,12 +181,12 @@ Useful options:
 | 4 | **implement** (`concept-implementer`) ∥ | analysis, curation, rendered pages | `fluidpy/chNN_<slug>.py`, `scripts/` | docstrings cite section + equation + units |
 | 5 | **verify** (`math-verifier` ⟲ implementer) | code, tiers | `tests/test_chNN.py`, `reports/chNN_verification.md` | Verdict, labels, convergence orders, Open items |
 | 6 | **review** (`derivation-reviewer`) ∥ | code vs page images | `reports/chNN_review.md` | Must-fix list and that each was fixed |
-| 7 | **viz** (`viz-builder` ×4–5 → `viz-reviewer`) ∥ | storyboards, fluidpy | `viz/chNN/*.html`, `reports/chNN_viz.md` | screenshots in `reports/viz/chNN/<slug>/` |
+| 7 | **viz** (`viz-builder` ×5–10 → `viz-reviewer`) ∥ | storyboards, fluidpy | `viz/chNN/*.html`, `reports/chNN_viz.md` | screenshots in `reports/viz/chNN/<slug>/` |
 | 8 | **notebook** (`notebook-builder` → `lesson-reviewer`) ∥ | design Parts A/C/E/F, fluidpy | `notebooks/build_chNN.py`, `.ipynb`, `reports/chNN_lesson.md` | every CORE idea with code + visual, every derivation step-by-step and audited, nothing unexplained, runtime |
 | 9 | **knowledge** (`knowledge-keeper`) ∥ | everything | `knowledge/*` | "Feeds forward" |
 | 10 | **publish** (`site-publisher` + orchestrator) | notebook, explainers | executed `.ipynb`, `_colab.ipynb`, `.html`, index, gallery | the live page on your phone |
 
-Gates: analysis covers every numbered equation · every item has an ID and a depth (A ≤ 18), every section covered, every derivation is a D row (A item or never written out by the book) or a stated result · 4–5 explainers + backup at reference depth · every CORE block has code + visual, every derivation is written out and checked, and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
+Gates: analysis covers every numbered equation · every item has an ID and a depth (A ≤ 18), every section covered, every derivation is a D row (A item or never written out by the book) or a stated result · 5–10 explainers + backup at reference depth · every CORE block has code + visual, every derivation is written out and checked, and nothing is used unexplained (coverage_check + lesson review) · every design function exists · tests
 PASS (≤ 3 fix loops, never by loosening a tolerance) · no open Must-fix · every explainer passes lint + browser audit at
 8 sizes + parity + visual review (≤ 2 rebuild rounds, else it is dropped, never published broken) · notebook executes
 with 0 errors · embed check (every explainer embedded exactly once) · public-repo check · page audit (explainers
@@ -202,7 +202,7 @@ full-window).
 | start / continue the book | `/clear` then `/do-chapter N` |
 | where am I? | `/status` |
 | an explainer could be better | `/build-viz N <slug> "what to improve"` |
-| you want another or a better explainer (4–5 per chapter) | `/build-viz N new "the idea"` |
+| you want another or a better explainer (5–10 per chapter) | `/build-viz N new "the idea"` |
 | a notebook section is unclear | `/notebook-chapter N "add a tiny example for …"` |
 | you changed physics code | `/verify-chapter N` then `/publish-chapter N` |
 | just re-publish | `/publish-chapter N` |
@@ -263,7 +263,7 @@ knowledge/viz_patterns.md or knowledge/CUMULATIVE.md, and show me the diff.
 ## PART 5 — THE DELIVERABLES IN DETAIL
 
 ### 5.1 How an explainer is built
-1. The curator picks 4–5 CORE ideas (plus a backup), says why interaction beats a static figure, which depth features it
+1. The curator picks 5–10 CORE ideas (plus a backup), says why interaction beats a static figure, which depth features it
    needs, which derivations it steps through, and which **reference explainer** it follows — your own, with the three
    Unit 4 MIT-mathlet re-implementations preferred: `forced_damped_vibrations.html` (its live explanation panel is the
    model for every Explain tab), `amplitude_phase_second_order_II_3.html` (a numbered derivation with live numbers) and
@@ -349,7 +349,7 @@ _colab.ipynb by re-running tools/publish_notebook.py, commit, run tools/check_pu
 | Agent | Job | Writes |
 |---|---|---|
 | concept-analyst | full inventory from text + page images, dependency graph, validation plan | `analysis/chNN.md` |
-| concept-curator | IDs + depth (A 12–18 CORE / B / C, nothing dropped), derivations (D rows), teaching order, section coverage, primers needed, 4–5 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
+| concept-curator | IDs + depth (A 12–18 CORE / B / C, nothing dropped), derivations (D rows), teaching order, section coverage, primers needed, 5–10 explainers + backup, animations, interactives | `analysis/chNN_curation.md` |
 | lesson-designer | notebook storyboard + explainer storyboards + function contract + prerequisite ledger + every derivation step by step | `analysis/chNN_design.md` |
 | concept-implementer | physics as documented functions; fixes | `fluidpy/`, `scripts/` |
 | math-verifier | tests on the evidence ladder; report | `tests/`, `reference/`, `reports/chNN_verification.md` |

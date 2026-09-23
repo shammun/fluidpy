@@ -29,7 +29,7 @@ tools, founders, visual resources) are reference only.
   bibliography, deferred material — one pointer line. Derivations are written out only for A items or results the book
   never writes out. Every concept, symbol, maths tool or Python function used is explained before (or where) it is first
   used: an A or B item, a recap or a 📎 primer.
-- Every chapter has **4–5 interactive explainers**.
+- Every chapter has **5–10 interactive explainers**.
 
 ## File naming
 - Chapter ids: `ch01` … `ch16`; slug from `book.yaml` (`ch07` → `gravity_waves`).
@@ -74,12 +74,12 @@ private) · `qualitative` (must appear in Open items) · `unverified` (blocks PA
 
 ## What "done" means for a chapter
 1. `analysis/chNN.md` (inventory + dependency graph), `analysis/chNN_curation.md` (spine, tiers for every item, a
-   section-coverage table with no empty section, 4–5 explainers + backup),
+   section-coverage table with no empty section, 5–10 explainers + backup),
    `analysis/chNN_design.md` (storyboards).
 2. `fluidpy/chNN_<slug>.py` implements every computable CORE and NOTE item and every function in design Part C; scripts run.
 3. `tests/test_chNN.py` passes; computable CORE ≥ 2 evidence levels, coded NOTE ≥ 1; `reports/chNN_verification.md` PASS;
    `reports/chNN_review.md` has no open Must-fix.
-4. `viz/chNN/*.html` (4–5) pass lint + shot (quality floor) at every size with parity rows; `reports/chNN_viz.md` PASS.
+4. `viz/chNN/*.html` (5–10) pass lint + shot (quality floor) at every size with parity rows; `reports/chNN_viz.md` PASS.
 5. The notebook covers every book section and every CORE item with code + visual, passes `tools/coverage_check.py` and the lesson review, executes headlessly with 0 errors, follows the teaching style and embeds
    every explainer once.
 6. `knowledge/` updated; `progress.json` all `pass`/`done`; published: page, Colab twin, gallery and index live,

@@ -120,7 +120,7 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     msg = str(err.value)
     assert "7.3" in msg and "C02" in msg and "no visual" in msg and "explainers embedded" in msg
     nb.figure("import matplotlib.pyplot as plt  # plotting\nplt.plot([0, 1])  # a line", see="a", read="b", change="c")
-    for slug in ("e2", "e3", "e4"):
+    for slug in ("e2", "e3", "e4", "e5"):
         nb.explainer(slug, heading="h", why="w", tries=["t"])
     for sec in nb.missing_sections():
         nb.section(sec, "…")
@@ -129,7 +129,7 @@ def test_nbkit_builds_a_valid_notebook(tmp_path, monkeypatch):
     assert any("\\sqrt{gH}" in c.source and "(7.x)" in c.source for c in book.cells)
     assert book.cells[0].source.startswith("# Chapter 7")
     assert not book.cells[0].source.splitlines()[2].startswith("    ")          # no accidental code-block indent
-    assert nbkit.explainer_calls(path) == ["dispersion_relation", "e2", "e3", "e4"]
+    assert nbkit.explainer_calls(path) == ["dispersion_relation", "e2", "e3", "e4", "e5"]
     assert any("setup" in c.metadata.get("tags", []) for c in book.cells)
     assert book.metadata["fluidpy"]["cores"] == ["C01", "C02"] and book.metadata["fluidpy"]["primers"] == ["tanh"]
     assert any(c.metadata.get("fluidpy", {}).get("core") == "C02" and "figure" in c.metadata.get("tags", []) for c in book.cells)

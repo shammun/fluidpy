@@ -6,7 +6,7 @@ Checks (exit 1 on any error):
      at least one code cell and at least one visual — in an EXECUTED notebook the visual must be a real output
      (PNG image, video, plotly figure or explainer block), otherwise a figure/animation/plotly/explainer cell;
   3. every RECAP row (``R01``…) appears as a recap cell;
-  4. 4–5 explainers are embedded (``book.yaml → project.min/max_explainers_per_chapter``);
+  4. 5–10 explainers are embedded (``book.yaml → project.min/max_explainers_per_chapter``);
   5. the prerequisite ledger in ``analysis/chNN_design.md`` (``## Part E`` table: ``| Concept | First used in | Explained by |``)
      — every row whose "Explained by" says ``primer`` has a primer cell naming that concept (warning if not found);
      rows that say ``C07``/``R02`` must point at an existing CORE/RECAP id (error);

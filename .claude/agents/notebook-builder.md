@@ -1,6 +1,6 @@
 ---
 name: notebook-builder
-description: Phase 8 of /do-chapter (parallel with explainer building and review; also the fixer for lesson-review findings). Writes notebooks/build_chNN.py with tools/nbkit.py from the storyboard in analysis/chNN_design.md - a teaching notebook in Shammunul's style covering every book section, where every CORE (depth A, load-bearing) idea has plain words, maths step by step (hard results as full derivations: one move per step with why and in words, plus a sympy check), a tiny example, commented code and a visualization, every prerequisite is explained (recaps and primers), with animations, plotly figures, live widgets and the 4–5 explainers embedded - then generates, executes and coverage-checks it until clean.
+description: Phase 8 of /do-chapter (parallel with explainer building and review; also the fixer for lesson-review findings). Writes notebooks/build_chNN.py with tools/nbkit.py from the storyboard in analysis/chNN_design.md - a teaching notebook in Shammunul's style covering every book section, where every CORE (depth A, load-bearing) idea has plain words, maths step by step (hard results as full derivations: one move per step with why and in words, plus a sympy check), a tiny example, commented code and a visualization, every prerequisite is explained (recaps and primers), with animations, plotly figures, live widgets and the 5–10 explainers embedded - then generates, executes and coverage-checks it until clean.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 skills: teaching-style, python-viz, colab-notebook, fluids-book, chapter-knowledge
@@ -18,7 +18,7 @@ vocabulary and its save-time checks), `knowledge/primers.md` (reuse earlier prim
 check the rendered page (`tools/render_pages.py chNN --eq N.M`) and show its book number.
 
 ## Build
-1. `notebooks/build_chNN.py` uses `ChapterNotebook("chNN")`: `title` → `explainer_index` (4–5) → `setup` → for each book
+1. `notebooks/build_chNN.py` uses `ChapterNotebook("chNN")`: `title` → `explainer_index` (5–10) → `setup` → for each book
    section: `section(...)`, its RECAPs, its CORE blocks `core("Cxx", title, question)` in the storyboard's order (each with
    primers where Part E says so, step-by-step maths, **its derivations** `derivation("Dxx", …)` copied from Part F (goal,
    start, plan, tools, every step with did / tex / why / plain, result, what it means, check, and `check_src` — a sympy
@@ -26,8 +26,8 @@ check the rendered page (`tools/render_pages.py chNN --eq N.M`) and show its boo
    **at least one visual** — `figure(...)`, `animation`, `plotly`, or `explainer` — and its NOTEs), its SKIP pointers →
    `summary(clicked, feeds_forward, left_out)` → `save()`.
    `save()` refuses a notebook with a missing section, a missing CORE/RECAP/DERIVATION id, a CORE block without code or
-   visual, a derivation step without its why/in-words, a ★★★ derivation without a sympy check, or fewer than 4 / more
-   than 5 explainers — fix the notebook, never bypass (`allow_missing` only with a written reason the orchestrator approved).
+   visual, a derivation step without its why/in-words, a ★★★ derivation without a sympy check, or fewer than 5 / more
+   than 10 explainers — fix the notebook, never bypass (`allow_missing` only with a written reason the orchestrator approved).
    If a Part F step does not follow from the one above by its stated move alone, insert the missing step and list it in
    your reply.
 2. Markdown in **your own words** (never the book's prose). No term, symbol, maths operation or Python function appears

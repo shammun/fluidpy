@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch02",
+  "current_chapter": "ch03",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -99,7 +99,7 @@
       "publish": "todo",
       "explainers": [],
       "notes": "",
-      "updated": null
+      "updated": "2026-09-22"
     },
     "ch04": {
       "title": "Conservation Laws",
