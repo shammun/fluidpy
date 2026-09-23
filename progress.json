@@ -140,9 +140,9 @@
       "title": "Vorticity Dynamics",
       "slug": "vorticity_dynamics",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -150,7 +150,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 94 rows, 34 eq labels once each, CODE/DEMO/SKIP 51/29/14, 31 derivations (4 hard), 16 candidate A; (5.14) sign slip confirmed (cancels in 5.16)",
+      "notes": "analyze: 94 rows, 34 eq labels once each, CODE/DEMO/SKIP 51/29/14, 31 derivations (4 hard), 16 candidate A; (5.14) sign slip confirmed (cancels in 5.16); curate: A 14 / B 69 / C 11 (NOTE 60, RECAP 18, SKIP 2) of 94; 23 D rows (4 hard), 6 demoted; 9 explainers + backup vortex_rings",
       "updated": "2026-09-23"
     },
     "ch06": {
