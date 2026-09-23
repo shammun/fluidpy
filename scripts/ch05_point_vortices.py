@@ -60,7 +60,8 @@ def images_rings_figure(fast: bool):
     ax[1].set_ylabel("R [m]")
     ax[1].legend(fontsize=8)
     ax[1].set_title("leap-frogging coaxial rings (meridional plane)", fontsize=9)
-    rw = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], np.linspace(0, 12, 121), wall_z=2.0)
+    rw = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], np.linspace(0, 12, 121), wall_z=2.0,
+                            terminate=True)  # stop where the core comes within 3a of the wall
     ax[2].plot(rw["z"][:, 0], rw["R"][:, 0], color=COLORS["teal"])
     ax[2].axvline(2.0, color=COLORS["ink"], lw=2)
     ax[2].set_xlabel("z [m]")
@@ -133,7 +134,8 @@ def main() -> int:
     passes = int(np.sum(np.diff(np.sign(rd["z"][:, 1] - rd["z"][:, 0])) != 0))
     print(f"leap-frog: {passes} pass-throughs in 30 s, impulse ΣΓπR² drift {np.ptp(rd['impulse']):.1e}")
     speed = np.diff(rw["z"][:, 0]) / np.diff(rw["t"])
-    print(f"ring toward a wall: R {rw['R'][0, 0]:.3f} → {rw['R'][-1, 0]:.3f} m (monotone: "
+    print(f"ring toward a wall z = 2: stops at t = {rw['stop_time']:.3f} s ({rw['stop_reason']}: gap < 3a); "
+          f"R {rw['R'][0, 0]:.3f} → {rw['R'][-1, 0]:.3f} m (monotone: "
           f"{bool(np.all(np.diff(rw['R'][:, 0]) > 0))}), approach speed {speed[0]:.4f} → {speed[-1]:.4f} m/s "
           f"(decreasing: {bool(np.all(np.diff(speed) < 0))})")
     print(f"figures → {out}")

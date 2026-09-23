@@ -86,6 +86,8 @@ def gaussian_tube_fields(Gamma: float = 1.0, sigma: float = 0.1, L: float = 4.0)
     """A straight Gaussian vortex tube along z of length L (flat ends at z = ±L/2), for the quadrature tests of (5.14)
     and (5.16): ω = (Γ/πσ²)e^{−R²/σ²}e_z for |z| ≤ L/2, and its curl ∇ × ω = (∂ω_z/∂y, −∂ω_z/∂x, 0).
 
+    This flat-ended tube is one segment V′ of a longer tube (Fig. 5.8), not a valid vorticity field on its own: ∇·ω
+    has δ-sheets at z = ±L/2 where the tube is cut. It is used only as the V′ of the quadratures.
     The flat ends are normal to ω and the side lies outside the core, so the surface term of (5.15) vanishes and
     (5.14) (sign corrected) and (5.16) give the same velocity. A finite tube is not an infinite line: at the mid-plane
     the velocity is the segment law (our D13) with the core's enclosed circulation, computed exactly here as
@@ -404,9 +406,11 @@ def ring_self_velocity(R, a, Gamma: float, core: str = "uniform"):
 
     Book: §5.7 (rings move by their own induced velocity; the book treats rings qualitatively). The straight-filament
     law has no self-induction, a curved one has a logarithmically singular one — a finite core radius a ≪ R is needed.
-    ``core``: "uniform" (C = 1/4, Kelvin), "hollow" (C = 1/2), "gaussian" (C ≈ 0.558, Saffman).
+    ``core``: "uniform" (C = 1/4, Kelvin; a = the core radius), "hollow" (C = 1/2), "gaussian" (C ≈ 0.558, Saffman;
+    a is the e-folding radius of the core vorticity ∝ e^{−r²/a²}, a = √(4νt) for a diffusing core).
     Parameters: R ring radius [m]; a core radius [m]; Gamma [m²/s]. Returns U [m/s] along e_z for Γ > 0.
-    Validation: V1 form cross-check with Wikipedia "Vortex ring" (Kelvin's formula). Label: analytic.
+    Validation: V1 form cross-check (published formula): Kelvin's ring speed, Wikipedia "Vortex ring". Label:
+    analytic.
     """
     C = RING_CORES[core]
     R_ = _F(R)
@@ -457,7 +461,8 @@ def circle_image_system(xv, Gamma, a: float, center=(0.0, 0.0), inside: bool = T
                         cylinder_circulation: float = 0.0):
     """Vortices plus images that make the circle |x − c| = a a streamline (Milne-Thomson circle theorem for vortices).
 
-    Each vortex Γ at x gets an image −Γ at the inverse point c + a²(x − c)/|x − c|². ``inside=True`` (the fluid is
+    Each vortex Γ at x gets an image −Γ at the inverse point c + a²(x − c)/|x − c|² (a vortex exactly at the centre
+    has its image at infinity: none is added). ``inside=True`` (the fluid is
     inside the circle — the bucket of Fig. 5.13): the inverse-point images alone (no centre vortex is allowed there).
     ``inside=False`` (fluid outside a cylinder, Exercise 5.14, Ch. 6): a vortex ΣΓ + ``cylinder_circulation`` is added
     at the centre so that the circulation round the cylinder is ``cylinder_circulation`` (zero by default).
@@ -471,8 +476,9 @@ def circle_image_system(xv, Gamma, a: float, center=(0.0, 0.0), inside: bool = T
     c = _F(center).reshape(2, 1)
     d = V - c
     r2 = np.sum(d * d, axis=0)
-    img = c + a ** 2 * d / r2
-    pos, gam = [V, img], [G, -G]
+    fin = r2 > 0.0  # a vortex exactly at the centre has its image at infinity: drop it
+    img = c + a ** 2 * d[:, fin] / r2[fin]
+    pos, gam = [V, img], [G, -G[fin]]
     if not inside:
         pos.append(c)
         gam.append(np.array([np.sum(G) + float(cylinder_circulation)]))
@@ -574,7 +580,8 @@ def point_vortex_evolve(xv0, Gamma, t_eval, boundary=None, rtol: float = 1e-11, 
     (T, 2, M) positions [m].
 
     Validation: V4 ΣΓx, ΣΓ|x|² and the Hamiltonian conserved (no boundary) to 1e-10; V1 pair period
-    2π/((Γ₁ + Γ₂)/2πh²); V5 García & Haziot (2023) pair rates. Label: conserved, analytic, benchmark.
+    2π/((Γ₁ + Γ₂)/2πh²); V1 form cross-check (published formula): García & Haziot (2023) pair rates.
+    Label: conserved, analytic.
     """
     V0 = _F(xv0).reshape(2, -1)
     M = V0.shape[1]

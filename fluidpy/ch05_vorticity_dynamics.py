@@ -666,9 +666,11 @@ def uniform_strain_vorticity(omega0, G, t, rate: float = 1.0):
     """Weak vorticity carried by a steady linear flow u = Gx with ν = 0: Dω/Dt = (ω·∇)u = Gω ⇒ ω(t) = e^{Gt}ω₀.
 
     Book: §5.4, Eq. (5.13) with ν = 0 and §5.6, Eq. (5.32): stretching multiplies ω along the line, tilting turns it.
-    The background flows of :func:`strain_preset` have zero (or parallel) vorticity and are steady Euler solutions; the
-    carried vorticity is weak enough not to change them (Cauchy's vorticity formula: ω follows the material line
-    element, e^{Gt} is the deformation gradient). Axial strain → ω₀e^{αt}; shear tilt w = sx on ω₀ = ω_x0 e_x →
+    The background flows of :func:`strain_preset` are steady Euler solutions; the carried vorticity is weak enough
+    not to change them (Cauchy's vorticity formula: ω follows the material line
+    element, e^{Gt} is the deformation gradient). The carried ω is a passive material line element of weak vorticity;
+    in "shear_tilt" the background shear w = sx has its own vorticity (0, −s, 0) — neither zero nor parallel to ω₀ —
+    which (Gω_bg = 0) stays unchanged and untilted; only the weak added ω is turned. Axial strain → ω₀e^{αt}; shear tilt w = sx on ω₀ = ω_x0 e_x →
     ω_z = s t ω_x0; planar strain on ω ∥ e_z → no change (2-D).
     Parameters: omega0 (3,) [1/s]; G (3, 3) [1/s] or a preset name (with ``rate``); t [s] (scalar or (T,)).
     Returns ω(t) (3,) or (T, 3) [1/s]. (([0, 0, 1], "axial_stretch", 2)[2] = 7.389056; ([1, 0, 0], "shear_tilt", 2)[2]
@@ -844,7 +846,8 @@ def vortex_pair(Gamma1: float, Gamma2: float, h: float) -> dict:
 
     Returns dict(V1, V2 [m/s], centre_from_1 [m] (inf if Γ₁ + Γ₂ = 0), rotation_rate [rad/s], period [s],
     translation_speed [m/s]). ((1, 1, 1) → 0.159155, 0.5, 0.318310, 19.7392.) Book: §5.7.
-    Validation: V1 period vs ``point_vortex_evolve``; V5 García & Haziot (2023). Label: analytic, benchmark.
+    Validation: V1 period vs ``point_vortex_evolve``; V1 form cross-check (published formula): García & Haziot
+    (2023) pair rates. Label: analytic.
     """
     V1 = Gamma1 / (2.0 * np.pi * h)
     V2 = Gamma2 / (2.0 * np.pi * h)
@@ -864,7 +867,7 @@ def vortex_near_wall_speed(Gamma: float, h: float) -> float:
 
 
 def ring_dynamics(rings0, t_eval, wall_z: float | None = None, core: str = "uniform", rtol: float = 1e-9,
-                  atol: float = 1e-12) -> dict:
+                  atol: float = 1e-12, min_gap: float = 3.0, terminate: bool = False) -> dict:
     """Coaxial thin vortex rings moving under their own and each other's induced velocity, optionally with a plane wall
     z = wall_z (image rings −Γ mirrored in the wall): leap-frogging rings (Exercise 5.15) and a ring approaching a wall
     (Fig. 5.15: it widens and slows).
@@ -874,9 +877,20 @@ def ring_dynamics(rings0, t_eval, wall_z: float | None = None, core: str = "unif
     a_i with a_i²R_i conserved (core volume); dR_i/dt, dz_i/dt = Kelvin self-speed (``ring_self_velocity``) +
     Σ_{j≠i} ``ring_ring_velocity`` + the image rings' contributions (each ring's own image included).
 
+    Validity (regime): the model assumes thin cores far apart — a ≪ R and every core-to-core distance (to another
+    ring, or to its own image, i.e. twice the gap to the wall) of many core radii. A ``solve_ivp`` event watches the
+    smallest gap g — to the wall |wall_z − z_i|, or between the cores of two rings √((R_i − R_j)² + (z_i − z_j)²) —
+    against ``min_gap`` × the local core radius (3a by default). Past that point the cores touch their images or each
+    other, the filament law (5.17) and Kelvin's formula no longer describe them (a real wall's boundary layer separates
+    and a secondary ring forms), and the thin-core trajectory keeps widening without bound. The first crossing is
+    reported as ``stop_time``/``stop_reason`` (``valid`` marks the samples before it); with ``terminate=True`` the
+    integration stops there and the arrays end at the last sample before it. Example: R = 1, a = 0.1, Γ = 1, wall at
+    z = 3 → the gap reaches 3a at t ≈ 9.4 s (R ≈ 1.34 m, a ≈ 0.086 m).
+
     Parameters: rings0 list of dict(R, z, Gamma, a) [m, m, m²/s, m]; t_eval (T,) [s]; wall_z [m] or None; core
-    ("uniform", "hollow", "gaussian"); rtol, atol.
-    Returns dict(t, R (T, n), z (T, n), a (T, n), impulse (T,) = ΣΓπR² [m⁴/s]).
+    ("uniform", "hollow", "gaussian"); rtol, atol; min_gap [core radii]; terminate (stop at the validity limit).
+    Returns dict(t, R (T, n), z (T, n), a (T, n), impulse (T,) = ΣΓπR² [m⁴/s], stop_time [s] (NaN if the limit is
+    never reached), stop_reason ("wall", "rings" or None), valid (T,) bool).
     Validation: V4 two rings without a wall: ΣΓπR² conserved; leap-frog passes (z₁ − z₂ changes sign) repeatedly; ring
     + wall: R increases monotonically and the approach speed decreases (Fig. 5.15b). Label: conserved, qualitative.
     """
@@ -905,11 +919,29 @@ def ring_dynamics(rings0, t_eval, wall_z: float | None = None, core: str = "unif
                 dZ[i] += uz
         return np.concatenate([dR, dZ])
 
-    sol = solve_ivp(rhs, (te[0], te[-1]), np.concatenate([R0, Z0]), method="DOP853", rtol=rtol, atol=atol, t_eval=te)
+    def gap_wall(t, y):  # smallest wall gap in core radii, minus min_gap
+        R, Z = y[:n], y[n:]
+        return float(np.min(np.abs(wall_z - Z) / np.sqrt(vol / R))) - min_gap if wall_z is not None else 1.0
+
+    def gap_rings(t, y):  # smallest core-to-core distance in core radii, minus min_gap
+        R, Z = y[:n], y[n:]
+        a = np.sqrt(vol / R)
+        g = [np.hypot(R[i] - R[j], Z[i] - Z[j]) / max(a[i], a[j]) for i in range(n) for j in range(i + 1, n)]
+        return (min(g) - min_gap) if g else 1.0
+
+    for ev in (gap_wall, gap_rings):
+        ev.terminal = bool(terminate)
+        ev.direction = -1.0
+    sol = solve_ivp(rhs, (te[0], te[-1]), np.concatenate([R0, Z0]), method="DOP853", rtol=rtol, atol=atol, t_eval=te,
+                    events=(gap_wall, gap_rings))
     if not sol.success:
         raise RuntimeError(sol.message)
+    hits = [(float(sol.t_events[k][0]), name) for k, name in ((0, "wall"), (1, "rings")) if sol.t_events[k].size]
+    stop_time, stop_reason = min(hits) if hits else (float("nan"), None)
     R, Z = sol.y[:n].T, sol.y[n:].T
-    return dict(t=te, R=R, z=Z, a=np.sqrt(vol / R), impulse=np.sum(Gm * np.pi * R ** 2, axis=1))
+    valid = sol.t < stop_time if hits else np.ones(sol.t.size, bool)
+    return dict(t=sol.t, R=R, z=Z, a=np.sqrt(vol / R), impulse=np.sum(Gm * np.pi * R ** 2, axis=1),
+                stop_time=stop_time, stop_reason=stop_reason, valid=valid)
 
 
 # ======================================================================================================================

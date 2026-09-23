@@ -145,7 +145,8 @@ def main() -> int:
     le = ch05.lock_exchange_fields()
     bz = ch05.baroclinic_term(le["rho_fn"], le["p_fn"], np.array([0.0, 0.5]), 0.0, 1e-5)[2]
     print(f"lock exchange 1000/1025 kg/m³, δ = 0.1 m: closed form {le['rate']:.6f} s⁻², field route {bz:.6f} s⁻², "
-          f"∫ baroclinic dA = {le['circulation_rate']:.6f} m²/s² (= gH ln(ρ₂/ρ₁) = {9.81 * np.log(1.025):.6f})")
+          f"∫ baroclinic dA = {le['circulation_rate']:.6f} m²/s² (≈ gH ln(ρ₂/ρ₁) = {9.81 * np.log(1.025):.6f}; "
+          f"mean-density hydrostatic model p = ρ̄g(H − y))")
     pt = ch05.pressure_torque_on_element()
     print(f"pressure torque (R = 1 cm, ∇ρ = (10, 0), ∇p = (0, −9810)): x_G = {pt['x_G'][0]:.3e} m, torque "
           f"{pt['torque']:.5e} N m/m, I_G {pt['I_G']:.5e}, spin-up {pt['spin_up']:.10f} vs baroclinic "

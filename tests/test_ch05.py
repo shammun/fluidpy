@@ -1846,7 +1846,7 @@ def test_ring_ring_velocity_V3_elliptic_form_equals_polygon():  # V3/V1 (N42: m 
 
 
 @needs_ref
-def test_ring_self_velocity_V5_kelvin_thin_ring():  # V5 (Kelvin's formula, Wikipedia "Vortex ring")
+def test_ring_self_velocity_V1_kelvin_thin_ring_form():  # V1 form cross-check (published formula: Kelvin, Wikipedia "Vortex ring")
     f = sp.sympify(ref_json()["kelvin_ring_speed"]["formula"])
     Gm, R, a = sp.symbols("Gamma R a")
     for (Rv, av, Gv) in ((1.0, 0.1, 1.0), (0.3, 0.01, 2.5), (2.0, 0.05, -0.7)):
@@ -2370,7 +2370,7 @@ def test_point_vortex_evolve_V4_invariants_and_V1_pair_orbits():  # V4/V1 (Figs.
 
 
 @needs_ref
-def test_point_vortex_pairs_V5_garcia_haziot_rates():  # V5 (García & Haziot 2023, §2.1)
+def test_point_vortex_pairs_V1_garcia_haziot_rates_form():  # V1 form cross-check (published formula: García & Haziot 2023, §2.1)
     r = ref_json()["point_vortex_pairs"]
     l = 0.37
     ls = sp.Symbol("l", positive=True)
@@ -2469,13 +2469,80 @@ def test_ring_dynamics_V4_leapfrog_and_ring_toward_a_wall():  # V4/V1 (N42–N43
     # a single ring alone moves at Kelvin's speed (no wall, no partner)
     d1 = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], [0.0, 2.0])
     assert d1["z"][-1, 0] == pytest.approx(2.0 * ch05.ring_self_velocity(1.0, 0.1, 1.0), rel=1e-9)
-    # toward a wall at z = 3: the ring widens monotonically and slows down (Fig. 5.15)
+    assert np.isnan(d["stop_time"]) and d["stop_reason"] is None and d["valid"].all()  # cores stay ≥ 3.69a apart
+    # toward a wall at z = 3: the ring widens monotonically and slows down (Fig. 5.15) — the physical claims are made
+    # only while the thin-core model is valid (gap to the wall ≥ 3 core radii, the `valid` samples); past it the model
+    # merely stays well-posed (z < wall), it does not describe a real ring (O3)
     tw = np.linspace(0.0, 60.0, 301)
     w = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], tw, wall_z=3.0)
-    R, z = w["R"][:, 0], w["z"][:, 0]
-    assert np.all(np.diff(R) > 0) and np.all(z < 3.0)
-    vz = np.diff(z) / np.diff(tw)
-    assert np.all(np.diff(vz) < 1e-12) and vz[-1] < 0.1 * vz[0]
+    assert w["t"].size == tw.size and w["stop_reason"] == "wall" and 5 < w["valid"].sum() < tw.size
+    v = w["valid"]
+    R, z = w["R"][v, 0], w["z"][v, 0]
+    assert np.all(np.diff(R) > 0) and np.all(w["z"][:, 0] < 3.0)
+    vz = np.diff(z) / np.diff(tw[v])
+    assert np.all(np.diff(vz) < 1e-12) and vz[-1] < 0.5 * vz[0]
+
+
+def _own_ring_wall_rhs(t, y, vol, wall_z):
+    """An independent right side for one ring and its wall image: Kelvin's speed from the published form, the image by
+    our own polygon Biot–Savart sum (not ring_ring_velocity)."""
+    R, z = y
+    a = np.sqrt(vol / R)
+    uz = 1.0 / (4 * np.pi * R) * (np.log(8 * R / a) - 0.25)
+    img = ch05.filament_preset("ring", 512, R=R) + np.array([[0.0], [0.0], [2 * wall_z - z]])
+    u = ch05.filament_velocity(np.array([R, 0.0, z]), img[:, ::-1], 1.0)  # image ring: opposite circulation
+    return [u[0], uz + u[2]]
+
+
+def test_ring_dynamics_V1_validity_stop_where_gap_is_3a():  # V1 (review: min_gap event vs an independent computation)
+    from scipy.integrate import solve_ivp
+    vol, wall = 0.1 ** 2 * 1.0, 3.0
+    ev = lambda t, y, *_: (wall - y[1]) / np.sqrt(vol / y[0]) - 3.0  # noqa: E731  gap in core radii − 3
+    ev.terminal, ev.direction = True, -1
+    sol = solve_ivp(_own_ring_wall_rhs, (0.0, 30.0), [1.0, 0.0], args=(vol, wall), method="DOP853", rtol=1e-10,
+                    atol=1e-12, events=ev)
+    t_own = float(sol.t_events[0][0])
+    Rs, zs = sol.y_events[0][0]
+    assert (wall - zs) == pytest.approx(3.0 * np.sqrt(vol / Rs), rel=1e-9)  # gap = 3a at the event, by construction
+    w = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], np.linspace(0.0, 60.0, 301), wall_z=wall)
+    assert w["stop_reason"] == "wall" and w["stop_time"] == pytest.approx(9.405, abs=1e-3)
+    assert w["stop_time"] == pytest.approx(t_own, rel=1e-4)  # polygon image (M = 512) vs elliptic integrals: O(1/M²)
+    assert np.all(w["valid"] == (w["t"] < w["stop_time"]))
+    # the valid samples have gap ≥ 3a, the first invalid one < 3a
+    gap = (wall - w["z"][:, 0]) / w["a"][:, 0]
+    assert np.all(gap[w["valid"]] >= 3.0) and gap[~w["valid"]][0] < 3.0
+    # terminate=True halts there: the arrays end at the last sample before the stop, identical to the free run
+    wt = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], np.linspace(0.0, 60.0, 301), wall_z=wall,
+                            terminate=True)
+    k = int(w["valid"].sum())
+    assert wt["t"].size == k and wt["t"][-1] < wt["stop_time"] <= wt["t"][-1] + 0.2 and wt["valid"].all()
+    assert wt["stop_time"] == pytest.approx(w["stop_time"], rel=1e-9)
+    assert np.allclose(wt["R"], w["R"][:k], rtol=1e-8) and np.allclose(wt["z"], w["z"][:k], rtol=1e-8, atol=1e-12)
+    # a smaller threshold stops later; min_gap = 0 never stops before the wall
+    w2 = ch05.ring_dynamics([dict(R=1.0, z=0.0, Gamma=1.0, a=0.1)], np.linspace(0.0, 60.0, 301), wall_z=wall, min_gap=2.0)
+    assert w2["stop_time"] > w["stop_time"]
+
+
+def test_circle_images_V1_vortex_at_the_centre_has_no_finite_image():  # V1 (review: centre vortex → image at ∞)
+    xv, Gm, c = np.array([[0.3, 0.6], [0.0, 0.2]]), np.array([1.0, -1.0]), np.array([0.3, 0.0])
+    r = ch05.point_vortex_rhs(xv.tolist(), Gm.tolist(), "circle", a=1, center=(0.3, 0))
+    assert np.all(np.isfinite(r))
+    # by hand: vortex 1 sits at the centre, its image is at infinity (dropped); vortex 2's image is at the inverse point
+    d2 = xv[:, 1] - c
+    img2 = c + d2 / (d2 @ d2)  # a = 1
+    def ind(x, xs, g):  # (Γ/2π) e_z × r / |r|²
+        rr = x - xs
+        return g / (2 * np.pi) * np.array([-rr[1], rr[0]]) / (rr @ rr)
+    u1 = ind(xv[:, 0], xv[:, 1], -1.0) + ind(xv[:, 0], img2, +1.0)
+    u2 = ind(xv[:, 1], xv[:, 0], 1.0) + ind(xv[:, 1], img2, +1.0)
+    assert np.allclose(r, np.stack([u1, u2], axis=1), rtol=1e-13, atol=1e-15)
+    allv, allg = ch05.circle_image_system(xv, Gm, 1.0, c)
+    assert allv.shape == (2, 3) and np.all(np.isfinite(allv)) and allg.tolist() == [1.0, -1.0, 1.0]
+    # the circle is still a streamline
+    th = 2 * np.pi * np.arange(400) / 400
+    ring = c[:, None] + np.stack([np.cos(th), np.sin(th)])
+    un = np.sum(ch05.point_vortex_velocity(ring, allv, allg) * (ring - c[:, None]), axis=0)
+    assert np.max(np.abs(un)) < 1e-13
 
 
 # =====================================================================================================================
