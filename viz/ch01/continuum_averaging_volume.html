@@ -2990,7 +2990,7 @@ mean, std = ch01.sample_density(
       note: 'meaningful only for a box inside the continuum window: many molecules, yet small compared with $L_{\\rm flow}$',
       symbols: [['\\rho', 'density at the point', 'kg/m³'], ['\\delta m', 'mass in the box', 'kg'], ['\\delta V = L^3', 'box volume', 'm³'], ['N,\\ m', 'molecule count, mass of one', '–, kg']] },
     { id: 'noise', title: 'Counting noise of a box density', ref: 'D35', tex: '\\dfrac{\\sigma_\\rho}{\\rho} = \\bar N^{-1/2} = (nL^3)^{-1/2}',
-      live: s => { const md = model(s); return `(${T(md.n)} \\times ${T(Math.pow(md.L, 3))})^{-1/2} = ${T(md.noise)}`; },
+      live: s => { const md = model(s); return `\\begin{aligned} &(${T(md.n)} \\times ${T(Math.pow(md.L, 3))})^{-1/2} \\\\ &= ${T(md.noise)} \\end{aligned}`; },
       symbols: [['n', 'molecules per unit volume', 'm⁻³'], ['\\bar N', 'expected count in the box', '–'], ['L', 'box side', 'm']] },
     { id: 'kn', title: 'Knudsen number', ref: '§1.4', tex: 'Kn = \\dfrac{l}{L}',
       live: s => { const md = model(s); return `Kn = \\dfrac{${T(md.l)}}{${T(md.Lbody)}} = ${T(md.KnBody)}`; },

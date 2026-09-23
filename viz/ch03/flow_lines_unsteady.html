@@ -1,26 +1,19 @@
 <!DOCTYPE html>
-<!--
-  fluidpy interactive explainer — ch02 · rotation_of_axes (E1).
-  Built from analysis/ch02_design.md §E1; library inlined by tools/viz_inline.py; audited by tools/viz_lint.py + tools/shot.py.
-  Physics mirrors fluidpy.core.tensors (rotation_matrix_2d, rotation_matrix_3d, transform_vector, inverse_transform_vector,
-  transform_tensor, orthogonality_residual, transforms_as_vector, transforms_as_tensor) and fluidpy.ch02 (polar_components,
-  example_2_2). Equations cited by number from §2.2–2.4; explanations are our own.
--->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Which rotates — the arrow or the ruler?</title>
-<meta name="viz:chapter" content="ch02">
-<meta name="viz:slug" content="rotation_of_axes">
+<title>Three lines through one point — why do they disagree?</title>
+<meta name="viz:chapter" content="ch03">
+<meta name="viz:slug" content="flow_lines_unsteady">
 <meta name="viz:order" content="1">
-<meta name="viz:title" content="Which rotates — the arrow or the ruler?">
-<meta name="viz:summary" content="Turn the axes under a fixed vector (or a fixed stress state) and watch the direction-cosine matrix C, the new components x' = Cᵀx and the tensor components τ' = CᵀτC move together — one rule applied once per index.">
-<meta name="viz:concept" content="rotation of axes; direction cosines; passive vs active rotation; vector transformation rule; tensor transformation rule; orthogonality of C">
-<meta name="viz:sections" content="2.2 2.3 2.4">
-<meta name="viz:equations" content="2.4 2.5 2.7 2.8 2.12">
-<meta name="viz:fluidpy" content="ch02.rotation_matrix_2d ch02.rotation_matrix_3d ch02.transform_vector ch02.inverse_transform_vector ch02.transform_tensor ch02.orthogonality_residual ch02.polar_components ch02.example_2_2 ch02.transforms_as_vector ch02.transforms_as_tensor">
-<meta name="viz:derivations" content="D01 D02 D06">
+<meta name="viz:title" content="Three lines through one point — why do they disagree?">
+<meta name="viz:summary" content="A clock runs on an unsteady flow: the streamline pattern is redrawn every instant, one particle leaves its trail and a port leaks dye — three curves that coincide only when nothing changes in time.">
+<meta name="viz:concept" content="streamlines, path lines and streak lines; steady vs unsteady flow (Example 3.1)">
+<meta name="viz:sections" content="3.3">
+<meta name="viz:equations" content="3.7 3.8">
+<meta name="viz:fluidpy" content="ch03_kinematics.example_3_1">
+<meta name="viz:derivations" content="D03 D04 D05">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -480,15 +473,17 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* VIZ_BASE_CSS:END */
 </style>
-<style>
-  /* rotation_of_axes: amber words mark the mirror case; the passive/active table highlights the current row */
-  .c-amber { color: var(--viz-amber); font-weight: 650; }
-  .c-muted { color: var(--viz-muted); font-weight: 650; }
-  /* landscape phones: the curves window gives its height to the plane and the matrix (its key numbers live in the
-     matrix title); a row whose every view is hidden collapses instead of leaving an empty band */
-  .viz-app[data-layout="landscape"] .viz-view[data-view="curves"] { display: none !important; }
-  .viz-app[data-layout="landscape"] .viz-row:not(:has(> .viz-view:not([data-view="curves"]))) { display: none; }
-  .viz-app[data-layout="portrait"] .viz-row:not(:has(> .viz-view:not(.viz-hide-portrait))) { display: none; }
+<style data-chapter>
+/* chapter CSS — flow_lines_unsteady. Row 1 holds the flow plane and the answer sheet side by side (two squares);
+   row 2 is the port-velocity signal. On portrait and landscape phones row 2 is dropped (its numbers are in the u, v
+   readout and the Explain tab) so the two square views keep their size. No overflow, no fixed widths. */
+.viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
+/* short screens: the preset strip is dropped (the same cases are one chip + one slider away in Explore) */
+.viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+@media (max-height: 720px) { .viz-app[data-layout="portrait"] .viz-presets { display: none !important; } }
+/* short portrait phones, walkthrough only: every step sets the flow itself, so the flow chips give their row to the text */
+@media (max-height: 720px) { .viz-app[data-layout="portrait"][data-tab="tour"] .viz-stage [data-viz-key="param:mode"] { display: none !important; } }
 </style>
 </head>
 <body>
@@ -2345,769 +2340,642 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.tensors / fluidpy.ch02 (same symbols; angles in radians inside every function,
-   degrees only on the controls). Passive convention throughout: C_ij = e_i · e'_j, x' = Cᵀx (2.5), τ' = CᵀτC (2.12).
-     rot2d(θ)                 ↔ ch02.rotation_matrix_2d(θ)          [[c, −s], [s, c]]  (Example 2.1)
-     rot3d(k, θ)              ↔ ch02.rotation_matrix_3d(k, θ)       Rodrigues
-     transformVector(x, C)    ↔ ch02.transform_vector(x, C)         x'_j = x_i C_ij   (2.5)/(2.8)
-     inverseTransform(x', C)  ↔ ch02.inverse_transform_vector       x_j = x'_i C_ji   (2.7)
-     transformTensor(τ, C)    ↔ ch02.transform_tensor(τ, C)         τ'_mn = C_im C_jn τ_ij  (2.12)
-     orthoResidual(C)         ↔ ch02.orthogonality_residual(C)      max |CᵀC − I|
-     polar(u1, u2, θ)         ↔ ch02.polar_components               Example 2.1
-     shearRotated(a, θ)       ↔ ch02.example_2_2(a, θ)["tau_rot"]   (a sin 2θ, a cos 2θ, −a sin 2θ)
-     vectorTestResidual       ↔ ch02.transforms_as_vector(fn, C, points)
-     tensorTestResidual       ↔ ch02.transforms_as_tensor(fn, C, points)
+   PHYSICS — mirrors fluidpy.ch03_kinematics (same symbols, SI units; parity rows in selftest()):
+     field(mode, x, y, t, p)        ↔ ch03.unsteady_flow_preset(name, x, y, t, **p)       (§3.3, Ex. 3.1 + our presets)
+     flowMap(mode, x0, t0, t, p)    ↔ ch03.pathline(ch03.preset_field(name, …), x0, t0, [t0, t])   Eq. (3.8), closed forms
+     streakPoint(t, to, p)          ↔ ch03.streakline(…, port, t, [to])                     (dye released at t_o)
+     streamThrough(p, t, pt)        ↔ ch03.streamline(…, pt, t, s_max)                      Eq. (3.7) / D03 arc-length ODE
+     centres(tp, p)                 ↔ ch03.example_3_1(tp, xi0, omega)["path_center" | "streak_center"]   D04, D05
+   Modes: ex31  u = ωξ_o cos ωt, v = ωξ_o sin ωt (Ex. 3.1) · current  u gains U0 · steady  uniform at β = 30° ·
+          vortex  u = Ω(−y, x) (steady, curved) · rotstrain  u = s[x cos2Ωt + y sin2Ωt, x sin2Ωt − y cos2Ωt]
+          (Ω = the ω slider). The rotating strain has an exact flow map: in axes turning at Ω it is the steady
+          linear flow ξ' = M ξ with M = [[s, Ω], [−Ω, −s]], so x(t) = R(Ωt) e^{M(t−t_o)} R(−Ωt_o) x_o.
    --------------------------------------------------------------------------------------------------- */
-const D2R = Math.PI / 180;
-function rot2d(theta) { const c = Math.cos(theta), s = Math.sin(theta); return [[c, -s], [s, c]]; }
-function rot3d(axis, angle) {
-  const L = Math.hypot(axis[0], axis[1], axis[2]), k = axis.map(v => v / L), c = Math.cos(angle), s = Math.sin(angle);
-  const K = [[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]];   // [k]_× so that K x = k × x
-  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] = c * (i === j ? 1 : 0) + s * K[i][j] + (1 - c) * k[i] * k[j];
-  return C;
+const D2R = Math.PI / 180, BETA = Math.PI / 6, TMAX = 4 * Math.PI;
+const PYNAME = { ex31: 'ex31', current: 'ex31_current', steady: 'steady', vortex: 'steady_vortex', rotstrain: 'rotating_strain' };
+
+function field(mode, x, y, t, p) {
+  const w = p.omega, xi = p.xi0;
+  switch (mode) {
+    case 'ex31': return [w * xi * Math.cos(w * t), w * xi * Math.sin(w * t)];                    // Example 3.1
+    case 'current': return [p.U0 + w * xi * Math.cos(w * t), w * xi * Math.sin(w * t)];         // + mean current U0
+    case 'steady': return [w * xi * Math.cos(BETA), w * xi * Math.sin(BETA)];                    // frozen at β = 30°
+    case 'vortex': return [-w * y, w * x];                                                       // solid-body rotation
+    case 'rotstrain': { const c2 = Math.cos(2 * w * t), s2 = Math.sin(2 * w * t);                // strain, axes turn at Ω
+      return [p.s * (c2 * x + s2 * y), p.s * (s2 * x - c2 * y)]; }
+  }
+  return [0, 0];
 }
-/** Mirror the 2' axis: the second column of C changes sign → still orthogonal, det C = −1 (a reflection). */
-function mirrored(C) { return C.map(r => r.map((v, j) => (j === 1 ? -v : v))); }
-function transformVector(x, C) {            // Eq. (2.5): x'_j = x_i C_ij — the FIRST index of C is summed
-  const n = C.length, out = new Array(n).fill(0);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j] += x[i] * C[i][j];
+/** e^{Mτ} for a traceless 2×2 M = [[a, b], [c, −a]] (M² = (a² + bc) I): cosh / cos / shear branches. */
+function expTraceless(a, b, c, tau) {
+  const q2 = a * a + b * c; let C, S;
+  if (Math.abs(q2 * tau * tau) < 1e-10) { C = 1 + q2 * tau * tau / 2; S = tau * (1 + q2 * tau * tau / 6); }
+  else if (q2 > 0) { const q = Math.sqrt(q2); C = Math.cosh(q * tau); S = Math.sinh(q * tau) / q; }
+  else { const q = Math.sqrt(-q2); C = Math.cos(q * tau); S = Math.sin(q * tau) / q; }
+  return [[C + S * a, S * b], [S * c, C - S * a]];
+}
+function rot(th, x) { const c = Math.cos(th), s = Math.sin(th); return [c * x[0] - s * x[1], s * x[0] + c * x[1]]; }
+/** Position at time t of the particle that was at x0 at time t0 — the exact solution of Eq. (3.8) for each mode. */
+function flowMap(mode, x0, t0, t, p) {
+  const w = p.omega, xi = p.xi0, dt = t - t0;
+  if (mode === 'ex31' || mode === 'current') {
+    const dx = xi * (Math.sin(w * t) - Math.sin(w * t0)), dy = xi * (Math.cos(w * t0) - Math.cos(w * t));   // D04 step 4
+    return [x0[0] + dx + (mode === 'current' ? p.U0 * dt : 0), x0[1] + dy];
+  }
+  if (mode === 'steady') return [x0[0] + w * xi * dt * Math.cos(BETA), x0[1] + w * xi * dt * Math.sin(BETA)];
+  if (mode === 'vortex') return rot(w * dt, x0);
+  const E = expTraceless(p.s, w, -w, dt), a = rot(-w * t0, x0);                                  // rotating strain
+  return rot(w * t, [E[0][0] * a[0] + E[0][1] * a[1], E[1][0] * a[0] + E[1][1] * a[1]]);
+}
+function port(s) {
+  if (s.mode === 'rotstrain') return [s.px == null ? 0.6 : s.px, s.py == null ? 0.4 : s.py];
+  if (s.mode === 'vortex') return [s.xi0, 0];
+  return [0, 0];
+}
+function streakPoint(t, to, p) { return flowMap(p.mode, port(p), to, t, p); }
+function pathClosed(t, tRelease, p) { return flowMap(p.mode || 'current', [0, 0], tRelease, t, p); }
+/** Ex. 3.1 closed forms: path circle centre (−ξ sin ωt′, ξ cos ωt′), streak circle centre (ξ sin ωt′, −ξ cos ωt′). */
+function centres(tp, p) {
+  const a = p.omega * tp, xi = p.xi0;
+  return { path: [-xi * Math.sin(a), xi * Math.cos(a)], streak: [xi * Math.sin(a), -xi * Math.cos(a)] };
+}
+/** D05 step 7 with ξ_o = 1 at the origin: −(x + sin ωt′)/(y − cos ωt′) at (0, 0). */
+function slopePath(ang) { return -(0 + Math.sin(ang)) / (0 - Math.cos(ang)); }
+/** Stream function ψ (u = ∂ψ/∂y, v = −∂ψ/∂x) of each mode at time t — its contours are the streamline family. */
+function psi(s, x, y, t) {
+  if (s.mode === 'vortex') return -s.omega * (x * x + y * y) / 2;
+  if (s.mode === 'rotstrain') { const c2 = Math.cos(2 * s.omega * t), s2 = Math.sin(2 * s.omega * t);
+    return s.s * (c2 * x * y + s2 * (y * y - x * x) / 2); }
+  const u = field(s.mode, 0, 0, t, s); return u[0] * y - u[1] * x;
+}
+/** Streamline through pt at the frozen instant t: RK4 in arc length (D03 step 5), both directions. */
+function streamThrough(s, t, pt, R) {
+  const vel = (x, y) => field(s.mode, x, y, t, s);
+  const u = vel(pt[0], pt[1]); if (Math.hypot(u[0], u[1]) < 1e-12) return [];
+  return Viz.field.streamline(vel, pt[0], pt[1], { ds: R / 150, n: 520, bounds: [-1.3 * R, 1.3 * R, -1.3 * R, 1.3 * R] });
+}
+function Tref(s) { return s.omega > 0.05 ? 2 * Math.PI / s.omega : 4 * Math.PI; }
+function halfRange(s) { return s.mode === 'rotstrain' ? 2.5 : 2.5 * s.xi0; }
+function uPort(s, t) { const pt = port(s); return field(s.mode, pt[0], pt[1], t === undefined ? s.t : t, s); }
+function uRef(s) {
+  const pt = port(s), r = Math.hypot(pt[0], pt[1]);
+  const v = s.mode === 'current' ? s.U0 + s.omega * s.xi0 : s.mode === 'vortex' ? s.omega * r : s.mode === 'rotstrain' ? s.s * r : s.omega * s.xi0;
+  return Math.max(v, 1e-9);
+}
+function isSteady(s) { return s.mode === 'steady' || s.mode === 'vortex' || s.omega === 0; }
+/** The dye: one particle per release time t_o = kΔ (Δ = T/48), kept for one period (Ex. 3.1) or two (others). */
+function dyeList(s) {
+  const Tr = Tref(s), d = Tr / 48, keep = (s.mode === 'ex31' ? 1 : 2) * Tr, pt = port(s), R = halfRange(s), out = [];
+  const kmax = Math.floor(s.t / d + 1e-9), kmin = Math.ceil((s.t - keep) / d - 1e-9), k0 = s.hist ? kmin : Math.max(0, kmin);
+  for (let k = kmax; k >= k0; k--) {
+    const to = k * d, q = flowMap(s.mode, pt, to, s.t, s);
+    if (Math.abs(q[0]) > 3 * R || Math.abs(q[1]) > 3 * R || !isFinite(q[0])) continue;
+    out.push({ to, x: q[0], y: q[1], age: s.t - to, keep });
+  }
   return out;
 }
-function inverseTransform(xp, C) {          // Eq. (2.7): x_j = x'_i C_ji — now the SECOND index is summed
-  const n = C.length, out = new Array(n).fill(0);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out[j] += xp[i] * C[j][i];
-  return out;
-}
-function transformTensor(T, C) {            // Eq. (2.12): τ'_mn = C_im C_jn τ_ij — one C per index
-  const n = C.length, out = [];
-  for (let m = 0; m < n; m++) { out.push(new Array(n).fill(0));
-    for (let nn = 0; nn < n; nn++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) out[m][nn] += C[i][m] * C[j][nn] * T[i][j]; }
-  return out;
-}
-function orthoResidual(C) {                 // max |C_ji C_jk − δ_ik|
-  const n = C.length; let r = 0;
-  for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) { let s = 0; for (let j = 0; j < n; j++) s += C[j][i] * C[j][k]; r = Math.max(r, Math.abs(s - (i === k ? 1 : 0))); }
-  return r;
-}
-function detC(C) {
-  if (C.length === 2) return C[0][0] * C[1][1] - C[0][1] * C[1][0];
-  return C[0][0] * (C[1][1] * C[2][2] - C[1][2] * C[2][1]) - C[0][1] * (C[1][0] * C[2][2] - C[1][2] * C[2][0]) + C[0][2] * (C[1][0] * C[2][1] - C[1][1] * C[2][0]);
-}
-function polar(u1, u2, theta) { const c = Math.cos(theta), s = Math.sin(theta); return [u1 * c + u2 * s, -u1 * s + u2 * c]; }   // Example 2.1
-function activeRotate(x, theta) { const C = rot2d(theta); return [C[0][0] * x[0] + C[0][1] * x[1], C[1][0] * x[0] + C[1][1] * x[1]]; }  // R x = C x (Wikipedia's job)
-function shearRotated(a, theta) { return [a * Math.sin(2 * theta), a * Math.cos(2 * theta), -a * Math.sin(2 * theta)]; }   // Example 2.2: τ'₁₁, τ'₁₂, τ'₂₂
-function vectorTestResidual(fn, C, points) {   // Eq. (2.8) test: is fn(Cᵀx) equal to Cᵀ fn(x) at every sample point?
-  let res = 0;
-  points.forEach(x => { const u = fn(x), up = fn(transformVector(x, C)), cu = transformVector(u, C);
-    for (let j = 0; j < u.length; j++) res = Math.max(res, Math.abs(up[j] - cu[j])); });
-  return res;
-}
-function tensorTestResidual(fn, C, points) {   // Eq. (2.12) test: is fn(Cᵀx) equal to Cᵀ fn(x) C?
-  let res = 0;
-  points.forEach(x => { const T = fn(x), Tp = fn(transformVector(x, C)), TT = transformTensor(T, C);
-    for (let m = 0; m < T.length; m++) for (let n = 0; n < T.length; n++) res = Math.max(res, Math.abs(Tp[m][n] - TT[m][n])); });
-  return res;
-}
-const TEST_POINTS = [[1, 2], [-0.5, 1.5], [2, -1]];
-const VECTOR_TESTS = [
-  { name: 'x itself', tex: '(x_1, x_2)', fn: x => x.slice(), vector: true },
-  { name: 'a stretched copy', tex: '(2x_1, 2x_2)', fn: x => x.map(v => 2 * v), vector: true },
-  { name: 'squares', tex: '(x_1^2, x_2^2)', fn: x => x.map(v => v * v), vector: false },
-  { name: 'length first', tex: '(|\\mathbf x|, 0)', fn: x => [Math.hypot(x[0], x[1]), 0], vector: false }
-];
-const TPRESETS = { shear: 'pure shear', uniaxial: 'uniaxial', hydro: 'hydrostatic −p', fixed: 'fixed array (not a tensor)' };
-function tauOf(s) {
-  const a = s.a;
-  if (s.tpreset === 'uniaxial') return [[a, 0], [0, 0]];
-  if (s.tpreset === 'hydro') return [[-a, 0], [0, -a]];
-  return [[0, a], [a, 0]];                 // 'shear' and 'fixed' share the numbers; 'fixed' declares them frame-independent
-}
-/** Everything the stage, readouts, Explain and Code need, computed once per state. */
-function physics(s) {
-  const th = s.theta * D2R, three = s.mode === 'vector' && s.axis3d;
-  let C = three ? rot3d([1, 1, 1], th) : rot2d(th);
-  if (s.mirror) C = mirrored(C);
-  const C2 = s.mirror ? mirrored(rot2d(th)) : rot2d(th);   // the plane matrix (tensor and polar modes, curves)
-  const x = three ? [s.x1, s.x2, 0] : [s.x1, s.x2];
-  const xp = transformVector(x, C), back = inverseTransform(xp, C), xa = activeRotate([s.x1, s.x2], th);
-  const res = orthoResidual(C), det = detC(C);
-  const tau = tauOf(s), taup = transformTensor(tau, C2);
-  const shown = s.tpreset === 'fixed' ? tau : taup;                    // the fixed array claims the same numbers in every frame
-  const fixedRes = tensorTestResidual(() => tau, C2, [[1, 2]]);        // how far the claim is from (2.12)
-  const pol = polar(s.x1, s.x2, th);
-  const norm = Math.hypot(s.x1, s.x2), normp = Math.hypot(...xp);
-  const d = tau[0][0] - tau[1][1], off = tau[0][1];
-  const thetaP = (Math.abs(d) < 1e-12 && Math.abs(off) < 1e-12) ? null : 0.5 * Math.atan2(2 * off, d);   // τ'₁₂ = 0 there
-  return { th, C, C2, x, xp, back, xa, res, det, tau, taup, shown, fixedRes, pol, norm, normp, thetaP, three };
-}
-/* ---------------------------------------------------------------------------------------------------
-   FORMATTING
-   --------------------------------------------------------------------------------------------------- */
-const f3 = v => (Math.abs(v) < 5e-4 ? '0.000' : v.toFixed(3)).replace('-', '−');
-const fd = v => Viz.fmt(v) + '°';
-const sgn = v => (v < 0 ? '−' : '+');
-const T = (v, sig) => Viz.tnum(v, sig || 3);
-const SUB = ['₁', '₂', '₃'];
-function pair(v) { return '(' + f3(v[0]) + ', ' + f3(v[1]) + (v.length > 2 ? ', ' + f3(v[2]) : '') + ')'; }
-function residTxt(r) { return r < 1e-12 ? (r === 0 ? '0' : r.toExponential(0).replace('-', '−').replace('e', 'e')) : Viz.fmt(r); }
-function modeIs(s, m) { return s.mode === m; }
+/* number formatting: fixed decimals, minus sign, tiny → 0 */
+function fx(v, d) { d = d === undefined ? 3 : d; if (!isFinite(v)) return v > 0 ? '∞' : '−∞'; if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0; return v.toFixed(d).replace('-', '−'); }
+function tx(v, d) { d = d === undefined ? 3 : d; if (!isFinite(v)) return v > 0 ? '\\infty' : '-\\infty'; if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0; return v.toFixed(d); }
+function degs(rad) { return fx(rad / D2R, 1); }
+function tdeg(rad) { return tx(rad / D2R, 1) + '^\\circ'; }
+function slopeOf(u) { return Math.abs(u[0]) < 1e-12 ? (u[1] >= 0 ? Infinity : -Infinity) : u[1] / u[0]; }
+const MODE_WORD = { ex31: 'Ex. 3.1', current: '+ current', steady: 'steady', vortex: 'vortex', rotstrain: 'rotating strain' };
+let flowP = null, dragPort = false;
 
 /* ---------------------------------------------------------------------------------------------------
-   DRAWING — three linked views driven by one state
+   DRAWING
    --------------------------------------------------------------------------------------------------- */
-const COL = () => ({ old: Viz.color('teal'), neu: Viz.color('orange'), normal: Viz.color('blue'), shear: Viz.color('rose'), ghost: Viz.color('muted'), text: Viz.color('text'), acc: Viz.color('accent'), amber: Viz.color('amber') });
-const HIT = { plane: null, matrix: null };
-let DRAG = null;
-
-function planeRange(s, ph) {
-  if (s.mode === 'tensor') return 2.5;
-  if (s.mode === 'polar') return 1.2 + Math.hypot(s.x1, s.x2) + 0.3;
-  return Math.max(Math.abs(s.x1), Math.abs(s.x2)) <= 2.5 ? 3.0 : 3.6;
-}
-/** Label at an arrow tip, pushed a little further along the arrow so it never sits on the component labels. */
-function tipLabel(P, from, to, str, color) {
-  const dx = P.X(to[0]) - P.X(from[0]), dy = P.Y(to[1]) - P.Y(from[1]), L = Math.hypot(dx, dy) || 1;
-  Viz.text(P.ctx, str, P.X(to[0]) + dx / L * 14, P.Y(to[1]) + dy / L * 14, { size: 14, weight: 800, color: color, bg: true, align: 'center' });
-}
-function axisLine(P, ux, uy, R, color, label, prime, alpha) {
-  P.line([-ux * R * 0.95, ux * R * 0.95], [-uy * R * 0.95, uy * R * 0.95], { color: Viz.alpha(color, alpha || 0.9), width: 1.4 });
-  P.arrow(ux * R * 0.8, uy * R * 0.8, ux * R * 0.15, uy * R * 0.15, { color: color, width: 1.6, head: 8 });
-  P.text(ux * R * 0.97, uy * R * 0.97, label + (prime ? '′' : ''), { color: color, weight: 700, size: 13, align: 'center', dx: -uy * 9, dy: -ux * 9 });
-}
-/** A component shadow: dashed line from the tip to its foot on an axis, a dot, and the label pushed 12 px off the axis
-    in the world direction `off` (teal labels sit below / left of the old axes, orange labels above / right of the new). */
-function shadow(P, tip, foot, color, label, off) {
-  P.line([tip[0], foot[0]], [tip[1], foot[1]], { color: Viz.alpha(color, 0.9), width: 1.3, dash: [5, 4] });
-  P.dot(foot[0], foot[1], 3.5, { color: color });
-  if (label) { const o = off || [0, 1], L = Math.hypot(o[0], o[1]) || 1;
-    Viz.text(P.ctx, label, P.X(foot[0]) + o[0] / L * 12, P.Y(foot[1]) - o[1] / L * 12, { size: 12, weight: 650, color: color, bg: true, align: 'center', baseline: 'middle' }); }
-}
-/** Angle arc from a0 to a1 at radius r; the label sits at radius lr (default: just outside the arc), at the mid-angle. */
-function drawArc(P, a0, a1, r, color, label, lr, opposite) {
-  const ctx = P.ctx, cx = P.X(0), cy = P.Y(0), rp = P.sx(r), lp = lr ? P.sx(lr) : rp + 14;
-  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
-  ctx.arc(cx, cy, rp, -a0, -a1, a1 > a0); ctx.stroke(); ctx.restore();
-  const am = (a0 + a1) / 2 + (opposite ? Math.PI : 0);   // opposite: label across the origin, away from the arrow and its shadows
-  if (label) Viz.text(ctx, label, cx + Math.cos(am) * lp, cy - Math.sin(am) * lp, { size: 12, weight: 650, color: color, bg: true, align: 'center' });
-}
-function drawPlane(v, s, Q) {
-  v.clear(); const c = COL(), R = planeRange(s), small = v.w < 420;
-  const P = v.plot({ xlim: [-R, R], ylim: [-R, R], equal: true, pad: { l: 6, r: 6, t: 6, b: 6 } });
-  const th = Q.th, ct = Math.cos(th), st = Math.sin(th), passive = s.what === 'axes';
-  // old frame (teal)
-  axisLine(P, 1, 0, R, c.old, '1'); axisLine(P, 0, 1, R, c.old, '2');
-  // new frame (orange) — only when the axes are what turns
-  const e1p = [ct, st], e2p = s.mirror ? [st, -ct] : [-st, ct];
-  if (passive && s.mode !== 'polar') { axisLine(P, e1p[0], e1p[1], R, c.neu, '1', true); axisLine(P, e2p[0], e2p[1], R, c.neu, '2', true); }
-  // the turning angle: an arc near the axis tips (beyond every shadow), label beyond the 1′ arrowhead
-  if (passive && s.mode !== 'polar' && Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, s.mode === 'tensor' ? 1.9 : R * 0.8, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta), s.mode === 'tensor' ? 2.2 : R * 0.9);
-  // a selected matrix cell: the two unit vectors and the angle between them (label well outside the shadow feet)
-  if (s.cell && passive && !Q.three && s.mode !== 'polar') {
-    const i = s.cell.i, j = s.cell.j, ei = i === 0 ? [1, 0] : [0, 1], ej = j === 0 ? e1p : e2p, uL = s.mode === 'tensor' ? 1.7 : 1.0;
-    P.arrow(0, 0, ei[0] * uL, ei[1] * uL, { color: c.old, width: 4, head: 10 });
-    P.arrow(0, 0, ej[0] * uL, ej[1] * uL, { color: c.neu, width: 4, head: 10 });
-    const a0 = Math.atan2(ei[1], ei[0]), a1 = Math.atan2(ej[1], ej[0]);
-    // the label goes across the origin (the arrow, its shadows and the element labels all live on the arc's side)
-    drawArc(P, a0, a1, s.mode === 'tensor' ? 1.5 : 0.6, c.acc, 'cos ' + fd(Math.round(((a1 - a0) / D2R + 540) % 360 - 180)) + ' = ' + f3(Q.C[i][j]), s.mode === 'tensor' ? 1.95 : 1.1, true);
+function drawFlow(g, s) {
+  const v = g.view('flow'); v.clear();
+  if (v.w < 30 || v.h < 30) return;
+  const R = halfRange(s), pt = port(s), small = v.w < 300, ctx = v.ctx, app = g.app;
+  const xc = s.mode === 'current' ? 0.5 * R : 0;                      // the current carries everything downstream
+  const P = v.plot({ xlim: [xc - R, xc + R], ylim: [-R, R], equal: true, xlabel: 'x [m]', ylabel: small ? '' : 'y [m]' }).axes({ grid: false });
+  flowP = P;
+  const vel = (x, y) => field(s.mode, x, y, s.t, s), teal = Viz.color('teal'), rose = Viz.color('rose'), orange = Viz.color('orange');
+  // faint streamline family of this instant (contours of ψ) + faint arrows
+  const G = Viz.field.grid((x, y) => psi(s, x, y, s.t), P.xlim, P.ylim, 41, 41);
+  let lo = Infinity, hi = -Infinity; for (let i = 0; i < G.v.length; i++) { lo = Math.min(lo, G.v[i]); hi = Math.max(hi, G.v[i]); }
+  if (hi - lo > 1e-12) {
+    const n = small ? 9 : 13, lev = []; for (let k = 0; k < n; k++) lev.push(lo + (hi - lo) * (k + 0.5) / n);
+    Viz.field.drawContours(P, G, lev, { color: Viz.alpha(teal, 0.32), width: 1 });
   }
-  if (s.mode === 'vector') {
-    const x = [s.x1, s.x2], xa = Q.xa;
-    if (passive) {
-      const xp = Q.xp;
-      shadow(P, x, [x[0], 0], c.old, small ? 'x₁' : 'x₁ = ' + f3(x[0]), [0, -1]);
-      shadow(P, x, [0, x[1]], c.old, small ? 'x₂' : 'x₂ = ' + f3(x[1]), [-1, 0]);
-      shadow(P, x, [xp[0] * e1p[0], xp[0] * e1p[1]], c.neu, (small ? 'x′₁' : 'x′₁ = ' + f3(xp[0])) + (Q.three ? ' (proj.)' : ''), e2p);
-      shadow(P, x, [xp[1] * e2p[0], xp[1] * e2p[1]], c.neu, (small ? 'x′₂' : 'x′₂ = ' + f3(xp[1])) + (Q.three ? ' (proj.)' : ''), [-e1p[0], -e1p[1]]);
-      P.arrow(0, 0, x[0], x[1], { color: c.text, width: 3, head: 11 });
-      tipLabel(P, [0, 0], x, 'x', c.text);
-      if (Q.three) Viz.text(P.ctx, 'axis (1,1,1)/√3 · 3-D C', P.X(0), P.Y(-R * 0.9), { size: 12, weight: 600, color: c.neu, bg: true, align: 'center' });
-    } else {
-      P.arrow(0, 0, x[0], x[1], { color: Viz.alpha(c.ghost, 0.55), width: 2.5, head: 10, dash: [6, 4] });
-      { const L = Math.hypot(x[0], x[1]) || 1; Viz.text(P.ctx, 'x before', P.X(x[0] * (1 + 0.35 / L)), P.Y(x[1] * (1 + 0.35 / L)), { size: 12, weight: 600, color: c.ghost, bg: true, align: 'center' }); }
-      shadow(P, xa, [xa[0], 0], c.neu, small ? 'x′₁' : 'x′₁ = ' + f3(xa[0]), [0, -1]);
-      shadow(P, xa, [0, xa[1]], c.neu, small ? 'x′₂' : 'x′₂ = ' + f3(xa[1]), [-1, 0]);
-      P.arrow(0, 0, xa[0], xa[1], { color: c.text, width: 3, head: 11 });
-      tipLabel(P, [0, 0], xa, 'Cx', c.text);
-      if (Math.abs(s.theta) > 2 && !small) drawArc(P, Math.atan2(x[1], x[0]), Math.atan2(xa[1], xa[0]), Q.norm * 0.45, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
+  Viz.field.quiver(P, vel, { nx: small ? 5 : 7, color: Viz.alpha(Viz.color('muted'), 0.42) });
+  P.clip(() => {
+    // the bold streamline through the port (D03's arc-length ODE at frozen t)
+    const sl = streamThrough(s, s.t, pt, R);
+    if (sl.length) P.poly(sl, { color: teal, width: 2.6 });
+    if (app.tab === 'derive' && s.mark === 'tangent') {                   // D05 steps 7–8: the particle at the port NOW
+      const tt = Viz.num.linspace(s.t, s.t + Tref(s), 181);
+      P.poly(tt.map(t => flowMap(s.mode, pt, s.t, t, s)), { color: orange, width: 2.2, dash: [6, 4] });
     }
-    HIT.plane = { tip: passive ? [P.X(x[0]), P.Y(x[1])] : [P.X(xa[0]), P.Y(xa[1])], P };
-  } else if (s.mode === 'tensor') {
-    drawElement(P, s, Q, c, small);
-    HIT.plane = { tip: null, P };
-  } else {
-    // polar mode (Example 2.1): the point at angle θ on a circle; the polar frame is the frame turned by θ
-    const rP = 1.2, pt = [rP * ct, rP * st], u = [s.x1, s.x2], ur = Q.pol[0], ut = Q.pol[1], er = [ct, st], et = [-st, ct];
-    P.ctx.save(); P.ctx.setLineDash([4, 4]); P.ctx.strokeStyle = Viz.alpha(c.ghost, 0.6); P.ctx.lineWidth = 1; P.ctx.beginPath(); P.ctx.arc(P.X(0), P.Y(0), P.sx(rP), 0, 2 * Math.PI); P.ctx.stroke(); P.ctx.restore();
-    P.line([0, pt[0]], [0, pt[1]], { color: Viz.alpha(c.neu, 0.5), width: 1, dash: [3, 3] });
-    if (Math.abs(s.theta) > 2 && !small) drawArc(P, 0, th, 0.55, Viz.alpha(c.neu, 0.8), 'θ = ' + fd(s.theta));
-    P.arrow(pt[0], pt[1], er[0] * 0.9, er[1] * 0.9, { color: c.neu, width: 2, head: 8 });
-    P.arrow(pt[0], pt[1], et[0] * 0.9, et[1] * 0.9, { color: c.neu, width: 2, head: 8 });
-    if (!small) {   // on small views the orange pair is named in the title; the component labels keep the room
-      Viz.text(P.ctx, 'e_r', P.X(pt[0] + er[0] * 1.05), P.Y(pt[1] + er[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
-      Viz.text(P.ctx, 'e_θ', P.X(pt[0] + et[0] * 1.05), P.Y(pt[1] + et[1] * 1.05), { size: 12, weight: 700, color: c.neu, bg: true, align: 'center' });
+    // the tagged particle: released at the port at t = 0 — faint whole path, bold "so far"
+    const N = 360, ts = Viz.num.linspace(0, TMAX, N), pts = ts.map(t => flowMap(s.mode, pt, 0, t, s));
+    P.poly(pts, { color: Viz.alpha(orange, 0.35), width: 1.4, dash: [5, 4] });
+    const done = pts.filter((q, i) => ts[i] <= s.t + 1e-9); done.push(flowMap(s.mode, pt, 0, s.t, s));
+    if (done.length > 1) P.poly(done, { color: orange, width: 2.8 });
+    // the probed dye particle's own path (inspector)
+    if (s.probe != null && s.probe <= s.t + 1e-9) {
+      const tt = Viz.num.linspace(s.probe, s.t, 120);
+      P.poly(tt.map(t => flowMap(s.mode, pt, s.probe, t, s)), { color: Viz.alpha(orange, 0.5), width: 1.8 });
     }
-    const tip = [pt[0] + u[0], pt[1] + u[1]];
-    shadow(P, tip, [pt[0] + u[0], pt[1]], c.old, small ? 'u₁' : 'u₁ = ' + f3(u[0]), [0, -1]);
-    shadow(P, tip, [pt[0], pt[1] + u[1]], c.old, small ? 'u₂' : 'u₂ = ' + f3(u[1]), [-1, 0]);
-    shadow(P, tip, [pt[0] + ur * er[0], pt[1] + ur * er[1]], c.neu, small ? 'u_r' : 'u_r = ' + f3(ur), et);
-    shadow(P, tip, [pt[0] + ut * et[0], pt[1] + ut * et[1]], c.neu, small ? 'u_θ' : 'u_θ = ' + f3(ut), [-er[0], -er[1]]);
-    P.arrow(pt[0], pt[1], u[0], u[1], { color: c.text, width: 3, head: 11 });
-    P.dot(pt[0], pt[1], 5, { color: c.neu, stroke: '#fff', strokeWidth: 2 });
-    tipLabel(P, pt, tip, 'u', c.text);
-    HIT.plane = { tip: [P.X(tip[0]), P.Y(tip[1])], origin: pt, P };
-  }
-}
-/** The 2-D stress element: a square in the old frame (teal) with τ₁₁, τ₂₂ (blue) and τ₁₂ (rose) on its faces, and the
-    same point cut by the rotated square (orange) carrying τ'₁₁, τ'₁₂, τ'₂₂. First index = face, second = direction. */
-function drawElement(P, s, Q, c, small) {
-  const h = 1.0, k = 0.5 / Math.max(0.5, s.a);    // half-side of the element; arrow length per Pa
-  function square(ang, color, fill) {
-    const pts = [[-h, -h], [h, -h], [h, h], [-h, h]].map(p => [p[0] * Math.cos(ang) - p[1] * Math.sin(ang), p[0] * Math.sin(ang) + p[1] * Math.cos(ang)]);
-    P.ctx.save(); P.ctx.beginPath(); pts.forEach((p, i) => { if (i === 0) P.ctx.moveTo(P.X(p[0]), P.Y(p[1])); else P.ctx.lineTo(P.X(p[0]), P.Y(p[1])); }); P.ctx.closePath();
-    if (fill) { P.ctx.fillStyle = Viz.alpha(color, 0.08); P.ctx.fill(); } P.ctx.strokeStyle = color; P.ctx.lineWidth = 2; P.ctx.stroke(); P.ctx.restore();
-  }
-  function faceArrows(ang, tau, color, primed, normalSign, shearSign, inside) {
-    const e1 = [Math.cos(ang), Math.sin(ang)], e2 = [-e1[1], e1[0]], p = primed ? '′' : '';
-    // +1 face: normal τ11 along e1, shear τ12 along e2 ; +2 face: normal τ22 along e2, shear τ21 along e1; − faces mirrored
-    const faces = [{ n: e1, t: e2, tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: 1 },
-      { n: e2, t: e1, tn: tau[1][1], ts: tau[1][0], ln: 'τ' + p + '₂₂', ls: 'τ' + p + '₂₁', sign: 1 },
-      { n: [-e1[0], -e1[1]], t: [-e2[0], -e2[1]], tn: tau[0][0], ts: tau[0][1], ln: 'τ' + p + '₁₁', ls: 'τ' + p + '₁₂', sign: -1 },
-      { n: [-e2[0], -e2[1]], t: [-e1[0], -e1[1]], tn: tau[1][1], ts: tau[1][0], ln: 'τ' + p + '₂₂', ls: 'τ' + p + '₂₁', sign: -1 }];
-    faces.forEach(f => {
-      const cx = f.n[0] * h, cy = f.n[1] * h, al = primed || f.sign > 0 ? 1 : 0.7, labN = f.sign === normalSign, labS = f.sign === shearSign;
-      // label positions: outside = beyond the arrow tips; inside = just within the face (old frame), radially apart from the new frame's labels
-      if (Math.abs(f.tn) > 1e-9) { P.arrow(cx, cy, f.n[0] * f.tn * k, f.n[1] * f.tn * k, { color: Viz.alpha(c.normal, al), width: primed ? 2.6 : 2, head: 8 });
-        const dn = inside ? -0.3 : (Math.abs(f.tn) * k + 0.14) * Math.sign(f.tn), sh = inside ? -0.42 : 0;
-        if (labN) Viz.text(P.ctx, f.ln + (small ? '' : ' = ' + f3(f.tn)), P.X(cx + f.n[0] * dn + f.t[0] * sh), P.Y(cy + f.n[1] * dn + f.t[1] * sh), { size: 12, weight: 650, color: c.normal, bg: true, align: 'center' }); }
-      if (Math.abs(f.ts) > 1e-9) { P.arrow(cx - f.t[0] * f.ts * k / 2, cy - f.t[1] * f.ts * k / 2, f.t[0] * f.ts * k, f.t[1] * f.ts * k, { color: Viz.alpha(c.shear, al), width: primed ? 2.6 : 2, head: 8 });
-        const dn = inside ? -0.3 : 0.4, st = inside ? 0.42 : f.ts * k / 2 + 0.22;
-        if (labS) Viz.text(P.ctx, f.ls + (small ? '' : ' = ' + f3(f.ts)), P.X(cx + f.t[0] * st + f.n[0] * dn), P.Y(cy + f.t[1] * st + f.n[1] * dn), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' }); }
+    // dye: rose dots, older = paler
+    const dye = dyeList(s), ageMark = app.tab === 'derive' && s.mark === 'age';
+    dye.forEach((d, i) => {
+      const a = 0.95 - 0.7 * Math.min(1, d.age / d.keep);
+      P.dot(d.x, d.y, small ? 2.6 : 3.3, { color: Viz.alpha(rose, a) });
+      if (ageMark && !small && i % 12 === 6) {
+        const lab = 'ωtₒ = ' + degs(s.omega * d.to) + '°', X = P.X(d.x);
+        ctx.save(); ctx.font = Viz.font(12, 600); const tw = ctx.measureText(lab).width; ctx.restore();
+        const right = X + 7 + tw < P.px.x + P.px.w - 2;
+        Viz.text(ctx, lab, right ? X + 7 : X - 7, P.Y(d.y), { size: 12, color: rose, bg: true, align: right ? 'left' : 'right' });
+      }
     });
-  }
-  // old-frame labels sit inside the element on its − faces; new-frame labels outside (normal on +, shear on − faces):
-  // radially and by face they never meet, whatever θ
-  square(0, c.old, false); faceArrows(0, Q.tau, c, false, -1, -1, true);
-  square(Q.th, c.neu, true); faceArrows(Q.th, Q.shown, c, true, 1, -1, false);
-  if (s.tpreset === 'fixed') Viz.text(P.ctx, 'declared "the same in every frame"', P.X(0), P.Y(-planeRange(s) * 0.9), { size: 12, weight: 650, color: c.shear, bg: true, align: 'center' });
-}
-/* ---- the direction-cosine matrix as cells + the live assembly line ---- */
-function drawMatrix(v, s, Q) {
-  v.clear(); const c = COL(), ctx = v.ctx, W = v.w, H = v.h, C = (s.mode === 'vector' ? Q.C : Q.C2), n = C.length;
-  const lh = Math.min(18, Math.max(15, H * 0.085)), showLabel = W >= 300;
-  // height budget: header + n cells + at least one assembly line; on short views (phone Explore) the header shrinks
-  // and the cells print two decimals so that 40 px cells are not forced past the canvas bottom
-  const tight = (H - (lh + 8) - 22 - 18) / n < 40, hh = tight ? 18 : 22, cellMin = tight ? 30 : 40, dec = tight && (H - (lh + 8) - hh - 14) / n < 40 ? 2 : 3;
-  const textH = tight ? lh + 6 : 3 * lh + 8;
-  const cw = Math.max(cellMin, Math.min(64, (W - hh - 16 - (showLabel ? 34 : 0)) / n, (H - textH - hh - (tight ? 12 : 18)) / n));
-  const fcell = v => (dec === 2 ? (Math.abs(v) < 5e-3 ? '0.00' : v.toFixed(2)).replace('-', '−') : f3(v));
-  const x0 = (W - (n * cw + hh + (showLabel ? 34 : 0))) / 2 + hh + (showLabel ? 34 : 0), y0 = (tight ? 2 : 6) + hh;
-  const selj = s.selj === undefined ? 0 : s.selj, cell = s.cell;
-  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  // column highlight (orange = the new axis j being built), row highlight (teal) for a picked cell
-  ctx.fillStyle = Viz.alpha(c.neu, 0.13); ctx.fillRect(x0 + selj * cw, y0, cw, n * cw);
-  if (cell) { ctx.fillStyle = Viz.alpha(c.old, 0.13); ctx.fillRect(x0, y0 + cell.i * cw, n * cw, cw); }
-  // headers
-  ctx.font = Viz.font(12.5, 700);
-  for (let j = 0; j < n; j++) { ctx.fillStyle = c.neu; ctx.fillText('e′' + SUB[j], x0 + j * cw + cw / 2, y0 - hh / 2); }
-  for (let i = 0; i < n; i++) { ctx.fillStyle = c.old; ctx.fillText('e' + SUB[i], x0 - hh / 2, y0 + i * cw + cw / 2); }
-  // brackets
-  ctx.strokeStyle = c.text; ctx.lineWidth = 1.5; ctx.beginPath();
-  ctx.moveTo(x0 + 4, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y0 + n * cw); ctx.lineTo(x0 + 4, y0 + n * cw);
-  ctx.moveTo(x0 + n * cw - 4, y0); ctx.lineTo(x0 + n * cw, y0); ctx.lineTo(x0 + n * cw, y0 + n * cw); ctx.lineTo(x0 + n * cw - 4, y0 + n * cw); ctx.stroke();
-  // cells
-  ctx.font = Viz.font(cw < 44 ? 12 : 13.5, 600, true);
-  const cells = [];
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const x = x0 + j * cw, y = y0 + i * cw, on = cell && cell.i === i && cell.j === j;
-    if (on) { ctx.strokeStyle = c.acc; ctx.lineWidth = 2.5; Viz.roundRect(ctx, x + 2, y + 2, cw - 4, cw - 4, 6); ctx.stroke(); }
-    ctx.fillStyle = on ? c.acc : c.text; ctx.fillText(fcell(C[i][j]), x + cw / 2, y + cw / 2);
-    cells.push({ i, j, x, y, s: cw });
-  }
-  if (showLabel) { ctx.font = Viz.font(13, 700); ctx.fillStyle = c.text; ctx.textAlign = 'right'; ctx.fillText('C = ', x0 - hh - 2, y0 + n * cw / 2); }
-  // assembly line for the selected column (vector) or entry (tensor)
-  let L1, L2;
-  const j = selj;
-  if (s.mode === 'tensor') {
-    const m = cell ? cell.i : 0, nn = cell ? cell.j : 1, tau = Q.tau, terms = [];
-    for (let i = 0; i < 2; i++) for (let jj = 0; jj < 2; jj++) if (Math.abs(tau[i][jj]) > 1e-12) terms.push(C[i][m] * C[jj][nn] * tau[i][jj]);
-    L1 = 'τ′' + SUB[m] + SUB[nn] + ' = C_i' + SUB[m] + ' C_j' + SUB[nn] + ' τ_ij  (two C\'s: two indices)';
-    L2 = '= ' + (terms.length ? terms.map((t, q) => (q === 0 ? (t < 0 ? '−' : '') : ' ' + sgn(t) + ' ') + f3(Math.abs(t))).join('') : '0') + ' = ' + f3(Q.taup[m][nn]) + ' Pa' + (s.tpreset === 'fixed' ? '  ≠ declared ' + f3(Q.tau[m][nn]) : '');
-  } else if (s.mode === 'polar') {
-    const nm = ['u_r', 'u_θ'][j], u = [s.x1, s.x2];
-    L1 = nm + ' = u₁C₁' + SUB[j] + ' + u₂C₂' + SUB[j];
-    L2 = '= ' + f3(u[0]) + '×' + f3(C[0][j]) + ' ' + sgn(u[1] * C[1][j]) + ' ' + f3(Math.abs(u[1] * C[1][j])) + ' = ' + f3(Q.pol[j]);
-  } else {
-    const x = Q.x, xp = s.what === 'axes' ? Q.xp : Q.xa;
-    if (s.what === 'axes') {
-      L1 = 'x′' + SUB[j] + ' = x₁C₁' + SUB[j] + ' + x₂C₂' + SUB[j] + (n === 3 ? ' + x₃C₃' + SUB[j] : '') + '   (first index summed)';
-      L2 = '= ' + f3(x[0]) + '×' + f3(C[0][j]) + ' ' + sgn(x[1] * C[1][j]) + ' ' + f3(Math.abs(x[1] * C[1][j])) + (n === 3 ? ' + 0' : '') + ' = ' + f3(xp[j]);
-    } else {
-      L1 = 'x′' + SUB[j] + ' = C' + SUB[j] + '₁x₁ + C' + SUB[j] + '₂x₂   (second index summed: C x)';
-      L2 = '= ' + f3(C[j][0]) + '×' + f3(x[0]) + ' ' + sgn(C[j][1] * x[1]) + ' ' + f3(Math.abs(C[j][1] * x[1])) + ' = ' + f3(xp[j]);
+    if (s.probe != null && s.probe <= s.t + 1e-9) {
+      const q = flowMap(s.mode, pt, s.probe, s.t, s);
+      P.dot(q[0], q[1], 7, { color: 'rgba(0,0,0,0)', stroke: rose, strokeWidth: 2 });
     }
-  }
-  const L3 = ['max|CᵀC − I| = ' + residTxt(Q.res) + '  ·  det C = ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det)), 'CᵀC − I: ' + residTxt(Q.res) + ' · det ' + (Q.det >= 0 ? '+' : '−') + f3(Math.abs(Q.det))];
-  const ty = y0 + n * cw + (tight ? 6 : 10), fs = W < 300 ? 12 : 12.5;
-  const roomLines = Math.floor((H - ty - 2) / lh);    // lines that fit: drop the orthogonality line first (it is in the status badge), then the formula
-  const order = roomLines >= 3 ? [0, 1, 2] : roomLines === 2 ? [0, 1] : roomLines === 1 ? [1] : [];
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  const LINES = [[L1, c.text, 650], [L2, c.neu, 700], [L3, s.mirror ? c.amber : (s.tpreset === 'fixed' && s.mode === 'tensor' ? c.shear : c.old), 650]];
-  order.forEach((idx, q) => {                      // idx = which line (0 formula, 1 numbers, 2 orthogonality); q = its row
-    const r = LINES[idx], mono = idx === 1;
-    ctx.font = Viz.font(fs, r[2], mono);
-    let alts = Array.isArray(r[0]) ? r[0].slice() : [r[0]];
-    if (idx === 0) alts.push(alts[0].split('  ')[0]);                                  // drop the trailing hint on narrow views
-    if (idx === 1) { const pre = alts[0].replace(/(−?\d\.\d{3})×(−?\d\.\d{3})/g, (m, a, b) => f3(parseFloat(a.replace('−', '-')) * parseFloat(b.replace('−', '-'))));  // pre-multiply the products
-      alts.push(pre, pre.replace(/ ([+−=]) /g, '$1').replace(/ Pa$/, '')); }
-    let t = alts.find(a => ctx.measureText(a).width <= W - 12) || alts[alts.length - 1];
-    if (ctx.measureText(t).width > W - 12) { ctx.font = Viz.font(12, r[2], mono); }
-    ctx.fillStyle = r[1]; ctx.fillText(t, Math.max(6, (W - Math.min(W - 12, ctx.measureText(t).width)) / 2), ty + q * lh);
+    // port and its velocity arrow
+    const u = uPort(s), k = 0.32 * R / uRef(s);
+    P.arrow(pt[0], pt[1], u[0] * k, u[1] * k, { color: Viz.color('text'), width: 2.2, head: 9 });
+    P.dot(pt[0], pt[1], 5.5, { color: Viz.color('card'), stroke: Viz.color('text'), strokeWidth: 2.2 });
+    // the tagged particle now
+    const q = flowMap(s.mode, pt, 0, s.t, s);
+    P.dot(q[0], q[1], 6, { color: orange, stroke: '#fff', strokeWidth: 2 });
+    if (s.mode === 'rotstrain' && !small && app.tab !== 'derive') Viz.text(ctx, 'drag the port', P.X(pt[0]) + 9, P.Y(pt[1]) + 14, { size: 12, color: Viz.color('muted'), bg: true });
   });
-  ctx.restore();
-  HIT.matrix = { cells, n };
+  if (app.holding) {
+    const n = s.omega * TMAX / (2 * Math.PI), T = Tref(s);
+    let lines;
+    if (isSteady(s)) lines = ['One line all along: nothing changed in time,', 'so dye, particle and streamline share one curve.'];
+    else if (s.mode === 'ex31') lines = [`t = ${fx(TMAX, 2)} s = ${fx(n, 2)} periods.`, Math.abs(n - Math.round(n)) < 0.02 ? 'The particle is back at the port; dye circle and streamline look as at t = 0 — only the clock moved.' : `The particle has run ${fx(n, 2)} laps of its circle.`];
+    else if (s.mode === 'current') lines = [`The particle drifted U₀t = ${fx(s.U0 * TMAX, 2)} m downstream;`, `the dye is a wave of wavelength U₀T = ${fx(s.U0 * T, 2)} m.`];
+    else lines = [`The strain axes turned by Ωt = ${degs(s.omega * TMAX)}°;`, 'path and streak lines peeled away from the streamline.'];
+    Viz.card(ctx, v.w / 2, 30, lines, { maxWidth: Math.min(v.w - 16, 360) });
+  }
 }
-/* ---- components against θ ---- */
-function drawCurves(v, s, Q) {
-  v.clear(); if (v.w < 60 || v.h < 60) return;
-  const c = COL(), small = v.w < 420;
-  const th0 = s.theta, curves = [], marks = [];
-  let ylim;
-  const CC = t => (s.mirror ? mirrored(rot2d(t * D2R)) : rot2d(t * D2R));
-  if (s.mode === 'tensor') {
-    const tau = Q.tau, tp = t => transformTensor(tau, CC(t));
-    if (s.tpreset === 'fixed') {
-      curves.push({ f: () => tau[0][0], color: c.normal, w: 2.4, label: 'declared τ′₁₁' }, { f: () => tau[0][1], color: c.shear, w: 2.4, label: 'declared τ′₁₂' });
-      curves.push({ f: t => tp(t)[0][0], color: Viz.alpha(c.normal, 0.45), w: 1.4, dash: [5, 4], label: 'τ′ = CᵀτC would give' }, { f: t => tp(t)[0][1], color: Viz.alpha(c.shear, 0.45), w: 1.4, dash: [5, 4] });
+
+function drawLines(g, s) {
+  const v = g.view('lines'); v.clear();
+  if (v.w < 30 || v.h < 30) return;
+  const R = halfRange(s), pt = port(s), tp = s.t, small = v.w < 300, ctx = v.ctx, app = g.app;
+  const teal = Viz.color('teal'), rose = Viz.color('rose'), orange = Viz.color('orange'), muted = Viz.color('muted');
+  const P = v.plot({ xlim: [-R, R], ylim: [-R, R], equal: true, xlabel: 'x [m]', ylabel: small ? '' : 'y [m]' }).axes();
+  P.clip(() => {
+    if (s.mode === 'ex31') {
+      const ang = s.omega * tp, xi = s.xi0, c = centres(tp, s), ca = Math.cos(ang), sa = Math.sin(ang);
+      const circ = (cx, cy) => Viz.num.linspace(0, 2 * Math.PI, 181).map(a => [cx + xi * Math.cos(a), cy + xi * Math.sin(a)]);
+      P.line([-3 * R * ca, 3 * R * ca], [-3 * R * sa, 3 * R * sa], { color: muted, width: 1.1, dash: [5, 4] });   // common tangent
+      P.poly(circ(c.path[0], c.path[1]), { color: orange, width: 2.6 });
+      P.poly(circ(c.streak[0], c.streak[1]), { color: rose, width: 2.6 });
+      P.line([-2 * xi * ca, 2 * xi * ca], [-2 * xi * sa, 2 * xi * sa], { color: teal, width: 3 });                 // y = x tan ωt′
+      [[c.path, orange, 'path centre'], [c.streak, rose, 'streak centre']].forEach(([q, col, lab]) => {
+        const X = P.X(q[0]), Y = P.Y(q[1]);
+        ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X - 5, Y - 5); ctx.lineTo(X + 5, Y + 5); ctx.moveTo(X + 5, Y - 5); ctx.lineTo(X - 5, Y + 5); ctx.stroke(); ctx.restore();
+        P.line([q[0], 0], [q[1], 0], { color: Viz.alpha(col, 0.55), width: 1, dash: [3, 3] });
+        if (!small) Viz.text(ctx, lab, X + 8, Y - 10, { size: 12, color: col, bg: true });
+      });
+      // the angle ωt′ at the origin
+      const wr = ((ang % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), rr = P.sx(0.42 * xi);
+      if (wr > 0.02) {
+        ctx.save(); ctx.strokeStyle = Viz.color('accent'); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(P.X(0), P.Y(0), rr, 0, -wr, true); ctx.stroke(); ctx.restore();
+        if (!small && !(app.tab === 'derive' && s.mark === 'ds')) Viz.text(ctx, 'ωt′ = ' + degs(wr) + '°', P.X(0) + (rr + 8) * Math.cos(wr / 2), P.Y(0) - (rr + 8) * Math.sin(wr / 2), { size: 12, color: Viz.color('accent'), bg: true });
+      }
     } else {
-      curves.push({ f: t => tp(t)[0][0], color: c.normal, w: 2.4, label: 'τ′₁₁' }, { f: t => tp(t)[1][1], color: c.normal, w: 2, dash: [6, 4], label: 'τ′₂₂' }, { f: t => tp(t)[0][1], color: c.shear, w: 2.4, label: 'τ′₁₂' });
-      if (Q.thetaP !== null) { const tpd = Q.thetaP / D2R; [tpd, tpd + 90, tpd - 90, tpd + 180, tpd - 180].filter(a => a >= -180 && a <= 180).forEach(a => marks.push({ t: a, label: 'τ′₁₂ = 0' })); }
+      const Tr = Tref(s);
+      // streak at t′: releases over the last two periods (continuous); path of the particle at the port now
+      const tos = Viz.num.linspace(tp - 2 * Tr, tp, 361);
+      P.poly(tos.map(to => flowMap(s.mode, pt, to, tp, s)), { color: rose, width: 2.6 });
+      const tt = Viz.num.linspace(tp - Tr, tp + Tr, 361);
+      P.poly(tt.map(t => flowMap(s.mode, pt, tp, t, s)), { color: orange, width: 2.4, dash: isSteady(s) ? [7, 6] : [] });
+      const sl = streamThrough(s, tp, pt, R);
+      if (sl.length) P.poly(sl, { color: teal, width: isSteady(s) ? 1.8 : 3 });
     }
-    const amp = Math.max(1e-9, ...[Q.tau[0][0], Q.tau[1][1], Q.tau[0][1]].map(Math.abs), Math.hypot(Q.tau[0][0] - Q.tau[1][1], 2 * Q.tau[0][1]) / 2 + Math.abs(Q.tau[0][0] + Q.tau[1][1]) / 2);
-    ylim = [-amp * 1.15, amp * 1.15];
-  } else if (s.mode === 'polar') {
-    curves.push({ f: t => polar(s.x1, s.x2, t * D2R)[0], color: c.neu, w: 2.4, label: 'u_r' }, { f: t => polar(s.x1, s.x2, t * D2R)[1], color: c.neu, w: 2, dash: [6, 4], label: 'u_θ' });
-    curves.push({ f: () => Q.norm, color: Viz.alpha(c.ghost, 0.7), w: 1.2, dash: [2, 3], label: '|u|' });
-    ylim = [-Q.norm * 1.15 - 0.1, Q.norm * 1.15 + 0.1];
-  } else {
-    const xv = [s.x1, s.x2];
-    if (s.what === 'axes') {
-      curves.push({ f: t => transformVector(xv, CC(t))[0], color: c.neu, w: 2.4, label: 'x′₁' }, { f: t => transformVector(xv, CC(t))[1], color: c.neu, w: 2, dash: [6, 4], label: 'x′₂' });
-    } else {
-      curves.push({ f: t => activeRotate(xv, t * D2R)[0], color: c.neu, w: 2.4, label: 'x′₁ (arrow turned)' }, { f: t => activeRotate(xv, t * D2R)[1], color: c.neu, w: 2, dash: [6, 4], label: 'x′₂' });
-      curves.push({ f: t => transformVector(xv, rot2d(t * D2R))[0], color: Viz.alpha(c.ghost, 0.6), w: 1.3, dash: [2, 3], label: 'axes turned (ghost)' });
+    if (app.tab === 'derive' && s.mark === 'ds') {                                                 // D03: ds ∥ u
+      const u = uPort(s), m = Math.hypot(u[0], u[1]);
+      if (m > 1e-12) {
+        P.arrow(pt[0], pt[1], 0.55 * R * u[0] / m, 0.55 * R * u[1] / m, { color: Viz.color('text'), width: 2.2 });
+        P.arrow(pt[0], pt[1], 0.22 * R * u[0] / m, 0.22 * R * u[1] / m, { color: teal, width: 4, head: 7 });
+        if (!small) Viz.text(ctx, 'ds ∥ u', P.X(pt[0] + 0.3 * R * u[0] / m) + 6, P.Y(pt[1] + 0.3 * R * u[1] / m) + 14, { size: 12.5, color: Viz.color('text'), bg: true });
+      }
     }
-    curves.push({ f: () => Q.norm, color: Viz.alpha(c.ghost, 0.7), w: 1.2, dash: [2, 3], label: '|x|' });
-    ylim = [-Q.norm * 1.15 - 0.1, Q.norm * 1.15 + 0.1];
+    P.dot(pt[0], pt[1], 5, { color: Viz.color('card'), stroke: Viz.color('text'), strokeWidth: 2 });
+  });
+  // colour legend, bottom-left inside the plot: one row if it fits, else a column (when there is height for it)
+  const LEG = [['streamline', teal], ['path', orange], ['streak', rose]];
+  ctx.save(); ctx.font = Viz.font(12, 600); const legW = LEG.reduce((a, [w]) => a + ctx.measureText(w).width + 20, 0); ctx.restore();
+  if (legW <= P.px.w - 8) {
+    let x = P.px.x + 6; const y0 = P.px.y + P.px.h - 12;
+    LEG.forEach(([w, c]) => { x += Viz.text(ctx, w, x, y0, { size: 12, color: c, bg: true }) + 12; });
+  } else if (P.px.h > 150) {
+    LEG.forEach(([w, c], i) => Viz.text(ctx, w, P.px.x + 6, P.px.y + P.px.h - 12 - 18 * (2 - i), { size: 12, color: c, bg: true }));
   }
-  const P = v.plot({ xlim: [-180, 180], ylim, xlabel: small ? 'θ [°]' : 'rotation of the axes θ [°]', ylabel: s.mode === 'tensor' ? 'τ′ [Pa]' : 'components' , pad: { l: small ? 40 : 48, r: 10, t: 8, b: small ? 30 : 34 } }).axes({ xticks: [-180, -90, 0, 90, 180] });
-  marks.forEach(m => { P.line([m.t, m.t], ylim, { color: Viz.alpha(c.shear, 0.5), width: 1, dash: [3, 3] }); });
-  if (marks.length && !small) { const m0 = marks.reduce((a, b) => (Math.abs(b.t - th0) < Math.abs(a.t - th0) ? b : a)); P.text(m0.t, ylim[1] * 0.9, 'τ′₁₂ = 0 at ' + fd(Math.round(m0.t)), { color: c.shear, size: 12, weight: 650, align: m0.t > 60 ? 'right' : 'left', dx: m0.t > 60 ? -5 : 5 }); }
-  curves.forEach(cv => { P.fn(cv.f, { color: cv.dash && cv.w < 1.5 ? cv.color : Viz.alpha(cv.color, 0.35), width: cv.w, dash: cv.dash, n: 361 });
-    if (!(cv.dash && cv.w < 1.5)) P.fn(cv.f, { color: cv.color, width: cv.w + 0.4, dash: cv.dash, x0: Math.min(0, th0), x1: Math.max(0, th0), n: Math.max(4, Math.round(Math.abs(th0)) + 1) }); });   // faint whole curve, bold from 0 to θ
-  P.line([th0, th0], ylim, { color: Viz.alpha(c.acc, 0.6), width: 1, dash: [4, 3] });
-  curves.forEach(cv => { if (!(cv.dash && cv.w < 1.5)) P.dot(th0, cv.f(th0), 5, { color: cv.color, stroke: '#fff', strokeWidth: 2 }); });
-  // legend in the top-left corner
-  if (!small) { let lx = P.px.x + 8, ly = P.px.y + 8; P.ctx.save(); P.ctx.font = Viz.font(12, 650); P.ctx.textBaseline = 'middle'; P.ctx.textAlign = 'left';
-    curves.filter(cv => cv.label).forEach(cv => { P.ctx.strokeStyle = cv.color; P.ctx.lineWidth = cv.w; P.ctx.setLineDash(cv.dash || []); P.ctx.beginPath(); P.ctx.moveTo(lx, ly); P.ctx.lineTo(lx + 18, ly); P.ctx.stroke(); P.ctx.setLineDash([]);
-      P.ctx.fillStyle = Viz.color('text-soft'); P.ctx.fillText(cv.label, lx + 24, ly); lx += 24 + P.ctx.measureText(cv.label).width + 14; if (lx > P.px.x + P.px.w - 90) { lx = P.px.x + 8; ly += 16; } });
-    P.ctx.restore(); }
 }
-/* ---- pointer: drag the arrow tip (x1, x2), drag near the orange axis (θ), click a matrix cell ---- */
-function onPointer(g, ev, s) {
-  const A = g.app;
-  if (ev.viewId === 'matrix') {
-    if (ev.type !== 'pointerdown' || !HIT.matrix) return false;
-    const px = ev.vizView.pointer.x, py = ev.vizView.pointer.y;
-    const hit = HIT.matrix.cells.find(cc => px >= cc.x && px <= cc.x + cc.s && py >= cc.y && py <= cc.y + cc.s);
-    if (hit) { A.play(false); A.set({ cell: { i: hit.i, j: hit.j }, selj: hit.j }); return true; }   // pause: the inspector traces this θ
-    return false;
-  }
-  if (ev.viewId !== 'plane' || !HIT.plane) return false;
-  const P = HIT.plane.P, px = ev.vizView.pointer.x, py = ev.vizView.pointer.y;
-  if (ev.type === 'pointerdown') {
-    const tip = HIT.plane.tip;
-    if (tip && Math.hypot(px - tip[0], py - tip[1]) < 22 && s.what === 'axes') DRAG = 'tip';
-    else DRAG = 'theta';
-    A.play(false);
-  }
-  if (!DRAG) return false;
-  if (ev.type === 'pointerup' || ev.type === 'pointercancel' || ev.type === 'pointerleave') { DRAG = null; return false; }
-  if (ev.type !== 'pointermove' || !ev.vizView.pointer.down) return false;
-  const wx = P.ix(px), wy = P.iy(py);
-  if (DRAG === 'tip') {
-    const o = HIT.plane.origin || [0, 0];
-    A.set({ x1: Math.round((wx - o[0]) * 10) / 10, x2: Math.round((wy - o[1]) * 10) / 10 });
+
+function drawSignal(g, s) {
+  const v = g.view('signal'); v.clear();
+  if (v.w < 30 || v.h < 30) return;
+  const Tr = Tref(s), ur = uRef(s) * 1.15, acc = Viz.color('accent');
+  const lo = Math.min(-ur, 0), P = v.plot({ xlim: [s.t - Tr, s.t + Tr], ylim: [lo, ur], xlabel: 't [s]', ylabel: v.h > 90 ? 'u, v [m/s]' : '' }).axes({ yticks: Viz.num.niceTicks(lo, ur, 4) });
+  const ts = Viz.num.linspace(s.t - Tr, s.t + Tr, 300), U = ts.map(t => uPort(s, t));
+  P.clip(() => {
+    const past = ts.map((t, i) => t <= s.t ? i : -1).filter(i => i >= 0);
+    P.line(ts, U.map(q => q[0]), { color: Viz.alpha(acc, 0.28), width: 1.6 });
+    P.line(ts, U.map(q => q[1]), { color: Viz.alpha(acc, 0.28), width: 1.6, dash: [6, 4] });
+    P.line(past.map(i => ts[i]), past.map(i => U[i][0]), { color: acc, width: 2.6 });
+    P.line(past.map(i => ts[i]), past.map(i => U[i][1]), { color: acc, width: 2.6, dash: [6, 4] });
+    P.line([s.t, s.t], [lo, ur], { color: Viz.color('muted'), width: 1, dash: [3, 3] });
+    const u = uPort(s);
+    P.dot(s.t, u[0], 4.5, { color: acc, stroke: '#fff', strokeWidth: 1.5 }); P.dot(s.t, u[1], 4.5, { color: acc, stroke: '#fff', strokeWidth: 1.5 });
+  });
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   EXPLAIN — every number on the screen worked out with the reader's settings
+   --------------------------------------------------------------------------------------------------- */
+function explainHtml(s) {
+  const W = Viz.work, m = s.mode, w = s.omega, xi = s.xi0, t = s.t, pt = port(s), u = uPort(s), sp = Math.hypot(u[0], u[1]);
+  const ang = w * t, Tr = Tref(s), sl = slopeOf(u), dirDeg = Math.atan2(u[1], u[0]) / D2R;
+  const clock = m === 'vortex' || m === 'rotstrain' ? '\\Omega t' : '\\omega t';
+  let o = W.step(0, 'What the windows show') +
+    W.say('<b>The flow plane</b> is the experiment: the <b class="c-teal">teal</b> lines are streamlines of the velocity field <i>at this instant</i> (the bold one passes through the port, the black ring; grey arrows = the field now); the <b class="c-rose">rose</b> dots are dye that left the port at earlier times (older = paler); the <b class="c-orange">orange</b> trail is the path of one particle released at $t = 0$ (dashed = where it will go). ' +
+      '<b>The three lines at t′</b> redraws the three curves through the port at the current instant $t\' = t$' + (m === 'ex31' ? ' from the closed forms of Ex. 3.1.' : '.') +
+      ' <b>Velocity at the port</b> shows $u$ (solid) and $v$ (dashed) in <b class="c-accent">purple</b> over one period either side of now.') +
+    W.hint('On phones the velocity window is hidden; its two numbers are in the “u, v at the port” readout.');
+  // 1. the field at the port
+  o += W.step(1, 'The velocity at the port now');
+  if (m === 'ex31' || m === 'current') {
+    o += W.line(`$u=${m === 'current' ? 'U_0+' : ''}\\omega\\xi_o\\cos\\omega t=${m === 'current' ? tx(s.U0, 2) + '+' : ''}${tx(w, 2)}\\times${tx(xi, 2)}\\times\\cos(${tdeg(ang)})$`, fx(u[0]) + ' m/s', m === 'current' ? 'the current adds U₀ to the sloshing' : 'Ex. 3.1, first component') +
+      W.line(`$v=\\omega\\xi_o\\sin\\omega t=${tx(w, 2)}\\times${tx(xi, 2)}\\times\\sin(${tdeg(ang)})$`, fx(u[1]) + ' m/s', 'second component');
+  } else if (m === 'steady') {
+    o += W.line(`$u=\\omega\\xi_o\\cos\\beta=${tx(w, 2)}\\times${tx(xi, 2)}\\times\\cos 30^\\circ$`, fx(u[0]) + ' m/s', 'the Ex. 3.1 velocity frozen at β = 30°') +
+      W.line(`$v=\\omega\\xi_o\\sin\\beta=${tx(w, 2)}\\times${tx(xi, 2)}\\times\\sin 30^\\circ$`, fx(u[1]) + ' m/s', 'no t anywhere: steady');
+  } else if (m === 'vortex') {
+    o += W.line(`$u=-\\Omega y=-${tx(w, 2)}\\times${tx(pt[1], 2)}$`, fx(u[0]) + ' m/s', 'solid-body rotation, port at (ξₒ, 0)') +
+      W.line(`$v=\\Omega x=${tx(w, 2)}\\times${tx(pt[0], 2)}$`, fx(u[1]) + ' m/s', 'no t anywhere: steady, but curved');
   } else {
-    let ang = Math.atan2(wy, wx) / D2R;
-    if (s.mode !== 'polar' && s.what === 'axes') { // the nearest of the four axis directions decides θ (drag any orange axis)
-      const cand = [ang, ang - 90, ang + 90, ang + 180, ang - 180].map(a => ((a + 540) % 360) - 180);
-      ang = cand.reduce((a, b) => (Math.abs(b - s.theta) < Math.abs(a - s.theta) ? b : a));
-    }
-    A.set('theta', Math.round(ang));
+    o += W.line(`$u=s(x\\cos2\\Omega t+y\\sin2\\Omega t)$ $=${tx(s.s, 2)}(${tx(pt[0], 2)}\\cos${tdeg(2 * ang)}+${tx(pt[1], 2)}\\sin${tdeg(2 * ang)})$`, fx(u[0]) + ' m/s', 'port at (' + fx(pt[0], 2) + ', ' + fx(pt[1], 2) + ') m') +
+      W.line(`$v=s(x\\sin2\\Omega t-y\\cos2\\Omega t)$`, fx(u[1]) + ' m/s', 'the strain axes sit at the angle Ωt');
   }
-  return true;
+  o += W.box(`speed $\\lvert\\mathbf u\\rvert=${tx(sp)}$ m/s, direction $${tx(dirDeg, 1)}^\\circ$ from the $x$-axis` + (m === 'ex31' ? ' — the same at every point: only the direction changes in time.' : '.'));
+  // 2. the streamline, Eq. (3.7)
+  o += W.step(2, 'The streamline through the port, $dx/u=dy/v=dz/w$ (3.7)') +
+    W.line(`$\\dfrac{dy}{dx}=\\dfrac{v}{u}=\\dfrac{${tx(u[1])}}{${tx(u[0])}}$`, fx(sl), 'the first equality $dx/u=dy/v$ of (3.7), clock frozen at t′ = t');
+  if (m === 'ex31') o += W.box(`$\\dfrac{v}{u}=\\tan\\omega t'=\\tan(${tdeg(ang)})=\\mathbf{${tx(sl)}}$, so $y=x\\tan(\\omega t')$ — a straight line at $${tdeg(((ang / D2R % 360) + 360) % 360 * D2R)}$. A moment later it is a different line.`);
+  else if (m === 'current' || m === 'steady') o += W.box(`The field is uniform, so the streamline is the straight line through the port with slope $\\mathbf{${tx(sl)}}$.`);
+  else if (m === 'vortex') o += W.box(`At the port $v/u$ is ${isFinite(sl) ? tx(sl) : 'infinite'}: the streamline is the circle $x^2+y^2=${tx(pt[0] * pt[0] + pt[1] * pt[1])}$ m$^2$ (radius ${fx(Math.hypot(pt[0], pt[1]))} m).`);
+  else o += W.box(`The streamlines of a pure strain are hyperbolas $\\psi=$ const; the one through the port has slope $\\mathbf{${tx(sl)}}$ there. Its asymptotes are the strain axes, now at $${tdeg(ang)}$ and $${tdeg(ang + Math.PI / 2)}$.`);
+  // 3. the path line, Eq. (3.8)
+  o += W.step(3, 'The path line, $d\\mathbf r/dt=\\mathbf u(\\mathbf r,t)$ (3.8)');
+  if (m === 'ex31') {
+    const c = centres(t, s);
+    o += W.say('Solving (3.8) with $\\mathbf r(t\')=\\mathbf 0$ (D04) gives the circle $(x+\\xi_o\\sin\\omega t\')^2+(y-\\xi_o\\cos\\omega t\')^2=\\xi_o^2$:') +
+      W.line(`centre $(-\\xi_o\\sin\\omega t',\\ \\xi_o\\cos\\omega t')$`, '(' + fx(c.path[0]) + ', ' + fx(c.path[1]) + ') m', 'the orange × in the answer sheet') +
+      W.box(`radius $\\xi_o=\\mathbf{${tx(xi)}}$ m, run counterclockwise once per period $2\\pi/\\omega=\\mathbf{${w > 1e-9 ? tx(2 * Math.PI / w) : '\\infty'}}$ s.`);
+  } else if (m === 'current') {
+    const T = Tr;
+    o += W.say('Add $U_0t$ to the Ex. 3.1 path: $x=U_0(t-t\')+\\xi_o(\\sin\\omega t-\\sin\\omega t\')$, $y=\\xi_o(\\cos\\omega t\'-\\cos\\omega t)$ — a circle dragged downstream (a trochoid).') +
+      W.box(`drift per period $U_0\\cdot2\\pi/\\omega=${tx(s.U0, 2)}\\times${tx(T)}=\\mathbf{${tx(s.U0 * T)}}$ m; the path loops while $U_0<\\omega\\xi_o$ (${fx(s.U0, 2)} ${s.U0 < w * xi ? '<' : '≥'} ${fx(w * xi, 2)} m/s now).`);
+  } else if (isSteady(s)) {
+    o += W.box('Nothing at a fixed point changes, so a particle starting on a streamline keeps the direction of that streamline at every point it reaches: <b>path line = streamline</b>.');
+  } else {
+    const q = flowMap(m, pt, t, t + 1, s);
+    o += W.say('Exact solution of (3.8) in axes that turn with the strain: $\\mathbf x(t)=\\mathbf R(\\Omega t)\\,e^{\\mathbf M(t-t_o)}\\,\\mathbf R(-\\Omega t_o)\\,\\mathbf x_o$ with $\\mathbf M=\\begin{pmatrix}s&\\Omega\\\\-\\Omega&-s\\end{pmatrix}$.') +
+      W.box(`The particle at the port now is at $(${tx(q[0])},\\ ${tx(q[1])})$ m one second later — off the teal hyperbola, because the hyperbolas turn while it moves.`);
+  }
+  // 4. the streak line
+  o += W.step(4, 'The streak line (the dye)');
+  if (m === 'ex31') {
+    const c = centres(t, s);
+    o += W.say('Every dot left the port at its own time $t_o$; at $t\'$ they lie on $(x-\\xi_o\\sin\\omega t\')^2+(y+\\xi_o\\cos\\omega t\')^2=\\xi_o^2$ (D05):') +
+      W.box(`centre $(${tx(c.streak[0])},\\ ${tx(c.streak[1])})$ m, radius $${tx(xi)}$ m — the path circle reflected through the port.`);
+  } else if (m === 'current') {
+    o += W.box(`The dye makes a wave: each period's release is carried $U_0T=\\mathbf{${tx(s.U0 * Tr)}}$ m further, so that is the wavelength.`);
+  } else if (isSteady(s)) {
+    o += W.box('Every dye particle leaves the port along the same path, so the dye lines up on it: <b>streak line = path line = streamline</b>.');
+  } else {
+    o += W.box('The dye released earlier was stretched along earlier strain axes, so the rose curve bends away from both the teal streamline and the orange path.');
+  }
+  // 5. where they meet
+  o += W.step(5, 'Where the three lines meet');
+  if (m === 'ex31') o += W.line('distance between the two centres $2\\xi_o$', fx(2 * xi) + ' m', 'on opposite sides of the port');
+  o += W.box(`At the port all three have slope $v/u=\\mathbf{${tx(sl)}}$: each is tangent to the velocity there at $t'$, so they <b>touch</b>` + (isSteady(s) ? ' — here they are one curve.' : ' and then part.'));
+  // 6. the mean current
+  o += W.step(6, 'With a mean current');
+  if (m === 'current') {
+    const loops = s.U0 < w * xi;
+    o += W.line('$u_{\\min}=U_0-\\omega\\xi_o=' + tx(s.U0, 2) + '-' + tx(w * xi, 2) + '$', fx(s.U0 - w * xi, 2) + ' m/s', loops ? 'negative: part of each period the water runs upstream' : 'never negative: u never reverses') +
+      W.line('streamline slope now $\\dfrac{v}{u}=\\dfrac{\\omega\\xi_o\\sin\\omega t}{U_0+\\omega\\xi_o\\cos\\omega t}$', fx(sl), 'still straight, but tilted') +
+      W.box(loops ? 'The path <b>loops</b> backwards once per period.' : 'The path is a <b>wave without loops</b>: the current wins.');
+  } else o += W.hint('Choose the “+ current” chip to see the path drift downstream: it loops while $U_0<\\omega\\xi_o$.');
+  // 7. at the current time
+  o += W.step(7, 'At the current time') +
+    W.line('$t$', Viz.live('t') + ' s') + W.line('$' + clock + '$', Viz.live('deg') + '°') +
+    W.line('dye particles on screen', Viz.live('ndye')) +
+    W.line('tagged particle (orange dot)', '(' + Viz.live('px') + ', ' + Viz.live('py') + ') m');
+  // interpretation
+  let it;
+  if (sp < 1e-9) it = 'There is no velocity at the port, so no streamline direction is defined there (a stagnation point). Raise ω or choose another chip.';
+  else if (isSteady(s)) it = 'Steady: nothing at a fixed point changes, so every particle follows the streamline it starts on and the dye lines up behind it — the three curves are one.' + (m === 'vortex' ? ' The vortex shows that this has nothing to do with straight lines.' : '');
+  else if (m === 'ex31') it = 'Unsteady: the streamline turns with the clock, the particle runs round its own circle, and the dye sits on the mirror circle. A photograph of dye (streak line) or a long exposure of one speck (path line) would both mislead you about the direction of the flow now.';
+  else if (m === 'current') it = s.U0 < w * xi ? 'Unsteady with drift: the path loops, because part of each period the sloshing beats the current and the water runs upstream.' : 'The current always wins: the path is a wave without loops, and the dye trails downstream as a wave of wavelength $U_0T$.';
+  else it = 'The streamlines are hyperbolas whose axes turn at Ω; path and streak lines peel away from them. Set Ω = 0 (the preset) and they collapse onto one hyperbola.';
+  return o + W.interpret(it, 'Reading the current setting');
 }
 
 /* ---------------------------------------------------------------------------------------------------
    APP
    --------------------------------------------------------------------------------------------------- */
-const RAD30 = 0.5235987755982988;
 const app = Viz.app({
-  title: 'Which rotates — the arrow or the ruler?',
-  subtitle: 'One vector, two frames: turn the axes and watch C, the new components x′ = Cᵀx and the tensor components τ′ = CᵀτC move together',
+  title: 'Three lines through one point — why do they disagree?',
+  subtitle: 'A port leaks dye into sloshing water: streamlines of the instant, the path of one particle and the streak of dye, on one clock',
+  autoplay: false,
   params: {
-    theta: { label: 'Rotation of the axes $\\theta$', min: -180, max: 180, step: 1, value: 30, unit: '°', help: 'positive = axes turned counterclockwise; the arrow never moves' },
-    x1: { label: '$x_1$', min: -3, max: 3, step: 0.1, value: 1, help: 'first component in the teal frame (drag the arrow tip too)' },
-    x2: { label: '$x_2$', min: -3, max: 3, step: 0.1, value: 2, help: 'second component in the teal frame' },
-    what: { type: 'select', label: 'What rotates (book: the axes, passive)', options: [['axes', 'axes turn'], ['arrow', 'arrow turns']], value: 'axes', display: 'chips' },
-    tpreset: { type: 'select', label: 'Stress state', options: [['shear', 'shear'], ['uniaxial', 'uniaxial'], ['hydro', 'hydro'], ['fixed', 'fixed']], value: 'shear', display: 'chips', optional: true },
-    a: { label: 'Stress level $a$', min: 0.5, max: 2, step: 0.1, value: 1, unit: 'Pa', optional: true, help: 'scales every stress state' },
-    mirror: { type: 'toggle', label: 'Mirror the 2′ axis (det C = −1)', value: false, optional: true },
-    axis3d: { type: 'toggle', label: '3-D: rotate about (1, 1, 1)/√3', value: false, optional: true }
+    omega: { label: 'Angular frequency $\\omega$', min: 0, max: 3, step: 0.05, value: 1, unit: '1/s', help: 'how fast the flow direction turns; period 2π/ω (vortex and strain chips: the turning rate Ω)' },
+    xi0: { label: 'Amplitude $\\xi_o$', min: 0.2, max: 2, step: 0.05, value: 1, unit: 'm', help: 'radius of every particle’s circle' },
+    U0: { label: 'Mean current $U_0$', min: 0, max: 2, step: 0.05, value: 0.5, unit: 'm/s', help: 'used by the “+ current” chip', optional: true },
+    s: { label: 'Strain rate $s$', min: 0.2, max: 2, step: 0.05, value: 1, unit: '1/s', help: 'used by the rotating-strain chip', optional: true },
+    hist: { type: 'toggle', label: 'Dye since forever', value: true, optional: true }
   },
-  modes: { param: 'mode', label: 'Object', options: [['vector', 'vector'], ['tensor', 'tensor'], ['polar', 'polar']] },
-  transport: { param: 'theta', min: -180, max: 180, rate: 30, end: 'loop', label: 'axes angle $\\theta$', unit: '°' },
-  autoplay: false,   // the trace steps quote numbers at a fixed θ; only step 4 presses ▶
+  modes: { param: 'mode', label: 'Flow', options: [['ex31', 'Ex. 3.1'], ['current', '+ current'], ['steady', 'steady'], ['vortex', 'vortex'], ['rotstrain', 'rot. strain']] },
+  transport: { param: 't', min: 0, max: TMAX, rate: 1, end: 'hold', hold: 2, label: 'time $t$', unit: 's' },
   presets: [
-    { label: 'θ = 0', set: { theta: 0 }, title: 'same axes: C = I' },
-    { label: '45°', set: { theta: 45 }, title: 'half-way; the principal axes of pure shear' },
-    { label: '90°', set: { theta: 90 }, title: 'axes swapped' },
-    { label: '−30°', set: { theta: -30 }, title: 'turned clockwise' },
-    { label: 'polar 60°', set: { mode: 'polar', theta: 60 }, title: 'Example 2.1: the polar frame at θ = 60°' },
-    { label: 'shear', set: { mode: 'tensor', tpreset: 'shear', theta: 30, what: 'axes' }, title: 'Example 2.2: pure shear seen from axes turned by 30°' }
+    { label: 'ωt′ = 0', set: { mode: 'ex31', t: 0, omega: 1, xi0: 1, probe: null }, title: 'path circle above the port, streak circle below' },
+    { label: '30°', set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, probe: null }, title: 'ωt′ = 30°' },
+    { label: '90°', set: { mode: 'ex31', t: Math.PI / 2, omega: 1, xi0: 1, probe: null }, title: 'ωt′ = 90°: the picture of 0° turned by 90°' },
+    { label: 'Ω = 0', set: { mode: 'rotstrain', omega: 0, t: 0, probe: null }, title: 'steady strain: the three lines coincide' },
+    { label: 'loops', set: { mode: 'current', U0: 0.5, omega: 1, xi0: 1, t: 0, probe: null }, title: 'U₀ < ωξₒ: the path loops' },
+    { label: 'no loops', set: { mode: 'current', U0: 1.5, omega: 1, xi0: 1, t: 0, probe: null }, title: 'U₀ > ωξₒ: the current wins' }
   ],
   status: s => {
-    const Q = physics(s);
-    if (s.mirror) return { text: '⚠️ det C = ' + (Q.det < 0 ? '−1' : '+1') + ': a mirror, not a rotation', tone: 'warn' };
-    if (s.mode === 'tensor' && s.tpreset === 'fixed') return { text: '❌ not a tensor: misses $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ (2.12) by ' + Viz.fmt(Q.fixedRes) + ' Pa', tone: 'bad' };
-    if (s.mode === 'vector' && s.what === 'arrow') return { text: '🔄 active: arrow turned, axes fixed — C, not Cᵀ', tone: 'info' };
-    return { text: '✅ orthogonal: CᵀC − I = ' + residTxt(Q.res) + ', det C = +' + f3(Q.det).replace('−', ''), tone: 'good' };
+    const sp = Math.hypot(...uPort(s));
+    if (sp < 1e-9) return { text: '⏸ no flow at the port', tone: 'warn' };
+    if (isSteady(s)) return { text: '🟰 steady: one curve', tone: 'good' };
+    if (s.mode === 'ex31') return { text: `↔ unsteady: 3 curves · centres ${fx(2 * s.xi0, 2)} m apart`, tone: 'info' };
+    if (s.mode === 'current') return s.U0 < s.omega * s.xi0 ? { text: '➰ path loops: U₀ < ωξₒ', tone: 'info' } : { text: '〰 no loops: U₀ ≥ ωξₒ', tone: 'info' };
+    return { text: '↔ unsteady: strain axes turn at Ω', tone: 'info' };
   },
   readouts: [
-    { id: 'xp', label: 'New components', value: s => physics(s).xp[0], fmt: (v, s) => { const Q = physics(s); return s.mode === 'polar' ? pair(Q.pol) : s.mode === 'tensor' ? 'see τ′' : (s.what === 'axes' ? pair(Q.xp) : pair(Q.xa) + ' (Cx)'); } },
-    { id: 'norm', label: 'Length $|\\mathbf x| = |\\mathbf x\'|$', value: s => physics(s).norm, fmt: (v, s) => f3(v) + ' = ' + f3(physics(s).normp) },
-    { id: 'resid', label: 'max$|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I|$', value: s => physics(s).res, fmt: v => residTxt(v) },
-    { id: 'tau', label: 'τ′₁₁, τ′₁₂, τ′₂₂', unit: 'Pa', value: s => physics(s).taup[0][0], fmt: (v, s) => { const t = physics(s).taup; return f3(t[0][0]) + ', ' + f3(t[0][1]) + ', ' + f3(t[1][1]) + ' Pa'; }, optional: true }
+    { id: 'uv', label: '$u, v$ at the port', unit: 'm/s', value: s => uPort(s)[0], fmt: (x, s) => { const u = uPort(s); return fx(u[0]) + ', ' + fx(u[1]) + ' m/s'; } },
+    { id: 'slope', label: 'Slope $v/u$ at port', value: s => slopeOf(uPort(s)), fmt: x => fx(x) },
+    { id: 'pc', label: 'Path centre', optional: true, value: s => 0, fmt: (x, s) => s.mode === 'ex31' ? '(' + fx(centres(s.t, s).path[0], 2) + ', ' + fx(centres(s.t, s).path[1], 2) + ') m' : '— (Ex. 3.1 only)' },
+    { id: 'sc', label: 'Streak centre', optional: true, value: s => 0, fmt: (x, s) => s.mode === 'ex31' ? '(' + fx(centres(s.t, s).streak[0], 2) + ', ' + fx(centres(s.t, s).streak[1], 2) + ') m' : '— (Ex. 3.1 only)' },
+    { id: 'tag', label: 'Tagged particle', value: s => 0, fmt: (x, s) => { const q = flowMap(s.mode, port(s), 0, s.t, s); return '(' + fx(q[0], 2) + ', ' + fx(q[1], 2) + ') m'; } }
   ],
   stage: {
-    rows: [1.3, 1],
+    rows: [1.25, 0.62],
     views: [
-      { id: 'plane', row: 0, flex: 1.25, title: s => { const Q = physics(s);
-          if (s.mode === 'tensor') return '<b>The plane</b> · <b class="c-teal">teal</b> element in O12, <b class="c-orange">orange</b> element in O1′2′ · <b class="c-blue">normal</b> / <b class="c-rose">shear</b> stresses';
-          if (s.mode === 'polar') return '<b>The plane</b> · Ex. 2.1: the polar frame (<b class="c-orange">e_r, e_θ</b>) is the <b class="c-teal">Cartesian</b> frame turned by θ = ' + fd(s.theta);
-          return '<b>The plane</b> · ' + (s.what === 'axes' ? '<b class="c-teal">old axes 1, 2</b> · <b class="c-orange">new axes 1′, 2′</b> turned by ' + fd(s.theta) + ' · drag the tip or an orange axis' : 'axes fixed, the arrow turned by ' + fd(s.theta) + ' (grey = before)'); } },
-      { id: 'matrix', row: 0, flex: 1, title: s => { const Q = physics(s);
-          if (s.mode === 'tensor') return '<b>C = eᵢ·e′ⱼ</b> · click a cell for τ′ₘₙ' + (Q.thetaP !== null && s.tpreset !== 'fixed' ? ' · τ′₁₂ = 0 at ' + fd(Math.round(Q.thetaP / D2R)) : '');
-          return '<b>C = eᵢ·e′ⱼ</b> · click a cell · |x| = ' + f3(Q.norm) + ' at every θ'; } },
-      { id: 'curves', row: 1, flex: 1, hidePortrait: true, title: s => s.mode === 'tensor' ? '<b>Stress components vs θ</b> · faint = all angles, bold = 0 → θ' : '<b>Components vs θ</b> · faint = all angles, bold = 0 → θ · grey = the length' }
+      { id: 'flow', row: 0, flex: 1, title: s => `<b>The flow plane</b> · t = ${fx(s.t, 2)} s · ${s.mode === 'vortex' || s.mode === 'rotstrain' ? 'Ωt' : 'ωt'} = ${degs(s.omega * s.t)}°` },
+      { id: 'lines', row: 0, flex: 1, title: s => s.mode === 'ex31' ? `<b>The three lines at t′ = t</b> · slope ${fx(slopeOf(uPort(s)))} · centres 2ξₒ = ${fx(2 * s.xi0, 2)} m apart` : `<b>The three lines at t′ = t</b> · slope ${fx(slopeOf(uPort(s)))} · ${isSteady(s) ? 'one curve' : s.mode === 'current' ? 'a looping path, a dye wave' : 'the three peel apart'}` },
+      { id: 'signal', row: 1, flex: 1, hidePortrait: true, title: '<b>Velocity at the port</b> · u solid, v dashed [m/s] · faint = the next period' }
     ],
-    draw(g, s) {
-      const Q = physics(s);
-      drawPlane(g.view('plane'), s, Q);
-      drawMatrix(g.view('matrix'), s, Q);
-      drawCurves(g.view('curves'), s, Q);
-    },
-    onPointer
-  },
-  explore: {
-    intro: 'Press ▶ to sweep the axes, or drag the arrow tip and the orange axis in the picture. Switch the object (vector · tensor · polar) above the picture.',
-    controls: ['theta', 'x1', 'x2', 'what', 'tpreset', 'a', 'mirror', 'axis3d'],
-    readouts: ['xp', 'norm', 'resid', 'tau'],
-    callouts: [{ kind: 'try', html: 'Set θ = 90°: predict $x\'_1, x\'_2$ for $x = (1, 2)$ before you look at the readout.' }]
-  },
-  inspectHint: 'Click a cell of C: the two unit vectors and the angle behind that cosine appear here and in the picture.',
-  inspect: s => {
-    if (!s.cell) return null;
-    const Q = physics(s), i = s.cell.i, j = s.cell.j, C = s.mode === 'vector' ? Q.C : Q.C2;
-    if (Q.three) return `$C_{${i + 1}${j + 1}} = \\mathbf e_{${i + 1}}\\cdot\\mathbf e'_{${j + 1}} = \\mathbf{${T(C[i][j])}}$ — in 3-D this is the ${['first', 'second', 'third'][i]} component of the new axis ${j + 1}′ (Rodrigues C about (1, 1, 1)/√3).`;
-    const ei = i === 0 ? 0 : 90, ej = (j === 0 ? 0 : (s.mirror ? -90 : 90)) + s.theta, ang = ((ej - ei + 540) % 360) - 180;
-    return `$C_{${i + 1}${j + 1}} = \\mathbf e_{${i + 1}}\\cdot\\mathbf e'_{${j + 1}}$ = cos(angle between old ${i + 1} and new ${j + 1}′)<br>$= \\cos(${Viz.tnum(Math.round(ang))}°) = \\mathbf{${T(C[i][j])}}$` +
-      `<br><span class="viz-muted">Old axis ${i + 1} points at ${ei}°, new axis ${j + 1}′ at ${Viz.fmt(ej)}°; unit vectors, so the dot product is just the cosine.</span>` +
-      (s.mode === 'tensor' ? `<br>Selected entry: $\\tau'_{${i + 1}${j + 1}} = C_{i${i + 1}}C_{j${j + 1}}\\tau_{ij} = \\mathbf{${T(Q.taup[i][j])}}$ Pa (assembled in the matrix window).` : '');
-  },
-  notes: s => {
-    const Q = physics(s), th = s.theta;
-    if (s.mode === 'vector' && s.what === 'arrow') return `<p><b>Active view.</b> The axes stayed; the arrow turned by ${fd(th)}. Its components are $\\mathbf C\\mathbf x = ${pair(Q.xa)}$ — the same matrix the book applies as $\\mathbf C^{\\rm T}$. Turning the arrow by $+\\theta$ looks, to the arrow, exactly like turning the axes by $-\\theta$: $\\mathbf C(\\theta) = \\mathbf C^{\\rm T}(-\\theta)$.</p>`;
-    if (s.mirror) return `<p><b>Mirror on.</b> The 2′ axis was flipped: $\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I$ still holds (lengths kept: $|\\mathbf x'| = ${f3(Q.normp)}$) but $\\det\\mathbf C = −1$. A mirror cannot be reached by turning; the book\'s "rotation" excludes it, and $\\varepsilon_{ijk}$ would change sign in such a frame.</p>`;
-    if (s.mode === 'tensor') {
-      if (s.tpreset === 'fixed') return `<p><b>A matrix is not a tensor.</b> These numbers claim to be the same in every frame. The rule $\\tau'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) says the components must become $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$; at ${fd(th)} the claim misses by ${Viz.fmt(Q.fixedRes)} Pa. Nine numbers are a tensor only if they obey the rule.</p>`;
-      if (s.tpreset === 'hydro') return `<p><b>Hydrostatic.</b> $\\boldsymbol\\tau = -p\\,\\mathbf I$ looks the same in every frame: $\\mathbf C^{\\rm T}(-p\\mathbf I)\\mathbf C = -p\\,\\mathbf C^{\\rm T}\\mathbf C = -p\\,\\mathbf I$. Every axis is a principal axis; there is no shear on any cut.</p>`;
-      const tpd = Q.thetaP === null ? null : Q.thetaP / D2R, near = tpd !== null && Math.abs(((th - tpd + 90) % 90 + 90) % 90) < 3;
-      if (near) return `<p><b>Principal axes.</b> At θ ≈ ${fd(Math.round(tpd))} (+ multiples of 90°) the shear $\\tau'_{12} = ${T(Q.taup[0][1])}$ Pa vanishes and only normal stresses remain: $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. §2.11 (and E2) calls these the principal axes.</p>`;
-      return `<p>At θ = ${fd(th)} the same stress state reads $\\tau'_{11} = ${T(Q.taup[0][0])}$, $\\tau'_{12} = ${T(Q.taup[0][1])}$, $\\tau'_{22} = ${T(Q.taup[1][1])}$ Pa. Trace $\\tau'_{11} + \\tau'_{22} = ${T(Q.taup[0][0] + Q.taup[1][1])}$ = $\\tau_{11} + \\tau_{22}$: an invariant (C07). Drag θ to where the <b class="c-rose">rose</b> curve crosses zero.</p>`;
+    draw(g, s) { drawFlow(g, s); drawLines(g, s); drawSignal(g, s); },
+    onPointer(g, ev, s) {
+      if (ev.viewId !== 'flow' || !flowP) return false;
+      const P = flowP, X = ev.view.pointer.x, Y = ev.view.pointer.y;
+      if (ev.type === 'pointerdown') {
+        const pt = port(s);
+        if (s.mode === 'rotstrain' && Math.hypot(P.X(pt[0]) - X, P.Y(pt[1]) - Y) < 16) { dragPort = true; return false; }
+        let best = null, bd = 14;
+        dyeList(s).forEach(d => { const dd = Math.hypot(P.X(d.x) - X, P.Y(d.y) - Y); if (dd < bd) { bd = dd; best = d.to; } });
+        g.app.set({ probe: best });
+        return true;
+      }
+      if (ev.type === 'pointermove' && dragPort && s.mode === 'rotstrain') {
+        const R = halfRange(s), cl = q => Math.max(-0.9 * R, Math.min(0.9 * R, q));
+        g.app.set({ px: +cl(P.ix(X)).toFixed(2), py: +cl(P.iy(Y)).toFixed(2) });
+        return true;
+      }
+      if (ev.type === 'pointerup' || ev.type === 'pointercancel') dragPort = false;
+      return false;
     }
-    if (s.mode === 'polar') return `<p><b>Example 2.1.</b> The point sits at angle ${fd(th)}; $\\mathbf e_r$ is the Cartesian frame\'s 1-axis turned by that angle. So $(u_r, u_\\theta) = ${pair(Q.pol)}$ is just $x'_j = x_iC_{ij}$ (2.5) with $j \\in \\{r, \\theta\\}$ — polar components are rotated Cartesian components.</p>`;
-    if (Math.abs(th) < 0.5) return '<p><b>θ = 0.</b> The frames coincide: C = I and x′ = x. Every entry on the diagonal is cos 0 = 1.</p>';
-    if (Math.abs(Math.abs(th) - 90) < 0.5) return `<p><b>θ = ±90°.</b> The axes have swapped roles: $x'_1 = ${T(Q.xp[0])} = ${th > 0 ? '+' : '−'}x_2$, $x'_2 = ${T(Q.xp[1])} = ${th > 0 ? '−' : '+'}x_1$. C has zeros on the diagonal.</p>`;
-    if (Math.abs(Math.abs(th) - 180) < 0.5) return '<p><b>θ = ±180°.</b> Both components change sign — a half turn is still a rotation (det C = +1); C = −I.</p>';
-    return `<p>At θ = ${fd(th)} the <b class="c-orange">orange shadows</b> $x' = ${pair(Q.xp)}$ are a reshuffling of the <b class="c-teal">teal ones</b> $x = ${pair(Q.x.slice(0, 2))}$; the arrow\'s length ${f3(Q.norm)} is untouched. Only the ruler moved.</p>`;
+  },
+  inspect: s => {
+    if (s.probe == null) return null;
+    const to = s.probe, t = s.t, w = s.omega, xi = s.xi0;
+    if (to > t + 1e-9) return `The dye particle released at $t_o = ${tx(to)}$ s has not left the port yet (now $t = ${tx(t)}$ s).`;
+    const q = flowMap(s.mode, port(s), to, t, s);
+    const W = s.mode === 'vortex' || s.mode === 'rotstrain' ? '\\Omega' : '\\omega';
+    let h = `Released at $t_o = ${tx(to)}$ s ($${W} t_o = ${tdeg(w * to)}$); now $t = ${tx(t)}$ s:<br>`;
+    if (s.mode === 'ex31' || s.mode === 'current') {
+      const a = Math.sin(w * t), b = Math.sin(w * to), c = Math.cos(w * to), d = Math.cos(w * t);
+      const cur = s.mode === 'current' ? `${tx(s.U0, 2)}\\times${tx(t - to)}+` : '';
+      h += `$x=${s.mode === 'current' ? 'U_0(t-t_o)+' : ''}\\xi_o(\\sin\\omega t-\\sin\\omega t_o)$ $=${cur}${tx(xi, 2)}\\times(${tx(a)}${b > 0 ? '-' : '+'}${tx(Math.abs(b))})=\\mathbf{${tx(q[0])}}$ m<br>` +
+        `$y=\\xi_o(\\cos\\omega t_o-\\cos\\omega t)$ $=${tx(xi, 2)}\\times(${tx(c)}${d > 0 ? '-' : '+'}${tx(Math.abs(d))})=\\mathbf{${tx(q[1])}}$ m`;
+    } else if (s.mode === 'steady') {
+      h += `$\\mathbf x=\\mathbf x_{\\rm port}+\\omega\\xi_o(t-t_o)(\\cos\\beta,\\sin\\beta)$ $=(\\mathbf{${tx(q[0])}},\\ \\mathbf{${tx(q[1])}})$ m — on the streamline.`;
+    } else if (s.mode === 'vortex') {
+      h += `turned by $\\Omega(t-t_o)=${tdeg(w * (t - to))}$ round the centre: $(\\mathbf{${tx(q[0])}},\\ \\mathbf{${tx(q[1])}})$ m — on the circle.`;
+    } else {
+      h += `$\\mathbf x=\\mathbf R(\\Omega t)\\,e^{\\mathbf M(t-t_o)}\\,\\mathbf R(-\\Omega t_o)\\,\\mathbf x_{\\rm port}$ $=(\\mathbf{${tx(q[0])}},\\ \\mathbf{${tx(q[1])}})$ m`;
+    }
+    return h + '<br>The faint orange curve is this particle’s own path line.';
+  },
+  inspectHint: 'Click a rose dye dot in the flow plane to trace where it came from, number by number.',
+  explore: {
+    intro: 'Press ▶ and watch the three curves. Switch the chips above the picture: which flows make them one curve?',
+    controls: ['omega', 'xi0', 'U0', 's', 'hist'],
+    readouts: ['uv', 'slope', 'pc', 'sc', 'tag'],
+    callouts: [{ kind: 'try', html: 'Stop at any time and compare the dye with the dashed future of the orange particle: they are mirror images through the port.' }]
   },
   explain: {
-    html: s => {
-      const Q = physics(s), W = Viz.work, th = s.theta, C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C), c = Math.cos(Q.th), sn = Math.sin(Q.th);
-      let out = W.step(0, 'What the windows show') +
-        W.say('<b>The plane</b>: <b class="c-teal">teal</b> axes are the original frame O12, <b class="c-orange">orange</b> axes the rotated frame O1′2′; the black arrow is one vector $\\mathbf x$ (or, in tensor mode, one stress state). Dashed teal/orange lines are its shadows on each frame — the components. <b>C</b> is the table of cosines between old and new axes; the lit column shows one entry being built. <b>Components vs θ</b> traces how the orange numbers change as you turn the axes.') +
-        W.hint('On a phone held upright the curves window is hidden; the length |x| and the angle where τ′₁₂ = 0 are repeated in the C window\'s title.');
-      out += W.step(1, 'The direction-cosine matrix with your angle') +
-        W.line('$C_{11} = \\mathbf e_1\\cdot\\mathbf e\'_1 = \\cos\\theta = \\cos ' + T(th) + '°$', T(C[0][0]), 'old 1 and new 1′ are θ apart') +
-        W.line('$C_{21} = \\mathbf e_2\\cdot\\mathbf e\'_1 = \\cos(90° - \\theta) = \\sin\\theta$', T(C[1][0]), 'old 2 leads new 1′ by 90° − θ') +
-        W.line('$C_{12} = \\mathbf e_1\\cdot\\mathbf e\'_2 = \\cos(90° + \\theta) = -\\sin\\theta$', T(C[0][1]), 'new 2′ is 90° + θ from old 1') +
-        W.line('$C_{22} = \\mathbf e_2\\cdot\\mathbf e\'_2 = \\cos\\theta$', T(C[1][1]), '') +
-        W.box('The columns $(' + T(C[0][0]) + ', ' + T(C[1][0]) + ')$ and $(' + T(C[0][1]) + ', ' + T(C[1][1]) + ')$ are the <b class="c-orange">new unit vectors</b> written in old components — read them off the orange arrows.' + (s.mirror ? ' <b class="c-amber">Mirror on:</b> the second column has its sign flipped.' : ''));
-      out += W.step(2, 'The new components term by term — $x\'_j = x_iC_{ij}$ (2.5)') +
-        W.line('$x\'_1 = x_1C_{11} + x_2C_{21} = ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + '$', T(xp[0]), 'column 1 of C weights the old components') +
-        W.line('$x\'_2 = x_1C_{12} + x_2C_{22} = ' + T(x[0]) + '\\times(' + T(C[0][1]) + ') + ' + T(x[1]) + '\\times' + T(C[1][1]) + '$', T(xp[1]), 'column 2 of C') +
-        W.box('$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x = (\\mathbf{' + T(xp[0]) + '},\\ \\mathbf{' + T(xp[1]) + '})$ — the <i>first</i> index of C is summed.');
-      out += W.step(3, 'Nothing was lost: orthogonality') +
-        W.line('$\\max|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I|$', residTxt(orthoResidual(C)), 'round-off only: rows and columns are unit vectors at right angles') +
-        W.line('$\\det\\mathbf C = C_{11}C_{22} - C_{12}C_{21} = ' + T(C[0][0] * C[1][1]) + ' - (' + T(C[0][1] * C[1][0]) + ')$', (detC(C) > 0 ? '+' : '−') + T(Math.abs(detC(C))), s.mirror ? 'a mirror (−1), not a rotation' : 'a rotation, not a mirror') +
-        W.box('$|\\mathbf x\'|^2 = ' + T(xp[0] * xp[0]) + ' + ' + T(xp[1] * xp[1]) + ' = \\mathbf{' + T(xp[0] * xp[0] + xp[1] * xp[1]) + '} = |\\mathbf x|^2 = ' + T(x[0] * x[0]) + ' + ' + T(x[1] * x[1]) + '$ — a rotation keeps lengths (D02).');
-      const back = inverseTransform(xp, C);
-      out += W.step(4, 'Back again — $x_j = x\'_iC_{ji}$ (2.7)') +
-        W.line('$x_1 = x\'_1C_{11} + x\'_2C_{12} = ' + T(xp[0]) + '\\times' + T(C[0][0]) + ' + ' + T(xp[1]) + '\\times(' + T(C[0][1]) + ')$', T(back[0]), 'now the <i>second</i> index of C is summed: x = Cx′ (D03)') +
-        W.line('$x_2 = x\'_1C_{21} + x\'_2C_{22}$', T(back[1]), 'row 2 of C');
-      if (s.mode === 'tensor') {
-        const tau = Q.tau, tp = Q.taup, terms = (m, n) => { const t = []; for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) if (Math.abs(tau[i][j]) > 1e-12) t.push('C_{' + (i + 1) + (m + 1) + '}C_{' + (j + 1) + (n + 1) + '}\\tau_{' + (i + 1) + (j + 1) + '}'); return t.join(' + ') || '0'; };
-        out += W.step(5, 'Tensor mode — $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) entry by entry') +
-          W.say('Stress state: <b>' + TPRESETS[s.tpreset] + '</b>, $\\boldsymbol\\tau = \\begin{pmatrix}' + T(tau[0][0]) + ' & ' + T(tau[0][1]) + '\\\\' + T(tau[1][0]) + ' & ' + T(tau[1][1]) + '\\end{pmatrix}$ Pa. Two C\'s because τ has two indices; zero entries of τ drop out.') +
-          W.line('$\\tau\'_{11} = C_{i1}C_{j1}\\tau_{ij} = ' + terms(0, 0) + '$', T(tp[0][0]) + ' Pa', '<b class="c-blue">normal</b> stress on the 1′ face') +
-          W.line('$\\tau\'_{12} = C_{i1}C_{j2}\\tau_{ij} = ' + terms(0, 1) + '$', T(tp[0][1]) + ' Pa', '<b class="c-rose">shear</b> on the 1′ face') +
-          W.line('$\\tau\'_{22} = C_{i2}C_{j2}\\tau_{ij} = ' + terms(1, 1) + '$', T(tp[1][1]) + ' Pa', '<b class="c-blue">normal</b> stress on the 2′ face') +
-          W.box('Trace $\\tau\'_{11} + \\tau\'_{22} = ' + T(tp[0][0] + tp[1][1]) + ' = \\tau_{11} + \\tau_{22}$: an invariant (C07).' + (s.tpreset === 'shear' ? ' For pure shear: $\\tau\'_{11} = a\\sin 2\\theta = ' + T(shearRotated(s.a, Q.th)[0]) + '$, $\\tau\'_{12} = a\\cos 2\\theta = ' + T(shearRotated(s.a, Q.th)[1]) + '$ Pa (Example 2.2).' : ''));
-        if (s.tpreset === 'fixed') out += W.result('The array declared "the same in every frame" differs from $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ by <b>' + Viz.fmt(Q.fixedRes) + ' Pa</b> at this θ — it is a matrix, not a tensor (N27).', 'warn');
-      } else {
-        out += W.step(5, 'Tensor mode — $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12)') + W.hint('Switch the object to <b>tensor</b> (chips above the picture) to see $\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ worked out entry by entry with your θ.');
-      }
-      if (s.mode === 'polar') {
-        out += W.step(6, 'Polar mode — Example 2.1') +
-          W.line('$u_r = u_1\\cos\\theta + u_2\\sin\\theta = ' + T(x[0]) + '\\times' + T(c) + ' + ' + T(x[1]) + '\\times' + T(sn) + '$', T(Q.pol[0]), 'the radial component') +
-          W.line('$u_\\theta = -u_1\\sin\\theta + u_2\\cos\\theta$', T(Q.pol[1]), 'the azimuthal component') +
-          W.box('Exactly $x\'_j = x_iC_{ij}$ (2.5) with $j \\in \\{r, \\theta\\}$: the polar frame is the Cartesian frame turned by the point\'s angle θ.');
-      } else {
-        out += W.step(6, 'Polar mode — Example 2.1') + W.hint('Switch the object to <b>polar</b>: the same rule with $j \\in \\{r, \\theta\\}$ gives $(u_r, u_\\theta) = ' + pair(Q.pol) + '$ at θ = ' + fd(th) + '.');
-      }
-      const cur = s.what === 'axes' ? 0 : 1;
-      out += W.step(7, 'Passive or active?') +
-        W.table(['what turns', 'formula', 'x′ now'], [['axes (book)', '$\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x$', '$' + pair(xp) + '$'], ['arrow (Wikipedia R)', '$\\mathbf x\' = \\mathbf C\\mathbf x$', '$' + pair(Q.xa) + '$']], cur) +
-        W.say('Same matrix, opposite job. Turning the axes by $+\\theta$ is, from the axes\' point of view, turning the arrow by $-\\theta$: the two rows agree when θ → −θ.');
-      const rows = VECTOR_TESTS.map(tst => { const r = vectorTestResidual(tst.fn, C, TEST_POINTS); return ['$' + tst.tex + '$', Viz.fmt(r), r < 1e-9 ? '<b class="c-teal">vector</b>' : '<b class="c-rose">not a vector</b>']; });
-      out += W.step(8, 'Is it a vector? The test $u\'_j = u_iC_{ij}$ (2.8)') +
-        W.say('A triple of numbers is a vector only if its components obey $u\'_j = u_iC_{ij}$. Evaluate each rule in the old frame and in the new one at three sample points; the residual is $\\max|u\'_j - u_iC_{ij}|$ with your C.') +
-        W.table(['rule', 'residual', 'verdict'], rows);
-      let reading;
-      if (s.mirror) reading = 'det C = −1: lengths are kept but handedness is not; ε<sub>ijk</sub> would change sign (N42). Turn the mirror off to get back to a rotation.';
-      else if (s.mode === 'tensor' && s.tpreset === 'fixed') reading = 'The numbers refuse to change with the frame, so they cannot describe a physical stress: the residual ' + Viz.fmt(Q.fixedRes) + ' Pa is the size of the lie. Only arrays obeying $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) are tensors.';
-      else if (s.mode === 'tensor') { const tpd = Q.thetaP === null ? null : Q.thetaP / D2R; reading = tpd !== null && Math.abs((((th - tpd) % 90) + 135) % 90 - 45) > 42 ? 'τ′₁₂ = ' + T(Q.taup[0][1]) + ' Pa ≈ 0: in these axes the shear has vanished and only normal stresses remain — the principal axes of §2.11 (E2).' : 'The same stress state, described from axes turned by ' + fd(th) + ': τ′₁₁ = ' + T(Q.taup[0][0]) + ', τ′₁₂ = ' + T(Q.taup[0][1]) + ', τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa. The trace ' + T(Q.taup[0][0] + Q.taup[1][1]) + ' Pa never moves.' + (tpd !== null ? ' Drag to θ = ' + fd(Math.round(tpd)) + ' to make the shear vanish.' : ''); }
-      else if (s.mode === 'polar') reading = 'The point at ' + fd(th) + ' carries u = ' + pair(x) + '; its polar components (' + T(Q.pol[0]) + ', ' + T(Q.pol[1]) + ') are the Cartesian ones read off a frame turned with the point. Nothing new was defined — one rule, one more application.';
-      else if (s.what === 'arrow') reading = 'You are watching the active rotation: the arrow moved to Cx = ' + pair(Q.xa) + ' while the axes stayed. The book never does this; it turns the axes and applies Cᵀ. Same C, opposite job — flip the chip back to compare.';
-      else if (Math.abs(th) < 0.5) reading = 'θ = 0: the frames coincide, C = I, x′ = x.';
-      else if (Math.abs(Math.abs(th) - 90) < 0.5) reading = 'θ = ±90°: the axes have swapped roles, x′₁ = ±x₂ and x′₂ = ∓x₁.';
-      else if (Math.abs(Math.abs(th) - 180) < 0.5) reading = '|θ| = 180°: both components change sign — a half turn, still a rotation (det C = +1).';
-      else reading = 'The orange shadows (' + T(xp[0]) + ', ' + T(xp[1]) + ') are a reshuffling of the teal ones (' + T(x[0]) + ', ' + T(x[1]) + '); the arrow\'s length ' + T(Q.norm) + ' is untouched. The arrow never moved — only the ruler did.';
-      out += W.step(9, 'At the current angle') + W.line('$\\theta$', Viz.live('theta') + '°') + W.line('$\\mathbf x\'$', Viz.live('xp')) + W.interpret(reading, 'Reading the current setting');
-      return out;
-    },
-    live: s => { const Q = physics(s); return { theta: Viz.fmt(s.theta), xp: s.mode === 'polar' ? pair(Q.pol) : (s.what === 'axes' ? pair(Q.xp) : pair(Q.xa)) }; }
+    html: s => explainHtml(s),
+    live: s => { const q = flowMap(s.mode, port(s), 0, s.t, s); return { t: fx(s.t, 2), deg: degs(s.omega * s.t), ndye: String(dyeList(s).length), px: fx(q[0], 2), py: fx(q[1], 2) }; }
   },
   derivations: [
-    { id: 'D01', title: 'The transformation rule for components', short: 'Eq. (2.5)', ref: 'Eq. (2.5)', view: 'plane',
-      goal: 'Find how the three numbers that describe a vector change when the axes are rotated — the rule that will define what a vector is.',
-      start: { tex: '\\mathbf x = x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j', plain: 'The same arrow written once in the old basis, $\\mathbf x = x_i\\mathbf e_i$ (2.1), and once in the new basis, $\\mathbf x = x\'_j\\mathbf e\'_j$ (2.3); only the numbers differ.' },
-      plan: ['Dot both spellings with one new unit vector.', 'On the primed side orthonormality kills every term but one.', 'Name the cosines that remain: that is C.', 'Do it for a general new axis, not only $\\mathbf e\'_1$.'],
-      uses: ['dot product $\\mathbf a\\cdot\\mathbf b = a_ib_i$ (2.2)', 'bilinearity of the dot product', 'orthonormality $\\mathbf e\'_i\\cdot\\mathbf e\'_j = \\delta_{ij}$', 'Kronecker substitution $\\delta_{ij}u_j = u_i$ (2.17)', 'direction cosines $C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j$'],
-      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false },
+    { id: 'D03', title: 'Where $dx/u=dy/v=dz/w$ comes from', short: 'D03 streamline', ref: 'Eq. (3.7)', view: 'lines',
+      goal: 'Turn “a curve that is tangent to the velocity everywhere at one instant” into equations we can integrate — the book leaves this to Exercise 3.3. <b>Assumptions.</b> The clock is frozen at t (every step); $\\mathbf u\\neq0$ at the points used (step 3 divides by components, step 4 by $\\lvert\\mathbf u\\rvert$).',
+      start: { tex: 'd\\mathbf s\\parallel\\mathbf u(\\mathbf x,t)\\ \\text{ at fixed } t', plain: 'With $d\\mathbf s=(dx,dy,dz)$ a small step along the curve and $\\mathbf u=(u,v,w)$: each little piece of the streamline points along the local velocity.' },
+      plan: ['Write parallel as “one is a multiple of the other”.', 'Take components.', 'Eliminate the multiple.', 'Fix the multiple by arc length to get an ODE we can integrate.'],
+      uses: ['parallel vectors and the cross-product test (primer in the notebook, C03)', 'parametric curves, tangent vector and arc length (primer in C03)'],
+      set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, mark: 'ds', probe: null },
       steps: [
-        { did: 'Write the arrow in both bases', tex: 'x_i\\,\\mathbf e_i = x\'_j\\,\\mathbf e\'_j',
-          why: 'Equations $\\mathbf x = x_i\\mathbf e_i$ (2.1) and $\\mathbf x = x\'_j\\mathbf e\'_j$ (2.3) describe one and the same arrow, so their right sides are equal. We compare coefficients.',
-          plain: 'Two spellings, one vector.', watch: 'The black arrow has teal shadows and orange shadows: the two spellings.' },
-        { did: 'Dot both sides with $\\mathbf e\'_k$', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_j\\,(\\mathbf e\'_j\\cdot\\mathbf e\'_k)',
-          why: 'The dot product is bilinear: it distributes over the sums and lets the scalars x_i, x\'_j pull out. We dot with a new unit vector to isolate one new component.',
-          plain: 'Project both spellings onto the new axis k.', set: { selj: 0, cell: { i: 0, j: 0 } }, watch: 'Column 1 of C lights up: the cosines with the new axis 1′.' },
-        { did: 'Use orthonormality of the new basis', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_j\\,\\delta_{jk}',
-          why: 'The new unit vectors are perpendicular and of length 1, so e\'_j·e\'_k is 1 for j = k and 0 otherwise — that is δ. This is the move the book leaves silent.',
-          plain: 'On the primed side only the k-th term can survive.' },
-        { did: 'Let δ substitute its summed index', tex: 'x_i\\,(\\mathbf e_i\\cdot\\mathbf e\'_k) = x\'_k',
-          why: 'Kronecker substitution $\\delta_{ij}u_j = u_i$ (2.17): x\'_j δ_jk = x\'_k, because the sum over j has one nonzero term. We now have one new component alone on one side.',
-          plain: 'The new component k is a weighted sum of the old ones.' },
-        { did: 'Name the weights as direction cosines', tex: 'x\'_k = x_i\\,C_{ik},\\qquad C_{ik} \\equiv \\mathbf e_i\\cdot\\mathbf e\'_k',
-          why: 'Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); naming them turns the projection into a matrix. For k = 1 this is (2.4), $\\mathbf x\\cdot\\mathbf e\'_1 = x\'_1$.',
-          plain: 'The weights are the nine cosines between old and new axes.',
-          live: s => { const Q = physics(s), C = Q.C2, x = [s.x1, s.x2], xp = transformVector(x, C); return '\\begin{aligned} C_{11} &= ' + T(C[0][0]) + ',\\quad C_{21} = ' + T(C[1][0]) + '\\\\ x\'_1 &= ' + T(x[0]) + '\\times' + T(C[0][0]) + ' + ' + T(x[1]) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]) + '\\end{aligned}'; },
-          set: { selj: 0, cell: { i: 0, j: 0 } } },
-        { did: 'Rename the free index k → j', tex: 'x\'_j = x_i\\,C_{ij}',
-          why: 'A free index may be renamed on both sides at once (N12); k = 1, 2, 3 are three equations and this one line holds them all — no "similarly" needed.',
-          plain: 'The new components are the old ones multiplied into C, first index summed.',
-          watch: 'The orange shadow x′₁ on the 1′ axis has exactly the length the matrix window computes.' }
+        { did: 'Write parallel as a multiple', tex: 'd\\mathbf s=\\lambda\\,\\mathbf u',
+          why: 'Two vectors are parallel when one is a scalar multiple of the other (primer); λ > 0 so the curve runs downstream, and λ has units of time (m ÷ m/s).',
+          plain: 'The small step is the velocity times a tiny ‘time-like’ number.', set: { mark: 'ds' }, play: false,
+          watch: 'The short teal arrow at the port is ds; the black one is u. Same direction, different length.' },
+        { did: 'Split into components', tex: 'dx=\\lambda u,\\quad dy=\\lambda v,\\quad dz=\\lambda w',
+          why: 'Two vectors are equal when each component is equal.', plain: 'Each coordinate step is proportional to that velocity component.' },
+        { did: 'Eliminate λ', tex: '\\dfrac{dx}{u}=\\dfrac{dy}{v}=\\dfrac{dz}{w}\\;(=\\lambda)',
+          why: 'Solve each line for λ by dividing by u, v, w (allowed only where they are nonzero); all three equal the same λ. This is (3.7), $dx/u=dy/v=dz/w$. Equivalently $\\mathbf u\\times d\\mathbf s=0$, which never divides.',
+          plain: 'The direction numbers of the step match those of the velocity.',
+          live: s => { const u = uPort(s); return `\\dfrac{dy}{dx}=\\dfrac{v}{u}=\\dfrac{${tx(u[1])}}{${tx(u[0])}}=${tx(slopeOf(u))}`; } },
+        { did: 'Fix λ by the step’s length', tex: '\\lambda=\\dfrac{ds}{\\lvert\\mathbf u\\rvert}',
+          why: 'Take the length of both sides of step 1: $ds=\\lambda\\lvert\\mathbf u\\rvert$ with ds the arc length (primer). Choosing arc length makes the next line well defined everywhere u ≠ 0.',
+          plain: 'The step’s length decides how big λ is.' },
+        { did: 'Write the arc-length ODE', tex: '\\dfrac{d\\mathbf x}{ds}=\\dfrac{\\mathbf u(\\mathbf x,t)}{\\lvert\\mathbf u(\\mathbf x,t)\\rvert}',
+          why: 'Substitute λ into step 1 and divide by ds. The right side is a known unit vector field at frozen t, so this is an ODE that ch03.streamline integrates both ways from a seed.',
+          plain: 'Walk along the unit arrows at one instant.', watch: 'The bold teal line through the port is this ODE integrated at frozen t.' }
       ],
-      result: { tex: 'x\'_j = x_iC_{ij}\\qquad(\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x)', plain: 'Each new component is the old components weighted by the cosines in column j of C.' },
-      interpret: s => { const Q = physics(s); return 'With θ = ' + fd(s.theta) + ' your components are ' + pair(transformVector([s.x1, s.x2], Q.C2)) + ': the same arrow, new shadows. Its length ' + f3(Q.norm) + ' did not change.'; },
-      check: 'Units: both sides carry the unit of x (C is dimensionless). Limit θ = 0: C = I, x′ = x. Number: x = (1, 2), θ = 30° gives x′ = (1.866, 1.232), lengths 2.236 both — the selftest rows compare with transform_vector.' },
-    { id: 'D02', title: 'Why C is orthogonal: CCᵀ = CᵀC = I and det C = +1', short: 'CᵀC = I', ref: 'Exercise 2.8', view: 'matrix',
-      goal: 'Show that the direction-cosine matrix undoes itself when transposed, so that going back to the old components is free (D03), lengths are preserved, and contracted index pairs of C become δ. The book leaves this to Exercise 2.8.',
-      start: { tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j', plain: 'The definition of the direction cosines (C02).' },
-      plan: ['Expand an old unit vector in the new basis (completeness).', 'Dot with another old unit vector: δ on one side, a product of two C\'s on the other.', 'Repeat with the roles of the bases swapped.', 'Take determinants for the sign.'],
-      uses: ['completeness $\\mathbf v = (\\mathbf v\\cdot\\mathbf e\'_j)\\mathbf e\'_j$', 'orthonormality of both bases', 'bilinearity', 'matrix product as an index sum $P_{ij} = A_{ik}B_{kj}$ (2.9)', '$\\det(AB) = \\det A\\det B$', 'continuity for the sign'],
-      set: { mode: 'vector', what: 'axes', mirror: false, axis3d: false },
+      result: { tex: '\\begin{aligned}&dx/u=dy/v=dz/w\\\\ &\\dfrac{d\\mathbf x}{ds}=\\dfrac{\\mathbf u}{\\lvert\\mathbf u\\rvert}\\ \\text{ at frozen } t\\end{aligned}', plain: 'Eq. (3.7), equivalently $\\mathbf u\\times d\\mathbf s=0$: a streamline follows the arrows of one instant.' },
+      interpret: s => { const u = uPort(s), a = Math.atan2(u[1], u[0]); return `At ${s.mode === 'vortex' || s.mode === 'rotstrain' ? 'Ωt' : 'ωt'}′ = ${degs(s.omega * s.t)}° the velocity at the port points at ${degs(a)}°, so the streamline through the port leaves it with slope $v/u=${tx(slopeOf(u))}$. In unsteady flow this pattern belongs to one instant only, so streamlines are not where particles go; the ODE stops at a stagnation point (u = 0, no direction).`; },
+      check: 'Units: each ratio in s ✓. Plane flow: $dy/dx=v/u$; with u = (1, 2) the slope is 2 ✓. Solid-body rotation u = −y, v = x: $dy/dx=-x/y$ ⇒ $x^2+y^2=$ const, circles (try the vortex chip) ✓. Ex. 3.1 at ωt′ = 30°: slope tan 30° = 0.577 ✓. Selftest: the JS arc-length streamline matches ch03.streamline.' },
+    { id: 'D04', title: 'Ex. 3.1: the path line is a circle of radius $\\xi_o$', short: 'D04 path circle', ref: 'Ex. 3.1', view: 'flow',
+      goal: 'Find the path of the particle that sits at the origin at the drawing instant t′ in the sloshing flow $u=\\omega\\xi_o\\cos\\omega t$, $v=\\omega\\xi_o\\sin\\omega t$ — and fill in the “little algebra” the book skips. Here t′ = 0: the orange particle. <b>Assumptions.</b> The field is spatially uniform (step 1: the right-hand sides depend on t only); ω ≠ 0.',
+      start: { tex: '\\dfrac{d\\mathbf r}{dt}=\\mathbf u(\\mathbf r,t),\\qquad \\mathbf r(t\')=\\mathbf 0', plain: 'Eq. (3.8), $d\\mathbf r/dt=\\mathbf u(\\mathbf r,t)$: the particle moves with the field’s velocity at its current position and passes the origin at t′.' },
+      plan: ['Write both components and integrate them (the field does not depend on position, so each equation integrates directly).', 'Fix the constants with the condition at t′.', 'Eliminate t with sin² + cos² = 1.'],
+      uses: ['Eq. (3.8), $d\\mathbf r/dt=\\mathbf u(\\mathbf r,t)$ (C04)', 'integrating sin and cos (step 2)', 'eliminating a parameter with sin² + cos² = 1 (steps 6–7)', 'equation of a circle (step 7)'],
+      set: { mode: 'ex31', t: 0, omega: 1, xi0: 1, mark: null, probe: null },
       steps: [
-        { did: 'Write the product we want to evaluate', tex: 'C_{ij}C_{kj} = (\\mathbf e_i\\cdot\\mathbf e\'_j)(\\mathbf e_k\\cdot\\mathbf e\'_j)',
-          why: 'Just the definition of C inserted twice; j is summed. We choose this product because it is (CCᵀ)_ik.',
-          plain: 'Row i of C dotted with row k of C.' },
-        { did: 'Expand $\\mathbf e_i$ in the new basis', tex: '\\mathbf e_i = (\\mathbf e_i\\cdot\\mathbf e\'_j)\\,\\mathbf e\'_j = C_{ij}\\,\\mathbf e\'_j',
-          why: 'Completeness: any vector is the sum of its projections on an orthonormal basis. We expand an old axis in new axes because that produces exactly a row of C.',
-          plain: 'An old axis is a sum of new axes weighted by its row of C.', set: { cell: { i: 0, j: 0 }, selj: 0 }, watch: 'Row 1 of C (teal band) holds the two weights of e₁.' },
-        { did: 'Dot with $\\mathbf e_k$', tex: '\\mathbf e_i\\cdot\\mathbf e_k = C_{ij}\\,(\\mathbf e\'_j\\cdot\\mathbf e_k) = C_{ij}C_{kj}',
-          why: 'Bilinearity pulls C_ij out; e\'_j·e_k = e_k·e\'_j = C_kj by the definition of C. The right side is now the product of step 1.',
-          plain: 'The same product equals a dot product of two old axes.' },
-        { did: 'Use orthonormality of the old basis', tex: 'C_{ij}C_{kj} = \\delta_{ik}\\qquad(\\mathbf C\\mathbf C^{\\rm T} = \\mathbf I)',
-          why: 'e_i·e_k = δ_ik for perpendicular unit vectors. This is the first orthogonality relation; in matrix form the summed second indices make CCᵀ.',
-          plain: 'The rows of C are perpendicular unit vectors.',
-          live: s => { const C = physics(s).C2; return '\\begin{aligned} C_{11}C_{11} + C_{12}C_{12} &= ' + T(C[0][0] * C[0][0]) + ' + ' + T(C[0][1] * C[0][1]) + ' = ' + T(C[0][0] * C[0][0] + C[0][1] * C[0][1]) + ' = \\delta_{11}\\\\ C_{11}C_{21} + C_{12}C_{22} &= ' + T(C[0][0] * C[1][0]) + ' ' + (C[0][1] * C[1][1] < 0 ? '-' : '+') + ' ' + T(Math.abs(C[0][1] * C[1][1])) + ' = ' + T(C[0][0] * C[1][0] + C[0][1] * C[1][1]) + ' = \\delta_{12}\\end{aligned}'; } },
-        { did: 'Swap the roles: expand a new axis in the old basis', tex: '\\mathbf e\'_i = (\\mathbf e\'_i\\cdot\\mathbf e_j)\\,\\mathbf e_j = C_{ji}\\,\\mathbf e_j',
-          why: 'Completeness again, now of the old basis. The second relation does not follow from the first without this second argument — a common gap.',
-          plain: 'A new axis is a sum of old axes weighted by its column of C.', set: { cell: null, selj: 0 }, watch: 'Column 1 (orange band) holds the two old components of e′₁.' },
-        { did: 'Dot with $\\mathbf e\'_k$ and use orthonormality of the new basis', tex: 'C_{ji}C_{jk} = \\delta_{ik}\\qquad(\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I)',
-          why: 'Bilinearity and e_j·e\'_k = C_jk on the right; e\'_i·e\'_k = δ_ik on the left. Now the first indices are summed.',
-          plain: 'The columns of C are perpendicular unit vectors too.', watch: 'The third line of the matrix window is exactly max|CᵀC − I|.' },
-        { did: 'Take the determinant of step 6', tex: '(\\det\\mathbf C)^2 = 1\\ \\Rightarrow\\ \\det\\mathbf C = \\pm1',
-          why: 'det(AB) = det A · det B and det Cᵀ = det C (P53), while det I = 1. We take determinants because the sign tells a rotation from a mirror.',
-          plain: 'C cannot stretch volumes; it may or may not flip them.',
-          live: s => { const C = physics(s).C2; return '\\det\\mathbf C = ' + T(C[0][0]) + '\\times' + T(C[1][1]) + ' - (' + T(C[0][1]) + ')(' + T(C[1][0]) + ') = ' + (detC(C) > 0 ? '+' : '-') + T(Math.abs(detC(C))); } },
-        { did: 'Fix the sign for a rotation', tex: '\\det\\mathbf C = +1',
-          why: 'Turning the axes gradually from θ = 0 changes det C continuously; it starts at det I = +1 and cannot pass through 0 (it is ±1), so it stays +1.',
-          plain: 'A genuine rotation keeps the handedness of the axes; a mirror (−1) cannot be reached by turning.', set: { mirror: true }, watch: 'With the mirror on the status turns amber: det C = −1 while CᵀC − I stays 0 — orthogonal, but not a rotation.' }
+        { did: 'Write the two components', tex: '\\dfrac{dx}{dt}=\\omega\\xi_o\\cos\\omega t,\\quad\\dfrac{dy}{dt}=\\omega\\xi_o\\sin\\omega t',
+          why: 'Eq. (3.8), $d\\mathbf r/dt=\\mathbf u(\\mathbf r,t)$, component by component. The velocity is the same at every point, so the right sides are known functions of t alone — no coupling to x, y.',
+          plain: 'The particle’s velocity is just the field’s velocity at that time.', play: false },
+        { did: 'Integrate each once', tex: 'x=\\xi_o\\sin\\omega t+c_x,\\quad y=-\\xi_o\\cos\\omega t+c_y',
+          why: 'An antiderivative of $\\omega\\cos\\omega t$ is $\\sin\\omega t$ and of $\\omega\\sin\\omega t$ is $-\\cos\\omega t$ (the ω cancels); $c_x,c_y$ are the constants (the book’s x_o, y_o).',
+          plain: 'Every particle traces the same shape; only the constants differ.', set: { t: 1.5 }, play: false,
+          watch: 'The orange trail is half drawn: the same shape for every particle, shifted by the constants.' },
+        { did: 'Impose r(t′) = 0', tex: 'c_x=-\\xi_o\\sin\\omega t\',\\quad c_y=\\xi_o\\cos\\omega t\'',
+          why: 'The particle we want is at the origin at the drawing instant: set t = t′ and x = y = 0 in step 2 and solve for the constants.',
+          plain: 'The condition picks one particle.',
+          live: s => `\\begin{aligned}c_x&=-${tx(s.xi0, 2)}\\times\\sin 0=0\\\\ c_y&=${tx(s.xi0, 2)}\\times\\cos 0=${tx(s.xi0)}\\ \\text{m}\\end{aligned}` },
+        { did: 'Substitute the constants', tex: '\\begin{aligned}x&=\\xi_o(\\sin\\omega t-\\sin\\omega t\')\\\\ y&=\\xi_o(\\cos\\omega t\'-\\cos\\omega t)\\end{aligned}',
+          why: 'Put step 3 into step 2. These are the path’s parametric equations, with t the parameter — the book prints them.',
+          plain: 'Where that particle is at any time t.',
+          live: s => { const q = flowMap('ex31', [0, 0], 0, s.t, s); return `t=${tx(s.t, 2)}\\ \\text{s}:\\ (x,y)=(${tx(q[0])},\\ ${tx(q[1])})\\ \\text{m}`; } },
+        { did: 'Isolate the parts that depend on t', tex: '\\begin{aligned}x+\\xi_o\\sin\\omega t\'&=\\xi_o\\sin\\omega t\\\\ y-\\xi_o\\cos\\omega t\'&=-\\xi_o\\cos\\omega t\\end{aligned}',
+          why: 'The book skips this: move the constants to the left so each right side holds only t — the form in which squaring and adding removes t.',
+          plain: 'Offsets from a fixed point equal a sine and a cosine of the same angle.' },
+        { did: 'Square both and add', tex: '\\begin{aligned}&(x+\\xi_o\\sin\\omega t\')^2+(y-\\xi_o\\cos\\omega t\')^2\\\\ &\\quad=\\xi_o^2(\\sin^2\\omega t+\\cos^2\\omega t)\\end{aligned}',
+          why: 'Squaring removes the minus sign; adding pairs sin² with cos² of the same angle ωt, ready for the identity.',
+          plain: 'The squared distance from the fixed point.' },
+        { did: 'Use sin² + cos² = 1', tex: '(x+\\xi_o\\sin\\omega t\')^2+(y-\\xi_o\\cos\\omega t\')^2=\\xi_o^2',
+          why: 'Pythagorean identity; t has gone, so this is the curve itself. $(x-a)^2+(y-b)^2=r^2$ is a circle of centre (a, b) and radius r.',
+          plain: 'A circle of radius ξₒ centred at $(-\\xi_o\\sin\\omega t\',\\ \\xi_o\\cos\\omega t\')$.', set: { t: 2 * Math.PI }, play: false,
+          watch: 'The orange trail closes on its dashed circle after one period.' }
       ],
-      result: { tex: 'C_{ij}C_{kj} = C_{ji}C_{jk} = \\delta_{ik},\\qquad\\det\\mathbf C = +1', plain: 'Cᵀ is the inverse of C, and C is a proper rotation.', set: { mirror: false } },
-      interpret: s => { const Q = physics(s); return 'Orthogonality is why the length readout shows |x| = ' + f3(Q.norm) + ' = |x′| = ' + f3(Q.normp) + ' at θ = ' + fd(s.theta) + (s.mirror ? ' even with the mirror on (det C = −1: lengths kept, handedness lost).' : '.'); },
-      check: 'θ = 30°: row 1 · row 1 = 0.75 + 0.25 = 1, row 1 · row 2 = 0.866(0.5) + (−0.5)(0.866) = 0; det = 0.866² + 0.5² = 1 (orthogonality_residual ≈ 2e-16). Limit: C = I trivially. The selftest rows check the residual and det C.' },
-    { id: 'D06', title: 'The tensor transformation rule from Cauchy\'s formula', short: 'Eq. (2.12)', ref: 'Eq. (2.12)', view: 'plane',
-      goal: 'Show how the nine stress components must change under a rotation of axes, given only that force per area and the normal are vectors. The book states the rule $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) via a tetrahedron; we already have Cauchy\'s $f_i = \\tau_{ji}n_j$ (2.15), so we derive (2.12) from it.',
-      start: { tex: '\\begin{aligned} f_i &= \\tau_{ji}n_j\\quad\\text{(old frame)}\\\\ f\'_n &= \\tau\'_{mn}n\'_m\\quad\\text{(new frame)}\\end{aligned}', plain: 'Cauchy\'s formula holds for every observer, each with their own components of τ.' },
-      plan: ['Transform f as a vector.', 'Insert Cauchy\'s formula in the old frame.', 'Express the old n through the new n′.', 'Compare with Cauchy\'s formula in the new frame, for every n′.'],
-      uses: ['f and n are vectors: $u\'_j = u_iC_{ij}$ (2.8)', 'Cauchy\'s formula $f_i = \\tau_{ji}n_j$ (2.15)', 'the inverse rule $x_j = x\'_iC_{ji}$ (2.7)', 'dummy renaming (N12)', '"true for every n′ ⇒ the coefficients agree"'],
-      set: { mode: 'tensor', tpreset: 'shear', theta: 30, what: 'axes', mirror: false },
+      result: { tex: '(x+\\xi_o\\sin\\omega t\')^2+(y-\\xi_o\\cos\\omega t\')^2=\\xi_o^2', plain: 'The particle runs round a circle of radius ξₒ that touches the origin, once per period 2π/ω.' },
+      interpret: s => { const c = centres(0, s); return `For the orange particle (t′ = 0): centre (${fx(c.path[0])}, ${fx(c.path[1])}) m, radius ${fx(s.xi0)} m — one lap per $2\\pi/\\omega=${s.omega > 1e-9 ? tx(2 * Math.PI / s.omega) : '\\infty'}$ s. A uniform but turning velocity field makes every particle circle: a caricature of the orbits under long surface waves (Ch. 7 has the real ones). The circle is not the straight streamline — the flow is unsteady.`; },
+      check: 'Units: every term m² ✓. The origin lies on it: $\\xi_o^2\\sin^2+\\xi_o^2\\cos^2=\\xi_o^2$ ✓. Numbers (ξₒ = 1 m, ω = 1 s⁻¹, t′ = 0): centre (0, 1) m ✓. Direction: at t = 0 the particle is at the bottom of that circle moving with u = (ωξₒ, 0) — to the right — so it runs counterclockwise ✓. Selftest: ch03.example_3_1 gives the same centres.' },
+    { id: 'D05', title: 'Ex. 3.1: the streak line is the mirror circle', short: 'D05 streak circle', ref: 'Ex. 3.1', view: 'flow',
+      goal: 'Find where the dye that has been leaking from the origin sits at the instant t′, and prove the book’s claim that the streamline, path line and streak line are tangent at the origin — both skipped in the book. <b>Assumptions.</b> Dye has been released continuously for at least one period before t′ (step 6).',
+      start: { tex: '\\begin{aligned}x&=\\xi_o(\\sin\\omega t-\\sin\\omega t_o)\\\\ y&=\\xi_o(\\cos\\omega t_o-\\cos\\omega t)\\end{aligned}', plain: 'D04 steps 2–3 with the release time $t_o$ in place of t′: the path of the particle that was at the origin at time $t_o$.' },
+      plan: ['Freeze the clock at t′ and let the release time vary.', 'Eliminate $t_o$ as in D04.', 'Compare the three slopes at the origin.'],
+      uses: ['D04', 'eliminating a parameter with sin² + cos² = 1', 'implicit differentiation (step 7)', 'the Ex. 3.1 streamline $y=x\\tan(\\omega t\')$ (N18)'],
+      set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, hist: true, mark: 'age', probe: null },
       steps: [
-        { did: 'Transform the traction as a vector', tex: 'f\'_n = f_i\\,C_{in}',
-          why: 'f is a physical force per area, hence a vector, so its components obey $u\'_j = u_iC_{ij}$ (2.8), first index of C summed. We start from f because both frames must agree on it.',
-          plain: 'The new observer\'s traction components come from the old ones by C.' },
-        { did: 'Insert Cauchy\'s formula in the old frame', tex: 'f\'_n = \\tau_{ji}\\,n_j\\,C_{in}',
-          why: 'Cauchy\'s $f_i = \\tau_{ji}n_j$ (2.15) gives f_i in terms of the old τ and the old n; substituting expresses the new traction through old quantities.',
-          plain: 'The new traction, written with the old stresses and the old normal.', set: { cell: { i: 0, j: 0 }, selj: 0 }, watch: 'The orange element\'s 1′ face: its traction is the blue τ′₁₁ arrow plus the rose τ′₁₂ arrow.' },
-        { did: 'Write the old normal through the new one', tex: 'n_j = n\'_m\\,C_{jm}',
-          why: 'n is a unit vector, so the inverse rule $x_j = x\'_iC_{ji}$ (2.7) applies (second index of C summed). We need n′ because the new observer measures n′.',
-          plain: 'The old components of the normal from the new ones.' },
-        { did: 'Substitute the normal', tex: 'f\'_n = C_{jm}\\,C_{in}\\,\\tau_{ji}\\,n\'_m',
-          why: 'Step 3 into step 2; the factors are reordered (scalars commute) so that both C\'s sit in front. Everything on the right is now old τ, two C\'s and the new normal.',
-          plain: 'The new traction equals two C\'s times the old τ times the new normal.' },
-        { did: 'Write Cauchy\'s formula in the new frame', tex: 'f\'_n = \\tau\'_{mn}\\,n\'_m',
-          why: 'The new observer sees the same physics, so $f_i = \\tau_{ji}n_j$ (2.15) holds with primed components everywhere — this defines the new observer\'s τ′.',
-          plain: 'The new observer\'s own stress tensor gives the same traction.',
-          live: s => { const Q = physics(s); return '\\begin{aligned} &\\mathbf n\' = (1, 0): \\\\ &f\'_1 = \\tau\'_{11}n\'_1 + \\tau\'_{21}n\'_2 = \\tau\'_{11} = ' + T(Q.taup[0][0]) + '\\ \\text{Pa}\\\\ &f\'_2 = \\tau\'_{12} = ' + T(Q.taup[0][1]) + '\\ \\text{Pa}\\end{aligned}'; } },
-        { did: 'Equate steps 4 and 5', tex: '\\big(\\tau\'_{mn} - C_{jm}C_{in}\\tau_{ji}\\big)\\,n\'_m = 0',
-          why: 'Both are the same f\'_n; subtracting and factoring the common n\'_m (a sum on m) collects the difference. The bracket does not depend on n′.',
-          plain: 'A certain matrix, applied to any unit normal, gives zero.' },
-        { did: 'Conclude the bracket vanishes', tex: '\\tau\'_{mn} = C_{jm}\\,C_{in}\\,\\tau_{ji}',
-          why: 'Step 6 holds for every unit n′; choose n′ = e′₁, e′₂, e′₃ in turn and each picks out one column of the bracket, which must be zero (compare coefficients).',
-          plain: 'The new stress components are fixed by the old ones and C.' },
-        { did: 'Rename the dummies (j → i, i → j)', tex: '\\tau\'_{mn} = C_{im}\\,C_{jn}\\,\\tau_{ij}\\qquad(\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C)',
-          why: 'Swapping the names of two summed letters changes nothing (N12); the line is the book\'s $\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12). In matrix form C_im = (Cᵀ)_mi, so Cᵀ stands on the left and C on the right.',
-          plain: 'One C per index — the vector rule applied twice.', set: { theta: 45 }, watch: 'At 45° the rose τ′₁₂ arrow is gone: the shear vanished, only ±a normal stresses remain (the curve crosses zero).' }
+        { did: 'Label particles by their release time', tex: '\\begin{aligned}x&=\\xi_o(\\sin\\omega t-\\sin\\omega t_o)\\\\ y&=\\xi_o(\\cos\\omega t_o-\\cos\\omega t)\\end{aligned}',
+          why: 'Same integration as D04 steps 1–2, but the constants are fixed by $\\mathbf r(t_o)=\\mathbf 0$: every release time labels a different dye particle.',
+          plain: 'Where the dye released at $t_o$ is at any later time t.', play: false },
+        { did: 'Freeze the clock at t′', tex: '\\begin{aligned}x&=\\xi_o(\\sin\\omega t\'-\\sin\\omega t_o)\\\\ y&=\\xi_o(\\cos\\omega t_o-\\cos\\omega t\')\\end{aligned}',
+          why: 'A streak line is a snapshot at t = t′ of all dye released at earlier times $t_o\\le t\'$ (N17): now $t_o$ is the curve’s parameter.',
+          plain: 'The photograph of the dye at t′.', set: { mark: 'age' },
+          watch: 'Some rose dots carry their release angle ωtₒ; older dots are paler.' },
+        { did: 'Isolate the t_o-terms', tex: '\\begin{aligned}x-\\xi_o\\sin\\omega t\'&=-\\xi_o\\sin\\omega t_o\\\\ y+\\xi_o\\cos\\omega t\'&=\\xi_o\\cos\\omega t_o\\end{aligned}',
+          why: 'Move the known terms to the left; the parameter to be eliminated — $t_o$, not t — stays on the right.',
+          plain: 'Offsets from a fixed point, now in terms of the release angle.' },
+        { did: 'Square both and add', tex: '\\begin{aligned}&(x-\\xi_o\\sin\\omega t\')^2+(y+\\xi_o\\cos\\omega t\')^2\\\\ &\\quad=\\xi_o^2(\\sin^2\\omega t_o+\\cos^2\\omega t_o)\\end{aligned}',
+          why: 'As in D04 step 6, squaring removes signs and pairs sin² with cos² of the same angle $\\omega t_o$.',
+          plain: 'The squared distance of each dye particle from one fixed point.' },
+        { did: 'Use sin² + cos² = 1', tex: '\\begin{aligned}&(x-\\xi_o\\sin\\omega t\')^2\\\\ &\\quad+(y+\\xi_o\\cos\\omega t\')^2=\\xi_o^2\\end{aligned}',
+          why: 'Pythagorean identity, as in D04 step 7; the release time $t_o$ has disappeared, so this is the curve itself.',
+          plain: 'A circle of radius ξₒ centred at $(\\xi_o\\sin\\omega t\',-\\xi_o\\cos\\omega t\')$ — the path circle reflected through the origin.',
+          live: s => { const c = centres(s.t, s); return `\\text{centre }(${tx(c.streak[0])},\\ ${tx(c.streak[1])})\\ \\text{m},\\ \\text{radius }${tx(s.xi0)}\\ \\text{m}`; } },
+        { did: 'Check which part is filled', tex: 't\'-2\\pi/\\omega\\le t_o\\le t\'\\ \\Rightarrow\\ \\text{whole circle}',
+          why: 'The book is silent here: as $t_o$ runs over one period, $(\\sin\\omega t_o,\\cos\\omega t_o)$ goes once round; older dye repeats the same points because the flow is periodic.',
+          plain: 'After one period of leaking, the dye covers the full circle.',
+          live: s => `T=2\\pi/\\omega=${s.omega > 1e-9 ? tx(2 * Math.PI / s.omega) : '\\infty'}\\ \\text{s}:\\ ${dyeList(s).length}\\ \\text{releases fill it}` },
+        { did: 'Slope of the path circle at 0', tex: '\\left.\\dfrac{dy}{dx}\\right|_{\\rm path}=-\\dfrac{x+\\xi_o\\sin\\omega t\'}{y-\\xi_o\\cos\\omega t\'}\\Big|_{\\mathbf 0}=\\tan\\omega t\'',
+          why: 'Implicit differentiation of D04’s circle: $2(x+\\dots)dx+2(y-\\dots)dy=0$; at the origin the ratio is $-\\xi_o\\sin\\omega t\'/(-\\xi_o\\cos\\omega t\')$.',
+          plain: 'The path leaves the origin at angle ωt′.', set: { mark: 'tangent' },
+          live: s => { const a = s.omega * s.t, xi = s.xi0; return `-\\dfrac{${tx(xi * Math.sin(a))}}{${tx(-xi * Math.cos(a))}}=${tx(Math.tan(a))}`; } },
+        { did: 'Slope of the streak circle at 0', tex: '\\left.\\dfrac{dy}{dx}\\right|_{\\rm streak}=-\\dfrac{x-\\xi_o\\sin\\omega t\'}{y+\\xi_o\\cos\\omega t\'}\\Big|_{\\mathbf 0}=\\tan\\omega t\'',
+          why: 'Implicit differentiation of step 5 at the origin gives $\\xi_o\\sin\\omega t\'/(\\xi_o\\cos\\omega t\')$; the streamline $y=x\\tan(\\omega t\')$ has the same slope.',
+          plain: 'All three curves touch at the origin, along the velocity there.', set: { mark: 'tangent' },
+          live: s => { const a = s.omega * s.t, xi = s.xi0; return `\\dfrac{${tx(xi * Math.sin(a))}}{${tx(xi * Math.cos(a))}}=${tx(Math.tan(a))}`; },
+          watch: 'The dashed orange circle is the path of the particle at the port now: it touches the dye circle and the teal streamline right at the port.' }
       ],
-      result: { tex: '\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij},\\qquad\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C', plain: 'A second-order tensor transforms with one direction-cosine matrix per index; whatever obeys this is a tensor.' },
-      interpret: s => { const Q = physics(s); return s.tpreset === 'shear' ? 'τ′ = CᵀτC with your θ = ' + fd(s.theta) + ' gives τ′₁₁ = a sin 2θ = ' + T(Q.taup[0][0]) + ' Pa, τ′₁₂ = a cos 2θ = ' + T(Q.taup[0][1]) + ' Pa, τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa (Example 2.2).' : 'With your θ = ' + fd(s.theta) + ' and the ' + TPRESETS[s.tpreset] + ' state: τ′₁₁ = ' + T(Q.taup[0][0]) + ', τ′₁₂ = ' + T(Q.taup[0][1]) + ', τ′₂₂ = ' + T(Q.taup[1][1]) + ' Pa.'; },
-      check: 'Units: Pa on both sides. Limit C = I: τ′ = τ. Number (Example 2.2, a = 1 Pa, θ = 30°): τ′₁₁ = 2(0.866)(0.5) = 0.866, τ′₁₂ = 0.75 − 0.25 = 0.5, τ′₂₂ = −0.866 Pa (transform_tensor = C.T @ tau @ C). Trace 0 before and after.' }
+      result: { tex: '(x-\\xi_o\\sin\\omega t\')^2+(y+\\xi_o\\cos\\omega t\')^2=\\xi_o^2', plain: 'The dye lies on the mirror image of the particle’s circle; streamline, path line and streak line share the slope tan ωt′ at the origin — they only touch.' },
+      interpret: s => `All three touch the port with slope $\\tan\\omega t'=${tx(Math.tan(s.omega * s.t))}$ (ωt′ = ${degs(s.omega * s.t)}°). A photograph of dye and a long exposure of one speck are different curves in an unsteady flow, and neither is the direction of the flow now; they share only their tangent at the port — the velocity there at t′.`,
+      check: 'Units m² ✓. Numbers (ξₒ = 1, ωt′ = 0): centre (0, −1) — opposite the path centre (0, 1) ✓; the streak circle passes the origin ✓. Selftest: ch03.streakline of released particles lies on this circle, and the JS dye matches it.' }
   ],
   code: [
-    { id: 'main', title: 'The same rotation in Python', ref: 'Eqs. (2.5), (2.7), (2.12)',
+    { id: 'ex31', title: 'Ex. 3.1 with the chapter module', ref: 'Eq. (3.7), (3.8)',
       src: `
 import numpy as np
-from fluidpy import ch02_cartesian_tensors as ch02
-
-th = np.deg2rad(theta)                        # θ = {{theta}}° → {{th}} rad
-C = ch02.rotation_matrix_2d(th)               # passive: columns = new axes; C = {{C}}
-x = np.array([x1, x2])                        # the fixed arrow ({{x1}}, {{x2}})
-xp = ch02.transform_vector(x, C)              # (2.5): x' = Cᵀx = ({{xp1}}, {{xp2}})
-back = ch02.inverse_transform_vector(xp, C)   # (2.7): x = Cx' = ({{b1}}, {{b2}})
-res = ch02.orthogonality_residual(C)          # max|CᵀC − I| = {{res}}
-a = {{a}}                                       # stress level [Pa]
-tau = np.array([[0.0, a], [a, 0.0]])          # Example 2.2's pure shear
-tau_p = ch02.transform_tensor(tau, C)         # (2.12): τ' = CᵀτC → τ'₁₁ = {{t11}}, τ'₁₂ = {{t12}} Pa
-ur, ut = ch02.polar_components(x1, x2, th)    # Example 2.1: (u_r, u_θ) = ({{ur}}, {{ut}})`,
-      live: s => { const th = s.theta * D2R, C = rot2d(th), xp = transformVector([s.x1, s.x2], C), b = inverseTransform(xp, C), tp = transformTensor([[0, s.a], [s.a, 0]], C), p = polar(s.x1, s.x2, th);
-        return { theta: Viz.fmt(s.theta), th: th.toFixed(4), C: '[[' + f3(C[0][0]) + ', ' + f3(C[0][1]) + '], [' + f3(C[1][0]) + ', ' + f3(C[1][1]) + ']]', x1: f3(s.x1), x2: f3(s.x2), xp1: f3(xp[0]), xp2: f3(xp[1]), b1: f3(b[0]), b2: f3(b[1]), res: residTxt(orthoResidual(C)), a: s.a.toFixed(1), t11: f3(tp[0][0]), t12: f3(tp[0][1]), ur: f3(p[0]), ut: f3(p[1]) }; } }
+from fluidpy import ch03_kinematics as ch03
+om, xi0, tp = {{omega}}, {{xi0}}, {{t}}   # ω [1/s], ξ_o [m], t' [s]
+d = ch03.example_3_1(tp, xi0=xi0, omega=om)  # closed forms
+print(d["slope"])          # tan ωt' = {{slope}}  (3.7)
+print(d["path_center"])    # ({{pcx}}, {{pcy}}) m  (D04)
+print(d["streak_center"])  # ({{scx}}, {{scy}}) m  (D05)
+u = ch03.preset_field("ex31", omega=om, xi0=xi0)  # u(x, t)
+sl = ch03.streamline(u, [0.0, 0.0], tp, s_max=2.0)  # frozen t'
+p = ch03.pathline(u, [0.0, 0.0], tp, [tp, tp + 1.0])  # (3.8)
+T = 2 * np.pi / om                   # period = {{T}} s
+tr = np.linspace(tp - T, tp, 48)     # release times t_o
+s = ch03.streakline(u, [0.0, 0.0], tp, tr)  # dye at t'`,
+      live: s => { const c = centres(s.t, s), a = s.omega * s.t; return { omega: s.omega.toFixed(2), xi0: s.xi0.toFixed(2), t: s.t.toFixed(4), slope: fx(Math.abs(Math.cos(a)) < 1e-12 ? Infinity : Math.tan(a)), pcx: fx(c.path[0]), pcy: fx(c.path[1]), scx: fx(c.streak[0]), scy: fx(c.streak[1]), T: s.omega > 1e-9 ? fx(2 * Math.PI / s.omega) : 'inf' }; } },
+    { id: 'any', title: 'Any chip: the three lines numerically', ref: 'Eq. (3.7), (3.8)',
+      src: `
+u = ch03.preset_field("{{name}}", {{kw}})
+x0 = np.array([{{px}}, {{py}}])     # the dye port [m]
+tp = {{t}}                          # the instant t' [s]
+sl = ch03.streamline(u, x0, tp, s_max=2.0)   # slope {{slope}}
+tt = np.linspace(0.0, tp, 200)      # tagged particle, r(0) = x0
+p = ch03.pathline(u, x0, 0.0, tt)   # now at ({{qx}}, {{qy}}) m
+tr = np.linspace(tp - 2 * {{T}}, tp, 96)   # dye releases
+s = ch03.streakline(u, x0, tp, tr)  # the rose dots`,
+      live: s => { const pt = port(s), q = flowMap(s.mode, pt, 0, s.t, s), kw = s.mode === 'vortex' ? `Omega=${s.omega.toFixed(2)}` : s.mode === 'rotstrain' ? `s=${s.s.toFixed(2)}, Omega=${s.omega.toFixed(2)}` : s.mode === 'current' ? `U0=${s.U0.toFixed(2)}, omega=${s.omega.toFixed(2)}, xi0=${s.xi0.toFixed(2)}` : s.mode === 'steady' ? `omega=${s.omega.toFixed(2)}, xi0=${s.xi0.toFixed(2)}, beta=np.pi/6` : `omega=${s.omega.toFixed(2)}, xi0=${s.xi0.toFixed(2)}`;
+        return { name: PYNAME[s.mode], kw, px: pt[0].toFixed(2), py: pt[1].toFixed(2), t: s.t.toFixed(3), slope: fx(slopeOf(uPort(s))), qx: fx(q[0], 2), qy: fx(q[1], 2), T: fx(Tref(s)) }; } }
   ],
   tour: [
-    { title: 'One arrow, two rulers', text: 'The black arrow is a wind vector. <b class="c-teal">Teal</b> axes read it as (1, 2). Turn the rulers — the arrow does not care. What do the <b class="c-orange">orange</b> rulers read?',
-      set: { mode: 'vector', what: 'axes', theta: 30, x1: 1, x2: 2, mirror: false, axis3d: false, cell: null, selj: 0 }, play: false, readouts: ['xp'] },
-    { title: 'Nine cosines (four here)', text: 'Every entry of C is the cosine between an old axis and a new one. Click a cell: the two unit vectors and their angle appear.',
-      set: { theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, play: false, inspect: true, eq: 'Cdef' },
-    { title: 'Shadows add up', text: 'x′₁ = x₁C₁₁ + x₂C₂₁ = 1×0.866 + 2×0.5 = 1.866. Watch the first column light as the sum is built.',
-      set: { theta: 30, x1: 1, x2: 2, cell: { i: 0, j: 0 }, selj: 0 }, play: false, eq: 'x5', derive: { id: 'D01', step: 5 } },
-    { title: 'Nothing lost', text: 'CᵀC = I, det C = +1: the arrow\'s length 2.236 is the same in both frames — the status line says so at every θ. Press ▶ to sweep the axes.',
-      set: { cell: null }, play: true, readouts: ['norm', 'resid'], derive: { id: 'D02', step: 4 } },
-    { title: 'Which one really turned?', text: 'Flip the chip: now the arrow turns and the axes stay. Same C — but applied as C, not Cᵀ. This is the passive/active confusion, settled.',
-      set: { what: 'arrow', theta: 30 }, play: false, controls: ['what'], notes: true },
-    { title: 'Twice for a tensor', text: 'Tensor mode: a stress state with pure shear a. Its new components need C twice, once per index: τ′ = CᵀτC.',
-      set: { what: 'axes', mode: 'tensor', tpreset: 'shear', theta: 30, cell: { i: 0, j: 1 }, selj: 1 }, play: false, eq: 'tau12', derive: { id: 'D06', step: 8 } },
-    { title: 'Find the quiet axes', text: 'Drag θ until τ′₁₂ = 0: the <b class="c-rose">rose</b> curve crosses zero and the middle τ′ readout reads 0. At 45° the shear is gone and the normal stresses are ±a. §2.11 calls these principal axes.',
-      set: { theta: 20, cell: null }, play: false, controls: ['theta'], readouts: ['tau'] },
-    { title: 'Your turn: polar', text: 'Polar mode is Example 2.1. Predict u_r and u_θ for the point at 60°, then drag θ there and read them off.',
-      set: { mode: 'polar', theta: 40, x1: 1, x2: 2 }, play: false, controls: ['theta', 'x1', 'x2'], readouts: ['xp'] }
+    { title: 'One point, three questions', text: 'A port on the sea floor leaks dye while the water sloshes. Which way is the water going <b>now</b>? Where does <b>one speck</b> go? Where is <b>the dye</b>? Three questions, three different curves.',
+      set: { mode: 'ex31', t: 0, omega: 1, xi0: 1, hist: true, probe: null, mark: null }, play: false },
+    { title: 'Freeze the clock', text: 'Streamlines follow the arrows of one instant. Here the velocity is the same everywhere, so they are straight: $dx/u=dy/v$ (3.7) gives the slope $v/u=\\tan\\omega t\'$ — 0.577 at ωt′ = 30°.',
+      set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, probe: null }, play: false, eq: 'stream', derive: { id: 'D03', step: 3 } },
+    { title: 'Follow one speck', text: 'Press ▶. The orange particle obeys $d\\mathbf r/dt=\\mathbf u(\\mathbf r,t)$ (3.8). Because the arrows keep turning, it runs round a circle of radius $\\xi_o$ and is back at the port after one period $2\\pi/\\omega$.',
+      set: { mode: 'ex31', t: 0, omega: 1, xi0: 1, probe: null }, play: true, eq: 'path', readouts: ['tag'] },
+    { title: 'Photograph the dye', text: 'Each rose dot left the port at a different time. Right now they sit on the mirror circle, centre $(\\xi_o\\sin\\omega t\', -\\xi_o\\cos\\omega t\')$. The ringed dot left at ωtₒ = −120°: its arithmetic is traced below.',
+      set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, hist: true, probe: -2 * Math.PI / 3 }, play: false, inspect: true, derive: { id: 'D05', step: 5 } },
+    { title: 'They touch at the port', text: 'All three curves leave the port with the same slope $v/u=\\tan\\omega t\'$, because each is tangent to the velocity there at $t\'$. The answer sheet redraws them from the closed forms: the circles sit $2\\xi_o$ apart.',
+      set: { mode: 'ex31', t: Math.PI / 6, omega: 1, xi0: 1, probe: null }, play: false, readouts: ['slope', 'sc'], code: { id: 'ex31', lines: [5, 7] } },
+    { title: 'Make it steady', text: 'Now the steady chip: the arrows stop turning, so the dye, the particle and the streamline all run along one line. The vortex chip shows the same with curved lines — steadiness, not straightness, is what matters.',
+      set: { mode: 'steady', t: 0, probe: null }, play: true },
+    { title: 'Your turn', text: 'Predict first: with a mean current $U_0=0.5$ m/s, will the particle come back to the port? Press ▶. Then drag $U_0$ past $\\omega\\xi_o$ = 1 m/s and watch the loops vanish.',
+      set: { mode: 'current', U0: 0.5, omega: 1, xi0: 1, t: 0, probe: null }, play: false, controls: ['U0', 'omega'] }
   ],
   equations: [
-    { id: 'Cdef', title: 'Direction cosines', ref: '§2.2', tex: 'C_{ij} = \\mathbf e_i\\cdot\\mathbf e\'_j',
-      live: s => { const C = physics(s).C2; return '\\mathbf C = \\begin{pmatrix}' + T(C[0][0]) + ' & ' + T(C[0][1]) + '\\\\' + T(C[1][0]) + ' & ' + T(C[1][1]) + '\\end{pmatrix}'; },
-      note: 'row i = old axis, column j = new axis; the columns are the new unit vectors in old components', symbols: [['C_{ij}', 'cosine between old axis i and new axis j', '–'], ['\\mathbf e_i,\\ \\mathbf e\'_j', 'unit vectors of the old and new frames', '–']] },
-    { id: 'x4', title: 'First projection', ref: 'Eq. (2.4)', tex: '\\begin{aligned}\\mathbf x\\cdot\\mathbf e\'_1 &= x_1\\,\\mathbf e_1\\cdot\\mathbf e\'_1 + x_2\\,\\mathbf e_2\\cdot\\mathbf e\'_1 + x_3\\,\\mathbf e_3\\cdot\\mathbf e\'_1\\\\ &= x\'_1\\end{aligned}',
-      live: s => { const Q = physics(s), C = Q.C2, xp = transformVector([s.x1, s.x2], C); return 'x\'_1 = ' + T(s.x1) + '\\times' + T(C[0][0]) + ' + ' + T(s.x2) + '\\times' + T(C[1][0]) + ' = ' + T(xp[0]); },
-      symbols: [['x_i', 'components in the old frame', 'same as x'], ['x\'_1', 'first component in the new frame', 'same as x']] },
-    { id: 'x5', title: 'Components transform', ref: 'Eq. (2.5)', tex: 'x\'_j = x_i C_{ij}\\qquad(\\mathbf x\' = \\mathbf C^{\\rm T}\\mathbf x)',
-      live: s => { const Q = physics(s); return '\\mathbf x\' = ' + pair(transformVector([s.x1, s.x2], Q.C2)).replace('−', '-').replace('−', '-'); },
-      note: 'the first index of C is summed; $x\'_i = x_kC_{ki}$ (2.6) is the same line with the letters i, k', symbols: [['j', 'free index: one equation per new axis', '–'], ['i', 'summed index', '–']] },
-    { id: 'x7', title: 'Inverse', ref: 'Eq. (2.7)', tex: 'x_j = x\'_i C_{ji}\\qquad(\\mathbf x = \\mathbf C\\,\\mathbf x\')',
-      live: s => { const Q = physics(s), b = inverseTransform(transformVector([s.x1, s.x2], Q.C2), Q.C2); return '\\mathbf x = ' + pair(b).replace(/−/g, '-'); },
-      note: 'now the second index of C is summed (D03)' },
-    { id: 'x8', title: 'Definition of a vector', ref: 'Eq. (2.8)', tex: 'u\'_j = u_i C_{ij}',
-      live: s => { const Q = physics(s), r = VECTOR_TESTS.map(t => t.tex + ': ' + T(vectorTestResidual(t.fn, Q.C2, TEST_POINTS), 2)); return '\\begin{aligned}&\\text{residuals}\\ ' + r[0] + ',\\ ' + r[1] + '\\\\ &' + r[2] + ',\\ ' + r[3] + '\\end{aligned}'; },
-      note: 'any triple whose components obey this rule is a vector; the Explain tab tests four candidates', symbols: [['u_i', 'components of the candidate in the old frame', '–']] },
-    { id: 'ortho', title: 'Orthogonality', ref: 'Exercise 2.8', tex: 'C_{ij}C_{kj} = \\delta_{ik},\\qquad \\det\\mathbf C = +1',
-      live: s => { const Q = physics(s); return '\\max|\\mathbf C^{\\rm T}\\mathbf C - \\mathbf I| = ' + Viz.tnum(Q.res, 2, { keepTiny: true }) + ',\\quad \\det\\mathbf C = ' + (Q.det >= 0 ? '+' : '-') + T(Math.abs(Q.det)); },
-      note: 'derived in D02; a mirror passes the first test and fails the second', symbols: [['\\delta_{ik}', 'Kronecker delta: 1 if i = k, else 0', '–']] },
-    { id: 'tau12', title: 'Tensor rule', ref: 'Eq. (2.12)', tex: '\\tau\'_{mn} = C_{im}C_{jn}\\tau_{ij}\\qquad(\\boldsymbol\\tau\' = \\mathbf C^{\\rm T}\\boldsymbol\\tau\\,\\mathbf C)',
-      live: s => { const Q = physics(s); return '\\tau\'_{11} = ' + T(Q.taup[0][0]) + ',\\ \\tau\'_{12} = ' + T(Q.taup[0][1]) + ',\\ \\tau\'_{22} = ' + T(Q.taup[1][1]) + '\\ \\text{Pa}'; },
-      note: 'pure shear: τ′₁₁ = a sin 2θ, τ′₁₂ = a cos 2θ, τ′₂₂ = −a sin 2θ (Example 2.2)', symbols: [['\\tau_{ij}', 'stress: force per area in direction j on the face normal to i', 'Pa'], ['m, n', 'free indices of the new components', '–']] }
+    { id: 'stream', title: 'Streamlines', ref: 'Eq. (3.7)', tex: 'dx/u=dy/v=dz/w',
+      live: s => { const u = uPort(s); return `\\dfrac{dy}{dx}=\\dfrac{v}{u}=\\dfrac{${tx(u[1])}}{${tx(u[0])}}=${tx(slopeOf(u))}`; },
+      note: 'equivalently $\\mathbf u\\times d\\mathbf s=0$; the clock is frozen at $t$',
+      symbols: [['u,v,w', 'velocity components', 'm/s'], ['dx,dy,dz', 'arc element along the streamline', 'm']] },
+    { id: 'path', title: 'Path lines', ref: 'Eq. (3.8)', tex: 'd\\mathbf r/dt=[\\mathbf u(\\mathbf x,t)]_{\\mathbf x=\\mathbf r}=\\mathbf u(\\mathbf r,t)',
+      live: s => { const q = flowMap(s.mode, port(s), 0, s.t, s); return `\\mathbf r(${tx(s.t, 2)}\\ \\text{s})=(${tx(q[0])},\\ ${tx(q[1])})\\ \\text{m}`; },
+      note: 'with $\\mathbf r(t_o)=\\mathbf r_o$; the live line is the orange particle ($t_o=0$ at the port)',
+      symbols: [['\\mathbf r', 'particle position', 'm'], ['t_o', 'release (label) time', 's']] },
+    { id: 'field', title: 'The sloshing flow of Ex. 3.1', ref: 'Ex. 3.1', tex: 'u=\\omega\\xi_o\\cos(\\omega t),\\quad v=\\omega\\xi_o\\sin(\\omega t)',
+      live: s => `(u,v)=(${tx(s.omega * s.xi0 * Math.cos(s.omega * s.t))},\\ ${tx(s.omega * s.xi0 * Math.sin(s.omega * s.t))})\\ \\text{m/s}`,
+      symbols: [['\\omega', 'angular frequency', '1/s'], ['\\xi_o', 'amplitude', 'm']] },
+    { id: 'pcirc', title: 'Path line of Ex. 3.1 (D04)', ref: 'Ex. 3.1', tex: '\\big(x+\\xi_o\\sin\\omega t\'\\big)^2+\\big(y-\\xi_o\\cos\\omega t\'\\big)^2=\\xi_o^2',
+      live: s => { const c = centres(s.t, s); return `\\text{centre }(${tx(c.path[0])},\\ ${tx(c.path[1])})\\ \\text{m}`; } },
+    { id: 'scirc', title: 'Streak line of Ex. 3.1 (D05)', ref: 'Ex. 3.1', tex: '\\big(x-\\xi_o\\sin\\omega t\'\\big)^2+\\big(y+\\xi_o\\cos\\omega t\'\\big)^2=\\xi_o^2',
+      live: s => { const c = centres(s.t, s); return `\\text{centre }(${tx(c.streak[0])},\\ ${tx(c.streak[1])})\\ \\text{m}`; } }
   ],
   check: [
-    { q: 'Set θ = 90°. What are $x\'_1, x\'_2$ for $\\mathbf x = (1, 2)$?', a: '(2, −1): the new 1′ axis is the old 2 axis, and the new 2′ axis is minus the old 1 axis; C = [[0, −1], [1, 0]].', set: { mode: 'vector', what: 'axes', theta: 90, x1: 1, x2: 2 } },
-    { q: 'In tensor mode with pure shear, at which θ is $\\tau\'_{11}$ largest, and how large?', a: '45°: τ′₁₁ = a sin 90° = a; the shear τ′₁₂ = a cos 90° = 0 there — a principal axis.', set: { mode: 'tensor', tpreset: 'shear', theta: 45, what: 'axes' } },
-    { q: 'Turn the mirror on. What is det C, and is $|\\mathbf x\'|$ still $|\\mathbf x|$?', a: 'det C = −1; lengths are still preserved (CᵀC = I holds) but the frame is left-handed; the book\'s "rotation" excludes this.', set: { mode: 'vector', mirror: true, theta: 30 } },
-    { q: 'Flip "what rotates" to the arrow with θ = 30°. Is $\\mathbf x\'$ the same as before?', a: 'No: (−0.134, 2.232) instead of (1.866, 1.232) — the active rotation by +θ equals the passive one by −θ.', set: { mode: 'vector', what: 'arrow', theta: 30, x1: 1, x2: 2, mirror: false } }
+    { q: 'At ωt′ = 90° (ξₒ = 1 m), where are the centres of the path and streak circles?', a: 'Path centre (−1, 0) m, streak centre (1, 0) m, and the streamline is the y-axis: the picture of ωt′ = 0 turned by 90°.', set: { mode: 'ex31', t: Math.PI / 2, omega: 1, xi0: 1 } },
+    { q: 'Double ω at fixed ξₒ. What happens to the circles and to the particle’s lap time?', a: 'The circles keep radius ξₒ (the speed ωξₒ doubles, but so does the turning rate); a lap takes 2π/ω, half as long.', set: { mode: 'ex31', omega: 2, t: 0 } },
+    { q: 'In the steady chip, where is the dye relative to the particle’s path?', a: 'On it: in a steady flow every particle released at the port follows the same streamline, so streak line = path line = streamline.', set: { mode: 'steady', t: 3 } },
+    { q: 'With U₀ = 1.5 m/s and ωξₒ = 1 m/s, does the path loop?', a: 'No: the current always exceeds the sloshing speed, so u never reverses; loops need U₀ < ωξₒ.', set: { mode: 'current', U0: 1.5, omega: 1, xi0: 1, t: 0 } }
   ],
-  selftest: () => {
-    const C = rot2d(RAD30), xp = transformVector([1, 2], C), C3 = rot3d([1, 1, 1], 0.7);
-    return [
-      { name: 'C(30°)[0][1] = −sin 30°', js: C[0][1], py: 'ch02.rotation_matrix_2d(0.5235987755982988)[0][1]', rtol: 1e-12 },
-      { name: "x'₁ (2.5)", js: xp[0], py: 'ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988))[0]', rtol: 1e-12 },
-      { name: "x'₂ (2.5)", js: xp[1], py: 'ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988))[1]', rtol: 1e-12 },
-      { name: 'round trip (2.7)', js: inverseTransform(xp, C)[1], py: 'ch02.inverse_transform_vector(ch02.transform_vector([1.0, 2.0], ch02.rotation_matrix_2d(0.5235987755982988)), ch02.rotation_matrix_2d(0.5235987755982988))[1]', rtol: 1e-12 },
-      { name: "τ'₁₁ pure shear (2.12)", js: transformTensor([[0, 1], [1, 0]], C)[0][0], py: 'ch02.transform_tensor([[0.0, 1.0], [1.0, 0.0]], ch02.rotation_matrix_2d(0.5235987755982988))[0][0]', rtol: 1e-12 },
-      { name: "τ'₁₂ pure shear (2.12)", js: transformTensor([[0, 1], [1, 0]], C)[0][1], py: 'ch02.transform_tensor([[0.0, 1.0], [1.0, 0.0]], ch02.rotation_matrix_2d(0.5235987755982988))[0][1]', rtol: 1e-12 },
-      { name: 'u_r polar (Ex. 2.1)', js: polar(1, 2, RAD30)[0], py: 'ch02.polar_components(1.0, 2.0, 0.5235987755982988)[0]', rtol: 1e-12 },
-      { name: 'u_θ polar (Ex. 2.1)', js: polar(1, 2, RAD30)[1], py: 'ch02.polar_components(1.0, 2.0, 0.5235987755982988)[1]', rtol: 1e-12 },
-      { name: 'orthogonality residual (0.7 rad)', js: orthoResidual(rot2d(0.7)), py: 'ch02.orthogonality_residual(ch02.rotation_matrix_2d(0.7))', rtol: 0, atol: 1e-12 },
-      { name: 'Ex. 2.2 τ_rot[0][0] = a sin 2θ', js: shearRotated(1, RAD30)[0], py: 'ch02.example_2_2(1.0, 0.5235987755982988)["tau_rot"][0][0]', rtol: 1e-12 },
-      { name: 'Ex. 2.2 τ_rot[0][1] = a cos 2θ', js: shearRotated(1, RAD30)[1], py: 'ch02.example_2_2(1.0, 0.5235987755982988)["tau_rot"][0][1]', rtol: 1e-12 },
-      { name: 'Rodrigues C3[0][1] (axis (1,1,1), 0.7 rad)', js: C3[0][1], py: 'ch02.rotation_matrix_3d([1.0, 1.0, 1.0], 0.7)[0][1]', rtol: 1e-12 },
-      { name: 'Rodrigues C3[2][0]', js: C3[2][0], py: 'ch02.rotation_matrix_3d([1.0, 1.0, 1.0], 0.7)[2][0]', rtol: 1e-12 },
-      { name: 'vector test: x itself (2.8)', js: vectorTestResidual(VECTOR_TESTS[0].fn, C, TEST_POINTS), py: 'ch02.transforms_as_vector(lambda x: x, ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0], [-0.5, 1.5], [2.0, -1.0]])', rtol: 0, atol: 1e-12 },
-      { name: 'vector test: squares fail (2.8)', js: vectorTestResidual(VECTOR_TESTS[2].fn, C, TEST_POINTS), py: 'ch02.transforms_as_vector(lambda x: x**2, ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0], [-0.5, 1.5], [2.0, -1.0]])', rtol: 1e-10 },
-      { name: 'tensor test: fixed array fails (2.12)', js: tensorTestResidual(() => [[0, 1], [1, 0]], C, [[1, 2]]), py: 'ch02.transforms_as_tensor(lambda x: [[0.0, 1.0], [1.0, 0.0]],ch02.rotation_matrix_2d(0.5235987755982988), [[1.0, 2.0]])', rtol: 1e-10 },
-      { name: '|x| kept', js: Math.hypot(...xp) - Math.hypot(1, 2), expect: 0, atol: 1e-12 },
-      { name: 'det C = +1', js: detC(rot2d(1.2)), expect: 1, rtol: 1e-12 },
-      { name: 'mirror: det = −1, still orthogonal', js: detC(mirrored(C)) + orthoResidual(mirrored(C)), expect: -1, atol: 1e-12 },
-      { name: 'active(θ) = passive(−θ)', js: activeRotate([1, 2], RAD30)[0] - transformVector([1, 2], rot2d(-RAD30))[0], expect: 0, atol: 1e-12 }
-    ];
-  }
+  selftest: () => [
+    { name: 'path centre y (t′=0)', js: centres(0, { xi0: 1, omega: 1 }).path[1], py: 'ch03.example_3_1(0.0, 1.0, 1.0)["path_center"][1]', rtol: 1e-12 },
+    { name: 'streak centre x (t′=π/6)', js: centres(0.5235987755982988, { xi0: 1, omega: 1 }).streak[0], py: 'ch03.example_3_1(0.5235987755982988, 1.0, 1.0)["streak_center"][0]', rtol: 1e-12 },
+    { name: 'path centre x (t′=1, ξ=1.5, ω=0.8)', js: centres(1.0, { xi0: 1.5, omega: 0.8 }).path[0], py: 'ch03.example_3_1(1.0, 1.5, 0.8)["path_center"][0]', rtol: 1e-12 },
+    { name: 'field v (ex31)', js: field('ex31', 0.3, -0.2, 0.7, { omega: 1, xi0: 1 })[1], py: 'ch03.unsteady_flow_preset("ex31", 0.3, -0.2, 0.7, omega=1.0, xi0=1.0)[1]', rtol: 1e-12 },
+    { name: 'field u (steady, β=30°)', js: field('steady', 0.1, 0.2, 3.0, { omega: 1.2, xi0: 0.8 })[0], py: 'ch03.unsteady_flow_preset("steady", 0.1, 0.2, 3.0, omega=1.2, xi0=0.8, beta=0.5235987755982988)[0]', rtol: 1e-12 },
+    { name: 'field v (rotating strain)', js: field('rotstrain', 0.6, 0.4, 0.9, { s: 1, omega: 0.5 })[1], py: 'ch03.unsteady_flow_preset("rotating_strain", 0.6, 0.4, 0.9, s=1.0, Omega=0.5)[1]', rtol: 1e-12 },
+    { name: 'streak particle x (ex31)', js: streakPoint(1.0, 0.0, { mode: 'ex31', omega: 1, xi0: 1 })[0], py: 'ch03.streakline(ch03.preset_field("ex31", omega=1.0, xi0=1.0), [0.0, 0.0], 1.0, [0.0, 0.5])[0][0]', rtol: 1e-7 },
+    { name: 'streak particle y (current)', js: streakPoint(2.0, 0.5, { mode: 'current', U0: 0.5, omega: 1, xi0: 1 })[1], py: 'ch03.streakline(ch03.preset_field("ex31_current", U0=0.5, omega=1.0, xi0=1.0), [0.0, 0.0], 2.0, [0.0, 0.5])[1][1]', rtol: 1e-7 },
+    { name: 'current path x (t=2)', js: pathClosed(2.0, 0.0, { U0: 0.5, omega: 1, xi0: 1 })[0], py: 'ch03.pathline(ch03.preset_field("ex31_current", U0=0.5, omega=1.0, xi0=1.0), [0.0, 0.0], 0.0, [0.0, 2.0])[0][1]', rtol: 1e-7 },
+    { name: 'rotating strain path y (t=1)', js: flowMap('rotstrain', [0.6, 0.4], 0, 1.0, { s: 1, omega: 0.5 })[1], py: 'ch03.pathline(ch03.preset_field("rotating_strain", s=1.0, Omega=0.5), [0.6, 0.4], 0.0, [0.0, 1.0])[1][1]', rtol: 1e-7 },
+    { name: 'rotating strain path x (Ω>s)', js: flowMap('rotstrain', [0.6, 0.4], 0.3, 2.0, { s: 0.5, omega: 1.2 })[0], py: 'ch03.pathline(ch03.preset_field("rotating_strain", s=0.5, Omega=1.2), [0.6, 0.4], 0.3, [0.3, 2.0])[0][1]', rtol: 1e-7 },
+    { name: 'vortex path y (t=1)', js: flowMap('vortex', [1, 0], 0, 1.0, { omega: 0.8 })[1], py: 'ch03.pathline(ch03.preset_field("steady_vortex", Omega=0.8), [1.0, 0.0], 0.0, [0.0, 1.0])[1][1]', rtol: 1e-7 },
+    { name: 'streamline end x (rot. strain, arc 1 m)', js: (() => { const q = Viz.field.streamline((x, y) => field('rotstrain', x, y, 0.3, { s: 1, omega: 0.5 }), 0.6, 0.4, { ds: 0.01, n: 100, both: false }); return q[q.length - 1][0]; })(), py: 'ch03.streamline(ch03.preset_field("rotating_strain", s=1.0, Omega=0.5), [0.6, 0.4], 0.3, s_max=1.0, both=False, n=2)[0][1]', rtol: 1e-7 },
+    { name: 'streamline slope (ex31, 30°)', js: slopeOf(field('ex31', 0, 0, 0.5235987755982988, { omega: 1, xi0: 1 })), py: 'ch03.streamline_slope(ch03.preset_field("ex31", omega=1.0, xi0=1.0), [0.0, 0.0], 0.5235987755982988)', rtol: 1e-12 },
+    { name: 'tangency (D05 step 7)', js: slopePath(0.5235987755982988) - Math.tan(0.5235987755982988), expect: 0, atol: 1e-12 },
+    { name: 'dye on the streak circle', js: (() => { const q = streakPoint(0.5235987755982988, -2.0943951023931953, { mode: 'ex31', omega: 1, xi0: 1 }), c = centres(0.5235987755982988, { omega: 1, xi0: 1 }).streak; return Math.hypot(q[0] - c[0], q[1] - c[1]); })(), expect: 1, rtol: 1e-12 }
+  ]
 });
 </script>
 </body>
