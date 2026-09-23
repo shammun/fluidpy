@@ -3826,8 +3826,8 @@ words.)
      lines are nearly parallel, so the unit vector e_ω is the same across the section. · *plain:* The vorticity points
      along the tube.
   3. *did:* Freeze the kernel across the section · *tex:* $\frac{\mathbf x-\mathbf x'}{\lvert\mathbf x-\mathbf x'\rvert^3}\approx\text{const over }\Delta A'$ · *why:* Far
-     field (gloss): moving x′ across a core of radius a changes the kernel by about 3a/\|x − x′\| — 30 % at 10 core
-     radii, 3 % at 100. This is the book's "sufficiently distant". · *plain:* From far away the tube looks like a line.
+     field (gloss): moving x′ across a core of radius a changes the kernel's size 1/\|x − x′\|² by about 2a/\|x − x′\| — 20 % at 10 core
+     radii, 2 % at 100. This is the book's "sufficiently distant". · *plain:* From far away the tube looks like a line.
   4. *did:* Pull kernel and direction out · *tex:* $d\mathbf u\cong\frac{1}{4\pi}\Big[\int_{\Delta A'}\lvert\boldsymbol\omega\rvert d^2x'\Big]\mathbf e_\omega\times\frac{\mathbf x-\mathbf x'}{\lvert\mathbf x-\mathbf x'\rvert^3}dl$ ·
      *why:* Constants leave the integral (linearity). ≅ marks the far-field approximation. · *plain:* Only the total
      vorticity of the slice matters.
@@ -4300,8 +4300,8 @@ words.)
 - **Steps.**
   1. *did:* Walk the bottom side forward · *tex:* $+u_2\,ds$ · *why:* Counterclockwise, the lower side (below the sheet) is walked in
      +s, where the tangential velocity is u₂. · *plain:* Below the sheet we move with u₂. · *set:* {mode: 'jump'}.
-  2. *did:* Walk up the right, down the left · *tex:* $+v\,dn-v\,dn$ · *why:* The normal velocity is continuous (no fluid piles up or
-     vanishes at the sheet), so the two short sides cancel. · *plain:* The ends contribute nothing.
+  2. *did:* Walk up the right, down the left · *tex:* $v_R\,dn-v_L\,dn	o0$ · *why:* The normal velocity is continuous across the sheet, so each short side is
+     just v·dn with no jump; together they are of size dn·ds and vanish as the box is flattened, dn → 0. · *plain:* The ends shrink away as the box flattens.
   3. *did:* Walk the top side backwards · *tex:* $-u_1\,ds$ · *why:* Counterclockwise, the upper side is walked in −s, where the
      velocity is u₁. · *plain:* Above the sheet we move against u₁.
   4. *did:* Add the sides; let dn → 0 · *tex:* $d\Gamma=u_2\,ds+v\,dn-u_1\,ds-v\,dn=(u_2-u_1)\,ds$ · *why:* Sum of steps 1–3; letting the
