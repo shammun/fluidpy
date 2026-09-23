@@ -1,0 +1,43 @@
+{
+  "_meta": {
+    "chapter": "ch03",
+    "written_by": "reference/ch03/make_refs.py",
+    "verified": "2026-09-23",
+    "note": "Public sources only (pages fetched on the date above, see SOURCES.md). No book values."
+  },
+  "swirl_lamb_oseen": {
+    "velocity": "v_max*(1 + 1/(2*alpha))*(r_max/r)*(1 - exp(-alpha*r**2/r_max**2))",
+    "alpha": 1.256,
+    "alpha_digits": 3,
+    "alpha_half_ulp": 0.0005,
+    "meaning": "r_max**2 = alpha * sigma**2 when exp(-alpha r^2/r_max^2) is written exp(-r^2/sigma^2)",
+    "source": "Canivete Cuissa & Steiner (2022), arXiv:2210.05223, Sect. 2.4, Eq. (10) (PDF text read 2026-09-23)",
+    "url": "https://arxiv.org/abs/2210.05223"
+  },
+  "rankine_vortex": {
+    "v_theta_inside": "Gamma/(2*pi)*r/a**2",
+    "v_theta_outside": "Gamma/(2*pi)/r",
+    "omega_inside": "2*Omega",
+    "omega_outside": "0",
+    "Omega_of_Gamma": "Gamma/(2*pi*a**2)",
+    "source": "https://en.wikipedia.org/wiki/Rankine_vortex (fetched 2026-09-23)"
+  },
+  "lamb_oseen_vortex": {
+    "v_theta": "Gamma/(2*pi*r)*(1 - exp(-r**2/(4*nu*t)))",
+    "omega_z": "Gamma/(4*pi*nu*t)*exp(-r**2/(4*nu*t))",
+    "source": "https://en.wikipedia.org/wiki/Lamb%E2%80%93Oseen_vortex (fetched 2026-09-23)"
+  },
+  "reynolds_transport_theorem": {
+    "statement": "d/dt int_{Omega(t)} f dV = int_{Omega(t)} df/dt dV + int_{dOmega(t)} (v_b . n) f dA",
+    "normal": "outward-pointing unit normal",
+    "v_b": "velocity of the area element (not the flow velocity)",
+    "fixed_region": "v_b = 0 -> d/dt int f dV = int df/dt dV",
+    "source": "https://en.wikipedia.org/wiki/Reynolds_transport_theorem (fetched 2026-09-23)"
+  },
+  "leibniz_integral_rule": {
+    "statement": "d/dx int_a(x)^b(x) f(x,t) dt = f(x,b(x)) db/dx - f(x,a(x)) da/dx + int_a^b df/dx dt",
+    "upper_sign": 1,
+    "lower_sign": -1,
+    "source": "https://en.wikipedia.org/wiki/Leibniz_integral_rule (fetched 2026-09-23)"
+  }
+}

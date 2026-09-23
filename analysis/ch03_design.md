@@ -1384,7 +1384,7 @@ Part F word for word.
     s⁻¹. 2. Rankine peak at r = 1 m: 1 m/s; at r = 2 m: $2\pi/(2\pi\cdot2)=0.5$ m/s. 3. Gaussian at r = 1 m:
     $u_\theta=(1/1)(1-e^{-1})=0.632$ m/s. 4. Gaussian peak: $r=1.1209$ m, $x=r^2=1.2564$,
     $u_\theta=(1-e^{-1.2564})/1.1209=0.7153/1.1209=0.638$ m/s. 5. Far away both → $1/r$: at 5 m, 0.200 m/s
-    (Gaussian 0.19999998).")`
+    (Gaussian (1 − e^{−25})/5 = 0.2 to 11 digits).")`
 36. `nb.code` — *code:* `Gam, sig = 2*np.pi, 1.0` · `r = np.array([0.5, 1.0, 1.1209, 2.0, 5.0])` ·
     `print(ch03.rankine_vortex(r, Gam, sig))` · `print(ch03.gaussian_vortex(r, Gam, sig))` ·
     `rstar = ch03.gaussian_vortex_max_radius(sig)`; `print(rstar, ch03.gaussian_vortex(rstar, Gam, sig)[0])` ·
@@ -3143,7 +3143,13 @@ a table bar; absolute values are written with \lvert \rvert or in words.)
   u = [U1 + up[0].subs(sub), U2 + up[1].subs(sub)]          # u = U + u'  (step 0: the transformation)
   a_lab = [sp.diff(q, t) + u[0]*sp.diff(q, x) + u[1]*sp.diff(q, y) for q in u]   # ∂u/∂t + (u·∇)u
   a_pr = [(sp.diff(q, tp) + up[0]*sp.diff(q, xp) + up[1]*sp.diff(q, yp)).subs(sub) for q in up]  # primed, same point
-  print([sp.simplify((a - b).doit()) for a, b in zip(a_lab, a_pr)])   # [0, 0]: (3.9)
+  # f, g are undefined functions; sympy 1.14 keeps two Subs(Derivative) forms of the same ∂f/∂t′, so test on
+  # generic cubic polynomials (any smooth field is locally one) — the difference then expands to exactly 0
+  cs = sp.symbols('c0:20'); X, Y, T = sp.symbols('X Y T')
+  mons = [X**i * Y**j * T**k for i in range(4) for j in range(4) for k in range(4) if i + j + k <= 3]
+  repl = {f: sp.Lambda((X, Y, T), sum(c * m for c, m in zip(cs, mons))),
+          g: sp.Lambda((X, Y, T), sum(c * m for c, m in zip(cs[::-1], mons)))}
+  print([sp.expand((a - b).subs(repl).doit()) for a, b in zip(a_lab, a_pr)])   # [0, 0]: (3.9)
   ```
 - **What it means.** Newton's law can be written in any frame moving steadily — wind tunnels, wave frames and moving
   coordinate systems are legitimate. The split into 'unsteady' and 'advective' is a choice of observer. It fails for
@@ -3701,7 +3707,7 @@ a table bar; absolute values are written with \lvert \rvert or in words.)
      ghost.
 - **Result.** $u_\theta(r)=\frac{\Gamma}{2\pi r}\big(1-\exp(-r^2/\sigma^2)\big)$ (3.29), with $\Gamma(r)=\Gamma(1-e^{-r^2/\sigma^2})$
   — *in words:* the speed is the circulation enclosed divided by the circle's length.
-- **Check.** Units m/s ✓. Γ(∞) = Γ ✓. Numbers (Γ = 2π, σ = 1): u_θ(1) = 0.632 m/s; u_θ(5) = 0.19999998 ≈ 1/5 ✓. (3.23)
+- **Check.** Units m/s ✓. Γ(∞) = Γ ✓. Numbers (Γ = 2π, σ = 1): u_θ(1) = 0.632 m/s; u_θ(5) = (1 − e^{−25})/5 = 0.2 to 11 digits ✓. (3.23)
   applied to (3.29) gives back ω_z (the notebook's sympy line) ✓.
 - **What it means.** Any axisymmetric vorticity profile gives its speed the same way: $u_\theta=\Gamma(r)/2\pi r$. The
   Gaussian is the Lamb–Oseen vortex of viscous flow at one instant (σ² = 4νt, Ch. 5/8). Near r = 0 the formula subtracts
@@ -3894,7 +3900,7 @@ a table bar; absolute values are written with \lvert \rvert or in words.)
      changes by the net outward flow through its skin.
   2. *did:* Apply Gauss' theorem · *tex:* $\displaystyle\oint_{A^*}\mathbf u\cdot\mathbf n\,dA=\int_{\delta V}\nabla\cdot\mathbf u\,dV$ ·
      *why:* Divergence theorem (2.30), $\int_V\nabla\cdot\mathbf Q\,dV=\oint_A\mathbf Q\cdot\mathbf n\,dA$ (Ch. 2 §2.12) with Q = u. ·
-     *plain:* Outflow through the skin = divergence summed inside. · *live:* "∮u·n ds = 1.257 = ∫∇·u dA = 0.2 × 6.283".
+     *plain:* Outflow through the skin = divergence summed inside. · *live:* computed from the explainer's current ellipse, e.g. a = 2 m, b = 1 m (area 2π m²): "∮u·n ds = 1.257 = ∫∇·u dA = 0.2 × 6.283"; with the default a = 1, b = 0.6 m (area 1.885 m²) it reads 0.377.
   3. *did:* Mean-value theorem · *tex:* $\displaystyle\int_{\delta V}\nabla\cdot\mathbf u\,dV=(\nabla\cdot\mathbf u)(\mathbf x^*)\,\delta V$ · *why:*
      For a continuous integrand the integral equals its value at some point x* inside times the volume (P85). · *plain:*
      A small volume sees an average divergence.
@@ -3906,7 +3912,7 @@ a table bar; absolute values are written with \lvert \rvert or in words.)
      transport theorem. · *set:* the bars reduce to the area growth rate.
 - **Result.** $\frac{1}{\delta V}\frac{D}{Dt}(\delta V)=\frac{\partial u_i}{\partial x_i}$ (3.14) — *in words:* divergence is the
   fractional growth rate of a small material volume, whichever route you take.
-- **Check.** Units 1/s ✓. u = (x, y, z): 3 s⁻¹ ✓. E7's ellipse (u = (0.1x, 0.1y)): dA/dt = 0.2 × 6.283 = 1.257 m²/s ✓.
+- **Check.** Units 1/s ✓. u = (x, y, z): 3 s⁻¹ ✓. E7's ellipse (u = (0.1x, 0.1y)) with a = 2 m, b = 1 m (area 2π m²): dA/dt = 0.2 × 6.283 = 1.257 m²/s ✓ (default a = 1, b = 0.6 m: 0.2 × 1.885 = 0.377 m²/s).
   `ch03.material_volume_rate` returns equal surface flux and ∫∇·u (1e-10) ✓.
 - **What it means.** D11 (edge by edge) and D23 (whole surface) agree — the kinematic half of the continuity equation of
   Ch. 4 holds for blobs of any shape.

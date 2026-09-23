@@ -683,7 +683,7 @@ def linear_strain_rate(G, n):
     index, S_ηη = ∂u_η/∂x_η); for a general direction n this is n·S·n (D08). n need not be unit (it is normalised);
     shape (d,) or (d, N). Units: 1/s.
 
-    Validation: V1 n = e₁ gives S₁₁; V4 vs tracked material segments (``linear_flow_map``): (1/ℓ)dℓ/dt → n·S·n as
+    Validation: V1 n = e₁ gives S₁₁; V3 vs tracked material segments (``linear_flow_map``): (1/ℓ)dℓ/dt → n·S·n as
     dt → 0. Label: analytic.
     """
     S = strain_rate_tensor(_F(G))
@@ -701,7 +701,7 @@ def shear_strain_rate(G, n1, n2, tol: float = 1e-9):
     ------
     ValueError if n1 and n2 are not perpendicular (|cos| > tol).
 
-    Validation: V1 e₁, e₂ gives S₁₂; V4 −½ d(angle)/dt of two tracked segments → n1·S·n2. Label: analytic.
+    Validation: V1 e₁, e₂ gives S₁₂; V3 −½ d(angle)/dt of two tracked segments → n1·S·n2. Label: analytic.
     """
     a, b = _normalise(n1), _normalise(n2)
     if np.any(np.abs(np.sum(a * b, axis=0)) > tol):
@@ -716,7 +716,7 @@ def volumetric_strain_rate(G) -> float:
     Book: §3.4, Eq. (3.14) (proof Exercise 3.18, written out as D11). The first invariant of S: independent of the
     orientation of the axes. Units: 1/s.
 
-    Validation: V1 trace; V4 tracked box volume rate; V7 invariant under 50 random rotations. Label: analytic.
+    Validation: V1 trace; V3 tracked box volume rate; V7 invariant under 50 random rotations. Label: analytic.
     """
     G_ = _F(G)
     return float(np.trace(G_))  # Eq. (3.14): S_ii = ∂u_i/∂x_i
