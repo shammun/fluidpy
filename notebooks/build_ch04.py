@@ -3586,7 +3586,7 @@ Choose a fluid, a temperature contrast and a depth: three small numbers are comp
 blob rises and spreads under exactly the terms Boussinesq keeps,
 $\frac{D\mathbf u}{Dt}=-\frac1{\rho_0}\nabla p'+\frac{\rho'}{\rho_0}\mathbf g+\nu\nabla^2\mathbf u$ (4.86) and
 $\frac{DT}{Dt}=\kappa\nabla^2T$ (4.89). The rise uses a one-line parcel model (our extension, labelled in the explainer):
-$dw/dt=g'-w/\tau_d$. Switch the buoyancy term off and the blob stops rising, though ρ changed by only 0.2 %.
+$dw/dt=g'-w/\tau_d$. Switch the buoyancy term off and the blob stops rising, though in the lake setting ρ changed by only 0.075 % (α = 1.5×10⁻⁴ K⁻¹, δT = 5 K).
 """, tries=[
     "Lake preset: read αδT and g′ in Explain.",
     "Toggle 'keep buoyancy' off: the blob only diffuses.",
