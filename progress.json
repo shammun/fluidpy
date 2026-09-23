@@ -167,9 +167,9 @@
       "title": "Ideal Flow",
       "slug": "ideal_flow",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -177,7 +177,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 160 rows (NEW 112/SEEN 41/7 ex), 110/110 labels (6.1)-(6.109), CODE 119/DEMO 3/SKIP 38, 48 derivations (6 three-star); 10 suspected typos listed §9",
+      "notes": "analyze: 160 rows (NEW 112/SEEN 41/7 ex), 110/110 labels (6.1)-(6.109), CODE 119/DEMO 3/SKIP 38, 48 derivations (6 three-star); 10 suspected typos listed §9; curate: A 15 / NOTE 106 / RECAP 32 / SKIP 7 of 160; 31 D rows (8/18/5 by star), 14 demoted; 9 explainers + backup flow_net_sources_vortices",
       "updated": "2026-09-23"
     },
     "ch07": {
