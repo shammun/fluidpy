@@ -123,11 +123,11 @@ nb.md(r"""
 
 | Result here | Used in |
 |---|---|
-| the tensor rule (2.12) | Ch. 3 strain rate, Ch. 4 stress, Ch. 12 Reynolds stress |
-| Cauchy's formula (2.15) | Ch. 4 §4.3 wall forces, Ch. 8–9 drag and skin friction |
-| $\varepsilon_{ijk}$ (2.18) | Ch. 4 Coriolis $2\boldsymbol\Omega\times\mathbf u$, Ch. 5 vorticity identities |
-| Gauss (2.30) | Ch. 4 §4.2 continuity, every conservation law in differential form |
-| Stokes (2.34) | Ch. 5 Kelvin's theorem, Ch. 6 and 14 lift |
+| the tensor rule $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) | Ch. 3 strain rate, Ch. 4 stress, Ch. 12 Reynolds stress |
+| Cauchy's formula $\mathbf f = \mathbf n\cdot\boldsymbol\tau$ (2.15) | Ch. 4 §4.3 wall forces, Ch. 8–9 drag and skin friction |
+| $\varepsilon_{ijk} = \pm1$ or $0$ (2.18) | Ch. 4 Coriolis $2\boldsymbol\Omega\times\mathbf u$, Ch. 5 vorticity identities |
+| Gauss, $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) | Ch. 4 §4.2 continuity, every conservation law in differential form |
+| Stokes, $\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds$ (2.34) | Ch. 5 Kelvin's theorem, Ch. 6 and 14 lift |
 
 *Climate hook:* the Coriolis term and the geostrophic balance of Ch. 13 are one $\varepsilon_{ijk}$ and one $\nabla p$
 away from what is built here.
@@ -255,11 +255,11 @@ A = np.arange(1., 10.).reshape(3, 3)                            # the 1…9 matr
 print(ch02.inner(A, A)[0, 1], (A @ A)[0, 1])                    # (2.9)/(2.11): P_12 (Python [0, 1]) = 36.0, and `@` gives the same
 print(ch02.classify_indices("x_i C_ij"), ch02.tensor_order("A_ij B_kl"))   # (free, dummy) = (['j'], ['i']); order 4
 print(ch02.rename_dummy("x_i C_ij", "i", "k"))                  # renaming the summed letter: x_k C_kj — the same nine numbers
-""", explain="""
+""", explain=r"""
 1. `expand_indices_str` parses the subscripts, finds the repeated letter and writes the hidden sum.
-2. `dot` is `np.einsum('i,i')` — (2.2) as one call.
+2. `dot` is `np.einsum('i,i')` — $\mathbf a\cdot\mathbf b = a_ib_i$ (2.2) as one call.
 3. δ collapses the sum: for each free i only one term survives.
-4. `inner` is (2.9) and equals the `@` operator (P63).
+4. `inner` is $P_{ij} = A_{ik}B_{kj}$ (2.9) and equals the `@` operator (P63).
 5. `classify_indices` splits free from dummy letters; `tensor_order` counts the free ones.
 6. Renaming a dummy changes nothing (N12).
 """)
@@ -309,7 +309,7 @@ for a_, b_ in (((0, 0, 0), foot), (foot, x), ((x[0], 0, 0), foot), ((0, x[1], 0)
 plotly_layout_3d(fig, ((-0.3, 3.3),) * 3, title="Eq. (2.1): one arrow, three shadows x₁ = 1, x₂ = 2, x₃ = 3", height=480)
 fig.show()                                                         # rotate it: the shadows are the components
 """, explain="""
-1. `unit_vectors` gives the basis $\\mathbf e_i$ as rows; `vector_from_components` performs (2.1) and returns the same
+1. `unit_vectors` gives the basis $\\mathbf e_i$ as rows; `vector_from_components` performs $\\mathbf x = x_i\\mathbf e_i$ (2.1) and returns the same
    array we started from — the equation is a reconstruction rule.
 2. The rest is drawing (P64): three teal unit arrows, the purple arrow OP and the dashed shadows that mark $x_1$, $x_2$
    and $x_3$. `N05`: this is our own version of the book's Fig. 2.1.
@@ -416,7 +416,7 @@ D("D02", "Why C is orthogonal: C Cᵀ = Cᵀ C = I and det C = +1", ref="Exercis
         "Take determinants for the sign."],
   uses=[r"completeness of an orthonormal basis, $\mathbf v = (\mathbf v\cdot\mathbf e'_j)\mathbf e'_j$ (P65)",
         "orthonormality of both bases (P65)", "bilinearity of the dot product (it distributes over sums; scalars pull out — D01 step 2 says it again)",
-        "matrix product as an index sum (2.9) (N21)", "det(AB) = det A det B (Ch. 1 primer P53)",
+        r"matrix product as an index sum $P_{ij} = A_{ik}B_{kj}$ (2.9) (N21)", "det(AB) = det A det B (Ch. 1 primer P53)",
         "continuity argument for the sign (gloss in step 8)"],
   steps=[
       ("Write the product we want to evaluate",
@@ -469,7 +469,7 @@ the result of D02 — checked in code with `ch02.is_orthogonal(C)`, `ch02.orthog
 nb.md(r"""
 The next derivation starts from the forward rule (2.5), $x'_j = x_iC_{ij}$: **each new component is the old
 components weighted by the cosines of one column of C** — the projection of the same arrow onto a new axis that the
-figure and the animation above showed. (2.5) is derived move by move in the next block (C03, D01); here we only need
+figure and the animation above showed. $x'_j = x_iC_{ij}$ (2.5) is derived move by move in the next block (C03, D01); here we only need
 that it holds.
 """)
 D("D03", "The inverse transformation x_j = x'_i C_ji", ref="2.7",
@@ -478,7 +478,7 @@ D("D03", "The inverse transformation x_j = x'_i C_ji", ref="2.7",
   start=(r"x'_j = x_iC_{ij}", "the forward rule (2.5) of D01 (derived in C03; here we only need that it holds)."),
   plan=["Multiply by a C with the free index and sum.", "Two C's with a shared summed index become δ (D02).",
         "Let δ substitute.", "Rename."],
-  uses=["dummy renaming (N12)", r"orthogonality $C_{ij}C_{kj} = \delta_{ik}$ (D02, C02)", "Kronecker substitution (2.17) (N41)"],
+  uses=["dummy renaming (N12)", r"orthogonality $C_{ij}C_{kj} = \delta_{ik}$ (D02, C02)", r"Kronecker substitution $\delta_{ij}u_j = u_i$ (2.17) (N41)"],
   steps=[
       (r"Multiply both sides by $C_{kj}$ and sum on j",
        r"x'_j\,C_{kj} = x_i\,C_{ij}C_{kj}",
@@ -499,11 +499,11 @@ D("D03", "The inverse transformation x_j = x'_i C_ji", ref="2.7",
   ],
   result=(r"x_j = x'_iC_{ji}, \qquad \mathbf x = \mathbf C\,\mathbf x'",
           r"the inverse of $\mathbf x' = \mathbf C^{\rm T}\mathbf x$ is multiplication by C itself, because $\mathbf C^{-1} = \mathbf C^{\rm T}$."),
-  interpret="""Rotating back is as cheap as rotating forward — no matrix inversion. In (2.5) the first index of C is
-  summed, in (2.7) the second: the two index placements are the whole difference between C and Cᵀ.""",
+  interpret=r"""Rotating back is as cheap as rotating forward — no matrix inversion. In $x'_j = x_iC_{ij}$ (2.5) the first index of C is
+  summed, in $x_j = x'_iC_{ji}$ (2.7) the second: the two index placements are the whole difference between C and Cᵀ.""",
   check="""Round trip with the D01 numbers: $x_1 = 1.866(0.866) + 1.232(-0.5) = 1.616 - 0.616 = 1.000$ ✓, $x_2 =
   1.866(0.5) + 1.232(0.866) = 0.933 + 1.067 = 2.000$ ✓ (`inverse_transform_vector`). Limit θ = 0: identity ✓.""",
-  traps="""using (2.5) with the indices swapped and calling it the inverse without D02 — it happens to be right only
+  traps=r"""using $x'_j = x_iC_{ij}$ (2.5) with the indices swapped and calling it the inverse without D02 — it happens to be right only
   because C is orthogonal.""")
 note("N14", "Back to the old components", r"""
 $x_j = x'_iC_{ji}$ — now the *second* index of C is summed (matrix form $\mathbf x = \mathbf C\mathbf x'$). Round trip
@@ -577,9 +577,9 @@ thetas = np.deg2rad(np.linspace(0, 90, n_fr))                             # the 
 fig, update = frame_rotation_frames(thetas, x=(1.0, 2.0))                 # left: the plane with the arrow (1, 2); right: bars x_i (teal) and x'_j (orange)
 fig.set_layout_engine("none")                                             # fixed layout: the automatic layout engine would re-run on every frame
 show_animation(animate(update, frames=n_fr, fig=fig, interval=500), player="frames")   # step frame by frame
-""", explain="""
+""", explain=r"""
 1. Each frame turns the orange axes to the next θ and recomputes `ch02.rotation_matrix_2d(θ)` and
-   `ch02.transform_vector((1, 2), C)` (2.5).
+   `ch02.transform_vector((1, 2), C)`, i.e. $x'_j = x_iC_{ij}$ (2.5).
 2. The left panel keeps the arrow fixed; the right panel's teal bars ($x_i$) never move, the orange bars ($x'_j$) do;
    the text box prints the live 2×2 C and max|CᵀC − I|.
 """)
@@ -624,13 +624,13 @@ D("D01", "The transformation rule for components", ref="2.5",
          "the same arrow written once in the old basis (2.1) and once in the new basis (2.3); only the numbers differ."),
   plan=["Dot both spellings with one new unit vector.", "On the primed side orthonormality kills every term but one.",
         "Name the cosines that remain: that is C.", "Do it for a general new axis, not only e'_1."],
-  uses=["dot product (2.2) (N07)", "bilinearity of the dot product (gloss in step 2)",
-        r"orthonormality $\mathbf e'_i\cdot\mathbf e'_j = \delta_{ij}$ (P65)", "Kronecker substitution (2.17) (N41)",
+  uses=[r"dot product $\mathbf a\cdot\mathbf b = a_ib_i$ (2.2) (N07)", "bilinearity of the dot product (gloss in step 2)",
+        r"orthonormality $\mathbf e'_i\cdot\mathbf e'_j = \delta_{ij}$ (P65)", r"Kronecker substitution $\delta_{ij}u_j = u_i$ (2.17) (N41)",
         r"the direction cosines $C_{ij} = \mathbf e_i\cdot\mathbf e'_j$ (C02)"],
   steps=[
       ("Write the arrow in both bases",
        r"x_i\,\mathbf e_i = x'_j\,\mathbf e'_j",
-       "Equations (2.1) and (2.3) describe one and the same arrow, so their right sides are equal. We put them side by side to compare coefficients.",
+       r"Equations $\mathbf x = x_i\mathbf e_i$ (2.1) and $\mathbf x = x'_j\mathbf e'_j$ (2.3) describe one and the same arrow, so their right sides are equal. We put them side by side to compare coefficients.",
        "Two spellings, one vector."),
       (r"Dot both sides with $\mathbf e'_k$",
        r"x_i\,(\mathbf e_i\cdot\mathbf e'_k) = x'_j\,(\mathbf e'_j\cdot\mathbf e'_k)",
@@ -646,7 +646,7 @@ D("D01", "The transformation rule for components", ref="2.5",
        "The new component k is a weighted sum of the old ones."),
       ("Name the weights as direction cosines",
        r"x'_k = x_i\,C_{ik},\qquad C_{ik} \equiv \mathbf e_i\cdot\mathbf e'_k",
-       "Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); giving them a name turns the projection into a matrix. For k = 1 this line is (2.4).",
+       r"Each weight is the cosine of the angle between old axis i and new axis k (unit vectors); giving them a name turns the projection into a matrix. For k = 1 this line is $\mathbf x\cdot\mathbf e'_1 = x_i\,\mathbf e_i\cdot\mathbf e'_1 = x'_1$ (2.4).",
        "The weights are the nine cosines between old and new axes."),
       ("Rename the free index k → j",
        r"x'_j = x_i\,C_{ij}",
@@ -655,8 +655,8 @@ D("D01", "The transformation rule for components", ref="2.5",
   ],
   result=(r"x'_j = x_iC_{ij}, \qquad \mathbf x' = \mathbf C^{\rm T}\mathbf x",
           "each new component is the old components weighted by the cosines in column j of C."),
-  interpret="""The rule contains no property of x except its components: **anything** with three components that obey
-  it is a Cartesian vector (2.8); anything that does not is a list of numbers. It fails for triples like $(x_1^2, x_2^2,
+  interpret=r"""The rule contains no property of x except its components: **anything** with three components that obey
+  it is a Cartesian vector, $u'_j = u_iC_{ij}$ (2.8); anything that does not is a list of numbers. It fails for triples like $(x_1^2, x_2^2,
   x_3^2)$ and for components in a non-orthonormal basis (then δ is replaced by a metric — Appendix B).""",
   check="""Units: both sides carry the unit of x (C is dimensionless) ✓. Limit θ = 0: C = I, x' = x ✓. Number: x = (1, 2),
   θ = 30°: $x'_1 = 1(0.866) + 2(0.5) = 1.866$, $x'_2 = 1(-0.5) + 2(0.866) = 1.232$; lengths 2.236 both ✓
@@ -664,7 +664,7 @@ D("D01", "The transformation rule for components", ref="2.5",
   traps="""writing $C_{ji}$ for $C_{ij}$ (row = old axis, column = new axis). Forgetting step 3, which is why only one
   primed term survives. Doing j = 1 and saying "similarly" — one indexed line does all three.""")
 note("N13", "The same rule with other letters", r"""
-(2.6) $x'_i = x_kC_{ki}$ says the same nine things as (2.5) — `ch02.expand_indices_str` of both prints identical sums
+(2.6) $x'_i = x_kC_{ki}$ says the same nine things as $x'_j = x_iC_{ij}$ (2.5) — `ch02.expand_indices_str` of both prints identical sums
 (the §2.3 cell below prints the (2.6) form).
 """)
 note("N16", "Matrix forms", r"""
@@ -684,7 +684,7 @@ nb.worked_example("x = (1, 2) seen from axes turned by 30°", r"""
 5. Back with (2.7): $x_1 = x'_1C_{11} + x'_2C_{12} = 1.866\times0.866 + 1.232\times(-0.5) = 1.616 - 0.616 = 1.000$ ✓.
 """)
 note("N19", "Polar components (Ex. 2.1)", r"""
-are (2.5) with j ∈ {r, θ}: $u_r = u_1\cos\theta + u_2\sin\theta$, $u_\theta = -u_1\sin\theta + u_2\cos\theta$, i.e.
+are $x'_j = x_iC_{ij}$ (2.5) with j ∈ {r, θ}: $u_r = u_1\cos\theta + u_2\sin\theta$, $u_\theta = -u_1\sin\theta + u_2\cos\theta$, i.e.
 $C = \begin{bmatrix}\cos\theta & -\sin\theta\\ \sin\theta & \cos\theta\end{bmatrix}$ — the 2-D matrix of the tiny
 example (stated; the book works it out). With u = (1, 2), θ = 30°: $u_r = 1.866$, $u_\theta = 1.232$; the point's
 polar frame *is* our rotated frame. **Fig. 2.3** `N20` is the "polar" mode of the explainer below (our drawing).
@@ -697,10 +697,10 @@ print(np.round(xp, 3), np.round(C2.T @ x, 3))               # [1.866 1.232] twic
 print(np.round(ch02.inverse_transform_vector(xp, C2), 12))  # (2.7) round trip: [1. 2.]
 print(np.round(ch02.polar_components(1., 2., np.deg2rad(30)), 3))   # Ex. 2.1 is the same call: (u_r, u_θ) = (1.866, 1.232)
 print(np.linalg.norm(x), np.linalg.norm(xp))                # 2.236 2.236: a rotation keeps lengths (P67)
-""", explain="""
+""", explain=r"""
 1. `rotation_matrix_2d` is the passive C of the tiny example.
-2. (2.5) as `transform_vector` and as `C.T @ x` — identical numbers (N16).
-3. (2.7) brings the components back exactly (D03).
+2. $x'_j = x_iC_{ij}$ (2.5) as `transform_vector` and as `C.T @ x` — identical numbers (N16).
+3. $x_j = x'_iC_{ji}$ (2.7) brings the components back exactly (D03).
 4. Ex. 2.1's polar components are the same transformation (N19).
 5. The lengths agree — D02's orthogonality at work.
 """)
@@ -725,9 +725,9 @@ cands = {"x":         (lambda x: x, ()),                            # the positi
          "(|x|,0,0)": (lambda x: np.array([np.linalg.norm(x), 0, 0]), ())}   # a length stacked into a column — NOT a vector
 for name, (fn, params) in cands.items():                           # each candidate: evaluate in the old frame, transform with (2.8), compare with the formula in the new frame
     print(f"{name:10s} residual of the vector test (2.8): {ch02.transforms_as_vector(fn, R, pts, vector_params=params):.2e}")
-""", explain="""
+""", explain=r"""
 1. One random rotation and 20 random points.
-2. For each candidate, `transforms_as_vector` evaluates the triple in the old frame and transforms it with (2.8), and
+2. For each candidate, `transforms_as_vector` evaluates the triple in the old frame and transforms it with $u'_j = u_iC_{ij}$ (2.8), and
    evaluates the same *formula* in the new frame's coordinates (rotating any vector parameter such as b as well).
 3. The residual is the largest difference — zero (to round-off) only for true vectors: the first three pass, the
    squares and the stacked length fail by order one.
@@ -758,20 +758,20 @@ nb.explainer("rotation_of_axes", heading="Which rotates — the arrow or the rul
                     "Tensor mode, pure shear: find the angle where τ'₁₂ = 0 (45°) — that is §2.11's principal axis."])
 nb.md(r"""
 **What would change if…** you applied the rule *twice*, once per index? You would get the transformation of a 3×3
-array — and that is precisely the definition of a second-order tensor, (2.12), which we reach in §2.4 after meeting the
+array — and that is precisely the definition of a second-order tensor, $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12), which we reach in §2.4 after meeting the
 stress tensor and Cauchy's formula.
 """)
 
 # =====================================================================================================================
 # A.3 §2.3 Multiplication of Matrices — no A item
 # =====================================================================================================================
-nb.section("2.3", "Multiplication of Matrices", intro="""
+nb.section("2.3", "Multiplication of Matrices", intro=r"""
 **What is this section about?** The matrix product is the summation convention with one adjacent index — we already
-used it: (2.9)–(2.11) in C01 and the matrix forms x' = Cᵀx, x = Cx' in C03. This short section only collects them.
+used it: $P_{ij} = A_{ik}B_{kj}$ (2.9), $\mathbf P = \mathbf A\cdot\mathbf B$ (2.10) and the written-out product $P_{12} = A_{11}B_{12} + A_{12}B_{22} + A_{13}B_{32}$ (2.11) in C01, and the matrix forms $\mathbf x' = \mathbf C^{\rm T}\mathbf x$, $\mathbf x = \mathbf C\mathbf x'$ in C03. This short section only collects them.
 """)
 nb.md(r"""
-📝 (2.9) $P_{ij} = A_{ik}B_{kj}$ and its boxes (2.11) were expanded in **C01** (N21–N23); the rule "a single dot sums
-one index" is (2.10) (N22). (2.6) written with the summed index adjacent, $x'_i = C^{\rm T}_{ik}x_k$, gives the matrix
+📝 (2.9) $P_{ij} = A_{ik}B_{kj}$ and its boxes (2.11), $P_{12} = A_{11}B_{12} + A_{12}B_{22} + A_{13}B_{32}$, were expanded in **C01** (N21–N23); the rule "a single dot sums
+one index" is $\mathbf P = \mathbf A\cdot\mathbf B$ (2.10) (N22). (2.6) written with the summed index adjacent, $x'_i = C^{\rm T}_{ik}x_k$, gives the matrix
 form of **C03** (N16): $\mathbf x' = \mathbf C^{\rm T}\cdot\mathbf x$, and (2.7) is $\mathbf x = \mathbf C\cdot
 \mathbf x'$.
 """)
@@ -783,18 +783,18 @@ assert np.allclose(ch02.inner(C.T, C), np.eye(3))               # CᵀC = I as t
 print(ch02.expand_indices_str("C_ki x_k"))                      # the (2.6) form: for each free i, C_1i*x_1 + C_2i*x_2 + C_3i*x_3
 """, explain="""
 1–2. The two matrix forms of C03, asserted against the index-form functions.
-3. $\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I$ written as the (2.9) product `inner`.
-4. The adjacent-index form (2.6) expanded: the same nine numbers as (2.5) with other letters (N13).
+3. $\\mathbf C^{\\rm T}\\mathbf C = \\mathbf I$ written as the $P_{ij} = A_{ik}B_{kj}$ (2.9) product `inner`.
+4. The adjacent-index form $x'_i = x_kC_{ki}$ (2.6) expanded: the same nine numbers as $x'_j = x_iC_{ij}$ (2.5) with other letters (N13).
 """)
 
 # =====================================================================================================================
 # A.4 §2.4, 2.6 Second-Order Tensors and the Force on a Surface — C04, C05 (D05, E2), C06 (D06)
 # =====================================================================================================================
-nb.section("2.4, 2.6", "Second-Order Tensors and the Force on a Surface", intro="""
+nb.section("2.4, 2.6", "Second-Order Tensors and the Force on a Surface", intro=r"""
 **What is this section about?** The stress tensor: nine numbers that tell the force per area on *any* plane through a
-point. We meet its sign convention (C04), derive Cauchy's formula f = n·τ from a tiny tetrahedron (C05, the book's
-§2.6), and only then prove the rule that makes τ a tensor, (2.12) (C06). The book states (2.12) first and cites a
-tetrahedron argument it never shows; deriving (2.15) first lets us *prove* (2.12) in eight moves.
+point. We meet its sign convention (C04), derive Cauchy's formula $\mathbf f = \mathbf n\cdot\boldsymbol\tau$ from a tiny tetrahedron (C05, the book's
+§2.6), and only then prove the rule that makes τ a tensor, $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) (C06). The book states (2.12) first and cites a
+tetrahedron argument it never shows; deriving $f_i = \tau_{ji}n_j$ (2.15) first lets us *prove* (2.12) in eight moves.
 """)
 core("C04", "The stress tensor τ_ij and its sign convention", r"""
 Nine stress components sit on a cube. Which index is the face, which is the force — and which way do positive arrows
@@ -841,7 +841,7 @@ nb.md(r"""
 """)
 note("N26", "Array vs tensor", r"""
 The 3×3 array above is what the code carries everywhere (`tau[i, j]`, Python indices 0–2); it is a *tensor* only
-because it obeys (2.12) — C06. **Fig. 2.4** `N25` is our rotatable cube below: nine arrows on the three visible
+because it obeys $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) — C06. **Fig. 2.4** `N25` is our rotatable cube below: nine arrows on the three visible
 faces, a toggle (`show_hidden=True`) for the hidden faces with their reversed arrows.
 """)
 nb.worked_example("a pressure p with one shear a", r"""
@@ -1034,7 +1034,7 @@ nb.worked_example("Ex. 2.2 with a = 1 Pa, φ = 30°", r"""
    (stated; the Mohr-circle preview of C13).
 """)
 note("N38", "Ex. 2.2, stated", r"""
-the numbers of the tiny example, plus the (2.12) route the book also takes: $\tau'_{11} = \sqrt3 a/2 = 0.866a$,
+the numbers of the tiny example, plus the $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) route the book also takes: $\tau'_{11} = \sqrt3 a/2 = 0.866a$,
 $\tau'_{12} = a/2$ — the same two numbers as $\sigma_n$ and $\tau_s$, because the rotated frame's 1'-axis *is* n;
 repeated inside C06. **Fig. 2.6** `N39` (channel, element at 30°) is the "channel shear" preset of the explainer and
 the slider figure below.
@@ -1050,10 +1050,10 @@ res_neg = ch02.example_2_2(-1.0, np.deg2rad(30))                 # the other hal
 print(np.round(np.rad2deg(res_neg["angle_rad"]), 1))             # 240.0: f flips through the origin
 f3 = ch02.traction(tau, [0.6, 0, 0.8])                           # the same formula on C04's 3-D state with n = (0.6, 0, 0.8)
 print(f3)                                                        # [-1.8 0.6 -2.4] Pa = (−3·0.6, 1·0.6, −3·0.8)
-""", explain="""
+""", explain=r"""
 1. `shear_flow_stress` builds the 2×2 stress of a channel flow at one point.
 2. The unit normal at 30°.
-3. (2.15) by `einsum('ji,j->i')` — the first index of τ is contracted.
+3. $f_i = \tau_{ji}n_j$ (2.15) by `einsum('ji,j->i')` — the first index of τ is contracted.
 4. `example_2_2` returns the magnitude (= |a|), the direction (60°, P70) and the normal/shear split.
 5. a < 0 flips the direction to 240°.
 6. The same formula on the 3-D state of C04: each component is a row-wise weighted sum.
@@ -1102,7 +1102,7 @@ fig = slider_figure(cut, "φ", phis, unit="°", xlabel="x₁ (flow direction)", 
 fig.update_yaxes(scaleanchor="x", scaleratio=1)                          # equal axes so right angles look right
 fig.show()                                                               # drag φ
 """, explain="""
-1. `traction_2d` evaluates (2.15) for the normal at angle φ and splits f into $\\sigma_n\\mathbf n$ and the shear part.
+1. `traction_2d` evaluates $f_i = \\tau_{ji}n_j$ (2.15) for the normal at angle φ and splits f into $\\sigma_n\\mathbf n$ and the shear part.
 2. Each slider position redraws the cut, n, f, the blue normal part and the rose shear part (the leg from the tip of
    $\\sigma_n\\mathbf n$ to the tip of f). `N36`: this is our version of the book's traction sketch.
 """)
@@ -1111,15 +1111,15 @@ see_read_change("A square element, a cut line through its centre, the normal n a
                 "…a < 0 (the other half of the channel): every f arrow is mirrored through the origin — `ch02.traction_2d(ch02.shear_flow_stress(-1.0), φ)`.")
 nb.explainer("cauchy_traction_principal_axes", heading="Cut the point any way you like: what pushes on the cut?",
              why="""The traction is a function of the cut direction; only dragging n and watching f, $\\sigma_n$, $\\tau_s$
-             and the Mohr point move together makes (2.15) a picture — and lets you *find* the shear-free planes before
+             and the Mohr point move together makes $\\mathbf f = \\mathbf n\\cdot\\boldsymbol\\tau$ (2.15) a picture — and lets you *find* the shear-free planes before
              §2.11 proves they are eigenvectors.""",
              tries=["Channel-shear preset: drag φ to 45° — the shear vanishes and σ_n = a.",
                     "Hydrostatic preset: f stays along n whatever φ; every plane is principal.",
                     "Toggle 'contract second index' on the non-symmetric demo: f changes — the index order matters.",
                     "Read the Explain tab at φ = 30°: f₁ = 0·0.866 + 1·0.5 = 0.5 Pa, term by term."])
 nb.md(r"""
-**What would change if…** a second observer used rotated axes? Both $\mathbf f$ and $\mathbf n$ are vectors (2.8),
-and (2.15) must hold for both observers — that forces the nine $\tau_{ij}$ to transform in one particular way. That
+**What would change if…** a second observer used rotated axes? Both $\mathbf f$ and $\mathbf n$ are vectors, $u'_j = u_iC_{ij}$ (2.8),
+and $\mathbf f = \mathbf n\cdot\boldsymbol\tau$ (2.15) must hold for both observers — that forces the nine $\tau_{ij}$ to transform in one particular way. That
 way is the definition of a tensor: C06.
 """)
 
@@ -1143,33 +1143,33 @@ nb.md(r"""
 C_{im}\,C_{jn}\,\tau_{ij}$. Matrix form: $\boldsymbol\tau' = \mathbf C^{\rm T}\boldsymbol\tau\,\mathbf C$ — Cᵀ on the left
 for the first index, C on the right for the second.
 
-The book states (2.12) and points to a tetrahedron argument (Sommerfeld); we have the tetrahedron result (2.15) in
+The book states this rule, $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12), and points to a tetrahedron argument (Sommerfeld); we have the tetrahedron result $f_i = \tau_{ji}n_j$ (2.15) in
 hand, so we derive (2.12) from it.
 """)
 D("D06", "The tensor transformation rule from Cauchy's formula", ref="2.12",
-  goal="""Show how the nine stress components must change under a rotation of axes, given only that force per area and
-  the normal are vectors. The book states (2.12) and cites Sommerfeld's tetrahedron; we have the tetrahedron result
-  (2.15) already, so we derive (2.12) from it.""",
-  assumptions="""τ is *defined* in each frame by (2.15) (start and step 5) · C orthogonal (enters through (2.7) in
+  goal=r"""Show how the nine stress components must change under a rotation of axes, given only that force per area and
+  the normal are vectors. The book states $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) and cites Sommerfeld's tetrahedron; we have the tetrahedron result
+  $f_i = \tau_{ji}n_j$ (2.15) already, so we derive (2.12) from it.""",
+  assumptions=r"""τ is *defined* in each frame by $f_i = \tau_{ji}n_j$ (2.15) (start and step 5) · C orthogonal (enters through $x_j = x'_iC_{ji}$ (2.7) in
   step 3).""",
   start=(r"f_i = \tau_{ji}n_j \ \text{(old frame)}, \qquad f'_n = \tau'_{mn}n'_m \ \text{(new frame)}",
          "Cauchy's formula holds for every observer, each with their own components of τ."),
   plan=["Transform f as a vector.", "Insert Cauchy's formula in the old frame.",
         "Express the old n through the new n'.", "Compare with Cauchy's formula in the new frame, for every n'."],
-  uses=["f and n are vectors, (2.8) (C03)", "Cauchy's formula (2.15) (C05)", "the inverse transformation (2.7) (D03)",
+  uses=[r"f and n are vectors, $u'_j = u_iC_{ij}$ (2.8) (C03)", r"Cauchy's formula $f_i = \tau_{ji}n_j$ (2.15) (C05)", r"the inverse transformation $x_j = x'_iC_{ji}$ (2.7) (D03)",
         "dummy renaming (N12)", "\"true for every n' ⇒ the coefficients agree\" (gloss in step 7)"],
   steps=[
       ("Transform the traction as a vector",
        r"f'_n = f_i\,C_{in}",
-       "f is a physical force per area, hence a vector, so its components obey (2.8) with the first index of C summed. We start from f because both frames must agree on it.",
+       r"f is a physical force per area, hence a vector, so its components obey $u'_j = u_iC_{ij}$ (2.8) with the first index of C summed. We start from f because both frames must agree on it.",
        "The new observer's traction components come from the old ones by C."),
       ("Insert Cauchy's formula in the old frame",
        r"f'_n = \tau_{ji}\,n_j\,C_{in}",
-       r"(2.15) gives $f_i$ in terms of the old τ and the old n; substituting expresses the new traction through old quantities.",
+       r"(2.15), $f_i = \tau_{ji}n_j$, gives $f_i$ in terms of the old τ and the old n; substituting expresses the new traction through old quantities.",
        "The new traction, written with the old stresses and the old normal."),
       ("Write the old normal through the new one",
        r"n_j = n'_m\,C_{jm}",
-       "n is a unit vector, so the inverse rule (2.7) applies (second index of C summed). We need n' because the new observer measures n'.",
+       r"n is a unit vector, so the inverse rule $x_j = x'_iC_{ji}$ (2.7) applies (second index of C summed). We need n' because the new observer measures n'.",
        "The old components of the normal from the new ones."),
       ("Substitute the normal",
        r"f'_n = C_{jm}\,C_{in}\,\tau_{ji}\,n'_m",
@@ -1194,9 +1194,9 @@ D("D06", "The tensor transformation rule from Cauchy's formula", ref="2.12",
   ],
   result=(r"\tau'_{mn} = C_{im}C_{jn}\tau_{ij}, \qquad \boldsymbol\tau' = \mathbf C^{\rm T}\boldsymbol\tau\,\mathbf C",
           "a second-order tensor transforms with one direction-cosine matrix per index; whatever obeys this is a tensor."),
-  interpret="""The rule contains nothing about stress: any nine numbers that obey it are the components of a physical
+  interpret=r"""The rule contains nothing about stress: any nine numbers that obey it are the components of a physical
   object, and any that do not are not (N27). Ch. 3's strain rate, Ch. 4's stress and Ch. 12's Reynolds stress all pass.
-  The book's order (2.12 stated first, 2.15 derived later) is reversed here on purpose.""",
+  The book's order — the rule $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) stated first, Cauchy's $f_i = \tau_{ji}n_j$ (2.15) derived later — is reversed here on purpose.""",
   check="""Units: Pa ✓. Limit C = I: τ' = τ ✓. Number (Ex. 2.2, a = 1, θ = 30°): $\\tau'_{11} = 2(0.866)(0.5) = 0.866$,
   $\\tau'_{12} = 0.75 - 0.25 = 0.5$, $\\tau'_{22} = -0.866$ ✓ (`transform_tensor` = `C.T @ tau @ C` below). Trace 0
   before and after (D18).""",
@@ -1204,7 +1204,7 @@ D("D06", "The tensor transformation rule from Cauchy's formula", ref="2.12",
   Forgetting the final rename and comparing $C_{jm}C_{in}\\tau_{ji}$ with the book. Assuming symmetry of τ anywhere — not
   needed.""")
 note("N27", "Tensor ≠ matrix", r"""
-Any 3×3 array is a matrix; its entries are the components of a tensor only if they obey (2.12) in every frame. The code
+Any 3×3 array is a matrix; its entries are the components of a tensor only if they obey $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) in every frame. The code
 below declares an array "the same in every frame" and measures the (2.12) residual: not small.
 """)
 note("N28", "Fourth order", r"""
@@ -1235,13 +1235,13 @@ print(ch02.transforms_as_tensor(lambda x: np.diag([1., 2., 3.]), R, pts))   # a 
 A4 = np.random.default_rng(3).normal(size=(3, 3, 3, 3))            # 81 random numbers
 print(ch02.transform_tensor(A4, R).shape)                           # (3, 3, 3, 3): (2.13), four C's  (N28)
 """, explain="""
-1. (2.12) as `transform_tensor` — an einsum with one C per index.
+1. $\\tau'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) as `transform_tensor` — an einsum with one C per index.
 2. The matrix form $\\mathbf C^{\\rm T}\\boldsymbol\\tau\\mathbf C$ — identical numbers.
 3. Ex. 2.2's route gives the same τ'.
 4. The outer product $x_i(\\mathbf b\\times\\mathbf x)_j$ of two vector fields passes the tensor test (residual at
    round-off); as in C03, the fixed vector b is handed over as a `vector_params` entry so that the test rotates it too.
 5. A fixed array "the same in every frame" fails by order one — a matrix, not a tensor.
-6. (2.13): four C's, 81 numbers.
+6. $A'_{mnpq} = C_{im}C_{jn}C_{kp}C_{lq}A_{ijkl}$ (2.13): four C's, 81 numbers.
 """)
 nb.check_agree("""
 tp_mine = np.zeros((2, 2))                                          # (2.12) by hand
@@ -1286,7 +1286,7 @@ fig = slider_figure(mohr, "θ", np.linspace(0, 180, 37 if not FAST else 25), uni
 fig.update_yaxes(scaleanchor="x", scaleratio=1)                      # a circle should look like a circle
 fig.show()                                                           # drag θ
 """, explain="""
-1. For each θ the stress is rotated with (2.12) and the pair $(\\tau'_{11}, \\tau'_{12})$ — the normal and shear stress
+1. For each θ the stress is rotated with $\\tau'_{mn} = C_{im}C_{jn}\\tau_{ij}$ (2.12) and the pair $(\\tau'_{11}, \\tau'_{12})$ — the normal and shear stress
    on the 1' face — is plotted as a point.
 2. **Mohr's circle** (Ch. 4 uses it for stresses; here it is a fact about any symmetric 2×2): the set of all
    $(\\sigma_n, \\tau_s)$ pairs over all planes through the point is a circle of centre $(\\tau_{11} + \\tau_{22})/2$ — half
@@ -1347,13 +1347,13 @@ nb.md(r"""
 #### The maths, step by step
 
 1. **Contraction:** $\sum_j A_{jj} \equiv A_{jj} = A_{11} + A_{22} + A_{33}$, the trace.
-2. **Invariance:** apply (2.12) and set n = m — D18 below shows every closed index chain survives the rotation unchanged.
+2. **Invariance:** apply $A'_{mn} = C_{im}C_{jn}A_{ij}$ (2.12) and set n = m — D18 below shows every closed index chain survives the rotation unchanged.
 3. **The three invariants:** $I_1 = A_{ii}$, $I_2 = \tfrac12(I_1^2 - A_{ij}A_{ji})$, $I_3 = \det\mathbf A$; they are the
    coefficients of $\det(\mathbf A - \lambda\boldsymbol\delta) = 0$ (Exercise 2.9), so the eigenvalues of C13 are
    invariants too. *Gloss (C13 makes this precise):* an eigenvalue λ and eigenvector b satisfy $\mathbf A\cdot\mathbf b =
    \lambda\mathbf b$ — a direction that A only stretches; for symmetric A three perpendicular such directions exist and,
    taken as axes (the *principal frame*), make A diagonal. The roots of the cubic are exactly these λ.
-4. **Products** raise the order (N30); contractions of products (2.14) are matrix products in disguise (N31).
+4. **Products** raise the order (N30); contractions of products such as $A_{ij}B_{ki} = (\mathbf B\cdot\mathbf A)_{kj}$ (2.14) are matrix products in disguise (N31).
 """)
 D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", ref="Exercise 2.9",
   goal="""Show that three combinations of the nine components of a tensor are the same for every observer, that they
@@ -1361,9 +1361,9 @@ D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", re
   hints in Exercise 2.9.""",
   assumptions="A any second-order tensor (steps 1–7); for step 8 A symmetric (so that a principal frame exists).",
   start=(r"A'_{mn} = C_{im}\,C_{jn}\,A_{ij}", "how any second-order tensor's components change under a rotation (2.12, D06)."),
-  plan=["Contract (2.12) on m = n: a C-pair collapses to δ.", "Do the same for the chain A_ij A_ji.",
+  plan=[r"Contract $A'_{mn} = C_{im}C_{jn}A_{ij}$ (2.12) on m = n: a C-pair collapses to δ.", "Do the same for the chain A_ij A_ji.",
         "Take determinants.", "Expand det(A − λδ) and identify the coefficients; evaluate them in the principal frame."],
-  uses=["the transformation rule (2.12) (C06)", r"orthogonality as \"a contracted C-pair is δ\", $C_{im}C_{jm} = \delta_{ij}$ (D02)",
+  uses=[r"the transformation rule $A'_{mn} = C_{im}C_{jn}A_{ij}$ (2.12) (C06)", r"orthogonality as \"a contracted C-pair is δ\", $C_{im}C_{jm} = \delta_{ij}$ (D02)",
         "Kronecker substitution (N41)", "det(AB) = det A det B (Ch. 1 primer P53)", "Vieta's formulas (P71)",
         "the principal frame (D17 fact 3, forward pointer; step 8 only needs \"τ' = diag(λ)\")"],
   steps=[
@@ -1377,7 +1377,7 @@ D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", re
        "Every observer measures the same trace."),
       ("Transform the two-link chain",
        r"A'_{mn}A'_{nm} = C_{im}C_{jn}A_{ij}\;C_{kn}C_{lm}A_{kl}",
-       r"Apply (2.12) to each factor with fresh dummy letters (i, j) and (k, l) — reusing a letter would wrongly sum it. We choose $A_{ij}A_{ji}$ because its indices close into a loop.",
+       r"Apply $A'_{mn} = C_{im}C_{jn}A_{ij}$ (2.12) to each factor with fresh dummy letters (i, j) and (k, l) — reusing a letter would wrongly sum it. We choose $A_{ij}A_{ji}$ because its indices close into a loop.",
        "The chain in the new frame, with four C's."),
       ("Pair the C's and collapse",
        r"A'_{mn}A'_{nm} = (C_{im}C_{lm})(C_{jn}C_{kn})\,A_{ij}A_{kl} = \delta_{il}\delta_{jk}A_{ij}A_{kl} = A_{ij}A_{ji}",
@@ -1414,7 +1414,7 @@ D("D18", "Why the trace, I₂ and the determinant do not depend on the axes", re
   $\\lambda^k$ as a power.""")
 note("N30", "Multiplication raises the order", r"""
 $P_{ijkl} = A_{ij}B_{kl}$ has four free indices (`ch02.tensor_product(A, B)` = `np.multiply.outer`); it transforms by
-(2.13).
+$A'_{mnpq} = C_{im}C_{jn}C_{kp}C_{lq}A_{ijkl}$ (2.13).
 """)
 note("N31", "The four contractions of (2.14) are matrix products", r"""
 | index string | matrix form |
@@ -1516,8 +1516,8 @@ nb.md(r"""
 #### The problem in plain words
 
 The Coriolis acceleration $2\boldsymbol\Omega\times\mathbf u$, the vorticity $\nabla\times\mathbf u$, the torque
-$\mathbf r\times\mathbf F$ — fluid mechanics is full of cross products, and the component formula (2.20) is a mess to
-manipulate. $\varepsilon_{ijk}$ is the bookkeeping device that turns "cross" into "sum", and (2.19) is the one identity
+$\mathbf r\times\mathbf F$ — fluid mechanics is full of cross products, and the component formula $\mathbf u\times\mathbf v = (u_2v_3 - u_3v_2)\mathbf e_1 + (u_3v_1 - u_1v_3)\mathbf e_2 + (u_1v_2 - u_2v_1)\mathbf e_3$ (2.20) is a mess to
+manipulate. $\varepsilon_{ijk}$ is the bookkeeping device that turns "cross" into "sum", and $\varepsilon_{ijk}\varepsilon_{klm} = \delta_{il}\delta_{jm} - \delta_{im}\delta_{jl}$ (2.19) is the one identity
 that turns products of two ε's back into δ's.
 """)
 nb.md(r"""
@@ -1561,7 +1561,7 @@ print(np.cross([1, 0, 0], [0, 1, 0]))    # [0 0 1] = e_3: right-handed
 nb.md(r"""
 #### The maths, step by step
 
-1. **Definition (2.18)** as in the idea box.
+1. **Definition (2.18):** $\varepsilon_{ijk} = +1$ (cyclic), $-1$ (anticyclic), $0$ (an index repeated) — as in the idea box.
 2. **Index moves** (N43): swapping two indices flips the sign, $\varepsilon_{ijk} = -\varepsilon_{ikj}$; moving one
    index two places keeps it, $\varepsilon_{ijk} = \varepsilon_{jki} = \varepsilon_{kij}$.
 3. **Cross product (2.21):** $(\mathbf u\times\mathbf v)_k = \varepsilon_{ijk}u_iv_j$ — nine terms, two survive for
@@ -1584,7 +1584,7 @@ is asserted equal to `np.cross` below. **Determinant form** `N48`: $\mathbf u\ti
 reproduces (2.20).
 """, equation=r"\mathbf u\times\mathbf v = (u_2v_3 - u_3v_2)\mathbf e_1 + (u_3v_1 - u_1v_3)\mathbf e_2 + (u_1v_2 - u_2v_1)\mathbf e_3", ref="2.20")
 note("N49", "Cross product in index form", r"""
-`ch02.cross_einsum` is `np.einsum('ijk,i,j->k')`; `ch02.expand_indices_str("eps_ijk u_i v_j")` prints (2.20).
+`ch02.cross_einsum` is `np.einsum('ijk,i,j->k')`; `ch02.expand_indices_str("eps_ijk u_i v_j")` prints $\mathbf u\times\mathbf v = (u_2v_3 - u_3v_2)\mathbf e_1 + (u_3v_1 - u_1v_3)\mathbf e_2 + (u_1v_2 - u_2v_1)\mathbf e_3$ (2.20).
 **k = 1 check** `N50`: only (i, j) = (2, 3) and (3, 2) survive — visible in the printed expansion.
 """, equation=r"(\mathbf u\times\mathbf v)_k = \sum_{i=1}^{3}\sum_{j=1}^{3}\varepsilon_{ijk}u_iv_j \equiv \varepsilon_{ijk}u_iv_j = \varepsilon_{kij}u_iv_j", ref="2.21")
 note("N43", "Index moves on ε", r"""
@@ -1611,8 +1611,8 @@ D("D09", "The epsilon–delta relation, its contractions and the triple product"
          "the left side of (2.19) as a four-index object we will evaluate case by case."),
   plan=["Both sides vanish when i = j or l = m.", "For i ≠ j only one k survives, and both ε's are nonzero only if {l, m} = {i, j}.",
         "Evaluate the two surviving cases: +1 and −1.", "Contract the result once, twice; apply it to a × (b × c)."],
-  uses=["definition of ε (2.18) and its index moves (N43)", "antisymmetry: swapping two indices flips the sign",
-        "Kronecker substitution and δ_ii = 3 (N41)", "the index form of the cross product (2.21) (N49)", "permutation parity (P72)"],
+  uses=[r"definition of ε, $\varepsilon_{ijk} = +1$ (cyclic), $-1$ (anticyclic), $0$ (an index repeated) (2.18), and its index moves (N43)", "antisymmetry: swapping two indices flips the sign",
+        "Kronecker substitution and δ_ii = 3 (N41)", r"the index form of the cross product $(\mathbf u\times\mathbf v)_k = \varepsilon_{ijk}u_iv_j$ (2.21) (N49)", "permutation parity (P72)"],
   steps=[
       ("Fix the free indices and expand the sum",
        r"L_{ijlm} = \varepsilon_{ij1}\varepsilon_{1lm} + \varepsilon_{ij2}\varepsilon_{2lm} + \varepsilon_{ij3}\varepsilon_{3lm}",
@@ -1620,7 +1620,7 @@ D("D09", "The epsilon–delta relation, its contractions and the triple product"
        "Three products, one per value of the summed index."),
       ("Dispose of i = j",
        r"i = j:\quad L_{iilm} = 0 = \delta_{il}\delta_{im} - \delta_{im}\delta_{il}",
-       "ε with two equal indices is zero (2.18), so every term of step 1 vanishes; the right side of (2.19) is a difference of two equal products. Both sides are antisymmetric in (i, j).",
+       r"ε with two equal indices is zero, $\varepsilon_{iik} = 0$ (2.18), so every term of step 1 vanishes; the right side of $\varepsilon_{ijk}\varepsilon_{klm} = \delta_{il}\delta_{jm} - \delta_{im}\delta_{jl}$ (2.19) is a difference of two equal products. Both sides are antisymmetric in (i, j).",
        "Equal first indices: zero on both sides."),
       ("Dispose of l = m the same way",
        r"l = m:\quad L_{ijll} = 0 = \delta_{il}\delta_{jl} - \delta_{il}\delta_{jl}",
@@ -1628,7 +1628,7 @@ D("D09", "The epsilon–delta relation, its contractions and the triple product"
        "Equal last indices: zero on both sides."),
       ("Identify the only surviving k",
        r"i \neq j:\quad \varepsilon_{ijk} \neq 0 \iff k = k^*,\ \{i, j, k^*\} = \{1, 2, 3\}",
-       "In 3-D, with i and j distinct, exactly one value of k differs from both; for it ε is ±1, for the other two ε is 0 (2.18). The sum in step 1 has one term.",
+       r"In 3-D, with i and j distinct, exactly one value of k differs from both; for it ε is ±1, for the other two ε is 0 by (2.18), $\varepsilon_{ijk} = 0$ when an index repeats. The sum in step 1 has one term.",
        "Only the third index completing the set contributes."),
       ("Require the second ε to be nonzero too",
        r"\varepsilon_{k^*lm} \neq 0 \iff \{l, m\} = \{i, j\}",
@@ -1694,7 +1694,7 @@ print(ch02.is_isotropic(np.eye(3), rng)[0], ch02.is_isotropic(eps, rng, proper=T
       ch02.is_isotropic(eps, rng, proper=False)[0], ch02.is_isotropic(A, rng)[0])   # True True False False (N42)
 """, explain="""
 1. Six nonzero entries; Python's `eps[0, 1, 2]` is the book's $\\varepsilon_{123}$.
-2. All 81 cases of (2.19) hold exactly (D09's check).
+2. All 81 cases of $\\varepsilon_{ijk}\\varepsilon_{klm} = \\delta_{il}\\delta_{jm} - \\delta_{im}\\delta_{jl}$ (2.19) hold exactly (D09's check).
 3. The two contractions: $2\\delta_{ij}$ and 6.
 4. Three cross products agree — the component formula, the einsum and numpy's.
 5. The expansion shows the k = 1 check of the worked example.
@@ -1729,7 +1729,7 @@ for k, ax in enumerate(axs):                                          # slice k 
 fig.suptitle("ε_ijk unfolded: six coloured cells in 27 — an antisymmetric 2-D pattern in every slice")
 plt.show()
 """, see="Three 3×3 slices, six coloured cells in all: purple +1, teal −1, white 0; the coloured pair shifts by one place from slice to slice.",
-   read="Each slice k holds the 2-D antisymmetric pattern of the remaining two indices — the matrix (2.26) of C12 in disguise: $-\\varepsilon_{ijk}\\omega_k$ fills exactly these cells.",
+   read="Each slice k holds the 2-D antisymmetric pattern of the remaining two indices — the matrix $\\mathbf R = \\left(\\begin{smallmatrix}0&-\\omega_3&\\omega_2\\\\\\omega_3&0&-\\omega_1\\\\-\\omega_2&\\omega_1&0\\end{smallmatrix}\\right)$ (2.26) of C12 in disguise: $-\\varepsilon_{ijk}\\omega_k$ fills exactly these cells.",
    change="…you relabelled 1 ↔ 2 everywhere (a mirror): every colour flips — ε changes sign under a reflection (N42).")
 nb.md(r"""
 **What would change if…** the second vector were the operator $\partial/\partial x_j$? $\varepsilon_{ijk}\,\partial
@@ -1817,7 +1817,7 @@ nb.md(r"""
 #### The maths, step by step
 
 1. (2.22) $\nabla = \mathbf e_i\,\partial/\partial x_i$; on a scalar, $(\nabla\phi)_i = \partial\phi/\partial x_i$ — a
-   vector (it passes (2.8) by the chain rule; the residual table of C03 said so).
+   vector (it passes $u'_j = u_iC_{ij}$ (2.8) by the chain rule; the residual table of C03 said so).
 2. Along a contour φ is constant, so its rate of change along the tangent t is $\nabla\phi\cdot\mathbf t = 0$: ∇φ ⊥
    level sets.
 3. In direction n: $\partial\phi/\partial n = \nabla\phi\cdot\mathbf n = |\nabla\phi|\cos\alpha$ — maximal
@@ -1907,7 +1907,7 @@ fig.show()
    visible (positive uphill, shrinking to nothing along the contour, negative downhill).
 """)
 see_read_change("Three ellipses, a fixed purple gradient arrow at (1, 1), and an orange direction n that turns with the slider; a third arrow along n whose length is ∂φ/∂n.",
-                "The third arrow is longest (2.06) when n ∥ ∇φ (α ≈ 14°), vanishes along the contour (α ≈ 104°) and reverses downhill (α ≈ 194°).",
+                r"The third arrow is longest ($|\nabla\phi| \approx 2.06$) when n ∥ ∇φ (α ≈ 14°), vanishes along the contour (α ≈ 104°) and reverses downhill (α ≈ 194°).",
                 "…the probe sat at (0, 1): ∇φ = (0, 0.5) — a shorter arrow pointing straight up; the ellipses are flattest there.")
 nb.figure("""
 fig, ax = plt.subplots(figsize=(6, 3.8))                                        # one panel, log–log
@@ -1989,11 +1989,11 @@ div_sym, curl_sym = ch02.exact_div_curl(a_sym * X3)                   # the symb
 print(div_sym, curl_sym)                                              # 3*a [0, 0, 0]
 assert div_sym != 0 and float(div_sym.subs(a_sym, 1.0)) == 3.0 and np.allclose(float(div_sym.subs(a_sym, 1.0)), div.mean())   # the symbolic 3a is non-zero and equals the grid value
 assert all(c == 0 for c in curl_sym)                                  # and the curl of a x is exactly zero
-""", explain="""
+""", explain=r"""
 1. A 3-D grid (kept for C11 and C12).
 2. `radial_field(1.0)` is a callable field with sympy behind it; evaluated on the grid arrays it returns the three
    components stacked on axis 0.
-3. Its divergence is 3 everywhere — exact, because the field is linear.
+3. Its divergence, $\nabla\cdot\mathbf u = \partial u_i/\partial x_i$ (2.23), is 3 everywhere — exact, because the field is linear.
 4. The rotation field is solenoidal: its divergence is zero to round-off.
 5. The velocity gradient of u = x is δ_ij at every node; its trace is the divergence.
 6. `exact_div_curl` computes the same symbolically: 3a and [0, 0, 0] — built on the library's own coordinate symbols
@@ -2083,9 +2083,9 @@ a paddle wheel spins if the flow on one side is faster than on the other   →  
 nb.md(r"""
 #### The maths, step by step
 
-1. (2.21) with $u_i \to \partial/\partial x_j$: $(\nabla\times\mathbf u)_i = \varepsilon_{ijk}\,\partial u_k/\partial x_j$
+1. (2.21), $(\mathbf u\times\mathbf v)_k = \varepsilon_{ijk}u_iv_j$, with $u_i \to \partial/\partial x_j$: $(\nabla\times\mathbf u)_i = \varepsilon_{ijk}\,\partial u_k/\partial x_j$
    (2.24), operator ordering: ∂ acts on u.
-2. D12 below expands it into the three components (2.25).
+2. D12 below expands it into the three components $(\nabla\times\mathbf u)_1 = \partial u_3/\partial x_2 - \partial u_2/\partial x_3$ (and cyclically) (2.25).
 3. Ex. 2.3: $\mathbf u = a\mathbf x$: $\varepsilon_{ijk}\partial(ax_k)/\partial x_j = a\varepsilon_{ijk}\delta_{jk} =
    a\varepsilon_{ijj} = 0$ — irrotational. $\mathbf u = \mathbf b\times\mathbf x$: $\varepsilon_{ijk}\partial_j(
    \varepsilon_{lmk}b_lx_m) = \varepsilon_{ijk}\varepsilon_{lmk}b_l\delta_{mj} = \varepsilon_{ijk}\varepsilon_{ljk}b_l =
@@ -2097,9 +2097,9 @@ D("D12", "The three components of the curl", ref="2.25",
   terms survive for each component.""",
   assumptions="u differentiable (the partial derivatives exist; every step).",
   start=(r"(\nabla\times\mathbf u)_i = \varepsilon_{ijk}\,\frac{\partial u_k}{\partial x_j}",
-         "(2.24): the cross product (2.21) with the first vector replaced by the operator ∇ = e_j ∂/∂x_j, acting to the right."),
+         r"(2.24): the cross product $(\mathbf u\times\mathbf v)_k = \varepsilon_{ijk}u_iv_j$ (2.21) with the first vector replaced by the operator ∇ = e_j ∂/∂x_j, acting to the right."),
   plan=["Fix i = 1.", "Keep only the (j, k) pairs where ε ≠ 0.", "Insert ±1.", "Relabel cyclically for i = 2, 3."],
-  uses=["enumeration of ε (2.18) (C08)", "the cross product in index form (2.21) (N49)",
+  uses=[r"enumeration of ε, $\varepsilon_{ijk} = +1$ (cyclic), $-1$ (anticyclic), $0$ (an index repeated) (2.18) (C08)", "the cross product in index form (2.21) (N49)",
         "operator ordering: ∂ acts on u_k (gloss in the start line)", "partial derivative (Ch. 1 P25)"],
   steps=[
       ("Write (2.24) for i = 1 with both sums",
@@ -2108,7 +2108,7 @@ D("D12", "The three components of the curl", ref="2.25",
        "Nine candidate terms for the first component."),
       ("Drop the terms with a repeated index",
        r"(\nabla\times\mathbf u)_1 = \varepsilon_{123}\,\frac{\partial u_3}{\partial x_2} + \varepsilon_{132}\,\frac{\partial u_2}{\partial x_3}",
-       "ε vanishes whenever two indices agree (2.18); with i = 1 fixed, only (j, k) = (2, 3) and (3, 2) avoid a repeat. Seven terms die.",
+       r"ε vanishes whenever two indices agree, $\varepsilon_{1jj} = 0$ (2.18); with i = 1 fixed, only (j, k) = (2, 3) and (3, 2) avoid a repeat. Seven terms die.",
        "Only the two \"other\" directions contribute."),
       ("Insert the values of ε",
        r"(\nabla\times\mathbf u)_1 = \frac{\partial u_3}{\partial x_2} - \frac{\partial u_2}{\partial x_3}",
@@ -2167,7 +2167,7 @@ u_sh = shear3(g3.X, g3.Y, g3.Z)                                                #
 print(ch02.curl(u_sh, g3.h)[2, 5, 5, 5])                                       # −1.0 = −Γ: straight streamlines, nonzero curl
 """, explain="""
 1. The curl of the rotation field is (0, 0, 2b) at every node — exact for a linear field.
-2. The three explicit components (2.25) agree with the einsum form (2.24).
+2. The three explicit components $(\\nabla\\times\\mathbf u)_1 = \\partial u_3/\\partial x_2 - \\partial u_2/\\partial x_3$ (and cyclically) (2.25) agree with the einsum form $(\\nabla\\times\\mathbf u)_i = \\varepsilon_{ijk}\\,\\partial u_k/\\partial x_j$ (2.24).
 3. The radial field is irrotational, the rotating one is not.
 4. The sympy twin gives divergence 0 and curl [0, 0, 2] symbolically, asserted equal to the grid's curl.
 5. The straight shear flow $u_1 = \\Gamma x_2$ (built as a `VectorField` from sympy expressions) has curl −Γ.
@@ -2206,7 +2206,7 @@ nb.explainer("stokes_circulation_loop", heading="How much does the flow go round
              theorem, Stokes', is proved in C16 — this explainer is embedded once, here where the curl first bites.)""",
              tries=["Shear preset: the streamlines are straight, yet the wheel turns and Γ ≠ 0.",
                     "Irrotational-vortex preset: shrink the loop away from the centre — Γ/A → 0; enclose the centre — Γ = 2πK whatever the size (the ⚠️ status).",
-                    "Flip the orientation: both sides of (2.34) change sign together.",
+                    r"Flip the orientation: both sides of $\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds$ (2.34) change sign together.",
                     "Rectangle mode: read the four side sums of Ex. 2.6 in the Explain tab."])
 nb.md(r"""
 **What would change if…** you split the velocity gradient $G_{ij}$ into its symmetric and antisymmetric halves? The
@@ -2247,7 +2247,7 @@ simple shear u₁ = Γx₂ :  G = [[0, Γ],[0, 0]] = ½[[0, Γ],[Γ, 0]] + ½[[0
 
 *Two closely related objects, kept apart on purpose:* the book's **rotation tensor** $R_{ij} = \partial u_i/\partial
 x_j - \partial u_j/\partial x_i = G - G^{\rm T}$ (no ½) packs the **vorticity** $\boldsymbol\omega = \nabla\times\mathbf u$
-by (2.26)–(2.27); the **antisymmetric part** $\mathbf A = \tfrac12(\mathbf G - \mathbf G^{\rm T}) = \tfrac12\mathbf R$
+by $R_{ij} = -\varepsilon_{ijk}\omega_k$, $\omega_k = -\tfrac12\varepsilon_{ijk}R_{ij}$ (2.26)–(2.27); the **antisymmetric part** $\mathbf A = \tfrac12(\mathbf G - \mathbf G^{\rm T}) = \tfrac12\mathbf R$
 packs $\tfrac12\boldsymbol\omega = \tfrac12\nabla\times\mathbf u$, the angular velocity of a material line.
 """)
 P("P79", "scipy.linalg.expm", r"""
@@ -2279,10 +2279,10 @@ D("D14", "The unique split into symmetric and antisymmetric parts", ref="§2.10"
   goal="""Show that any second-order tensor is the sum of a symmetric and an antisymmetric tensor in exactly one way,
   and that both parts are themselves tensors — the basis of Ch. 3's strain rate and rotation rate.""",
   assumptions="None beyond B being a tensor (step 6).",
-  start=(r"B_{ij}\ \text{— any second-order tensor}", "nine numbers that transform by (2.12)."),
+  start=(r"B_{ij}\ \text{— any second-order tensor}", r"nine numbers that transform by $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12)."),
   plan=["Add and subtract half the transpose.", "Check the symmetry of each half.",
-        "Suppose a second split and show it coincides.", "Transform each half with (2.12)."],
-  uses=[r"transpose $B_{ji}$ (P63)", "the definitions of symmetric and antisymmetric (N56)", "linearity of (2.12) (C06)",
+        "Suppose a second split and show it coincides.", r"Transform each half with $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12)."],
+  uses=[r"transpose $B_{ji}$ (P63)", "the definitions of symmetric and antisymmetric (N56)", r"linearity of $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) (C06)",
         "dummy renaming (N12)", "\"both symmetric and antisymmetric ⇒ zero\" (step 5)"],
   steps=[
       (r"Add and subtract $\tfrac12B_{ji}$",
@@ -2345,7 +2345,7 @@ D("D15", "The vector hidden in an antisymmetric tensor", ref="2.26, 2.27",
        "The packed array is antisymmetric, as promised."),
       ("Read off the entries",
        r"R_{12} = -\varepsilon_{123}\omega_3 = -\omega_3,\quad R_{13} = -\varepsilon_{132}\omega_2 = +\omega_2,\quad R_{23} = -\varepsilon_{231}\omega_1 = -\omega_1",
-       "For each (i, j) only the k different from both survives; ε_123 = ε_231 = +1, ε_132 = −1 (2.18). The diagonal is zero by step 1. With step 1 for the lower triangle this is the matrix (2.26).",
+       r"For each (i, j) only the k different from both survives; ε_123 = ε_231 = +1, ε_132 = −1 (2.18). The diagonal is zero by step 1. With step 1 for the lower triangle this is the matrix $\mathbf R = \left(\begin{smallmatrix}0&-\omega_3&\omega_2\\\omega_3&0&-\omega_1\\-\omega_2&\omega_1&0\end{smallmatrix}\right)$ (2.26).",
        "Above the diagonal: −ω₃, +ω₂, −ω₁."),
       ("Contract R with ε to invert",
        r"\varepsilon_{ijl}\,R_{ij} = -\varepsilon_{ijl}\,\varepsilon_{ijk}\,\omega_k",
@@ -2375,7 +2375,7 @@ D("D15", "The vector hidden in an antisymmetric tensor", ref="2.26, 2.27",
   part $\\mathbf A = \\tfrac12\\mathbf R$ therefore carries $\\tfrac12\\boldsymbol\\omega = \\tfrac12\\nabla\\times\\mathbf u$, and
   $\\mathbf A\\cdot\\mathbf x = \\tfrac12\\boldsymbol\\omega\\times\\mathbf x$ is the velocity of a solid-body rotation at angular
   velocity $\\tfrac12\\boldsymbol\\omega$ (Ex. 2.3 read backwards). That is *why* the antisymmetric part means "spin": a
-  material line turns at half the vorticity. The sign in (2.27) is chosen so that this works; with the opposite sign
+  material line turns at half the vorticity. The sign in $R_{ij} = -\\varepsilon_{ijk}\\omega_k$ (2.27) is chosen so that this works; with the opposite sign
   R·x = −ω × x.""",
   check="""Units: those of ω ✓. Round trip: ω = (1, 2, 3) → R → ω to 1e-16 (`antisymmetric_from_vector`,
   `vector_from_antisymmetric`). Number: ω = (0, 0, −1), x = (1, 0, 0): R = [[0, 1, 0], [−1, 0, 0], [0, 0, 0]], R·x =
@@ -2386,7 +2386,7 @@ note("N59", "A symmetric tensor against a general one", r"""
 `ch02.symmetric_double_contraction(τ, B)` returns (P, P_S, P_A) with the Frobenius pairing $\tau_{kl}B_{kl}$.
 """, equation=r"P = \tau_{kl}B_{kl} = \tau_{kl}(S_{kl} + A_{kl}) = \tau_{ij}S_{ij} + \tau_{ij}A_{ij}", ref="2.28")
 note("N60", "The antisymmetric part drops out (stated)", r"""
-swapping A's indices and renaming dummies gives $P = \tau_{kl}S_{kl} - \tau_{kl}A_{kl}$; comparing with (2.28), $X =
+swapping A's indices and renaming dummies gives $P = \tau_{kl}S_{kl} - \tau_{kl}A_{kl}$; comparing with $P = \tau_{kl}S_{kl} + \tau_{kl}A_{kl}$ (2.28), $X =
 \tau_{ij}A_{ij}$ satisfies $X = -X$, so $X = 0$. **Hence** `N61`: $\tau_{ij}B_{ij} = \tau_{ij}S_{ij} = \tfrac12
 \tau_{ij}(B_{ij} + B_{ji})$ — like the integral of even × odd over a symmetric interval vanishing; Ch. 4 §4.5: the
 dissipation $\tau_{ij}\,\partial u_i/\partial x_j$ sees only the strain rate.
@@ -2421,12 +2421,12 @@ print(ch02.vector_from_antisymmetric(ch02.antisymmetric_part(Gnum)), 0.5 * ch02.
 """, explain="""
 1. The preset G of simple shear with $\\partial u_1/\\partial x_2 = 2$ s⁻¹.
 2–3. The two parts and their sum.
-4. The vector of A by (2.27) is ½ω = (0, 0, −1) s⁻¹ — never call it ω: the book's R = G − Gᵀ = 2A carries the vorticity
+4. The vector of A by $\\omega_k = -\\tfrac12\\varepsilon_{ijk}R_{ij}$ (2.27) is ½ω = (0, 0, −1) s⁻¹ — never call it ω: the book's R = G − Gᵀ = 2A carries the vorticity
    ω = (0, 0, −2) s⁻¹ itself (`rotation_tensor`), and −2 = −Γ is C11's curl.
-5. (2.26) inverts the map exactly.
+5. Packing ω back into $\\mathbf R = \\left(\\begin{smallmatrix}0&-\\omega_3&\\omega_2\\\\\\omega_3&0&-\\omega_1\\\\-\\omega_2&\\omega_1&0\\end{smallmatrix}\\right)$ (2.26) inverts the map exactly.
 6. A·x = ½ω × x — the antisymmetric part *acts* as a rotation at angular velocity ½ω.
 7. Component counts 6, 3, 9.
-8. (2.28)–(2.29): P = P_S and P_A = 0.
+8. $P = \\tau_{kl}S_{kl} + \\tau_{kl}A_{kl}$ (2.28) and $P = \\tau_{kl}S_{kl} - \\tau_{kl}A_{kl}$ (2.29): P = P_S and P_A = 0.
 9. The same relation on a *numerical* velocity gradient from the grid of C11: the vector of A is half the curl — the
    convention G[i, j] = ∂u_i/∂x_j is what makes the sign come out right.
 """)
@@ -2570,10 +2570,10 @@ D("D17", "Real eigenvalues, orthogonal axes, diagonal form and the bounds — fo
          "a direction b that τ only scales (no shear on the plane ⊥ b); λ and b may be complex until we prove otherwise."),
   plan=["Contract the eigen-equation with the conjugate eigenvector, conjugate, use symmetry: λ = λ̄.",
         "Do the same with two eigenpairs: (λ¹ − λ²) b¹·b² = 0.",
-        "Put the unit eigenvectors as columns of C — exactly C02's C — and apply (2.12).",
+        r"Put the unit eigenvectors as columns of C — exactly C02's C — and apply $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12).",
         "Expand any unit n in the eigenbasis and read the normal stress as a weighted mean of the λ's."],
   uses=["eigenvalues and eigenvectors (P80)", "complex conjugate and |z|² = z z̄ (P81)", "symmetry τ_ij = τ_ji (N56)",
-        "dummy renaming (N12)", "orthonormality and completeness (P65) and D02", "the transformation rule (2.12) (C06)",
+        "dummy renaming (N12)", "orthonormality and completeness (P65) and D02", r"the transformation rule $A'_{mn} = C_{im}C_{jn}A_{ij}$ (2.12) (C06)",
         "quadratic form / Rayleigh quotient (P82)", "Gram–Schmidt for repeated λ (gloss in step 8)"],
   steps=[
       ("Contract the eigen-equation with the conjugate eigenvector",
@@ -2792,10 +2792,10 @@ fail — which is why `principal_axes` refuses, and why Ch. 4's proof that the s
 # =====================================================================================================================
 # A.10 §2.12 Gauss' Theorem — C14 (D25, E4), C15 (D21, D22)
 # =====================================================================================================================
-nb.section("2.12", "Gauss' Theorem", intro="""
+nb.section("2.12", "Gauss' Theorem", intro=r"""
 **What is this section about?** A derivative integrated over a volume equals the field itself integrated over the
 boundary with the outward normal — for a field of any order. Read backwards on a tiny box it *defines* the divergence
-as outflux per unit volume, and the Cartesian formula (2.23) falls out face by face.
+as outflux per unit volume, and the Cartesian formula $\nabla\cdot\mathbf u = \partial u_i/\partial x_i$ (2.23) falls out face by face.
 """)
 core("C14", "Gauss' theorem: derivative inside = normal outside", r"""
 Why does adding up $\partial Q/\partial x_i$ over a whole volume only depend on what Q does on the surface?
@@ -2852,7 +2852,7 @@ D("D25", "Gauss' theorem, from the fundamental theorem of calculus", ref="2.30",
   that the tiling's outer faces approach it (step 9).""",
   start=(r"\int_a^b f'(x)\,dx = f(b) - f(a)", "the fundamental theorem of calculus (P84): integrating a derivative gives the values at the two ends."),
   plan=["On a box, write the volume integral of ∂Q/∂x₁ as an iterated integral and do the x₁ integral first.",
-        "Read the right side of (2.30) face by face: n₁ = ±1 on two faces, 0 on four.", "Repeat for i = 2, 3.",
+        r"Read the right side of $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) face by face: n₁ = ±1 on two faces, 0 on four.", "Repeat for i = 2, 3.",
         "Tile a general volume with boxes; interior faces cancel."],
   uses=["fundamental theorem of calculus (P84)", "iterated integrals (P83)", "outward normals of a box (C04's faces)",
         "additivity of integrals over disjoint regions (step 7)", "vector area / opposite normals (P69; step 8)"],
@@ -2932,12 +2932,12 @@ print(ch02.gauss_gradient_box(lambda x, y, z: x * y * z, ((0, 1),) * 3, 16))   #
 Q2d = ch02.radial_field(1.0, dim=2)                                      # the plane field (x, y) for the 2-D pictures
 print(ch02.flux_through_faces(Q2d, ((0, 1), (0, 1)), 16))                # {'+x': 1, '-x': 0, '+y': 1, '-y': 0}: the right and top faces leak 1 each
 print(ch02.divergence_theorem_tiled(Q2d, ((0, 1), (0, 1)), 4, 16))       # 4×4 tiles: (sum over tiles, outer boundary, interior faces) = (2, 2, 0): D25 step 8 as a number
-""", explain="""
-1. `divergence_theorem_box` evaluates both sides of (2.30) for a vector Q on a box by midpoint sums: 3 = 3.
+""", explain=r"""
+1. `divergence_theorem_box` evaluates both sides of $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) for a vector Q on a box by midpoint sums: 3 = 3.
 2. For Q = (x², 0, 0) both sides are 1: only the two x-faces contribute (D25 step 4).
 3. The sphere benchmark: both sides equal 8π/3 to ~1e-14 — for these low-degree polynomials the spherical product rule
    is essentially exact, so no visible quadrature error remains.
-4. `gauss_gradient_box` is the scalar form of (2.30): the volume integral of ∇(xyz) equals the surface integral of n·(xyz)
+4. `gauss_gradient_box` is the scalar form of $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30): the volume integral of ∇(xyz) equals the surface integral of n·(xyz)
    — a vector on both sides.
 5. `flux_through_faces` lists the four signed face fluxes of a plane field.
 6. `divergence_theorem_tiled` splits the square into 4×4 tiles: the tile boundaries sum to the outer flux and the interior
@@ -2960,9 +2960,9 @@ nb.plotly("""
 from scripts.ch02_fig2_9_gauss import gauss_box_figure                   # drawing helper (P64): faces coloured by n·Q
 fig = gauss_box_figure(F)                                                # F = (2x, y², z²) on the unit cube; the two totals in the title
 fig.show()                                                               # rotate: blue = inflow, orange = outflow
-""", explain="""
+""", explain=r"""
 1. Each face of the unit cube is coloured by the local outflux n·F (blue in, orange out) and labelled with its total.
-2. The title compares ∭ ∇·F dV with the sum of the six face fluxes — the two sides of (2.30).
+2. The title compares ∭ ∇·F dV with the sum of the six face fluxes — the two sides of $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30).
 """)
 see_read_change("Orange faces where F leaves (x = 1, y = 1, z = 1), blue or pale where it enters or is tangent; the title's two totals agree.",
                 "The sum of the face colours (weighted by area) equals the integral of the divergence inside — 4 = 4 for this F on the cube.",
@@ -2981,8 +2981,8 @@ fig = slider_figure(two_sides, "n", ns_mesh, unit="nodes/side", xlabel="", ylabe
 fig.update_xaxes(tickvals=[0, 1], ticktext=["inside", "boundary"]); fig.show()
 gaps = [abs(np.subtract(*ch02.divergence_theorem_box(Fs, ((0, 1),) * 3, n_))) for n_ in ns_mesh]   # |lhs − rhs| per mesh
 print({n_: f"{gp:.1e}" for n_, gp in zip(ns_mesh, gaps)})              # the gap falls by about 4 per doubling of n
-""", explain="""
-1. For the smooth sin/cos field the two sides of (2.30) are computed by midpoint sums with n nodes per side.
+""", explain=r"""
+1. For the smooth sin/cos field the two sides of $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) are computed by midpoint sums with n nodes per side.
 2. Two "bars" (vertical lines) and the exact value; the printed gaps shrink by ≈ 4 per doubling — both sides are
    second-order approximations of one number.
 """)
@@ -2990,9 +2990,9 @@ see_read_change("Two bars of almost equal height and a dashed exact line; draggi
                 "The two bars meet as the mesh refines; the printed gap falls by about 4 per doubling of n.",
                 "…Q were a polynomial of degree ≤ 2: the gap would be 1e-16 at every n (midpoint sums are exact for quadratics on each face).")
 nb.explainer("gauss_flux_box", heading="What leaks out of a box?",
-             why="""The theorem has a left side that lives inside and a right side on the boundary; moving and resizing a box
+             why=r"""The theorem has a left side that lives inside and a right side on the boundary; moving and resizing a box
              over a field, watching the face fluxes re-sum to the integrated divergence, tiling it to see interior faces
-             cancel, and shrinking it until (1/V)∮ settles on ∇·Q is the whole (2.30) → (2.32) chain as an experiment.""",
+             cancel, and shrinking it until (1/V)∮ settles on ∇·Q is the whole chain from $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) to $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) as an experiment.""",
              tries=["Drag the box over the source: the total bar turns orange.",
                     "Tile 4×4: interior arrows appear in opposite pairs and cancel — D25 step 8.",
                     "Shrink h on the log slider and watch (1/V)∮ approach the dashed ∇·Q(x₀) with slope 2.",
@@ -3010,12 +3010,14 @@ x_i$ come back out?
 nb.md(r"""
 #### The problem in plain words
 
-The Cartesian formula (2.23) is a recipe, not a meaning. The meaning is: put a tiny closed surface around the point,
+The Cartesian formula $\nabla\cdot\mathbf u = \partial u_i/\partial x_i$ (2.23) is a recipe, not a meaning. The meaning is: put a tiny closed surface around the point,
 measure what leaks out, divide by the volume. That definition works in spherical coordinates on a planet as well as on
 a Cartesian grid, and it is exactly the box argument Ch. 4 uses to derive the continuity equation.
 """)
 nb.md(r"""
 #### The idea
+
+Gauss' theorem $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30), read on a tiny box, becomes the outflux definition $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32):
 
 ```
 (2.30) on a tiny box around x₀:  (1/V) ∯ n·Q dA  →  ∇·Q(x₀)  as V → 0          (2.32)
@@ -3036,23 +3038,23 @@ nb.md(r"""
 #### The maths, step by step
 
 1. (2.31) $\mathcal DQ = \lim_{V\to0}(1/V)\iint_A n_iQ\,dA$ — the generalised derivative (gradient of any order), from
-   (2.30) by the mean-value theorem (D21).
+   $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) by the mean-value theorem (D21).
 2. Contract: (2.32) $\nabla\cdot\mathbf Q = \lim (1/V)\iint \mathbf n\cdot\mathbf Q\,dA$; cross: (2.33) $\nabla\times
    \mathbf Q = \lim (1/V)\iint \mathbf n\times\mathbf Q\,dA$.
 3. Ex. 2.5 (D22): evaluate (2.32) on a box — Taylor to the six face centres, opposite faces cancel the zeroth order,
-   divide by the volume, take the limit: (2.23) returns.
+   divide by the volume, take the limit: $\nabla\cdot\mathbf Q = \partial Q_i/\partial x_i$ (2.23) returns.
 """)
 D("D21", "The integral definitions as small-volume limits of Gauss' theorem", ref="2.31–2.33",
-  goal="""Turn Gauss' theorem, read on a shrinking volume, into coordinate-free definitions of the gradient, the
-  divergence and the curl — the book calls (2.31) "the limiting form" and leaves the limit implicit.""",
+  goal=r"""Turn Gauss' theorem, read on a shrinking volume, into coordinate-free definitions of the gradient, the
+  divergence and the curl — the book calls $\mathcal DQ = \lim_{V\to0}\frac1V\iint_A n_iQ\,dA$ (2.31) "the limiting form" and leaves the limit implicit.""",
   assumptions="""∂Q/∂x_i continuous near x₀ (steps 2 and 4) · V shrinks to x₀ in every direction (step 4; then the shape
   does not matter).""",
   start=(r"\iiint_V \frac{\partial Q}{\partial x_i}\,dV = \iint_A n_iQ\,dA \quad\text{on a small V around } \mathbf x_0",
          "Gauss' theorem (2.30, D25) for any Q, applied to a small region."),
   plan=["Replace the volume integral by \"value at some interior point × volume\" (mean-value theorem).", "Divide by V.",
         "Shrink V to x₀.", "Contract with e_i for the divergence, cross with ε for the curl."],
-  uses=["Gauss' theorem (2.30) (D25)", "mean-value theorem for integrals (P85)", "limits and continuity (P68)",
-        "the index form of ∇·, (2.23) (C10)", "the index form of ∇×, (2.24) (C11)"],
+  uses=[r"Gauss' theorem $\iiint_V \partial Q/\partial x_i\,dV = \iint_A n_iQ\,dA$ (2.30) (D25)", "mean-value theorem for integrals (P85)", "limits and continuity (P68)",
+        r"the index form of ∇·, $\nabla\cdot\mathbf u = \partial u_i/\partial x_i$ (2.23) (C10)", r"the index form of ∇×, $(\nabla\times\mathbf u)_i = \varepsilon_{ijk}\,\partial u_k/\partial x_j$ (2.24) (C11)"],
   steps=[
       ("Apply Gauss' theorem to a small V around x₀",
        r"\iiint_V \frac{\partial Q}{\partial x_i}\,dV = \iint_A n_iQ\,dA",
@@ -3080,22 +3082,22 @@ D("D21", "The integral definitions as small-volume limits of Gauss' theorem", re
        "Divergence = what leaks out per unit volume."),
       ("Cross instead of dot",
        r"(\nabla\times\mathbf Q)_k = \varepsilon_{kij}\frac{\partial Q_j}{\partial x_i} = \lim_{V\to0}\frac1V\iint_A (\mathbf n\times\mathbf Q)_k\,dA",
-       r"Multiply step 4 (with Q → Q_j) by $\varepsilon_{kij}$ and sum on i, j — a fixed linear combination passes through the limit; $\varepsilon_{kij}\partial_iQ_j$ is (2.24) and $\varepsilon_{kij}n_iQ_j = (\mathbf n\times\mathbf Q)_k$ by (2.21). This is (2.33).",
+       r"Multiply step 4 (with Q → Q_j) by $\varepsilon_{kij}$ and sum on i, j — a fixed linear combination passes through the limit; $\varepsilon_{kij}\partial_iQ_j$ is (2.24) and $\varepsilon_{kij}n_iQ_j = (\mathbf n\times\mathbf Q)_k$ by $(\mathbf u\times\mathbf v)_k = \varepsilon_{ijk}u_iv_j$ (2.21). This is (2.33).",
        "Curl = the boundary's \"n × Q\" per unit volume."),
   ],
   result=(r"\mathcal DQ = \lim_{V\to0}\frac1V\iint n_iQ\,dA\ (2.31),\quad \nabla\cdot\mathbf Q = \lim\frac1V\iint \mathbf n\cdot\mathbf Q\,dA\ (2.32),\quad \nabla\times\mathbf Q = \lim\frac1V\iint \mathbf n\times\mathbf Q\,dA\ (2.33)",
           "gradient, divergence and curl are boundary sums per unit volume in the limit of a vanishing volume."),
-  interpret="""The operators of §2.9 are properties of the field, not of Cartesian axes: the same recipe in spherical or
+  interpret=r"""The operators of §2.9 are properties of the field, not of Cartesian axes: the same recipe in spherical or
   cylindrical coordinates gives the curvilinear formulas of Appendix B (N72), and Ch. 4 derives continuity from exactly
-  (2.32) on a fluid box. The limit exists only where Q is smooth; at a point source (the explainer's preset) the flux is
+  $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) on a fluid box. The limit exists only where Q is smooth; at a point source (the explainer's preset) the flux is
   fixed while V → 0 and (1/V)∮ diverges — an infinitely concentrated source whose total is finite (a "delta function"),
   not a derivative.""",
-  check="""Units: (2.32) — [Q]·m²/m³ = [Q]/m on both sides ✓. Limit: Q constant: the boundary integral of n vanishes
+  check=r"""Units of $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32): [Q]·m²/m³ = [Q]/m on both sides ✓. Limit: Q constant: the boundary integral of n vanishes
   (vector area of a closed surface, P69), so all three derivatives are 0 ✓. Number: Q = (x², 0, 0), x₀ = (1, 0, 0), cube
   h = 0.2: (1/V)∮ = (1.21 − 0.81)(0.04)/0.008 = 2.000 = 2x₀ exactly ✓; Q = (x³, 0, 0): 3.01 vs 3 at h = 0.2, error h²/4,
   order 2 (`integral_divergence`, `integral_definition_convergence("divergence")` below).""",
-  traps="""forgetting the 1/V. Assuming shape-independence without continuity. Reading (2.32) and (2.33) as new theorems —
-  they are (2.31) contracted or crossed.""")
+  traps=r"""forgetting the 1/V. Assuming shape-independence without continuity. Reading $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) and $\nabla\times\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\times\mathbf Q\,dA$ (2.33) as new theorems —
+  they are $\mathcal DQ = \lim_{V\to0}\frac1V\iint_A n_iQ\,dA$ (2.31) contracted or crossed.""")
 note("N66", "The generalised derivative", r"""
 `ch02.integral_gradient(Q_fn, x0, h)` converges to `gradient` with order 2 in h (printed below).
 """, equation=r"\mathcal D Q = \lim_{V\to 0}\frac{1}{V}\iint_A n_i Q\,dA", ref="2.31")
@@ -3109,7 +3111,7 @@ is the derivation D22 below (its recipe animated after it); the same box argumen
 Ch. 4 §4.2.
 """)
 D("D22", "Ex. 2.5: the Cartesian divergence recovered from the outflux definition", ref="2.32 → 2.23",
-  goal="""Evaluate (2.32) on a small box and watch the formula $\\partial Q_i/\\partial x_i$ (2.23) come back — face by face
+  goal="""Evaluate $\\nabla\\cdot\\mathbf Q = \\lim_{V\\to0}\\frac1V\\iint_A\\mathbf n\\cdot\\mathbf Q\\,dA$ (2.32) on a small box and watch the formula $\\partial Q_i/\\partial x_i$ (2.23) come back — face by face
   — so that the coordinate formula is seen as a consequence of "outflux per volume".""",
   assumptions="""Q twice differentiable (Taylor remainder O(Δx²); steps 2–3) · the box shrinks in all three directions
   (step 8).""",
@@ -3119,7 +3121,7 @@ D("D22", "Ex. 2.5: the Cartesian divergence recovered from the outflux definitio
         "Integrate over each face (midpoint rule).", "Add the pair: constants cancel, slopes add.",
         "Same for the other two pairs; add; divide by the volume; take the limit."],
   uses=["first-order Taylor expansion (Ch. 1 primer P26)", "midpoint rule: a face integral of a linear function equals the centre value × area (P83)",
-        "face normals ±e₁ (C04's faces)", "orders of smallness (P68)", r"$\mathbf e_1\cdot\partial\mathbf Q/\partial x_1 = \partial Q_1/\partial x_1$ (gloss in step 9)", "(2.23) (C10)"],
+        "face normals ±e₁ (C04's faces)", "orders of smallness (P68)", r"$\mathbf e_1\cdot\partial\mathbf Q/\partial x_1 = \partial Q_1/\partial x_1$ (gloss in step 9)", r"$\nabla\cdot\mathbf Q = \partial Q_i/\partial x_i$ (2.23) (C10)"],
   steps=[
       ("Name the two faces perpendicular to x₁",
        r"\text{EADH}:\ \mathbf n = +\mathbf e_1\ \text{at}\ x_1 + \tfrac{\Delta x_1}2;\qquad \text{FBCG}:\ \mathbf n = -\mathbf e_1\ \text{at}\ x_1 - \tfrac{\Delta x_1}2",
@@ -3188,10 +3190,10 @@ print(ch02.integral_gradient(lambda x, y, z: x * y * z, [1, 2, 3], 0.1))    # (2
 print(ch02.integral_curl(ch02.solid_body_rotation_field([0, 0, 1.0]), [0.3, 0.2, 0], 0.1))   # (2.33): the curl of b × x by boundary sums = (0, 0, 2)
 st = {k: ch02.integral_definition_convergence(k, hs=hs) for k in ("divergence", "gradient", "curl", "curl_component")}   # cached studies on the smooth test field (reused in C16)
 print({k: round(s["order"], 2) for k, s in st.items()})                  # ≈ 2.0 for all four
-""", explain="""
-1. `integral_divergence` evaluates (2.32) on a cube of side h by six face sums; for a quadratic it is exact at any h.
+""", explain=r"""
+1. `integral_divergence` evaluates $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) on a cube of side h by six face sums; for a quadratic it is exact at any h.
 2. For a cubic the error is h²/4 — observed order 2 (`observed_order`, glossed in C09).
-3. (2.31) on a scalar returns the gradient; (2.33) returns the curl of the rotation field.
+3. $\mathcal DQ = \lim_{V\to0}\frac1V\iint_A n_iQ\,dA$ (2.31) on a scalar returns the gradient; $\nabla\times\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\times\mathbf Q\,dA$ (2.33) returns the curl of the rotation field.
 4. `integral_definition_convergence` repeats the measurement for the smooth sin/cos field; all the integral definitions
    converge at second order (the dicts are reused in C16).
 """)
@@ -3263,14 +3265,14 @@ fig = slider_figure(secant, "h", np.logspace(0, -2, 20), unit="m (box side)", xl
                     modes={"the two face values": "markers"})
 fig.show()
 print({round(h, 3): round((Q1c(1 + h/2) - Q1c(1 - h/2)) / h - 3, 5) for h in (1.0, 0.5, 0.25, 0.1)})   # the error h²/4: 0.25, 0.0625, 0.0156, 0.0025
-""", explain="""
+""", explain=r"""
 1. For Q = (x³, 0, 0) only the two x-faces leak, so (1/V)∮ n·Q dA is the *secant slope* of Q₁ between the two face
    centres; the exact divergence is the tangent slope 3.
-2. Dragging h down glides the secant onto the tangent; the printed error is h²/4 — (2.32) is a limit, approached at
+2. Dragging h down glides the secant onto the tangent; the printed error is h²/4 — $\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) is a limit, approached at
    second order.
 """)
 see_read_change("A cubic curve, two dots on it (the face values), a secant line through them and the fixed tangent at x₀ = 1; as h shrinks the secant turns onto the tangent.",
-                "(2.32) is a limit — the box estimate is the secant slope, the derivative is the tangent slope; the approximation improves as h².",
+                r"$\nabla\cdot\mathbf Q = \lim_{V\to0}\frac1V\iint_A\mathbf n\cdot\mathbf Q\,dA$ (2.32) is a limit — the box estimate is the secant slope, the derivative is the tangent slope; the approximation improves as h².",
                 "…Q were linear or quadratic: the secant would coincide with the tangent at every h (exact at any box size).")
 nb.md(r"""
 **What would change if…** you did the same with a *loop* instead of a closed surface? Circulation per unit area — the
@@ -3345,7 +3347,7 @@ note("N73", "Ex. 2.6, stated correctly", r"""
 for the rectangle Δy × Δz in the plane x = const with $\mathbf n = \mathbf e_x$, the sides at y ± Δy/2 run along
 $\pm\mathbf e_z$ (integrand $u_z$), the sides at z ∓ Δz/2 run along $\pm\mathbf e_y$ (integrand **$u_y$** — the book
 prints $u_z$ there by mistake; its own limit $\partial u_z/\partial y - \partial u_y/\partial z$ confirms $u_y$);
-midpoint values × side lengths, divide by ΔyΔz, take the limit: (2.25)'s first component. The y- and z-components follow
+midpoint values × side lengths, divide by ΔyΔz, take the limit: the first component of (2.25), $(\nabla\times\mathbf u)_x = \partial u_z/\partial y - \partial u_y/\partial z$. The y- and z-components follow
 by cyclic relabelling. D26 runs the same bookkeeping in the x₃-plane.
 """)
 D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref="2.34",
@@ -3359,7 +3361,7 @@ D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref
   plan=["Fix the orientation of the four sides.", "Midpoint values on each side.", "Add bottom + top and right + left: Taylor differences.",
         "Recognise the curl.", "Tile the surface: interior edges cancel; refine.", "Corollary for gradient fields."],
   uses=["line integral of a vector field round a loop (P86)", "orientation t counterclockwise about n (N69, P74)",
-        "first-order Taylor expansion (Ch. 1 P26)", "midpoint values on a side (P83, as in D22)", "the curl's third component (2.25) (D12)",
+        "first-order Taylor expansion (Ch. 1 P26)", "midpoint values on a side (P83, as in D22)", r"the curl's third component $(\nabla\times\mathbf u)_3 = \partial u_2/\partial x_1 - \partial u_1/\partial x_2$ (2.25) (D12)",
         "Ex. 2.6's bookkeeping (N73)", "the chain rule for dφ along a curve (Ch. 1 P49; step 10)"],
   steps=[
       ("Fix the four sides and their tangents",
@@ -3384,7 +3386,7 @@ D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref
        "If u₂ grows to the right, the right side walks with it: an anticlockwise contribution."),
       ("Add the four sides and recognise the curl",
        r"\oint_{\rm rect}\mathbf u\cdot\mathbf t\,ds = \Big(\frac{\partial u_2}{\partial x_1} - \frac{\partial u_1}{\partial x_2}\Big)\Delta A + O(\Delta^4) = (\nabla\times\mathbf u)\cdot\mathbf n\,\Delta A",
-       r"Steps 4 and 5 added, with $\Delta A = \Delta x_1\Delta x_2$; the bracket is $(\nabla\times\mathbf u)_3$ by (2.25) (D12), and n = e₃ picks that component. Dividing by ΔA and letting Δ → 0 gives (2.35) — Ex. 2.6 in the x₃-plane.",
+       r"Steps 4 and 5 added, with $\Delta A = \Delta x_1\Delta x_2$; the bracket is $(\nabla\times\mathbf u)_3$ by (2.25) (D12), and n = e₃ picks that component. Dividing by ΔA and letting Δ → 0 gives $\mathbf n\cdot(\nabla\times\mathbf u) = \lim_{A\to0}\frac1A\oint_C\mathbf u\cdot\mathbf t\,ds$ (2.35) — Ex. 2.6 in the x₃-plane.",
        "One small loop's circulation is the normal curl times its area."),
       ("Tile the surface with small rectangles and add",
        r"\sum_k\oint_{C_k}\mathbf u\cdot\mathbf t\,ds = \sum_k(\nabla\times\mathbf u)\cdot\mathbf n\,\Delta A_k \to \iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA",
@@ -3400,7 +3402,7 @@ D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref
        "Stokes' theorem: circulation round the edge equals curl flux through the surface."),
       ("Corollary for a gradient field",
        r"\oint_C\nabla\phi\cdot\mathbf t\,ds = \oint_C d\phi = 0\ \Rightarrow\ \nabla\times\nabla\phi = 0",
-       r"Along the curve, $\nabla\phi\cdot\mathbf t\,ds = d\phi$ (chain rule, P49): the integral of an exact change round a closed loop is φ(end) − φ(start) = 0. Then (2.34) forces $\iint(\nabla\times\nabla\phi)\cdot\mathbf n\,dA = 0$ for every A, so the integrand vanishes (Exercise 2.20).",
+       r"Along the curve, $\nabla\phi\cdot\mathbf t\,ds = d\phi$ (chain rule, P49): the integral of an exact change round a closed loop is φ(end) − φ(start) = 0. Then $\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds$ (2.34) forces $\iint(\nabla\times\nabla\phi)\cdot\mathbf n\,dA = 0$ for every A, so the integrand vanishes (Exercise 2.20).",
        "A field that is the slope of something has no circulation and no curl."),
   ],
   result=(r"\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds \quad(2.34),\qquad \nabla\times\nabla\phi = 0",
@@ -3416,15 +3418,15 @@ D("D26", "Stokes' theorem for a planar surface: one rectangle, then tiling", ref
   both sides ✓; u = ∇(x² − y²): circulation ~1e-16 ✓; the irrotational vortex with the core inside: 2πK vs "curl flux 0"
   — the hypothesis (u differentiable on A) fails, and the code says so. On our grid ∇×∇φ = 0 and ∇·(∇×u) = 0 hold to
   round-off (< 1e-11), because the stencils commute exactly.""",
-  traps="""the orientation of the horizontal sides (the top runs in −e₁). Cancelling interior edges when tiles are
-  oriented differently. Applying (2.34) across a singular core. Confusing Γ (circulation) with Γ (shear rate) — the
+  traps=r"""the orientation of the horizontal sides (the top runs in −e₁). Cancelling interior edges when tiles are
+  oriented differently. Applying $\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds$ (2.34) across a singular core. Confusing Γ (circulation) with Γ (shear rate) — the
   code names differ (`circulation` vs `Gamma`).""")
 nb.worked_example("u = b × x with b = e₃ around the unit circle", r"""
 1. $\mathbf u = (-x_2, x_1, 0)$; on the circle $\mathbf x = (\cos\theta, \sin\theta, 0)$, $\mathbf t = (-\sin\theta,
    \cos\theta, 0)$: $\mathbf u\cdot\mathbf t = \sin^2\theta + \cos^2\theta = 1$.
 2. Circulation $= \oint 1\,ds = 2\pi R = 2\pi = 6.283$.
 3. Curl (C11) = 2b = (0, 0, 2); flux through the disc $= 2\times\pi R^2 = 2\pi$ ✓.
-4. Per unit area: $2\pi/\pi = 2 = (\nabla\times\mathbf u)_3$ ✓ (2.35).
+4. Per unit area: $2\pi/\pi = 2 = (\nabla\times\mathbf u)_3$ ✓, as $\mathbf n\cdot(\nabla\times\mathbf u) = \lim_{A\to0}\frac1A\oint_C\mathbf u\cdot\mathbf t\,ds$ (2.35) says.
 5. Reverse n → −e₃: t reverses, circulation −2π, flux −2π: both sides flip together.
 """)
 nb.code("""
@@ -3447,8 +3449,8 @@ ok_div = np.abs(ch02.divergence(w, g3.h)).max()                            # ∇
 print(f"on the grid: max|∇×∇φ| = {ok_lap:.1e}, max|∇·(∇×u)| = {ok_div:.1e}   (round-off, < 1e-11: the stencils commute exactly)")
 """, explain="""
 1. The loop and the disc are built right-handed about $\\mathbf e_3$ (`planar_loop` checks ∮(x − c) × t ds = 2A n).
-2. The circulation of the rotation field is 2π; `stokes_theorem_check` evaluates both sides of (2.34) and they agree.
-3. Ex. 2.6's recipe on the shear flow gives −Γ per unit area — (2.35).
+2. The circulation of the rotation field is 2π; `stokes_theorem_check` evaluates both sides of $\\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA = \\oint_C\\mathbf u\\cdot\\mathbf t\\,ds$ (2.34) and they agree.
+3. Ex. 2.6's recipe on the shear flow gives −Γ per unit area — $\\mathbf n\\cdot(\\nabla\\times\\mathbf u) = \\lim_{A\\to0}\\frac1A\\oint_C\\mathbf u\\cdot\\mathbf t\\,ds$ (2.35).
 4. A gradient field has zero circulation (the D26 corollary).
 5. The irrotational vortex has circulation 2πK around any loop enclosing the core and 0 around one that does not.
 6. With the core inside A the check flags `hypothesis_ok=False`: the *hypothesis* fails, not the theorem.
@@ -3475,7 +3477,7 @@ fig.show()                                                                # rota
 """)
 see_read_change("A teal hemispherical cap, its purple rim with small arrows, and three perpendicular unit vectors at one rim point: n outward, $\\mathbf n_c$ up the cap, t along the rim.",
                 "$\\mathbf n_c\\times\\mathbf n = \\mathbf t$ — check with the right hand (P74): fingers from $\\mathbf n_c$ to n, thumb along t.",
-                "…you chose the inside as outside (`stokes_cap_figure(flip=True)`): n and t both reverse; $\\mathbf n_c$ stays. Both sides of (2.34) change sign together.")
+                "…you chose the inside as outside (`stokes_cap_figure(flip=True)`): n and t both reverse; $\\mathbf n_c$ stays. Both sides of $\\iint_A(\\nabla\\times\\mathbf u)\\cdot\\mathbf n\\,dA = \\oint_C\\mathbf u\\cdot\\mathbf t\\,ds$ (2.34) change sign together.")
 nb.animation("""
 u_sh2 = ch02.shear_field(1.0)                                              # u_1 = Γ x_2 with Γ = 1/s (a 2-D field)
 hs_loop = np.geomspace(2.0, 0.1, 10 if not FAST else 6)                    # loop sides from 2 to 0.1 m — np.geomspace: a constant factor between neighbours, like Ch. 1's np.logspace (P06)
@@ -3514,7 +3516,7 @@ plt.rcParams["figure.constrained_layout.use"] = True                      # hous
    turns clockwise at −Γ/2, half the curl.
 """)
 see_read_change("A shrinking square with two orange side-arrows both pointing clockwise; the text line shows Γ_circ shrinking with the area while the ratio stays at −1.000.",
-                "(2.35) is a statement about the ratio circulation/area, not about the loop: here −Γ at every size because the field is linear.",
+                r"$\mathbf n\cdot(\nabla\times\mathbf u) = \lim_{A\to0}\frac1A\oint_C\mathbf u\cdot\mathbf t\,ds$ (2.35) is a statement about the ratio circulation/area, not about the loop: here −Γ at every size because the field is linear.",
                 "…the sin/cos smooth field: Γ_circ/A wanders at large h and settles at small h with error ∝ h² — the convergence plot below.")
 nb.figure("""
 fig, ax = plt.subplots(figsize=(6, 3.8))                                    # log–log
@@ -3537,7 +3539,7 @@ use its rectangle mode for Ex. 2.6's four sides and the irrotational-vortex pres
 nb.md(r"""
 **What would change if…** the loop enclosed a singular point (the vortex core)? The field is not differentiable inside,
 Stokes' hypothesis fails, and the circulation is 2πK however small the loop — the "irrotational vortex with
-circulation" of Ch. 5 and Ch. 6. Everywhere else, (2.34) holds to the last digit.
+circulation" of Ch. 5 and Ch. 6. Everywhere else, $\iint_A(\nabla\times\mathbf u)\cdot\mathbf n\,dA = \oint_C\mathbf u\cdot\mathbf t\,ds$ (2.34) holds to the last digit.
 """)
 
 # =====================================================================================================================
@@ -3549,7 +3551,7 @@ the following index".
 """)
 note("N74", "Comma notation", r"""
 the divergence and curl of C10/C11 in one line each. A comma index behaves like a tensor index (the chain rule, Ch. 1
-P49, gives $\partial/\partial x'_j = C_{ij}\,\partial/\partial x_i$ — the vector rule (2.8) for ∂), but only in
+P49, gives $\partial/\partial x'_j = C_{ij}\,\partial/\partial x_i$ — the vector rule $u'_j = u_iC_{ij}$ (2.8) for ∂), but only in
 Cartesian coordinates; the book adopts it in §5.6. Watch for the comma: $u_{i,j}$ is the velocity gradient of N52
 (C10), $u_{ij}$ would be something else.
 """, equation=r"A_{,i} \equiv \partial A/\partial x_i, \qquad \nabla\cdot\mathbf u = u_{i,i}, \qquad (\nabla\times\mathbf u)_i = \varepsilon_{ijk}u_{k,j}", ref="2.36")
@@ -3566,14 +3568,14 @@ print(ch02.expand_indices_str("eps_ijk u_k,j"))         # the curl in comma nota
 # =====================================================================================================================
 # A.13 end matter — S01, S02, summary
 # =====================================================================================================================
-nb.pointer("""
-Exercises 2.1–2.20 are not reproduced (the text is the book's). The identities we rely on from them — (2.7) and
-orthogonality (Exercises 2.2, 2.8), the invariants (2.9), the tensor examples (2.10), isotropy (2.11), the dot and cross
-products (2.12–2.14), ε–δ (2.5, 2.7), ∇×∇φ = 0 and ∇·∇×u = 0 (2.19, 2.20) — are derived above (D02, D03, D09, D18,
+nb.pointer(r"""
+Exercises 2.1–2.20 are not reproduced (the text is the book's). The identities we rely on from them — the inverse rule $x_j = x'_iC_{ji}$ (2.7) and
+orthogonality (Exercises 2.2, 2.8), the invariants (Exercise 2.9), the tensor examples (Exercise 2.10), isotropy (Exercise 2.11), the dot and cross
+products (Exercises 2.12–2.14), the ε–δ consequences (Exercises 2.5, 2.7), ∇×∇φ = 0 and ∇·∇×u = 0 (Exercises 2.19, 2.20) — are derived above (D02, D03, D09, D18,
 D26) and tested in `tests/test_ch02.py`. `S01`
 """)
-nb.pointer("""
-Literature: Sommerfeld's tetrahedron argument for (2.12) is our D05 + D06; Aris and Prager are the classical tensor
+nb.pointer(r"""
+Literature: Sommerfeld's tetrahedron argument for $\tau'_{mn} = C_{im}C_{jn}\tau_{ij}$ (2.12) is our D05 + D06; Aris and Prager are the classical tensor
 references. Not needed to continue. `S02`
 """)
 nb.summary(

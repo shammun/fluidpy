@@ -426,7 +426,7 @@ of T applies (step 8).""",
        "Pressure = molecules per volume × k_B × temperature."),
   ],
   result=(r"p = \tfrac13\,n\,m\,\langle|\mathbf u|^2\rangle = n\,k_B T",
-          "multiplying by a volume V with n = N/V gives pV = Nk_BT, the molecular gas law (1.21) stated in C38."),
+          r"multiplying by a volume V with n = N/V gives $pV = N k_B T$ — the molecular gas law $pV = n\,k_B T$ (1.21) stated in C38, with n there counting molecules."),
   interpret="""A steady pressure is the average of an enormous number of tiny, random pushes — which is why it is well
 defined only for boxes holding many molecules (D35 below). Heating a gas at fixed n raises p because molecules hit harder
 and more often. The formula fails for dense gases and liquids, where molecules interact during their whole flight.""",
@@ -840,7 +840,7 @@ print((f(1 + h_, 0) - f(1 - h_, 0)) / (2 * h_))                     # ∂f/∂y 
 print((f(1 + h_, 0) - 2 * f(1, 0) + f(1 - h_, 0)) / h_**2)          # ∂²f/∂y²: slope of the slope → 2.0 (bends up)
 print((f(1, h_) - f(1, -h_)) / (2 * h_))                            # ∂f/∂t at y = 1 (y held fixed) → −1.0
 """)
-nb.md("""
+nb.md(r"""
 #### The idea
 Molecules hop between neighbouring layers and carry their own layer's property with them:
 
@@ -852,9 +852,9 @@ y ↑   fast layer   u + du    ● → ● → ●      a molecule hopping DOWN 
 
 | what spreads | its gradient | law | diffusivity [m²/s] |
 |---|---|---|---|
-| a species (mass fraction Y) | ∇Y | Fick (1.1) | κ_m |
-| heat | ∇T | Fourier (1.2) | κ = k/ρC_p |
-| x-momentum | du/dy | Newton (1.3) | ν = μ/ρ |
+| a species (mass fraction Y) | ∇Y | Fick, $\mathbf J_m = -\rho\,\kappa_m\,\nabla Y$ (1.1) | κ_m |
+| heat | ∇T | Fourier, $\mathbf q = -k\,\nabla T$ (1.2) | κ = k/ρC_p |
+| x-momentum | du/dy | Newton, $\tau = \mu\,du/dy$ (1.3) | ν = μ/ρ |
 
 (∇ is the gradient of P25; k is the thermal conductivity and C_p the heat needed per kg per kelvin, both met properly in
 C11 and §1.8.)
@@ -901,7 +901,7 @@ nb.md(r"""
 1. Layers slide in x with speed u(y) [m/s]; y [m] runs across the gap.
 2. Across a surface AB of constant y, hopping molecules carry x-momentum per area per time — a **momentum flux**
    [kg m s⁻¹ per m² per s = kg m⁻¹ s⁻² = N/m² = Pa], i.e. a stress.
-3. As in (1.1)–(1.2), the flux is proportional to the gradient du/dy. The constant is the **dynamic viscosity**
+3. As in $\mathbf J_m = -\rho\kappa_m\nabla Y$ (1.1) and $\mathbf q = -k\nabla T$ (1.2), the flux is proportional to the gradient du/dy. The constant is the **dynamic viscosity**
    μ [Pa s = kg m⁻¹ s⁻¹]:
    $$\tau = \mu\,\frac{du}{dy} \qquad (1.3)$$
    τ is the drag that the faster fluid above AB exerts on the fluid below it.
@@ -945,10 +945,10 @@ for name in ("water", "air"):                             # the two fluids of th
     nu = ch01.kinematic_viscosity(fp["mu"], fp["rho"])    # Eq. (1.4): ν = μ/ρ [m²/s]
     t_d = ch01.diffusion_time(h, nu)                      # time for momentum to cross the gap, h²/ν [s]
     print(f"{name:5s}: τ = {tau:.4g} Pa, ν = {nu:.4g} m²/s, h²/ν = {t_d:.3g} s")   # one line per fluid
-""", explain="""
+""", explain=r"""
 1. `fluid_properties` returns density and viscosity at 20 °C (primer P23 for the dictionary).
-2. `newton_shear_stress` is Eq. (1.3) with the steady slope U/h.
-3. `kinematic_viscosity` is Eq. (1.4); `diffusion_time` is h²/ν.
+2. `newton_shear_stress` is $\tau = \mu\,du/dy$ (Eq. 1.3) with the steady slope U/h.
+3. `kinematic_viscosity` is $\nu \equiv \mu/\rho$ (Eq. 1.4); `diffusion_time` is h²/ν.
 4. Water: τ ≈ 1.00 Pa and 1 s; air: τ ≈ 0.018 Pa but only 0.066 s — the μ-versus-ν surprise in two lines.
 """)
 P("P21", "finite differences", r"""
@@ -978,11 +978,11 @@ u_exact = ch01.couette_startup_profile(y, times[-1], U, h, nu_w)   # analytic se
 print(f"{nsteps} steps, {F.shape[0]} saved profiles, last t = {times[-1]:.2f} s")   # size of the run
 print(f"wall stresses at the end: bottom {tau_b[-1]:.3f} Pa, top {tau_t[-1]:.3f} Pa (steady value {mu_w*U/h:.3f})")   # both walls reach μU/h
 print(f"largest difference from the series: {np.abs(F[-1] - u_exact).max():.1e} m/s")   # numerical vs exact
-""", explain="""
+""", explain=r"""
 1. A grid across the gap and a time step that satisfies the FTCS limit (primer P21) — `stable_time_step`.
 2. The initial profile: still water with the top plate suddenly at U (boundary conditions, primer P20).
 3. `ftcs_diffusion_1d` marches ∂u/∂t = ν∂²u/∂y² (the C08 diffusion picture with D = ν), saving about 60 profiles.
-4. `wall_shear_history` applies (1.3) at both walls for every saved profile: both stresses approach μU/h = 1 Pa.
+4. `wall_shear_history` applies $\tau = \mu\,du/dy$ (1.3) at both walls for every saved profile: both stresses approach μU/h = 1 Pa.
 5. `couette_startup_profile` is the exact series solution of the same problem (derived in Ch. 8); the numerical profile
    agrees with it.
 """)
@@ -992,9 +992,9 @@ the two ends. The default `edge_order=1` is only first-order accurate at the end
 """, code="""
 print(np.gradient(np.array([0.0, 1.0, 4.0, 9.0]), 1.0, edge_order=2))   # slopes of y² at y = 0,1,2,3 → [0. 2. 4. 6.], exact
 """)
-nb.md("""
+nb.md(r"""
 #### From scratch: the stress profile by hand
-`shear_stress_profile` applies (1.3) to a sampled profile. Here is the same thing written out as a loop, compared with the
+`shear_stress_profile` applies $\tau = \mu\,du/dy$ (1.3) to a sampled profile. Here is the same thing written out as a loop, compared with the
 library and with `np.gradient`.
 """)
 nb.check_agree("""
@@ -1036,10 +1036,10 @@ def update(k):                                                            # fram
     title.set_text(f"t = {times[j]*nu_w/h**2:.2f} h²/ν = {times[j]:.2f} s (water, h = 1 mm)")   # time in units of h²/ν and in seconds
     return line_u, line_s, line_t, title   # the artists that changed
 show_animation(animate(update, frames=frames_c12, fig=fig, interval=80), player="video")   # smooth MP4
-""", explain="""
+""", explain=r"""
 1. Each frame takes one saved FTCS profile: the teal curve is u(y, t)/U, the thin orange curve the exact series at the
    same time, the grey dashed line the final straight (Couette) profile.
-2. The right panel applies (1.3) to the same profile with `shear_stress_profile`; the grey line is the steady μU/h.
+2. The right panel applies $\tau = \mu\,du/dy$ (1.3) to the same profile with `shear_stress_profile`; the grey line is the steady μU/h.
 3. The title gives the time in units of h²/ν, the natural clock of diffusion.
 """)
 nb.md("""
@@ -1056,9 +1056,9 @@ note("N05", "The relaxation picture", """
 The animation is our version of the book's relaxation sketch (Fig. 1.3): a sheared profile relaxing toward the straight
 one, with the stress on any surface AB equal to μ times the local slope.
 """)
-note("N06", "Linear, first-derivative laws", """
+note("N06", "Linear, first-derivative laws", r"""
 All three transport laws are **linear** in the gradient and use **first** derivatives only — accurate because molecular
-steps are tiny compared with the scale of the gradients; Ch. 4 §4.5 generalises (1.3) to a tensor law, and the diffusion
+steps are tiny compared with the scale of the gradients; Ch. 4 §4.5 generalises $\tau = \mu\,du/dy$ (1.3) to a tensor law, and the diffusion
 equations appear in Ch. 4 §4.8 and Ch. 8 §8.4.
 """)
 nb.explainer("viscosity_momentum_diffusion", heading="How does the fluid learn that a plate moved?", why="""
@@ -1232,7 +1232,7 @@ g uniform over the tiny cube (step 5) · dz small enough for a first-order Taylo
        "pressures in terms of one value.",
        "The top pressure is the bottom pressure plus slope times height."),
       ("Use Pascal's law to make it an ordinary derivative", r"\dfrac{\partial p}{\partial z} = \dfrac{dp}{dz}",
-       "At rest p does not change with x or y (C19, Eq. 1.7), so p depends on z alone and its partial derivative in z is "
+       r"At rest p does not change with x or y (C19, $\partial p/\partial x = \partial p/\partial y = 0$, Eq. 1.7), so p depends on z alone and its partial derivative in z is "
        "the ordinary one. The book writes dp directly; this is why it may.",
        "In still fluid pressure depends only on height."),
       ("Write the weight", r"W = -\,\rho g\,dx\,dy\,dz",
@@ -1275,7 +1275,7 @@ zs = np.linspace(-10, 0, 11)                 # heights from −10 m to 0 m
 print(np.trapezoid(np.full(11, 9807.0), zs)) # ∫ ρg dz of a constant 9807 Pa/m over 10 m → 98070.0 Pa
 """)
 note("C21", "Uniform density", r"""
-(Stated.) For uniform density, integrating (1.8) from z = 0, where the pressure is p₀, up or down to z gives a straight
+(Stated.) For uniform density, integrating $dp/dz = -\rho g$ (1.8) from z = 0, where the pressure is p₀, up or down to z gives a straight
 line: pressure grows by ρgh at a depth h = −z. Ten metres of water add 9.81×10⁴ Pa ≈ one atmosphere. And because the
 pressure pushes harder on the bottom of a submerged body than on its top, the body feels an upward net force —
 **buoyancy**, derived next.
@@ -1295,9 +1295,9 @@ displaces — whatever the body is made of. The parcel argument (D18, §1.10) ne
 disturb the fluid's pressure (steps 2–9) · g uniform.""",
   start=(r"p(z) = p_0 - \rho g z", "in fluid of uniform density ρ the pressure grows linearly with depth (1.9)."),
   plan=["Put a box of horizontal area A between heights z₁ (bottom) and z₂ (top) into the fluid.",
-        "Show that the side forces cancel.", "Subtract the top force from the bottom force and use (1.9).",
+        "Show that the side forces cancel.", r"Subtract the top force from the bottom force and use $p = p_0 - \rho g z$ (1.9).",
         "Build any shape from thin boxes."],
-  uses=["(1.9) (C21)", "Pascal's law (C19)", "net force from pressure as a surface sum (P28)", "definite integral (P27)"],
+  uses=[r"$p = p_0 - \rho g z$ (1.9) (C21)", "Pascal's law (C19)", "net force from pressure as a surface sum (P28)", "definite integral (P27)"],
   steps=[
       ("Pair up the side faces", r"F_{x,\rm left} + F_{x,\rm right} = p\,A_x - p\,A_x = 0",
        "Opposite side faces sit at the same heights, so by Pascal's law (C19) they feel the same pressure at each height, "
@@ -1313,7 +1313,7 @@ disturb the fluid's pressure (steps 2–9) · g uniform.""",
        "Up minus down: this is the vertical part of the surface sum of P28, since the sides contribute nothing (step 1).",
        "What is left is the difference of the two face pressures."),
       ("Substitute the hydrostatic pressure", r"p(z_1) - p(z_2) = \rho g\,(z_2 - z_1)",
-       "From (1.9): (p₀ − ρgz₁) − (p₀ − ρgz₂); p₀ cancels. This is where the fluid's density enters — and only the fluid's.",
+       r"From $p = p_0 - \rho g z$ (1.9): (p₀ − ρgz₁) − (p₀ − ρgz₂); p₀ cancels. This is where the fluid's density enters — and only the fluid's.",
        "The pressure difference is ρg times the box's height."),
       ("Recognise the volume", r"F_{\rm net} = \rho g\,A\,(z_2 - z_1) = \rho\,g\,V",
        "A (z₂ − z₁) is the volume V of the box; multiplying area by height is the definition of a box's volume.",
@@ -1343,9 +1343,9 @@ density feels weight = buoyancy and is neutral ✓. Number: 1 L in water → 9.8
 six faces numerically and returns (0, 0, 9.807) N ✓ (code below).""",
   traps="thinking the side forces add up; putting the body's density into the buoyancy; forgetting that the net force "
         "points up.")
-note("C03", "Reminder: liquids under tension (from §1.3)", """
+note("C03", "Reminder: liquids under tension (from §1.3)", r"""
 A liquid cannot be pulled below its vapour pressure: a sealed water column hanging below a suction pump cannot be lifted
-more than about 10 m, because by (1.9) the pressure at its top would have to fall below ≈ 2.3 kPa.
+more than about 10 m, because by $p = p_0 - \rho g z$ (1.9) the pressure at its top would have to fall below ≈ 2.3 kPa.
 """)
 note("C22", "Capillary rise (Example 1.1, stated)", r"""
 In a thin tube dipped into water the curved meniscus (C15, C16 in §1.6) lowers the pressure just under it, so water rises
@@ -1406,10 +1406,10 @@ print(f"net pressure force on the cube: {F_box} N;  ρ g V = {ch01.buoyancy_forc
 print("C18 wedge, 1 mm tall:", ch01.wedge_pressure_difference(1000.0, 1e-3, 0.6))              # differences of ≈ 5 Pa
 h_cap = ch01.capillary_rise(ch01.surface_tension_water(293.15), np.pi / 2, 998.2, np.array([1e-3, 1e-4]))  # C22
 print(f"capillary rise for R = 1 mm and 0.1 mm: {h_cap} m")                                     # [0.0149 0.149] m
-""", explain="""
-1. `hydrostatic_pressure_uniform` is (1.9); `layered_pressure` applies it layer by layer with a kink at the oil–water
+""", explain=r"""
+1. `hydrostatic_pressure_uniform` is $p = p_0 - \rho g z$ (1.9); `layered_pressure` applies it layer by layer with a kink at the oil–water
    interface.
-2. `integrate_hydrostatic` integrates (1.8) for a density that depends on z (passed as a lambda, P29) with `solve_ivp`
+2. `integrate_hydrostatic` integrates $dp/dz = -\rho g$ (1.8) for a density that depends on z (passed as a lambda, P29) with `solve_ivp`
    (P31); the assert compares it with the integral done by hand.
 3. `gauge_pressure` subtracts the atmosphere (C17).
 4. `net_pressure_force_on_box` adds −p n̂ dA over the six faces of a submerged cube (P28): the horizontal parts cancel and
@@ -1417,9 +1417,9 @@ print(f"capillary rise for R = 1 mm and 0.1 mm: {h_cap} m")                     
 5. `wedge_pressure_difference` gives the tiny face-pressure differences of a 1 mm wedge (C18); `capillary_rise` gives
    the C22 heights.
 """)
-nb.md("""
+nb.md(r"""
 #### From scratch: march down the salty lake
-Euler's method (P30) applied to (1.8): start at the surface and step down 1 mm at a time, adding ρ(z)g|Δz| each step.
+Euler's method (P30) applied to $dp/dz = -\rho g$ (1.8): start at the surface and step down 1 mm at a time, adding ρ(z)g|Δz| each step.
 """)
 nb.check_agree("""
 dz_step = -1e-3                                         # step downward, 1 mm [m]
@@ -1493,9 +1493,9 @@ see_read_change(
     'The slope of each straight piece is −ρg of that layer; the horizontal gap between the two markers is the pressure difference across the cube, and the title turns it into the buoyancy force.',
     'Slide the upper density toward 1000 kg/m³: the kink disappears (one fluid), and the face-pressure gap and the buoyancy grow to the values for water.',
 )
-nb.md("""
+nb.md(r"""
 **What would change if…** the fluid were air over 1 km? Its density falls with height because air is compressible, so
-(1.8) still holds but p(z) is no longer a straight line — that needs the equation of state (§1.9, C40). **Next:** a fluid
+$dp/dz = -\rho g$ (1.8) still holds but p(z) is no longer a straight line — that needs the equation of state (§1.9, C40). **Next:** a fluid
 particle also has a temperature and an energy; §1.8 is its thermodynamics (C25).
 """)
 
@@ -1572,8 +1572,8 @@ nb.md(r"""
    diagram.
 5. Then the heat follows from the first law: q = Δe − w.
 """)
-note("N13", "Specific volume", """
-v = 1/ρ [m³/kg] is the specific volume; it appears in (1.11)–(1.18) and in the energy equation of Ch. 4 §4.8.
+note("N13", "Specific volume", r"""
+v = 1/ρ [m³/kg] is the specific volume; it appears in every relation from the reversible first law $de = dq - p\,dv$ (1.11) to the Gibbs relations $T\,ds = de + p\,dv = dh - v\,dp$ (1.18), and in the energy equation of Ch. 4 §4.8.
 """)
 note("C26", "Path functions and state functions", """
 **Heat and work are path functions** — energy in transit across the boundary. The internal energy is a **state function**
@@ -1681,8 +1681,8 @@ ax.set_title("Same two states, three routes, three different amounts of work")  
 ax.legend(loc="upper right", fontsize=8.5)                                        # legend with the work of each route
 savefig(fig, "ch01", "c25_pv_routes")                                             # keep a copy for review
 plt.show()                                                                        # display
-""", see="""
-Three routes from state 1 (0.861 m³/kg, 100 kPa) to state 2 (1.722 m³/kg, 50 kPa): the blue isotherm, the orange route
+""", see=r"""
+Three routes from state 1, $(v, p) = (0.861\ \mathrm{m^3/kg},\ 100\ \mathrm{kPa})$, to state 2, $(v, p) = (1.722\ \mathrm{m^3/kg},\ 50\ \mathrm{kPa})$: the blue isotherm, the orange route
 that drops first and then runs across, and the rose route that runs across at 100 kPa and then drops. The shaded area
 lies under route B's horizontal leg.
 """, read="""
@@ -1817,17 +1817,17 @@ functions only. Those relations then hold for *any* process.""",
   plan=["Solve the first law for dq and substitute it into T ds = dq.",
         "Rewrite with enthalpy using the product rule.",
         "Explain why a route-independent relation holds for every process."],
-  uses=["(1.17) (N15)", "(1.11) (C27, in C25)", "h = e + pv (C29)", "differentials (P34)",
+  uses=[r"$T\,ds = dq$ (1.17) (N15)", r"$de = dq - p\,dv$ (1.11) (C27, in C25)", "h = e + pv (C29)", "differentials (P34)",
         "product rule for differentials (P38)"],
   steps=[
       ("Solve the reversible first law for dq", r"dq = de + p\,dv",
-       "Add p dv to both sides of (1.11). We isolate dq because it is the route-dependent quantity we want to replace.",
+       r"Add p dv to both sides of $de = dq - p\,dv$ (1.11). We isolate dq because it is the route-dependent quantity we want to replace.",
        "Heat in = rise of internal energy + work done by the gas."),
       ("Substitute into T ds = dq", r"T\,ds = de + p\,dv",
-       "(1.17) says the same dq equals T ds on a reversible route; equal things can replace each other in an equation.",
+       r"$T\,ds = dq$ (1.17) says the same dq equals T ds on a reversible route; equal things can replace each other in an equation.",
        "The first Gibbs relation — no heat left in it."),
       ("Differentiate the definition of enthalpy", r"dh = de + d(pv)",
-       "h = e + pv (1.13); the differential of a sum is the sum of the differentials. We want a second form written with dh.",
+       r"$h \equiv e + pv$ (1.13); the differential of a sum is the sum of the differentials. We want a second form written with dh.",
        "A change in h is a change in e plus a change in pv."),
       ("Apply the product rule", r"dh = de + p\,dv + v\,dp",
        "d(pv) = p dv + v dp (P38): both p and v may change, and each change contributes its own term.",
@@ -1857,7 +1857,7 @@ T ds − de − p dv = 0 and T ds − dh + v dp = 0 symbolically for s = C_v ln 
 note("C34", "Second law (ii): the Clausius–Duhem inequality", r"""
 For *any* process the entropy change is at least the actual heat received divided by the temperature at which it arrives,
 with equality only when the process is reversible. (We write the actual heat δq; with dq_rev on the right it would simply
-equal Δs by (1.16).) Free expansion of air into vacuum to twice the volume: q = w = Δe = 0, yet Δs = R ln 2 = 199 J kg⁻¹ K⁻¹
+equal Δs by $s_2 - s_1 = \int_1^2 dq_{\rm rev}/T$ (1.16).) Free expansion of air into vacuum to twice the volume: q = w = Δe = 0, yet Δs = R ln 2 = 199 J kg⁻¹ K⁻¹
 > 0. Stirring from 300 to 310 K at fixed v: δq = 0, Δs = C_v ln(310/300) = 23.5 J kg⁻¹ K⁻¹ > 0.
 """, equation=r"s_2 - s_1 \ge \int_1^2 \frac{\delta q}{T}")
 note("N14", "Second law (iii)", """
@@ -1880,9 +1880,9 @@ run_p = ch01.process_heat_work(path_p["v"], path_p["T"])               # running
 print(ch01.entropy_change_reversible(run_p["q"], path_p["T"]))         # ∫ dq/T along the route (1.16) → ≈ 696.4
 print(ch01.irreversible_process("free_expansion", 300.0, v1, v2=2 * v1))   # C34: q = w = Δe = 0 but Δs = 199
 print(ch01.irreversible_process("stirring", 300.0, v1, T2=310.0))          # C34: δq = 0 but Δs = 23.5
-""", explain="""
+""", explain=r"""
 1. `perfect_gas_entropy_change` and `perfect_gas_entropy_change_p` are the two Gibbs forms integrated for a perfect gas.
-2. `entropy_change_reversible` sums dq/T along the sampled isobaric route — the definition (1.16) — and agrees.
+2. `entropy_change_reversible` sums dq/T along the sampled isobaric route — the definition $s_2 - s_1 = \int_1^2 dq_{\rm rev}/T$ (1.16) — and agrees.
 3. `irreversible_process` returns the totals for free expansion and for stirring: in both, `int_dq_over_T` is 0 while
    `ds` is positive — the Clausius–Duhem inequality with actual heat.
 """)
@@ -1997,10 +1997,10 @@ P_water = lambda rho, s: ch01.tait_pressure(rho)                         # water
 c_air = ch01.sound_speed_from_eos(P_air, 1.225)                          # Eq. (1.19): sqrt of dp/dρ at fixed s [m/s]
 c_water = ch01.sound_speed_from_eos(P_water, 1000.0)                     # the same for water [m/s]
 print(f"air {c_air:.2f} m/s, water {c_water:.1f} m/s, perfect-gas formula {ch01.perfect_gas_sound_speed(288.15):.2f} m/s")   # three speeds of sound
-""", explain="""
+""", explain=r"""
 1. Each equation of state is passed as a function p(ρ, s) (primer P29); the entropy argument is not used because both
    functions already describe one isentrope.
-2. `sound_speed_from_eos` differentiates p with respect to ρ at fixed s and takes the square root — (1.19).
+2. `sound_speed_from_eos` differentiates p with respect to ρ at fixed s and takes the square root — $c^2 = (\partial p/\partial\rho)_s$ (1.19).
 3. `perfect_gas_sound_speed` is the closed form √(γRT) that C47 derives; it agrees with the air value.
 """)
 nb.md("#### From scratch: a central difference of the equation of state")
@@ -2055,8 +2055,8 @@ approximation (Ch. 4).
 nb.code("""
 alpha_w = ch01.thermal_expansion_coefficient(lambda T, p: ch01.water_density(T), np.array([275.15, 293.15]), 1e5)  # (1.20)
 print(f"water: α(2 °C) = {alpha_w[0]:.2e} 1/K, α(20 °C) = {alpha_w[1]:.2e} 1/K")   # negative below 4 °C, positive above
-""", explain="""
-`thermal_expansion_coefficient` differentiates a density function ρ(T, p) at fixed p and divides by −ρ, Eq. (1.20); the
+""", explain=r"""
+`thermal_expansion_coefficient` differentiates a density function ρ(T, p) at fixed p and divides by −ρ, $\alpha \equiv -\rho^{-1}(\partial\rho/\partial T)_p$ (Eq. 1.20); the
 water density correlation ignores p, which is fine at 1 bar.
 """)
 nb.md("""
@@ -2095,9 +2095,9 @@ For n non-interacting molecules in a volume V at absolute temperature T — the 
 It holds when attractions between molecules are negligible and each molecule's own volume is tiny compared with V/n.
 One cubic metre of sea-level air (n = 2.55×10²⁵ molecules at 288.15 K) gives p = 1.013×10⁵ Pa.
 """, equation=r"pV = n\,k_B T", ref="1.21")
-nb.md("""
+nb.md(r"""
 > ⚠️ **Common confusion — the symbol n switches meaning.** In §1.4 (P07, C04, D34) n was a *number density* [molecules
-> per m³]. In (1.21) and in D11 below, n is a *count* of molecules [–], and the number density is n/V. Same letter,
+> per m³]. In $pV = n\,k_B T$ (1.21) and in D11 below, n is a *count* of molecules [–], and the number density is n/V. Same letter,
 > different quantity — watch the units.
 """)
 note("C39", "The constants", """
@@ -2112,7 +2112,7 @@ average molecular weight for a mixture such as air (step 4).""",
   start=(r"pV = n\,k_B T", "n non-interacting molecules in a volume V at temperature T exert the pressure p (1.21); here n "
                            "counts molecules, as in the book, so n/V is the number density (which §1.4 itself called n — see the warning above)."),
   plan=["Divide by V.", "Create the density ρ = nm/V.", "Replace one molecule's mass by M_w/A_o.", "Name the constants."],
-  uses=["(1.21) (C38, derived in D34)", "continuum density (C06)",
+  uses=[r"$pV = n\,k_B T$ (1.21) (C38, derived in D34)", "continuum density (C06)",
         "mole, kilomole, molecular weight and Avogadro's number (P07)", "constants k_B, A_o, R_u (C39)"],
   steps=[
       ("Divide by the volume", r"p = \dfrac{n}{V}\,k_B T",
@@ -2149,10 +2149,10 @@ or fill a noticeable part of the volume — dense gases, gases near condensation
 M_w = 28.96 ✓.""",
   traps="mixing mol and kmol (R_u = 8.314 J mol⁻¹ K⁻¹ vs 8314 J kmol⁻¹ K⁻¹, a factor 1000); confusing R_u with R; using °C "
         "for T.")
-nb.worked_example("air density on three days", """
-- Sea level, 15 °C: ρ = p/(RT) = 101 325/(287.06 × 288.15) = 1.225 kg/m³.
-- A hot day, 35 °C: 101 325/(287.06 × 308.15) = 1.145 kg/m³ (6.5 % less).
-- A high plateau, 84 kPa and 15 °C: 84 000/(287.06 × 288.15) = 1.016 kg/m³ — aircraft need longer runways there.
+nb.worked_example("air density on three days", r"""
+- Sea level, 15 °C: $\rho = p/(RT) = 101\,325/(287.06 \times 288.15) = 1.225$ kg/m³.
+- A hot day, 35 °C: $\rho = 101\,325/(287.06 \times 308.15) = 1.145$ kg/m³ (6.5 % less).
+- A high plateau, 84 kPa and 15 °C: $\rho = 84\,000/(287.06 \times 288.15) = 1.016$ kg/m³ — aircraft need longer runways there.
 """)
 nb.code("""
 print(ch01.gas_constant(ch01.M_W_AIR))                           # R = R_u / M_w for dry air [J/(kg K)] → 287.058
@@ -2162,10 +2162,10 @@ rho_days = ch01.perfect_gas_density(p_days, T_days)              # Eq. (1.22) so
 print(rho_days)                                                  # [1.225  1.1455 1.0155]
 print(ch01.perfect_gas_state(p=101325.0, T=288.15))              # fill in the missing ρ: (p, ρ, T)
 print(ch01.perfect_gas_pressure(1.225, 288.15))                  # and back to p = ρRT [Pa] → 101 327
-""", explain="""
+""", explain=r"""
 1. `gas_constant` divides R_u by the molecular weight (step 7 of D11).
-2. `perfect_gas_density` is (1.22) solved for ρ, applied to three days at once.
-3. `perfect_gas_state` returns whichever of p, ρ, T is missing; `perfect_gas_pressure` is (1.22) itself.
+2. `perfect_gas_density` is $p = \rho R T$ (1.22) solved for ρ, applied to three days at once.
+3. `perfect_gas_state` returns whichever of p, ρ, T is missing; `perfect_gas_pressure` is $p = \rho R T$ (1.22) itself.
 """)
 nb.md("#### From scratch: the constants chain")
 nb.check_agree("""
@@ -2237,11 +2237,11 @@ molecular attractions does not: for CO₂ modelled as a van der Waals gas, e = C
 0.01 m³/kg at a fixed 300 K lowers e by 16.9 kJ/kg (code below).
 """, equation=r"e = e(T), \qquad h = h(T)")
 note("C48", "The expansion coefficient of a perfect gas", r"""
-At fixed p, ρ = p/(RT) ∝ 1/T, so (stated) the expansion coefficient (1.20) is simply 1/T: 3.3×10⁻³ K⁻¹ for air at 300 K —
+At fixed p, ρ = p/(RT) ∝ 1/T, so (stated) the expansion coefficient $\alpha \equiv -\rho^{-1}(\partial\rho/\partial T)_p$ (1.20) is simply 1/T: 3.3×10⁻³ K⁻¹ for air at 300 K —
 sixteen times that of water at 20 °C.
 """, equation=r"\alpha = \frac{1}{T}", ref="1.28")
 note("C62", "The isothermal atmosphere (book §1.10)", r"""
-If a layer of atmosphere had one temperature T, hydrostatics (1.8) with ρ = p/(RT) would give dp/p = −(g/RT)dz, and
+If a layer of atmosphere had one temperature T, hydrostatics $dp/dz = -\rho g$ (1.8) with ρ = p/(RT) would give dp/p = −(g/RT)dz, and
 (stated) pressure falls exponentially with height. Why is one temperature a fair first guess? Over roughly the lowest
 50 km the standard atmosphere's temperature stays within a band of about ±15 % around 250 K (the code below finds a largest
 deviation of about 15 %), so read the isothermal model as an **order-of-magnitude** description, not a close fit. At 5 km
@@ -2305,7 +2305,7 @@ nb.md("""
 versus slope γ.
 """)
 note("C42", "R = C_p − C_v", r"""
-For a perfect gas h = e + pv = e + RT, and e and h depend on T only (C41), so the partial derivatives in (1.14)–(1.15)
+For a perfect gas h = e + pv = e + RT, and e and h depend on T only (C41), so the partial derivatives in $C_p \equiv (\partial h/\partial T)_p$ (1.14) and $C_v \equiv (\partial e/\partial T)_v$ (1.15)
 become ordinary ones (*gloss:* a total derivative d/dT, because nothing else varies). Differentiating h = e + RT with
 respect to T gives (stated) the gap between the specific heats: 1004.7 − 717.6 = 287.1 J kg⁻¹ K⁻¹.
 """, equation=r"R = C_p - C_v", ref="1.23")
@@ -2314,9 +2314,9 @@ Kinetic theory with rigid molecules gives γ = 5/3 for monatomic gases (He, Ar),
 ones (N₂, O₂, air) and also linear CO₂ — and 4/3 for non-linear molecules such as H₂O. Real CO₂ comes out lower (about 1.3),
 because its molecular vibrations already store energy at room temperature. `ch01.GAMMA_BY_ATOMICITY` holds the rigid values.
 """, equation=r"\gamma \equiv C_p/C_v", ref="1.24")
-note("N16", "Air's values", """
+note("N16", "Air's values", r"""
 Air at ordinary temperatures: γ = 1.40 and C_p ≈ 1005 J kg⁻¹ K⁻¹ (our constant 1004.7 follows from γ = 1.4 and R). Both
-C_p and C_v rise slowly with temperature; we treat them as constants, which is what (1.25) needs.
+C_p and C_v rise slowly with temperature; we treat them as constants, which is what $p/\rho^\gamma = \text{const}$ (1.25) needs.
 """)
 note("C44", "Adiabatic versus isentropic", """
 **Adiabatic** = no heat crosses the boundary. **Isentropic** = adiabatic *and* frictionless, so s stays constant. Stirring an
@@ -2347,15 +2347,15 @@ C_v, hence constant γ (step 10).""",
        "appears in it.",
        "All the work done on the gas goes into internal energy."),
       ("Use e = e(T)", r"C_v\,dT = -p\,dv",
-       "For a perfect gas e depends on T only (C41), so the partial derivative in (1.15) is an ordinary one and de = C_v dT; "
+       r"For a perfect gas e depends on T only (C41), so the partial derivative in $C_v \equiv (\partial e/\partial T)_v$ (1.15) is an ordinary one and de = C_v dT; "
        "then move p dv to the other side.",
        "Compression (dv < 0) warms the gas."),
       ("Set ds = 0 in the second Gibbs form", r"0 = dh - v\,dp",
-       "The same isentropic condition T ds = 0 applied to the enthalpy form of (1.18). We need a second equation, one that "
+       r"The same isentropic condition T ds = 0 applied to the enthalpy form $T\,ds = dh - v\,dp$ of (1.18). We need a second equation, one that "
        "contains dp.",
        "At constant entropy, enthalpy rises by v dp when the pressure rises."),
       ("Use h = h(T)", r"C_p\,dT = v\,dp",
-       "For a perfect gas h depends on T only (C41), so the partial derivative in (1.14) is an ordinary one and dh = C_p dT; "
+       r"For a perfect gas h depends on T only (C41), so the partial derivative in $C_p \equiv (\partial h/\partial T)_p$ (1.14) is an ordinary one and dh = C_p dT; "
        "then move v dp to the other side.",
        "Raising the pressure warms the gas."),
       ("Divide step 4 by step 2", r"\dfrac{C_p}{C_v} = \dfrac{v\,dp}{-\,p\,dv}",
@@ -2363,7 +2363,7 @@ C_v, hence constant γ (step 10).""",
        "temperature from the problem.",
        "The ratio of specific heats links the pressure change to the volume change."),
       ("Name the ratio γ", r"\gamma = -\dfrac{v\,dp}{p\,dv}",
-       "γ ≡ C_p/C_v by definition (1.24); the minus sign is moved to the front of the fraction.",
+       r"$\gamma \equiv C_p/C_v$ by definition (1.24); the minus sign is moved to the front of the fraction.",
        "γ measures how much faster p changes than v, in relative terms."),
       ("Separate the variables", r"\dfrac{dp}{p} = -\gamma\,\dfrac{dv}{v}",
        "Multiply both sides by −dv/v; now each side contains only one variable (P42).",
@@ -2384,8 +2384,8 @@ C_v, hence constant γ (step 10).""",
   ],
   result=(r"p/\rho^\gamma = \text{const}",
           "with no heat and no friction, a perfect gas whose C_p and C_v do not vary keeps p ∝ ρ^γ."),
-  interpret="""Work done on the gas has nowhere to go but internal energy, so the gas heats up and its pressure rises faster
-than in an isothermal squeeze (slope γ instead of 1). Combined with p = ρRT it gives the ratios (1.26), hence θ (D20), and
+  interpret=r"""Work done on the gas has nowhere to go but internal energy, so the gas heats up and its pressure rises faster
+than in an isothermal squeeze (slope γ instead of 1). Combined with p = ρRT it gives the ratios $T/T_0 = (p/p_0)^{(\gamma-1)/\gamma}$, $\rho/\rho_0 = (p/p_0)^{1/\gamma}$ (1.26), hence θ (D20), and
 c = √(γRT) (C47). It fails with friction or heat exchange (stirring, slow compression in a conducting cylinder) and when
 C_p varies strongly with T. In the explainer `heat_work_paths` below, the bold isentropic route lies exactly on the faint
 isentrope.""",
@@ -2393,9 +2393,9 @@ isentrope.""",
 isothermal law (RT constant) ✓. Number: a pump from 1 to 2 bar, ρ₂/ρ₁ = 2^(1/1.4) = 1.641 and T₂ = 288.15 × 2/1.641 = 351.3 K ✓;
 the step-by-step integration of dp/dρ = γp/ρ below agrees with `isentropic_pressure` to 10⁻⁴.""",
   traps="the sign of dv/v = −dρ/ρ; assuming constant C_p and C_v silently; dividing step 2 by step 4 and getting 1/γ.")
-nb.worked_example("a bicycle pump from 1 bar to 2 bar", """
+nb.worked_example("a bicycle pump from 1 bar to 2 bar", r"""
 Start at 288.15 K.
-1. Density ratio from (1.25): ρ₂/ρ₁ = (p₂/p₁)^(1/γ) = 2^0.714 = 1.641.
+1. Density ratio from $p/\rho^\gamma = \text{const}$ (1.25): ρ₂/ρ₁ = (p₂/p₁)^(1/γ) = 2^0.714 = 1.641.
 2. Temperature from p = ρRT: T₂/T₁ = (p₂/p₁)(ρ₁/ρ₂) = 2/1.641 = 1.219 → T₂ = 351.3 K, 63 K hotter.
 3. Isothermal comparison: the density ratio would be 2 and there would be no warming at all.
 """)
@@ -2406,9 +2406,9 @@ rho1 = ch01.perfect_gas_density(1e5, 288.15)                     # starting dens
 print(ch01.isentropic_pressure(rho_ratio * rho1, 1e5, rho1))     # Eq. (1.25): the pressure at the new density → 2.0e5 Pa
 print(ch01.cv_from_cp(ch01.CP_AIR), ch01.gamma_from_cp(ch01.CP_AIR))   # (1.23)–(1.24): C_v = 717.64, γ = 1.4
 print(ch01.perfect_gas_sound_speed(np.array([250.0, 288.15, 300.0])))  # (1.27): c at three temperatures [m/s]
-""", explain="""
-1. `isentropic_ratios` applies (1.26) to a pressure ratio of 2 — the pump numbers.
-2. `isentropic_pressure` is (1.25): starting from (ρ₁, p₁), it returns p at any density on the same isentrope.
+""", explain=r"""
+1. `isentropic_ratios` applies $T/T_0 = (p/p_0)^{(\gamma-1)/\gamma}$, $\rho/\rho_0 = (p/p_0)^{1/\gamma}$ (1.26) to a pressure ratio of 2 — the pump numbers.
+2. `isentropic_pressure` is $p/\rho^\gamma = \text{const}$ (1.25): starting from (ρ₁, p₁), it returns p at any density on the same isentrope.
 3. `cv_from_cp` and `gamma_from_cp` use R = C_p − C_v and γ = C_p/C_v.
 4. `perfect_gas_sound_speed` is c = √(γRT) of C47, below.
 """)
@@ -2449,7 +2449,7 @@ Helium (γ = 5/3) gives an even steeper line — it heats more when pumped. A sl
 the gas toward the grey line.
 """)
 note("C46", "The isentropic ratios", r"""
-Combining (1.25) with p = ρRT gives (stated) the temperature and density along an isentrope directly from the pressure
+Combining $p/\rho^\gamma = \text{const}$ (1.25) with p = ρRT gives (stated) the temperature and density along an isentrope directly from the pressure
 ratio — the pump numbers above; θ in §1.10 is built from the first of them.
 """, equation=r"\frac{T}{T_0} = \left(\frac{p}{p_0}\right)^{(\gamma-1)/\gamma}, \qquad \frac{\rho}{\rho_0} = \left(\frac{p}{p_0}\right)^{1/\gamma}",
      ref="1.26")
@@ -2613,12 +2613,12 @@ ocean thermocline, dρ/dz = −0.01 kg m⁻⁴, dρ_a/dz = 0, ρ = 1025 kg/m³ �
 `brunt_vaisala_sq`, `parcel_displacement`, an Euler–Cromer loop and the unlinearised `parcel_ode_from_gradients` agree).""",
   traps="the sign of buoyancy; using the environment's gradient for the parcel; keeping O(ζ²) terms inconsistently; "
         "replacing ρ_p by ρ(z_o) *before* subtracting (that would lose the whole effect).")
-nb.worked_example("a parcel in the ocean thermocline", """
+nb.worked_example("a parcel in the ocean thermocline", r"""
 ρ = 1025 kg/m³; the density falls upward by 1 kg/m³ per 100 m, so dρ/dz = −0.01 kg m⁻⁴; treat the parcel as
 incompressible, dρ_a/dz = 0.
 1. N² = −(g/ρ)(dρ/dz − dρ_a/dz) = −(9.81/1025)(−0.01 − 0) = 9.57×10⁻⁵ s⁻².
 2. N = 9.78×10⁻³ s⁻¹; period 2π/N = 642 s ≈ 10.7 min.
-3. Released 5 m above its rest height: ζ(t) = 5 cos(0.00978 t) m.
+3. Released 5 m above its rest height: $\zeta(t) = 5\cos(0.00978\,t)$ m.
 """)
 nb.code("""
 N2_oc = ch01.brunt_vaisala_sq(1025.0, -0.01, 0.0)                     # Eq. (1.29): thermocline, incompressible parcel [1/s²]
@@ -2632,8 +2632,8 @@ for z0 in (5.0, 300.0, 1000.0):                                        # small, 
     nl = ch01.parcel_ode_from_gradients(t, z0, 1025.0, -0.01, drho_a_demo)   # step 4 before linearising, solve_ivp (P31)
     print(f"ζ0 = {z0:6.0f} m: largest linear − unlinearised gap = {np.abs(lin - nl).max():.2e} m "
           f"({np.abs(lin - nl).max() / z0:.1e} of the amplitude)")    # grows with the release height
-""", explain="""
-1. `brunt_vaisala_sq` is (1.29) with the two density gradients; `stability_timescale` gives the period.
+""", explain=r"""
+1. `brunt_vaisala_sq` is $N^2 = -\frac{g}{\rho}\big(\frac{d\rho}{dz} - \frac{d\rho_a}{dz}\big)$ (1.29) with the two density gradients; `stability_timescale` gives the period.
 2. `parcel_displacement` is the solution of steps 13–14 (cos, constant or cosh, chosen by the sign of N²).
 3. `parcel_ode_from_gradients` solves Newton's law of step 4 *before* the small-displacement steps 5–8, keeping the parcel's
    changing density ρ_p in the denominator. (With an incompressible parcel, dρ_a/dz = 0, that denominator never changes and
@@ -2810,9 +2810,9 @@ def parcel_plot(N2=1e-4, zeta0=20.0):                                           
     ax.set_ylim(-1.2 * zeta0, 2000); ax.set_xlabel("t [s]"); ax.set_ylabel("ζ [m]"); ax.legend(fontsize=8)   # axes and legend
     plt.show()                                                                     # draw the figure for these slider values
 _ = live(parcel_plot, N2=(-2e-4, 4e-4, 1e-5), zeta0=(1.0, 200.0, 1.0))            # two sliders (_ hides the return value)
-""", explain="""
+""", explain=r"""
 1. The callback draws the linear solution and the unlinearised Newton law for the chosen N² and release height. The
-   parcel has its own density gradient dρ_a/dz = −0.005 kg m⁻⁴, and the environment gradient is chosen so that (1.29)
+   parcel has its own density gradient dρ_a/dz = −0.005 kg m⁻⁴, and the environment gradient is chosen so that $N^2 = -\frac{g}{\rho}\big(\frac{d\rho}{dz} - \frac{d\rho_a}{dz}\big)$ (1.29)
    gives the slider's N²; the unlinearised law therefore keeps the parcel's changing density in its denominator.
 2. On this 2 km axis the two curves lie on top of each other: as the C50 printout showed, their gap stays a small fraction
    of the displacement (about 10⁻³ at a few hundred metres). The only visible difference is for N² < 0, where the runaway
@@ -2830,8 +2830,8 @@ salinity, so (stated) its density changes at a rate set by the speed of sound: w
 dρ_a/dz = −4.47×10⁻³ kg m⁻⁴.
 """, equation=r"\frac{d\rho_a}{dz} \cong -\frac{\rho g}{c^2}")
 note("C61", "The ocean's stability criterion", r"""
-With N21, (1.29) becomes the ocean's stability test: the column is stable when the compressibility-corrected density
-gradient below is negative. **We read (1.35) as "has the same sign as" dρ_θ/dz** — the two sides agree only up to a positive
+With N21, $N^2 = -\frac{g}{\rho}\big(\frac{d\rho}{dz} - \frac{d\rho_a}{dz}\big)$ (1.29) becomes the ocean's stability test: the column is stable when the compressibility-corrected density
+gradient below is negative. **We read $d\rho_\theta/dz \cong d\rho/dz + \rho g/c^2$ (1.35) as "has the same sign as" dρ_θ/dz** — the two sides agree only up to a positive
 factor near the reference pressure. Thermocline with dρ/dz = −0.01 kg m⁻⁴: −0.01 + 0.00447 = −5.53×10⁻³ kg m⁻⁴ < 0 → stable,
 but N² drops from 9.57×10⁻⁵ to 5.29×10⁻⁵ s⁻² (the period grows from 10.7 to 14.4 min), because the sinking parcel is also
 squeezed denser.
@@ -2874,7 +2874,7 @@ z ↑      environment T(z): cools at 6.5 K/km
 **Stability compares two cooling rates: the environment's and a rising parcel's own.**
 """)
 note("C49", "A static atmosphere from one profile", r"""
-In a fluid at rest, hydrostatics (1.8) and the equation of state (1.12) link p, ρ and T, so one profile fixes the other two:
+In a fluid at rest, hydrostatics $dp/dz = -\rho g$ (1.8) and the equation of state $p = p(v, T)$ (1.12) link p, ρ and T, so one profile fixes the other two:
 give T(z), integrate dp/dz = −pg/(RT(z)), then ρ = p/(RT). For T(z) = 288.15 K − 6.5 K/km × z, 5 km up: p = 54.0 kPa and
 ρ = 0.736 kg/m³ — the standard atmosphere's values (code below).
 """)
@@ -2952,7 +2952,7 @@ the last step (step 16).""",
         "Expand dh in T and p, which brings in C_p and an unknown (∂h/∂p)_T.",
         "Find (∂h/∂p)_T with the Gibbs free energy, a Maxwell relation and α.",
         "Divide by dz and use hydrostatics."],
-  uses=["Gibbs relations (C35, D10)", "C_p (1.14) (C30)", "α (1.20) (C37)", "two properties fix the state (C28)",
+  uses=["Gibbs relations (C35, D10)", r"$C_p \equiv (\partial h/\partial T)_p$ (1.14) (C30)", r"$\alpha \equiv -\rho^{-1}(\partial\rho/\partial T)_p$ (1.20) (C37)", "two properties fix the state (C28)",
         "hydrostatic law (C20, D05)", "chain rule (P49)", "partial derivative with a variable held fixed (P39)",
         "Gibbs free energy (P50)", "exact differentials and Maxwell relations (P51)",
         "inequalities under a sign change (P48, for the result)"],
@@ -2966,7 +2966,7 @@ the last step (step 16).""",
        "differential. We want dT to appear.",
        "h changes because T changes and because p changes."),
       ("Recognise C_p", r"dh = C_p\,dT + \Big(\dfrac{\partial h}{\partial p}\Big)_T dp",
-       "(1.14) defines C_p = (∂h/∂T)_p. One coefficient is now a known property; the other still needs work.",
+       r"(1.14) defines $C_p \equiv (\partial h/\partial T)_p$. One coefficient is now a known property; the other still needs work.",
        "The first part is the specific heat times the temperature change."),
       ("Get (∂h/∂p)_T from Gibbs at fixed T", r"\Big(\dfrac{\partial h}{\partial p}\Big)_T = T\Big(\dfrac{\partial s}{\partial p}\Big)_T + v",
        "Gibbs dh = T ds + v dp holds for any change (D10); take a change at constant T and divide by dp (P39). This trades "
@@ -2985,7 +2985,7 @@ the last step (step 16).""",
        "measurable one.",
        "How entropy changes with pressure is set by thermal expansion."),
       ("Express (∂v/∂T)_p with α", r"\Big(\dfrac{\partial v}{\partial T}\Big)_p = v\,\alpha",
-       "v = 1/ρ gives (∂v/∂T)_p = −(1/ρ²)(∂ρ/∂T)_p; by (1.20) (∂ρ/∂T)_p = −ρα, so the result is α/ρ = vα.",
+       r"v = 1/ρ gives (∂v/∂T)_p = −(1/ρ²)(∂ρ/∂T)_p; by $\alpha \equiv -\rho^{-1}(\partial\rho/\partial T)_p$ (1.20), (∂ρ/∂T)_p = −ρα, so the result is α/ρ = vα.",
        "Heating at fixed pressure swells unit mass by vα per kelvin."),
       ("Insert into the Maxwell relation", r"\Big(\dfrac{\partial s}{\partial p}\Big)_T = -\,v\,\alpha",
        "Steps 7 and 8 together. The sign matters: squeezing at fixed T lowers the entropy when α > 0.",
@@ -3006,14 +3006,14 @@ the last step (step 16).""",
        "marks the adiabatic parcel.",
        "Temperature rate per metre ↔ pressure rate per metre."),
       ("Use hydrostatics with v = 1/ρ", r"C_p\,\dfrac{dT_a}{dz} = -\,\alpha\,T\,g",
-       "The parcel's pressure is the environment's, dp/dz = −ρg (1.8); at the release height the parcel's v equals the "
+       r"The parcel's pressure is the environment's, $dp/dz = -\rho g$ (1.8); at the release height the parcel's v equals the "
        "environment's 1/ρ, so vρ = 1.",
        "The pressure drop with height sets the cooling."),
       ("Divide by C_p", r"\dfrac{dT_a}{dz} \equiv \Gamma_a = -\,\dfrac{g\,\alpha\,T}{C_p}",
        "C_p > 0, so dividing by it is allowed and changes no sign. This is (1.30), derived without any perfect-gas relation.",
        "The adiabatic lapse rate of any fluid."),
       ("Specialise to a perfect gas", r"\Gamma_a = -\,\dfrac{g}{C_p} = -9.76\ \text{K/km}",
-       "α = 1/T for a perfect gas (1.28, C48), so αT = 1; with g = 9.807 m/s² and C_p = 1004.7 J kg⁻¹ K⁻¹ the number follows.",
+       r"$\alpha = 1/T$ for a perfect gas (1.28, C48), so αT = 1; with g = 9.807 m/s² and C_p = 1004.7 J kg⁻¹ K⁻¹ the number follows.",
        "Dry air cools 9.76 K for every kilometre it rises."),
   ],
   result=(r"\Gamma_a = \dfrac{dT_a}{dz} = -\dfrac{g\,\alpha\,T}{C_p}; \qquad \text{dry air: } \Gamma_a = -g/C_p = -9.76 \text{ K/km}",
@@ -3077,16 +3077,16 @@ print(f"water: Γa = {ch01.adiabatic_lapse_rate(T=283.15, cp=4190.0, alpha=1.5e-
 z5 = np.array([0.0, 5000.0])                                          # the ground and 5 km [m]
 p5, rho5, T5 = ch01.atmosphere_from_temperature(z5, lambda zz: 288.15 - 6.5e-3 * zz)   # C49: p, ρ, T from T(z) alone
 print(f"C49 at 5 km: p = {p5[-1]/1e3:.1f} kPa, ρ = {rho5[-1]:.3f} kg/m³; USSA-1976: {ch01.standard_atmosphere(5000.0)[1]/1e3:.1f} kPa")   # matches the standard atmosphere
-""", explain="""
+""", explain=r"""
 1. `brunt_vaisala_sq_from_lapse` is N² in lapse-rate form (derived as D36 in the next block); `stability_timescale` turns it
    into a period or an e-folding time.
 2. `parcel_temperature` follows the dry adiabat from the ground, T₀ + Γ_a z.
-3. `adiabatic_lapse_rate` with α and C_p given uses the general form (1.30) — for water.
+3. `adiabatic_lapse_rate` with α and C_p given uses the general form $\Gamma_a = -g\alpha T/C_p$ (1.30) — for water.
 4. `atmosphere_from_temperature` integrates hydrostatics with p = ρRT for a given T(z): one profile fixes the other two (C49).
 """)
-nb.md("""
+nb.md(r"""
 #### From scratch: lift a parcel and measure its slope
-Take the standard atmosphere's pressure profile, lift a dry parcel from the ground along the isentrope (1.26), and
+Take the standard atmosphere's pressure profile, lift a dry parcel from the ground along the isentrope $T/T_0 = (p/p_0)^{(\gamma-1)/\gamma}$ (1.26), and
 differentiate its temperature numerically.
 """)
 nb.check_agree("""
@@ -3098,9 +3098,9 @@ assert np.isclose(dTdz_parcel[0], ch01.adiabatic_lapse_rate(), rtol=1e-3)   # = 
 assert np.isclose(-dTdz_parcel[0], ch01.lapse_rate_convention(ch01.adiabatic_lapse_rate(), "meteorology"), rtol=1e-3)  # = +g/C_p
 print(f"parcel slope at release: {dTdz_parcel[0]*1e3:.3f} K/km (Kundu) = {-dTdz_parcel[0]*1e3:+.3f} K/km (meteorology)")   # both conventions
 """)
-nb.md("""
-At the release height parcel and environment coincide, so the slope is exactly (1.30). Higher up the parcel is colder than
-the air around it and its slope becomes −(g/C_p)(T_parcel/T_env) — (1.30) is the *local* rate where the two still match,
+nb.md(r"""
+At the release height parcel and environment coincide, so the slope is exactly $\Gamma_a = -g\alpha T/C_p$ (1.30), which is $-g/C_p$ for a perfect gas. Higher up the parcel is colder than
+the air around it and its slope becomes −(g/C_p)(T_parcel/T_env) — $\Gamma_a = -g/C_p$ (1.30) is the *local* rate where the two still match,
 the point step 14 of D19 makes.
 """)
 nb.figure("""
@@ -3175,7 +3175,7 @@ nb.md("""
 Is air at 500 hPa and −23 °C "colder" than surface air at 15 °C? Bring it down and it warms by compression. Weather maps,
 isentropic analysis and all of dry atmospheric dynamics (Ch. 13) use a temperature with that effect removed.
 """)
-nb.md("""
+nb.md(r"""
 #### The idea
 Bring every parcel adiabatically to a reference pressure p_o and read its thermometer there.
 
@@ -3190,7 +3190,7 @@ the pressure at z = 0 of a particular column, which can vary from day to day.
 1000 hPa   T = 288 K  ──(already there)────────────────────────────►  θ = 288 K
 θ increases upward  ⇒  a lifted parcel is always cooler (in θ) than the air above it  ⇒  stable
 ```
-The tools: the exponent rules (P43, C06 block) and the isentropic ratio (1.26) (C46, C45 block).
+The tools: the exponent rules (P43, C06 block) and the isentropic ratio $T/T_0 = (p/p_0)^{(\gamma-1)/\gamma}$ (1.26) (C46, C45 block).
 """)
 D("D20", "Potential temperature", ref="1.31",
   goal="""Define a temperature label that a parcel keeps when it moves up or down without heating: the temperature it would
@@ -3205,7 +3205,7 @@ meteorology and in fluidpy.""",
   uses=["isentropic ratios (C46, C45)", "exponent rules (P43)", "R = C_p − C_v and γ = C_p/C_v (C42, C43)"],
   steps=[
       ("Take the reference state (θ, p_o) and the current state (T, p)", r"\dfrac{T}{\theta} = \Big(\dfrac{p}{p_o}\Big)^{(\gamma-1)/\gamma}",
-       "(1.26) links any two states on one isentrope; by definition the parcel taken adiabatically to p_o has the temperature "
+       r"$T/T_0 = (p/p_0)^{(\gamma-1)/\gamma}$ (1.26) links any two states on one isentrope; by definition the parcel taken adiabatically to p_o has the temperature "
        "θ, so rename T₀ → θ and p₀ → p_o.",
        "The parcel now and the parcel at the reference pressure lie on the same isentrope."),
       ("Multiply both sides by θ", r"T = \theta\,\Big(\dfrac{p}{p_o}\Big)^{(\gamma-1)/\gamma}",
@@ -3215,10 +3215,10 @@ meteorology and in fluidpy.""",
        "Divide both sides by the power and use 1/(a/b)^k = (b/a)^k (P43). This is the form we compute.",
        "Correct the thermometer reading for the pressure."),
       ("Rewrite the exponent with C_v and C_p", r"\dfrac{\gamma-1}{\gamma} = 1 - \dfrac{C_v}{C_p}",
-       "Split the fraction: (γ − 1)/γ = 1 − 1/γ, and 1/γ = C_v/C_p by (1.24).",
+       r"Split the fraction: (γ − 1)/γ = 1 − 1/γ, and 1/γ = C_v/C_p by $\gamma \equiv C_p/C_v$ (1.24).",
        "The exponent is one minus the inverse of the specific-heat ratio."),
       ("Use R = C_p − C_v", r"\theta = T\,\Big(\dfrac{p_o}{p}\Big)^{R/C_p}",
-       "1 − C_v/C_p = (C_p − C_v)/C_p = R/C_p by (1.23); for air R/C_p = 287.06/1004.7 = 2/7.",
+       r"1 − C_v/C_p = (C_p − C_v)/C_p = R/C_p by $R = C_p - C_v$ (1.23); for air R/C_p = 287.06/1004.7 = 2/7.",
        "The form used in meteorology, with exponent 0.286."),
   ],
   result=(r"T = \theta\,(p/p_o)^{(\gamma-1)/\gamma} \ \ (1.31), \qquad \theta = T\,(p_o/p)^{R/C_p}",
@@ -3250,13 +3250,13 @@ assert np.allclose(N2_theta, N2_lapse, rtol=1e-3)                               
 print(f"θ rises from {theta_tr[0]:.2f} K at the ground to {theta_tr[-1]:.1f} K at 11 km")   # stable: θ increases upward
 print(f"N² at the ground: from θ {N2_theta[0]:.4e}, from the lapse rate {N2_lapse[0]:.4e} 1/s²")   # the two forms agree
 print(f"C56 dθ/dz at the ground: {ch01.potential_temperature_gradient(T_tr[0], -6.5e-3, p=p_tr[0])*1e3:.2f} K/km")   # (1.32)
-""", explain="""
-1. `potential_temperature` is (1.31) with p_o = 1000 hPa — note θ at the ground is about 287.1 K, not 288.15 K, because
+""", explain=r"""
+1. `potential_temperature` is $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31) with p_o = 1000 hPa — note θ at the ground is about 287.1 K, not 288.15 K, because
    the standard ground pressure 1013 hPa is slightly above the reference pressure (see "Which p_o?" above).
 2. θ increases steadily through the standard troposphere: it is stable everywhere.
 3. N² from the θ gradient (`brunt_vaisala_sq_from_theta`) and from the lapse rate (`brunt_vaisala_sq_from_lapse`) agree — the
    result of D36 below, checked on real profiles.
-4. `potential_temperature_gradient` is (1.32): dθ/dz = (θ/T)(dT/dz + g/C_p).
+4. `potential_temperature_gradient` is $\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p}$ (1.32), i.e. dθ/dz = (θ/T)(dT/dz + g/C_p).
 """)
 nb.md("#### From scratch: θ by the formula")
 nb.check_agree("""
@@ -3266,13 +3266,13 @@ assert np.allclose(ch01.temperature_from_potential(theta_mine, p_tr), T_tr)     
 print(f"θ at 5 km: {theta_mine[50]:.2f} K (mine) = {ch01.potential_temperature(T_tr[50], p_tr[50]):.2f} K (library)")   # one sample value
 """)
 note("C56", "θ's gradient and the two lapse rates", r"""
-Taking logarithms of (1.31), differentiating in z, and using dp/dz = −ρg, p = ρRT and α = 1/T gives (stated) the link
+Taking logarithms of $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31), differentiating in z, and using dp/dz = −ρg, p = ρRT and α = 1/T gives (stated) the link
 between θ's gradient and the two lapse rates, written here in both conventions. Standard troposphere at the ground:
 (θ/T)(−6.5 + 9.76) K/km = 3.25 K/km.
 """, equation=r"\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p} = \Gamma - \Gamma_a\ \text{(Kundu)} = \Gamma_{a,\rm met} - \Gamma_{\rm met}\ \text{(meteorology)}",
      ref="1.32")
-note("N19", "The log-derivative of (1.31)", """
-The logarithmic derivative of (1.31) is step 5 of the next derivation; the same move gives the atmosphere's θ profiles in
+note("N19", "The log-derivative of (1.31)", r"""
+The logarithmic derivative of $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31), $\frac{1}{T}\frac{dT}{dz} = \frac{1}{\theta}\frac{d\theta}{dz} + \frac{\gamma-1}{\gamma p}\frac{dp}{dz}$, is step 5 of the next derivation; the same move gives the atmosphere's θ profiles in
 Ch. 13 §13.2.
 """)
 P("P52", "logarithmic differentiation", r"""
@@ -3283,7 +3283,7 @@ zq, hq = 2.0, 1e-6                                                 # a point and
 print((np.log((zq + hq)**3) - np.log(zq**3)) / hq, 3 / zq)          # d ln(z³)/dz = 3/z = 1.5 at z = 2
 """)
 D("D36", "N² from the potential-temperature gradient (links Eqs. 1.29 and 1.32; our addition)", ref="",
-  goal="""Show that for a perfect-gas atmosphere the density-based N² of (1.29) is simply g/θ times the vertical gradient of
+  goal=r"""Show that for a perfect-gas atmosphere the density-based $N^2 = -\frac{g}{\rho}\big(\frac{d\rho}{dz} - \frac{d\rho_a}{dz}\big)$ (1.29) is simply g/θ times the vertical gradient of
 θ — so stability means "θ increases upward" — and connect it to the two lapse rates.""",
   assumptions="""Perfect gas with constant γ (steps 2–3) · the parcel's pressure equals the environment's (step 3) · at the
 parcel's rest height ρ_a = ρ (step 1).""",
@@ -3291,9 +3291,9 @@ parcel's rest height ρ_a = ρ (step 1).""",
          "the parcel result (1.29) of D18, evaluated at the height where parcel and environment share the density ρ."),
   plan=["Write both density gradients as relative (logarithmic) rates.",
         "Environment from p = ρRT; parcel from the isentropic ratio.",
-        "Subtract: the pressure terms combine into θ.", "Use (1.32) for the lapse-rate form."],
-  uses=["(1.29) (C51, D18)", "logarithmic differentiation (P52)", "p = ρRT (C40)", "isentropic ratios (1.26) (C46)",
-        "θ (1.31) (D20)", "(1.32) (C56)", "γ and R/C_p (C42, C43)"],
+        "Subtract: the pressure terms combine into θ.", r"Use $\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p}$ (1.32) for the lapse-rate form."],
+  uses=[r"$N^2 = -\frac{g}{\rho}\big(\frac{d\rho}{dz} - \frac{d\rho_a}{dz}\big)$ (1.29) (C51, D18)", "logarithmic differentiation (P52)", "p = ρRT (C40)", r"isentropic ratios $\rho/\rho_0 = (p/p_0)^{1/\gamma}$ (1.26) (C46)",
+        r"θ, $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31) (D20)", r"$\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p}$ (1.32) (C56)", "γ and R/C_p (C42, C43)"],
   steps=[
       ("Take ρ inside the bracket", r"N^2 = -g\Big(\dfrac1\rho\dfrac{d\rho}{dz} - \dfrac1\rho\dfrac{d\rho_a}{dz}\Big)",
        "Distribute 1/ρ over both terms; at the rest height the parcel's density equals ρ, so each term is a relative "
@@ -3303,7 +3303,7 @@ parcel's rest height ρ_a = ρ (step 1).""",
        "ρ = p/(RT), so ln ρ = ln p − ln R − ln T; differentiate in z with R constant (P52).",
        "The environment's density falls because the pressure falls, and rises where it gets colder."),
       ("Log-differentiate the parcel's isentropic density", r"\dfrac1{\rho_a}\dfrac{d\rho_a}{dz} = \dfrac1\gamma\,\dfrac1p\dfrac{dp}{dz}",
-       "Along its isentrope ρ_a ∝ p^(1/γ) (1.26), and the parcel's pressure is the environment's p(z); so ln ρ_a = (1/γ) ln p "
+       r"Along its isentrope $\rho_a \propto p^{1/\gamma}$ (1.26), and the parcel's pressure is the environment's p(z); so ln ρ_a = (1/γ) ln p "
        "+ const.",
        "The parcel's density follows the pressure only, and more weakly."),
       ("Subtract step 3 from step 2",
@@ -3312,7 +3312,7 @@ parcel's rest height ρ_a = ρ (step 1).""",
        "What decides stability: a pressure part and a temperature part."),
       ("Log-differentiate θ = T(p_o/p)^((γ−1)/γ)",
        r"\dfrac1\theta\dfrac{d\theta}{dz} = \dfrac1T\dfrac{dT}{dz} - \dfrac{\gamma-1}{\gamma}\,\dfrac1p\dfrac{dp}{dz}",
-       "ln θ = ln T + ((γ − 1)/γ)(ln p_o − ln p) (P52); p_o is a constant. This is the log-derivative of (1.31) (N19).",
+       r"ln θ = ln T + ((γ − 1)/γ)(ln p_o − ln p) (P52); p_o is a constant. This is the log-derivative of $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31) (N19).",
        "θ rises with T and with falling pressure."),
       ("Recognise the bracket of step 4",
        r"\Big(1 - \dfrac1\gamma\Big)\dfrac1p\dfrac{dp}{dz} - \dfrac1T\dfrac{dT}{dz} = -\,\dfrac1\theta\dfrac{d\theta}{dz}",
@@ -3322,7 +3322,7 @@ parcel's rest height ρ_a = ρ (step 1).""",
        "Steps 4 and 6 replace the bracket by −(1/θ)dθ/dz; −g × (−(1/θ)dθ/dz) — the two minus signs cancel.",
        "N² is g over θ times θ's gradient."),
       ("Use (1.32) for the lapse-rate form", r"N^2 = \dfrac{g}{T}\Big(\dfrac{dT}{dz} + \dfrac{g}{C_p}\Big) = \dfrac{g}{T}\,(\Gamma - \Gamma_a)",
-       "(1.32) gives (1/θ)dθ/dz = (1/T)(dT/dz + g/C_p) (C56); with Γ_a = −g/C_p (D19) the bracket is Γ − Γ_a in Kundu's "
+       r"$\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p}$ (1.32) gives (1/θ)dθ/dz = (1/T)(dT/dz + g/C_p) (C56); with Γ_a = −g/C_p (D19) the bracket is Γ − Γ_a in Kundu's "
        "convention.",
        "N² is proportional to how much more slowly the environment cools than a parcel."),
   ],
@@ -3336,7 +3336,7 @@ equivalent potential temperature) and for the ocean, where salinity requires pot
   check="""Units: (m s⁻²/K) × K/m = s⁻² ✓. Neutral: dθ/dz = 0 ⇔ Γ = Γ_a ✓. An isothermal layer (dT/dz = 0) at 250 K:
 N² = g²/(C_pT) = 3.83×10⁻⁴ s⁻², period 5.4 min ✓. Standard troposphere at 288.15 K: 1.11×10⁻⁴ s⁻², period 9.9 min ✓ — the
 code above computed N² from the θ profile of USSA-1976 with `np.gradient` and from the lapse rate, and they agree to 10⁻³.""",
-  traps="using the environment's density gradient for the parcel; forgetting (γ − 1)/γ = R/C_p when comparing with (1.32); "
+  traps=r"using the environment's density gradient for the parcel; forgetting (γ − 1)/γ = R/C_p when comparing with $\frac{T}{\theta}\frac{d\theta}{dz} = \frac{dT}{dz} + \frac{g}{C_p}$ (1.32); "
         "substituting dp/dz = −ρg too early (it is not needed until step 8).")
 note("C57", "Stability from θ", r"""
 So a dry atmosphere is **stable where θ increases with height, neutral where it stays constant, unstable where it decreases** — the gradient of
@@ -3392,12 +3392,12 @@ note("C58", "Potential density", r"""
 The same trick for density: the **potential density** ρ_θ is the density a parcel would have after an isentropic trip to
 p_o (stated). Air with ρ = 0.70 kg/m³ at 500 hPa has ρ_θ = 1.148 kg/m³ (code below).
 """, equation=r"\rho(z) = \rho_\theta(z)\,\big(p(z)/p_o\big)^{1/\gamma}", ref="1.33")
-note("N20", "A constant product", """
-Multiplying (1.31) and (1.33) and using p = ρRT, the exponents add up to 1 and θρ_θ = p_o/R is the same for every parcel — one
+note("N20", "A constant product", r"""
+Multiplying $T = \theta\,(p/p_o)^{(\gamma-1)/\gamma}$ (1.31) and $\rho = \rho_\theta\,(p/p_o)^{1/\gamma}$ (1.33) and using p = ρRT, the exponents add up to 1 and θρ_θ = p_o/R is the same for every parcel — one
 line of algebra, not used again (checked in the code below).
 """)
-note("C59", "Potential density must decrease upward", """
-Taking logarithms of θρ_θ = const gives (1.34), −(1/ρ_θ)dρ_θ/dz = (1/θ)dθ/dz: for stability the potential density must
+note("C59", "Potential density must decrease upward", r"""
+Taking logarithms of θρ_θ = const gives $-\frac{1}{\rho_\theta}\frac{d\rho_\theta}{dz} = \frac{1}{\theta}\frac{d\theta}{dz}$ (1.34): for stability the potential density must
 **decrease** with height — the form the ocean uses (C61), and Ch. 13 §13.2 uses for vertical density variation.
 """)
 nb.code("""
@@ -3406,8 +3406,8 @@ rho_th = ch01.potential_density(rho_tr, p_tr)                                   
 assert np.allclose(theta_tr * rho_th, ch01.P_REF / ch01.R_AIR)                                    # N20: θ ρθ = p_o / R everywhere
 print(f"N20: θ ρθ = {theta_tr[0]*rho_th[0]:.3f} = p_o/R = {ch01.P_REF/ch01.R_AIR:.3f} kg K/m³")   # the constant product
 print("C59: ρθ decreases upward:", bool(np.all(np.diff(rho_th) < 0)))                             # stable troposphere
-""", explain="""
-1. `potential_density` is (1.33) solved for ρ_θ.
+""", explain=r"""
+1. `potential_density` is $\rho = \rho_\theta\,(p/p_o)^{1/\gamma}$ (1.33) solved for ρ_θ.
 2. The product θρ_θ is the same constant p_o/R at every height of the standard troposphere (N20).
 3. ρ_θ decreases monotonically upward, the density form of the stability test (C59).
 """)
@@ -3577,7 +3577,7 @@ print(np.linalg.matrix_rank(np.array([[1, 2], [2, 4]])))   # the second column i
 """)
 nb.md(r"""
 #### The maths, step by step
-1. Columns in the order of (1.38): Δp, Δx, d, ε, U, ρ, μ.
+1. Columns in the order of $f(\Delta p, \Delta x, d, \varepsilon, U, \rho, \mu) = 0$ (1.38): Δp, Δx, d, ε, U, ρ, μ.
 2. [Δp] = M L⁻¹ T⁻² → column (1, −1, −2); [Δx] = [d] = [ε] = L → (0, 1, 0); [U] = L T⁻¹ → (0, 1, −1); [ρ] = M L⁻³ →
    (1, −3, 0); [μ] = M L⁻¹ T⁻¹ → (1, −1, −1).
 3. The matrix (no Θ row is needed):
@@ -3612,8 +3612,8 @@ r, ri, ci = ch01.rank_by_minors(A)                                   # rank and 
 print(f"rank {r}; first nonzero minor: rows {ri}, columns {[names[c] for c in ci]}")   # r = 3 and its witness
 print("det of (U, ρ, μ):", ch01.minor_determinant(A, (0, 1, 2), (4, 5, 6)))    # −1, exact integer arithmetic
 print("det of (Δp, Δx, d):", ch01.minor_determinant(A, (0, 1, 2), (0, 1, 2)))  # 0
-""", explain="""
-1. `dimensional_matrix` builds (1.39) from the dictionary of variables and units (`ch01.PIPE`), dropping the empty Θ row.
+""", explain=r"""
+1. `dimensional_matrix` builds the matrix $\left(\begin{smallmatrix}1&0&0&0&0&1&1\\-1&1&1&1&1&-3&-1\\-2&0&0&0&-1&0&-1\end{smallmatrix}\right)$ (1.39) from the dictionary of variables and units (`ch01.PIPE`), dropping the empty Θ row.
 2. `rank_by_minors` searches the minors in order and returns the rank with the first nonzero witness — here the columns
    (Δp, Δx, U); any nonzero 3×3 minor proves r = 3.
 3. `minor_determinant` evaluates a chosen minor exactly by cofactor expansion: −1 for (U, ρ, μ), 0 for (Δp, Δx, d).
@@ -3655,8 +3655,8 @@ ax.set_ylim(3.0, -0.6)                                                          
 ax.set_title(f"Eq. (1.39): one nonzero 3×3 minor proves r = 3 ({len(nonzero)} of 35 are nonzero)")   # the message
 savefig(fig, "ch01", "c67_dimensional_matrix")                                      # keep a copy for review
 plt.show()                                                                          # display
-""", see="""
-The 3 × 7 integer matrix (1.39) as coloured cells, with the (U, ρ, μ) block outlined in purple (determinant −1) and the
+""", see=r"""
+The 3 × 7 integer matrix $\left(\begin{smallmatrix}1&0&0&0&0&1&1\\-1&1&1&1&1&-3&-1\\-2&0&0&0&-1&0&-1\end{smallmatrix}\right)$ (1.39) as coloured cells, with the (U, ρ, μ) block outlined in purple (determinant −1) and the
 (Δp, Δx, d) block outlined in grey (determinant 0).
 """, read="""
 One nonzero 3×3 block is enough to prove r = 3. The three identical pure-length columns (Δx, d, ε) are what make many minors
@@ -3785,7 +3785,7 @@ can stand for a big system (Ch. 4 §4.11). It fails — silently — if a releva
 groups, no Reynolds number, and laminar data will not collapse) or if the "law" mixes quantities that are only numerically
 related in one unit system. In the explainer `buckingham_pi_machine` below, switch the units to cgs and every Π value stays
 put.""",
-  check="""Pipe: n = 7, r = 3 → 4 groups (1.40) ✓; Π₁ = Δp/ρU² = 10 in SI and in cgs ✓ (code below); `groups_independent`
+  check=r"""Pipe: n = 7, r = 3 → 4 groups, $\Delta p/\rho U^2 = \varphi(\Delta x/d,\ \varepsilon/d,\ \mu/\rho U d)$ (1.40) ✓; Π₁ = Δp/ρU² = 10 in SI and in cgs ✓ (code below); `groups_independent`
 rejects a fifth group ✓; Example 1.4 (n = 4, r = 3) → one group, hence a constant ✓. The sympy cell checks the null space
 exactly.""",
   traps="believing the groups are unique; forgetting that the relation must be complete and homogeneous; choosing a "
@@ -4042,7 +4042,7 @@ nb.summary(
     left_out=[
         "the 30 exercises (in the book)",
         "moist thermodynamics: saturated adiabats and equivalent potential temperature (beyond Ch. 1)",
-        "the proof of the speed-of-sound formula (1.19) (Ch. 15 §15.2)",
+        r"the proof of the speed-of-sound formula $c^2 = (\partial p/\partial\rho)_s$ (1.19) (Ch. 15 §15.2)",
     ],
 )
 
