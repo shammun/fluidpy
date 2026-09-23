@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790155006">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790155006">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790173845">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790173845">
 </head>
 <body>
 <div class="ce-container">
@@ -105,6 +105,53 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>What changes inside a moving box?</b>
 <p>A moving boundary sweeps a band coloured by the sign of b·n; the volume and surface terms of the Reynolds transport theorem add up to the measured rate of change of ∫F, and shrinking Δt shows the dropped second-order term vanish.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch03/reynolds_transport_cv.html">Open full window</a><a class="fp-btn" href="../notebooks/ch03_kinematics.html#viz-reynolds_transport_cv">In the chapter</a></div>
+</div></div>
+<h2 id="ch04">Chapter 4 — Conservation Laws</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 4 · explainer 1 · §4.2 4.4</small>
+<b>Weigh a force by counting what flows through a box</b>
+<p>One control volume drawn on a real scene (a wake, a bore, a jet, a rocket, an expanding gas) with every face&#x27;s mass and momentum flux as a bar: storage plus outflow equals the forces, and the residual stays at zero.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/control_volume_budgets.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-control_volume_budgets">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 2 · §4.3</small>
+<b>Can one number field hold a whole 2-D flow?</b>
+<p>Seven classic flows drawn as ψ contours at equal steps over a speed map with tracers; drag a gate and its flux stays ψ₂ − ψ₁ however you bend it; click to read u = ∂ψ/∂y, v = −∂ψ/∂x.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/stream_function_spacing.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-stream_function_spacing">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 3 · §4.5</small>
+<b>How does a fluid decide its stress?</b>
+<p>Set a velocity gradient and watch G split into S and R, the Newtonian law turn S into tau, and the traction on a plane you rotate swing through its normal and shear values; a second mode shrinks a cube with unequal shear stresses and watches it spin up.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/newtonian_stress_lab.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-newtonian_stress_lab">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 4 · §4.4 4.6</small>
+<b>Which terms of Navier–Stokes are awake here?</b>
+<p>Pick an exact solution, click any point and read the five terms of the incompressible Navier–Stokes equation as bars that add to zero; scrub time and watch the balance move between local-vs-viscous and advective-vs-pressure.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/navier_stokes_term_balance.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-navier_stokes_term_balance">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 5 · §4.7</small>
+<b>Why does a straight throw curve on a merry-go-round?</b>
+<p>One ball, one clock, two observers: the inertial view shows a straight path over a turning table, the rotating view a curve bent by the Coriolis force, with every apparent force of the noninertial Navier–Stokes equation as an arrow and a bar.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/rotating_frame_coriolis.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-rotating_frame_coriolis">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 6 · §4.4 4.9</small>
+<b>Bernoulli is constant along what, exactly?</b>
+<p>Six flows, each with its streamlines and two probes; the Bernoulli sum is plotted along and across streamlines with stacked term bars, and the hypotheses you toggle pick which of the Bernoulli equations applies.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/which_bernoulli.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-which_bernoulli">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 7 · §4.8</small>
+<b>Where does the energy go when viscosity stops a flow?</b>
+<p>A sheared gap on one clock: the velocity profile, the dissipation where the shear is, the temperature rising to its steady parabola, and energy bars showing the wall&#x27;s work arriving as heat, with a negative-viscosity preset that breaks the second law.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/viscous_dissipation_heating.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-viscous_dissipation_heating">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 8 · §4.9</small>
+<b>Density hardly changes — so why does it drive the flow?</b>
+<p>Choose a fluid, a temperature contrast and a depth: the small numbers of the Boussinesq approximation are checked against their thresholds while a warm blob rises and spreads under the terms Boussinesq keeps; switch buoyancy off and the blob only diffuses.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/boussinesq_buoyancy.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-boussinesq_buoyancy">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 4 · explainer 9 · §4.11</small>
+<b>When does a model behave like the real thing?</b>
+<p>A prototype and its model drawn in their own units side by side, the dimensionless groups as paired bars with matched badges, and the consequences: spheres of every size and fluid on one C_D(Re) curve, a ship&#x27;s drag split and scaled, a lab tank standing in for the atmosphere.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch04/dynamic_similarity_models.html">Open full window</a><a class="fp-btn" href="../notebooks/ch04_conservation_laws.html#viz-dynamic_similarity_models">In the chapter</a></div>
 </div></div>
 </div>
 </body>

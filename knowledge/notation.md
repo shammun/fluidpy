@@ -106,6 +106,65 @@ DF/Dt = ∂F/∂t + |u| ∂F/∂s (the printed one has units 1/s, not [F]/s). Co
 solid body → ω₀, pure strain → S₁₁ = −S₂₂ = k/2, other presets → G = k × a fixed matrix. The slider is labelled
 "Rate k" and a meaning line (`kMeaning`) says which, next to G. Later explainers with mode-dependent rates copy this.
 
+**⚠️ The prime has four meanings — and ch04 uses three of them (ch04 §4.1 notation callout).**
+
+| Where | x′, u′, p′ mean | Code names (one name per meaning) |
+|---|---|---|
+| ch02 (2.5) | components in **rotated axes** (x′ = Cᵀx) | `xp` in `core.tensors` |
+| ch03 (3.9) | **translating (Galilean) frame** O′ moving at constant U | `xp`, `tp`, `x0p` in `galilean_transform` |
+| ch04 §4.7 (4.42)–(4.45) | **noninertial frame** translating at U(t) and rotating at Ω(t) | `u_prime`, `x_prime`, `a_prime` in `core.rotating`; notebook `u_rot` |
+| ch04 §4.9 (4.84)–(4.89), §4.11 | **perturbation** from the hydrostatic state, p′ = p − p_s(z), ρ′ = ρ − ρ_s(z) | `perturbation_fields` → `p_pert`, `rho_pert`; `buoyancy(rho_pert, rho0)` |
+| ch04 (4.67) | a **dummy integration variable** in ∫_{p_o}^{p} dp′/ρ(p′) | inside `pressure_function` only |
+
+**⚠️ Coriolis: acceleration term vs apparent force (ch04 (4.43) vs (4.45)).** Seen from a frame rotating at Ω, the
+particle's inertial acceleration is D′u′/Dt + dU/dt + **2Ω × u′** + Ω̇ × x′ + **Ω × (Ω × x′)** (4.43) — the
+*acceleration* side, "+2Ω × u′" and the *centripetal* Ω × (Ω × x′), pointing towards the axis. Moved to the right of
+Navier–Stokes they become apparent body forces per mass: **−2Ω × u′** (Coriolis force) and **−Ω × (Ω × x′) = +Ω²R e_R**
+(centrifugal, away from the axis), with −dU/dt and −Ω̇ × x′ (4.45). The book's prose "the Coriolis acceleration 2Ω × u
+deflects a particle to the right" describes −2Ω × u. Code: `frame_acceleration_terms` returns the (4.43) acceleration
+terms, `apparent_body_forces` / `coriolis_force` / `centrifugal_acceleration` the (4.45) forces (`coriolis_acceleration`
+= +2Ω × u′). In the NH (Ω_z > 0) the force deflects moving parcels to the right. `rotating_frame_coriolis` labels every
+bar with its signed form ("−2Ω×u′ Coriolis") and a side toggle "forces (−) / accelerations (+)" — pinned by exact-text
+selftest rows. The factor 2 is two separate Ω × u′ (turning basis + d(Ω × x′)/dt, D15).
+
+**⚠️ Rossby number Ro = U/(2Ωl) in ch04 (forward pointer).** `core.similarity.rossby_number(U, Omega, l, factor=2.0)`
+= advective U²/l over the Coriolis term 2ΩU of (4.45). Ch. 13 writes Ro = U/(fL) with f = 2Ω sin φ
+(`core.rotating.coriolis_parameter`), which equals U/(2ΩL) only at the pole — at 45° f = √2 Ω. Some texts use U/(ΩL);
+pass `factor=1` for that. 10 m/s over 1000 km: Ro = 0.0686 (ours).
+
+**⚠️ Tensor divergence contracts the FIRST index in Cauchy's equation (ch04 (4.20b)–(4.24)).** f_j = n_iτ_ij, so the
+net surface force per volume is ∂τ_ij/∂x_i: `stress_divergence(…)` / `tensor_divergence(T, h, index=0)` — ch02's
+default `index=1` is the other one. The book's prose after (4.24) and in §4.8 writes ∂τ_ij/∂x_j; harmless only because τ
+is symmetric (4.25), which is proved after (4.24). A non-symmetric test τ (τ₂₁ = x₁ at rest) discriminates.
+
+**⚠️ 2-D stream function sign (ch04 §4.3).** χ = −z ⇒ ρu = ∂ψ/∂y, ρv = −∂ψ/∂x (ρu = −e_z × ∇ψ); ψ increases to the
+left of the flow; flux between two streamlines = ψ₂ − ψ₁ per unit depth (ρ = 1: m²/s). Many GFD texts use u = −∂ψ/∂y,
+v = ∂ψ/∂x (ψ = geostrophic pressure/f): negate ψ when importing. Axisymmetric (Stokes) ψ: χ = −φ ⇒ ρu_R = −(1/R)∂ψ/∂z,
+ρu_z = (1/R)∂ψ/∂R; flux through a ring = 2πΔψ. Uniform stream: ψ = Uy (2-D), ψ = ½UR² (axisymmetric).
+
+**⚠️ Mean vs thermodynamic pressure; "deviatoric" σ (ch04 (4.27), (4.33)–(4.37)).** p = thermodynamic pressure (from
+the equation of state); p̄ = −⅓τ_ii = mean normal stress; p − p̄ = μ_v∇·u (4.34), μ_v = λ + ⅔μ (bulk viscosity). The
+Stokes assumption is **μ_v = 0, not λ = 0** (the λ = 0 variant fails 5 tests). σ_ij is called "deviatoric" but is
+traceless only if μ_v = 0 or ∇·u = 0 (tr σ = 3μ_v∇·u). For plane (2 × 2) stress, p̄ needs τ₃₃ = −p + (μ_v − ⅔μ)∇·u:
+`mean_pressure(tau, tau33=…)` raises without it (review Must-fix 2). Incompressible p is mechanical only, defined up to
+a constant.
+
+**⚠️ Two defaults for g (ch04).** `fluidpy.core.*` default to `G0` = 9.80665 m/s² (standard gravity, ch01); the ch04
+chapter module's functions default to `ch04.G` = 9.81 (the book's value). The notebook passes `g=9.81` explicitly
+when it calls a core function next to a ch04 one (lesson review Should-fix 3). `ch04.plane_poiseuille(y, G=…)` uses G
+for −dp/dx, **not** `ch04.G`. `effective_gravity` uses a toy uniform g_n = 9.80 (so |g_e| = 9.783 m/s² at 45°, not
+standard gravity). Air C_p: `core.bernoulli.CP_BOOK` = 1004.5 (book) vs ch01's derived `CP_AIR` = 1004.7.
+
+**⚠️ Book slips taught corrected (ch04, analysis §9).** (4.15) ends with a spurious "= 0" (it is an identity) ·
+(4.51) prints dA inside volume integrals (dV) · (4.74) gauge must be φ − ∫B dt′ (the printed + doubles B,
+`gauge_absorbed_bracket`) · after (4.63) "μ, κ, k > 0" means μ, μ_v, k ≥ 0 (κ is a 4th-edition leftover) · §4.10 curve
+C is ζ = x²/2R₁ **+** y²/2R₂ · Ex. 4.7 drops a minus in the separated ODE and writes "η = h/δ" for γ = h/δ · Ex. 4.2's
+"(½)ρU² + gz + p/ρ" is dimensionally inconsistent (4.19 is ½U² + gz + p/ρ) · Cauchy prose ∂τ_ij/∂x_j (first index is
+right) · "Section 3.6" for (3.14) is §3.4 · (4.100) ↔ (4.101) bracket reference; "(4.106), (4.107)" before (4.114) mean
+(4.109), (4.112) · Ex. 4.8 total rounded after rounding the wave drag (+1.1e-3 vs ours) · Fig. 4.9 "budge" · Earth bulge truncated
+(WGS-84 42.77 km) · (4.45) is derived from the incompressible constant-μ (4.39b) and needs U, Ω uniform in space ·
+(4.9) is displayed twice with different content (§4.2 Dρ/Dt = 0; §4.11 the general identity with c²).
+
 **⚠️ Grid layout: two orders (ch02, project-wide).** Arrays are indexed `[k, j, i]` = (z, y, x) in 3-D and `[j, i]` in
 2-D, with x on the **last** axis (`np.meshgrid(z, y, x, indexing="ij")`; 2-D `indexing="xy"`). Vector components sit on
 axis 0 (`u[c, k, j, i]`). But `Grid.h`, direction numbers d, `gradient` components and field components are ordered
@@ -313,6 +372,103 @@ grids drop the duplicate end node (h = L/n).
 | a(t), b(t), ȧ, ḃ ⚠️ | Leibniz limits and their speeds (3.30) | m, m/s | lower term subtracted | ch03 | `leibniz_terms(F, dFdt, a, b, dadt, dbdt, t)` |
 | Δt, ΔV, T1–T4 | time step of the definition (3.31); signed swept volume; the four terms of (3.32) (T4 = ∫_ΔV Δt ∂F/∂t = O(Δt²)) | s, m³ | | ch03 | `swept_terms`, `swept_terms_sphere` |
 | h ⚠️, r_o, ṙ, θ | Ex. 3.2 cone height, base radius, its growth rate, half-angle | m, m, m/s, rad | b·n = 0 on the base | ch03 | `example_3_2(h, r0, rdot)`, `GrowingCone` |
+| **Conservation laws: budgets (ch04 §4.1–4.4)** | | | | | |
+| V(t), A(t) | material volume and its surface (move with the fluid, b = u) | m³, m² | sealed-balloon picture | ch04 → | `material=True` in the budgets; `material_interval`, `material_mass` |
+| V*(t), A*(t), b | control volume, its surface, surface velocity (any motion) | m³, m², m/s | outward n; flux uses the **relative** velocity (u − b)·n, u and b in the same frame | ch04 → | `ControlVolume` shapes (ch03) passed to `mass_budget`, `momentum_budget`, `energy_budget` |
+| M ⚠️ | mass in the CV ∫ρ dV (`MassBudget.dM_dt` its rate) | kg | | ch04 | `MassBudget` |
+| M ⚠️ | rocket mass M(t) (Ex. 4.4) | kg | dM/dt = −ρ_eV_eA_e | ch04 | `rocket_trajectory(M0, mdot, Ve, …)` |
+| M ⚠️ | torque ∫r × f dA + … (4.64) | N m | about the CV origin | ch04 | `sprinkler_torque`, `angular_momentum_budget` |
+| M, Ma ⚠️ | Mach number U/c (4.111) | – | incompressible regime M < 0.3 (§4.2) | ch04 → (Ch. 15) | `mach_number`, `is_incompressible_regime` |
+| P | momentum in the CV ∫ρu dV | kg m/s | vector | ch04 | `MomentumBudget.dP_dt` |
+| H ⚠️ | angular momentum ∫r × ρu dV (4.64) | kg m²/s | | ch04 | `angular_momentum_budget` |
+| H ⚠️ | height of the wake CV (Ex. 4.1) | m | drag independent of H once H covers the wake | ch04 | `wake_drag_per_span(…, H=)` |
+| H_c | c²/g, the depth over which compressibility of a hydrostatic column matters | m | air 11.8 km; Boussinesq needs L ≪ c²/g | ch04 | `boussinesq_validity` |
+| ṁ, Q | mass flow rate; volume flow (jet sheets Q₁,₂ = Q(1 ± cos θ)/2) | kg/s; m³/s | | ch04 | `cv_scenario("jet")`, `orifice_mass_flow` |
+| U(y), U_∞ | wake profile, free stream (Ex. 4.1) | m/s | F_D/l = ρ∫U(U_∞ − U)dy (deficit weighted by U, not U_∞) | ch04 | `gaussian_wake`, `wake_drag_per_span` |
+| F_D, F_L | drag (force on the body, + downstream), lift | N (per span N/m) | force on the fluid is −F_D (Newton III) | ch04 → | `wake_drag_per_span`, `drag_coefficient`, `lift_coefficient` |
+| h_in, h_out ⚠️ | depths ahead of and behind a bore (Ex. 4.3) | m | U = √(g h_out(h_in + h_out)/(2h_in)) → √(gh) | ch04 | `bore_speed(h_in, h_out, g)` |
+| V_e, A_e, ρ_e, F_S | rocket exhaust speed (relative), exit area, exit density, support force | m/s, m², kg/m³, N | Tsiolkovsky Δb = V_e ln(M₀/M₁) | ch04 | `rocket_delta_v`, `rocket_closed_form` |
+| b(t) ⚠️ | rocket speed (Ex. 4.4) — the CV velocity of an accelerating CV | m/s | not ch02's eigenvector | ch04 | inside `rocket_*` |
+| θ ⚠️ | angle between jet and plate (E1) | rad | θ = π/2: normal plate, F = ρV²A | ch04 | `jet_plate_force(rho, V, A, theta)` |
+| a, α ⚠️, A | sprinkler arm length, nozzle angle, nozzle area (Ex. 4.6) | m, rad, m² | M = 2aρAU² cos α | ch04 | `sprinkler_torque(a, rho, A, U, alpha)` |
+| Φ ⚠️ | force potential per unit mass, g = −∇Φ (4.18); gravity Φ = gz (z up) | J/kg (m²/s²) | **not** the Ch. 1 unknown function φ, not (4.99)'s scaling function | ch04 → | `gravity_potential`, `body_force_from_potential` |
+| f ⚠️ | surface force (traction) per area, f_j = n_iτ_ij | Pa | on the fluid inside, outward n | ch04 → | `traction` (ch02), budgets' `traction=` |
+| **Streamfunctions (ch04 §4.3)** | | | | | |
+| ψ ⚠️ | 2-D stream function: ρu = ∂ψ/∂y, ρv = −∂ψ/∂x; flux between streamlines ψ₂ − ψ₁ | m²/s (ρ = 1) or kg/(m s) | see the sign trap above (GFD often uses the opposite sign) | ch03 (gloss) → ch04 → Ch. 6, 13 | `velocity_from_streamfunction_2d`, `flux_between_streamlines`, `streamfunction_preset` |
+| ψ ⚠️ | axisymmetric (Stokes) stream function: ρu_R = −(1/R)∂ψ/∂z, ρu_z = (1/R)∂ψ/∂R | m³/s (ρ = 1) | ring flux 2πΔψ | ch04 → Ch. 6, 8 | `velocity_from_streamfunction_axisym` |
+| χ, ψ | two stream functions (stream surfaces) of 3-D steady flow, ρu = ∇χ × ∇ψ (4.12) | – | 2-D: χ = −z; axisymmetric: χ = −φ | ch04 | `mass_flux_from_stream_functions`, `stream_surface_check`, `stream_tube_mass_flux` |
+| Ψ ⚠️ | vector potential of the mass flux, ρu = ∇ × Ψ (4.12) | kg/(m s) | **(4.99)/(4.106) also use Ψ for a scaling function** | ch04 | `mass_flux_from_vector_potential` |
+| **Stress and the Newtonian law (ch04 §4.5–4.6)** | | | | | |
+| τ_ij | total stress = −pδ_ij + σ_ij (4.27) | Pa | tensile positive; symmetric (4.25); traction contracts the first index | ch02 → | `newtonian_stress`, `total_stress`, `static_stress` |
+| σ_ij ⚠️ | viscous ("deviatoric") stress | Pa | traceless only if μ_v = 0 or ∇·u = 0; **σ also = surface tension (ch01, §4.10) and vortex core radius (ch03)** | ch04 → | `viscous_stress`, `newtonian_viscous_stress_field` |
+| K_ijmn | fourth-order coefficient tensor of the linear law σ_ij = K_ijmnS_mn (4.28) | Pa s | isotropic: λδ_ijδ_mn + μδ_imδ_jn + γδ_inδ_jm (4.29) | ch04 | `isotropic_fourth_order(lam, mu, gam)`, `linear_stress(K, S)` |
+| λ ⚠️ | second (Lamé-type) viscosity coefficient in (4.31) | Pa s | λ = μ_v − ⅔μ; **not** bulk viscosity; ch02/ch03 λ = eigenvalue | ch04 → | `lam` in `newtonian_stress`, `lam_from_bulk` |
+| γ ⚠️ | third coefficient of (4.29); only μ + γ acts on a symmetric S, "γ = μ" (4.30) names it | Pa s | **γ also: ratio of specific heats (ch01), shear rate (ch03), Ex. 4.7's ζ/δ** | ch04 | `gam` in `isotropic_fourth_order` |
+| μ_v | bulk viscosity λ + ⅔μ | Pa s | Stokes assumption μ_v = 0 (4.36); ≥ 0 by the second law | ch04 → Ch. 15 | `mu_v`, `bulk_viscosity`, `stokes_assumption_holds` |
+| p̄ | mean (mechanical) pressure −⅓τ_ii (4.33) | Pa | p − p̄ = μ_v∇·u (4.34); plane stress needs τ₃₃ | ch04 → | `mean_pressure(tau, tau33=)`, `thermodynamic_pressure_from_stress`, `pressure_difference` |
+| S_mm | trace of S = ∇·u (volumetric strain rate, (3.14) in §3.4) | 1/s | book cites "Section 3.6" | ch04 | inside `newtonian_stress`, `deviatoric_part` |
+| dev S | S − ⅓S_mmδ, the shape-changing part | 1/s | | ch04 → | `deviatoric_part` |
+| G ⚠️ | velocity gradient ∂u_i/∂x_j (input of the stress functions) | 1/s | **`plane_poiseuille(G=)` is −dp/dx [Pa/m]; `ch04.G` is g** | ch02 → | `newtonian_stress(G, p, mu, …)`, `stress_on_plane(G, …)` |
+| α ⚠️ (cube) | spin-up rate of a cube with τ₁₂ ≠ τ₂₁: 6(τ₁₂ − τ₂₁)/(ρh²) | rad/s² | diverges as h → 0 unless τ symmetric | ch04 | `cube_spin_acceleration(tau12, tau21, rho, h)` |
+| h ⚠️ | cube side (D08); stencil step; channel half-gap/gap in exact solutions | m | | ch04 | `h` |
+| **Navier–Stokes and exact solutions (ch04 §4.6)** | | | | | |
+| ω, ∇×ω | vorticity and its curl; viscous force −μ∇×ω when ∇·u = 0 (4.40) | 1/s, 1/(m s) | solid body: ω ≠ 0 but ∇×ω = 0 (no viscous force) | ch03 → | `viscous_force_forms` (laplacian / div2S / curl) |
+| exact solutions | Couette(–Poiseuille), plane and pipe Poiseuille, Stokes' first problem, Taylor–Green, Lamb–Oseen, ideal cylinder, solid body with gravity | – | residual of (4.39b) < 1e-6 of the largest term | ch04 → Ch. 8 | `exact_solution(name, x, t, **p)`, `EXACT_SOLUTIONS`, `ns_terms_preset` |
+| η ⚠️ (Stokes) | similarity variable y/(2√(νt)) of u = U erfc η | – | **η also = surface function (4.90)** | ch04 | `stokes_first_problem(y, t, U, nu)` |
+| **Noninertial frames (ch04 §4.7)** | | | | | |
+| Ω, Ω̇ ⚠️ | angular velocity of the frame and its rate | rad/s, rad/s² | Earth 7.292115e-5 rad/s (WGS-84); NH Ω_z > 0; **§4.11 Ω = imposed frequency** | ch03 → | `Omega`, `dOmega_dt` in `core.rotating`; `OMEGA_EARTH` |
+| U(t), dU/dt ⚠️ | origin velocity and acceleration of the noninertial frame | m/s, m/s² | a vector; a scalar non-zero dU/dt raises | ch04 | `dU_dt` in `frame_acceleration_terms`, `apparent_body_forces` |
+| x′, u′, a′ ⚠️ | position, velocity, acceleration in the rotating frame (components on the turning basis e′_i) | m, m/s, m/s² | see the prime trap | ch04 | `x_prime`, `u_prime`, `a_prime`; `rotating_basis`, `inertial_velocity` |
+| e′_i | turning basis vectors, de′_i/dt = Ω × e′_i | – | | ch04 | `rotating_basis`, `basis_rate(_exact)` |
+| g_n, Φ_n | gravitation alone (without the centrifugal part) and its potential | m/s², J/kg | g = g_n − Ω × (Ω × x) (effective gravity) | ch04 → Ch. 13 | `effective_gravity(lat, g_n=9.8)` |
+| R ⚠️ | distance from the rotation axis (cylindrical radius) | m | centrifugal Ω²R e_R, potential −½Ω²R²; **R also: principal radii R₁, R₂ (§4.10), gas constant** | ch03 → | `centrifugal_acceleration`, `centrifugal_potential` |
+| f ⚠️ | Coriolis parameter 2Ω sin φ (named only) | 1/s | NH > 0; **f also traction, Helmholtz free energy** | ch04 → Ch. 13 | `coriolis_parameter(lat_rad)` |
+| φ ⚠️ | latitude (in f, g_e) | rad | `_deg` only at interfaces; **φ also velocity potential (4.73), azimuth** | ch04 → | `lat_rad` |
+| ζ ⚠️ | relative vorticity (glossed in D14 "what it means"; ζ + f absolute) | 1/s | **ζ also: parcel displacement (ch01), cap height and meniscus height (§4.10)** | ch04 (gloss) → Ch. 13 | — |
+| Ro | Rossby number U/(2Ωl) (forward pointer) | – | see the Ro trap above | ch04 → Ch. 13 | `rossby_number(U, Omega, l, factor=2.0)` |
+| **Energy (ch04 §4.8)** | | | | | |
+| E | total energy per mass e + ½u_j² | J/kg | (4.53) | ch04 | `energy_budget`, `total_energy_residual_sym` |
+| **q** | heat-flux vector −k∇T (4.60) | W/m² | outward q·n is a loss | ch01 → | `energy_budget(q=)` |
+| ε ⚠️ | viscous dissipation rate per mass (1/ρ)σ_ijS_ij = 2ν(dev S)² + (μ_v/ρ)S_mm² ≥ 0 (4.58) | W/kg | ρε per volume [W/m³]; **ε also = alternating tensor ε_ijk (4.40), ch01 relative amplitude and roughness** | ch04 → Ch. 12, 13 | `dissipation_rate(G, rho, mu, mu_v, form)` |
+| s, Ds/Dt | entropy per mass and its rate; production k\|∇T\|²/(ρT²) + ε/T ≥ 0 (4.63) | J/(kg K), W/(kg K) | requires μ, μ_v, k ≥ 0 | ch01 → | `entropy_terms`, `entropy_production` |
+| ΔT_max | peak viscous heating of Couette flow μU²/(8k) | K | 1 m/s, 1 mm, water: 2.08e-4 K | ch04 | `couette_heating`, `couette_heating_transient` |
+| κ ⚠️ | thermal diffusivity k/(ρC_p) (4.89) | m²/s | the book's "κ" after (4.63) means μ_v | ch01 → | `kappa` |
+| **Bernoulli (ch04 §4.4, §4.9)** | | | | | |
+| B ⚠️ | Bernoulli function ½\|u\|² + ∫dp/ρ + Φ (4.69) | J/kg (m²/s²) | constant on streamlines and vortex lines (4.71); everywhere if ω = 0 (4.72); **not the ch03 line-vortex strength B** | ch04 → | `bernoulli_function`, `bernoulli_head`, `bernoulli_along_line`, `rankine_bernoulli` |
+| B(t) | the time-only function in unsteady potential flow (4.74) | J/kg | absorbed by φ_new = φ − ∫B dt′ | ch04 | `unsteady_bernoulli_B`, `gauge_absorbed_bracket` |
+| ∫dp/ρ | pressure function of a barotropic fluid (4.67) | J/kg | kinds: constant, isothermal, isentropic (= C_p(T − T_o)) | ch04 | `pressure_function(p, p_o, kind)` |
+| u × ω | Lamb vector; (u·∇)u = −u × ω + ∇(½u²) (4.68) | m/s² | solid body: +2Ω²(x, y, 0); ω × u is the sign slip | ch04 → Ch. 5 | `lamb_vector`, `lamb_identity_terms/sym` |
+| φ ⚠️ | velocity potential u = ∇φ (4.73) | m²/s | irrotational, simply connected | ch03 → | `unsteady_bernoulli_pressure`, `accelerating_sphere_fields` |
+| h ⚠️ | enthalpy per mass in the energy Bernoulli h + ½\|u\|² + gz (4.78); stagnation T₀ = T + U²/2C_p | J/kg | **h also: depth, heads, meniscus height** | ch01 → | `stagnation_enthalpy`, `stagnation_temperature` |
+| p₀, ½ρU² | stagnation and dynamic pressure; pitot speed √(2(p₀ − p)/ρ) | Pa | | ch04 → Ch. 14, 15 | `stagnation_pressure`, `dynamic_pressure`, `pitot_speed(_from_heads)` |
+| C_c | contraction coefficient of a sharp orifice | – | 0.611 (V5) | ch04 | `orifice_mass_flow(…, Cc)`, `tank_drain` |
+| L, h₀ (U-tube) | column length, initial offset | m | L dU/dt + 2gh = 0 | ch04 | `u_tube_column(t, L, h0, g)` |
+| **Boussinesq (ch04 §4.9)** | | | | | |
+| p_s(z), ρ_s(z) | hydrostatic base state | Pa, kg/m³ | dp_s/dz = −ρ_sg | ch04 → Ch. 7, 13 | `perturbation_fields(p, rho, z, rho_s)` |
+| p′, ρ′ ⚠️ | perturbations p − p_s, ρ − ρ_s | Pa, kg/m³ | primes = perturbations here | ch04 → | `p_pert`, `rho_pert` |
+| ρ₀ | constant reference density | kg/m³ | replaces ρ everywhere except next to g | ch04 → | `rho0` |
+| b ⚠️ | buoyancy −gρ′/ρ₀ | m/s² | upward positive; **b also CV velocity, rocket speed, eigenvector** | ch04 → Ch. 7, 13 | `buoyancy(rho_pert, rho0, g)` |
+| g′ | reduced gravity gΔρ/ρ₀ | m/s² | | ch04 → | `reduced_gravity` |
+| α ⚠️, δT | thermal expansion coefficient, temperature contrast | 1/K, K | validity αδT ≪ 1 (threshold 0.1) | ch01 → | `boussinesq_validity(alpha, dT, L, U, c, …)`, `boussinesq_density` |
+| **Boundary conditions and surface tension (ch04 §4.10)** | | | | | |
+| η(x, t) ⚠️ | surface function, surface = {η = 0} (4.90) | m (or –) | n = ∇η/\|∇η\| toward increasing η; **not the Stokes similarity variable** | ch04 → Ch. 7 | `kinematic_bc_residual(eta, u, x, t)`, `surface_preset` |
+| u_s, (u − u_s)·n | surface velocity; relative normal velocity | m/s | only the normal part of u_s is defined; = 0 ⇔ no flux | ch04 → | `surface_normal_speed`, `relative_normal_velocity`, `interface_mass_flux` |
+| l (pillbox) | pillbox thickness → 0 | m | side and volume terms vanish ∝ l | ch04 | `pillbox_limit` |
+| R₁, R₂ | principal radii of curvature | m | higher pressure on the concave side; Δp = σ(1/R₁ + 1/R₂) (1.5) re-derived | ch01 → | `laplace_jump_from_balance`, `cap_pressure_force`, `cap_surface_tension_force` |
+| ζ ⚠️ | height of the small cap (§4.10) / meniscus height above the free level (Ex. 4.7) | m | cap z = x²/2R₁ + y²/2R₂ (book prints −) | ch04 | `cap_*(…, zeta)`, `meniscus_profile_x(zeta, theta)` |
+| ℓ_c, δ ⚠️ | capillary length √(σ/(Δρg)) (water 2.7 mm) = Ex. 4.7's δ; a fully wetting wall (θ = 0) lifts the meniscus √2 δ | m | Bo = (l/ℓ_c)²; Ex. 4.7 γ = ζ/δ | ch04 → | `capillary_length(sigma, rho, g, rho_other)` |
+| θ ⚠️ | contact angle at the wall (Ex. 4.7) | rad | h² = 2σ(1 − sin θ)/(ρg) | ch04 | `meniscus_height(theta, …)` |
+| f, F ⚠️ | Helmholtz free energy per mass e − Ts; of a system (4.94)–(4.96) | J/kg, J | **f also traction**; (∂f/∂v)_T = −p | ch04 → Ch. 15 | `core.thermo.helmholtz_free_energy` |
+| **Dimensionless groups (ch04 §4.11)** | | | | | |
+| l, U, Ω (scales) ⚠️ | reference length, speed, imposed frequency | m, m/s, 1/s | t* = Ωt (4.100) or Ut/l (4.109); **Ω here is not the frame rotation** | ch04 → | `Scales(l, U, rho, mu, g, Omega, …)` |
+| u*, p*, t*, ∇* | scaled variables | – | p* = (p − p_∞)/ρU² (dynamic scaling) | ch04 → | `Scales.nondimensionalise/redimensionalise` |
+| St, Re, Fr | Ωl/U, ρUl/μ, U/√(gl) | – | Fr is a square root of a force ratio | ch04 → | `strouhal_number`, `reynolds_number`, `froude_number` |
+| Fr′, Ri, Ri_g | internal Froude U/√(g′l) (= U/(Nl)), Richardson g′l/U² = 1/Fr′², gradient Ri N²/(dU/dz)² | – | N² computed in Kundu Γ ≡ dT/dz (ch01); met convention shown alongside | ch04 → Ch. 11, 13 | `internal_froude_number`, `richardson_number`, `gradient_richardson_number` |
+| C_p ⚠️ | pressure coefficient (p − p_∞)/(½ρU²) (4.106) | – | **C_p also = specific heat at constant pressure** | ch04 → Ch. 6, 14 | `pressure_coefficient` |
+| C_D, C_L | drag and lift coefficients F/(½ρU²A) (4.107)–(4.108) | – | A = frontal, plan or wetted area (say which) | ch04 → | `drag_coefficient`, `lift_coefficient`, `reference_area`, `sphere_drag_coefficient` (Morrison) |
+| Ec, Pr | Eckert U²/(C_pδT), Prandtl ν/κ = μC_p/k | – | air 0.71, water ≈ 7 at 20 °C; monatomic 2/3 | ch04 → | `eckert_number`, `prandtl_number`, `eucken_prandtl`, `prandtl_of` |
+| We, Bo, Ca | ρU²l/σ, ρgl²/σ, μU/σ (force ratios, not per volume) | – | Ca = We/Re | ch04 → | `weber_number`, `bond_number`, `capillary_number` |
+| λ ⚠️ (model scale) | l_m/l_p (Ex. 4.8 uses 1/25) | – | Froude matching U_m = U_p√λ; wave drag × λ⁻³; Re ratio λ^{3/2} | ch04 | `froude_scaled_speed`, `model_prototype`, `ship_drag_extrapolation` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -320,3 +476,4 @@ grids drop the duplicate end node (h = L/n).
 | ch01 | z up (§1.7, §1.10); Couette y from fixed wall (0) to moving plate (h) | p0 at z = 0; θ reference p_ref = 1000 hPa; parcel rest height z_o | pressure absolute and isotropic, acts along the inward normal; τ_xy = +μ ∂u/∂y signed; lapse rate Kundu dT/dz; first law q in / w on | none fixed (Π groups carry their own; E2 uses the clock h²/ν) | dimensional SI throughout; only Π groups are dimensionless |
 | ch02 | right-handed x₁x₂x₃ (no preferred "up"); rotated frame shares the origin; angles counterclockwise about e₃; grid arrays `[k, j, i]` = (z, y, x), components and `h` in (x, y, z) | origin of both frames; boxes/loops centred at x0 | τ_ij tensile positive, +e_i face → +e_j; traction f = n·τ (first index); ∇·τ on the second index; pressure τ = −pδ; passive C (x' = Cᵀx); book A:B = A_ij B_ji; R = G − Gᵀ ↔ ω = ∇×u, A = ½R ↔ ½∇×u; Stokes n_c into A, t counterclockwise about n; outward n on closed surfaces | none (pure mathematics) | dimensional where physical (Pa, 1/s, m); most results unit-agnostic |
 | ch03 | right-handed Cartesian (no preferred "up"); plane polar (r, θ from +x), cylindrical (R, φ, z), spherical (r, θ from +z, φ); angles and rotation counterclockwise positive (shear spins clockwise: ω₃ = −γ); field callables `u(x, t)` with coordinates on axis 0; Galilean frame O′ at constant U (x = x′ + Ut + x′_o, u′ = u − U); rotating frame u = Ω × x + u′ at the coinciding instant | cylinder centre at the origin at t = 0 for every observer (E3); Ex. 3.1 port at the origin; vortices centred at the origin; RTT shapes with explicit reference geometry (E7 interval [1, 3] + ȧt, ḃt; ellipse a = 2 + ȧt, b = 1 + ḃt) | R = G − Gᵀ (no ½), ω = ∇×u, spin ½ω; γ = 2S₁₂; RTT outward n, signed b·n; Leibniz lower term subtracted | none (E6 draws in r/σ; its real-vortex modes use metres) | dimensional SI throughout |
+| ch04 | right-handed Cartesian, **z up**, g = −g e_z, Φ = gz (4.18); cylindrical (R, φ, z) for rotating flows and Ex. 4.5; noninertial frame O′ translating at U(t) and rotating at Ω(t) with basis e′_i; NH Ω_z > 0; latitude φ | CVs with explicit geometry (E1 boxes around the wake, bore, jet, rocket, balloon); hydrostatic base state p_s(z), ρ_s(z) for Boussinesq; free surface η = 0 | τ = −pδ + σ, tensile positive; traction f_j = n_iτ_ij and Cauchy's divergence on the **first** index; outward n, signed (u − b)·n; drag on the body +x, on the fluid −F_D; acceleration terms +2Ω × u′, +Ω × (Ω × x′) (4.43) vs forces −2Ω × u′, −Ω × (Ω × x′) (4.45); Stokes assumption μ_v = 0; 2-D ψ: u = ∂ψ/∂y; primes: rotating frame (§4.7), perturbation (§4.9), dummy (4.67) | `core.similarity.Scales` holds one set per use with its time scale (1/Ω (4.100) or l/U (4.109)) and pressure scale (ρU², μU/l or ρgl); Ro = U/(2Ωl) forward pointer | dimensional SI in functions; non-dimensional via `Scales` and the `nondimensional_*` coefficient routines; g default 9.81 in `ch04`, 9.80665 in `core` |

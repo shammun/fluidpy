@@ -3,8 +3,8 @@
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
-chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110); a new chapter starts at the next free number (ch04: P111).
-Total so far: 110.
+chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133); a new chapter starts at the next free number
+(ch05: P134). Total so far: 133.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -138,6 +138,32 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | angular velocity of a line (P102) | ch03 · §3.4 · C10 | a segment at angle θ from +x turns at θ̇; counterclockwise positive; for a flow, θ̇ = e_θ·G·e(θ) |
 | rotating frame of reference (P103) | ch03 · §3.4 · C10 | an observer on a turntable (the Earth) at Ω sees u′ = u − Ω × x at the instant the frames coincide; vorticity drops by 2Ω (first look; Ch. 4 §4.7 develops it) |
 | signed swept volume of a moving surface (P110) | ch03 · §3.6 · C15 | in Δt a patch dA moving at b sweeps a prism of volume (b·n Δt) dA, positive when advancing along the outward n, negative when retreating, zero when sliding |
+| **ch04 — Python and numerics** | | |
+| dataclasses and named results (P111) | ch04 · §4.2 · C01 | `@dataclass(frozen=True)` holds named fields; every fluidpy budget returns one (`MassBudget`, `MomentumBudget`, `EnergyBudget`, `Scales`), so you write `budget.residual`, not "the fourth number" |
+| sympy expand, series, removeO, collect and subs (P117) | ch04 · §4.4 · C05 | the approximation toolkit: multiply out, keep powers of ds up to ds¹ (`series(…, ds, 0, 2).removeO()`), group by powers, substitute; how D06 drops the (ds)² terms of the stream-tube element |
+| complementary error function erfc (P123) | ch04 · §4.6 · C08 | erfc η = 1 − erf η falls from 1 at η = 0 to 0 (0.48 at 0.5, 0.16 at 1, 0.005 at 2): the shape of anything diffusing in from a suddenly changed wall (Stokes' first problem u = U erfc(y/2√(νt))) |
+| **ch04 — maths** | | |
+| continuity of a function and the small-ball argument (P112) | ch04 · §4.2 · C02 | continuous f with f(x₀) ≠ 0 keeps its sign in a small ball round x₀, so its integral over that ball is not 0; this is the localisation lemma "∫_V f dV = 0 for every V ⇒ f ≡ 0" |
+| product rule for a divergence (P113) | ch04 · §4.2 · C02 | ∇·(ρu) = u·∇ρ + ρ∇·u (index form ∂(ρu_i)/∂x_i = u_i∂ρ/∂x_i + ρ∂u_i/∂x_i); drives D03, D07, D20 (was a ch03 gloss in D24) |
+| tensor divergence over the first index (P118) | ch04 · §4.4 · C06 | the net surface force per volume is ∂τ_ij/∂x_i because the traction is f_j = n_iτ_ij; differs from ∂τ_ij/∂x_j for a non-symmetric τ (`tensor_divergence(index=0)`, ch02's default is the second index) |
+| isotropic fourth-order tensor (P119) | ch04 · §4.5 · C07 | the only fourth-order tensors unchanged by every rotation are λδ_ijδ_mn + μδ_imδ_jn + γδ_inδ_jm (cited, not proved; checked with 50 random rotations) |
+| deviatoric (traceless) part of a tensor (P120) | ch04 · §4.5 · C07 | A = ⅓A_mmδ + (A − ⅓A_mmδ): the average-diagonal (isotropic) part plus a traceless remainder; for S, volume change vs shape change |
+| Schwarz's theorem (P121) | ch04 · §4.6 · C08 | mixed partials commute for smooth functions: ∂_i∂_j = ∂_j∂_i; lets ∂/∂x_i(∂u_i/∂x_j) become ∂/∂x_j(∇·u) (D12) and ∂_t swap with ∇ (D26) |
+| curl of a curl identity (P122) | ch04 · §4.6 · C08 | ∇×(∇×u) = ∇(∇·u) − ∇²u, from ε–δ (2.19); with ∇·u = 0 the viscous force μ∇²u = −μ∇×ω |
+| derivative of a rotating unit vector (P124) | ch04 · §4.7 · C09 | a unit vector fixed to a frame turning at Ω changes only direction: de′/dt = Ω × e′ (tip on a circle round the axis); the whole difference from a Galilean frame |
+| product rule for a cross product (P125) | ch04 · §4.7 · C09 | d(a × b)/dt = ȧ × b + a × ḃ, keeping the order of the factors; gives the second Ω × u′ in D15 |
+| chain rule for the kinetic energy (P128) | ch04 · §4.8 · C10 | D(½u_j²)/Dt = u_j Du_j/Dt: the kinetic-energy rate per mass is velocity · acceleration (D21) |
+| completing the square for tensors (P129) | ch04 · §4.8 · C10 | A_ijA_ij = Σ A_ij² ≥ 0, zero only if every component is; rewrite σ:S as 2μ(dev S):(dev S) + μ_v S_mm² to show ε ≥ 0 (D23; needs δ_ijδ_ij = 3) |
+| order-of-magnitude scaling (P130) | ch04 · §4.9 · C13 | replace each quantity by its typical size: ∂u/∂x ~ U/L, ∂²u/∂x² ~ U/L², ∂T/∂x ~ δT/L; ratios of terms decide what can be dropped (Boussinesq, similarity) |
+| moving level set and its normal speed (P132) | ch04 · §4.10 · C14 | a surface η(x, t) = 0 has normal n = ∇η/\|∇η\| (toward increasing η) and moves along n at −(∂η/∂t)/\|∇η\|; a point riding on it keeps Dη/Dt = 0 (extends ch02 P75) |
+| scaled variables and the chain rule (P133) | ch04 · §4.11 · C15 | t* = Ωt ⇒ ∂/∂t = Ω∂/∂t*; x* = x/l ⇒ ∂/∂x = (1/l)∂/∂x*, ∂²/∂x² = (1/l²)∂²/∂x*²: each term of an equation brings out its scale factor (D30) |
+| **ch04 — physics vocabulary** | | |
+| momentum flux through a surface (P114) | ch04 · §4.4 · C04 | fluid crossing a patch carries its momentum: mass rate ρ(u − b)·n dA times velocity u — a vector per area per time; outward positive (D05, every CV force) |
+| conservative force and its potential (P115) | ch04 · §4.4 · C04 | work independent of route ⇔ g = −∇Φ ⇔ zero work round any loop; gravity Φ = gz with z up (4.18); reused for the centrifugal potential (D18) and the Bernoulli function (D24) |
+| torque, moment arm and moment of inertia (P116) | ch04 · §4.4 · C04 (used in C07 D08) | torque M = r × F; angular analogue of mass; a cube of side h has I = ρh⁵/6 about an axis through its centre — why unequal τ₁₂, τ₂₁ spin it up as 1/h² |
+| latitude, Earth's rotation rate and the local vertical (P126) | ch04 · §4.7 · C09 | Ω = 2π/86 164 s = 7.292×10⁻⁵ rad/s; at latitude φ its local vertical part is Ω sin φ, so f = 2Ω sin φ (named here, taught in Ch. 13); NH Ω_z > 0 deflects right |
+| power of a force and heat flux through a surface (P127) | ch04 · §4.8 · C10 | a force does work at F·u; per area the stress does f·u, per volume gravity ρg·u; heat leaves through dA at q·n dA (outward positive, so the budget has −∮q·n) |
+| reduced gravity and buoyancy (P131) | ch04 · §4.9 · C13 | a parcel lighter by Δρ feels g′ = gΔρ/ρ₀ upward; the field version is b = −gρ′/ρ₀; 2 K of warm water (α = 2×10⁻⁴) gives g′ ≈ 0.004 m/s² |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -171,3 +197,23 @@ circle (C05/C06, taught in Ch. 4), eigen/principal frame forward gloss (C07, D18
 (D26 step 7), Green's theorem as planar Stokes (D26), delta function "an infinitely concentrated source whose total
 is finite" (D21), `try/except ValueError` (C13), climate hooks (Coriolis 2Ω × u, geostrophy, planetary vorticity)
 in the front matter.
+
+Reminders written in ch04 instead of new primers (point here; each "Tools from earlier chapters" 🔁 cell names the
+chapter): P09 Newton II, P15 `assert np.allclose`, P16 animate, P17 slider_figure, P18 show_viz, P25 partial derivative,
+P26/P98 Taylor, P27 definite integral, P28 net pressure force, P29 lambda, P31/P94 `solve_ivp`, P32 internal and kinetic
+energy, P33 perfect gas, P37 trapezoid, P38 product rule, P40 sympy, P41/P64 plotly 3-D, P46 `np.where`, P49/P91 chain
+rule, P50 Gibbs free energy (for Helmholtz f), P59 scaling of base units, P62 `np.einsum`, P68 orders of smallness,
+P74 right-hand rule, P75 level sets, P76 `meshgrid`, P77 broadcasting, P78 contour/quiver/streamplot, P80 eigenvalues,
+P84 FTC (variable upper limit for the pressure function), P85 mean-value theorem, P86 line integral round a loop, P87
+`quad`/`dblquad`, P88 cylindrical unit vectors, P96 frames, P101 rigid-body velocity, P103 rotating frame (one instant;
+ch04 P124 makes it time-dependent), P108 `brentq`, P110 signed swept volume.
+
+Glosses in ch04 (one sentence where used, no demo): curl of a product ∇×(χ∇ψ) = ∇χ × ∇ψ + χ∇×∇ψ and ∇·∇× = 0,
+∇×∇ = 0 (C03, D04), Newton's third law inside the drag-sign ⚠️ (N28), the side pressure force on a slowly widening tube
+(D06), two-δ substitutions δ_imδ_jnS_mn = S_ij with `np.einsum` (D09, D10, D11), the Cartesian vector Laplacian
+component by component (D12, D16), constant-acceleration kinematics s = ½at² (D17), the quotient rule
+D(1/ρ)/Dt = −(1/ρ²)Dρ/Dt (D22), a·(a × b) = 0 (D25), "zero gradient everywhere ⇒ a function of t only" (D25, D26),
+the barotropic pressure function ∫dp/ρ(p) (N87, D24), `np.cross` broadcasting over arrays of vectors (C09, C11),
+`scipy.integrate.tplquad` (N07). Python idioms first met in ch04 and explained by their line comment only:
+`sp.lambdify`, `np.ma.masked_where`, `contourpy`, plotly `make_subplots`, `sp.KroneckerDelta`, `sp.solve`/`.coeff`,
+`np.outer` (the lesson reviewer accepted this; a ch03-style idiom gloss would be better).

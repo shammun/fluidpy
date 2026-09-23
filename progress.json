@@ -120,8 +120,8 @@
       "review": "pass",
       "viz": "pass",
       "notebook": "pass",
-      "knowledge": "running",
-      "publish": "running",
+      "knowledge": "done",
+      "publish": "pass",
       "explainers": [
         "control_volume_budgets",
         "stream_function_spacing",
@@ -133,7 +133,7 @@
         "boussinesq_buoyancy",
         "dynamic_similarity_models"
       ],
-      "notes": "analyze: 185 rows, 124 eq labels once each, CODE/DEMO/SKIP 126/14/45, 60 derivations (4 hard), 17 candidate A ideas; curate: A 15 / B 151 / C 19 / RECAP 12 / SKIP 2 of 185; 30 D rows (2 hard), 27 demoted; 9 explainers + backup; design: 15 CORE blocks, 9+1 explainer storyboards, Part C ~205 names, Part E 288 rows, Part F 30 D / 235 steps; implement: 9 new core modules + ch04 module (215 callables), 8 scripts exit 0, Ro = U/(2Ωl); verify PASS loop 2: 147 tests (V1 79, V2 41, V3 9, V4 6, V5 6, V6 3, V7 3), orders ~2.00, 22 wrong variants caught; F1 couette transient fixed (closed-form b_n); O5 Prandtl book vs table note; review: 2 must-fix fixed (oblique jet split Q(1±cosθ)/2, 2x2 mean pressure needs tau33) + 7 should-fix, 151 ch04 tests / 478 total; u_tube scenario made inviscid; viz PASS round 2 (9/9, 2744 views, 255 selftest rows; E5 signed term labels, E7 D22 TeX); notebook PASS round 2 (611 cells, coverage 0 errors, embed OK); open viz should-fix: long walkthrough cards at 360x640 in E1/E2/E4/E6/E8/E9, E6 meta eq ref, E5 centrifugal row literal",
+      "notes": "analyze: 185 rows, 124 eq labels once each, CODE/DEMO/SKIP 126/14/45, 60 derivations (4 hard), 17 candidate A ideas; curate: A 15 / B 151 / C 19 / RECAP 12 / SKIP 2 of 185; 30 D rows (2 hard), 27 demoted; 9 explainers + backup; design: 15 CORE blocks, 9+1 explainer storyboards, Part C ~205 names, Part E 288 rows, Part F 30 D / 235 steps; implement: 9 new core modules + ch04 module (215 callables), 8 scripts exit 0, Ro = U/(2Ωl); verify PASS loop 2: 147 tests (V1 79, V2 41, V3 9, V4 6, V5 6, V6 3, V7 3), orders ~2.00, 22 wrong variants caught; F1 couette transient fixed (closed-form b_n); O5 Prandtl book vs table note; review: 2 must-fix fixed (oblique jet split Q(1±cosθ)/2, 2x2 mean pressure needs tau33) + 7 should-fix, 151 ch04 tests / 478 total; u_tube scenario made inviscid; viz PASS round 2 (9/9, 2744 views, 255 selftest rows; E5 signed term labels, E7 D22 TeX); notebook PASS round 2 (611 cells, coverage 0 errors, embed OK); open viz should-fix: long walkthrough cards at 360x640 in E1/E2/E4/E6/E8/E9, E6 meta eq ref, E5 centrifugal row literal; knowledge: ch04.md + CUMULATIVE rewrite (320 lines); concept_map +15 A, +28 B/C, +30 D rows, +21 derivation moves; notation (4 primes, Coriolis term vs force, Ro, first-index Cauchy, psi sign, mu_v vs lambda, two g); primers P111-P133 (133 total); viz_patterns: ch04 patterns/failures, 18 JS promotion candidates (formatters 26/26, drawBars 9, per-mode controls 7), quirks Q1-Q8; no promotion (publisher reading viz/); knowledge done (ch04.md 9 sections, CUMULATIVE, concept_map, notation, 23 primers, viz_patterns + promotion candidates: erfHP/erfcHi, tipLabel, vec3, logAxes, per-mode transport/controls); publish: page 7.48 MB, notebook 89 s, 9 explainers, shot --page PASS, check_public OK",
       "updated": "2026-09-23"
     },
     "ch05": {
