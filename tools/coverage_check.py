@@ -16,7 +16,8 @@ Checks (exit 1 on any error):
   7. no code cell is left uncommented: code cells with ≥ 4 non-blank lines need a comment on at least half of them
      (warning — the lesson-reviewer judges quality; this catches the obvious case);
   8. equations are shown, not just cited: a markdown cell that names a book equation number — ``(3.5)``, ``Eq. 3.5`` —
-     must also contain the equation in LaTeX (``$…$``/``$$…$$``) (error). The reviewer checks it is the RIGHT equation.
+     must also contain the equation in LaTeX (``$…$``/``$$…$$``) (error). The reviewer checks it is the RIGHT equation;
+  9. no cell contains a control character (\\f, \\b, \\v, \\a) — the sign of a LaTeX backslash eaten by a non-raw string (error).
 
 Usage::
 
@@ -175,6 +176,12 @@ def check(chapter: str, nb_path: Path | None = None, executed: bool = False) -> 
         nums = sorted(set(EQ_REF.findall(c.source)))
         if nums and "$" not in c.source and "\\begin{" not in c.source:
             errors.append(f"cell {i}: cites Eq. {', '.join(nums)} by number only — show the equation next to its number")
+
+    # 9 no control characters: a non-raw builder string turns \frac, \beta, \vec, \nabla… into \f, \b, \v, \n…
+    for i, c in enumerate(nb.cells):
+        bad = sorted({repr(ch) for ch in c.source if ch in "\x07\x08\x0b\x0c"})
+        if bad:
+            errors.append(f"cell {i}: control character(s) {', '.join(bad)} — a LaTeX backslash was eaten; use a raw string r\"…\"")
     return errors, warns
 
 
