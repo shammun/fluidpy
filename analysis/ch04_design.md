@@ -287,7 +287,7 @@ signs, the preset-name alternative to callables everywhere a parity row needs on
 `interval_mass_budget(1.0, 2.0, 0.0)` (expanding, a = 1, ρ₀ = 1) → storage −1.0, flux_left +1.0, flux_right +2.0,
 net_outflux +1.0, residual 0 · with `dx0dt=1.0, dx1dt=2.0` (material ends) → all fluxes 0, storage 0 ·
 `material_mass(1.0, 2.0, 1.0)` = 1.0 kg/m² · `wake_drag_per_span("gaussian", 10.0, 1.2, 2.0)` = 3.6523 N/m (H = 2 m ≫ b)
-and `wake_side_outflow` = 0.35449 m²/s · `bore_speed(1.0, 1.1)` = 3.3660 m/s · `sprinkler_torque(0.2, 1000.0, 1e-4,
+and `wake_side_outflow` = 0.35449 m²/s · `bore_speed(1.0, 1.1)` = 3.3661 m/s · `sprinkler_torque(0.2, 1000.0, 1e-4,
 5.0, np.pi/6)` = 0.8660 N m · `pitot_speed(500.0, 0.0, 1.2)` = 28.868 m/s · `torricelli_speed(1.0)` = 4.4294 m/s ·
 `newtonian_stress(G_shear(10), mu=1e-3)[0, 1]` = 0.010 Pa · `stress_on_plane(G, 0, 1e-3, 0, np.pi/4)` for the shear
 G = [[0, 10, 0], [0, 0, 0], [0, 0, 0]] → (0.010, 0.0) Pa · `cube_spin_acceleration(1.0, 0.0, 1000.0, 0.01)` = 60.0
@@ -299,7 +299,7 @@ mu=1e-3, k=0.6)["dT_max"]` = 2.0833e-4 K and `heat_out` = 1.0 W/m² · `rankine_
 `(2.0, …)["B"]` = 0.0 m²/s² · `which_bernoulli(True, False, True, True)` = ["4.19", "4.71", "4.72", "4.75"] when
 constant_density=True, else ["4.71", "4.72", "4.75"] · `stagnation_temperature(300.0, 100.0)` = 304.98 K ·
 `boussinesq_validity(2e-4, 10.0, 10.0, 0.1, c=1500.0, nu=1e-6, cp=4186.0)["alpha_dT"]` = 2.0e-3 and `g_prime` =
-0.01962 m/s² · `capillary_length(0.0728, 998.0)` = 2.7266 mm · `laplace_jump_from_balance(0.0728, 1e-3, 1e-3)` = 145.6
+0.01962 m/s² · `capillary_length(0.0728, 998.0)` = 2.7269 mm · `laplace_jump_from_balance(0.0728, 1e-3, 1e-3)` = 145.6
 Pa · `reynolds_number(1.0, 0.01, 1e-6)` = 1.0e4 · `sphere_drag_coefficient(1e4)` = 0.3926 (Morrison) ·
 `froude_scaled_speed(10.0, 100.0, 4.0)` = 2.0 m/s · `richardson_number(9.81e-3, 100.0, 0.1)` = 98.1.
 

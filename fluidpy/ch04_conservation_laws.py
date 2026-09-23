@@ -680,28 +680,42 @@ def couette_heating_transient(y, t, U: float = 1.0, h: float = 0.01, mu: float =
     T(0) = T(h) = T₀, T(y, 0) = T₀ — E7's transient.
 
     Book: §4.8 (4.60) with e = C_pT for a liquid (the Boussinesq (4.88) with ρε kept). Our series solution:
-    T = T_s(y) − Σ b_n sin(nπy/h) e^{−κ(nπ/h)²t}, b_n = (2/h)∫(T_s − T₀) sin(nπy/h) dy (Gauss–Legendre, 128 nodes),
-    κ = k/ρC_p; terms until the next is below ``tol``·(T_s − T₀)_max or ``nterms`` (b_n ∝ n⁻³, so t = 0 is reproduced
-    to ~1/nterms² relative).
+    T = T_s(y) − Σ_{n=1}^{nterms} b_n sin(nπy/h) e^{−κ(nπ/h)²t}, κ = k/ρC_p, with b_n = (2/h)∫₀ʰ(T_s − T₀) sin(nπy/h) dy
+    in **closed form**: T_s − T₀ = Σ_m a_m y^m is the quartic of :func:`couette_heating`, and
+    I_m(n) = ∫₀ʰ y^m sin(ay) dy (a = nπ/h) follows from I_0 = (1 − (−1)^n)/a, I_m = −h^m(−1)^n/a + (m/a)J_{m−1},
+    J_m = ∫₀ʰ y^m cos(ay) dy = −(m/a)I_{m−1} (exact for every n — no quadrature aliasing). All ``nterms`` terms are
+    summed (even-n coefficients vanish by symmetry for pure Couette, so the sum never stops at a zero term); terms
+    below ``tol``·(T_s − T₀)_max after decay are skipped. Accuracy: b_n ∝ n⁻³, so the truncation error is largest at
+    t = 0, about 1/nterms² of ΔT_max (≲ 1e-4 ΔT_max for the default nterms = 200), and falls off like e^{−κ(nπ/h)²t}.
 
     Parameters: y [m] (array); t [s] (scalar); U, h, mu, k, T0, dpdx as :func:`couette_heating`; rho [kg/m³];
-    cp [J/(kg K)]. Returns T [K] (shape of y).
-    Validation: V1 t → ∞ gives :func:`couette_heating`; t = 0 gives T₀ (series accuracy); V3 FTCS agrees.
-    Label: analytic, converged.
+    cp [J/(kg K)]; nterms : number of sine modes; tol : relative size below which a decayed term is skipped.
+    Returns T [K] (shape of y).
+    Validation: V1 t → ∞ gives :func:`couette_heating`; t = 0 gives T₀ to the truncation error above. Label: analytic.
     """
-    from .core.integral_theorems import gauss_legendre_nodes
     y_ = _F(y)
     kap = k / (rho * cp)
-    ys, ws = gauss_legendre_nodes(0.0, h, 128)
-    Ts = _F(couette_heating(ys, U, h, mu, k, T0, dpdx)["T"]) - T0
-    scale = max(float(np.max(np.abs(Ts))), 1e-300)
+    # T_s − T₀ = (μ/k)(F2(y) + C1 y), F2 = −(c0 y²/2 + c1 y³/6 + c2 y⁴/12) — the polynomial of couette_heating
+    B = -float(dpdx) / (2.0 * mu)
+    a0, a1 = U / h + B * h, -2.0 * B
+    c0, c1, c2 = a0 ** 2, 2 * a0 * a1, a1 ** 2
+    C1 = (c0 * h ** 2 / 2 + c1 * h ** 3 / 6 + c2 * h ** 4 / 12) / h
+    coef = (mu / k) * np.array([0.0, C1, -c0 / 2, -c1 / 6, -c2 / 12])  # a_m, m = 0 … 4
+    n = np.arange(1, int(nterms) + 1, dtype=float)
+    a = n * np.pi / h
+    sgn = (-1.0) ** n
+    I = [(1.0 - sgn) / a]  # I_0
+    J = [np.zeros_like(a)]  # J_0 = sin(nπ)/a = 0
+    for m in range(1, 5):
+        I.append(-h ** m * sgn / a + (m / a) * J[m - 1])
+        J.append(-(m / a) * I[m - 1])
+    bn = (2.0 / h) * sum(coef[m] * I[m] for m in range(5))  # exact sine coefficients
     theta = _F(couette_heating(y_, U, h, mu, k, T0, dpdx)["T"]) - T0
-    for n in range(1, int(nterms) + 1):
-        bn = 2.0 / h * float(np.sum(Ts * np.sin(n * np.pi * ys / h) * ws))
-        term = bn * np.exp(-kap * (n * np.pi / h) ** 2 * float(t))
-        theta = theta - term * np.sin(n * np.pi * y_ / h)
-        if n > 4 and abs(term) < tol * scale:
-            break
+    scale = max(float(np.max(np.abs(np.polyval(coef[::-1], np.linspace(0, h, 201))))), 1e-300)
+    decayed = bn * np.exp(-kap * a ** 2 * float(t))
+    keep = np.abs(decayed) >= tol * scale
+    modes = np.sin(np.multiply.outer(a[keep], y_))  # (n_kept,) + y.shape
+    theta = theta - np.tensordot(decayed[keep], modes, axes=(0, 0))
     return _S(T0 + theta)
 
 
@@ -831,7 +845,7 @@ def accelerating_sphere_pressure(theta, a: float = 0.1, dUdt: float = 1.0, rho: 
         c = np.cos(_F(th))
         return p_inf + 0.5 * rho * a * dUdt * c + rho * U ** 2 * (9.0 * c ** 2 - 5.0) / 8.0
     f = lambda th: float(p_of(th)) * np.cos(th) * 2 * np.pi * a ** 2 * np.sin(th)  # noqa: E731
-    force = float(-quad(f, 0.0, np.pi, epsabs=0.0, epsrel=1e-13)[0])
+    force = float(-quad(f, 0.0, np.pi, epsabs=0.0, epsrel=1e-11)[0])
     return {"p": _S(p_of(theta)), "force": force, "added_mass": 0.5 * rho * 4.0 / 3.0 * np.pi * a ** 3}
 
 

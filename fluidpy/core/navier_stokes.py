@@ -653,8 +653,9 @@ def lamb_vector(u: Callable, x, t: float = 0.0, h: float = 1e-4) -> np.ndarray:
     """Lamb vector u × ω [m/s²] (3 components; a plane field with x of shape (2, …) is the plane z = 0, ω = (0, 0, ω₃)),
     the right side of (4.69)–(4.70).
 
-    Book: §4.9, Eqs. (4.68)–(4.70) (ω = ∇×u, (3.16)). Validation: V1 solid-body rotation u = Ω × x: u × ω = −2Ω²(x, y, 0);
-    irrotational field → 0. Label: analytic.
+    Book: §4.9, Eqs. (4.68)–(4.70) (ω = ∇×u, (3.16)). Validation: V1 solid-body rotation u = Ω × x = Ω(−y, x, 0),
+    ω = (0, 0, 2Ω): u × ω = +2Ω²(x, y, 0) (outward — balanced by the pressure gradient in ∇B = u × ω); irrotational
+    field → 0. Label: analytic.
     """
     x_ = _F(x)
     d = x_.shape[0]
