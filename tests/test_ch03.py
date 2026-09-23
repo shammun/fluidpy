@@ -1500,11 +1500,10 @@ def test_gaussian_max_V1_three_independent_routes():  # V1  N44, D20
                               method="bounded", options={"xatol": 1e-12 * s})
         assert abs(res.x - ch03.gaussian_vortex_max_radius(s)) < 1e-6 * s  # numerical maximisation of u_θ
     r_star = ch03.gaussian_vortex_max_radius(1.0)
-    assert r_star == pytest.approx(1.1209064228, abs=1e-10)
+    assert r_star == pytest.approx(math.sqrt(X_STAR), abs=1e-13)  # r*/σ = √x* (Lambert-W value, not a book number)
     assert abs(r_star - X_STAR) > 0.1  # r*/σ = √x*, not x* (the D20 trap)
     umax = ch03.gaussian_vortex(r_star, 2 * np.pi, 1.0)[0]
     assert umax == pytest.approx((1 - math.exp(-X_STAR)) / math.sqrt(X_STAR), rel=1e-14)  # 0.6382 Γ/2πσ
-    assert abs(umax - 0.6382) < 5e-5
     with pytest.raises(ValueError):
         ch03.gaussian_vortex_max_radius(1.0, method="newton")
 
@@ -1533,7 +1532,7 @@ def test_gaussian_max_V5_swirl_lamb_oseen_alpha():  # V5  Canivete Cuissa & Stei
 
 
 @needs_ref
-def test_rankine_V5_wikipedia_form():  # V5
+def test_rankine_V1_wikipedia_form_cross_check():  # V1 form cross-check (not V5)
     ref = ref_json()["rankine_vortex"]
     r, G, a = sp.symbols("r Gamma a", positive=True)
     loc = {"r": r, "Gamma": G, "a": a}
@@ -1548,7 +1547,7 @@ def test_rankine_V5_wikipedia_form():  # V5
 
 
 @needs_ref
-def test_gaussian_V5_lamb_oseen_form():  # V5  (σ² = 4νt, Ch. 5 pointer)
+def test_gaussian_V1_lamb_oseen_form_cross_check():  # V1 form cross-check (not V5; σ² = 4νt, Ch. 5 pointer)
     ref = ref_json()["lamb_oseen_vortex"]
     r, G, nu, t = sp.symbols("r Gamma nu t", positive=True)
     loc = {"r": r, "Gamma": G, "nu": nu, "t": t}
@@ -1617,7 +1616,9 @@ def test_gaussian_max_V2_derivation():  # V2  D20 steps 1-7
     assert abs(float(xs) - X_STAR) < 1e-14
     W = sp.LambertW(-sp.exp(-sp.Rational(1, 2)) / 2, -1)
     assert abs(float(-W - sp.Rational(1, 2)) - X_STAR) < 1e-14  # Lambert-W closed form
-    assert abs(math.sqrt(X_STAR) - 1.12091) < 5e-6 and abs(float(f.subs(x, xs)) - 0.6382) < 5e-5  # step 7
+    r_brentq = ch03.gaussian_vortex_max_radius(1.0)  # step 7: r*/σ = √x*, compared with the brentq route
+    assert abs(math.sqrt(float(xs)) - r_brentq) < 1e-13
+    assert abs(float(f.subs(x, xs)) - ch03.gaussian_vortex(r_brentq, 2 * np.pi, 1.0)[0]) < 1e-13
 
 
 # =====================================================================================================================
@@ -1781,7 +1782,7 @@ def test_leibniz_V3_measured_rate_order_two():  # V3
 
 
 @needs_ref
-def test_leibniz_V5_boundary_term_signs():  # V5  Wikipedia "Leibniz integral rule"
+def test_leibniz_V1_boundary_term_signs_cross_check():  # V1 form cross-check (not V5): Wikipedia "Leibniz integral rule"
     ref = ref_json()["leibniz_integral_rule"]
     F = lambda x, t: 1.0 + x ** 2 * t  # noqa: E731
     dF = lambda x, t: x ** 2 + 0 * x  # noqa: E731
@@ -1794,7 +1795,7 @@ def test_leibniz_V5_boundary_term_signs():  # V5  Wikipedia "Leibniz integral ru
 
 
 @needs_ref
-def test_rtt_V5_wikipedia_boundary_term_and_fixed_region():  # V5
+def test_rtt_V1_wikipedia_boundary_term_and_fixed_region_cross_check():  # V1 form cross-check (not V5)
     ref = ref_json()["reynolds_transport_theorem"]
     assert "v_b . n" in ref["statement"] and ref["normal"].startswith("outward")
     # sign of the boundary term: a growing sphere with F = 1 (outward b·n > 0) gains volume

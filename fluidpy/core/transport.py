@@ -592,7 +592,8 @@ def rtt_ellipse_2d(F: Callable, dFdt: Callable, a: float, b: float, adot: float,
     RTTTerms(volume_term, surface_term, total) [F·m²/s]. Scalar-callable (explainer parity).
 
     Validation: V3 equals the finite difference of the area integral (``volume_integral_rate_fd`` with a
-    ``MovingEllipse2D`` moving at these rates). Label: converged.
+    ``MovingEllipse2D`` moving at these rates) to 1e-7 — two independent routes (V1); an ellipse riding with a
+    carried pattern gives total 0 to 1e-13 while the volume term is O(0.1). Label: analytic.
     """
     a0, b0, t0 = float(a), float(b), float(t)
     c0, cd = _F(c), _F(cdot)

@@ -69,8 +69,8 @@ def rankine_vortex(r, Gamma, sigma):
     -------
     (u_theta [m/s], omega_z [1/s])
 
-    Validation: V1 continuity at σ, max at σ, Γ(r ≥ σ) = Γ; V2 (3.23) applied to each piece gives ω_z; V5 Wikipedia
-    "Rankine vortex" profile. Label: analytic, symbolic, benchmark.
+    Validation: V1 continuity at σ, max at σ, Γ(r ≥ σ) = Γ; V2 (3.23) applied to each piece gives ω_z; form
+    cross-check against the standard Rankine-vortex profile (not a V5 benchmark). Label: analytic, symbolic.
     """
     r_ = _F(r)
     G, s = float(Gamma), float(sigma)
@@ -92,7 +92,8 @@ def gaussian_vortex(r, Gamma, sigma):
     Parameters / Returns: as :func:`rankine_vortex`.
 
     Validation: V1 Γ(r) = Γ(1 − e^{−r²/σ²}); limits; rel. error < 1e-14 at r = 1e-9σ; V2 (3.23) gives ω_z from u_θ;
-    V5 Lamb–Oseen form (Wikipedia). Label: analytic, symbolic, benchmark.
+    form cross-check against the standard Lamb–Oseen profile with σ² = 4νt (not a V5 benchmark).
+    Label: analytic, symbolic.
     """
     r_ = _F(r)
     G, s = float(Gamma), float(sigma)

@@ -54,8 +54,10 @@ def rtt_blob_figure(a: float = 1.0, b: float = 0.6, adot: float = 0.3, bdot: flo
         ax.plot(cc[0] + aa * np.cos(phi), cc[1] + bb * np.sin(phi), ls, color=COLORS["ink"], lw=1.6)
     Xs, N, _, B = cv.surface_nodes(t, 6)  # 48 boundary points
     bn = np.einsum("ik,ik->k", B, N)
-    for k in range(Xs.shape[1] - 1):  # swept band between the boundary at t and at t + dt
-        seg = np.stack([Xs[:, k], Xs[:, k + 1], Xs[:, k + 1] + B[:, k + 1] * dt, Xs[:, k] + B[:, k] * dt])
+    nb = Xs.shape[1]  # midpoint nodes on a periodic boundary (no duplicated end point)
+    for k in range(nb):  # swept band between the boundary at t and at t + dt, closed: last node joins node 0
+        k1 = (k + 1) % nb
+        seg = np.stack([Xs[:, k], Xs[:, k1], Xs[:, k1] + B[:, k1] * dt, Xs[:, k] + B[:, k] * dt])
         col = COLORS["blue"] if bn[k] > 0 else COLORS["rose"]
         ax.add_patch(Polygon(seg, closed=True, color=col, alpha=0.45, lw=0))
     ax.quiver(Xs[0, ::3], Xs[1, ::3], B[0, ::3], B[1, ::3], color=COLORS["orange"], angles="xy", scale_units="xy",

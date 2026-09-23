@@ -455,8 +455,9 @@ def parallel_shear_kinematics(gamma: float) -> dict:
     Returns
     -------
     dict: ``G`` (2 × 2), ``S``, ``R`` (= G − Gᵀ), ``omega3`` (−γ), ``spin`` (−γ/2), ``rate_AB`` (−γ), ``rate_BC`` (0),
-    ``lam`` (ascending eigenvalues (−γ/2, γ/2) for γ > 0), ``axes`` (columns), ``S_bar`` (book order
-    diag(γ/2, −γ/2)), ``principal_angle_deg`` (45 for γ > 0).
+    ``lam`` (ascending eigenvalues (−|γ|/2, |γ|/2)), ``axes`` (columns), ``S_bar`` (principal rates with the
+    stretching axis first: diag(|γ|/2, −|γ|/2) — the book's diag(γ/2, −γ/2) for γ > 0), ``principal_angle_deg``
+    (angle of the stretching axis from x₁, in (−90°, 90°]: +45° for γ > 0, −45° for γ < 0).
 
     Validation: V1 as listed; pair average −γ/2 for all θ; V6 private JSON ``shear_flow_3_5``. Label: analytic.
     """

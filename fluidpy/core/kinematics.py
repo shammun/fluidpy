@@ -51,6 +51,10 @@ __all__ = [
 
 _F = lambda a: np.asarray(a, dtype=float)  # noqa: E731
 
+#: Default time step [s] of the central difference for ∂F/∂t in ``material_derivative_terms`` / ``acceleration``
+#: (independent of the spatial step h [m]).
+DEFAULT_HT = 1e-4
+
 
 # ======================================================================================================================
 # Linear flows u = G·x (promoted from ch02 §2.10–2.11; used by ch03 §3.4–3.5)
@@ -64,8 +68,9 @@ def velocity_gradient_preset(name: str, Gamma: float = 1.0, dim: int = 2) -> np.
     Book: §2.10 (S + A split of ∂u_i/∂x_j), Examples 2.3 and 2.4; the names and matrices are the design's Part C 6.6
     / E3 preset list. Ch. 3 §3.5 uses the ``simple_shear`` preset with Γ = γ = du₁/dx₂.
 
-    * ``simple_shear``: u = (Γ x₂, 0) → G = [[0, Γ], [0, 0]] (Example 2.4's flow; S₁₂ = Γ/2 and A₁₂ = Γ/2 —
-      half strain, half rotation; ∇·u = 0)
+    * ``simple_shear``: u = (Γ x₂, 0) → G = [[0, Γ], [0, 0]]; here Γ is the velocity gradient du₁/dx₂ (= ch03's
+      shear strain γ = 2S₁₂), so S₁₂ = Γ/2 and A₁₂ = Γ/2 — half strain, half rotation; ∇·u = 0. ⚠️ Example 2.4 uses
+      the same letter for a different quantity: its Γ is S₁₂ itself (= half of this preset's Γ).
     * ``solid_body_rotation``: u = Γ e₃ × x = (−Γ x₂, Γ x₁) → G = [[0, −Γ], [Γ, 0]] (Example 2.3 with b = Γ e₃;
       S = 0, ∇·u = 0, (∇×u)₃ = 2Γ)
     * ``pure_strain``: u = (Γ x₁, −Γ x₂) → G = diag(Γ, −Γ) (A = 0, traceless: stretch along x₁, squeeze along x₂,
@@ -294,7 +299,9 @@ def material_derivative_terms(F: Callable, u: Callable, x, t: float, h: float = 
     x : point(s) [m], shape (d,) or (d, N)
     t : time [s]
     h : spatial step [m] of the explicit 2nd-order central stencils (never ``np.gradient``)
-    ht : time step [s] (default h)
+    ht : time step [s] of the central difference for ∂F/∂t; ``None`` (default) → ``DEFAULT_HT`` = 1e-4 s, chosen
+        independently of the length step h (a length [m] is never reused as a time [s]). Pass ht explicitly when the
+        flow's time scale is far from 1 s (e.g. ht = 10 s for a weather front).
 
     Returns
     -------
@@ -306,7 +313,7 @@ def material_derivative_terms(F: Callable, u: Callable, x, t: float, h: float = 
     Label: analytic, symbolic, converged.
     """
     x_ = _F(x)
-    ht = h if ht is None else ht
+    ht = DEFAULT_HT if ht is None else float(ht)
     d = x_.shape[0]
     local = (_F(F(x_, t + ht)) - _F(F(x_, t - ht))) / (2.0 * ht)  # ∂F/∂t at fixed x
     U = _u_at(u, x_, t)
@@ -465,7 +472,7 @@ def pathline(u: Callable, r0, t0: float, t_eval, rtol: float = 1e-10, atol: floa
     ndarray (d, nt) (or (d,) for scalar t_eval) — positions r(t_eval) [m].
 
     Validation: V1 linear flows vs ``linear_flow_map`` (e^{G(t−t0)} r0); Ex. 3.1 circle; V3 error decreases
-    monotonically with rtol. Label: analytic, converged.
+    monotonically with rtol. Label: analytic.
     """
     r0 = _F(r0)
     scalar = np.ndim(t_eval) == 0
@@ -710,16 +717,24 @@ def shear_strain_rate(G, n1, n2, tol: float = 1e-9):
     return as_scalar_if_0d(np.einsum("i...,ij,j...->...", a, S, b))  # ½ D(α+β)/Dt = n1·S·n2
 
 
-def volumetric_strain_rate(G) -> float:
+def volumetric_strain_rate(G):
     """Volumetric (bulk) strain rate (1/δV) D(δV)/Dt = ∂u_i/∂x_i = S_ii = ∇·u, Eq. (3.14).
 
     Book: §3.4, Eq. (3.14) (proof Exercise 3.18, written out as D11). The first invariant of S: independent of the
     orientation of the axes. Units: 1/s.
 
+    Parameters
+    ----------
+    G : velocity gradient ∂u_i/∂x_j [1/s], shape (d, d) or (d, d, N) (as its siblings)
+
+    Returns
+    -------
+    float for a single (d, d) gradient, else ndarray (N,) [1/s].
+
     Validation: V1 trace; V3 tracked box volume rate; V7 invariant under 50 random rotations. Label: analytic.
     """
     G_ = _F(G)
-    return float(np.trace(G_))  # Eq. (3.14): S_ii = ∂u_i/∂x_i
+    return as_scalar_if_0d(np.trace(G_, axis1=0, axis2=1))  # Eq. (3.14): S_ii = ∂u_i/∂x_i
 
 
 def material_volume_ratio(G, t):
