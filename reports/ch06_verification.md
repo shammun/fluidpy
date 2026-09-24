@@ -1,6 +1,6 @@
-# Chapter 6 verification — Ideal Flow                     2026-09-23, commit 02a3d52 + working tree (loop 2)
+# Chapter 6 verification — Ideal Flow                     2026-09-23, commit 02a3d52 + working tree (loop 3, review follow-up)
 
-Verifier: math-verifier. Suite: `tests/test_ch06.py` (127 test functions = 133 collected items; two stagnation-point tests are
+Verifier: math-verifier. Suite: `tests/test_ch06.py` (131 test functions = 137 collected items; two stagnation-point tests are
 parametrised over four source strengths each), figures/metrics: `tests/ch06_verify_figures.py` → `outputs/ch06/verify/`
 (git-ignored), cited data: `reference/ch06/` (`make_refs.py`, `benchmarks.json`, `SOURCES.md`). Nothing in `fluidpy/`
 or `scripts/` was edited by the verifier.
@@ -8,8 +8,9 @@ or `scripts/` was edited by the verifier.
 ## Environment
 Python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · matplotlib 3.11.2 (Windows, `.venv`).
 
-Runs (loop 2, final): `pytest tests/test_ch06.py -q -p no:cacheprovider` → **133 passed in 88 s** (with the private
-book file; without it the four V6 tests skip). Full suite `pytest -q` → **746 passed in 196 s** (613 earlier + 133 ch06).
+Runs (loop 3, final): `pytest tests/test_ch06.py -q -p no:cacheprovider` → **136 passed in 108 s** (with the private
+book file; without it the four V6 tests skip). Full suite `pytest -q` → **749 passed in 542 s** (613 earlier + 136 ch06).
+Loop 2: 133 passed, full suite 746 passed.
 All 12 `scripts/ch06_*.py` exit 0 (asserted by `test_scripts_V1_every_ch06_script_runs`). All five modules import
 (`python -c "import fluidpy.ch06_ideal_flow"`). `tools/check_public.py` → OK. Loop 1: 123 of 128 passed, full suite
 736 passed / 5 failed (F1 × 4, F2).
@@ -20,7 +21,24 @@ All 12 `scripts/ch06_*.py` exit 0 (asserted by `test_scripts_V1_every_ch06_scrip
 | 1 | FAIL: 123/128 (full suite 736 passed, 5 failed) | F1 (stagnation search misses weak-source half-bodies), F2 (three Part C 6.1 drawing helpers missing); O1–O6 opened; 28/28 planted wrong variants caught. |
 | 2 | **PASS: 133/133** (full suite 746 passed) | Implementer: F1 — strength-scaled Newton seeds (rings at ℓ·(¼, ½, 1, 2, 4) round every source, vortex and doublet; ℓ = m/2πU, Γ/2πU or √(d/2πU)), on-axis roots snapped to +0 imaginary part, a zero-residual start accepted as a root, a speed scale for stream-free flows; F2 — `draw_body`, `pressure_arrows`, `separated_cp_band` added, `flow_net` given the Part C signature; O4/O5 — docstrings; design Part G errata (G1–G5) for O1–O3. Verifier: 5 new robustness items (below); the drawing test now checks the band follows (6.35) ahead of separation and the arrows point along −p n; the 28 wrong variants re-planted into the loop-2 code: **28/28 caught**. |
 
-Collected items per evidence tag (tag of the `def` line): **V1 82 · V2 27 · V3 10 · V4 6 · V5 2 · V6 4 · V7 2** (= 133).
+Collected items per evidence tag (tag of the `def` line), after the odd-N addendum: **V1 86 · V2 27 · V3 10 · V4 6 · V5 2 ·
+V6 4 · V7 2** (= 137); loop 3 was V1 85 (= 136); loop 2 was V1 82 · V2 27 · V3 10 · V4 6 · V5 2 · V6 4 · V7 2 (= 133).
+
+## Loop 3 — review follow-up (reports/ch06_review.md), verifier's test updates
+| item | change in `tests/test_ch06.py` / `reference/ch06/` | result |
+|---|---|---|
+| M1 (6.82) is not a slip | removed from the slip list; `test_axisym_velocity_V1_spherical_components_from_psi_and_phi` now asserts with sympy that the book's printed form (1/r)∂(r²u_r)/∂r + (1/sin θ)∂(u_θ sin θ)/∂θ vanishes for the sphere flow (6.90), that it equals r × the App. B divergence for a generic field (`core.curvilinear`), and numerically that it equals r × `spherical_continuity_residual` on a non-solenoidal test field (1e-8). The loop-1 "hybrid" assertion (a form the book never prints) is gone. | pass |
+| S2 flux check is a tautology | the old test is relabelled `test_example_6_2_V1_flux_identity_and_maximum_principle` (V1); new `test_example_6_2_V4_discrete_circulation_vanishes`: `cell_circulation` recomputed independently as −(ψ_E + ψ_W + ψ_N + ψ_S − 4ψ_P) (1e-15), NaN off the unknowns; converged max 3.3e-10 ≤ 4 tol (Γ_cell = −4 × the average-rule defect, tol = 1e-10); after 1, 5, 20, 50 sweeps it falls monotonically, ≈ 0.0999 after 5 sweeps; the direct solve at refine 4 < 1e-12 | pass |
+| S3 geometry/BCs public | new `test_example_6_2_V1_geometry_and_boundary_values` (Q = 1, no book values): 24 unknowns, solid = {x > 5, y < 2}, inlet ψ = Qy/5, outlet ψ = Q(y − 2)/3 with uniform steps Q/3, ψ = Q on top, ψ = 0 on the lower wall, the step face and the outlet's lower wall; 121 unknowns at Δ = ½. Planted non-uniform outlet (ψ ∝ ((y − 2)/3)²) is caught by this public test. | pass; WV caught |
+| S6 `sphere_potential_vector(a=)` | the test uses `a=a`; both d_vec and a → ValueError, neither → ValueError. The implementation keeps a positional scalar as a **deprecated** radius (DeprecationWarning) rather than rejecting it as the review proposed; the test pins the warning and the correct value. | pass (note) |
+| S1 tilted ellipse | `test_blasius_V4_three_routes_agree`: F_perp = ρUΓ_cw (1e-10), F_par ≈ 0 (1e-9), stream_angle 15°, c₀ = Ue^{−iα} (1e-12), D − iL = −iρUΓe^{−iα} (1e-9); also α = 0°, 30°, −20° explicitly (α = 0 stays 0) and the cylinder (F_perp = L) | pass |
+| S5 net sink | `test_superposition_state_V1_explainer_terms`: stream + sink 2π → "open body (net sink): extends upstream", net −2π, stagnation at x = +m/2πU = +1 m; planted "no body" status caught | pass; WV caught |
+| S4 ρ defaults | audited every force call: all loop-1/2 assertions pass ρ explicitly or already expected 1.2; new `test_lift_V1_shared_air_density_default` pins ρ = 1.2 kg/m³ in `lift_per_span`, `surface_pressure_force`, `blasius_force`, `cv_force_on_body`, `cylinder_circulation_state`, `laurent_contributions`, `blasius_state` (all 24 N/m), `force_on_held_singularity` (−7.2 N/m) and `cylinder_surface_pressure` (60 Pa) | pass |
+| S7 primary citations | `reference/ch06/SOURCES.md` and `make_refs.py`: added Lamb, *Hydrodynamics*, 6th ed. (1932), Ch. V §92 (section number as cited by the review; the text was not fetched — only the edition confirmed) and Rayleigh, Phil. Mag. (6) 34, 94–98 (1917), doi:10.1080/14786440808635681 (confirmed by search); Wikipedia kept as the fetched secondary | done |
+| S8 Exercise 6.42 | the V6 test now asserts the one correct cubic (z/a)²(1 − z/a) = +Q/4πUa² at the nose and −Q/4πUa² at the tail (1e-9), and only records that the book prints a ± form | pass |
+
+No tolerance was relaxed in loop 3; all new bounds are round-off or derived (4 tol for Γ_cell). Two wrong variants planted
+for S3/S5 are caught (2/2); the 28 earlier variants are unaffected (code paths unchanged).
 
 ## Loop-2 checks (on our own terms)
 - **F1 re-check and robustness** (`test_stagnation_points_V1_default_search_finds_the_half_body_nose[m]`, m = 0.5, 1,
@@ -119,7 +137,7 @@ and F1 tests excluded). **28 of 28 planted variants are caught** in loop 1, and 
 
 In-test discrimination (always run): printed (6.104) bracket adds exactly u_s; numpy's principal √(z² − 4b²) lands
 inside the circle at every left-half point off the slit; the printed (6.61) 1/z² coefficient differs from the correct
-−(Ud/π + Γ²/4π²); the printed (6.82) factor 1/r leaves a residual > 0.05 on the sphere; ψ = +(Γ/2π) ln r gives flux
+−(Ud/π + Γ²/4π²); ψ = +(Γ/2π) ln r gives flux
 +Γ; a source written m/4π gives m/2; a same-sign vortex image leaks > 0.1 m/s through the wall; `Gamma_ccw = +2`
 gives L = −24 N/m; numpy's principal half-body branch puts ψ = −m/2 on the lower body; dropping the 2π in (6.78)
 misses by 6.28×; the reversed dipole misses the pair's far field by > 0.1; a Poiseuille field keeps μ∇²u = −G.
@@ -138,8 +156,8 @@ misses by 6.28×; the reversed dipole misses the pair's far field by > 0.1; a Po
 | C09 complex potential (6.42)–(6.53); N41–N52; D14, D15 | CORE | `Flow.w/dwdz`, `cauchy_riemann_residual(_sym)`, `complex_potential_probe`, `complex_potential_family`, `corner_info`, `corner_speed_exponent`, `Corner` | V1 every element's w vs (6.46)–(6.52) on 2000 points (1e-12); CR residual ≤ 1e-6 for 7 families × 3 points, z* → (2, 0) (discriminates); dw/dz = u − iv vs differences of ψ (1e-7); N43 number u = 2, v = −2; corner walls ψ = 0 (1e-12), log–log slope n − 1 (± 0.01) for n = 4…½, no jump inside the wedge; V2 D14/D15 sympy | slopes exact to 0.01 | analytic, symbolic | |
 | C10 Blasius and Kutta–Zhukhovsky (6.54)–(6.62); N53–N63, R18; D16–D18 | CORE | `blasius_force(_report)`, `laurent_coefficients`, `laurent_contributions`, `blasius_state`, `cv_force_on_body`, `contour_force`, `complex_force_from_pressure`, `kutta_zhukhovsky_sym`, `force_on_held_singularity` | V1 (0, 24) N/m on R = a…100a (1e-12), clockwise contour rejected, crossing flagged; c₀ = U, c₋₁ = iΓ_cw/2π, c₋₂ = −Ua² (1e-12), shape-free c₋₁ for the ellipse; only the 1/z bar is nonzero; V4 three routes (CV on R = 5a…50a, surface pressure, Blasius) agree to 1e-10 for cylinder and ellipse; tilted ellipse force ⟂ stream, size ρUΓ; Gauss checks p = y → L = −A (1e-12); held source D = −ρmU; V3 polygon Blasius order 1.9965 (circle) and 1.9994 (square round the ellipse); V2 D16, D17, D18 sympy incl. the printed (6.61) slip; V1 form cross-check (Wikipedia Blasius) | orders 1.997, 1.999 | analytic, conserved, converged, symbolic | |
 | C11 conformal mapping, Zhukhovsky (6.63)–(6.69); N64–N70; D19–D21 | CORE | `angle_preservation`, `map_elements(_info)`, `grid_image`, `map_grid_lines`, `conformal_map`, `joukowski(_derivative)`, `joukowski_inverse(_derivative)`, `circle_flow_zeta`, `mapped_flow`, `joukowski_ellipse`, `elliptic_cylinder_flow`, `joukowski_state`, `ellipse_surface_speed`, `cot_flow` | V1 angles kept (1e-8) for 6 maps, doubled (z²) and tripled (z³) at 0; slit, ellipse (1e-13), foci 2b; inverse round trip on 10⁴ random ζ in all quadrants (1e-12), |ζ| ≥ b on a grid, principal root wrong exactly for Re z < 0 (WV); u·n on the ellipse ≤ 1e-12, far field 1/R, Blasius ρUΓ, b → 0 limit (1e-9); exact ellipse speed = mapped-flow speed (1e-11, independent); V2 D19–D21 sympy (Vieta, branch check, chain rule); V1 form cross-check (Wikipedia Joukowsky, W = W̃/(1 − 1/ζ²)) | — | analytic, symbolic | D21 check line: see O1 |
-| C12 finite-difference Laplace (6.70)–(6.73), Example 6.2; N71–N74, R19–R21; D22, D23 | CORE | `laplacian_5pt`, `node_update`, `jacobi/gauss_seidel/sor_sweep`, `residual_norm/field`, `sweep_order`, `assemble_laplace`, `solve_laplace`, `solve_poisson`, `optimal_sor_omega`, `jacobi_spectral_radius`, `four_point_system`, `example_6_2(_geometry)`, `relaxation_state` | V3 5-point order 2.0000 (fixed point, truncation = (Δx²/12)·2π⁴ψ to 1e-3), solver order 1.995 on sin πx sinh πy; V1 exact on xy, x² − y²; 4-point (1, 2, 2, 4) by every method; sweeps 34/19/12 (design D23 check), ω_opt 1.0718; first GS sweep 0, .75, .75, 3.375; V4 flux Q through every section (1e-9); discrete max principle and average rule on every node; V3 Example 6.2 refinement order 1.36/1.39/1.30 at three points → **4/3 (corner pollution)**; V2 D22/D23 sympy (Δx²/12 ψ_xxxx, ρ_J = ½, ρ_GS = ¼); V6 Fig. 6.25 values | orders 2.000, 1.995, 1.36 (→ 4/3) | converged, analytic, conserved, symbolic, book-value | O2 (design said "≈ 2 away from the corner") |
-| C13 axisymmetric flow, sphere (6.74)–(6.92); N75–N85, R22–R30; D24, D25 | CORE | `AxisymUniform`, `PointSource3D`, `Doublet3D`, `LineSource3D`, `AxisymFlow`, `sphere`, `axisym_velocity_spherical(_sym)`, `sphere_potential_vector`, `stokes_operator_residual(_sym)`, `stokes_operator_sym`, `axisym_laplacian_residual/sym`, `spherical_continuity_residual`, `axisym_flux_between`, `sphere_surface_cp`, `cylinder_vs_sphere`, `perturbation_radius`, `axisym_half_body` | V1 ψ = 0 on r = a (1e-11) and the axis, (6.89)–(6.91) (1e-13), (6.92) vector form; parity with ch05's Hill exterior (1e-12) and ch04's axisymmetric velocity tool; ψ and φ routes of (6.83) agree; (6.77) residual ≤ 1e-5 for 5 fields, R z → −z/R², R² z a solution; (6.80) for φ; App. B continuity 0, printed (6.82) not a residual (WV); flux = 2πΔψ (1e-12, WV without 2π); V4 source flux Q through every sphere (1e-12); V3 3-D pair → doublet order 2.002; V7 relief table; V2 D24/D25 sympy; V1 form cross-check McDonald (2015) | order 2.002 | analytic, conserved, converged, symbolic | |
+| C12 finite-difference Laplace (6.70)–(6.73), Example 6.2; N71–N74, R19–R21; D22, D23 | CORE | `laplacian_5pt`, `node_update`, `jacobi/gauss_seidel/sor_sweep`, `residual_norm/field`, `sweep_order`, `assemble_laplace`, `solve_laplace`, `solve_poisson`, `optimal_sor_omega`, `jacobi_spectral_radius`, `four_point_system`, `example_6_2(_geometry)`, `relaxation_state` | V3 5-point order 2.0000 (fixed point, truncation = (Δx²/12)·2π⁴ψ to 1e-3), solver order 1.995 on sin πx sinh πy; V1 exact on xy, x² − y²; 4-point (1, 2, 2, 4) by every method; sweeps 34/19/12 (design D23 check), ω_opt 1.0718; first GS sweep 0, .75, .75, 3.375; V1 flux identity Q through every section (1e-9; relabelled from V4 in loop 3); V4 cell circulation ≤ 4 tol = 4e-10 converged (3.3e-10), 0.0999 after 5 sweeps, < 1e-12 direct at Δ = ¼; V1 public geometry/BCs (24 unknowns); discrete max principle and average rule on every node; V3 Example 6.2 refinement order 1.36/1.39/1.30 at three points → **4/3 (corner pollution)**; V2 D22/D23 sympy (Δx²/12 ψ_xxxx, ρ_J = ½, ρ_GS = ¼); V6 Fig. 6.25 values | orders 2.000, 1.995, 1.36 (→ 4/3) | converged, analytic, conserved, symbolic, book-value | O2 (design said "≈ 2 away from the corner") |
+| C13 axisymmetric flow, sphere (6.74)–(6.92); N75–N85, R22–R30; D24, D25 | CORE | `AxisymUniform`, `PointSource3D`, `Doublet3D`, `LineSource3D`, `AxisymFlow`, `sphere`, `axisym_velocity_spherical(_sym)`, `sphere_potential_vector`, `stokes_operator_residual(_sym)`, `stokes_operator_sym`, `axisym_laplacian_residual/sym`, `spherical_continuity_residual`, `axisym_flux_between`, `sphere_surface_cp`, `cylinder_vs_sphere`, `perturbation_radius`, `axisym_half_body` | V1 ψ = 0 on r = a (1e-11) and the axis, (6.89)–(6.91) (1e-13), (6.92) vector form; parity with ch05's Hill exterior (1e-12) and ch04's axisymmetric velocity tool; ψ and φ routes of (6.83) agree; (6.77) residual ≤ 1e-5 for 5 fields, R z → −z/R², R² z a solution; (6.80) for φ; App. B continuity 0 and the printed (6.82) = r × App. B (sympy, loop 3; not a slip — review M1); flux = 2πΔψ (1e-12, WV without 2π); V4 source flux Q through every sphere (1e-12); V3 3-D pair → doublet order 2.002; V7 relief table; V2 D24/D25 sympy; V1 form cross-check McDonald (2015) | order 2.002 | analytic, conserved, converged, symbolic | |
 | C14 airship, axial method; panels (N86–N90); D26, D27 | CORE | `line_sink_stream_function`, `airship`, `axisym_body_target`, `axisym_body_fit`, `axial_state`, `ellipsoid_linear_source_strength`, `axial_influence_matrix`, `axial_singularity_solve/psi/velocity`, `source_panels`, `panel_geometry`, `panel_induced_velocity`, `panel_velocity`, `panel_cp_error` | V1 (6.94) = quad of (6.93) (1e-10), LineSource3D ψ, φ, u consistent (1e-7); airship ψ = 0 on the body (1e-10), closure 0, nose −0.2521, tail 1.0696, L = 1.3217 m, our cubic (z/a)²(z/a − 1) = ±Q/4πUa² (1e-9); V1+V3 ellipsoid k_n → Kξ at order 1.064 (N = 16…64), body ψ error order 2.97; Rankine oval: dipole moment error 1.4e-3, 1.6e-4, 2.9e-6 (N = 10, 20, 40), Σk_nΔξ ≤ 1e-5, cond ↑; V1/V4 panels: circle C_p exact (≤ 1e-12, every N), Σλ_jS_j ≤ 1e-12, rotated stream; V3 ellipse C_p order 2.057; off-body velocity order 0.93 (→ 1); V2 D26 sympy (substitution, (6.94), far-field cancellation, axis cubic) | orders 1.064, 2.057, 0.93 | analytic, converged, conserved, symbolic | sphere/airship targets and N > 40 fenced qualitative (O3) |
 | C15 accelerating sphere, added mass (6.96)–(6.109); N91–N106, R31, R32; D28–D31 | CORE | `moving_sphere_potential/velocity/surface_velocity/dphidt/surface_pressure`, `sphere_force_quadrature`, `added_mass_sphere`, `added_mass_by_energy`, `cylinder_added_mass`, `moving_sphere_state`, `added_mass_state`, `moving_sphere_dphidt_sym`, `sphere_motion`, `rayleigh_collapse_time` | V1 n·∇φ = n·u_s on |ξ| = a (1e-13), ∇φ = differences of φ (1e-8), (6.104) = (6.103) on the surface, printed bracket off by u_s (WV); ∂φ/∂t = time differences for a turning motion (1e-8); (6.105) = unsteady Bernoulli (ch04 tool, 1e-10) = ch04's accelerating sphere (1e-10); steady part = (6.91) with θ ↔ π − θ; force quadrature: speed part 0, acceleration part −M du/dt for 3 × 2 cases (1e-10); V1 energy route (surface and volume) = M (1e-10/1e-9); cylinder ρπa² by energy and force; V5 coefficient ½ (Wikipedia), Rayleigh 0.91468 (Wikipedia, 5 s.f.); V4 work = kinetic energy (1e-8), u = Ft/(m + M), bubble 2g, steel ball 34.77 kg; V2 D28–D31 sympy (design's concrete motion, surface and volume integrals); pint | — | analytic, benchmark, conserved, symbolic | |
 
@@ -238,7 +256,7 @@ sphere 3.8e6, 4.1e13, 1.8e18 (N = 10, 20, 40).
 | Bernoulli constant over a field (cylinder with Γ) | ptp ≤ 1e-9 relative |
 | loop circulation −Γ_cw on r = 1.5a, 3a, 10a (4 Γ) | ≤ 1e-10 m²/s |
 | CV force = pressure force = Blasius (R = 5a … 50a) | ≤ 1e-10 relative |
-| Example 6.2: Q through every vertical grid line | ≤ 1e-9 (Q = 1) |
+| Example 6.2: discrete circulation round every control cell (converged, tol 1e-10) | 3.3e-10 ≤ 4 tol (the Q-flux through each section is an identity of the BCs, V1) |
 | 3-D source: Q through spheres r = 0.1, 1, 10 m | ≤ 1e-12 relative |
 | Example 6.1: ξ_x = h (impulse) | ptp ≤ 1e-9 m |
 | sphere motion: work of F_E = ½(m + M)u² | ≤ 1e-8 J |
@@ -247,8 +265,8 @@ sphere 3.8e6, 4.1e13, 1.8e18 (N = 10, 20, 40).
 ## Benchmarks used (value | our value | source + URL | date verified)
 | Value | Ours | Source | Verified | Label |
 |---|---|---|---|---|
-| added mass of a sphere = ½ displaced mass, (2/3)πr³ρ | 0.5 (1e-14); energy route 0.5 (1e-10) | Wikipedia "Added mass", https://en.wikipedia.org/wiki/Added_mass | 2026-09-23 | V5 |
-| Rayleigh/Besant empty-cavity collapse 0.91468 R₀√(ρ/P∞) | 0.914681 (Beta-function closed form = quad, 1e-10) | Wikipedia "Rayleigh–Plesset equation" | 2026-09-23 | V5 |
+| added mass of a sphere = ½ displaced mass, (2/3)πr³ρ | 0.5 (1e-14); energy route 0.5 (1e-10) | primary: Lamb, *Hydrodynamics*, 6th ed. (1932), Ch. V §92 (as cited by the review; text not fetched); secondary (fetched): Wikipedia "Added mass", https://en.wikipedia.org/wiki/Added_mass | 2026-09-23 | V5 |
+| Rayleigh/Besant empty-cavity collapse 0.91468 R₀√(ρ/P∞) | 0.914681 (Beta-function closed form = quad, 1e-10) | primary: Rayleigh, Phil. Mag. (6) 34, 94–98 (1917), doi:10.1080/14786440808635681; secondary (fetched): Wikipedia "Rayleigh–Plesset equation" | 2026-09-23 | V5 |
 | cylinder ϕ, V_r, V_θ, C_p ∈ [−3, +1], zero drag | identical (1e-12) | Wikipedia "Potential flow around a circular cylinder" | 2026-09-23 | V1 form |
 | Kutta–Joukowski L′ = ρVΓ (clockwise contour) | 24 N/m = ρUΓ_cw (1e-12) | Wikipedia "Kutta–Joukowski theorem" | 2026-09-23 | V1 form |
 | Blasius F_x − iF_y = (iρ/2)∮(dw/dz)²dz | our D − iL (1e-12) | Wikipedia "Blasius theorem" | 2026-09-23 | V1 form |
@@ -288,8 +306,7 @@ sphere 3.8e6, 4.1e13, 1.8e18 (N = 10, 20, 40).
 The implementation carries no `# DEVIATION` marker; the documented corrections of book slips are verified as follows:
 (6.61) coefficient (code returns the correct −(Ud/π + Γ²/4π²), the printed one kept separately and shown to differ);
 (6.104) bracket (`printed_bracket=True` reproduces the slip; the default is the gradient); (6.108) (M = 2πρa³/3 by
-the pressure integral and by energy); (6.82) (App. B form in `spherical_continuity_residual`; the printed 1/r leaves
-a residual); Example 6.2 (our Q = 1 by default; with the book's Q every printed value is reproduced); §6.7 "first-order"
+the pressure integral and by energy); Example 6.2 (our Q = 1 by default; with the book's Q every printed value is reproduced); §6.7 "first-order"
 differences are second order (order 2.000 measured).
 
 ## Open items
@@ -317,11 +334,26 @@ differences are second order (order 2.000 measured).
   Achenbach 1968); N31's band stays *qualitative*. The sphere and airship targets of the axial method are fenced
   qualitative beyond the moments (conditioning).
 
+## Addendum (2026-09-24) — odd N in the axial singularity method
+The implementer added an odd-N branch to `core.panels.axial_singularity_solve`: for a fore–aft symmetric target the
+reflection z → −z gives A = −PAP (P the flip), so for odd N the symmetric strength subspace has one dimension more than
+the antisymmetric ψ subspace and A is exactly singular; the solver now warns (RuntimeWarning), returns the minimum-norm
+least-squares (antisymmetric) k and sets `odd_symmetric = True`. New test
+`test_axial_method_V1_fore_aft_symmetry_makes_odd_n_singular`:
+(a) A = −PAP to 1e-13·max|A| for the Rankine oval and the ellipsoid at N = 10, and a symmetric k maps onto an odd ψ;
+(b) Rankine oval N = 9, 11: the warning, `odd_symmetric` True, rank A = N − 1, k antisymmetric (1e-9 relative),
+Σk_nΔξ < 1e-9, body error 4.8e-3 m and 1.5e-3 m (< 1e-2 m; 0.3–0.5 m before the branch);
+(c) even N unchanged: Rankine N = 20 cond₁ = 3337914.99387 (1e-9) and body error 1.66106771e-4 m (1e-6), no warning,
+`odd_symmetric` False; (d) the airship (not symmetric) at N = 9, 11 takes `np.linalg.solve` without a warning (residual
+< 1e-8). Observation for the explainer (O3): the airship's body error at odd N is larger (0.28 m at N = 9, 0.013 m at
+N = 11, vs 3.1e-3 m at N = 10) — conditioning, not the new branch. Runs after the addendum: `tests/test_ch06.py`
+**137 passed in 71 s**; full suite **750 passed in 390 s**.
+
 ## Verdict: PASS
-Loop 2 of 3. All 12 scripts ran; `tests/test_ch06.py` **133/133 pass** (129 + 4 skipped without the private file); the
-full suite **746 passed**; every computable CORE row has ≥ 2 independent levels (one of V1/V2/V3/V5), every coded NOTE
-row ≥ 1, all 100 Part C rows exercised, all 23 ★★/★★★ derivations re-derived symbolically, all 28 planted wrong
-variants caught (loop 1 and again on the loop-2 code). F1 and F2 are fixed and re-checked independently with new
-robustness cases. O4 and O5 are resolved; O1–O3 are carried in the design's Part G errata (G1–G3) for the notebook and
-explainer builders; O6 (the qualitative real-cylinder band, the fenced sphere/airship axial targets) remains a
-labelled qualitative item, not a defect. Nothing is `unverified`.
+Loop 3 (review follow-up). All 12 scripts ran; `tests/test_ch06.py` **137/137 pass** after the odd-N addendum (133 + 4 skipped without
+the private file); the full suite **750 passed**; every computable CORE row has ≥ 2 independent levels (one of
+V1/V2/V3/V5), every coded NOTE row ≥ 1, all 100 Part C rows exercised, all 23 ★★/★★★ derivations re-derived
+symbolically, all planted wrong variants caught (28 in loops 1–2, 2 more for S3/S5 in loop 3). Review items M1 and
+S1–S8 are reflected in the tests and references; (6.82) is no longer called a slip (it is r × the App. B divergence).
+O1–O3 remain carried in the design's Part G errata; O6 (the qualitative real-cylinder band, the fenced sphere/airship
+axial targets) remains a labelled qualitative item. Nothing is `unverified`.

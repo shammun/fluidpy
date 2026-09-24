@@ -39,8 +39,7 @@ number `[#n]` appears exactly once in §2.
    middle sign (N100, D29 — the bracket's last term is +u_s/a³); (6.108)'s stray dφ (N104, D30); "(6.8)" for "(6.15)" in
    the source velocities (N24); "Figure 6.5" for "Figure 6.3" (N66); "(6.5) and (6.12), respectively" reversed and
    "(6.43)" for "(6.44)" (N43); "Section 3" for "Section 6.3" (N53); "first-order" central differences that are
-   second-order accurate (R19, D22); the Example 6.2 FORTRAN loop index and Δψ units m² → m²/s (N74); (6.82)'s 1/r
-   for 1/r² (R28).
+   second-order accurate (R19, D22); the Example 6.2 FORTRAN loop index and Δψ units m² → m²/s (N74). (The earlier "(6.82) slip" is retracted: the printed form is r × App. B, correct.)
 5. **Conventions stated where first used** (⚠️ callouts with numbers, §8): **Γ counterclockwise** in (6.6), (6.8),
    (6.47) and in all project code vs the **clockwise Γ** of (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68) and Example
    6.1 (the flow's circulation is −Γ, so L = +ρUΓ); the **2-D doublet vector** d = Σx_i m_i points from sink to source
@@ -283,7 +282,7 @@ IDs: CORE C01–C15 (teaching order), NOTE N01–N106 and RECAP R01–R32 in inv
 | R26 | Eq. (6.79): $u_R=\partial\phi/\partial R$, $u_z=\partial\phi/\partial z$ [#115] | 6.8 | B | RECAP | C13 | ch03 N29 (3.17) in cylindrical form: one line |
 | N78 | Eq. (6.80): axisymmetric Laplace $\frac1R\frac{\partial}{\partial R}(R\frac{\partial\phi}{\partial R})+\frac{\partial^2\phi}{\partial z^2}=0$ [#116] | 6.8 | B | NOTE | C13 | stated beside N75 (φ obeys the true Laplacian, ψ does not); `ch06.axisym_laplacian_residual` |
 | R27 | Eq. (6.81): cylindrical (R, φ, z) and spherical (r, θ, φ) coordinates, z-axis horizontal in this section [#117] | 6.8 | B | RECAP | C13 | ch03 (`core.coords`), P88 unit vectors: reminded with a two-column table |
-| R28 | Eq. (6.82): spherical axisymmetric continuity (book prints $\frac1r\frac{\partial}{\partial r}(r^2u_r)$, App. B has $\frac1{r^2}$) [#118] | 6.8 | B | RECAP | C13 | App. B (`core.curvilinear`): reminded; ⚠️ the 1/r vs 1/r² slip leaves "= 0" unchanged; code uses the App. B form |
+| R28 | Eq. (6.82): spherical axisymmetric continuity (book prints r × the App. B divergence — correct) [#118] | 6.8 | B | RECAP | C13 | App. B (`core.curvilinear`): reminded; the book's form is r × App. B (correct; not a slip); code uses the App. B normalisation |
 | N79 | Eq. (6.83): $u_r=\frac1{r^2\sin\theta}\frac{\partial\psi}{\partial\theta}=\frac{\partial\phi}{\partial r}$, $u_\theta=-\frac1{r\sin\theta}\frac{\partial\psi}{\partial r}=\frac1r\frac{\partial\phi}{\partial\theta}$ [#119] | 6.8 | B | NOTE | C13 | stated (a-D36 given, §4c) with a sympy check; `core.potential.axisym_velocity_spherical` |
 | R29 | Eq. (6.84): $\omega_\varphi=\frac1r[\frac{\partial}{\partial r}(ru_\theta)-\frac{\partial u_r}{\partial\theta}]$ [#120] | 6.8 | B | RECAP | C13 | App. B spherical curl: one line, used in the residual tests |
 | R30 | Eq. (6.85): spherical axisymmetric Laplace $\frac1{r^2}\frac{\partial}{\partial r}(r^2\frac{\partial\phi}{\partial r})+\frac1{r^2\sin\theta}\frac{\partial}{\partial\theta}(\sin\theta\frac{\partial\phi}{\partial\theta})=0$ [#121] | 6.8 | B | RECAP | C13 | App. B (`core.curvilinear`): reminded, used in D25's check |
@@ -980,7 +979,7 @@ rows, SI units, docstrings citing § and Eq.):
   middle bracket −u_s/a³ → +u_s/a³; (6.108) stray dφ; §6.3 "(6.8)" → (6.15) for the source velocities; §6.6 "Figure
   6.5" → 6.3; §6.4 "(6.5) and (6.12), respectively" reversed and "(6.43)" → (6.44); §6.5 "Section 3" → §6.3; §6.7
   "first-order" differences are second-order accurate; Example 6.2's FORTRAN loop over I should be over J, Δψ units
-  m²/s; (6.82) 1/r → 1/r² (App. B form coded). Exercise 6.23's "N/m" → N/m² and Fig. 6.9's "Idea flow" are cosmetic
+  m²/s. ((6.82) is correct as printed — r × App. B.) Exercise 6.23's "N/m" → N/m² and Fig. 6.9's "Idea flow" are cosmetic
   (not taught).
 - **Numerical traps:** the Zhukhovsky inverse branch (wrong-variant test mandatory); complex-log branch cuts outside
   the plotted fluid (φ of a vortex jumps by Γ); element centres, re-entrant corners and ζ = ±b excluded from stencils;

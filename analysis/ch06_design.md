@@ -62,8 +62,7 @@ parallel from analysis §4 + curation §8; **Part C is written first and is the 
    "(see Figure 6.5)" → Fig. 6.3 (N66); §6.4 "(6.5) and (6.12), respectively" for φ and ψ → reversed, and "(6.43)
    ensures the equality" → (6.44) (N43); §6.5 "Section 3" → §6.3 (N53); §6.7 "first-order central differences" are
    first-*derivative* differences, second-order accurate (R19, D22 step 3); Example 6.2's FORTRAN loop over I should run
-   over J and the inlet Δψ unit m² → m²/s (N74); (6.82)'s $\frac1r\frac{\partial}{\partial r}(r^2u_r)$ →
-   $\frac1{r^2}$ (R28; the "= 0" is unaffected). **Two more found by this design** (flag for the implementer): the
+   over J and the inlet Δψ unit m² → m²/s (N74). ((6.82) is **not** a slip: it is r × the App. B divergence — see Part G6.) **Two more found by this design** (flag for the implementer): the
    analysis/curation write "∇φ = e_z × ∇ψ" (D04, S01) — the correct relation is $\nabla\psi=\mathbf e_z\times\nabla\phi$,
    i.e. $\nabla\phi=\nabla\psi\times\mathbf e_z=-\mathbf e_z\times\nabla\psi$ (D04 step 5); and (6.54) calls F "the force
    applied to the fluid" while its A* hugs the body — we obtain (6.55) directly from Newton's third law with the
@@ -1500,9 +1499,8 @@ for this design).
 7. `nb.recap("R27", "Cylindrical and spherical coordinates", "(R, φ, z) and (r, θ, φ) with z along the axis: R = r sin θ,
    z = r cos θ, θ measured from +z (downstream) — the table the book gives in (6.81).", where="Ch. 3 §3.1")`
 8. `nb.recap("R28", "Spherical continuity", "$\\frac1{r^2}\\frac{\\partial}{\\partial r}(r^2u_r)+\\frac1{r\\sin\\theta}\\frac{\\partial}{\\partial
-   \\theta}(u_\\theta\\sin\\theta)=0$. ⚠️ The book's (6.82) prints $\\frac1r\\frac{\\partial}{\\partial r}(r^2u_r)+\\frac1{\\sin\\theta}\\frac{\\partial}
-   {\\partial\\theta}(u_\\theta\\sin\\theta)=0$ — the same equation multiplied by r except for the first factor, which should be
-   1/r² (Appendix B); '= 0' is unaffected, a residual would not be. Our code uses Appendix B.", where="Ch. 4 (App. B)")`
+   \\theta}(u_\\theta\\sin\\theta)=0$. The book writes it multiplied through by r: $\\frac1r\\frac{\\partial}{\\partial r}(r^2u_r)+\\frac1{\\sin\\theta}\\frac{\\partial}
+   {\\partial\\theta}(u_\\theta\\sin\\theta)=0$ (6.82) — the same equation, correct as printed.", where="Ch. 4 (App. B)")`
 9. `nb.recap("R29", "Spherical vorticity", "$\\omega_\\varphi=\\frac1r\\Big[\\frac{\\partial}{\\partial r}(ru_\\theta)-\\frac{\\partial
    u_r}{\\partial\\theta}\\Big]$ *(Eq. 6.84)*.", where="Ch. 4 (App. B)")`
 10. `nb.recap("R30", "Spherical axisymmetric Laplace", "$\\frac1{r^2}\\frac{\\partial}{\\partial r}\\Big(r^2\\frac{\\partial\\phi}{\\partial
@@ -3142,7 +3140,7 @@ on a sphere, Green's first identity (C15) — 16 primers.
 | axisymmetric potential (6.79) | C13 | R26 |
 | cylindrical and spherical coordinates (6.81) | C13 | R27 |
 | cylindrical and spherical unit vectors | C13 | knowledge/primers.md: cylindrical and spherical unit vectors (ch03 P88) — reminder |
-| spherical continuity (6.82) with the 1/r² slip | C13 | R28 |
+| spherical continuity (6.82) (= r × App. B form) | C13 | R28 |
 | spherical vorticity (6.84) | C13 | R29 |
 | spherical Laplace (6.85) | C13 | R30 |
 | core.curvilinear (sympy operators) | C13 | R30 (code comment; Ch. 4 App. B) |
@@ -4644,3 +4642,6 @@ words.)
 - **G3 · E8 text and ranges (O3).** (a) Rankine oval: the axial strengths k_n *alternate in sign* (±9.6 at N = 20, ±18.6 at N = 40); only their moments converge (dipole error 1.4e-3 → 2.9e-6). Do not say "the segments converge to two narrow spikes". (b) Airship: the fitted bars do *not* reproduce a point source plus a flat line sink (k from −4.9 to 14.1 at N = 20, Σk_nΔξ = −0.094). (c) Panels: "C_p converges like 1/N²" holds on the **ellipse**; on the circle constant-source panels are exact at every N. (d) Cap N at 40 in axial mode (the Rankine oval breaks down by N = 80, cond ≈ 3.5e17) or show a conditioning warning; the ellipsoid target is the smooth, convergent one (k_n order ≈ 1).
 - **G4 · Panel velocity off the body** converges at about first order (0.93 → 1), while control-point C_p is exact (circle) or second order (ellipse).
 - **G5 · Fig. 6.10's measured curve** has no fetched dataset: the separated band (`separated_cp_band`) is a labelled *qualitative* sketch.
+- **G6 · (6.82) is correct as printed** (derivation review M1): the book's form is r × the App. B divergence. Never teach it as a slip.
+- **G7 · Tilted ellipse (E5)**: `blasius_state` D, L are x/y components; with stream angle α, $D - iL = -i\rho U\Gamma e^{-i\alpha}$ from (6.60): |F| = ρUΓ perpendicular to the stream, so D ≠ 0 in x. E5 text must be mode-aware.
+- **G8 · ρ defaults**: 2-D force helpers default to ρ = 1.2 kg/m³ (air); Example 6.1 and §6.9 use water 1000 kg/m³. Pass ρ explicitly in teaching code.

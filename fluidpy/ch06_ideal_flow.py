@@ -30,8 +30,9 @@ Book slips handled (never coded as printed; printed variants kept only as labell
 (6.61) 1/z² coefficient printed Ud/π − Γ²/4π² (correct −(Ud/π + Γ²/4π²)) and an extra outer square
 (:func:`kutta_zhukhovsky_sym` reports both); (6.104) bracket sign (``core.potential.moving_sphere_surface_velocity``);
 (6.108) stray dφ; §6.3 source velocities "from (6.8)" → (6.15); §6.7 "first-order" central differences are second-order
-accurate; Example 6.2's FORTRAN loop over I that sets S(6, J) should run over J, Δψ in m²/s (not m²); (6.82) 1/r → 1/r²
-(App. B form coded in :func:`spherical_continuity_residual`). Book-quoted numbers stay in the git-ignored
+accurate; Example 6.2's FORTRAN loop over I that sets S(6, J) should run over J, Δψ in m²/s (not m²). (6.82) is *not* a
+slip: the book's (1/r)∂(r²u_r)/∂r + (1/sin θ)∂(u_θ sin θ)/∂θ = 0 is r × the Appendix-B divergence, and
+:func:`spherical_continuity_residual` returns the App. B normalisation. Book-quoted numbers stay in the git-ignored
 ``tests/book_values_ch06.json``.
 """
 from __future__ import annotations
@@ -315,7 +316,7 @@ def orthogonality_check(flow, pts, y=None, h: float = 1e-6) -> float:
 def harmonic_polynomials(degree: int) -> list:
     """Harmonic polynomials Re zⁿ and Im zⁿ for n = 1 … degree (sympy, x and y real), each asserted harmonic: a list of
     (Re zⁿ, Im zⁿ) tuples — (φ, ψ) of w = zⁿ. Degree 2 gives (x² − y², 2xy): φ of (6.27) and ψ of (6.24) (A = 1); the
-    rotated family (6.25)/(6.26) is (Re, Im) of i z². Book: §6.3 before (6.24); Exercises 6.6–6.7. Label: symbolic."""
+    rotated family is (Re, Im) of i z²: φ = −2xy, ψ = x² − y², i.e. (6.25) up to sign (A = −1) and (6.26) with A = 1. Book: §6.3 before (6.24); Exercises 6.6–6.7. Label: symbolic."""
     x, y = sp.symbols("x y", real=True)
     out = []
     for n in range(1, int(degree) + 1):
@@ -409,7 +410,7 @@ def half_body_cp_zero_angle() -> float:
                         xtol=1e-15))
 
 
-def half_body_net_force(U: float = 1.0, m: float = 2.0 * np.pi, x_end: float = 10.0, rho: float = 1.0,
+def half_body_net_force(U: float = 1.0, m: float = 2.0 * np.pi, x_end: float = 10.0, rho: float = 1.2,
                         n: int = 4001) -> dict:
     """Pressure force per unit depth on the half-body from its nose to the station x = x_end (Exercise 6.13 idea, our
     computation): D = −∫(p − p∞) dy, L = ∫(p − p∞) dx along the body (counterclockwise: upper surface from x_end to the
@@ -491,7 +492,8 @@ def superposition_state(spec, x=None, y=None, U_ref: float | None = None, box=(-
     """Everything E1's term bars and status need in one call, at the probe (x, y) [m]: the total u, v, ψ, φ, C_p; the
     per-element u_parts, v_parts; the stagnation points (list of [x, y]); ψ of the dividing streamline (through the first
     stagnation point); Σm; ``closed`` (|Σm| < 1e-12 and a body exists: a stream plus sources/sinks/doublets) and a
-    status sentence.
+    status sentence: "closed body: Σm = 0", "open body: net source m = … m²/s ⇒ extends downstream",
+    "open body (net sink): extends upstream" or "no body".
 
     ``spec``: list of dicts (:func:`flow_from_spec`), tuple specs, elements, or a Flow; ``U_ref`` the C_p reference speed
     (default the free-stream speed); ``box`` the stagnation-point search box. (x may also be an (x, y) tuple.)
@@ -516,6 +518,8 @@ def superposition_state(spec, x=None, y=None, U_ref: float | None = None, box=(-
         closed, status = True, "closed body: Σm = 0"
     elif body and net > 0:
         closed, status = False, f"open body: net source m = {net:.4g} m²/s ⇒ extends downstream"
+    elif body and net < 0:
+        closed, status = False, "open body (net sink): extends upstream"
     else:
         closed, status = False, "no body"
     return {"u": float(u), "v": float(v), "psi": float(fl.psi(px, py)), "phi": float(fl.phi(px, py)), "cp": float(cp),
@@ -583,7 +587,7 @@ def cylinder_stagnation_points(U: float = 1.0, a: float = 1.0, *, Gamma_cw: floa
     return pts[np.argsort(np.angle(pts))]
 
 
-def lift_per_span(rho: float = 1.0, U: float = 1.0, *, Gamma_cw: float | None = None,
+def lift_per_span(rho: float = 1.2, U: float = 1.0, *, Gamma_cw: float | None = None,
                   Gamma_ccw: float | None = None) -> float:
     """Kutta–Zhukhovsky lift per unit span L = ρUΓ (6.40), (6.62) with the book's clockwise Γ (= −ρUΓ_ccw) [N/m].
     ρ [kg/m³], U [m/s]. Book: §6.3 (6.40), §6.5 (6.62).
@@ -764,7 +768,7 @@ def cylinder_circulation_state(U: float = 10.0, a: float = 0.1, *, Gamma_cw: flo
 
 
 def force_on_held_singularity(kind: str = "source", U: float = 1.0, strength: float = 1.0,
-                              rho: float = 1.0) -> dict:
+                              rho: float = 1.2) -> dict:
     """Force per unit depth on a source (m) or a counterclockwise vortex (Γ) held fixed in a stream U (Exercise 6.10),
     by Blasius (6.60) on a circle round it: source D = −ρmU (pushed upstream), vortex L = −ρUΓ_ccw.
     Returns dict(D, L). Book: §6.5 (6.60); Exercise 6.10 (our derivation). Label: analytic."""
@@ -1016,15 +1020,22 @@ def kutta_zhukhovsky_sym() -> dict:
             "DmiL": DmiL, "D": sp.re(DmiL), "L": sp.simplify(-sp.im(DmiL))}
 
 
-def _body_flow(body: str, Gamma_cw: float, U: float, a: float, b: float | None, alpha: float):
+def _stream_angle(body: str, alpha: float | None) -> float:
+    """The stream angle [rad] of E5's bodies: ``alpha`` if given, else 15° for "tilted_ellipse" and 0 otherwise."""
+    if alpha is not None:
+        return float(alpha)
+    return float(np.radians(15.0)) if body == "tilted_ellipse" else 0.0
+
+
+def _body_flow(body: str, Gamma_cw: float, U: float, a: float, b: float | None, alpha: float | None):
     """(flow, inside, pressure-route contour (z, dz/dτ) or None) of E5's bodies."""
+    alpha = _stream_angle(body, alpha)
     if body == "cylinder":
         fl = PF.cylinder(U, a, Gamma_cw=Gamma_cw)
         return fl, fl.inside, None
     if body in ("ellipse", "tilted_ellipse"):
         bb = a / 1.2 if b is None else float(b)
-        al = alpha if (body == "ellipse" or alpha != 0.0) else np.radians(15.0)
-        fl = elliptic_cylinder_flow(U, a, bb, Gamma_cw=Gamma_cw, alpha=al)
+        fl = elliptic_cylinder_flow(U, a, bb, Gamma_cw=Gamma_cw, alpha=alpha)
         fl._b = bb
         return fl, fl.inside, None
     if body == "rankine_oval_vortex":
@@ -1040,13 +1051,14 @@ def _body_flow(body: str, Gamma_cw: float, U: float, a: float, b: float | None, 
 
 
 def laurent_contributions(body="cylinder", R: float = 0.2, *, Gamma_cw: float = 2.0, U: float = 10.0, a: float = 0.1,
-                          b: float | None = None, kmax: int = 4, rho: float = 1.2, n: int = 128, alpha: float = 0.0,
-                          center=0j) -> dict:
+                          b: float | None = None, kmax: int = 4, rho: float = 1.2, n: int = 128,
+                          alpha: float | None = None, center=0j) -> dict:
     """E5's bars: the share of each power z^k of (dw/dz)² (k = 0, −1, …, −kmax) in Blasius's (iρ/2)∮(dw/dz)² dz (6.60):
     ∮z^k dz = 2πi only for k = −1, so only that bar is nonzero, and its value is D − iL = −iρUΓ (6.61)–(6.62).
 
     ``body``: a name ("cylinder", "ellipse" (Zhukhovsky, b default a/1.2), "tilted_ellipse", "rankine_oval_vortex"; built
-    with Γ_cw [m²/s], U [m/s], a [m], b [m], alpha [rad]) — or any flow object / dw/dz callable. R [m] the circle for the
+    with Γ_cw [m²/s], U [m/s], a [m], b [m], alpha [rad] — None: 15° for "tilted_ellipse", 0 otherwise) — or any flow
+    object / dw/dz callable. R [m] the circle for the
     Laurent coefficients (FFT, n samples). Returns dict(powers [0, −1, …, −kmax], contrib_re (drag part D of each),
     contrib_im (lift part L of each) [N/m], coeffs {k: c_k of dw/dz}, square {p: coefficient of z^p in (dw/dz)²}, pairs
     ((j, k, 2πi c_j c_k × multiplicity) with j + k = −1), integral (∮(dw/dz)²dz), D, L).
@@ -1078,19 +1090,23 @@ def laurent_contributions(body="cylinder", R: float = 0.2, *, Gamma_cw: float = 
 
 
 def blasius_state(body: str = "cylinder", *, Gamma_cw: float = 2.0, U: float = 10.0, a: float = 0.1, R: float = 0.2,
-                  rho: float = 1.2, n: int = 256, b: float | None = None, alpha: float = 0.0, offset_x: float = 0.0,
-                  offset_y: float = 0.0) -> dict:
+                  rho: float = 1.2, n: int = 256, b: float | None = None, alpha: float | None = None,
+                  offset_x: float = 0.0, offset_y: float = 0.0) -> dict:
     """E5's state: Blasius (6.60) on the circle of radius R centred at (offset_x, offset_y) round the chosen body, with
     the Laurent coefficients there, the validity flag, and the independent on-body pressure route (6.56).
 
     Bodies: "cylinder" (radius a, (6.52)); "ellipse" (Zhukhovsky image of the circle a, map constant b (default a/1.2),
-    (6.68)–(6.69)); "tilted_ellipse" (the same with the stream at angle ``alpha``, default 15° if 0); "rankine_oval_vortex"
+    (6.68)–(6.69)); "tilted_ellipse" (the same with the stream at angle ``alpha`` [rad]; ``alpha=None`` means 15° for
+    this body and 0 for the others; an explicit value, including 0, is used as given); "rankine_oval_vortex"
     (stream + source 2πUa at −a/2 + sink at +a/2 + clockwise vortex Γ; its body test is approximate — the ellipse through
     the no-vortex oval's axes — and it has no pressure route (NaN)). Γ_cw [m²/s] clockwise (book); U [m/s]; a, R [m];
     ρ [kg/m³]; n quadrature nodes.
-    Returns dict(D, L (Blasius on the contour) [N/m], L_KJ = ρUΓ_cw, crosses_body (a contour point inside the body:
-    Blasius invalid), c0_re, cm1_re, cm1_im (Laurent coefficients c₀ and c₋₁ of dw/dz on the contour: U and iΓ_cw/2π),
-    D_pressure, L_pressure (surface-pressure integral on the body, spectral, n nodes)).
+    Returns dict(D, L — the x and y components of the force on the body by Blasius on the contour [N/m] (drag and lift
+    only when the stream is along x; for a tilted stream the lift is F_perp); L_KJ = ρUΓ_cw; F_perp, F_par — the force
+    components perpendicular (+90° from the stream) and parallel to the stream (F_perp = ρUΓ_cw, F_par = 0, (6.62));
+    stream_angle_deg; crosses_body (a contour point inside the body: Blasius invalid); c0_re, c0_im, cm1_re, cm1_im
+    (Laurent coefficients c₀ = U e^{−iα} = u∞ − iv∞ and c₋₁ = iΓ_cw/2π of dw/dz on the contour); D_pressure,
+    L_pressure (x, y components of the surface-pressure integral on the body, spectral, n nodes)).
     Book: §6.5 (6.56), (6.60)–(6.62). Label: analytic."""
     fl, inside, _ = _body_flow(body, Gamma_cw, U, a, b, alpha)
     c = complex(offset_x, offset_y)
@@ -1108,15 +1124,17 @@ def blasius_state(body: str = "cylinder", *, Gamma_cw: float = 2.0, U: float = 1
         zeta = a * np.exp(1j * th)
         zb = _C(CM.joukowski(zeta, bb))
         dz = 1j * (zeta - bb ** 2 / zeta)  # dz/dθ on the body
-        al = alpha if (body == "ellipse" or alpha != 0.0) else np.radians(15.0)
-        _, dwz = CM.circle_flow_zeta(U, a, Gamma_cw=Gamma_cw, alpha=al)
+        _, dwz = CM.circle_flow_zeta(U, a, Gamma_cw=Gamma_cw, alpha=_stream_angle(body, alpha))
         q = _C(dwz(zeta)) / (1.0 - bb ** 2 / zeta ** 2)  # u − iv on the body (chain rule, no inside mask)
         pv = 0.5 * rho * (U ** 2 - np.abs(q) ** 2)
         Fp = contour_force(pv, zb, dz)
         Dp, Lp = Fp.D, Fp.L
-    return {"D": F.D, "L": F.L, "L_KJ": float(rho * U * Gamma_cw), "crosses_body": crosses,
-            "c0_re": float(lc[0].real), "cm1_re": float(lc[-1].real), "cm1_im": float(lc[-1].imag),
-            "D_pressure": Dp, "L_pressure": Lp}
+    al = _stream_angle(body, alpha) if body in ("ellipse", "tilted_ellipse") else 0.0
+    ca, sa = np.cos(al), np.sin(al)
+    return {"D": F.D, "L": F.L, "L_KJ": float(rho * U * Gamma_cw), "F_perp": float(-F.D * sa + F.L * ca),
+            "F_par": float(F.D * ca + F.L * sa), "stream_angle_deg": float(np.degrees(al)), "crosses_body": crosses,
+            "c0_re": float(lc[0].real), "c0_im": float(lc[0].imag), "cm1_re": float(lc[-1].real),
+            "cm1_im": float(lc[-1].imag), "D_pressure": Dp, "L_pressure": Lp}
 
 
 # ======================================================================================================================
@@ -1278,11 +1296,16 @@ def example_6_2(Q: float = 1.0, n_iter: int | None = None, tol: float = 1e-10, m
     or "sor").
     Returns dict(psi ([j, i], NaN in the solid), X, Y (meshgrids [m]), x, y, mask, history, iterations, grid_shape,
     probe (the (j, i) index of the fixed interior point (x, y) = (2 m, 2 m) — the same physical point at every
-    refine), flux (ψ_top − ψ_bottom from u = ∂ψ/∂y on every interior vertical grid line — equals Q), dx).
+    refine), flux (Σ u Δy with u = ∂ψ/∂y on every interior vertical grid line — it telescopes to ψ_top − ψ_bottom = Q:
+    an identity of the boundary values (V1), not a conservation test), cell_circulation (the discrete circulation
+    ∮(u dx + v dy) round the square control cell centred on each unknown node, face velocities from ψ by central
+    differences: = −Δ²∇²_hψ, the discrete vorticity × area; NaN off the unknowns), max_cell_circulation (→ 0 as the
+    iteration converges — the genuine check that the computed flow is irrotational), dx).
     Book: §6.7, Example 6.2, Figs. 6.24–6.25.
-    Validation: V3, V4, V6 — tests/test_ch06.py: test_example_6_2_V3_refinement_order_is_set_by_the_270_degree_corner,
-    test_example_6_2_V4_flux_and_maximum_principle, test_example_6_2_V6_book_grid_values. Label: converged, conserved,
-    book-value.
+    Validation: V1 (flux identity), V3, V6 — tests/test_ch06.py:
+    test_example_6_2_V3_refinement_order_is_set_by_the_270_degree_corner, test_example_6_2_V4_flux_and_maximum_principle
+    (the flux part is an identity, V1; the maximum principle is the discrete analogue of harmonicity),
+    test_example_6_2_V6_book_grid_values. Label: converged, analytic, book-value.
     """
     g = example_6_2_geometry(refine, Q)
     psi, hist = LS.solve_laplace(g["mask"], np.nan_to_num(g["bc"]), method=method, tol=tol, n_iter=n_iter,
@@ -1296,9 +1319,24 @@ def example_6_2(Q: float = 1.0, n_iter: int | None = None, tol: float = 1e-10, m
         flux.append(float(np.sum(u * g["dx"])))
     X, Y = np.meshgrid(g["x"], g["y"], indexing="xy")
     r = int(refine)
+    circ = _discrete_node_circulation(psi, g["mask"], g["dx"])
     return {"psi": psi, "X": X, "Y": Y, "x": g["x"], "y": g["y"], "mask": g["mask"], "history": hist,
             "iterations": hist["iterations"], "grid_shape": psi.shape, "probe": (2 * r, 2 * r),
-            "flux": np.array(flux), "dx": g["dx"]}
+            "flux": np.array(flux), "cell_circulation": circ,
+            "max_cell_circulation": float(np.nanmax(np.abs(circ))) if np.isfinite(circ).any() else float("nan"),
+            "dx": g["dx"]}
+
+
+def _discrete_node_circulation(psi, mask, dx):
+    """Circulation ∮(u dx + v dy) round the square control cell (side Δ) centred on each unknown node, with the
+    face velocities from ψ by central differences across the faces (u = ∂ψ/∂y on the horizontal faces, v = −∂ψ/∂x on
+    the vertical faces): Γ_cell = −Σ_faces (ψ_neighbour − ψ_node) = −(ψ_E + ψ_W + ψ_N + ψ_S − 4ψ_P) = −Δ²∇²_hψ, the
+    discrete vorticity × area. It vanishes exactly when the average rule (6.72) holds (irrotational flow) — the
+    physical meaning of the Laplace equation for ψ (6.4)–(6.5). NaN off the unknown nodes. Label: analytic."""
+    P = np.asarray(psi, float)
+    out = np.full(P.shape, np.nan)
+    out[1:-1, 1:-1] = -(P[1:-1, 2:] + P[1:-1, :-2] + P[2:, 1:-1] + P[:-2, 1:-1] - 4.0 * P[1:-1, 1:-1])
+    return np.where(np.asarray(mask, bool), out, np.nan)
 
 
 def relaxation_state(problem: str = "four_point", method: str = "gauss_seidel", sweeps: int = 1,
@@ -1407,9 +1445,10 @@ def axisym_laplacian_sym(phi_expr, R: sp.Symbol, z: sp.Symbol):
 
 
 def spherical_continuity_residual(u_r_fn: Callable, u_t_fn: Callable, r, theta, h: float = 1e-5):
-    """Axisymmetric spherical continuity in the Appendix-B form (1/r²)∂(r²u_r)/∂r + (1/r sin θ)∂(u_θ sin θ)/∂θ [1/s]
-    — the book's (6.82) prints 1/r for the first factor (same zero set; a residual needs App. B's 1/r² and the 1/r of the
-    second term). Book: §6.8 (6.82) (corrected factor). Label: analytic."""
+    """Axisymmetric spherical continuity, the divergence ∇·u in the Appendix-B normalisation
+    (1/r²)∂(r²u_r)/∂r + (1/r sin θ)∂(u_θ sin θ)/∂θ [1/s]. The book's (6.82), (1/r)∂(r²u_r)/∂r + (1/sin θ)∂(u_θ sin θ)/∂θ
+    = 0, is exactly r times this expression — correct as printed, with the same zero set; this function returns the
+    divergence itself (units 1/s). Book: §6.8 (6.82), App. B. Label: analytic."""
     r_, t_ = _F(r), _F(theta)
     d1 = ((r_ + h) ** 2 * _F(u_r_fn(r_ + h, t_)) - (r_ - h) ** 2 * _F(u_r_fn(r_ - h, t_))) / (2 * h)
     d2 = (_F(u_t_fn(r_, t_ + h)) * np.sin(t_ + h) - _F(u_t_fn(r_, t_ - h)) * np.sin(t_ - h)) / (2 * h)
@@ -1684,6 +1723,11 @@ def axial_state(target: str = "rankine_oval", N: int = 20, U: float = 1.0, finen
     where R_c is the root of the computed ψ(R, z_q) nearest the target radius R_t: ψ is sampled at R = R_t(0.5 + j/100),
     j = 0…100, the sign change closest to R_t is refined by ``brentq`` (no sign change: R_c = 0, i.e. the full radius
     counts as error), k_max, k_min [m²/s]).
+    ⚠️ Use even N for the fore–aft symmetric targets ("rankine_oval", "ellipsoid", "sphere"): with odd N the
+    reflection symmetry makes the square system exactly singular (one symmetric strength mode too many, see
+    ``core.panels.axial_singularity_solve``); the solver then warns (RuntimeWarning) and returns the minimum-norm
+    least-squares strengths, and ``cond`` reports the singular matrix (~1e16–1e17). The airship is asymmetric and
+    works for any N.
     Book: §6.8, Fig. 6.29. Label: analytic, converged (the sphere: qualitative, ill-conditioned)."""
     tg = axisym_body_target(target, int(N), U, fineness=fineness if target == "ellipsoid" else None, as_dict=True)
     sol = PN.axial_singularity_solve(tg["z_body"], tg["R_body"], U, int(N))

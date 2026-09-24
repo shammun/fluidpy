@@ -444,8 +444,9 @@ class ComplexFlow:
         s = _F(self.speed(x, y))
         return _S(1.0 - s ** 2 / U_ ** 2)  # Eq. (6.32)
 
-    def pressure(self, x, y, rho: float = 1.0, p_inf: float = 0.0, U: float | None = None):
-        """Steady Bernoulli everywhere (6.18) with const = p∞ + ρU²/2: p = p∞ + ½ρ(U² − |u|²) [Pa]. Book: §6.2–6.3."""
+    def pressure(self, x, y, rho: float = 1.2, p_inf: float = 0.0, U: float | None = None):
+        """Steady Bernoulli everywhere (6.18) with const = p∞ + ρU²/2: p = p∞ + ½ρ(U² − |u|²) [Pa]; ρ defaults to air
+        (1.2 kg/m³, the default of every 2-D force helper). Book: §6.2–6.3."""
         U_ = self.U_inf if U is None else float(U)
         s = _F(self.speed(x, y))
         return _S(p_inf + 0.5 * rho * (U_ ** 2 - s ** 2))  # Eq. (6.18)
@@ -827,7 +828,7 @@ def _dwdz_of(obj) -> Callable:
     return obj.dwdz if hasattr(obj, "dwdz") else obj
 
 
-def blasius_force(flow_or_dwdz, R: float | None = None, contour=None, rho: float = 1.0, n: int = 256,
+def blasius_force(flow_or_dwdz, R: float | None = None, contour=None, rho: float = 1.2, n: int = 256,
                   center=0j) -> BlasiusForce:
     """Blasius theorem (6.60): D − iL = (iρ/2)∮_C (dw/dz)² dz on any counterclockwise contour C enclosing the body
     (and no other singularity of (dw/dz)²).
@@ -835,7 +836,7 @@ def blasius_force(flow_or_dwdz, R: float | None = None, contour=None, rho: float
     Either a circle (``R`` [m], ``center``; periodic trapezoid with ``n`` nodes — exponentially convergent for analytic
     integrands) or a closed polygon ``contour`` (complex array or (2, N)/(N, 2) vertices, last ≠ first; trapezoid on the
     segments — second order; must be counterclockwise, signed area > 0, else ValueError).
-    Parameters: flow (object with ``dwdz``) or a callable dw/dz(z) [m/s]; ρ [kg/m³].
+    Parameters: flow (object with ``dwdz``) or a callable dw/dz(z) [m/s]; ρ [kg/m³] (default 1.2, air).
     Returns :class:`BlasiusForce` (D, L) [N/m] on the body. Book: §6.5, Eqs. (6.57)–(6.60).
     Validation: V1, V3 — tests/test_ch06.py: test_blasius_V1_cylinder_force_on_every_circle,
     test_blasius_V1_form_matches_published_theorem, test_blasius_V3_polygon_contours_converge_at_second_order,
@@ -872,7 +873,7 @@ def contour_crosses_body(inside: Callable | None, contour) -> bool:
     return bool(np.any(np.asarray(inside(z.real, z.imag))))
 
 
-def blasius_force_report(flow, R: float | None = None, contour=None, rho: float = 1.0, n: int = 256,
+def blasius_force_report(flow, R: float | None = None, contour=None, rho: float = 1.2, n: int = 256,
                          center=0j) -> dict:
     """:func:`blasius_force` plus a validity flag: dict(D, L, valid, reason). ``valid`` is False when the contour
     enters the body (``flow.inside``). Book: §6.5 (6.60). Label: analytic."""
@@ -1260,17 +1261,26 @@ def axisym_velocity_spherical_sym(expr, r: sp.Symbol, theta: sp.Symbol, kind: st
     raise ValueError('kind must be "psi" or "phi"')
 
 
-def sphere_potential_vector(x, U_vec, d_vec):
+def sphere_potential_vector(x, U_vec, d_vec=None, *, a: float | None = None):
     """Coordinate-free sphere potential (6.92): φ = (U − d/4π|x|³)·x.
 
-    x (3,) or (3, N) [m] from the centre; U_vec (3,) free stream [m/s]; ``d_vec`` the dipole vector (3,) [m⁴/s] (the
-    sphere of radius a has d = −2πa³U, i.e. φ = U·x(1 + a³/2|x|³)) — or a plain number, taken as the radius a [m] and
-    converted. Returns φ [m²/s]. Book: §6.8 (6.92). Label: analytic."""
+    x (3,) or (3, N) [m] from the centre; U_vec (3,) free stream [m/s]; ``d_vec`` the dipole vector (3,) [m⁴/s], or the
+    keyword ``a`` [m] for the sphere of radius a (d = −2πa³U, i.e. φ = U·x(1 + a³/2|x|³)). A plain number passed as
+    ``d_vec`` is still read as the radius (older call form, deprecated: DeprecationWarning).
+    Returns φ [m²/s]. Book: §6.8 (6.92). Label: analytic."""
     X = _F(x)
     U = _F(U_vec).reshape((3,) + (1,) * (X.ndim - 1))
     r = np.sqrt(np.sum(X ** 2, axis=0))
-    if np.ndim(d_vec) == 0:
-        d = -_TWO_PI * float(d_vec) ** 3 * U
+    if a is None and d_vec is not None and np.ndim(d_vec) == 0:
+        warnings.warn("sphere_potential_vector(x, U, radius): pass the radius as a=… (a scalar d_vec is deprecated)",
+                      DeprecationWarning, stacklevel=2)
+        a, d_vec = float(d_vec), None
+    if a is not None:
+        if d_vec is not None:
+            raise ValueError("give either the dipole vector d_vec or the radius a, not both")
+        d = -_TWO_PI * float(a) ** 3 * U
+    elif d_vec is None:
+        raise ValueError("give the dipole vector d_vec or the radius a")
     else:
         d = _F(d_vec).reshape((3,) + (1,) * (X.ndim - 1))
     with np.errstate(divide="ignore", invalid="ignore"):

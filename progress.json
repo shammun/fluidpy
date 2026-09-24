@@ -171,14 +171,24 @@
       "design": "pass",
       "implement": "pass",
       "verify": "pass",
-      "review": "running",
-      "viz": "running",
-      "notebook": "running",
-      "knowledge": "todo",
-      "publish": "todo",
-      "explainers": [],
-      "notes": "analyze: 160 rows (NEW 112/SEEN 41/7 ex), 110/110 labels (6.1)-(6.109), CODE 119/DEMO 3/SKIP 38, 48 derivations (6 three-star); 10 suspected typos listed §9; curate: A 15 / NOTE 106 / RECAP 32 / SKIP 7 of 160; 31 D rows (8/18/5 by star), 14 demoted; 9 explainers + backup flow_net_sources_vortices; design: 15 A blocks, 160 ids placed, Part C 100 rows, Part E 265, Part F 31 D / 257 steps, 16 primers; implement: core/{potential,conformal,laplace_solvers,panels} + ch06_ideal_flow, all Part C present after 1 follow-up, 11 scripts exit 0, 613 tests pass; design fixes: Stokes control Rz (R^2 z is a solution), E8 parity on ellipse; verify PASS loop 2: 133 ch06 tests (V1 82, V2 27, V3 10, V4 6, V5 2, V6 4, V7 2), full 746; orders doublet 2.01, Blasius polygon 2.00, panels ellipse 2.06, Ex 6.2 4/3 (corner pollution); loop 1 fixed stagnation search + drawing helpers; errata Part G in design",
-      "updated": "2026-09-23"
+      "review": "pass",
+      "viz": "pass",
+      "notebook": "pass",
+      "knowledge": "running",
+      "publish": "running",
+      "explainers": [
+        "superposition_sandbox",
+        "cylinder_circulation_lift",
+        "vortex_wall_images",
+        "complex_potential_corners",
+        "blasius_kutta_contour",
+        "conformal_joukowski",
+        "laplace_relaxation",
+        "axial_singularity_bodies",
+        "added_mass_sphere"
+      ],
+      "notes": "analyze: 160 rows (NEW 112/SEEN 41/7 ex), 110/110 labels (6.1)-(6.109), CODE 119/DEMO 3/SKIP 38, 48 derivations (6 three-star); 10 suspected typos listed §9; curate: A 15 / NOTE 106 / RECAP 32 / SKIP 7 of 160; 31 D rows (8/18/5 by star), 14 demoted; 9 explainers + backup flow_net_sources_vortices; design: 15 A blocks, 160 ids placed, Part C 100 rows, Part E 265, Part F 31 D / 257 steps, 16 primers; implement: core/{potential,conformal,laplace_solvers,panels} + ch06_ideal_flow, all Part C present after 1 follow-up, 11 scripts exit 0, 613 tests pass; design fixes: Stokes control Rz (R^2 z is a solution), E8 parity on ellipse; verify PASS loop 2: 133 ch06 tests (V1 82, V2 27, V3 10, V4 6, V5 2, V6 4, V7 2), full 746; orders doublet 2.01, Blasius polygon 2.00, panels ellipse 2.06, Ex 6.2 4/3 (corner pollution); loop 1 fixed stagnation search + drawing helpers; errata Part G in design; review: M1 (6.82) not a slip (retracted everywhere), S1-S8 fixed; odd-N axial singularity fixed (min-norm LSQ + warning); 137 ch06 tests, full 750; viz PASS round 2 (9/9, E2 backslashes, E6 meta), 292 selftest rows; notebook PASS round 2 (564 cells, ~170 s, coverage 0/0); open should-fix: E1/E5 both-Γ status, E4 step 2 z³, E7 D23 tol, label overlaps E1/E4/E7/E9, E8 hook",
+      "updated": "2026-09-24"
     },
     "ch07": {
       "title": "Gravity Waves",

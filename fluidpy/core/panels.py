@@ -10,6 +10,8 @@ Reused by Ch. 14 (vortex panels, thin-airfoil numerics) and Ch. 10 (boundary-ele
 """
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from ._util import as_scalar_if_0d
@@ -63,8 +65,14 @@ def axial_singularity_solve(z_body, R_body, U: float, N=None, z_nodes=None) -> d
     the same span is divided uniformly. M = N → square solve; M > N → least squares.
     Returns dict(k (N,), z_nodes (= xi_nodes), xi_mid, residual (ψ at the body points), max_residual, cond (the
     **1-norm** condition number ``np.linalg.cond(A, 1)``, as the explainer computes it), net_strength Σ k_n Δξ_n (→ 0
-    for a closed body), A, rhs, U). Book: §6.8 (Fig. 6.29, "set ψ_m = 0 … N linear algebraic equations"), solved by
-    ``np.linalg.solve`` (or ``lstsq``) — the book allows iteration or matrix inversion.
+    for a closed body), A, rhs, U, odd_symmetric). Book: §6.8 (Fig. 6.29, "set ψ_m = 0 … N linear algebraic
+    equations"), solved by ``np.linalg.solve`` (or ``lstsq``) — the book allows iteration or matrix inversion.
+    ⚠️ Odd N on a fore–aft symmetric body (symmetric body points and segments: Rankine oval, ellipsoid, sphere): the
+    reflection z → −z gives A = −PAP (P the flip), so A maps symmetric strength patterns onto antisymmetric ψ patterns,
+    and for odd N the symmetric subspace (⌈N/2⌉) is one dimension larger than the antisymmetric one (⌊N/2⌋) — A is
+    exactly singular (cond ~ 1e16–1e17). This case is detected (``odd_symmetric`` = True), a RuntimeWarning is issued
+    and the minimum-norm least-squares solution (the antisymmetric k) is returned; ψ_m = 0 then holds only in the
+    least-squares sense. Use even N. Even N and asymmetric bodies (the airship) are solved by ``np.linalg.solve``.
     Validation: V1 — tests/test_ch06.py: test_axial_method_V1_rankine_oval_moments_and_conditioning,
     test_axial_method_V1_solver_and_field_consistency. Label: analytic.
     """
@@ -81,8 +89,23 @@ def axial_singularity_solve(z_body, R_body, U: float, N=None, z_nodes=None) -> d
         xi = _F(z_nodes).ravel()
     A = axial_influence_matrix(zb, Rb, xi)
     rhs = -0.5 * float(U) * Rb ** 2
+    odd_sym = False
     if A.shape[0] == A.shape[1]:
-        k = np.linalg.solve(A, rhs)
+        n = A.shape[0]
+        if n % 2 == 1:
+            P = np.eye(n)[::-1]
+            odd_sym = bool(np.allclose(A, -P @ A @ P, rtol=0.0, atol=1e-12 * np.abs(A).max()))
+        if odd_sym:
+            # A = −PAP (fore–aft symmetric body and segments): A maps symmetric k onto antisymmetric ψ, whose
+            # subspace has one dimension fewer for odd N ⇒ A is exactly singular. The minimum-norm least-squares
+            # solution is the antisymmetric (source-fore, sink-aft) k; ψ_m = 0 then holds only in the least-squares
+            # sense (⌊N/2⌋ unknown pairs for ⌈N/2⌉ symmetric equations).
+            warnings.warn(f"axial_singularity_solve: N = {n} is odd and the target is fore–aft symmetric — the "
+                          "square system is exactly singular (one symmetric mode too many); using the minimum-norm "
+                          "least-squares solution. Use an even N.", RuntimeWarning, stacklevel=2)
+            k = np.linalg.lstsq(A, rhs, rcond=None)[0]
+        else:
+            k = np.linalg.solve(A, rhs)
         cond = float(np.linalg.cond(A, 1))
     else:
         k = np.linalg.lstsq(A, rhs, rcond=None)[0]
@@ -90,7 +113,8 @@ def axial_singularity_solve(z_body, R_body, U: float, N=None, z_nodes=None) -> d
     resid = A @ k - rhs  # = ψ_m
     return {"k": k, "z_nodes": xi, "xi_nodes": xi, "xi_mid": 0.5 * (xi[:-1] + xi[1:]), "residual": resid,
             "max_residual": float(np.max(np.abs(resid))), "cond": cond,
-            "net_strength": float(np.sum(k * np.diff(xi))), "A": A, "rhs": rhs, "U": float(U)}
+            "net_strength": float(np.sum(k * np.diff(xi))), "A": A, "rhs": rhs, "U": float(U),
+            "odd_symmetric": odd_sym}
 
 
 def _sol_args(args):

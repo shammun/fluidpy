@@ -19,7 +19,8 @@ Pinned conventions with discrimination tests: Γ counterclockwise-positive in pr
 clockwise Γ of (6.36)–(6.40) (L = +ρUΓ_cw; ``Gamma_ccw=+Γ`` gives L < 0) · 2-D dipole vector from sink to source
 (cylinder d = −2πUa² e_x) · half-body θ ∈ [0, 2π) (numpy's principal branch puts −m/2 on the lower body) · Zhukhovsky
 inverse on the outside branch (numpy's principal √(z² − 4b²) lands inside the circle for Re z < 0) · corrected (6.61)
-1/z² coefficient, (6.104) bracket sign, (6.108) integrand, (6.82) factor 1/r² — each printed form is shown to differ.
+1/z² coefficient, (6.104) bracket sign, (6.108) integrand — each printed form is shown to differ. (6.82) is correct as
+printed: it is r × the Appendix-B divergence (derivation review M1), and a test pins that.
 
 Run: ``.venv/Scripts/python.exe -m pytest tests/test_ch06.py -q -p no:cacheprovider``.
 """
@@ -677,6 +678,9 @@ def test_superposition_state_V1_explainer_terms():  # V1 Part C 5.12–5.13 (E1)
     oval = [{"kind": "uniform", "U": 1.0}, {"kind": "source", "m": 1.0, "x": -1.0}, {"kind": "sink", "m": 1.0, "x": 1.0}]
     assert ch06.superposition_state(oval, probe=(0.0, 2.0))["closed"]
     assert ch06.superposition_state([{"kind": "vortex", "Gamma": 1.0}], 1.0, 0.0)["status"] == "no body"
+    sk = ch06.superposition_state([{"kind": "uniform", "U": 1.0}, {"kind": "sink", "m": TWO_PI}], 1.0, 1.0)
+    assert sk["status"] == "open body (net sink): extends upstream" and not sk["closed"]  # review S5
+    assert sk["net_source"] == pytest.approx(-TWO_PI) and sk["stagnation"] == [[pytest.approx(1.0), 0.0]]  # x_S = +m/2πU
     fl = ch06.flow_from_spec([{"kind": "corner", "A": 1.0, "n": 2.0}, ("uniform", 0.5), PF.Vortex(1.0, 3j)])
     assert len(fl.elements) == 3 and ch06.flow_from_spec(fl) is fl
     with pytest.raises(ValueError):
@@ -856,6 +860,17 @@ def test_lift_V2_derivation():  # V2 D10 (★★) and D11 (★★): (6.36) → (
     D = -sp.integrate(sp.expand(p * sp.cos(th) * a), (th, 0, 2 * sp.pi))  # step 9
     assert sp.simplify(L - rho * U * G) == 0 and sp.simplify(D) == 0
     assert sp.integrate(sp.sin(th) ** 3, (th, 0, 2 * sp.pi)) == 0 and sp.integrate(sp.sin(th) ** 2, (th, 0, 2 * sp.pi)) == sp.pi
+
+
+def test_lift_V1_shared_air_density_default():  # V1 review S4: every 2-D force helper defaults to ρ = 1.2 kg/m³
+    U, a, G = 10.0, 0.1, 2.0
+    fl = PF.cylinder(U, a, Gamma_cw=G)
+    vals = [ch06.lift_per_span(U=U, Gamma_cw=G), ch06.surface_pressure_force(fl, R=a).L, PF.blasius_force(fl, R=0.3).L,
+            ch06.cv_force_on_body(fl, 1.0).L, ch06.cylinder_circulation_state(U, a, Gamma_cw=G)["L"],
+            ch06.laurent_contributions(fl, R=0.3)["L"], ch06.blasius_state("cylinder", Gamma_cw=G, U=U)["L"]]
+    assert np.allclose(vals, 24.0, rtol=1e-10)  # = 1.2 × 10 × 2; a leftover ρ = 1 default would give 20
+    assert ch06.force_on_held_singularity("source", U=2.0, strength=3.0)["D"] == pytest.approx(-1.2 * 6.0, rel=1e-12)
+    assert ch06.cylinder_surface_pressure(0.0, U, a) == pytest.approx(0.5 * 1.2 * U ** 2)
 
 
 def test_lift_V2_dimensions():  # V2 pint: ρUΓ is a force per unit length; Γ/(4πaU) is a pure number
@@ -1229,6 +1244,17 @@ def test_blasius_V4_three_routes_agree():  # V4 R18, (6.54), (6.56), (6.60): CV,
     al = np.radians(15.0)
     assert (t["D"], t["L"]) == (pytest.approx(-24.0 * np.sin(al), rel=1e-10), pytest.approx(24.0 * np.cos(al), rel=1e-10))
     assert t["D_pressure"] == pytest.approx(t["D"], rel=1e-9)
+    assert t["F_perp"] == pytest.approx(1.2 * U * G, rel=1e-10) and abs(t["F_par"]) < 1e-9  # S1: ⟂ stream, size ρUΓ_cw
+    assert t["stream_angle_deg"] == pytest.approx(15.0)
+    assert complex(t["c0_re"], t["c0_im"]) == pytest.approx(U * np.exp(-1j * al), abs=1e-12)  # c₀ = U e^{−iα}
+    assert complex(t["D"], -t["L"]) == pytest.approx(-1j * 1.2 * U * G * np.exp(-1j * al), abs=1e-9)  # −iρUΓ e^{−iα}
+    for a_deg in (0.0, 30.0, -20.0):
+        q = ch06.blasius_state("tilted_ellipse", Gamma_cw=G, U=U, R=0.3, alpha=np.radians(a_deg))
+        assert q["stream_angle_deg"] == pytest.approx(a_deg, abs=1e-12)  # α = 0 now stays 0 when given explicitly
+        assert complex(q["D"], -q["L"]) == pytest.approx(-1j * 1.2 * U * G * np.exp(-1j * np.radians(a_deg)), abs=1e-9)
+        assert q["F_perp"] == pytest.approx(1.2 * U * G, rel=1e-10) and abs(q["F_par"]) < 1e-9
+    cz = ch06.blasius_state("cylinder", Gamma_cw=G, U=U, R=0.3)
+    assert (cz["F_perp"], cz["stream_angle_deg"]) == (pytest.approx(cz["L"], rel=1e-12), pytest.approx(0.0))
     ro = ch06.blasius_state("rankine_oval_vortex", Gamma_cw=G, U=U, R=0.3)
     assert ro["L"] == pytest.approx(24.0, rel=1e-12) and abs(ro["D"]) < 1e-10 and np.isnan(ro["D_pressure"])
     assert ch06.blasius_state("cylinder", R=0.05)["crosses_body"]
@@ -1669,7 +1695,7 @@ def test_laplace_V2_derivation():  # V2 D22 (★) and D23 (★★): Taylor error
     assert v == [0, sp.Rational(3, 4), sp.Rational(3, 4), sp.Rational(27, 8)]
 
 
-def test_example_6_2_V4_flux_and_maximum_principle():  # V4 N74: Q through every section; V1 discrete max principle
+def test_example_6_2_V1_flux_identity_and_maximum_principle():  # V1 N74: Σ u Δy = Q (an identity of the BCs), max principle
     r = ch06.example_6_2(Q=1.0)
     assert r["history"]["converged"] and np.allclose(r["flux"], 1.0, atol=1e-9)
     psi, mask = r["psi"], r["mask"]
@@ -1687,6 +1713,44 @@ def test_example_6_2_V4_flux_and_maximum_principle():  # V4 N74: Q through every
     for meth in ("jacobi", "sor", "direct"):
         rm = ch06.example_6_2(method=meth)
         assert np.allclose(rm["psi"], psi, equal_nan=True, atol=1e-8)
+
+
+def test_example_6_2_V4_discrete_circulation_vanishes():  # V4 N74: zero circulation round every cell (irrotational)
+    tol = 1e-10
+    r = ch06.example_6_2(Q=1.0, tol=tol)
+    psi, mask, c = r["psi"], r["mask"], r["cell_circulation"]
+    J, I = np.nonzero(mask)
+    own = np.array([-(psi[j, i - 1] + psi[j, i + 1] + psi[j - 1, i] + psi[j + 1, i] - 4 * psi[j, i]) for j, i in zip(J, I)])
+    assert np.allclose(c[J, I], own, atol=1e-15)  # ∮(u dx + v dy) round each cell = −Δ²∇²_hψ, recomputed here
+    assert np.all(np.isnan(c[~mask]))
+    assert r["max_cell_circulation"] <= 4 * tol  # Γ_cell = −4 × (defect of the average rule) ≤ 4 tol when converged
+    swept = [ch06.example_6_2(Q=1.0, n_iter=k)["max_cell_circulation"] for k in (1, 5, 20, 50)]
+    assert all(b < a for a, b in zip(swept, swept[1:]))  # falls with every block of sweeps
+    assert swept[1] == pytest.approx(0.1, rel=0.05)  # ≈ 0.0999 after 5 sweeps: far from irrotational
+    rf = ch06.example_6_2(Q=1.0, method="direct", refine=4)
+    assert rf["max_cell_circulation"] < 1e-12  # the direct solve is irrotational to round-off on a fine grid too
+
+
+def test_example_6_2_V1_geometry_and_boundary_values():  # V1 N74 (public, Q = 1): 24 unknowns, solid step, BCs
+    g = ch06.example_6_2_geometry(1, Q=1.0)
+    x, y, mask, bc = g["x"], g["y"], g["mask"], g["bc"]
+    X, Y = np.meshgrid(x, y, indexing="xy")
+    assert (x[0], x[-1], y[0], y[-1], g["dx"]) == (0.0, 9.0, 0.0, 5.0, 1.0)
+    assert int(mask.sum()) == 24  # 4 × 4 in the inlet channel + 4 × 2 above the step
+    assert np.array_equal(g["solid"], (X > 5) & (Y < 2))
+    assert np.all(np.isnan(bc[g["solid"]]))
+    assert np.allclose(bc[:, 0], y / 5.0)  # inlet ψ = Qy/5: uniform inlet velocity Q/5
+    out = y >= 2
+    assert np.allclose(bc[out, -1], (y[out] - 2.0) / 3.0)  # outlet ψ = Q(y − 2)/3: uniform outlet velocity Q/3
+    assert np.allclose(np.diff(bc[out, -1]), 1.0 / 3.0)  # (a non-uniform outlet profile fails here)
+    assert np.allclose(bc[-1, :], 1.0)  # ψ = Q on the top wall
+    assert np.allclose(bc[0, X[0] <= 5], 0.0)  # ψ = 0 on the lower wall ahead of the step
+    assert np.allclose(bc[Y[:, 5] <= 2, 5], 0.0)  # the step face x = 5
+    assert np.allclose(bc[2, X[2] >= 5], 0.0)  # the lower wall of the outlet channel y = 2
+    r = ch06.example_6_2(Q=1.0)
+    assert np.allclose(r["psi"][:, 0], y / 5.0) and np.allclose(r["psi"][out, -1], (y[out] - 2) / 3)
+    g2 = ch06.example_6_2_geometry(2, Q=1.0)
+    assert int(g2["mask"].sum()) == 9 * 9 + 8 * 5  # the same domain at Δ = ½ m
 
 
 def test_example_6_2_V3_refinement_order_is_set_by_the_270_degree_corner():  # V3: order → 2α = 4/3, not 2 (D15 α)
@@ -1768,7 +1832,13 @@ def test_sphere_V1_stream_surface_velocity_and_cp():  # V1 (6.89)–(6.91), N83,
     X = np.stack([R * np.cos(0.3), R * np.sin(0.3), z])
     Uv = np.array([0.0, 0.0, U])
     assert np.allclose(PF.sphere_potential_vector(X, Uv, -TWO_PI * a ** 3 * Uv), sph.phi(R, z), atol=1e-13)
-    assert np.allclose(PF.sphere_potential_vector(X, Uv, a), sph.phi(R, z), atol=1e-13)
+    assert np.allclose(PF.sphere_potential_vector(X, Uv, a=a), sph.phi(R, z), atol=1e-13)
+    with pytest.raises(ValueError):
+        PF.sphere_potential_vector(X, Uv, -TWO_PI * a ** 3 * Uv, a=a)  # both given
+    with pytest.raises(ValueError):
+        PF.sphere_potential_vector(X, Uv)  # neither given
+    with pytest.warns(DeprecationWarning):  # a bare scalar d_vec is still read as the radius, with a warning
+        assert np.allclose(PF.sphere_potential_vector(X, Uv, a), sph.phi(R, z), atol=1e-13)
 
 
 def test_sphere_V1_parity_with_hill_exterior_and_published_form():  # V1 N83: ch05 Hill exterior; McDonald (2015)
@@ -1863,7 +1933,7 @@ def test_axisym_elements_V3_doublet3d_is_the_limit_of_a_pair():  # V3 (6.88): 3-
     assert PF.AxisymUniform(2.0).psi(0.5, 3.0) == pytest.approx(0.25) and PF.AxisymUniform(2.0).phi(0.5, 3.0) == 6.0
 
 
-def test_axisym_velocity_V1_spherical_components_from_psi_and_phi():  # V1 (6.83) N79 two routes; (6.82) App. B form
+def test_axisym_velocity_V1_spherical_components_from_psi_and_phi():  # V1 (6.83) N79 two routes; (6.82) = r × App. B
     U, a = 1.1, 0.6
     sph = PF.sphere(U, a)
     psi_s = lambda r, t: 0.5 * U * r ** 2 * (1 - a ** 3 / r ** 3) * np.sin(t) ** 2  # noqa: E731
@@ -1879,18 +1949,24 @@ def test_axisym_velocity_V1_spherical_components_from_psi_and_phi():  # V1 (6.83
     assert sp.simplify(e1[0] - e2[0]) == 0 and sp.simplify(e1[1] - e2[1]) == 0
     with pytest.raises(ValueError):
         PF.axisym_velocity_spherical(psi_s, 1.0, 1.0, "chi")
-    # (6.82): the Appendix-B continuity (1/r²)∂(r²u_r)/∂r + … vanishes; the printed 1/r factor does not balance
+    # (6.82) as printed, (1/r)∂(r²u_r)/∂r + (1/sin θ)∂(u_θ sin θ)/∂θ = 0, is r × the Appendix-B divergence: both vanish
     ur_fn = lambda rr, tt: sph.velocity_spherical(rr, tt)[0]  # noqa: E731
     ut_fn = lambda rr, tt: sph.velocity_spherical(rr, tt)[1]  # noqa: E731
     assert np.max(np.abs(ch06.spherical_continuity_residual(ur_fn, ut_fn, r, th))) < 1e-8
-    h = 1e-5
-    printed = ((r + h) ** 2 * ur_fn(r + h, th) - (r - h) ** 2 * ur_fn(r - h, th)) / (2 * h) / r + (
-        ut_fn(r, th + h) * np.sin(th + h) - ut_fn(r, th - h) * np.sin(th - h)) / (2 * h) / (r * np.sin(th))
-    assert np.max(np.abs(printed)) > 0.05  # the printed (6.82) is not a residual: only its "= 0" survives by accident
-    ur_s = Us * (1 - As ** 3 / rs ** 3) * sp.cos(ts)
+    ur_s = Us * (1 - As ** 3 / rs ** 3) * sp.cos(ts)  # the sphere flow (6.90)
     ut_s = -Us * (1 + As ** 3 / (2 * rs ** 3)) * sp.sin(ts)
+    printed = sp.diff(rs ** 2 * ur_s, rs) / rs + sp.diff(ut_s * sp.sin(ts), ts) / sp.sin(ts)  # (6.82) as printed
+    assert sp.simplify(printed) == 0
     cont = CU.divergence([ur_s, ut_s, 0], "spherical", coords=(rs, ts, sp.Symbol("varphi")))
     assert sp.simplify(cont) == 0  # R28 via core.curvilinear
+    ur_g, ut_g = sp.Function("u_r")(rs, ts), sp.Function("u_theta")(rs, ts)  # for any field: printed = r × App. B
+    pg = sp.diff(rs ** 2 * ur_g, rs) / rs + sp.diff(ut_g * sp.sin(ts), ts) / sp.sin(ts)
+    assert sp.simplify(pg - rs * CU.divergence([ur_g, ut_g, 0], "spherical", coords=(rs, ts, sp.Symbol("varphi")))) == 0
+    # numerically on a non-solenoidal test field: the printed form equals r × `spherical_continuity_residual`
+    fr = lambda rr, tt: rr * np.cos(tt) ** 2  # noqa: E731
+    ft = lambda rr, tt: rr ** 2 * np.sin(tt)  # noqa: E731
+    pr_num = (lambda rr, tt: 3 * rr * np.cos(tt) ** 2 + 2 * rr ** 2 * np.cos(tt))(r, th)  # (1/r)∂(r³cos²)/∂r + …
+    assert np.allclose(r * ch06.spherical_continuity_residual(fr, ft, r, th), pr_num, rtol=1e-8)
 
 
 def test_sphere_V7_three_dimensional_relief():  # V7 N84 table: cylinder (2U, −3, (a/r)²) vs sphere (1.5U, −1.25, (a/r)³)
@@ -2065,6 +2141,40 @@ def test_axial_method_V1_rankine_oval_moments_and_conditioning():  # V1 moments 
     for tgt in ("airship", "ellipsoid"):
         s = ch06.axial_state(tgt, N=10, fineness=4.0)
         assert s["body_error"] < 0.01 and np.isfinite(s["cond"])
+
+
+def test_axial_method_V1_fore_aft_symmetry_makes_odd_n_singular():  # V1 (a)–(d): A = −PAP; odd-N branch; even N pinned
+    P = np.eye(10)[::-1]
+    for tgt in ("rankine_oval", "ellipsoid"):  # (a) the reflection z → −z: A maps symmetric k onto antisymmetric ψ
+        tg = ch06.axisym_body_target(tgt, 10, as_dict=True)
+        A = PN.axial_influence_matrix(tg["z_body"], tg["R_body"], tg["xi_nodes"])
+        assert np.allclose(A, -P @ A @ P, rtol=0.0, atol=1e-13 * np.abs(A).max())
+        ks = np.linspace(1.0, 2.0, 5)
+        sym = np.concatenate([ks, ks[::-1]])
+        assert np.allclose(A @ sym, -(A @ sym)[::-1], atol=1e-13 * np.abs(A).max())  # symmetric k → odd ψ
+    for N in (9, 11):  # (b) odd N on the symmetric oval: exactly singular, warned, minimum-norm antisymmetric k
+        tg = ch06.axisym_body_target("rankine_oval", N, as_dict=True)
+        with pytest.warns(RuntimeWarning, match="odd"):
+            sol = PN.axial_singularity_solve(tg["z_body"], tg["R_body"], 1.0, N)
+        assert sol["odd_symmetric"] is True
+        k = sol["k"]
+        assert np.max(np.abs(k + k[::-1])) < 1e-9 * np.max(np.abs(k))  # antisymmetric: source fore, sink aft
+        assert abs(sol["net_strength"]) < 1e-9
+        assert np.linalg.matrix_rank(sol["A"]) == N - 1  # one symmetric mode too many
+        with pytest.warns(RuntimeWarning):
+            st = ch06.axial_state("rankine_oval", N)
+        assert st["body_error"] < 1e-2  # (was 0.3–0.5 m before the branch)
+    s20 = ch06.axial_state("rankine_oval", N=20)  # (c) even N unchanged: np.linalg.solve, numbers pinned
+    assert s20["cond"] == pytest.approx(3337914.99387, rel=1e-9)
+    assert s20["body_error"] == pytest.approx(1.66106771e-4, rel=1e-6)
+    tg = ch06.axisym_body_target("rankine_oval", 20, as_dict=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        assert PN.axial_singularity_solve(tg["z_body"], tg["R_body"], 1.0, 20)["odd_symmetric"] is False
+        for N in (9, 11):  # (d) the airship is not fore–aft symmetric: odd N takes the ordinary solve, no warning
+            ta = ch06.axisym_body_target("airship", N, as_dict=True)
+            sa = PN.axial_singularity_solve(ta["z_body"], ta["R_body"], 1.0, N)
+            assert sa["odd_symmetric"] is False and sa["max_residual"] < 1e-8
 
 
 def test_axial_method_V1_solver_and_field_consistency():  # V1 Part C 4.1–4.2: A k = rhs, psi/velocity, lstsq branch
@@ -2682,11 +2792,11 @@ def test_book_V6_sections_6_8_6_9_and_exercises():  # V6 §6.8 sphere/airship fo
         float(src.phi(0.8 * np.sin(0.5), 0.8 * np.cos(0.5))), rel=1e-13)
     assert float(sp.sympify(x["ex6_34_source"]["psi"], locals=s34).subs({s34["Q"]: 1.3, s34["theta"]: 0.5})) == \
         pytest.approx(float(src.psi(0.8 * np.sin(0.5), 0.8 * np.cos(0.5))), rel=1e-13)
-    for zz in (air["z_nose"], air["z_tail"]):  # Exercise 6.42: the axis stagnation points satisfy the printed cubic
-        lhs42 = (zz / aa) ** 2
-        target = Q / (4 * np.pi * U * aa ** 2)
-        assert min(abs(lhs42 * (zz / aa + 1) - target), abs(lhs42 * (zz / aa - 1) - target),
-                   abs(lhs42 * abs(zz / aa - 1) - target)) < 1e-9
+    target = Q / (4 * np.pi * U * aa ** 2)  # Exercise 6.42: the axis stagnation points satisfy (z/a)²(1 − z/a) = ±q
+    tn, tt = air["z_nose"] / aa, air["z_tail"] / aa
+    assert tn ** 2 * (1 - tn) == pytest.approx(target, rel=1e-9)  # the nose (z < 0): +q
+    assert tt ** 2 * (1 - tt) == pytest.approx(-target, rel=1e-9)  # the tail (z > a): −q
+    assert x["ex6_42_airship_length_roots_of"].replace(" ", "").startswith("z**2/a**2*(z/a+-1)")  # the printed ± form
     ex43 = float(sp.sympify(x["ex6_43_far_radius"], locals=se).subs({se["a"]: 0.9, se["k"]: 1.4, se["U"]: 2.0}))
     assert ex43 == pytest.approx(ch06.axisym_half_body(2.0, 0.9 * 1.4)["R_far"], rel=1e-14)
     s45 = book_symbols("a", "U_c", "x", "x_c", "y")

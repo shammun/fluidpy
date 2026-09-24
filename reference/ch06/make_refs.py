@@ -31,7 +31,10 @@ BENCHMARKS = {
         "formula": "2/3*pi*r**3*rho",
         "fraction_of_displaced_mass": 0.5,
         "equation_of_motion": "(m_p + rho*V_p/2) dv/dt = sum F (+ rho*V_p/2 Du/Dt for an accelerating fluid)",
-        "source": "https://en.wikipedia.org/wiki/Added_mass (fetched 2026-09-23)",
+        "source": "https://en.wikipedia.org/wiki/Added_mass (fetched 2026-09-23) — secondary",
+        "primary": "H. Lamb, Hydrodynamics, 6th ed., Cambridge University Press (1932), Ch. V, §92 (sphere moving through "
+                   "liquid: inertia increased by half the mass of liquid displaced) — section number as cited by the "
+                   "derivation review; edition confirmed by search, the text itself not fetched",
         "label": "V5",
     },
     # Wikipedia, "Rayleigh–Plesset equation": Besant's empty-cavity filling time t ≈ 0.91468 R0 sqrt(ρ/P∞).
@@ -39,7 +42,9 @@ BENCHMARKS = {
         "constant": 0.91468,
         "formula": "t = 0.91468*R0*sqrt(rho/P_inf)",
         "digits": "as printed (5 significant figures)",
-        "source": "https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Plesset_equation (fetched 2026-09-23)",
+        "source": "https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Plesset_equation (fetched 2026-09-23) — secondary",
+        "primary": "Lord Rayleigh, On the pressure developed in a liquid during the collapse of a spherical cavity, "
+                   "Phil. Mag. (6) 34(200), 94-98 (1917), doi:10.1080/14786440808635681 (citation confirmed by search)",
         "label": "V5",
     },
     # Wikipedia, "Potential flow around a circular cylinder": ϕ = Ur(1 + R²/r²)cos θ, V_r = U(1 − R²/r²)cos θ,
