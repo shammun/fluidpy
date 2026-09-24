@@ -3,8 +3,8 @@
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
-chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148); a new chapter starts at the
-next free number (ch06: P149). Total so far: 148.
+chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164); a new
+chapter starts at the next free number (ch07: P165). Total so far: 164.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -182,6 +182,24 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | Frenet frame of a curve (P145) | ch05 · §5.6 · C10 | unit tangent, principal normal (toward the centre of curvature), binormal; ⚠️ the book's e_n points **away** (= −N); helix curvature a/(a² + c²), torsion c/(a² + c²) (gloss: plotly dropdown menus for the frame figure) |
 | **ch05 — physics vocabulary** | | |
 | angular momentum of a spinning cylinder (P146) | ch05 · §5.6 · C10 | L = IΩ with I = ½mR² = mA/2π; no torque ⇒ L fixed, so stretching at fixed mass and volume shrinks A and spins it up ∝ length (the skater; vortex stretching D17, D18) |
+| **ch06 — maths** | | |
+| 2-D divergence theorem and the Dirac delta in the plane (P149) | ch06 · §6.2 · C02 | ∫_A∇²f dA = ∮∇f·n ds; δ(x)δ(y) is zero except at the origin with total 1; a function harmonic away from 0 whose flux through every circle is the same F has ∇²f = Fδ — ∇ ln r = e_r/r has flux 2π (D03: vortex and source as deltas) |
+| a limit with a product held fixed (P150) | ch06 · §6.3 · C04 | ε → 0 and m → ∞ together with 2mε = \|d\| fixed: alone each limit gives 0 or ∞, together the leading term survives and the rest shrinks like ε² (source–sink pair → doublet, D06) |
+| integrals of sines and cosines over a full period (P151) | ch06 · §6.3 · C06 | over 0…2π, sin, sin³, cos, sin cos, sin²cos all integrate to 0; sin² and cos² give π (mean ½); force integrals round a circle keep exactly the surviving terms (L = ρUΓ, D11) |
+| Newton's method for complex zeros (P152) | ch06 · §6.3 · C07 | z ← z − f/f′, digits double near a simple root; stagnation points solve dw/dz = u − iv = 0 with f′ = d²w/dz²; deflation f/(z − z₁) finds the next root; ⚠️ the basin is the size of the flow's own length scale (m/2πU) — seed there |
+| the complex plane in numpy (P153) | ch06 · §6.4 · C09 | z = x + iy = re^{iθ}; \|z\| distance, arg z = atan2(y, x); multiplying multiplies moduli and **adds angles** (rotate + stretch); z* mirrors in x; numpy `1j`, `np.abs`, `np.angle`, `np.conj` on whole arrays |
+| complex derivative and analytic functions (P154) | ch06 · §6.4 · C09 | dw/dz = lim [w(z + δz) − w(z)]/δz must be the same for every direction of δz: then w is analytic (polynomials, exp, log off its cut, 1/z off 0); z* fails (quotient 1 along x, −1 along iy) — the root of Cauchy–Riemann (D14) |
+| complex logarithm, powers and branch cuts (P155) | ch06 · §6.4 · C09 | ln z = ln r + iθ is many-valued; numpy picks θ ∈ (−π, π] so ln z jumps by 2πi across the negative real axis, and zⁿ = e^{n ln z} inherits the cut; rotate the cut into the body or outside the drawn fluid (`log_branch(cut=)`, `power_branch`) |
+| Cauchy's integral theorem (P156) | ch06 · §6.5 · C10 | f analytic inside and on C ⇒ ∮f dz = 0; so two contours round the same singular region give the same ∮ — a contour may be squeezed or stretched without crossing a singularity; on a circle dz = iz dθ (why Blasius's contour can leave the body, D17) |
+| Laurent series and residues (P157) | ch06 · §6.5 · C10 | outside all singular points f = Σc_kz^k with negative powers; term by term round a circle only z⁻¹ survives (2πi), so ∮f dz = 2πi c₋₁ (the residue); an FFT of samples on a circle reads every c_k (`laurent_coefficients`) |
+| complex square roots and the quadratic formula (P159) | ch06 · §6.6 · C11 | ζ² − zζ + b² = 0 has roots ½[z ± √(z² − 4b²)] with product b² (one inside, one outside \|ζ\| = b); `np.sqrt` gives the principal root (real part ≥ 0, cut on the negative reals) and does **not** always pick the outside one — use √(z − 2b)√(z + 2b) (D21) |
+| surface integrals on a sphere (P163) | ch06 · §6.9 · C15 | dA = a² sin θ dθ dφ, e_r = (sin θ cos φ, sin θ sin φ, cos θ); integrate φ first (cos φ, sin φ vanish); ∫₀^π cos²θ sin θ dθ = 2/3; `dblquad(f, a, b, c, d)` integrates f(inner, outer) (added mass, D30) |
+| Green's first identity (P164) | ch06 · §6.9 · C15 | ∇·(φ∇φ) = \|∇φ\|² + φ∇²φ; with ∇²φ = 0 the kinetic-energy density is a divergence, so Gauss turns ½ρ∫\|∇φ\|²dV into surface integrals over the body (normal out of the fluid, into the body) and a far sphere (D31) |
+| **ch06 — Python and numerics** | | |
+| sympy for complex series and residues (P158) | ch06 · §6.5 · C10 | `sp.I` is i, `sp.expand` multiplies out a squared series, `.coeff(z, -1)` reads one coefficient, `sp.residue(f, z, 0)` returns the 1/z coefficient (the (6.61) slip check, D18) |
+| iterative solvers: Jacobi, Gauss–Seidel, SOR (P160) | ch06 · §6.7 · C12 | sweeps instead of elimination: Jacobi uses last sweep's values, Gauss–Seidel the newest, SOR scales the Gauss–Seidel change by 1 < ω < 2; error shrinks by the spectral radius ρ per sweep; stop on the **residual** b − Aψ with a tight tolerance — when ρ ≈ 1 residual and change are both ≈ (1 − ρ) × the true error |
+| boolean masks and scipy.sparse (P161) | ch06 · §6.7 · C12 | an L-shaped or stepped domain = a rectangular array plus `mask[j, i]` (True = unknown) and a boundary-value array; `scipy.sparse` stores the five non-zeros per row, `spsolve` solves the whole system directly on fine grids |
+| collocation and the condition number (P162) | ch06 · §6.8 · C14 | N unknowns from the condition at N points; `np.linalg.cond(A)` bounds how much relative data error can grow: ~10³ harmless, > 10¹⁰ the digits are noise (`np.vander` as the classic bad matrix; the axial method reaches 10¹⁷) |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -264,3 +282,24 @@ smoothing and the periodic sheet kernel (C14), "cat's eye" (C14), Gauss–Legend
 (round 1). Python idioms explained inline: `itertools.product`, `np.ndindex`, `np.roll`, `np.ptp`, `np.hypot`, symlog
 axes, plotly `updatemenus`.
 
+Reminders written in ch06 instead of new primers (the notebook's "Tools from earlier chapters" 🔁 cell and one line
+where first used; point here): P25 partial derivatives, P26/P98 Taylor, P27 definite integrals, P28 net pressure force
+−∮p n dA, P29 `lambda`, P37 trapezoid, P38 product rule (and the divergence form, ch04 P113), P40 sympy, P45 i² = −1 and
+Euler's formula, P46 `np.where`, P49/P91 chain rule (incl. along a path), P57 `np.linalg.solve`, P63 `A @ x` (added in
+lesson round 1), P67 `np.linalg.norm` (round 1), P68 orders of smallness, P70 `np.arctan2`, P71 Vieta, P75 directional
+derivative and level sets, P76 `np.meshgrid` (with `indexing="ij"`, round 1), P77 broadcasting, P78 contour/streamline
+plots (and `pcolormesh`, round 1), P80 eigenvalues and the spectral radius, P81 complex conjugate, P87 `quad`/`dblquad`,
+P88/P105 polar and spherical unit vectors, P92 parametric curves and normals, P106 substitution, P108 `brentq`, P111
+dataclasses and named results, P114 momentum flux, P121 Schwarz, P122 curl of a curl, P136 periodic trapezoid, P139
+Poisson and Green's function, P140 gradient of 1/distance, P142 FFT, P143 Gauss–Legendre, P144 improper integrals,
+P16 animate, P17 slider_figure, P18 show_viz, P31/P94 `solve_ivp`, P13 log–log slopes and `np.polyfit`, P15
+`assert np.allclose`, P47 live widgets.
+
+Glosses in ch06 (one sentence where used, no demo): dict comprehension `{k: f(v) for k, v in d.items()}` (added in
+lesson round 1), logarithm rules ln√(1 + s) = ½ ln(1 + s) (D06), arcsin roots and the quadratic formula for r₊, r₋
+(D10), odd/even functions for images (D12), derivative of arctan with a moving argument (D13), 1/i = −i (D14),
+outward normal of a counterclockwise contour n = (e_x dy − e_y dx)/ds (D16), dz* = dx − i dy (D17),
+e^{iθ} + e^{−iθ} = 2cos θ and foci c² = A² − B² (D20), cross products of cylindrical unit vectors (D24), flux through
+a sphere (D25), the cot substitution d(cot α)/dα = −1/sin²α with the limits keeping their order (D26; corrected in
+lesson round 1), "a function of x − x_s: ∂/∂x_s = −∇" and |A|² = A·A (D29), the qualitative separated-cylinder band
+(C06), corner exponent n = π/α (C09), deflation (C07).

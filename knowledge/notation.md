@@ -224,6 +224,64 @@ axis 0 (`u[c, k, j, i]`). But `Grid.h`, direction numbers d, `gradient` componen
 **(x, y, z)**. Direction d lives on array axis ndim − 1 − d (`axis_of_direction`). Values are at nodes; periodic
 grids drop the duplicate end node (h = L/n).
 
+**⚠️ Γ clockwise vs counterclockwise inside ONE chapter (ch06).** The project's Γ (ch03 →, ch05) is counterclockwise
+positive, and so are the book's (6.6), (6.8) ψ = −(Γ/2π) ln r and (6.47). But the book's (6.36)–(6.40), (6.52),
+(6.61)–(6.62), (6.68) and Example 6.1 ("a vortex of strength −Γ") use a **clockwise** Γ: the flow's circulation is −Γ,
+which is why L = +ρUΓ comes out positive (Wikipedia's Kutta–Joukowski takes its contour clockwise for the same reason).
+
+| Where | Γ means | Lift for U = 10 m/s, ρ = 1.2 kg/m³, Γ = 2 m²/s | Code |
+|---|---|---|---|
+| (6.6), (6.8), (6.47), `Vortex`, ch05 | counterclockwise circulation | −24 N/m (a ccw vortex in a stream from the left pushes down) | `Vortex(Gamma)`, `Gamma_ccw=` |
+| (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68), Ex. 6.1 | clockwise strength (circulation −Γ) | **+24 N/m** = ρUΓ | `Gamma_cw=` |
+
+Rule: functions that follow the book take the keyword `Gamma_cw=` or `Gamma_ccw=` (never a bare `Gamma`);
+`core.potential.gamma_ccw_from(Gamma_cw=…)` converts; loop circulation of the book's cylinder is −Γ_cw on every radius.
+Explainers print both ("Γ_cw 2 ⇔ Γ_ccw −2 m²/s"); the planted "book Γ read as counterclockwise" variant fails the polar
+velocity test.
+
+**⚠️ The 2-D doublet vector points from the sink to the source (ch06 (6.28)–(6.29), (6.49)).** d = Σx_i m_i, so a
+source at +ε and a sink at −ε give d = +2mε e_x and φ = −d·x/2πr². The cylinder needs **d = −2πUa² e_x** (pointing
+upstream, "opposing the stream"); (6.49)'s scalar d is a dipole −d e_x (`Doublet.from_book_scalar(d)`). 3-D: (6.88)'s
+dipole is −d e_z, the sphere d = 2πa³U; the moving sphere's (6.97) d(t) = +2πa³u_s (it follows the motion). A reversed
+dipole misses the pair's far field by > 0.1 (test).
+
+**⚠️ Three angle origins in ch06.** (1) Polar formulas (6.21)–(6.22), (6.33)–(6.39), (6.89)–(6.91): θ from **+x
+(downstream)**, so the upstream stagnation point is θ = π and C_p = 1 − 4 sin²θ is symmetric anyway. (2) Fig. 6.10-style
+real-vs-ideal comparisons: angle from the **upstream stagnation point** (= π − θ; `separated_cp_band(theta_front_deg)`).
+(3) (6.106): θ_s from the **sphere's velocity** (θ_s = π − θ of (6.91)). Fig. 6.8's zero-C_p angle 113.2° is from +x at
+the source. Always name the origin next to an angle.
+
+**⚠️ w = φ + iψ (§6.4–6.6) vs w = z-velocity (§6.9); dw/dz = u − iv.** In §6.4–6.6 w(z) is the complex potential and
+its derivative is the **conjugate** of the velocity (u + iv = conj(dw/dz)); in §6.9 (and Ch. 4, 13) w is the z-component
+of velocity. `Flow.w(z)` is always the potential; velocities come from `Flow.velocity(x, y)` or `.complex_velocity`.
+
+**⚠️ ζ is the Zhukhovsky (circle) plane in ch06.** z = ζ + b²/ζ (6.65) maps |ζ| = b to the slit [−2b, 2b] and
+|ζ| = a > b to an ellipse; the inverse has two roots with ζ₁ζ₂ = b² and the physical one is **outside** |ζ| = b:
+ζ = ½[z + √(z − 2b)√(z + 2b)] (`joukowski_inverse(branch="outside")`). numpy's principal ½[z + √(z² − 4b²)] returns
+the inside root at every Re z < 0 point off the slit (|ζ| = 0.37 instead of 2.70 at z = −3 ± 0.5i, b = 1). ζ was the
+relative vorticity in ch05 and a parcel displacement in ch01.
+
+**⚠️ Stokes stream function [m³/s] vs plane ψ [m²/s] (ch06 §6.8).** Axisymmetric: u_R = −(1/R)∂ψ/∂z,
+u_z = (1/R)∂ψ/∂R (6.75); spherical u_r = (1/(r² sin θ))∂ψ/∂θ, u_θ = −(1/(r sin θ))∂ψ/∂r (6.83); the volume flux between
+two stream surfaces is **2πΔψ** (6.78), not Δψ; the field equation (6.77) is not the Laplacian (so no complex
+variables). In §6.8 the symmetry axis z is **horizontal, along the stream** (z was "up" in ch01–ch05). ξ is the axial
+coordinate along a line sink in §6.8 but the vector x − x_s in §6.9.
+
+**⚠️ (6.82) is correct as printed (ch06 review M1).** The book's (1/r)∂(r²u_r)/∂r + (1/sin θ)∂(u_θ sin θ)/∂θ = 0 is
+r × the Appendix-B divergence; `spherical_continuity_residual` returns the App. B normalisation. The analysis first
+listed it as a slip against a hybrid form the book never prints — retracted.
+
+**⚠️ Book slips taught corrected (ch06, analysis §9).** (6.61) 1/z² coefficient −(Ud/π + Γ²/4π²) (printed
+Ud/π − Γ²/4π² and an extra outer square; harmless) · (6.104) middle bracket +u_s/a³ (printed −; `printed_bracket=True`
+reproduces it, off by u_s) · (6.108) stray dφ · "(6.8)" for (6.15) in the source velocities · "Figure 6.5" for 6.3 ·
+"(6.5) and (6.12)" reversed and "(6.43)" for (6.44) · "Section 3" for §6.3 · "first-order" central differences are
+second-order accurate · Example 6.2 loop index and Δψ in m²/s.
+
+**⚠️ ρ defaults per medium (ch06 review S4).** 2-D force helpers (`lift_per_span`, `surface_pressure_force`,
+`blasius_force`, `cv_force_on_body`, `cylinder_circulation_state`, `laurent_contributions`, `blasius_state`,
+`force_on_held_singularity`, `ComplexFlow.pressure`) default to **air 1.2 kg/m³**; Example 6.1, the §6.9 sphere family,
+`flow_field_callables` and `ideal_flow_residuals` default to **water 1000 kg/m³**. Teaching code passes ρ explicitly.
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -575,6 +633,34 @@ grids drop the duplicate end node (h = L/n).
 | H ⚠️ (channel) | channel width | m | drift (Γ/4H)cot(πh/H) | ch05 | `channel_image_velocity(h, H, Gamma)` |
 | u₁, u₂ | tangential velocity above / below a sheet | m/s | γ = u₂ − u₁ | ch05 | `vortex_sheet_strength(u_above, u_below)` |
 | N ⚠️ | number of filaments in a discrete sheet | – | L1 error ∝ 1/N; **N² = buoyancy frequency elsewhere** | ch05 | `discrete_sheet_u(x, y, gamma, N)` |
+| **Ideal flow (ch06)** | | | | | |
+| φ | velocity potential, u = ∇φ; multivalued round a vortex (jumps by Γ across the cut) | m²/s (2-D and 3-D) | harmonic, ∇²φ = q (6.11) with sources | ch03 → | `Flow.phi`, `velocity_potential`, `AxisymFlow.phi` |
+| ψ | plane stream function, u = ∂ψ/∂y, v = −∂ψ/∂x; ω_z = −∇²ψ (6.4) | m²/s | Δψ = volume flux per depth | ch04 → | `Flow.psi`, `stream_function` |
+| ψ ⚠️ (Stokes) | axisymmetric stream function, u_R = −(1/R)∂ψ/∂z, u_z = (1/R)∂ψ/∂R (6.75) | **m³/s** | flux between surfaces 2πΔψ (6.78); field equation (6.77) ≠ ∇²ψ | ch04 (gloss) → ch06 | `AxisymFlow.psi(R, z)`, `stokes_operator_residual` |
+| w ⚠️ | complex potential φ + iψ (6.42) | m²/s | analytic; **w = z-velocity in §6.9 and other chapters** | ch06 | `ComplexFlow.w(z)` |
+| z, ζ ⚠️ | complex coordinate x + iy = re^{iθ} (6.43); ζ = Zhukhovsky circle plane, z = ζ + b²/ζ | m | outside root \|ζ\| ≥ b is physical; **ζ = relative vorticity (ch05), displacement (ch01)** | ch06 | `z` (complex arrays), `joukowski(zeta, b)`, `joukowski_inverse(z, b, branch)` |
+| dw/dz | complex velocity u − iv (6.45) | m/s | velocity vector = conj(dw/dz) | ch06 | `ComplexFlow.dwdz`, `.complex_velocity` |
+| U, α | free-stream speed and its direction (from +x) | m/s, rad | `Uniform(U, V)` takes the two components (U cos α, U sin α); tilted stream in E5: D − iL = −iρUΓe^{−iα} | ch03 → | `U`, `alpha` |
+| m ⚠️ | 2-D source strength (volume flux per depth) | m²/s | sink m < 0; φ = (m/2π) ln r (6.15); **m = elliptic parameter (ch05), mass** | ch06 | `Source(m, z0)` |
+| Q ⚠️ | 3-D point-source strength (volume flux) | m³/s | φ = −Q/4πr; **Q = flow rate of Example 6.2 (ours Q = 1)** | ch06 | `PointSource3D(Q, z0)`, `example_6_2(Q=)` |
+| Γ ⚠️ | vortex circulation — **counterclockwise in code**, clockwise in half the book's equations (see the trap) | m²/s | L = ρUΓ_cw | ch03 → | `Vortex(Gamma)`, `Gamma_cw=`, `Gamma_ccw=`, `gamma_ccw_from` |
+| d ⚠️ | doublet (dipole) vector Σx_i m_i, **from sink to source**; scalar d of (6.49) = dipole −d e_x | m³/s (2-D), m⁴/s (3-D) | cylinder d = −2πUa² e_x; sphere d = 2πa³U; **d = segment distance (ch05)** | ch06 | `Doublet(d_vec)`, `Doublet.from_book_scalar(d)`, `Doublet3D` |
+| A, n ⚠️ | corner flow w = Azⁿ (6.46): walls θ = 0, π/n; n = π/α for a wedge of angle α; speed ∝ r^{n−1} | A: m^{2−n}/s | n < 1 re-entrant (infinite speed), n > 1 stagnation; **n also unit normal, A also area** | ch06 | `Corner(A, n, cut_angle, rotate)`, `corner_speed_exponent` |
+| a ⚠️ | cylinder/sphere radius; half-body stagnation distance m/2πU; airship line-sink length; Zhukhovsky circle radius (> b) | m | | ch06 | `a` |
+| b ⚠️ | Zhukhovsky constant (slit half-length 2b, foci ±2b) | m | **b = CV velocity (ch03/04), Hill constant** | ch06 | `b` in `core.conformal` |
+| C_p | pressure coefficient (p − p∞)/(½ρU²) = 1 − \|u\|²/U² (6.32) | – | cylinder 1 − 4 sin²θ ∈ [−3, 1]; sphere 1 − (9/4) sin²θ | ch04 → | `pressure_coefficient`, `Flow.cp`, `*_surface_cp` |
+| D, L | drag and lift per unit depth **on the body** | N/m | D − iL = (iρ/2)∮(dw/dz)²dz (6.60); F of (6.54) is on the fluid | ch06 | `blasius_force` → `BlasiusForce(D, L, …)`, `lift_per_span` |
+| c_k | Laurent coefficients of dw/dz outside the body | m^{1−k}/s … | c₀ = U, c₋₁ = iΓ_cw/2π (residue), c₋₂ = −Ua² (cylinder) | ch06 | `laurent_coefficients(flow, R, …)` |
+| k ⚠️ | half-body ratio sin θ/(π − θ) in C_p = −(2k cos θ + k²); line-sink strength per length; axial segment strengths k_n | –, m²/s | **k = wavenumber (Ch. 7), thermal conductivity (ch01)** | ch06 | `half_body_surface_cp`; `airship(U, Q, a)` (k = Q/a); `axial_singularity_solve` → k |
+| ψ_{i,j}, Δx, Δy | grid values and spacings of the Laplace grid (6.70)–(6.73) | m²/s, m | `mask[j, i]` True = unknown, x on the last axis; average rule needs Δx = Δy | ch06 | `core.laplace_solvers` |
+| ρ_J, ρ_GS, ω_SOR ⚠️ | spectral radii of the Jacobi / Gauss–Seidel sweep; SOR factor | – | 4-point grid ρ_J = ½, ρ_GS = ¼, ω_opt = 1.0718; **ρ = density, ω = vorticity elsewhere** | ch06 | `jacobi_spectral_radius`, `optimal_sor_omega` |
+| R, z ⚠️ (§6.8) | cylindrical radius from the symmetry axis and the **horizontal** axial coordinate along the stream | m | z up in ch01–ch05 | ch06 | `AxisymFlow.psi(R, z)` |
+| ξ ⚠️ | §6.8: axial source coordinate along a line sink; §6.9: vector x − x_s from the sphere's centre | m | ∂/∂x_s = −∇ for fields of ξ | ch06 | `xi_nodes`; `e_xi` |
+| x_s, u_s | sphere centre and velocity (u_s = dx_s/dt) | m, m/s | arbitrary path | ch06 | `moving_sphere_*(x, xs, us, …)` |
+| M ⚠️ | added mass (2π/3)ρa³ = ½ displaced mass (sphere); ρπa² per depth (cylinder) | kg, kg/m | F_s = −M du_s/dt (6.108); **M = segment count (ch05), Mach number** | ch06 | `added_mass_sphere(a, rho)`, `cylinder_added_mass` |
+| θ_s ⚠️ | polar angle from the sphere's velocity in (6.106) | rad | = π − θ of (6.91); see the three-origins trap | ch06 | (inside `moving_sphere_surface_pressure`) |
+| N ⚠️ | number of axial segments / panels | – | even N for fore–aft symmetric bodies (odd N singular); cap 40 | ch06 | `axial_singularity_solve(N=)`, `source_panels` |
+| λ_j, S_j | source-panel strength and panel length | m/s, m | Σλ_jS_j = 0 for a closed body; self term ½ | ch06 | `source_panels`, `panel_geometry` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -584,3 +670,4 @@ grids drop the duplicate end node (h = L/n).
 | ch03 | right-handed Cartesian (no preferred "up"); plane polar (r, θ from +x), cylindrical (R, φ, z), spherical (r, θ from +z, φ); angles and rotation counterclockwise positive (shear spins clockwise: ω₃ = −γ); field callables `u(x, t)` with coordinates on axis 0; Galilean frame O′ at constant U (x = x′ + Ut + x′_o, u′ = u − U); rotating frame u = Ω × x + u′ at the coinciding instant | cylinder centre at the origin at t = 0 for every observer (E3); Ex. 3.1 port at the origin; vortices centred at the origin; RTT shapes with explicit reference geometry (E7 interval [1, 3] + ȧt, ḃt; ellipse a = 2 + ȧt, b = 1 + ḃt) | R = G − Gᵀ (no ½), ω = ∇×u, spin ½ω; γ = 2S₁₂; RTT outward n, signed b·n; Leibniz lower term subtracted | none (E6 draws in r/σ; its real-vortex modes use metres) | dimensional SI throughout |
 | ch04 | right-handed Cartesian, **z up**, g = −g e_z, Φ = gz (4.18); cylindrical (R, φ, z) for rotating flows and Ex. 4.5; noninertial frame O′ translating at U(t) and rotating at Ω(t) with basis e′_i; NH Ω_z > 0; latitude φ | CVs with explicit geometry (E1 boxes around the wake, bore, jet, rocket, balloon); hydrostatic base state p_s(z), ρ_s(z) for Boussinesq; free surface η = 0 | τ = −pδ + σ, tensile positive; traction f_j = n_iτ_ij and Cauchy's divergence on the **first** index; outward n, signed (u − b)·n; drag on the body +x, on the fluid −F_D; acceleration terms +2Ω × u′, +Ω × (Ω × x′) (4.43) vs forces −2Ω × u′, −Ω × (Ω × x′) (4.45); Stokes assumption μ_v = 0; 2-D ψ: u = ∂ψ/∂y; primes: rotating frame (§4.7), perturbation (§4.9), dummy (4.67) | `core.similarity.Scales` holds one set per use with its time scale (1/Ω (4.100) or l/U (4.109)) and pressure scale (ρU², μU/l or ρgl); Ro = U/(2Ωl) forward pointer | dimensional SI in functions; non-dimensional via `Scales` and the `nondimensional_*` coefficient routines; g default 9.81 in `ch04`, 9.80665 in `core` |
 | ch05 | right-handed Cartesian, **z up**, g = 9.81 (`core.thermo.G_BOOK`); plane polar (r, θ) and cylindrical (R, φ, z) for vortices and rings; material loops with fixed labels s ∈ [0, 1); rotating frame Ω = Ωe_z (NH > 0); natural frame (e_s, e_n = −Frenet N, e_m) on vortex lines; wall at y = 0 with the fluid above; sheet along x with u₁ above, u₂ below | vortices and rings centred on the axis; tank p_o on the axis at z = 0; line vortex p_∞ far away; lock-exchange interface at x = 0 (heavy on the left); column undisturbed depth h₀ | counterclockwise-positive ω_z, Γ, point-vortex strengths and sheet strength γ = u₂ − u₁; ∇ρ × ∇p order; (5.14) with +1/(4π); ω = vorticity (tank turns at ω/2); σ_rθ viscous stress with the polar metric; Γ_a = Γ + 2Ω·A_vec | none fixed (every function dimensional; the E-series use lab or planetary numbers directly) | dimensional SI throughout; latitudes in degrees only at `*_deg` interfaces |
+| ch06 | 2-D flows in (x, y) with θ from +x (downstream); complex z = x + iy, ζ the Zhukhovsky circle plane; §6.8 cylindrical (R, φ, z) with **z horizontal along the stream**, spherical (r, θ from +z); §6.9 ξ = x − x_s; Laplace grids `mask[j, i]` with x on the last axis | bodies centred at the origin; half-body source at 0 (stagnation at −m/2πU); p∞ far upstream; ideal-flow p measured from hydrostatic; Example 6.1 wall at x = 0 with the vortex at (h, 0) at t = 0 | Γ counterclockwise in code, **clockwise** in (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68), Ex. 6.1 (`Gamma_cw=`); D, L on the body, (6.54) F on the fluid; ccw contour, outward n; 2-D dipole from sink to source; (6.82) = r × App. B | none fixed (U, a or the body length set the scale in each function; C_p is the only non-dimensional output used throughout) | dimensional SI throughout; ρ default 1.2 (2-D forces) or 1000 (Ex. 6.1, §6.9) — pass it explicitly |

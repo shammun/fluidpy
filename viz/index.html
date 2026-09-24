@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790200630">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790200630">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790227963">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790227963">
 </head>
 <body>
 <div class="ce-container">
@@ -199,6 +199,53 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>What is a velocity jump made of?</b>
 <p>A row of N filaments becomes a clean velocity jump whose size is the sheet&#x27;s strength; a thin circuit round it measures the strength as the jump in tangential velocity; ripple the sheet, press play and it rolls up.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch05/vortex_sheet_rollup.html">Open full window</a><a class="fp-btn" href="../notebooks/ch05_vorticity_dynamics.html#viz-vortex_sheet_rollup">In the chapter</a></div>
+</div></div>
+<h2 id="ch06">Chapter 6 — Ideal Flow</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 6 · explainer 1 · §6.2 6.3</small>
+<b>Where does the body come from?</b>
+<p>Add a stream, sources, sinks, a doublet and a vortex; the streamline through the stagnation point becomes a wall — open when the sources win, closed when they cancel.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/superposition_sandbox.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-superposition_sandbox">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 2 · §6.3</small>
+<b>How does spin turn into lift?</b>
+<p>Drag the circulation round a cylinder: the stagnation points slide down, meet at Γ = 4πaU and leave the body; the pressure difference integrates to exactly ρUΓ while the drag stays zero.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/cylinder_circulation_lift.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-cylinder_circulation_lift">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 3 · §6.3</small>
+<b>What does a wall feel as an eddy passes?</b>
+<p>A clockwise vortex drifts along a wall beside its opposite image; a pressure sensor in the wall records a suction dip as it passes and a small over-pressure before and after, the push made by the unsteady term of Bernoulli&#x27;s equation.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/vortex_wall_images.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-vortex_wall_images">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 4 · §6.4</small>
+<b>Why is the velocity u − iv?</b>
+<p>Click a point: the derivative of w taken along x and along iy agree only for an analytic w — that is Cauchy–Riemann — and its mirror image is the velocity; drag the exponent and a corner turns from calm to violent.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/complex_potential_corners.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-complex_potential_corners">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 5 · §6.5</small>
+<b>Why doesn&#x27;t lift depend on the shape?</b>
+<p>Drag a contour round a body with circulation: Blasius&#x27;s integral does not move; square the far field and only U × Γ/z has a residue — every body gets L = ρUΓ and no drag.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/blasius_kutta_contour.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-blasius_kutta_contour">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 6 · §6.6</small>
+<b>How does a map carry a flow?</b>
+<p>Two linked planes: a circle&#x27;s flow in the ζ-plane and its image under z = ζ + b²/ζ; small crosses keep their right angles, the circle becomes an ellipse — and only the outside square root keeps the flow outside the body.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/conformal_joukowski.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-conformal_joukowski">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 7 · §6.7</small>
+<b>How does a grid solve Laplace&#x27;s equation?</b>
+<p>Every value becomes the average of its four neighbours, again and again: step one node at a time or whole sweeps, compare Jacobi, Gauss–Seidel and SOR, and stop on the residual.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/laplace_relaxation.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-laplace_relaxation">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 8 · §6.7 6.8</small>
+<b>Given a shape, which sources draw it?</b>
+<p>Hide unknown sources on the axis, demand ψ = 0 at N points on the body, and one linear solve draws the hull; raise N and watch the fit improve while the system grows touchy — or put the sources on the surface (panels).</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/axial_singularity_bodies.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-axial_singularity_bodies">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 6 · explainer 9 · §6.9</small>
+<b>Why does an ideal fluid resist acceleration?</b>
+<p>Set a sphere&#x27;s speed and acceleration (even at an angle): the speed part of the surface pressure is symmetric and cancels, the acceleration part pushes back with half the displaced mass — so a bubble starts upward at 2g.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch06/added_mass_sphere.html">Open full window</a><a class="fp-btn" href="../notebooks/ch06_ideal_flow.html#viz-added_mass_sphere">In the chapter</a></div>
 </div></div>
 </div>
 </body>
