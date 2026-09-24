@@ -282,6 +282,60 @@ second-order accurate · Example 6.2 loop index and Δψ in m²/s.
 `force_on_held_singularity`, `ComplexFlow.pressure`) default to **air 1.2 kg/m³**; Example 6.1, the §6.9 sphere family,
 `flow_field_callables` and `ideal_flow_residuals` default to **water 1000 kg/m³**. Teaching code passes ρ explicitly.
 
+**⚠️ ω is an angular frequency from ch07 on (ch07 §7.1).** In ch02–ch06 ω was the vorticity (and ch03's `omega0` a
+rotation rate); in Ch. 7 ω = 2π/T [rad/s] is the (intrinsic) angular frequency of a wave, ω ≥ 0, and the **sign of k**
+carries the direction (cos(kx − ωt) with k < 0 travels to −x). `phase_speed` returns the speed |ω/k| ≥ 0;
+`group_velocity` and `group_velocity_numeric` return the **signed** dω/dk (negative for a left-going wave; review M1).
+The cyclic frequency ν = 1/T [Hz] (`wave_parameters(nu=)`) is 2π smaller than ω and is **not** the kinematic viscosity
+(which `viscous_decay(a0, k, nu, t)` does take). A probe in a current U sees ω₀ = ω + U·K (7.9); every other ω is intrinsic.
+
+**⚠️ η is the surface *elevation* in ch07, the surface *function* in ch04.** ch04 (4.90): the surface is {η = 0} and
+n = ∇η/|∇η|. ch07 (7.14): η(x, t) is the height of the surface above z = 0, the level-set function is f = z − η and the
+upward normal is (−η_x, 1)/√(1 + η_x²). Call `core.interfaces.kinematic_bc_residual` with z − η (as
+`ch04.linear_wave_fields` already does); passing the elevation fails a test.
+
+**⚠️ ζ and θ each mean two things inside ch07.** ζ = a particle's vertical excursion from its mean position (§7.2, §7.6,
+§7.8; (7.35b), (7.149)) **and** the interface displacement (§7.7). θ = the local phase θ(x, t) = kx − ωt (7.72) **and**
+the angle of K above the horizontal (7.139), cos θ = |k|/K — which is the angle of the beam (c_g, particle motion) from
+the **vertical** (Fig. 7.33's "45° with the horizontal" coincides only because 45° is symmetric). Code names
+`theta_phase`, `theta_K`; explainers label both angles. Earlier ζ: parcel displacement (ch01), relative vorticity
+(ch05, Ch. 13), Zhukhovsky plane (ch06).
+
+**⚠️ Two reduced gravities (ch07 (7.117) vs ch04).** (7.117) g′ = g(ρ₂ − ρ₁)/ρ₂ divides by the **lower (heavier)**
+density — it is what (7.113) gives as kH → 0; ch04's `core.similarity.reduced_gravity` divides by ρ₁ (the upper). They
+differ by the factor ρ₁/ρ₂ (ρ₁ = 1025, ρ₂ = 1027: 0.01910 vs 0.01914 m/s²); `core.waves.reduced_gravity_book(rho1,
+rho2, ref="lower"|"upper")` names the choice; `ch07.reduced_gravity` is ch04's ρ₁ form re-exported. Ch. 13 often uses
+ρ₀. Always say which.
+
+**⚠️ The printed internal-wave formulas assume k > 0 (ch07 (7.138), (7.145)).** ω = kN/K and
+c_g = (Nm/K³)(m e_x − k e_z) are right only for k > 0; the book's own Fig. 7.29 draws K up-left (k < 0), where the printed
+c_g points the wrong way. Code: ω = N|k|/K and c_g = ∇_K ω (`internal_wave_velocities`, `printed=True` keeps the
+printed form as a wrong variant); θ from cos θ = |k|/K, never arctan(m/k). Horizontal parts of c and c_g share a sign;
+vertical parts are opposite (phase up ⇔ energy down).
+
+**⚠️ Complex notation from ch07 §7.7 on.** Fields are Re{A e^{i(kx − ωt)}} with the Re dropped during linear algebra
+(∂/∂x → ik, ∂/∂t → −iω, ∇² → −K²); a complex amplitude carries size and phase (b = |b|e^{iφ}). **Take real parts before
+multiplying**: ⟨Re(Ae^{iθ})Re(Be^{iθ})⟩ = ½Re(AB*) (P178); ρ′ lags w by 90° (factor i in (7.153)), so ⟨gρ′w⟩ = 0.
+`core.waves.real_field(amp, phase)` restores the real field. Contrast ch06: z = x + iy was a *position* and w = φ + iψ a
+complex potential — there the imaginary part meant ψ, here it means a quarter-period phase shift.
+
+**⚠️ p′ has two definitions in ch07.** §7.2 (7.30): p′ ≡ p + ρgz with p **gauge** (atmosphere = 0) — the deviation from
+the still-water hydrostatic −ρgz; §7.8 (7.124): p′ = p − p̄(z) about a stratified hydrostatic base p̄ with dp̄/dz = −ρ̄g.
+The Boussinesq ρ′ is likewise ρ − ρ̄(z).
+
+**⚠️ Energy per what? (ch07).** Surface and interfacial E, E_k, E_p (7.39)–(7.42), (7.96) are per unit **horizontal
+area** [J/m²] (depth-integrated) and the flux F (7.44) per unit **crest length** [W/m]; internal-wave E (7.157) is per
+unit **volume** [J/m³] and F (7.158)–(7.159) per unit **area** [W/m²]; the hydraulic-jump E = u²/2 + gH is per unit
+**mass** of a surface particle [J/kg] (head loss ΔE/g [m]). ⟨η²⟩ (overbar) is a wavelength average, ⟨·⟩ a time average;
+⟨η²⟩ = a²/2 only for a sinusoid.
+
+**⚠️ Book slips taught corrected (ch07, analysis §9).** (7.66) envelope ½Δω **x** → ½Δω **t** (`beat_wave(printed=True)`
+is frozen) · "u from (7.28)" before (7.44) means (7.27) · (7.105) e^{i(k**z** − ωt)} → e^{i(k**x** − ωt)}
+(`two_layer_residuals(printed_7_105=True)` fails) · (7.98) ∂φ₁/**d**z (cosmetic) · p. 254 "y = 0" → z = 0 · the Ursell
+remark's "(7.88)" means (7.87) · (7.40) stray comma · p. 288 interfacial E_p middle form over λ/2 gives ⅛Δρga² (read
+/λ; ¼ is right) · p. 288 cites Exercise 7.16 for the interfacial E_k (it is 7.18) · the printed (7.138)/(7.145) k > 0
+assumption (above). Not slips: Stokes' γ = 1 in (7.83) is right (a literal truncated exercise set-up gives 3/8).
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -661,6 +715,53 @@ second-order accurate · Example 6.2 loop index and Δψ in m²/s.
 | θ_s ⚠️ | polar angle from the sphere's velocity in (6.106) | rad | = π − θ of (6.91); see the three-origins trap | ch06 | (inside `moving_sphere_surface_pressure`) |
 | N ⚠️ | number of axial segments / panels | – | even N for fore–aft symmetric bodies (odd N singular); cap 40 | ch06 | `axial_singularity_solve(N=)`, `source_panels` |
 | λ_j, S_j | source-panel strength and panel length | m/s, m | Σλ_jS_j = 0 for a closed body; self term ½ | ch06 | `source_panels`, `panel_geometry` |
+| **Gravity waves (ch07)** | | | | | |
+| x, z ⚠️ | horizontal (along propagation) and vertical coordinates | m | **z up**, still surface z = 0, flat bottom z = −H; §7.7 interface at z = −H | ch07 → | `x`, `z` |
+| a | wave amplitude (crest height above the mean level) | m | crest +a, trough −a | ch07 → | `a` |
+| k ⚠️ | wavenumber 2π/λ | rad/m | **sign gives the direction**; \|k\| in every ω(k); **k = thermal conductivity (ch01), half-body ratio and line-sink strength (ch06)** | ch07 → | `k`, `k0` |
+| λ ⚠️ | wavelength | m | **λ = bulk-viscosity / model scale / eigenvalue elsewhere** | ch07 → | `lam` |
+| ω ⚠️ | angular frequency 2π/T (intrinsic) | rad/s | ω ≥ 0; **vorticity in ch02–ch06** (see the trap) | ch07 → | `omega` |
+| ω₀ | frequency seen by a fixed probe in a current U | rad/s | ω₀ = ω + U·K (7.9) | ch07 → | `doppler_frequency(omega, U, K)` |
+| T ⚠️, ν ⚠️ | period 2π/ω; cyclic frequency 1/T | s, Hz | **T = temperature, ν = kinematic viscosity elsewhere** | ch07 | `T`, `wave_parameters(nu=)` |
+| c | phase speed ω/k = λν | m/s | `phase_speed` returns \|c\| ≥ 0 | ch07 → | `phase_speed(k, H, g, sigma, rho)` |
+| c_g | group velocity dω/dk | m/s | **signed** (sgn k); c/2 deep, c shallow, 3c/2 capillary | ch07 → | `group_velocity`, `group_velocity_numeric` |
+| K = (k, l, m), K, e_K | wavenumber vector, its magnitude, unit vector | rad/m | c = (ω/K)e_K (7.8); **m = vertical wavenumber here (mass, source strength, elliptic parameter elsewhere)** | ch07 → | `K`, `plane_wave(X, K, omega)`, `phase_velocity_vector` |
+| c_x, c_y, c_z | trace velocities ω/k, ω/l, ω/m | m/s | each ≥ c; **not components of c** (1/c² = Σ1/c_i²) | ch07 | `trace_velocities(K, omega)` → tuple |
+| θ ⚠️ (phase) | local phase θ(x, t), k = ∂θ/∂x, ω = −∂θ/∂t (7.72) | rad | see the ζ/θ trap | ch07 | `theta_fn` in `local_wavenumber_frequency` |
+| H ⚠️ | still-water depth; §7.7 upper-layer thickness | m | `H = np.inf` = deep water; **H = scale height (ch01), channel width (ch05)** | ch07 → | `H` |
+| kH | depth parameter | – | deep kH > 2 (H > 0.318λ, error 1.815 %), shallow H < 0.07λ (kH < 0.44, error 3.039 %) | ch07 → | `depth_regime(k, H)` → label + errors |
+| η ⚠️ | surface elevation η(x, t) | m | **ch04's η was the level-set function** (see the trap) | ch07 → | `eta` |
+| f ⚠️ (surface) | level-set function z − η | m | n = ∇f/\|∇f\| (7.14); **f = Coriolis parameter, Helmholtz free energy, traction elsewhere** | ch07 | inside `surface_normal(eta_x)` |
+| U_s | velocity of the surface point at fixed x, η_t e_z (7.15) | m/s | only its normal part matters | ch07 | `surface_velocity(eta_t)` |
+| φ, ψ | velocity potential; stream function with **u = ∂ψ/∂z, w = −∂ψ/∂x** | m²/s | ch04's planar convention with y → z; GFD's opposite sign is the Ch. 13 trap | ch03/ch04 → | `wave_fields(...)["phi"]`, `["psi"]` |
+| p, p′ ⚠️ | gauge pressure; perturbation p + ρgz (§7.2) or p − p̄(z) (§7.8) | Pa | see the p′ trap | ch07 → | `linear_bernoulli_pressure`, `wave_fields(...)["p_prime"]` |
+| ξ, ζ ⚠️ | horizontal and vertical particle excursions from the mean position (x₀, z₀) | m | orbits clockwise for a right-going wave; **ζ = interface displacement in §7.7** | ch07 → | `orbit_linear` → (xi, zeta) |
+| x₀, z₀ | mean position of a particle (integration constants zero by definition) | m | `particle_path(start="mean")` releases at the mean depth | ch07 | `x0`, `z0` |
+| A, B ⚠️ (orbit) | semi-axes a cosh k(z₀ + H)/sinh kH and a sinh k(z₀ + H)/sinh kH | m | focal distance a/sinh kH at every depth; **A, B, C also the constants of (7.23)–(7.25) and (7.104)–(7.109)** | ch07 | `orbit_semi_axes(z0, a, k, H)` |
+| E, E_k, E_p ⚠️ | wave energy, kinetic and potential parts | J/m² (surface), J/m³ (internal), J/kg (jump) | see the energy trap; E = ½ρga² (7.42) | ch07 → | `wave_energy`, `wave_energy_density`, `internal_wave_energy` |
+| F ⚠️ | energy flux E c_g | W/m (surface), W/m² (internal) | vector for internal waves; **F = force elsewhere** | ch07 → | `energy_flux`, `internal_wave_energy(...)["F"]` |
+| σ ⚠️ | surface tension | N/m | `omega_capillary_gravity` default 0.0727, `phase_speed` default 0; teaching value 0.07274 (IAPWS 20 °C) with ρ = 998.2; **σ_x = packet width in `gaussian_packet`, core radius (ch03)** | ch01 → | `sigma` |
+| R ⚠️ (curvature) | radius of curvature of the surface, 1/R = η_xx/(1 + η_x²)^{3/2} | m | centre below a crest (η_xx < 0) ⇒ liquid pressure higher, p = −ση_xx (7.54) | ch07 | `curvature(eta_x, eta_xx, linear=)`, `capillary_surface_pressure` |
+| c_min, λ_m, k_m | minimum phase speed (4gσ/ρ)^{1/4} and where it occurs 2π√(σ/ρg) | m/s, m, rad/m | c_g = c there; clean water 23.12 cm/s at 1.712 cm | ch07 | `capillary_minimum(sigma, rho, g)` |
+| c_g,min | minimum group speed (σk²/ρg = 2/√3 − 1) | m/s | 17.76 cm/s at 4.354 cm (computed, print 4 s.f.) | ch07 | `min_group_velocity` |
+| L, n ⚠️, b ⚠️ | basin length, seiche mode number (n = 0 fundamental), basin width | m, –, m | λ = 2L/(n + 1) (7.64); **n = unit normal, b = Zhukhovsky constant / interface amplitude elsewhere** | ch07 | `seiche_modes(L, H, n)`, `basin_modes(L, b, H, m, n)` |
+| Δk, Δω, A(k), δk, σ_x, ω″ | beat differences; packet spectrum, its width, the packet's length; dispersion d²ω/dk² | rad/m, rad/s, m | order-2 packets keep ω″ (spreading) | ch07 | `beat_wave(x, t, k1, k2)`, `gaussian_packet(..., sigma_x, order)` |
+| α ⚠️ (ray) | angle between k and the shore normal | rad (° at interfaces) | \|k\| sin α = const on straight contours (Snell); **α = thermal expansion, free-stream angle elsewhere** | ch07 | `snell_ray_plane_beach(x, alpha0, x0, T, slope)`, `refraction_state(T, alpha0, H0, H)` |
+| s ⚠️ | beach slope dH/dx | – | 1:50 in the ray tests | ch07 | `slope` |
+| H₁, H₂, u₁, u₂, Q ⚠️, Fr₁ | upstream/downstream depths and speeds of a jump, discharge per width u₁H₁, upstream Froude u₁/√(gH₁) | m, m/s, m²/s, – | H₂/H₁ = ½(−1 + √(1 + 8Fr₁²)); Fr₁ ≥ 1 (second law); **Q = 3-D source strength [m³/s] in ch06** | ch07 | `hydraulic_jump(H1, u1=, Fr1=)`, `jump_state(H1, Fr1)` |
+| ū_L | Stokes drift (Lagrangian mean velocity) | m/s | a²ωke^{2kz₀} deep (7.85): decays as e^{2kz}; Eulerian mean 0 | ch07 → Ch. 13 | `stokes_drift(z0, a, k, H)`, `stokes_drift_numeric` |
+| γ ⚠️ (Stokes) | amplitude-dispersion coefficient in c² = (g/k)(1 + γk²a²) | – | γ = 1 (consistent 3rd order); 3/8 from a truncated set-up; **γ = sheet strength (ch05), heat-capacity ratio (ch01)** | ch07 | `stokes_expansion_sympy` |
+| c₀, Ur | shallow-water speed √(gH); Ursell number aλ²/H³ | m/s, – | KdV linear speed c₀(1 − (kH)²/6); crossover 4π²/9 | ch07 | `kdv_linear_phase_speed`, `ursell_number(a, lam, H)` |
+| m ⚠️ (cnoidal) | elliptic parameter of a cnoidal wave (m → 1: solitary wave) | – | as ch05's `ellipk(m)` (m = k²) | ch05 → | `cnoidal_wave(x, t, H, height, m)` |
+| ρ₁, ρ₂ | upper (lighter) and lower (heavier) densities | kg/m³ | ρ₁ > ρ₂ ⇒ Rayleigh–Taylor (NaN + warning) | ch05 → | `rho1`, `rho2` |
+| ε² ⚠️ | density ratio (ρ₂ − ρ₁)/(ρ₂ + ρ₁) | – | ω = ε√(gk) (7.95); **ε = dissipation rate (ch04), Levi-Civita, kernel smoothing (ch05)** | ch07 | `eps2_density(rho1, rho2)` |
+| ζ ⚠️ (interface), b ⚠️ | interface displacement; its complex amplitude in the two-layer problem | m | barotropic b = ae^{−kH}; baroclinic η/ζ = −((ρ₂ − ρ₁)/ρ₁)e^{−kH} < 0 (7.114) | ch07 | `two_layer_modes(k, H, rho1, rho2)` |
+| g′ ⚠️ | reduced gravity g(ρ₂ − ρ₁)/ρ₂ (7.117) | m/s² | **ρ₂ in the denominator; ch04's `reduced_gravity` uses ρ₁** (see the trap) | ch04 → | `reduced_gravity_book(rho1, rho2, g, ref="lower")` |
+| N, ρ₀, ρ̄(z), ρ′ | buoyancy frequency, reference density, base density, perturbation | rad/s, kg/m³ | N² = −(g/ρ₀)dρ̄/dz; ρ′ = N²ρ₀ζ/g | ch01 → | `N`, `rho0` |
+| ∇_H² | horizontal Laplacian ∂²/∂x² + ∂²/∂y² | 1/m² | commutes with ∂/∂t, ∂/∂z and N(z) | ch07 | (sympy in `boussinesq_linear_sympy`) |
+| θ ⚠️ (K angle) | angle of K above the horizontal, cos θ = \|k\|/K | rad | ω = N cos θ (7.139); = the beam's angle from the vertical | ch07 → | `beam_angle(omega, N)`, `internal_wave_omega(k, m, N, l)` |
+| ŵ ⚠️ | complex amplitude of w in the plane internal wave | m/s | û = −mŵ/k, p̂ = −ωmρ₀ŵ/k², ρ̂ = iN²ρ₀ŵ/(ωg) (7.153); **`w0` = ch01's initial parcel velocity** | ch07 | `w0` in `internal_wave_fields`, `internal_wave_energy` |
+| i, Re{} | imaginary unit; real part restored at the end | – | see the complex-notation trap | ch06 → | `real_field(amp, phase)` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -671,3 +772,4 @@ second-order accurate · Example 6.2 loop index and Δψ in m²/s.
 | ch04 | right-handed Cartesian, **z up**, g = −g e_z, Φ = gz (4.18); cylindrical (R, φ, z) for rotating flows and Ex. 4.5; noninertial frame O′ translating at U(t) and rotating at Ω(t) with basis e′_i; NH Ω_z > 0; latitude φ | CVs with explicit geometry (E1 boxes around the wake, bore, jet, rocket, balloon); hydrostatic base state p_s(z), ρ_s(z) for Boussinesq; free surface η = 0 | τ = −pδ + σ, tensile positive; traction f_j = n_iτ_ij and Cauchy's divergence on the **first** index; outward n, signed (u − b)·n; drag on the body +x, on the fluid −F_D; acceleration terms +2Ω × u′, +Ω × (Ω × x′) (4.43) vs forces −2Ω × u′, −Ω × (Ω × x′) (4.45); Stokes assumption μ_v = 0; 2-D ψ: u = ∂ψ/∂y; primes: rotating frame (§4.7), perturbation (§4.9), dummy (4.67) | `core.similarity.Scales` holds one set per use with its time scale (1/Ω (4.100) or l/U (4.109)) and pressure scale (ρU², μU/l or ρgl); Ro = U/(2Ωl) forward pointer | dimensional SI in functions; non-dimensional via `Scales` and the `nondimensional_*` coefficient routines; g default 9.81 in `ch04`, 9.80665 in `core` |
 | ch05 | right-handed Cartesian, **z up**, g = 9.81 (`core.thermo.G_BOOK`); plane polar (r, θ) and cylindrical (R, φ, z) for vortices and rings; material loops with fixed labels s ∈ [0, 1); rotating frame Ω = Ωe_z (NH > 0); natural frame (e_s, e_n = −Frenet N, e_m) on vortex lines; wall at y = 0 with the fluid above; sheet along x with u₁ above, u₂ below | vortices and rings centred on the axis; tank p_o on the axis at z = 0; line vortex p_∞ far away; lock-exchange interface at x = 0 (heavy on the left); column undisturbed depth h₀ | counterclockwise-positive ω_z, Γ, point-vortex strengths and sheet strength γ = u₂ − u₁; ∇ρ × ∇p order; (5.14) with +1/(4π); ω = vorticity (tank turns at ω/2); σ_rθ viscous stress with the polar metric; Γ_a = Γ + 2Ω·A_vec | none fixed (every function dimensional; the E-series use lab or planetary numbers directly) | dimensional SI throughout; latitudes in degrees only at `*_deg` interfaces |
 | ch06 | 2-D flows in (x, y) with θ from +x (downstream); complex z = x + iy, ζ the Zhukhovsky circle plane; §6.8 cylindrical (R, φ, z) with **z horizontal along the stream**, spherical (r, θ from +z); §6.9 ξ = x − x_s; Laplace grids `mask[j, i]` with x on the last axis | bodies centred at the origin; half-body source at 0 (stagnation at −m/2πU); p∞ far upstream; ideal-flow p measured from hydrostatic; Example 6.1 wall at x = 0 with the vortex at (h, 0) at t = 0 | Γ counterclockwise in code, **clockwise** in (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68), Ex. 6.1 (`Gamma_cw=`); D, L on the body, (6.54) F on the fluid; ccw contour, outward n; 2-D dipole from sink to source; (6.82) = r × App. B | none fixed (U, a or the body length set the scale in each function; C_p is the only non-dimensional output used throughout) | dimensional SI throughout; ρ default 1.2 (2-D forces) or 1000 (Ex. 6.1, §6.9) — pass it explicitly |
+| ch07 | 2-D waves in the (x, z) plane, **z up**, x along propagation; still surface z = 0, flat bottom z = −H (H = ∞ deep); §7.7 origin at the mean free surface, interface at z = −H; §7.8 (x, y, z) with z up, K = (k, l, m); rays in (x, y) with α from the shore normal | still-water level; mean particle position (x₀, z₀) | p **gauge**; p′ = p + ρgz (§7.2) or p − p̄(z) (§7.8); ψ with u = ∂ψ/∂z; ω ≥ 0, direction in sgn k; c_g signed; clockwise orbits for +x waves; sheet γ = u_below − u_above | g = 9.81 (`G_BOOK`) in ch07 and `core.waves`; ρ = 1000; clean water σ = 0.07274 N/m, ρ = 998.2 in teaching numbers; energy per area (surface), per volume (internal) | dimensional SI throughout; complex amplitudes (Re dropped) from §7.7; the KdV solver is dimensional |

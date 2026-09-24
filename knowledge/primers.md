@@ -3,8 +3,8 @@
 Appended by the knowledge-keeper after every chapter from the notebook's `metadata.fluidpy.primers` and the design's
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
-chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164); a new
-chapter starts at the next free number (ch07: P165). Total so far: 164.
+chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
+P165–P184); a new chapter starts at the next free number (ch08: P185). Total so far: 184.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -200,6 +200,28 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | iterative solvers: Jacobi, Gauss–Seidel, SOR (P160) | ch06 · §6.7 · C12 | sweeps instead of elimination: Jacobi uses last sweep's values, Gauss–Seidel the newest, SOR scales the Gauss–Seidel change by 1 < ω < 2; error shrinks by the spectral radius ρ per sweep; stop on the **residual** b − Aψ with a tight tolerance — when ρ ≈ 1 residual and change are both ≈ (1 − ρ) × the true error |
 | boolean masks and scipy.sparse (P161) | ch06 · §6.7 · C12 | an L-shaped or stepped domain = a rectangular array plus `mask[j, i]` (True = unknown) and a boundary-value array; `scipy.sparse` stores the five non-zeros per row, `spsolve` solves the whole system directly on fine grids |
 | collocation and the condition number (P162) | ch06 · §6.8 · C14 | N unknowns from the condition at N points; `np.linalg.cond(A)` bounds how much relative data error can grow: ~10³ harmless, > 10¹⁰ the digits are noise (`np.vander` as the classic bad matrix; the axial method reaches 10¹⁷) |
+| **ch07 — maths** | | |
+| phase of a wave (P165) | ch07 · §7.1 · C01 | the phase kx − ωt is the argument of the cosine in radians: 0 at a crest, π at a trough, 2π at the next crest; k [rad/m] and ω [rad/s] vs cycles (1/λ, ν) differ by 2π; a point of fixed phase moves right when ω/k > 0 (with the ⚠️ "ω is a frequency now, not a vorticity" callout) |
+| Taylor transfer of a boundary condition (P166) | ch07 · §7.2 · C02 | a condition on the moving surface z = η is written on z = 0 by F(η) ≈ F(0) + ηF′(0); if F varies over 1/k and η ~ a the correction is ≈ ka × F, so gentle waves keep F(0) — and the two O(ka) approximations (drop η_xφ_x, move to z = 0) must be made together |
+| separation of variables for a PDE (P167) | ch07 · §7.2 · C03 | for a linear PDE with straight boundaries try (function of z) × (wave in x): ∂²/∂x² → −k² turns Laplace into the ODE f″ − k²f = 0 (e^{λz} trial, ch01 P44); the boundary conditions choose sin or cos (contrast ch01 P42, separation in the ODE sense) |
+| hyperbolic functions cosh, sinh, tanh (P168) | ch07 · §7.2 · C03 | cosh = (eˣ + e⁻ˣ)/2, sinh = (eˣ − e⁻ˣ)/2, tanh, coth, sech; cosh² − sinh² = 1, cosh² + sinh² = cosh 2x, 2 sinh cosh = sinh 2x, (tanh)′ = sech²; small x: cosh ≈ 1, sinh ≈ tanh ≈ x; large x: cosh ≈ sinh ≈ eˣ/2, tanh → 1 (tanh 2 = 0.964 — the deep-water threshold); our Fig. 7.7 |
+| curvature of a plane curve (P169) | ch07 · §7.3 · C07 | for z = η(x), 1/R = η_xx/(1 + η_x²)^{3/2} ≈ η_xx for gentle slopes; under a crest η_xx < 0 and the centre of curvature is below, inside the water, so the liquid pressure is higher (p = −ση_xx, D15) |
+| sum-to-product identities (P171) | ch07 · §7.4 · C08 | cos A + cos B = 2 cos((A − B)/2) cos((A + B)/2), cos A − cos B = −2 sin((A + B)/2) sin((A − B)/2): a sum of two waves becomes a slow factor times a fast one — standing waves (D17) and beats (D19) |
+| Fourier integral and a packet's spectrum (P172) | ch07 · §7.5 · C09 | a group is η = ∫A(k)e^{i(kx − ω(k)t)}dk (real part understood); a spectrum of width δk around k₀ means a group of length ~1/δk, and near k₀ ω(k) may be Taylor-expanded — the continuous version of ch05 P142's FFT modes (D20) |
+| first-order wave equation and characteristics (P174) | ch07 · §7.5 · C10 | ∂q/∂t + c ∂q/∂x = 0 keeps q constant for an observer moving at c: along each line dx/dt = c of the x–t plane (a characteristic); the material derivative of ch03 with u → c (crest conservation D22, the simple wave N81) |
+| Snell's law for waves (P175) | ch07 · §7.5 · C10 | where the medium changes only along x, the along-y wavenumber cannot change (crests match along every line x = const); with \|k\| changing, \|k\| sin α = const (α from the x-direction) — optics' n₁ sin α₁ = n₂ sin α₂ (refraction D24) |
+| complex amplitudes (P176) | ch07 · §7.7 · C13 | ζ = Re{a e^{i(kx − ωt)}} with the Re dropped during linear algebra: ∂/∂x → ik, ∂/∂t → −iω, a complex amplitude b = \|b\|e^{iφ} carries size and phase shift; ⚠️ take real parts before multiplying two fields (ch01 P45 Euler, ch06 P153) |
+| operator elimination for linear PDEs (P177) | ch07 · §7.8 · C15 | apply ∂/∂t, ∂/∂z, ∇_H² to whole linear equations and substitute until one unknown is left — like eliminating variables in a linear system; allowed because derivatives of smooth fields commute (Schwarz, ch04 P121), also with N(z) (the w-equation D33) |
+| mean of a product of real parts (P178) | ch07 · §7.8 · C16 | ⟨Re(Ae^{iθ})Re(Be^{iθ})⟩ = ½Re(AB*) over a period (B* conjugate, ch02 P81); fields 90° apart (B = iA) give zero mean product — why ⟨gρ′w⟩ = 0 and how E_k, E_p, F of an internal wave are computed (D37) |
+| **ch07 — Python and numerics** | | |
+| `scipy.optimize.minimize_scalar` (P170) | ch07 · §7.3 · C07 | the minimum of a function of one variable inside a bracket (`method="bounded"`); used to check the closed-form c_min and c_g,min by brute force |
+| envelope with `scipy.signal.hilbert` (P173) | ch07 · §7.5 · C09 | `np.abs(hilbert(eta))` follows the slowly varying amplitude of a fast oscillation without fitting; tracks a packet's peak (`ch07.envelope`, `core.waves.envelope`) |
+| `np.stack` and `np.c_` (P179) | ch07 · §7.1 · C01 | `np.stack([X, Y], axis=-1)` glues equal-shaped arrays on a new last axis (each grid point carries (x, y): the layout `plane_wave` expects); `np.c_[a, b]` stacks 1-D arrays as columns (two points → the x-row and y-row that `ax.plot(*…)` needs) |
+| `np.sign` and `np.nonzero`: where a curve crosses zero (P180) | ch07 · §7.5 · C09 | `np.sign` → −1, 0, +1; neighbours `e[:-1]`, `e[1:]` of different sign bracket a crossing; `np.nonzero(mask)[0]` lists the indices where a boolean array is True (a tuple per axis, hence `[0]`) |
+| `np.fft.rfft` and `np.fft.rfftfreq` (P181) | ch07 · §7.5 · C09 | for a real signal only the k ≥ 0 half is returned; `rfftfreq(n, d)` gives cycles per unit length, × 2π → wavenumbers; each mode then moves with its own ω(k) (`linear_evolve`; FFT itself ch05 P142) |
+| `np.interp`: reading a curve between samples (P182) | ch07 · §7.5 · C09 | `np.interp(x_new, x, y)` draws a straight line between the neighbouring samples (x increasing); reads the envelope's height at a crest that sits between grid points |
+| `warnings.catch_warnings(record=True)` (P183) | ch07 · §7.7 · C13 | a warning is a message without stopping; inside the `with` block every warning is collected in a list (`simplefilter("always")` so none is swallowed) — shows `interface_omega` flagging ρ₁ > ρ₂ (Rayleigh–Taylor) before returning NaN |
+| `np.errstate(invalid="ignore")` (P184) | ch07 · §7.8 · C15 | silences numpy's RuntimeWarning (0/0 → NaN) for the lines inside the block only; used where the NaN is expected and harmless (at K = 0 the direction of K, hence ω = N cos θ, is undefined) |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -303,3 +325,28 @@ e^{iθ} + e^{−iθ} = 2cos θ and foci c² = A² − B² (D20), cross products 
 a sphere (D25), the cot substitution d(cot α)/dα = −1/sin²α with the limits keeping their order (D26; corrected in
 lesson round 1), "a function of x − x_s: ∂/∂x_s = −∇" and |A|² = A·A (D29), the qualitative separated-cylinder band
 (C06), corner exponent n = π/α (C09), deflation (C07).
+
+Reminders written in ch07 instead of new primers (point here; each "Tools from earlier chapters" 🔁 cell names the
+chapter): P25 partial derivative, P26/P98 Taylor (one and several variables), P27 definite integral, P31/P94
+`solve_ivp` (DOP853, tight tolerances for Stokes drift), P95 RK4 by hand, P40 sympy, P117 sympy expand/series, P44
+linear second-order ODE (e^{λz} trial), P45 Euler's formula, P49/P91 chain rule (incl. along a path), P68 orders of
+smallness, P75 level sets and the normal, P76 `meshgrid`, P77 broadcasting, P78 contour/quiver, P80 eigenvalues (the FD
+sloshing problem), P81 complex conjugate, P87 `quad`/`dblquad`, P92 parametric curves, P104 ellipse geometry, P107
+`np.expm1` and cancellation, P108 `brentq`, P114 momentum flux, P121 Schwarz (mixed partials), P127 power of a force,
+P131 reduced gravity (with the ρ₂-vs-ρ₁ callout), P132 moving level set, P142 Fourier modes and the FFT, P149 the delta
+(1-D version as a narrow tanh step), P151 integrals of sin/cos over a period, P153 the complex plane in numpy, P158 sympy
+with complex symbols, P16 animate, P17 `slider_figure` (and `animate_figure`, the plotly time slider), P18 show_viz, P47
+live widgets, P13 log–log slopes.
+
+Glosses in ch07 (one sentence where used, no demo unless noted): overflow of cosh/sinh at large kH and the stable ratio
+e^{kz}(1 + e^{−2k(z+H)})/(1 − e^{−2kH}) (`np.tanh` saturates safely), matching coefficients of cos(kx − ωt) (D06, D28),
+inverting a monotonic function with a bracket from the two limits (brentq reminder + a 3-line Newton), time average ⟨·⟩
+vs wavelength average (overbar) and ⟨cos²⟩ = ½, minimum of a function f′ = 0, f″ > 0 (minimise c² not c), derivative as
+the limit of Δω/Δk (chord vs tangent), the complex-step derivative Im f(k + ih)/h (no cancellation error), quadratic
+formula and the physical root (Vieta reminder, D25), sech² and its derivatives (the soliton), Lagrangian vs Eulerian
+mean (ch03 recap sentence), complex 2 × 2 systems with sympy `I`, `solve`, `factor`, linearisation about a base state
+(drop small × small, keep small × O(1)), angle of a vector from its components (cos θ = |k|/K, `np.arccos`,
+`np.degrees`), gradient in wavenumber space ∇_K ω, the 1-D Dirac delta as the derivative of a narrow tanh step (P149
+reminder), **WKB** (slowly varying wave trains, defined where first used), **Hamilton's equations** for rays
+(dx/dt = ∂ℋ/∂p, dp/dt = −∂ℋ/∂x with ω as the Hamiltonian ℋ — written ℋ to avoid the depth H, lesson round 2), "take it
+on trust for now (derived in C03–C04)" for the deep-water ω = √(gk) used in §7.1.

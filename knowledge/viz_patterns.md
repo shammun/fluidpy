@@ -12,7 +12,7 @@ PASS round 2, 145 parity rows, every page of every pager audited); ch04 E1 `cont
 round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script); ch05 E1
 `vortex_tubes_cannot_end`, E2 `vortex_pressure_funnel`, E3 `kelvin_material_loop`, E4 `baroclinic_torque`, E5
 `vorticity_stretching_tilting`, E6 `biot_savart_filament`, E7 `vorticity_equation_rotating`, E8 `point_vortex_lab`, E9
-`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). **Rule since ch03: 5–10 explainers per chapter, as
+`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). **Rule since ch03: 5–10 explainers per chapter, as
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
@@ -156,6 +156,21 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | Branch cut drawn on the plane and a status "⚠️ the step crosses the branch cut" | ch06 E4 | the reader learns where the formula stops being analytic |
 | Honest refinement panel: order 4/3 printed with its r^{2/3} corner reason, not "≈ 2" | ch06 E7 | "state what converges and what doesn't" in an explainer |
 | Per-state transport range (`syncRange`: the sweep slider's max follows method, problem and refinement) | ch06 E7 | works around the fixed transport range (library quirk) |
+| **Dispersion diagram with ghost limits and shaded regime bands**: c(λ) with the deep √(g/k) (dashed) and shallow √(gH) (dotted) asymptotes and the 2 %/3 % bands shaded, a moving dot, beside the tank with orbits and the depth profile — three views on one clock | ch07 E1 | the regimes are areas on the curve, not words; the template for every Ch. 13 dispersion diagram |
+| A **banner that carries a hidden view's key number** onto portrait phones (sea-bed pressure fraction when the profile view is hidden) | ch07 E1 | the ch01 lesson "a hidden view must not carry the step's number", solved without shrinking anything |
+| **Linear vs exact path-line modes** with the measured drift per period next to the formula (7.85)/(7.86), and a dyed line leaning forward | ch07 E2 | the linearisation's failure (orbits that do not close) is seen and measured |
+| **Restoring pushes drawn at the crest** (gravity blue, tension rose, with their pressures) + term bars that sum to c²/tanh kH with a c²_min floor; liquids as modes | ch07 E3 | two restoring forces add visibly; the minimum is a floor the bars never cross |
+| **Shared "our computed numbers" constants** (`WM`, `WG`, `HM` from `cmin()`/`cgmin()` with σ = 0.07274, ρ = 998.2) feed every prose string, check answer and legend card at 4 s.f. | ch07 E3, E5 (round 2) | never type a number a function can print — and no exercise answer leaks at 3 s.f. (rule 9) |
+| Right-going, left-going and sum drawn as ghosts; period-vs-mode plot with exact, shallow and deep curves | ch07 E4 | superposition and the mode ladder on one screen; parity rows prove right + left = standing |
+| **Chord vs tangent on ω(k)** (beats → c_g), a dashed "group moving at c" ghost, an energy strip with conserved ∫E dx, and a printed-slip toggle (½Δω x) with its own parity row | ch07 E5 | the difference quotient becomes the derivative in front of the reader; the slip visibly freezes the envelope |
+| **Pond step with a live "Right now" callout** (calm out to r = 33.1 cm at t = 1.86 s; edge ripples λ ≈ 4.354 cm) tied to the purple minimum on c_g(k) | ch07 E5 | a minimum of c_g becomes a place on the water |
+| **Hamilton's ray equations integrated in the page** with the ω drift in the status, RK4 vs `ray_trace` parity rows (beach and island), Snell closed form vs RK4, Snell arithmetic in the inspector | ch07 E6 | rays are computed, not drawn; ω conservation is a live number |
+| **One Code block per geometry, traced off-screen** (`codeRay()` runs the chosen geometry independently of the displayed mode) so every live comment holds a real number | ch07 E6 (round 2) | no "…" placeholder, no live value that depends on what happens to be displayed |
+| Momentum and energy budgets as term bars; a **"forbidden" preset** (Fr₁ < 1 would create energy); bore and solitary modes with KdV invariants | ch07 E7 | the second law as a visible sign of a bar; reviewer "very good" |
+| **Separate magnifications for surface and interface**, a vortex-sheet halo, ω(k) of both roots with their limits, a "which g′" note | ch07 E8 | a mode invisible at the surface (η/ζ ≈ −0.002) is still seen; reviewer "very good" |
+| **Physical space + wavenumber space as two square views side by side on portrait phones** (tank cropped to \|x\|, \|z\| ≤ 5 m; K plane a square ±1.1\|K\| window; the third view hidden) | ch07 E9 (round 2) | replaces two squashed strips; K, c, c_g and the right angle stay legible at 360×640 |
+| **Sign-safe preset "K up-left (k < 0)"** with parity rows per quadrant, ω/N-vs-θ view, live w-equation residual, E_k = E_p and F = c_g E invariants | ch07 E9 | the book's k > 0 assumption becomes a thing to try |
+| **Per-mode control hiding by a data attribute + CSS** (`markMode(s, app)` sets `html[data-…-mode]`, CSS hides `[data-viz-key="param:H"]` etc., then `app.fit()`) | ch07 E5, E8, E9 | works around library quirk Q4 without touching the engine; Explore pages shrink |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -255,6 +270,19 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | Explain §0 says a view is "hidden on phones" when it is not; colour names that differ from the drawn colours | ch06 E2, E9 (open) | generate hints from the view config (`hidePortrait`) and colour names from the palette |
 | `play: true` on a question step or on a step that quotes numbers (the trace runs before the reader reads) | ch06 E3 s1, E9 s6 (open) | start paused; let a later step press play |
 | 15–16 Explore pages of one control each at 360×640 | ch06 E1, E5 (open) | mark mode-irrelevant controls `optional` (library quirk Q4 again) |
+| **Rule-9 near-miss**: a value we compute (minimum group speed) printed at 3 s.f. is an exercise's printed answer — in a tour step, a check question and a legend (two explainers) | ch07 E3, E5 (round-1 Must) | print 4 s.f. (17.76 cm/s at 4.354 cm) from the function; shared constants; grep explainer strings against `tests/book_values_chNN.json` before review |
+| A walkthrough step about the island highlighted the beach code and showed a "…" placeholder in a live comment | ch07 E6 (round-1 Must) | its own Code block, traced independently of the displayed mode, with three island parity rows |
+| Two stacked strips (tank, K plane) unreadable on portrait phones — K, c, c_g arrows and the right angle lost | ch07 E9 (round-1 Must) | two square views side by side at full stage height; hide the third view; crop the tank |
+| **Intermittent 3 px clip** of a term list in a walkthrough card when KaTeX finished late (one `--quick` run in four) | ch07 E7 (open) | keep one line of slack in cards whose content sits near the page height; the pager should re-pack after KaTeX renders |
+| A pager label "12/18" wrapping to two lines changed the header height on phones | ch07 E2, E6–E9 | chapter-local `.viz-pager-label { white-space: nowrap; min-width: 52px }` (promotion candidate for `viz_base.css`) |
+| A truncated value in a derivation *live* line (0.969 for 0.96961) | ch07 E1 D09 step 4 (open) | round, never truncate (→ 0.970) |
+| A status criterion looser than its words: "lands on the lee side" tested `x_end < 0`, so a ray grazing the flank counted as sheltered | ch07 E6 (open) | a strict criterion (x < −R/2 or polar angle > 120° from the incoming direction), or say "flank / lee" |
+| A computed value near a book-rounded one prints the book's digits at 3 s.f. (the live c label at λ = λ_m reproduces the rounded (7.59)) | ch07 E3 (open; computed, not a breach) | 4 s.f. when \|λ − λ_m\|/λ_m < 1 % |
+| Phone page counts: Explain 16–19 pages, Explore 10–12 pages, a tour step of 7 pages | ch07 E2, E7, E8 (open) | merge Explain sections on portrait; trim a step's extras on phones; mark mode-irrelevant controls hidden (markMode) |
+| Explore intro names a view hidden on portrait ("click the period plot") | ch07 E4 (open) | phone-specific intro (the ch01 lesson again: never send phone readers to hidden controls) |
+| A stray ray label "0.25" without "ω/N =", a phone K plane without a k-axis title, a pond x-axis without "cm" | ch07 E9, E5 (open) | on views < 420 px drop the label or write the symbol; units in the view title |
+| A hard-coded live value in the Code tab (`lam0: '0.0435'`) next to computed ones | ch07 E5 (open) | compute it from the same constant (`CGM.lam`) |
+| Derivation step titles that relied on a bare equation number (eq_refs hits) | ch07 E9 (round 2) | rename the step by its move ("Apply ∇_H² to the second link"); `ref:` badges are accepted |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -411,6 +439,81 @@ procedure as above, plus `tools/shot.py --chapter ch05 --quick`. Ranked by payof
 engine default (three phone Must-fixes in ch01 and ch05 came from it), `Viz.bars` with zero-row collapse, field image,
 Gauss–Legendre, and the Q5 fix that removes the `app.set` wrappers. No ch05 builder reported a new engine quirk beyond
 Q1–Q8; Q4 (per-mode controls) was hit in all nine ch05 explainers and Q5 (`onChange` after `set`) in two.
+
+### ch07 candidates (listed, **not promoted**: the ch07 knowledge pass ran while the site-publisher was reading `viz/`)
+Counts = explainer files (all 53, ch01–ch07) that define the helper locally outside the inlined library, counted by
+script (`function name(` or `const name = … =>`, plus chapter CSS rules); "(ch07 n)" = how many of the nine ch07 files.
+Ranked by payoff for the chapters ahead (Ch. 8 laminar, Ch. 10 CFD, Ch. 11 instability, **Ch. 13 GFD**, Ch. 15):
+
+| Rank | Helper | Found in (file · local name) | Count (ch07) | Proposed library name | Recommendation |
+|---|---|---|---|---|---|
+| 1 | **pager label on one line** | chapter CSS `.viz-pager-label { white-space: nowrap; min-width: 52px; }` in `hydraulic_jump`, `internal_wave_beams`, `particle_orbits`, `two_layer_modes`, `wave_rays_refraction` | 5 (5) | one rule in `assets/viz_base.css` | **promote first** — CSS only, backwards compatible, removes five local copies; re-run `--quick` shots of all chapters (the header height changes by at most one line) |
+| 2 | **pixel-space arrow and dot** | `arrowPx` ch04–ch07 (ch07: capillary, packets, internal, orbits, two_layer, rays); `dotPx` ch06 E6, ch07 capillary, packets, internal, two_layer; `pxArrow` ch04 E1, ch07 `hydraulic_jump`, `seiche_standing_waves`; `linePx` packets, internal | 21 + 5 + 3 + 2 (6 + 4 + 2 + 2) | `Viz.arrowPx(ctx, x0, y0, x1, y1, {color, width, head, minLen})`, `Viz.dotPx(ctx, x, y, r, fill, stroke)` | **promote** — the top candidate by count since ch05; three local names for one arrow |
+| 3 | **narrow-view plots: y-title gutter and square data windows** | `gutterPlot` ch05–ch07 (ch07: capillary, packets, internal, orbits, rays); `squarePlot(v, R, small)` `internal_wave_beams` (square ±R window centred in the view with its own y-title strip) | 12 + 1 (5 + 1) | engine default below ~420 px (or `v.plot({ylabelGutter: true})`) and `v.plot({square: true})` | **promote** — the phone-legibility Must-fix of ch01, ch05, ch06 and ch07 E9; the square K plane is Ch. 13's wavenumber-space view |
+| 4 | **number, length and speed formatters** | `f3` 28 files (ch07 9/9), `t3` 21 (9/9), `t4` 21 (7), `f4` 14 (1); `fmtLen`/`texLen` (`dispersion_relation`, `seiche_standing_waves`, ch05 ×2), `lenStr`/`lenTex` (capillary, packets, two_layer); `spd`/`spdTex` (packets, internal, two_layer: m/s ↔ cm/s ↔ mm/s) | 28 / 21 / 5 / 3 (9 / 9 / 5 / 3) | `Viz.fixed(v, d, {tex, keepZeros, roundoff})`, `Viz.fmtLen(m, {tex})` (µm … km), `Viz.fmtSpeed(v, {sig})` | **promote** — unchanged top candidate since ch04; ch07 adds length and speed units (4 s.f. option for rule-9 numbers) |
+| 5 | **wave numerics mirroring `core.waves`** | `tanhKH`, `xOverSinh` (capillary, dispersion, packets, rays); `coshSinh`/`sinhSinh` (dispersion, seiche); `coshOverSinh`/`sinhOverSinh` (orbits, overflow-safe); `omegaG` (orbits, seiche, rays); `omegaCG`, `cgv` (capillary, packets); `cph` (capillary, dispersion, packets); `kFromT` (dispersion, Newton inverse of (7.28)); `kFromOmega` (rays) | ≈ 8 names × 2–4 files (ch07 only) | `Viz.waves = {tanhKH, xOverSinh, coshOverSinh, sinhOverSinh, coshOverCosh, omega(k, H, g, sigma, rho), c, cg (signed), kFromOmega(omega, H, …)}` with selftest parity against `core.waves` | **promote before Ch. 13** (Poincaré, Kelvin, Rossby explainers will need ω(k), c, c_g and the inverse again); keep the overflow-safe forms exactly as in `core.waves` |
+| 6 | **per-mode control and readout hiding** | `markMode` (packets, internal, two_layer: data attribute + CSS); `applyMode` 13 earlier files; `applyVisibility` 3 | 3 + 13 + 3 (3) | engine `params[k].modes` / `readouts[k].modes` (quirk Q4) | **engine fix** — 19 local workarounds; also the cure for 10–19 page Explore/Explain on phones |
+| 7 | **layout test** | `narrow()` in 9/9 ch07 files (window width < 560 or height < 460/500) | 9 (9) | read `g.app.layout` / density from the engine instead | **replace, don't promote** — a window test disagrees with the engine's layout inside a notebook iframe |
+| 8 | **log axes with decade labels** | `logAxes` ch04 E9, ch05 ×2, ch07 `dispersion_relation`, `two_layer_modes`; `logTicks` 4 earlier | 5 + 4 (2) | `P.axes({xlog, ylog})` | promote with rank 3 (engine plot work) |
+| 9 | complex arithmetic | `csqrt` ch06 E5, E6, ch07 `group_velocity_packets`; ch06 `cmul`/`cdiv`/`cabs` | 3 (1) | part of `Viz.cx` (ch06 rank 1) | promote with `Viz.cx` (Ch. 11 normal modes, Ch. 14) |
+| 10 | Gauss–Legendre quadrature | `glInt` ch07 `wave_rays_refraction`; `glNodes` ch05 ×2, ch06 E9 | 1 + 3 (1) | `Viz.num.gaussLegendre(n, a, b)` | promote (four files now) |
+| 11 | batch particle integration with dense lookup | `integrateMany`, `posAt` ch07 `particle_orbits`; `posAt` ch05 `point_vortex_lab` | 2 (1) | `Viz.num.odeintMany(f, X0, t)` + interpolated `posAt` | wait for a third user (Ch. 13 floats) |
+| 12 | wave-specific drawing | `crestLines` (rays), `nearestReal` (dispersion, jump, seiche: nearest row of a real-world table by log distance) | 1 / 3 | `nearestReal` → a `current: 'nearest'` option of `Viz.work.table`; `crestLines` stays local | small; with rank 4 |
+
+**Recommendation for the next library pass (orchestrator, when nothing reads `viz/`)**: ranks 1–4 first (pure additions:
+CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen`/`fmtSpeed`), then `Viz.waves` (rank 5)
+and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
+by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
+`tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch07 machinery TODOs (for the orchestrator; not done in this pass)
+- `tools/shot.py` `py:` namespace: the expressions have no builtins and no `np`, so a lambda inside a row must bind numpy
+  through default arguments (`H_fn=lambda X, th=ch07.np.tanh, hy=ch07.np.hypot: 20.0*th(…)` in E6's island rows). Either
+  add `np` to the evaluation namespace or document the idiom in the `interactive-viz` skill.
+- Pager: re-pack after KaTeX has rendered (or reserve one line of slack) — E7's intermittent 3 px clip came from late
+  typesetting in a card packed to within a few pixels.
+- Rule 9: a scripted scan of explainer strings and notebook markdown against the private `tests/book_values_chNN.json`
+  (the ch07 viz- and lesson-reviewers did it by hand and still found the minimum group speed in three places) — e.g.
+  `tools/check_public.py --book-values` run locally before review.
+- `notebooks/build_ch07.py` has a `tidy_raw_tex` pass plus a build-time guard for raw `e^{…}` in plain *why* lines —
+  move it into `tools/nbkit.py` so every builder gets it.
+- `tools/eq_refs.py` still reports `ref:` badges on the Derivation header and Code tab (3 accepted hits in E9) — exempt
+  them like the other `ref:` labels.
+- `ch04.linear_wave_surface` overflows for kH ≳ 710 (verification O8): re-point it to `core.waves.cosh_over_sinh`.
+
+### ch07 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch07) **never type a number a function can print** — prose, checks and legends take their
+  numbers from the mirrored function, and a computed value that equals an exercise answer at 3 s.f. is printed at 4 s.f.
+  (rule-9 near-miss twice in E3/E5) · physical space + wavenumber space on portrait phones = two square views side by
+  side at full height (E9) · one Code block per geometry, traced off-screen, so live comments never depend on the
+  displayed mode (E6) · per-mode hiding via a data attribute + CSS until the engine has it (`markMode`) · `py:` parity
+  lambdas bind numpy by default arguments · cards packed near the page height need one line of slack (KaTeX renders
+  late) · a status that counts ("rays on the lee side") uses a strict geometric criterion · sign-safe presets for
+  formulas the book prints for k > 0, with a parity row per quadrant.
+- `math-to-python` §7: (ch07) complex-step derivatives need complex-safe analytic continuations of every |·|
+  (|k| → −k where Re k < 0; `np.abs` silently falls back and loses precision) · keep speed and signed derivative apart
+  (`phase_speed` |c|, `group_velocity` sgn(k)·c_g) · code the gradient form (c_g = ∇_K ω of N|k|/K) when a printed
+  formula assumes a sign, and test all quadrants · overflow-safe hyperbolic ratios (e^{kz}(1 + e^{−2k(z+H)})/(1 −
+  e^{−2kH}), x/sinh x via expm1) and `np.errstate(over="ignore")` around numpy's complex tanh · invert a monotonic
+  dispersion relation with brentq between its two asymptotic roots and assert the residual · state asymptotic orders as
+  relative or absolute (O(ka) relative = slope 2 absolute at fixed k) · two published "g′" differ by ρ₂/ρ₁: name the
+  reference density in the keyword (`ref="lower"`).
+- `verify-implementation`: (ch07) quote a benchmark's error bound from the **primary** paper at its printed precision
+  (Fenton & McKee 1.7 %, Guo 0.75 % for β = 2.4908), not from a later note (1.5 %, 0.7 %) · a literal exercise set-up
+  can give a different coefficient than the published result (Stokes γ = 3/8 vs 1): check the expansion's consistency
+  order before attributing · plant sign-convention variants at k < 0 (six `_abs_k`/`group_velocity` variants, all caught
+  by two tests) · long drift integrations: DOP853, rtol 1e-10, ≥ 10 periods, release at the mean depth · an independent
+  numerical route for a closed form (FD sloshing eigenproblem → (7.65) at order 1.98) settles a book-value discrepancy
+  (Exercise 7.6, +0.72 %).
+- `teaching-style` Lessons: (ch07) make a linearisation measurable (residual scan on log axes; relative vs absolute
+  slope) · show a printed slip as a ghost that visibly fails (frozen envelope, failing residuals) · "take it on trust
+  for now (derived in C03–C04)" is an honest forward use · size the dropped terms from the forcing (the surface rises at
+  aω) · compute crossovers and thresholds instead of quoting them (Ursell 4π²/9) · captions count what they claim
+  (rays reaching the lee printed by the cell) · climate numbers carried through (38 kW/m swell, 198 m/s tsunami, 0.99 vs
+  22 m/s thermocline vs surface wave) · idiom primers whose two-line demo output *is* the explanation (P179–P184) · the
+  ch07 derivation moves in `concept_map.md`.
+- `colab-notebook` / nbkit: (ch07) a `tidy_raw_tex` pass + build-time guard for raw TeX in plain text; the full run takes
+  ~189 s (ch06 ~170 s) — set timeouts from a loaded run.
 
 ### ch06 candidates (listed, **not promoted**: the ch06 knowledge pass ran while the site-publisher was reading `viz/`)
 Counts = explainer files (all 44, ch01–ch06) that define the helper locally outside the inlined library, counted by
@@ -663,6 +766,22 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   measured ρ, honest refinement order; add a lid-driven cavity ω–ψ mode and multigrid.
 - **Ch. 14 aerodynamics**: E6 + E5 → Zhukhovsky airfoil with the Kutta condition (offset circle, trailing-edge
   stagnation), lift vs angle with the Laurent bars; E8's panel mode → vortex panels with the Kutta condition.
+- **Ch. 7 waves (done — what came of the plans above)**: the dispersion idea became E1 (tank + c(λ) with ghost limits
+  and regime bands + profile); the surface-particle animation became E2 (linear vs exact paths, Stokes drift); E3's
+  sensor-trace idea became the pressure profile and sea-bed banner of E1; Fourier-mode bars became E5's chord/tangent
+  and pond; new: E4 seiches, E6 in-page rays, E7 jump budgets, E8 two-layer modes, E9 internal-wave beams with a square
+  K plane. Morison wave forces (ch06 E9 split) were not built. Backup B1 `linearised_free_surface` (residual scan as an
+  explainer) not built — a good small explainer for Ch. 13's rigid-lid approximation.
+- **Ch. 11 instability (from ch07)**: E8's interface stage + a shear U₁ − U₂ → Kelvin–Helmholtz growth rate vs k with
+  E3's surface-tension term bars as the short-wave cut-off; ρ₁ > ρ₂ as a Rayleigh–Taylor mode (`interface_omega` already
+  returns NaN + warning); E9's K plane for Richardson-number criteria.
+- **Ch. 13 GFD (from ch07)**: E1's dispersion diagram with f and β sliders (Poincaré ω² = f² + gHk², Kelvin, Rossby
+  ω = −βk/(k² + l²) — `group_velocity_numeric` already handles it); E9's square K plane with a second circle for
+  inertia–gravity waves (f < ω < N); E6's in-page rays for WKB internal waves in N(z) and topographic Rossby rays; E8's
+  two magnifications + "which g′" for reduced-gravity models and the Rossby radius √(g′H)/f; E5's pond step as
+  geostrophic adjustment (`linear_evolve` with f); E2's drift panel for Stokes–Coriolis drift.
+- **Ch. 15 compressible (from ch07)**: E7's momentum/energy bars and "forbidden" preset → normal shock (an expansion
+  shock is the forbidden case); the simple-wave steepening and x–t characteristics of E6's D22 page → Riemann invariants.
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the
@@ -690,3 +809,11 @@ After ch06 (reviewer "excellent"): `blasius_kutta_contour` (three derivations in
 survives", force flat vs contour radius with a rose "cuts the body" band, tilted-stream mode, 30 rows) — the template
 for contour/residue arguments; `laplace_relaxation` (stencil stepping + matrix + residual ghosts + honest 4/3 order) and
 `conformal_joukowski` (two planes, same particles, wrong-branch streamlines) — seeds for Ch. 10 and Ch. 14.
+
+After ch07 (reviewer "very good"): `hydraulic_jump` (momentum and energy term bars, a "forbidden" preset, bore and
+solitary modes with KdV invariants, 24 rows) and `two_layer_modes` (two ★★★ derivations incl. one checked with sympy,
+separate magnifications for surface and interface, both roots with limits, 27 rows); `wave_rays_refraction` (in-page
+Hamiltonian rays with parity against `ray_trace`, one Code block per geometry) and `internal_wave_beams` (sign-safe
+k < 0, square K plane beside the tank on phones) — seeds for Ch. 13; best screenshots
+`reports/viz/ch07/internal_wave_beams/phone__explore.png` (two square views at 360×640) and
+`reports/viz/ch07/group_velocity_packets/phone-tall__tour-step7.png` (pond step with the live calm-disc callout).
