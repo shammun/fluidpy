@@ -368,10 +368,49 @@ test at kH = 900). ch07's overflow-safe `wave_fields` supersedes it; suggest re-
 
 O9 (implementer, low) — the complex-step path of `core.waves._tanh_kH` emits "RuntimeWarning: overflow encountered in
 tanh" for kH ≳ 355 (numpy's complex tanh); the returned c_g is still correct (1e-12). Wrap in `np.errstate(over="ignore")`.
+**Closed in loop 2:** `_tanh_kH` now uses `np.errstate(over="ignore")`; asserted by the kH = 800 case of
+`test_group_velocity_V1_negative_k_is_signed_derivative` under `warnings.simplefilter("error")`.
 
 O10 (qualitative, by design) — `st_andrews_cross` is a labelled illustration (Mowbray & Rarity 1967 pedigree): its beam
 geometry (arccos(ω/N), c ⟂ c_g, phase lines along beams, energy away from the source) is verified (V7); it is not a
 solution of the forced problem. The Riemann simple wave (`simple_wave_evolve`, N81) is our labelled extension, verified
 analytically (breaking time, first-order speed), without a published benchmark.
 
-## Verdict: PASS — 130/130 ch07 tests pass (125 s; full suite 880 passed); all 16 CORE items have V1 and V2 evidence and 15 of them a third level (V3, V4, V5 or V7; C05 has V1 + V2); every coded NOTE ≥ 1; every ★★/★★★ derivation re-derived with sympy (no wrong intermediate line); every design Part C function and all 11 scripts exercised; 35/35 planted wrong variants caught; no tolerance loosened; open items are docstring/citation fixes, book-value and provenance notes, and two labelled qualitative illustrations.
+## Loop 2 (post-review) — 2026-09-24, commit 04e4606 + working tree
+
+**The change** (review finding M1, negative k in the complex-step group velocity). `core.waves._abs_k` is now the
+analytic continuation of |k| for complex input (−k where Re k < 0, k elsewhere); before, it returned a complex k
+unchanged, so a complex step at k < 0 evaluated √(g k) on the wrong branch and gave c_g ≈ 1e20 m/s. `group_velocity`
+now returns the signed derivative dω/dk = sgn(k)·(c/2)[… + 2|k|H/sinh 2|k|H] of ω(|k|) from (7.28)/(7.56) (identical to
+(7.69) for k > 0); `phase_speed` still returns the speed |ω/k| ≥ 0. `_tanh_kH` now silences numpy's spurious complex-tanh
+overflow flag (closes O9).
+
+**Existing expectations unchanged.** `git diff HEAD -- tests/test_ch07.py` is 54 added lines (the two tests below) and
+no modified or deleted line; every pre-existing ch07 test passes unchanged against the new sign convention.
+
+**The two new tests (both V1), audited independently.**
+
+| Test | Physics basis of the expectation | Tolerances | Honest? |
+|---|---|---|---|
+| `test_group_velocity_V1_negative_k_is_signed_derivative` | ω = √(\|k\|(g + σk²/ρ) tanh \|k\|H) (7.28)/(7.56) depends on \|k\| only ⇒ dω/dk is odd in k; asserts oddness exactly (`array_equal(neg, −pos)`), sign(c_g) = sign(k) per element, complex step = analytic, an **independent real ω(\|k\|) lambda** differenced by 4th-order central differences = analytic, and the closed forms at k = −1: −½√g (7.70 deep) and −(c/2)(1 + 4/sinh 4) (7.69, H = 2); shallow limit −√(gH) (7.70). 6 k × 5 (H, σ) cases incl. kH = 800 under `warnings.simplefilter("error")` | complex step 1e-12 (`maxrel`, normalised by the array max; **element-wise worst is 3.2e-16**, measured); central 1e-9 (truncation h⁴ with h = 1e-3\|k\| plus round-off ε/h ≈ 1e-13); closed forms 1e-13; shallow limit 1e-9 at kH = 1e-5 (the c_g correction ½(kH)² is 5e-11) | yes |
+| `test_gaussian_packet_V1_negative_k0_is_the_mirror_image` | η₀ = a e^{−x²/2σ²} cos k₀x is even in x and k₀ and ω(\|k\|) is even ⇒ η(x, t; −k₀) = η(−x, t; k₀) (deep and H = 5, orders 1 and 2); order-1 envelope rides rigidly left at c_g = −½√(g/\|k₀\|) (7.68)/(7.70); order 2 vs the FFT evolution `linear_evolve` for a quadratic Ω(\|k\|) at k₀ = −1 (c_g = −0.8, ω″ = 0.6 exactly) | c_g 1e-13/1e-12 (closed-form arithmetic); ω″ 1e-8 (finite difference of complex-step values, step 1e-3\|k₀\|: error O(h²ω⁗) ≈ 1e-9); η 1e-12 of a = 1; envelope 1e-14 | yes |
+
+**Planted variants** (monkeypatched in memory from a scratch script, `fluidpy/` untouched):
+
+| Variant | signed-derivative test | mirror-packet test |
+|---|---|---|
+| A — old `_abs_k` (complex k returned unchanged, HEAD) | **fails** (sign / complex-step parity) | **fails** (c_g ≈ 1e20, c_g(−k₀) ≠ −c_g(k₀)) |
+| B — unsigned analytic `group_velocity` (HEAD, \|c_g\|) | **fails** (oddness) | **fails** (c_g ≠ `group_velocity(−0.5)`) |
+| C — full HEAD behaviour (A + B) | **fails** | **fails** |
+| E — continuation that loses the sign (−Re k + i Im k) | **fails** (sign of c_g) | **fails** |
+| F — `gaussian_packet` moves at \|c_g\| | passes (out of scope) | **fails** |
+| D — `np.abs` in `_abs_k` (non-analytic; ω real, `auto` falls back to central differences) | passes — correctly: the fallback returns the right signed c_g to 4e-13 element-wise, not a physics error | **fails** (η 1e-12 bound: ω″ loses precision) |
+
+Every behaviour that is physically wrong (A, B, C, E, F) is caught by at least one of the two tests; the old code fails
+both. 6/6 variants caught by the pair (41/41 cumulative for ch07).
+
+**Runs.** `pytest tests/test_ch07.py -q -p no:cacheprovider` → **132 passed in 72 s**; full suite `pytest tests` →
+**882 passed in 409 s**, no warnings reported. Collected items per tag: **V1 60 · V2 36 · V3 10 · V4 5 · V5 5 · V6 3 ·
+V7 13** (= 132). C09 (group velocity) now has V1 evidence for both signs of k.
+
+## Verdict: PASS (loop 2) — 132/132 ch07 tests pass (72 s; full suite 882 passed); M1 fixed and proven by two discriminating V1 tests (old behaviour fails both); no existing test expectation changed. Loop 1 verdict: 130/130 ch07 tests pass (125 s; full suite 880 passed); all 16 CORE items have V1 and V2 evidence and 15 of them a third level (V3, V4, V5 or V7; C05 has V1 + V2); every coded NOTE ≥ 1; every ★★/★★★ derivation re-derived with sympy (no wrong intermediate line); every design Part C function and all 11 scripts exercised; 35/35 planted wrong variants caught; no tolerance loosened; open items are docstring/citation fixes, book-value and provenance notes, and two labelled qualitative illustrations.

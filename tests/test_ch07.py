@@ -1153,6 +1153,60 @@ def test_gaussian_packet_V1_envelope_rides_at_cg():  # V1 (7.68) order 1 exactly
         assert np.max(np.abs(gp["eta"] - le)) < 1e-12 and gp["omega2"] == pytest.approx(0.6, rel=1e-8)
 
 
+def test_group_velocity_V1_negative_k_is_signed_derivative():  # V1 review M1: dω/dk of ω(|k|) is sgn(k)·(7.69)
+    # (7.28)/(7.56) depend on |k| only, so dω/dk = sgn(k) ω′(|k|): a left-going wave (k < 0) has c_g < 0, same size.
+    k = np.array([1e-4, 0.05, 0.3, 1.0, 7.0, 400.0])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # kH up to 800: no overflow warning from the complex tanh either
+        for H, sig in ((np.inf, 0.0), (2.0, 0.0), (0.05, 0.0), (np.inf, 0.0727), (0.02, 0.0727)):
+            pos = W.group_velocity(k, H, G, sig, 1000.0)
+            neg = W.group_velocity(-k, H, G, sig, 1000.0)
+            assert np.all(pos > 0) and np.array_equal(neg, -pos)  # odd in k
+            for kk in (k, -k):
+                an = W.group_velocity(kk, H, G, sig, 1000.0)
+                cs = W.group_velocity_numeric(None, kk, H=H, g=G, sigma=sig, rho=1000.0)  # complex step
+                assert np.all(np.sign(cs) == np.sign(kk)) and maxrel(cs, an) < 1e-12
+                ce = W.group_velocity_numeric(lambda q: np.sqrt(np.abs(q) * (G + sig / 1000.0 * q ** 2)
+                                                                * (np.tanh(np.abs(q) * H) if np.isfinite(H) else 1.0)),
+                                              kk, method="central")  # an independent real ω(|k|), differenced
+                assert maxrel(ce, an) < 1e-9
+    # closed forms at k = −1: deep water −½√(g/|k|) (7.70); finite depth −(c/2)(1 + 2|k|H/sinh 2|k|H) (7.69)
+    assert float(W.group_velocity_numeric(k=-1.0, g=G)) == pytest.approx(-0.5 * np.sqrt(G), rel=1e-13)
+    assert float(W.group_velocity(-1.0, np.inf, G)) == pytest.approx(-0.5 * np.sqrt(G), rel=1e-13)
+    c2 = np.sqrt(G * np.tanh(2.0))
+    ex = -0.5 * c2 * (1.0 + 4.0 / np.sinh(4.0))
+    assert float(W.group_velocity_numeric(k=-1.0, H=2.0, g=G)) == pytest.approx(ex, rel=1e-13)
+    assert float(W.group_velocity(-1.0, 2.0, G)) == pytest.approx(ex, rel=1e-13)
+    # shallow limit (7.70): c_g → −√(gH) for a long left-going wave
+    assert float(W.group_velocity_numeric(k=-1e-5, H=1.0, g=G)) == pytest.approx(-np.sqrt(G), rel=1e-9)
+
+
+def test_gaussian_packet_V1_negative_k0_is_the_mirror_image():  # V1 review M1: k₀ < 0 is the x → −x mirror, c_g < 0
+    x = np.linspace(-600, 600, 2 ** 12, endpoint=False)
+    for H in (np.inf, 5.0):
+        for order in (1, 2):
+            gp = W.gaussian_packet(x, 40.0, 1.0, 0.5, 20.0, order=order, H=H, g=G)
+            gm = W.gaussian_packet(-x, 40.0, 1.0, -0.5, 20.0, order=order, H=H, g=G)
+            # η₀ = a e^{−x²/2σ²} cos k₀x is even in x and in k₀; ω(|k|) is even ⇒ η(x, t; −k₀) = η(−x, t; k₀)
+            assert gm["cg"] == pytest.approx(-gp["cg"], rel=1e-13) and gm["cg"] < 0
+            assert gm["cg"] == pytest.approx(float(W.group_velocity(-0.5, H, G)), rel=1e-12)
+            assert gm["omega0"] == gp["omega0"] and gm["omega2"] == pytest.approx(gp["omega2"], rel=1e-8)
+            assert np.max(np.abs(gm["eta"] - gp["eta"])) < 1e-12
+    t = 200.0  # deep water, order 1: the envelope rides rigidly to the LEFT at c_g = −½√(g/|k₀|)
+    g1 = W.gaussian_packet(x, t, 1.0, -0.5, 20.0, order=1, g=G)
+    assert g1["cg"] == pytest.approx(-0.5 * np.sqrt(G / 0.5), rel=1e-12) and abs(g1["cg"]) < 1e3
+    assert np.max(np.abs(g1["envelope"] - np.exp(-(x - g1["cg"] * t) ** 2 / 800.0))) < 1e-14
+    # order 2 is exact for quadratic dispersion: ω(k) = Ω(|k|), Ω(q) = 1 + 0.8(q − 1) + 0.3(q − 1)², packet at k₀ = −1
+    # (its spectrum lies at k < 0, where ω(k) = Ω(−k): c_g = −0.8, ω″ = 0.6) vs the FFT evolution with Ω(|k|)
+    om_q = lambda q: 1.0 + 0.8 * (q - 1.0) + 0.3 * (q - 1.0) ** 2  # noqa: E731
+    xx = np.linspace(-900, 300, 2 ** 13, endpoint=False)
+    for T in (50.0, 200.0):
+        gp = W.gaussian_packet(xx, T, 1.0, -1.0, 20.0, omega_fn=lambda q: om_q(-q), order=2)
+        le = W.linear_evolve(np.exp(-xx ** 2 / 800.0) * np.exp(-1j * xx), xx, T, omega_fn=om_q)
+        assert gp["cg"] == pytest.approx(-0.8, rel=1e-12) and gp["omega2"] == pytest.approx(0.6, rel=1e-8)
+        assert np.max(np.abs(gp["eta"] - le)) < 1e-12
+
+
 def test_linear_evolve_V7_nondispersive_translation():  # V7: ω = ck translates any shape rigidly (shallow limit)
     L, N, c = 50.0, 500, 1.7
     x = np.linspace(0, L, N, endpoint=False)

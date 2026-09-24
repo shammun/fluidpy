@@ -51,9 +51,11 @@ def main() -> int:
           f"{ch07.stokes_wave_profile(np.pi, 0.0, 0.3, 1.0):.4f} m; c/√(g/k) = "
           f"{ch07.stokes_wave_speed(1.0, 0.3) / np.sqrt(ch07.G_BOOK):.4f} (7.83); limiting H/λ = {ch07.STOKES_LIMIT_STEEPNESS}")
     se = ch07.stokes_expansion_sympy()
-    print(f"  Exercise 7.2 in sympy: third-order α = {se['alpha']}, γ = {se['gamma']} (β = {se['third_order']['beta']},"
-          f" δ = {se['third_order']['delta']}); literal set-up (fixed potential amplitude) gives γ = "
-          f"{se['exercise_literal']['gamma']}")
+    print(f"  consistent third-order Stokes expansion (sympy): α = {se['alpha']}, δ = {se['third_order']['delta']} "
+          f"(7.82), γ = {se['gamma']} (7.83) — it needs the potential's first-harmonic correction β = "
+          f"{se['third_order']['beta']}·(ka)² relative to aω/k")
+    print(f"  the literal Exercise 7.2 ansatz (potential amplitude fixed at aω/k, kinematic condition to (ka)¹) gives "
+          f"γ = {se['exercise_literal']['gamma']}, not 1")
     ax[0, 1].set_xlabel("x [m]")
     ax[0, 1].set_ylabel("η/a")
     ax[0, 1].set_title("Stokes wave: peaked crests, flat troughs (Fig. 7.21 remake)", fontsize=9)

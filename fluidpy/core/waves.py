@@ -15,12 +15,20 @@ Conventions (analysis §9 R1–R11, curation §8)
 * g defaults to ``G_BOOK`` = 9.81 m/s² (the book's value; ``core`` elsewhere defaults to G0 = 9.80665 — pass g explicitly
   when it matters).
 * Reduced gravity: (7.117) g′ = g(ρ₂ − ρ₁)/ρ₂ (**lower** density in the denominator) — :func:`reduced_gravity_book`;
-  ch04's ``core.similarity.reduced_gravity`` uses ρ₁ (``ref="upper"``). They differ by the factor ρ₂/ρ₁.
+  ch04's ``core.similarity.reduced_gravity`` uses ρ₁ (``ref="upper"``). g′_lower/g′_upper = ρ₁/ρ₂;
+  g′_lower/g′_mean = (ρ₁ + ρ₂)/(2ρ₂) (mean ρ̄ = (ρ₁ + ρ₂)/2).
+* Sign of k: every ω(k) here depends on |k|; :func:`phase_speed` returns the speed |c| ≥ 0, while :func:`group_velocity`
+  and :func:`group_velocity_numeric` return the **signed** dω/dk = sgn(k)·c_g (negative for a left-going wave).
+* ⚠ Sibling argument orders differ (kept for API stability; call by keyword): ``omega_capillary_gravity(k, H, sigma,
+  rho, g)`` with σ = 0.0727 N/m by default, but ``phase_speed``/``group_velocity``/``period_from_wavelength``/
+  ``wavenumber_from_omega``/``wavelength_from_period(…, H, g, sigma, rho)`` with σ = 0 by default.
 * Internal waves: the printed (7.138) ω = kN/K and (7.145) c_g = (Nm/K³)(m e_x − k e_z) assume k > 0; here ω = N|k|/K
   and c_g = ∇_K ω (sign-safe; the printed form is kept as ``printed=True`` for wrong-variant tests). θ is K's angle
   above the horizontal = the beam (c_g, particle motion) angle from the **vertical**.
-* Vectors: a wavenumber vector ``K`` is a 1-D array (k, l, m) or (k, m); a point set ``X`` has its components on the
-  **first** axis (X[0] = x, X[1] = y, …), the project's field convention.
+* Vectors: a wavenumber vector ``K`` is a 1-D array (k, l, m) or (k, m). A point set ``X`` passed to
+  :func:`plane_wave` has its components on the **last** axis, shape (…, d) (design contract); components-first arrays
+  (d, …) are also accepted when the last axis is not d. Vector *outputs* of ch07 field functions (e.g.
+  ``ch07.surface_normal``) carry their components on the first axis.
 * Complex notation (§7.7 on): Re{} is dropped during the algebra and restored at the end (:func:`real_field`).
 
 Numerics: overflow-safe hyperbolic ratios (cosh k(z + H)/sinh kH = e^{kz}(1 + e^{−2k(z+H)})/(1 − e^{−2kH}) — exact, no
@@ -81,8 +89,8 @@ def sinusoid(x, t, a: float = 1.0, k: float = 1.0, omega: float = 1.0, direction
     Book: §7.1, Eqs. (7.1)–(7.2); §7.4, Eq. (7.61). (7.1) a cos[2π(x − ct)/λ] is the same wave with k = 2π/λ, c = ω/k.
     Parameters: x [m]; t [s]; a amplitude [m]; k wavenumber [rad/m]; omega angular frequency [rad/s]; direction ±1.
     Returns η [m] (broadcast of x and t). Scalar-callable.
-    Validation (planned): V1 η(x_crest(t), t) = a on the crests of :func:`crest_positions`; V7 direction −1 moves the
-    crests to −x. Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_sinusoid_V1_crests_ride_at_omega_over_k. Checks: V1 η(x_crest(t), t) = a
+    on the crests of :func:`crest_positions`; V7 direction −1 moves the crests to −x. Label: analytic.
     """
     if direction not in (1, -1):
         raise ValueError("direction must be +1 or -1")
@@ -96,7 +104,8 @@ def wave_parameters(*, k=None, lam=None, omega=None, T=None, nu=None, c=None) ->
     Parameters (give exactly enough, extra values must be consistent): k [rad/m] (scalar, or a vector K whose magnitude
     is used); lam wavelength [m]; omega [rad/s]; T period [s]; nu cyclic frequency [Hz]; c phase speed [m/s].
     Returns dict(k, lam, omega, T, nu, c) as floats. Raises ValueError when under-determined or inconsistent (rel 1e-9).
-    Validation (planned): V1 round trips (k, T) → all → (λ, ν) → all; c = ω/k = λν. Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_wave_parameters_V1_round_trips_and_inconsistent_input. Checks: V1 round
+    trips (k, T) → all → (λ, ν) → all; c = ω/k = λν. Label: analytic.
     """
     given = {"k": k, "lam": lam, "omega": omega, "T": T, "nu": nu, "c": c}
     if k is not None and np.ndim(k) > 0:
@@ -135,7 +144,8 @@ def crest_positions(t, k: float, omega: float, n=0):
     """Positions of the crests (phase = 2nπ) of η = a cos(kx − ωt): x_crest = (ω/k)t + 2nπ/k [m].
 
     Book: §7.1, Eq. (7.3) solved for x_crest (the line after (7.3)); its speed is (7.4). Parameters: t [s]; k [rad/m];
-    omega [rad/s]; n integer crest index (array allowed). Validation (planned): V1 Δx/Δt = ω/k. Label: analytic.
+    omega [rad/s]; n integer crest index (array allowed). Validation: V1 — tests/test_ch07.py:
+    test_sinusoid_V1_crests_ride_at_omega_over_k. Checks: V1 Δx/Δt = ω/k. Label: analytic.
     """
     return _S(float(omega) / float(k) * _F(t) + _TWO_PI * _F(n) / float(k))  # Eq. (7.3)
 
@@ -146,8 +156,9 @@ def plane_wave(X, K, omega: float, a: float = 1.0, t=0.0):
     Book: §7.1, Eqs. (7.5)–(7.7). Parameters: X points, shape (…, d) with the components on the **last** axis (design
     contract; an array whose last axis is not d but whose first axis is, is read components-first) [m]; K wavenumber
     vector (d,) [rad/m]; omega [rad/s]; a [m]; t [s]. Returns η (…) [m]. Crests are the planes K·x − ωt = 2nπ, a
-    distance λ = 2π/K apart along e_K (7.7). Validation (planned): V1 crest spacing along e_K = 2π/K, along x = 2π/k.
-    Label: analytic.
+    distance λ = 2π/K apart along e_K (7.7). Validation: V1, V7 — tests/test_ch07.py:
+    test_plane_wave_V1_crest_spacing_and_trace_velocities, test_plane_wave_V7_rotation_invariance. Checks: V1 crest
+    spacing along e_K = 2π/K, along x = 2π/k. Label: analytic.
     """
     X_ = _F(X)
     K_ = _F(K)
@@ -165,19 +176,22 @@ def phase_velocity_vector(K, omega: float) -> np.ndarray:
     """Phase-velocity vector c = (ω/K) e_K, e_K = K/K [m/s].
 
     Book: §7.1, Eq. (7.8) (re-displayed with (7.143) in §7.8). Parameters: K (d,) [rad/m]; omega [rad/s]. Returns (d,)
-    array. Validation (planned): V1 |c| = ω/K; rotation invariance. Label: analytic.
+    array. Validation: V1, V7 — tests/test_ch07.py: test_plane_wave_V1_crest_spacing_and_trace_velocities,
+    test_plane_wave_V7_rotation_invariance. Checks: V1 |c| = ω/K; rotation invariance. Label: analytic.
     """
     K_ = _F(K)
     Kmag = np.linalg.norm(K_)
     return float(omega) / Kmag * K_ / Kmag  # Eq. (7.8)
 
 
-def trace_velocities(K, omega: float) -> np.ndarray:
+def trace_velocities(K, omega: float) -> tuple:
     """Trace velocities c_x = ω/k, c_y = ω/l, c_z = ω/m [m/s] (inf where a component is 0) — the speeds at which the
     crests cut each axis; each ≥ c = ω/K and **not** the components of the vector c.
 
-    Book: §7.1, text after (7.8) and the inset of Fig. 7.1. Parameters: K (d,) [rad/m]; omega [rad/s]. Returns (d,).
-    Validation (planned): V1 c_x ≥ c for random K; the reciprocals add as 1/c² = Σ 1/c_i². Label: analytic.
+    Book: §7.1, text after (7.8) and the inset of Fig. 7.1. Parameters: K (d,) [rad/m]; omega [rad/s]. Returns a
+    **tuple** of d Python floats (c_x, c_y[, c_z]) [m/s] (design contract), not an array.
+    Validation: V1 — tests/test_ch07.py: test_plane_wave_V1_crest_spacing_and_trace_velocities. Checks: V1 c_x ≥ c for
+    random K; the reciprocals add as 1/c² = Σ 1/c_i². Label: analytic.
     """
     K_ = _F(K)
     with np.errstate(divide="ignore"):
@@ -190,7 +204,8 @@ def doppler_frequency(omega, U, K):
 
     Book: §7.1, Eq. (7.9); the frozen pattern ω = 0 gives ω₀ = Uk. ω is the intrinsic frequency (the rest of the chapter
     uses intrinsic ω). Parameters: omega intrinsic [rad/s]; U (d,) [m/s]; K (d,) [rad/m]. Scalar U, K allowed (1-D).
-    Validation (planned): V1 frozen pattern → Uk; V1 FFT of a probe signal of a translated pattern. Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_doppler_V1_probe_frequency_of_a_translated_pattern. Checks: V1 frozen
+    pattern → Uk; V1 FFT of a probe signal of a translated pattern. Label: analytic.
     """
     return _S(_F(omega) + float(np.dot(np.atleast_1d(_F(U)), np.atleast_1d(_F(K)))))  # Eq. (7.9)
 
@@ -200,7 +215,8 @@ def real_field(amp, phase):
 
     Book: §7.7, text before (7.89): ζ = Re{a exp[i(kx − ωt)]}, Re{} dropped during the algebra. Products (energies,
     fluxes) need real parts first: ⟨Re(Ae^{iθ}) Re(Be^{iθ})⟩ = ½ Re(AB*). Parameters: amp complex amplitude (any units);
-    phase [rad]. Validation (planned): V1 Re{a e^{iθ}} = a cos θ. Label: analytic.
+    phase [rad]. Validation: V1 — tests/test_ch07.py: test_real_field_V1_real_parts_and_product_averages. Checks: V1
+    Re{a e^{iθ}} = a cos θ. Label: analytic.
     """
     return _S(np.real(np.asarray(amp, dtype=complex) * np.exp(1j * _F(phase))))
 
@@ -213,7 +229,9 @@ def cosh_over_sinh(k, z, H=np.inf):
 
     Computed as e^{kz}(1 + e^{−2k(z+H)})/(1 − e^{−2kH}) (algebraically identical, no overflow at kH = 500; −expm1 keeps
     small kH accurate). Book: §7.2, Eqs. (7.26), (7.27), (7.35); deep limit before (7.46). k > 0 [rad/m]; z [m] (≥ −H);
-    H [m]. Label: analytic.
+    H [m]. Validation: V1, V7 — tests/test_ch07.py: test_pressure_response_V1_surface_bottom_and_limits,
+    test_wave_fields_V1_closed_forms_and_streamfunction, test_wave_fields_V7_deep_shallow_mirror_and_overflow. Label:
+    analytic.
     """
     k_, z_, H_ = _F(k), _F(z), _F(H)
     with np.errstate(over="ignore", invalid="ignore"):
@@ -222,7 +240,10 @@ def cosh_over_sinh(k, z, H=np.inf):
 
 def sinh_over_sinh(k, z, H=np.inf):
     """sinh k(z + H)/sinh kH [–], the depth structure of w and ψ (7.27), (7.37); e^{kz} when H = ∞; 0 at the bottom.
-    Overflow-safe form e^{kz}(−expm1(−2k(z + H)))/(−expm1(−2kH)). Book: §7.2, Eqs. (7.27), (7.35b), (7.37). Label: analytic.
+    Overflow-safe form e^{kz}(−expm1(−2k(z + H)))/(−expm1(−2kH)). Book: §7.2, Eqs. (7.27), (7.35b), (7.37). Validation:
+    V1, V7 — tests/test_ch07.py: test_pressure_response_V1_surface_bottom_and_limits,
+    test_wave_fields_V1_closed_forms_and_streamfunction, test_wave_fields_V7_deep_shallow_mirror_and_overflow. Label:
+    analytic.
     """
     k_, z_, H_ = _F(k), _F(z), _F(H)
     with np.errstate(over="ignore", invalid="ignore"):
@@ -232,7 +253,8 @@ def sinh_over_sinh(k, z, H=np.inf):
 def cosh_over_cosh(k, z, H=np.inf):
     """cosh k(z + H)/cosh kH [–], the pressure response factor of (7.31); e^{kz} when H = ∞ (7.48), → 1 when kH → 0
     (7.52, hydrostatic). Overflow-safe form e^{kz}(1 + e^{−2k(z+H)})/(1 + e^{−2kH}). Book: §7.2, Eqs. (7.31), (7.48),
-    (7.52). Label: analytic."""
+    (7.52). Validation: V1, V7 — tests/test_ch07.py: test_pressure_response_V1_surface_bottom_and_limits,
+    test_wave_fields_V7_deep_shallow_mirror_and_overflow. Label: analytic."""
     k_, z_, H_ = _F(k), _F(z), _F(H)
     with np.errstate(over="ignore", invalid="ignore"):
         return _S(np.exp(k_ * z_) * (1.0 + np.exp(-2.0 * k_ * (z_ + H_))) / (1.0 + np.exp(-2.0 * k_ * H_)))
@@ -240,25 +262,36 @@ def cosh_over_cosh(k, z, H=np.inf):
 
 def depth_profiles(k, z, H=np.inf) -> dict:
     """The three hyperbolic depth ratios of §7.2 at once: dict(cosh_sinh, sinh_sinh, cosh_cosh) [–] (see
-    :func:`cosh_over_sinh`, :func:`sinh_over_sinh`, :func:`cosh_over_cosh`). Book: §7.2, (7.26)–(7.31). Label: analytic."""
+    :func:`cosh_over_sinh`, :func:`sinh_over_sinh`, :func:`cosh_over_cosh`). Book: §7.2, (7.26)–(7.31). Validation: V1 —
+    tests/test_ch07.py: test_pressure_response_V1_surface_bottom_and_limits. Label: analytic."""
     return {"cosh_sinh": cosh_over_sinh(k, z, H), "sinh_sinh": sinh_over_sinh(k, z, H),
             "cosh_cosh": cosh_over_cosh(k, z, H)}
 
 
 def _tanh_kH(k, H):
-    """tanh(kH) that is 1 for H = ∞ and accepts complex k (complex-step derivatives)."""
+    """tanh(kH) that is 1 for H = ∞ and accepts complex k (complex-step derivatives).
+
+    numpy's complex tanh evaluates sinh/cosh internally and raises a spurious "overflow" RuntimeWarning for
+    Re(kH) ≳ 355 although the returned value (1 + O(1e-300)i) is correct — the warning is silenced (verification O9).
+    """
     H_ = np.asarray(H, dtype=float)
-    if H_.ndim == 0:
-        if np.isinf(H_):
-            return np.ones_like(k) if np.ndim(k) else (1.0 + 0.0 * k)
-        return np.tanh(k * float(H_))
-    inf = np.isinf(H_)
-    return np.where(inf, 1.0 + 0.0 * k, np.tanh(k * np.where(inf, 1.0, H_)))
+    with np.errstate(over="ignore"):  # complex tanh at large kH: correct value, spurious overflow flag (O9)
+        if H_.ndim == 0:
+            if np.isinf(H_):
+                return np.ones_like(k) if np.ndim(k) else (1.0 + 0.0 * k)
+            return np.tanh(k * float(H_))
+        inf = np.isinf(H_)
+        return np.where(inf, 1.0 + 0.0 * k, np.tanh(k * np.where(inf, 1.0, H_)))
 
 
 def _abs_k(k):
-    """|k| for real input; k itself for complex input (complex-step keeps Re k > 0)."""
-    return k if np.iscomplexobj(k) else np.abs(_F(k))
+    """|k| for real input; for complex input (a complex step k + ih) the analytic continuation of |k|, i.e. −k where
+    Re k < 0 and k elsewhere — so Im ω(|k + ih|)/h = sgn(k)·ω′(|k|) = dω/dk, the **signed** group velocity (a left-going
+    wave has c_g < 0). Returning k unchanged for Re k < 0 (the pre-review code) evaluated √(gk) on the wrong branch and
+    gave c_g ≈ 1e20 m/s (review M1)."""
+    if np.iscomplexobj(k):
+        return np.where(np.real(k) < 0, -k, k)
+    return np.abs(_F(k))
 
 
 def _x_over_sinh(x):
@@ -281,8 +314,11 @@ def omega_gravity(k, H=np.inf, g: float = G_BOOK):
     Parameters: k wavenumber [rad/m] (|k| is used; complex k accepted for complex-step derivatives); H depth [m] (np.inf
     = deep); g [m/s²] (default G_BOOK = 9.81). Returns ω [rad/s] ≥ 0.
     Assumptions: inviscid, irrotational, constant density, small amplitude (ka ≪ 1), no surface tension, air ignored.
-    Validation (planned): V2 sympy φ (7.26) with this ω satisfies (7.11), (7.12), (7.18), (7.21); V7 deep/shallow limits;
-    V1 parity with ch04.linear_wave_surface's ω. Label: analytic, symbolic.
+    Validation: V1, V2, V6, V7 — tests/test_ch07.py: test_dispersion_V2_derivation,
+    test_dispersion_V1_parity_with_ch04_and_identity, test_dispersion_V7_deep_and_shallow_limits,
+    test_wave_functions_V7_change_of_units, test_book_V6_section_7_2_forms_and_numbers. Checks: V2 sympy φ (7.26) with
+    this ω satisfies (7.11), (7.12), (7.18), (7.21); V7 deep/shallow limits; V1 parity with ch04.linear_wave_surface's
+    ω. Label: analytic, symbolic.
     """
     kk = _abs_k(k)
     return _S(np.sqrt(float(g) * kk * _tanh_kH(kk, H)))  # Eq. (7.28)
@@ -296,7 +332,12 @@ def omega_capillary_gravity(k, H=np.inf, sigma: float = 0.0727, rho: float = 100
     Parameters: k [rad/m] (|k|; complex allowed); H [m]; sigma surface tension [N/m] (default 0.0727, clean water near
     20 °C); rho liquid density [kg/m³]; g [m/s²]. Returns ω [rad/s].
     Assumptions: as :func:`omega_gravity` plus a clean interface of constant σ; the air's density neglected.
-    Validation (planned): V2 sympy (7.55) + (7.26) ⇒ (7.56); V7 σ → 0 and g → 0 limits. Label: analytic, symbolic.
+    ⚠ Argument order (sigma, rho, g) and default σ = 0.0727 differ from :func:`phase_speed`/:func:`group_velocity`
+    (g, sigma, rho; σ = 0) — pass σ, ρ, g by keyword when mixing them (review should-fix 6; signatures kept stable).
+    Validation: V1, V2, V5, V6, V7 — tests/test_ch07.py: test_capillary_V2_derivation_tension_condition,
+    test_capillary_V7_limits, test_capillary_V5_air_water_minimum, test_wavenumber_from_omega_V1_inverse_is_identity,
+    test_book_V6_capillary_standing_and_group_numbers. Checks: V2 sympy (7.55) + (7.26) ⇒ (7.56); V7 σ → 0 and g → 0
+    limits. Label: analytic, symbolic.
     """
     kk = _abs_k(k)
     return _S(np.sqrt(kk * (float(g) + float(sigma) * kk ** 2 / float(rho)) * _tanh_kH(kk, H)))  # Eq. (7.56)
@@ -308,8 +349,13 @@ def phase_speed(k, H=np.inf, g: float = G_BOOK, sigma: float = 0.0, rho: float =
     Book: §7.2, Eq. (7.29); §7.3, Eq. (7.57); limits (7.45) √(g/k) (deep), (7.49) √(gH) (shallow), (7.60) √(2πσ/ρλ)
     (pure capillary, g = 0). Longer gravity waves are faster ⇒ dispersive.
     Parameters: k [rad/m] (|k|); H [m] (np.inf deep); g [m/s²]; sigma [N/m] (default 0); rho [kg/m³].
-    Returns c [m/s]. Assumptions: as :func:`omega_capillary_gravity`.
-    Validation (planned): V7 kH → ∞ ⇒ √(g/k), kH → 0 ⇒ √(gH)(1 − (kH)²/6); V1 c = ω/k. Label: analytic.
+    Returns c [m/s] — the speed |ω/k| ≥ 0 for either sign of k (unlike :func:`group_velocity`, which is signed).
+    Assumptions: as :func:`omega_capillary_gravity`. ⚠ Argument order (H, g, sigma, rho) and σ = 0 default differ from
+    :func:`omega_capillary_gravity` (H, sigma, rho, g; σ = 0.0727) — call by keyword when mixing them.
+    Validation: V1, V2, V7 — tests/test_ch07.py: test_phase_speed_V2_derivation_longer_is_faster,
+    test_phase_speed_V7_limits_monotonicity_and_bound, test_dispersion_V7_deep_and_shallow_limits,
+    test_kdv_linear_phase_speed_V1_taylor_of_7_29, test_wave_functions_V7_change_of_units. Checks: V7 kH → ∞ ⇒ √(g/k),
+    kH → 0 ⇒ √(gH)(1 − (kH)²/6); V1 c = ω/k. Label: analytic.
     """
     kk = _abs_k(k)
     return _S(np.sqrt((float(g) / kk + float(sigma) * kk / float(rho)) * _tanh_kH(kk, H)))  # Eq. (7.29)/(7.57)
@@ -321,23 +367,34 @@ def group_velocity(k, H=np.inf, g: float = G_BOOK, sigma: float = 0.0, rho: floa
     Book: §7.5, Eqs. (7.67), (7.69), limits (7.70) c_g = c/2 (deep), c (shallow); pure capillary c_g = 3c/2 (Exercise 7.9,
     text after (7.70)); local c_g = ∂ω(k, x)/∂k (7.77). The capillary–gravity form (our differentiation of (7.56)):
     c_g = (c/2)[(g + 3σk²/ρ)/(g + σk²/ρ) + 2kH/sinh 2kH].
-    Parameters: k [rad/m] (|k|); H [m]; g [m/s²]; sigma [N/m]; rho [kg/m³]. Returns c_g [m/s] (≥ 0; direction of k).
-    Validation (planned): V2 sympy d/dk √(gk tanh kH) − (7.69) = 0; V1 equals :func:`group_velocity_numeric` (complex
-    step); V7 limits ½, 1, 3/2; c_g = c at the capillary minimum. Label: analytic, symbolic.
+    ⚠ Argument order (H, g, sigma, rho; σ = 0) differs from :func:`omega_capillary_gravity` (H, sigma, rho, g;
+    σ = 0.0727) — call by keyword when mixing them.
+    **Sign convention** (review M1): the returned value is the signed derivative dω/dk of ω(|k|), i.e.
+    sgn(k)·(c/2)[… + 2|k|H/sinh 2|k|H] — positive for k > 0 (identical to (7.69)), negative for a left-going wave
+    (k < 0), the same number :func:`group_velocity_numeric` gives. k = 0 is treated as k → 0⁺.
+    Parameters: k [rad/m] (either sign); H [m]; g [m/s²]; sigma [N/m]; rho [kg/m³]. Returns c_g [m/s] (signed, same
+    sign as k).
+    Validation: V1, V2, V7 — tests/test_ch07.py: test_group_velocity_V2_derivation (sympy d/dk √(gk tanh kH) − (7.69)
+    = 0, capillary form), test_group_velocity_V1_complex_step_parity, test_group_velocity_V1_negative_k_is_signed_derivative,
+    test_group_velocity_V7_limits (½, 1, 3/2; c_g = c at k_m), test_capillary_minimum_V1_numerical_minimisation,
+    test_wave_functions_V7_change_of_units. Label: analytic, symbolic.
     """
-    kk = np.abs(_F(k))
+    k_ = _F(k)
+    sgn = np.where(k_ < 0, -1.0, 1.0)  # dω/dk = sgn(k) ω′(|k|)
+    kk = np.abs(k_)
     s = float(sigma) / float(rho)
     c = _F(phase_speed(kk, H, g, sigma, rho))
     ratio = (float(g) + 3.0 * s * kk ** 2) / (float(g) + s * kk ** 2)
     kH = np.where(_isinf(H), np.inf, kk * np.where(_isinf(H), 1.0, _F(H)))
-    return _S(0.5 * c * (ratio + _x_over_sinh(2.0 * kH)))  # Eq. (7.69) (σ = 0: ratio = 1)
+    return _S(sgn * 0.5 * c * (ratio + _x_over_sinh(2.0 * kH)))  # Eq. (7.69) (σ = 0: ratio = 1), signed
 
 
 def period_from_wavelength(lam, H=np.inf, g: float = G_BOOK, sigma: float = 0.0, rho: float = 1000.0):
     """Wave period from the wavelength, T = √((2πλ/g) coth(2πH/λ)) [s] (σ = 0), or 2π/ω(2π/λ) with surface tension.
 
     Book: §7.2, Eq. (7.28), second form. Parameters: lam [m]; H [m]; g [m/s²]; sigma [N/m]; rho [kg/m³].
-    Validation (planned): V1 equals 2π/ω(2π/λ); deep T = √(2πλ/g). Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_dispersion_V2_derivation,
+    test_wavenumber_from_omega_V1_inverse_is_identity. Checks: V1 equals 2π/ω(2π/λ); deep T = √(2πλ/g). Label: analytic.
     """
     lam_ = _F(lam)
     if float(sigma) == 0.0:
@@ -384,8 +441,11 @@ def wavenumber_from_omega(omega, H=np.inf, g: float = G_BOOK, sigma: float = 0.0
     on (gk + σk³/ρ) tanh kH − ω² with the physics bracket [max(ω²/g, ω/√(gH)), (ω²/g)/tanh(ω²H/g)] (both limits bound the
     true root; ω(k) is monotonic), residual asserted < 1e-12 relative.
     Parameters: omega [rad/s] (≥ 0, array allowed); H [m]; g [m/s²]; sigma [N/m]; rho [kg/m³]; rtol for brentq.
-    Returns k [rad/m]. Validation (planned): V1 inverse ∘ forward = identity over ω ∈ [1e-4, 1e3], H ∈ [1e-3, 1e4];
-    V5 Fenton–McKee (1.5 %) and Guo (0.7 %) bound it. Label: analytic, benchmark.
+    Returns k [rad/m]. Validation: V1, V6 — tests/test_ch07.py: test_wavenumber_from_omega_V1_inverse_is_identity,
+    test_ray_trace_V1_snell_closed_form_parity, test_book_V6_section_7_2_forms_and_numbers. Checks: V1 inverse ∘ forward
+    = identity over ω ∈ [1e-4, 1e3], H ∈ [1e-3, 1e4] (the evidence for this function); the explicit approximations of
+    Fenton & McKee (1990, max λ error 1.7 %) and Guo (2002, 0.79 % for the coded exponent 5/2) are themselves checked
+    *against* it (their V5 tests), so they do not raise its label. Label: analytic.
     """
     om = _F(omega)
     H_ = float(H)
@@ -398,27 +458,32 @@ def wavelength_from_period(T, H=np.inf, g: float = G_BOOK, sigma: float = 0.0, r
     """Wavelength λ = 2π/k [m] of a wave of period T [s] on depth H [m] (inverse of (7.28)); deep water λ = gT²/2π.
 
     Book: §7.2, Eq. (7.28) and the ocean example after (7.45) (T ≈ 10 s: our 156.1 m in deep water).
-    Validation (planned): V1 T = 10 s deep ⇒ 156.13 m. Label: analytic.
+    Validation: V1, V6 — tests/test_ch07.py: test_wavenumber_from_omega_V1_inverse_is_identity,
+    test_book_V6_section_7_2_forms_and_numbers. Checks: V1 T = 10 s deep ⇒ 156.13 m. Label: analytic.
     """
     return _S(_TWO_PI / _F(wavenumber_from_omega(_TWO_PI / _F(T), H, g, sigma, rho)))
 
 
 def fenton_mckee_kh(omega, H, g: float = G_BOOK):
-    """Explicit approximation kH = (ω²H/g)[coth((ω√(H/g))^{3/2})]^{2/3} [–] (Fenton & McKee 1990), ≤ 1.5 % error, exact in
-    both limits — a V5 cross-check of :func:`wavenumber_from_omega`, not used by the physics.
+    """Explicit approximation kH = (ω²H/g)[coth((ω√(H/g))^{3/2})]^{2/3} [–] (Fenton & McKee 1990), maximum wavelength
+    error 1.7 % (the primary Fenton & McKee (1990) bound; ours measures 1.66 % in λ), exact in both limits — an
+    approximation checked against :func:`wavenumber_from_omega`, not used by the physics.
 
     Source: J. D. Fenton, "A note on two approximations to the linear dispersion relation for surface gravity water
     waves" (2006), Eq. (2), https://johndfenton.com/Papers/Dispersion-Relation.pdf (read 2026-09-24).
-    Parameters: omega [rad/s]; H [m]; g [m/s²]. Label: benchmark.
+    Parameters: omega [rad/s]; H [m]; g [m/s²]. Validation: V5 — tests/test_ch07.py:
+    test_dispersion_V5_fenton_mckee_1990, test_dispersion_V5_guo_2002. Label: benchmark.
     """
     x = _F(omega) * np.sqrt(_F(H) / float(g))
     return _S(x ** 2 * (1.0 / np.tanh(x ** 1.5)) ** (2.0 / 3.0))
 
 
 def guo_kh(omega, H, g: float = G_BOOK):
-    """Explicit approximation kH = (ω²H/g)(1 − exp(−(ω√(H/g))^{5/2}))^{−2/5} [–] (Guo 2002), ≤ 0.7 % error, exact in both
-    limits. Source: Fenton (2006) Eq. (3), https://johndfenton.com/Papers/Dispersion-Relation.pdf (read 2026-09-24).
-    Parameters: omega [rad/s]; H [m]; g [m/s²]. Label: benchmark.
+    """Explicit approximation kH = (ω²H/g)(1 − exp(−(ω√(H/g))^{5/2}))^{−2/5} [–] (Guo 2002, in Fenton's 5/2 form),
+    maximum error 0.79 % for this exponent (Guo's own fitted β = 2.4908 gives 0.75 %), exact in both limits.
+    Source: Fenton (2006) Eq. (3), https://johndfenton.com/Papers/Dispersion-Relation.pdf (read 2026-09-24).
+    Parameters: omega [rad/s]; H [m]; g [m/s²]. Validation: V5 — tests/test_ch07.py: test_dispersion_V5_guo_2002. Label:
+    benchmark.
     """
     x = _F(omega) * np.sqrt(_F(H) / float(g))
     return _S(x ** 2 * (-np.expm1(-x ** 2.5)) ** (-0.4))
@@ -432,7 +497,9 @@ def depth_regime(k, H, deep_kH: float = 2.0, shallow_H_over_lambda: float = 0.07
     deep_error = 1 − √(tanh kH) (relative error of c = √(g/k), (7.45)); shallow_error = 1 − √(tanh kH/kH) (of c = √(gH),
     (7.49)). Parameters: k [rad/m]; H [m]; thresholds (book values by default).
     Returns dict(regime, kH, H_over_lambda, deep_error, shallow_error) (floats/str for scalar input).
-    Validation (planned): V1 kH = 2 ⇒ H/λ = 0.3183, deep error 1.82 %; H = 0.07λ ⇒ shallow error 3.05 %. Label: analytic.
+    Validation: V1, V6 — tests/test_ch07.py: test_depth_regime_V1_book_thresholds_and_errors,
+    test_book_V6_section_7_2_forms_and_numbers. Checks: V1 kH = 2 ⇒ H/λ = 0.3183, deep error 1.82 %; H = 0.07λ ⇒ shallow
+    error 3.04 %. Label: analytic.
     """
     kk = np.abs(_F(k))
     H_ = _F(H)
@@ -455,8 +522,10 @@ def capillary_minimum(sigma: float = 0.0727, rho: float = 1000.0, g: float = G_B
     Book: §7.3, Eq. (7.58) (dc/dλ = 0 in (7.57) with tanh → 1); (7.59) for air–water. At k_m = √(ρg/σ) gravity and surface
     tension contribute equally (g/k = σk/ρ) and c_g = c.
     Parameters: sigma [N/m]; rho [kg/m³]; g [m/s²]. Returns dict(c_min [m/s], lam_m [m], k_m [rad/m]).
-    Validation (planned): V1 equals a numerical minimisation of (7.57); σ = 0.073, ρ = 1000, g = 9.81 ⇒ 23.13 cm/s at
-    1.714 cm; V5 Wikipedia "Capillary wave" (0.23 m/s, 1.7 cm). Label: analytic, benchmark.
+    Validation: V1, V2, V5, V7 — tests/test_ch07.py: test_capillary_minimum_V2_derivation,
+    test_capillary_minimum_V1_numerical_minimisation, test_capillary_V5_air_water_minimum,
+    test_wave_functions_V7_change_of_units. Checks: V1 equals a numerical minimisation of (7.57); σ = 0.073, ρ = 1000, g
+    = 9.81 ⇒ 23.13 cm/s at 1.714 cm; V5 Wikipedia "Capillary wave" (0.23 m/s, 1.7 cm). Label: analytic, benchmark.
     """
     c_min = (4.0 * float(g) * float(sigma) / float(rho)) ** 0.25  # Eq. (7.58)
     lam_m = _TWO_PI * np.sqrt(float(sigma) / (float(rho) * float(g)))  # Eq. (7.58)
@@ -469,7 +538,9 @@ def min_group_velocity(sigma: float = 0.0727, rho: float = 1000.0, g: float = G_
     Book: §7.5, text before Fig. 7.16 ("c_g,min", Exercise 7.10). Our derivation: with x = σk²/(ρg),
     c_g = (c/2)(1 + 3x)/(1 + x) and c_g² ∝ x^{−1/2}(1 + 3x)²/(1 + x); d/dx = 0 ⇒ 3x² + 6x − 1 = 0 ⇒ x = 2/√3 − 1.
     Parameters: sigma [N/m]; rho [kg/m³]; g [m/s²]. Returns dict(cg_min [m/s], k [rad/m], lam [m], c [m/s], x).
-    Validation (planned): V1 equals ``minimize_scalar`` of :func:`group_velocity`; V6 the book's value. Label: analytic.
+    Validation: V1, V6 — tests/test_ch07.py: test_capillary_minimum_V1_numerical_minimisation,
+    test_book_V6_capillary_standing_and_group_numbers. Checks: V1 equals ``minimize_scalar`` of :func:`group_velocity`;
+    V6 the book's value. Label: analytic.
     """
     x = 2.0 / np.sqrt(3.0) - 1.0
     k = np.sqrt(x * float(rho) * float(g) / float(sigma))
@@ -486,7 +557,8 @@ def _central4(f: Callable, x, h):
 
 
 def _disp_fn(H=np.inf, g: float = G_BOOK, sigma: float = 0.0, rho: float = 1000.0) -> Callable:
-    """The surface-wave dispersion relation (7.28)/(7.56) as a complex-safe callable ω(k) (dispersion given as data)."""
+    """The surface-wave dispersion relation (7.28)/(7.56) as a complex-safe callable ω(k) (dispersion given as data);
+    ω(k) = ω(|k|) with |k| analytically continued for a complex step (:func:`_abs_k`), so dω/dk is signed for k < 0."""
     return lambda kk: omega_capillary_gravity(kk, H, sigma, rho, g)
 
 
@@ -498,9 +570,14 @@ def group_velocity_numeric(omega_fn: Callable | None = None, k=1.0, h=None, meth
     Parameters: omega_fn callable ω(k) [rad/s] (None → the surface relation (7.56) built from ``**disp`` = H, g, sigma,
     rho — the dispersion as data, for explainer parity rows); k [rad/m] (array allowed); h step (default
     1e-20·max(|k|, 1) complex, 1e-3·max(|k|, 1e-12) central); method "auto" (complex step if ω returns complex output,
-    else central) | "complex" | "central". Returns c_g [m/s].
-    Validation (planned): V1 vs analytic c_g (gravity, capillary, internal, Rossby-type −βk/(k² + l²)); V3 central
-    differences converge at order 4. Label: analytic, converged.
+    else central) | "complex" | "central". Returns c_g [m/s] — the signed derivative: for the built-in surface relation
+    and k < 0 it is −c_g(|k|) (a left-going wave), equal to :func:`group_velocity`. A user ``omega_fn`` used with the
+    complex step must be analytic near k (write |k| as ``np.where(np.real(k) < 0, -k, k)``, not ``np.abs``).
+    Validation: V1, V3 — tests/test_ch07.py: test_group_velocity_V1_complex_step_parity,
+    test_group_velocity_V1_negative_k_is_signed_derivative,
+    test_group_velocity_numeric_V3_central_differences_fourth_order. Checks: V1 vs analytic c_g (gravity, capillary,
+    internal, Rossby-type −βk/(k² + l²)), both signs of k, deep and finite depth; V3 central differences converge at
+    order 4. Label: analytic, converged.
     """
     if omega_fn is None:
         omega_fn = _disp_fn(**disp)
@@ -528,7 +605,8 @@ def group_velocity_vector(omega_fn: Callable, K, h=None, method: str = "auto") -
     Book: §7.5, unnumbered c_gi = ∂ω/∂K_i (before Fig. 7.16); §7.8, Eq. (7.143).
     Parameters: omega_fn callable ω(K) taking a 1-D array K (components) [rad/s]; K (d,) [rad/m]; h, method as in
     :func:`group_velocity_numeric`. Returns (d,) array.
-    Validation (planned): V1 internal waves: equals (7.145) for k > 0 and the sign-safe form for k < 0. Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_internal_wave_velocities_V1_gradient_parity_both_signs. Checks: V1
+    internal waves: equals (7.145) for k > 0 and the sign-safe form for k < 0. Label: analytic.
     """
     K_ = _F(K)
     out = np.empty_like(K_)
@@ -551,8 +629,9 @@ def beat_wave(x, t, k1: float, k2: float, a: float = 1.0, H=np.inf, g: float = G
     Parameters: x [m]; t [s]; k1, k2 [rad/m]; a [m]; H, g, sigma, rho the surface dispersion (7.56) (used when
     omega_fn is None); omega_fn optional callable ω(k); printed.
     Returns dict(eta, envelope (the slowly varying 2a cos(…), signed), carrier, k, omega, dk, domega, c, cg_finite
-    (= Δω/Δk)). Validation (planned): V1 equals the plain sum a cos(k₁x − ω₁t) + a cos(k₂x − ω₂t) (the printed form must
-    fail). Label: analytic.
+    (= Δω/Δk)). Validation: V1, V2, V6 — tests/test_ch07.py: test_beats_V2_derivation,
+    test_beat_wave_V1_equals_sum_printed_fails_and_chord_to_tangent, test_book_V6_capillary_standing_and_group_numbers.
+    Checks: V1 equals the plain sum a cos(k₁x − ω₁t) + a cos(k₂x − ω₂t) (the printed form must fail). Label: analytic.
     """
     wf = omega_fn if omega_fn is not None else _disp_fn(H, g, sigma, rho)
     w1, w2 = float(wf(k1)), float(wf(k2))
@@ -576,11 +655,15 @@ def gaussian_packet(x, t, a: float = 1.0, k0: float = 1.0, sigma_x: float = 10.0
     order = 1: ω ≈ ω₀ + c_g κ gives the book's (7.68) η = a(x − c_g t) cos(k₀x − ω₀t) — the envelope rides at c_g.
     Book: §7.5, Eq. (7.68) (stated there with a pointer to Phillips 1977; written out as curation D20); Fig. 7.15.
     Our closed form (Gaussian integral), used for explainer parity without an FFT.
-    Parameters: x [m]; t [s]; a [m]; k0 carrier wavenumber [rad/m]; sigma_x envelope half-width [m] (spectral width
-    1/σ_x); omega_fn ω(k) (default: the surface relation (7.56) from H, g, sigma, rho); order 1 or 2.
-    Returns dict(eta, envelope |A|, carrier, c (= ω₀/k₀), cg, omega0, omega2 (= d²ω/dk²), x_center (= c_g t)).
-    Validation (planned): V1 order 1 translates rigidly at c_g; V3 order 2 vs :func:`linear_evolve` (error → 0 as
-    σ_x k₀ grows). Label: analytic.
+    Parameters: x [m]; t [s]; a [m]; k0 carrier wavenumber [rad/m] (k₀ < 0: a packet travelling to −x, the mirror
+    image x → −x of the k₀ > 0 packet); sigma_x envelope half-width [m] (spectral width 1/σ_x); omega_fn ω(k)
+    (default: the surface relation (7.56) from H, g, sigma, rho); order 1 or 2.
+    Returns dict(eta, envelope |A|, carrier, c (= ω₀/k₀, signed), cg (signed dω/dk at k₀), omega0 (≥ 0), omega2
+    (= d²ω/dk², even in k₀), x_center (= c_g t)).
+    Validation: V1, V2 — tests/test_ch07.py: test_packet_envelope_V2_derivation,
+    test_gaussian_packet_V1_envelope_rides_at_cg, test_gaussian_packet_V1_negative_k0_is_the_mirror_image. Checks: V1
+    order 1 translates rigidly at c_g; order 2 equals :func:`linear_evolve` for quadratic dispersion; k₀ < 0 is the
+    mirror image (deep and finite depth). Label: analytic.
     """
     wf = omega_fn if omega_fn is not None else _disp_fn(H, g, sigma, rho)
     k0f = float(k0)
@@ -622,8 +705,10 @@ def linear_evolve(eta0, x, t, omega_fn: Callable | None = None, eta_t0=None, dir
     t scalar or (M,) [s]; omega_fn ω(|k|) ≥ 0 [rad/s] (called with k > 0 only; None → the surface relation (7.56) from
     ``**disp`` = H, g, sigma, rho); eta_t0 (N,) [m/s] or None; direction None | +1 | −1.
     Returns η (N,) or (M, N) [m]. The domain must be long enough that the fastest component does not wrap round.
-    Validation (planned): V1 one Fourier mode reproduces a cos(kx − ωt); V4 Σ|η̂|²-type energy conserved; V7 ω = ck
-    translates any shape; V3 packet envelope speed → c_g(k₀). Label: analytic, conserved.
+    Validation: V1, V4, V7 — tests/test_ch07.py: test_linear_evolve_V1_single_modes_and_superposition,
+    test_linear_evolve_V7_nondispersive_translation, test_energy_flux_V4_packet_energy_conserved_and_carried_at_cg,
+    test_gaussian_packet_V1_envelope_rides_at_cg. Checks: V1 one Fourier mode reproduces a cos(kx − ωt); V4 Σ|η̂|²-type
+    energy conserved; V7 ω = ck translates any shape; V3 packet envelope speed → c_g(k₀). Label: analytic, conserved.
     """
     if omega_fn is None:
         omega_fn = _disp_fn(**disp)
@@ -655,7 +740,9 @@ def linear_evolve(eta0, x, t, omega_fn: Callable | None = None, eta_t0=None, dir
 def envelope(eta, axis: int = -1) -> np.ndarray:
     """Amplitude envelope |η + i H[η]| of a narrow-band signal (Hilbert transform, ``scipy.signal.hilbert``) [same units].
     Book: §7.5, the envelope a(x) of Fig. 7.15 / (7.68) — our diagnostic. Periodic signals; accurate when the band is
-    narrow. Validation (planned): V1 envelope of a cos(kx)·e^{−x²/2s²} ≈ a e^{−x²/2s²}. Label: analytic."""
+    narrow. Validation: V1, V4 — tests/test_ch07.py: test_envelope_V1_hilbert_modulus,
+    test_energy_flux_V4_packet_energy_conserved_and_carried_at_cg. Checks: V1 envelope of a cos(kx)·e^{−x²/2s²} ≈ a
+    e^{−x²/2s²}. Label: analytic."""
     from scipy.signal import hilbert
 
     return np.abs(hilbert(_F(eta), axis=axis))
@@ -671,7 +758,8 @@ def linear_evolve_2d(field0, x, z, t, omega_fn_K: Callable, direction_K=None, fi
     Book: §7.8, Figs. 7.29, 7.32 (a packet sliding along its crests, c ⟂ c_g) — our method.
     Parameters: field0 (Nz, Nx) real or complex; x (Nx,) [m]; z (Nz,) [m]; t scalar or (M,) [s]; omega_fn_K callable
     (k, m) arrays → ω [rad/s] (called with finite arrays; K = 0 is set to ω = 0). Returns (Nz, Nx) or (M, Nz, Nx).
-    Validation (planned): V1 one mode reproduces a plane wave; V7 packet centroid moves at c_g (7.145). Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_linear_evolve_2d_V1_plane_wave_and_packet_at_cg. Checks: V1 one mode
+    reproduces a plane wave; V7 packet centroid moves at c_g (7.145). Label: analytic.
     """
     x_, z_ = _F(x), _F(z)
     kx = _TWO_PI * np.fft.fftfreq(x_.size, d=x_[1] - x_[0])
@@ -720,13 +808,16 @@ def ray_trace(omega_fn: Callable | None = None, x0=(0.0, 0.0), k0=(0.01, 0.0), t
     Parameters: omega_fn ω(k_vec, x_vec) [rad/s] (default: surface gravity ω = √(g|k| tanh(|k|H(x))) with ``H_fn``);
     x0 start position (scalar or (dim,)) [m]; k0 start wavenumber (scalar or (dim,)) [rad/m]; t_span [s]; H_fn depth
     H(x_vec) [m]; dim 1 or 2 (inferred from x0); g; n_out output times evenly spaced over t_span (unless t_eval is
-    given); rtol, atol (``solve_ivp`` RK45, rtol 1e-10 — our choice, tighter than the design's 1e-9 so that ω drifts
-    < 1e-9 up to the shore); H_min [m]: a terminal event stops the ray when H(x) < H_min (the shore); max_step [s].
+    given); rtol, atol (``solve_ivp`` RK45, rtol 1e-10 — our choice, tighter than the design's 1e-9: the relative ω
+    drift stays ≈ 2e-9 up to the shore — 1.9e-9 measured on a 1:50 beach to H = 2 cm); H_min [m]: a terminal event
+    stops the ray when H(x) < H_min (the shore); max_step [s].
     Derivatives: fourth-order central differences with steps 1e-4|k| (in k) and 1e-3/|k| (in x, a thousandth of a
     wavelength), accurate to ~1e-12 relative when the medium varies on scales ≫ λ.
     Returns dict(t (n,), x (dim, n), k (dim, n), omega (n,), omega_drift (max |ω − ω₀|/ω₀), status, message).
-    Validation (planned): V1 homogeneous: straight rays at c_g; V4 ω conserved to 1e-9 over a slope; V1 Snell
-    |k| sin α constant for straight contours. Label: analytic, conserved.
+    Validation: V1, V2, V4 — tests/test_ch07.py: test_frequency_along_rays_V2_derivation,
+    test_ray_trace_V1_homogeneous_straight_at_cg, test_ray_trace_V4_frequency_conserved_while_k_grows,
+    test_ray_trace_V1_snell_closed_form_parity. Checks: V1 homogeneous: straight rays at c_g; V4 ω conserved over a
+    slope (< 1e-8 asserted); V1 Snell |k| sin α constant for straight contours. Label: analytic, conserved.
     """
     x0_ = np.atleast_1d(_F(x0))
     k0_ = np.atleast_1d(_F(k0))
@@ -780,7 +871,9 @@ def wave_energy_density(a, rho: float = 1000.0, g: float = G_BOOK, drho: float |
 
     Book: §7.2, Eq. (7.42) E = E_k + E_p = ρg⟨η²⟩ = ½ρga² (sinusoidal η); §7.7, Eq. (7.96). Parameters: a amplitude [m];
     rho [kg/m³]; g [m/s²]; drho = ρ₂ − ρ₁ [kg/m³] for an interface (then rho is ignored).
-    Validation (planned): V1 equals ``ch07.wave_energy`` quad; F = E c_g (7.71). Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_wave_energy_V1_quadrature_equals_closed_form,
+    test_energy_flux_V1_quadrature_equals_closed_form, test_interface_energy_V1_quarter_from_direct_integration. Checks:
+    V1 equals ``ch07.wave_energy`` quad; F = E c_g (7.71). Label: analytic.
     """
     r = float(rho) if drho is None else float(drho)
     return _S(0.5 * r * float(g) * _F(a) ** 2)  # Eq. (7.42) / (7.96)
@@ -790,7 +883,8 @@ def viscous_decay(a0, k, nu: float, t):
     """Viscous amplitude decay of a deep-water wave a(t) = a₀ e^{−2νk²t} [m] (Exercise 7.11; the end of the stone-in-a-pond
     train, §7.5). Book: §7.5 (pointer to Exercise 7.11; the result is the classical Lamb/Stokes decay rate, derived in
     the curation's demoted a-D68 from ε = 2νS_ijS_ij of (7.47)). Parameters: a0 [m]; k [rad/m]; nu [m²/s]; t [s].
-    Validation (planned): V2 sympy energy-dissipation derivation. Label: analytic."""
+    Validation: V2, V7 — tests/test_ch07.py: test_viscous_decay_V2_derivation, test_wave_functions_V7_change_of_units.
+    Checks: V2 sympy energy-dissipation derivation. Label: analytic."""
     return _S(_F(a0) * np.exp(-2.0 * float(nu) * _F(k) ** 2 * _F(t)))
 
 
@@ -799,7 +893,8 @@ def viscous_decay(a0, k, nu: float, t):
 # ======================================================================================================================
 def eps2_density(rho1, rho2):
     """ε² = (ρ₂ − ρ₁)/(ρ₂ + ρ₁) [–] of (7.95) (ρ₁ upper/lighter, ρ₂ lower/heavier). Named ``eps2_density`` to avoid the
-    dissipation ε of Ch. 4. Book: §7.7, Eq. (7.95). Label: analytic."""
+    dissipation ε of Ch. 4. Book: §7.7, Eq. (7.95). Validation: V7 — tests/test_ch07.py:
+    test_interface_omega_V7_limits_and_rayleigh_taylor. Label: analytic."""
     return _S((_F(rho2) - _F(rho1)) / (_F(rho2) + _F(rho1)))
 
 
@@ -811,7 +906,10 @@ def interface_omega(k, rho1: float, rho2: float, g: float = G_BOOK):
     Parameters: k [rad/m] (|k|); rho1 upper (lighter) [kg/m³]; rho2 lower (heavier) [kg/m³]; g [m/s²].
     Returns ω [rad/s]; **NaN with a RuntimeWarning when ρ₁ > ρ₂** (heavy over light: ω² < 0, Rayleigh–Taylor instability,
     Ch. 11) — never a silent real number. Assumptions: no interfacial tension, linear, irrotational in each layer.
-    Validation (planned): V2 sympy (7.93)–(7.94) ⇒ (7.95); V7 ρ₁ → 0 ⇒ √(gk), ρ₁ → ρ₂ ⇒ 0. Label: analytic, symbolic.
+    Validation: V1, V2, V7 — tests/test_ch07.py: test_interface_V2_derivation,
+    test_interface_fields_V1_residuals_vortex_sheet_and_parity, test_interface_omega_V7_limits_and_rayleigh_taylor,
+    test_interface_V1_form_published_two_fluid_dispersion. Checks: V2 sympy (7.93)–(7.94) ⇒ (7.95); V7 ρ₁ → 0 ⇒ √(gk),
+    ρ₁ → ρ₂ ⇒ 0. Label: analytic, symbolic.
     """
     e2 = _F(eps2_density(rho1, rho2))
     if np.any(e2 < 0):
@@ -831,7 +929,9 @@ def two_layer_free_surface_omega(k, H: float, rho1: float, rho2: float, g: float
     as kH → ∞; → (7.115) as kH → 0.
     Parameters: k [rad/m] (|k|); H upper-layer thickness [m]; rho1 < rho2 [kg/m³]; g [m/s²].
     Returns the tuple (omega_bt, omega_bc) [rad/s] (baroclinic NaN + warning if ρ₁ > ρ₂).
-    Validation (planned): V2 both roots satisfy (7.110); V7 limits. Label: analytic, symbolic.
+    Validation: V2, V6, V7 — tests/test_ch07.py: test_two_layer_modes_V2_derivation,
+    test_two_layer_V7_limits_and_reduced_gravity, test_book_V6_nonlinear_interface_and_internal. Checks: V2 both roots
+    satisfy (7.110); V7 limits. Label: analytic, symbolic.
     """
     kk = np.abs(_F(k))
     th = np.tanh(kk * float(H))
@@ -849,9 +949,11 @@ def two_layer_free_surface_omega(k, H: float, rho1: float, rho2: float, g: float
 def reduced_gravity_book(rho1: float, rho2: float, g: float = G_BOOK, ref: str = "lower"):
     """Reduced gravity g′ [m/s²]: ``ref="lower"`` → the book's (7.117) g′ = g(ρ₂ − ρ₁)/ρ₂; ``ref="upper"`` → ch04's
     g(ρ₂ − ρ₁)/ρ₁ (``core.similarity.reduced_gravity``); ``ref="mean"`` → g(ρ₂ − ρ₁)/ρ̄, ρ̄ = (ρ₁ + ρ₂)/2 (Boussinesq ρ₀).
-    The three differ by factors ρ₂/ρ₁ (0.3 % in the ocean). Book: §7.7, Eq. (7.117); ch04 §4.11 (after (4.105)).
-    Parameters: rho1 upper, rho2 lower [kg/m³]; g; ref. Validation (planned): V1 ratio lower/upper = ρ₁/ρ₂.
-    Label: analytic."""
+    Ratios: lower/upper = ρ₁/ρ₂, lower/mean = (ρ₁ + ρ₂)/(2ρ₂); both differ from 1 by O(Δρ/ρ) (≲ 0.3 % in the ocean,
+    the mean form by half as much). Book: §7.7, Eq. (7.117); ch04 §4.11 (after (4.105)).
+    Parameters: rho1 upper, rho2 lower [kg/m³]; g; ref. Validation: V6, V7 — tests/test_ch07.py:
+    test_two_layer_V7_limits_and_reduced_gravity, test_book_V6_nonlinear_interface_and_internal. Checks: V1 ratio
+    lower/upper = ρ₁/ρ₂. Label: analytic."""
     ref_rho = {"lower": float(rho2), "upper": float(rho1), "mean": 0.5 * (float(rho1) + float(rho2))}
     if ref not in ref_rho:
         raise ValueError("ref must be 'lower' (book 7.117), 'upper' (ch04) or 'mean'")
@@ -862,8 +964,9 @@ def two_layer_long_wave_speed(H: float, rho1: float, rho2: float, g: float = G_B
     """Long-wave (kH ≪ 1) speed of the baroclinic mode c = √(g′H), g′ = g(ρ₂ − ρ₁)/ρ₂ [m/s].
 
     Book: §7.7, Eqs. (7.115)–(7.117). Like √(gH) but reduced by √((ρ₂ − ρ₁)/ρ₂): internal waves are slow.
-    Parameters: H upper-layer thickness [m]; rho1, rho2 [kg/m³]; g. Validation (planned): V7 = lim_{k→0} ω_bc/k of
-    :func:`two_layer_free_surface_omega`. Label: analytic.
+    Parameters: H upper-layer thickness [m]; rho1, rho2 [kg/m³]; g. Validation: V7 — tests/test_ch07.py:
+    test_two_layer_V7_limits_and_reduced_gravity, test_wave_functions_V7_change_of_units. Checks: V7 = lim_{k→0} ω_bc/k
+    of :func:`two_layer_free_surface_omega`. Label: analytic.
     """
     return _S(np.sqrt(reduced_gravity_book(rho1, rho2, g, "lower") * _F(H)))  # Eq. (7.116)
 
@@ -879,8 +982,10 @@ def internal_wave_omega(k, m, N: float, l=0.0):
     Parameters: k, l horizontal wavenumbers [rad/m]; m vertical wavenumber [rad/m]; N buoyancy frequency [rad/s].
     Complex-safe (k² inside the square root) so complex-step c_g works for either sign of k.
     Assumptions: Boussinesq, inviscid, linear, constant N, ω ≫ Coriolis frequency.
-    Validation (planned): V2 sympy (7.136) in (7.134) ⇒ (7.137); V7 m = 0 ⇒ ω = N (parcel oscillation, ch01).
-    Label: analytic, symbolic.
+    Validation: V1, V2, V7 — tests/test_ch07.py: test_internal_dispersion_V2_derivation,
+    test_internal_wave_omega_V7_limits_and_direction_only,
+    test_w_equation_residual_V1_plane_wave_right_and_wrong_frequency. Checks: V2 sympy (7.136) in (7.134) ⇒ (7.137); V7
+    m = 0 ⇒ ω = N (parcel oscillation, ch01). Label: analytic, symbolic.
     """
     kh2 = k * k + l * l if (np.iscomplexobj(k) or np.iscomplexobj(m)) else _F(k) ** 2 + _F(l) ** 2
     K2 = kh2 + (m * m if np.iscomplexobj(m) else _F(m) ** 2)
@@ -893,7 +998,9 @@ def beam_angle(omega, N: float):
 
     Book: §7.8, text before Fig. 7.33 ("four beams oriented at an angle θ with the vertical, cos θ = ω/N"). The beams
     turn toward the vertical as ω → N. Parameters: omega [rad/s] (0 ≤ ω ≤ N); N [rad/s]. Returns θ [rad] (NaN for
-    ω > N: no propagating internal wave). Validation (planned): V1 ω/N = 0.71 ⇒ 44.77°. Label: analytic.
+    ω > N: no propagating internal wave). Validation: V6, V7 — tests/test_ch07.py:
+    test_internal_wave_omega_V7_limits_and_direction_only, test_book_V6_nonlinear_interface_and_internal. Checks: V1 ω/N
+    = 0.71 ⇒ 44.77°. Label: analytic.
     """
     r = _F(omega) / float(N)
     with np.errstate(invalid="ignore"):
@@ -909,8 +1016,10 @@ def internal_wave_velocities(k, m, N: float, printed: bool = False) -> dict:
     Book: §7.8, Eqs. (7.143)–(7.146), Figs. 7.29, 7.31.
     Parameters: k horizontal, m vertical wavenumber [rad/m]; N [rad/s].
     Returns dict(omega, c (2,), cg (2,), dot (c·c_g), theta_K (angle of K above the horizontal, from cos θ = |k|/K)).
-    Validation (planned): V1 equals :func:`group_velocity_vector` of :func:`internal_wave_omega` for both signs of k;
-    c·c_g = 0 to round-off; c_z = −c_gz. Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_internal_group_velocity_V2_derivation,
+    test_internal_wave_velocities_V1_gradient_parity_both_signs, test_linear_evolve_2d_V1_plane_wave_and_packet_at_cg.
+    Checks: V1 equals :func:`group_velocity_vector` of :func:`internal_wave_omega` for both signs of k; c·c_g = 0 to
+    round-off; c_z = −c_gz. Label: analytic.
     """
     k_, m_ = float(k), float(m)
     K = np.hypot(k_, m_)

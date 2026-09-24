@@ -37,10 +37,18 @@ Book slips handled (never coded as printed; printed variants kept only as labell
 T1 (7.66) envelope ½Δω **x** → ½Δω **t** (``beat_wave(printed=True)``); T2 "u from (7.28)" before (7.44) means (7.27);
 T3 (7.105) e^{i(k**z** − ωt)} → e^{i(k**x** − ωt)} (``two_layer_residuals(printed_7_105=True)``); T4 (7.98) ∂φ₁/**d**z;
 T5 "y = 0" → z = 0 (p. 254); T6 "(7.88)" in the Ursell remark means (7.87); the printed (7.138)/(7.145) assume k > 0
-(``internal_wave_velocities(printed=True)``). Also (our reading, p. 288): the interfacial E_p line's middle form
+(``internal_wave_velocities(printed=True)``); T10 (p. 288) the interfacial E_p line's middle form
 (g(ρ₂ − ρ₁)/2λ)∫₀^{λ/2}ζ²dx equals ⅛(ρ₂ − ρ₁)ga², not ¼ — its first and last forms agree (¼), so the middle one needs
-∫₀^λ (or 1/λ); :func:`interface_energy` uses the consistent ¼. Book-quoted numbers stay in the git-ignored
-``tests/book_values_ch07.json``.
+1/λ instead of 1/(2λ); :func:`interface_energy` uses the consistent ¼; T11 (p. 288) the text cites Exercise 7.16 for
+the interfacial E_k — it is Exercise 7.18. Also: Exercise 7.2 set up literally (potential amplitude fixed at aω/k)
+gives γ = 3/8, not the book's γ = 1 of (7.83) — see :func:`stokes_expansion_sympy`. Book-quoted numbers stay in the
+git-ignored ``tests/book_values_ch07.json``.
+
+Reduced gravity — which g′? ``ch07.reduced_gravity`` is the re-exported ch04 function
+``core.similarity.reduced_gravity`` whose default ``ref="upper"`` is g(ρ₂ − ρ₁)/ρ₁ (ρ₁ in the denominator, after
+(4.105)) — **not** this chapter's (7.117) g′ = g(ρ₂ − ρ₁)/ρ₂. For (7.117) call ``reduced_gravity_book(rho1, rho2)``
+(default ``ref="lower"``) or ``reduced_gravity(rho1, rho2, ref="lower")``. The re-export is kept for backward
+compatibility (ch04 recap R10).
 """
 from __future__ import annotations
 
@@ -68,10 +76,13 @@ from .core.waves import (cosh_over_cosh, cosh_over_sinh, group_velocity, group_v
 
 G = G_BOOK  #: default g [m/s²] of this chapter's functions (the book's 9.81)
 STOKES_LIMIT_STEEPNESS = 0.1410633
-"""Height-to-wavelength ratio (crest to trough, H/λ) of the limiting (highest) deep-water Stokes wave, ± 4·10⁻⁷ —
-Dyachenko, Lushnikov & Korotkevich (2016), as reported by HandWiki "Physics:Stokes wave"
-(https://handwiki.org/wiki/Physics:Stokes_wave, read 2026-09-24); crest angle 120° (Stokes 1880; arXiv:1507.02784).
-The book's a_max ≈ 0.07λ (§7.6, after (7.83)) is about half of it (a is measured from the mean level). Label: benchmark."""
+"""Height-to-wavelength ratio (crest to trough, H/λ) of the limiting (highest) deep-water Stokes wave, ± 4·10⁻⁷,
+about one-seventh — the classical limiting steepness of the strongly-nonlinear-wave literature reviewed by L. W.
+Schwartz & J. D. Fenton, "Strongly nonlinear waves", Annu. Rev. Fluid Mech. 14, 39–60 (1982). Digits as quoted by
+HandWiki "Physics:Stokes wave" (https://handwiki.org/wiki/Physics:Stokes_wave, read 2026-09-24; it cites Schwartz &
+Fenton for the one-seventh statement and footnotes the ± digits to Dyachenko, Lushnikov & Korotkevich 2016, whose
+arXiv abstract 1507.02784 gives only the 2π/3 = 120° crest angle, Stokes 1880). The book's a_max ≈ 0.07λ (§7.6, after
+(7.83)) is about half of it (a is measured from the mean level). Label: benchmark."""
 
 _F = lambda a: np.asarray(a, dtype=float)  # noqa: E731
 _S = as_scalar_if_0d
@@ -95,7 +106,9 @@ def surface_normal(eta_x):
 
     Book: §7.2, Eq. (7.14). ⚠️ η is the elevation here; ch04 (4.90) used η for the level-set function itself.
     Parameters: eta_x surface slope ∂η/∂x [–] (array allowed). Returns n with components on the first axis, shape
-    (2, …) [–]. Validation (planned): V1 unit length, parallel to ∇(z − η). Label: analytic.
+    (2, …) [–]. Validation: V1, V2 — tests/test_ch07.py: test_kinematic_condition_V2_derivation,
+    test_surface_normal_V1_unit_normal_and_kinematic_parity. Checks: V1 unit length, parallel to ∇(z − η). Label:
+    analytic.
     """
     s = _F(eta_x)
     den = np.sqrt(s ** 2 + 1.0)
@@ -105,8 +118,9 @@ def surface_normal(eta_x):
 def surface_velocity(eta_t):
     """Velocity of the surface point at fixed x: U_s = (∂η/∂t) e_z [m/s] (only its normal part matters).
 
-    Book: §7.2, Eq. (7.15). Parameters: eta_t ∂η/∂t [m/s]. Returns (2, …) array. Validation (planned): V1
-    (n·U_s)|∇f| = ∂η/∂t (the right side of (7.16)). Label: analytic.
+    Book: §7.2, Eq. (7.15). Parameters: eta_t ∂η/∂t [m/s]. Returns (2, …) array. Validation: V1 — tests/test_ch07.py:
+    test_surface_normal_V1_unit_normal_and_kinematic_parity. Checks: V1 (n·U_s)|∇f| = ∂η/∂t (the right side of (7.16)).
+    Label: analytic.
     """
     e = _F(eta_t)
     return np.stack([0.0 * e, e])  # Eq. (7.15)
@@ -117,7 +131,8 @@ def linear_bernoulli_pressure(dphi_dt, z, rho: float = 1000.0, g: float = G) -> 
 
     Book: §7.2, Eqs. (7.20) (|∇φ|² of (4.83) dropped; constant fixed on the undisturbed surface far away) and (7.30)
     p′ ≡ p + ρgz = −ρ ∂φ/∂t. Parameters: dphi_dt [m²/s²]; z [m] (up); rho [kg/m³]; g [m/s²].
-    Returns dict(p [Pa] gauge, p_prime [Pa]). Validation (planned): V1 parity with
+    Returns dict(p [Pa] gauge, p_prime [Pa]). Validation: V1 — tests/test_ch07.py:
+    test_linear_bernoulli_V1_parity_with_ch04_unsteady_bernoulli. Checks: V1 parity with
     ``core.bernoulli.unsteady_bernoulli_pressure(speed=0)``; at rest p = −ρgz. Label: analytic.
     """
     pt = _F(dphi_dt)
@@ -140,8 +155,11 @@ def wave_fields(x, z, t, a: float = 0.1, k: float = 1.0, H=np.inf, g: float = G,
     [kg/m³]; direction ±1; sigma surface tension [N/m] (changes ω only).
     Returns dict(eta [m], phi [m²/s], psi [m²/s], u, w [m/s], p_prime [Pa], omega [rad/s], c [m/s]).
     Assumptions: inviscid, irrotational, constant density, ka ≪ 1, air ignored. Overflow-safe hyperbolic ratios.
-    Validation (planned): V2 ∇²φ = 0, u = φ_x = ψ_z, w = φ_z = −ψ_x; V1 parity with ``ch04.linear_wave_surface``;
-    V3 FD Laplacian order; V7 deep/shallow limits, no overflow at kH = 500. Label: analytic, symbolic.
+    Validation: V1, V2, V3, V7 — tests/test_ch07.py: test_wave_fields_V1_closed_forms_and_streamfunction,
+    test_wave_fields_V2_potential_relations_symbolic, test_wave_fields_V3_laplacian_residual_is_second_order_truncation,
+    test_wave_fields_V7_deep_shallow_mirror_and_overflow, test_dispersion_V1_parity_with_ch04_and_identity. Checks: V2
+    ∇²φ = 0, u = φ_x = ψ_z, w = φ_z = −ψ_x; V1 parity with ``ch04.linear_wave_surface``; V3 FD Laplacian order; V7
+    deep/shallow limits, no overflow at kH = 500. Label: analytic, symbolic.
     """
     if direction not in (1, -1):
         raise ValueError("direction must be +1 or -1")
@@ -168,7 +186,8 @@ def pressure_response(k, z, H=np.inf):
 
     Book: §7.2, Eq. (7.31); deep limit e^{kz} (7.48) (4 % at z = −λ/2: a bottom sensor is a low-pass filter); shallow
     limit 1 (7.52, hydrostatic). Parameters: k [rad/m]; z [m] (−H ≤ z ≤ 0); H [m]. Overflow-safe.
-    Validation (planned): V1 = 1 at z = 0, 1/cosh kH at the bottom, e^{−π} = 0.0432 at z = −λ/2 (deep). Label: analytic.
+    Validation: V1 — tests/test_ch07.py: test_pressure_response_V1_surface_bottom_and_limits. Checks: V1 = 1 at z = 0,
+    1/cosh kH at the bottom, e^{−π} = 0.0432 at z = −λ/2 (deep). Label: analytic.
     """
     return cosh_over_cosh(k, z, H)  # Eq. (7.31)
 
@@ -187,8 +206,11 @@ def free_surface_residuals(x, t, a: float = 0.01, k: float = 1.0, H=np.inf, g: f
     Book: §7.2, Eqs. (7.11), (7.12), (7.16)–(7.21); §7.3 (7.53)–(7.55); Exercise 7.2 (this is its quantitative content).
     Parameters: x [m] (array); t [s]; a, k, H, g, rho, sigma, direction as :func:`wave_fields`; h Laplacian step [m]
     (default 0.01/k). Returns dict of arrays + scales dict(aomega, ag, c, g_over_k).
-    Validation (planned): V1 linear residuals 0 to round-off; V3 exact residuals ∝ (ka)² when normalised by c and g/k
-    (slope 2), ∝ ka when normalised by aω, ag. Label: analytic, converged.
+    Validation: V1, V3 — tests/test_ch07.py: test_free_surface_V1_linear_conditions_hold_on_a_field,
+    test_free_surface_V1_exact_residuals_equal_independent_closed_forms,
+    test_free_surface_V3_neglected_terms_scale_as_ka. Checks: V1 linear residuals 0 to round-off, exact residuals equal
+    independent closed forms; V7 asymptotic order in ka (exact residuals ∝ (ka)² when normalised by c and g/k, ∝ ka when
+    normalised by aω, ag — an order-of-the-neglected-terms check, not a grid convergence). Label: analytic.
     """
     k = float(k)
     s = float(direction)
@@ -234,7 +256,9 @@ def free_surface_residual_scan(ka_values, kH=1.0, g: float = G, n_x: int = 64, k
     Parameters: ka_values (array, each ≪ 1); kH (np.inf = deep; default 1); g [m/s²]; n_x points per wavelength;
     k [rad/m] (fixed; a = ka/k). Returns dict(ka, kinematic_abs, dynamic_abs, kinematic_rel, dynamic_rel,
     kinematic_linear, dynamic_linear, slope_abs (kinematic), slope_abs_dynamic, slope_rel (kinematic),
-    slope_rel_dynamic). Validation (planned): V3 slopes 2 and 1 (± 0.15). Label: converged.
+    slope_rel_dynamic). Validation: V3 — tests/test_ch07.py: test_free_surface_V3_neglected_terms_scale_as_ka. Checks:
+    V7 asymptotic order in ka — slopes 2 and 1 (± 0.15) (the test is filed under V3; it measures the order of the
+    neglected terms, not a discretisation). Label: analytic.
     """
     ka = np.atleast_1d(_F(ka_values))
     H = np.inf if np.isinf(kH) else float(kH) / float(k)
@@ -276,7 +300,8 @@ def surface_wave_sympy() -> dict:
     bottom_residual, kinematic_residual (each 0), dynamic_line (coefficient of cos(kx − ωt) in (7.21) with (7.26):
     g − (ω²/k)coth kH, times a), dispersion (ω² = gk tanh kH), omega2_capillary, ``residuals`` (dict name → simplified
     expression, all 0) and ``wrong_bottom_residual`` (non-zero).
-    Validation (planned): V2 (every residual is exactly 0). Label: symbolic.
+    Validation: V2 — tests/test_ch07.py: test_potential_V2_derivation, test_wave_fields_V2_potential_relations_symbolic,
+    test_capillary_V2_derivation_tension_condition. Checks: V2 (every residual is exactly 0). Label: symbolic.
     """
     x, z, t = sp.symbols("x z t", real=True)
     a, k, H, g, om, rho, sig = sp.symbols("a k H g omega rho sigma", positive=True)
@@ -358,8 +383,10 @@ def orbit_linear(x0, z0, t, a: float = 0.1, k: float = 1.0, H=np.inf, g: float =
     Book: §7.2, Eqs. (7.35a, b) (integrals of (7.34a, b)); deep (7.46) circles of radius ae^{kz₀}; shallow (7.50).
     Parameters: x0, z0 mean position [m]; t [s]; a [m]; k [rad/m]; H [m]; g. Returns the tuple (ξ, ζ) [m] (ζ = the
     particle's vertical excursion, ``zeta_particle``); the particle is at (x₀ + ξ, z₀ + ζ).
-    Validation (planned): V1 the ellipse (7.36) = 1 at all t; clockwise (negative signed area); equals
-    ``particle_path(model="linear")``. Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_orbits_V2_derivation,
+    test_orbit_V1_ellipses_clockwise_and_constant_foci, test_particle_path_V1_linear_model_and_pathline_parity. Checks:
+    V1 the ellipse (7.36) = 1 at all t; clockwise (negative signed area); equals ``particle_path(model="linear")``.
+    Label: analytic.
     """
     k = float(k)
     om = float(omega_gravity(k, H, g))
@@ -375,8 +402,9 @@ def orbit_semi_axes(z0, a: float = 0.1, k: float = 1.0, H=np.inf) -> dict:
     (0 in deep water: circles); B = 0 at the bottom; sense "clockwise" for a right-going wave.
 
     Book: §7.2, Eq. (7.36) and the text after it; Fig. 7.4. Parameters: z0 mean depth [m]; a [m]; k [rad/m]; H [m].
-    Returns dict(A, B, focal_half, sense = "cw"). Validation (planned): V1 focal distance independent of z₀; deep A = B
-    = ae^{kz₀}; shallow A → a/kH, B → a(1 + z₀/H). Label: analytic.
+    Returns dict(A, B, focal_half, sense = "cw"). Validation: V1 — tests/test_ch07.py:
+    test_orbit_V1_ellipses_clockwise_and_constant_foci, test_orbit_state_V1_explainer_numbers. Checks: V1 focal distance
+    independent of z₀; deep A = B = ae^{kz₀}; shallow A → a/kH, B → a(1 + z₀/H). Label: analytic.
     """
     k = float(k)
     A = float(a) * _F(cosh_over_sinh(k, z0, H))  # Eq. (7.36)
@@ -397,8 +425,11 @@ def particle_path(x0, z0, t_eval, a: float = 0.1, k: float = 1.0, H=np.inf, g: f
     Book: §7.2, Eqs. (7.32)–(7.35); §7.6, Eqs. (7.84a, b); Figs. 7.3, 7.22.
     Parameters: x0, z0 [m] (scalars); t_eval (n,) [s] increasing from the start time; a, k, H, g; rtol, atol
     (``solve_ivp`` DOP853 — our choice). Returns dict(t, x, z) [s, m, m].
-    Validation (planned): V1 "linear" = :func:`orbit_linear` (1e-10); V3 "exact" drift per period → (7.86), rtol halving
-    changes it < 1e-9. Label: analytic, converged.
+    Validation: V1, V3 — tests/test_ch07.py: test_particle_path_V1_linear_model_and_pathline_parity,
+    test_stokes_drift_V3_exact_path_lines_converge_at_order_ka, test_dyed_line_V1_advances_by_the_stokes_drift. Checks:
+    V1 "linear" = :func:`orbit_linear` (1e-10); V7 "exact" drift per period → (7.86) with relative error O(ka)
+    (asymptotic order); V3 halving rtol changes the drift < 1e-7; "taylor1" drift = (7.86) within 3 %; V1 the dyed line
+    advances by ū_L T per period. Label: analytic, converged (the rtol study only).
     """
     k = float(k)
     a = float(a)
@@ -440,8 +471,10 @@ def stokes_drift(z0, a: float = 0.1, k: float = 1.0, H=np.inf, g: float = G):
     Exercise 7.14). Decays twice as fast as the orbits; the vertical drift is zero. Overflow-safe form
     a²ωk e^{2kz₀}(1 + e^{−4k(z₀+H)})/(1 − e^{−2kH})².
     Parameters: z0 mean depth [m]; a [m]; k [rad/m]; H [m]; g. Returns ū_L [m/s].
-    Validation (planned): V2 sympy time average of (7.84a); V1 deep limit; V3 vs :func:`stokes_drift_numeric`; V5
-    Wikipedia "Stokes drift" deep form. Label: analytic, symbolic.
+    Validation: V1, V2, V3, V5 — tests/test_ch07.py: test_stokes_drift_V2_derivation,
+    test_stokes_drift_V1_closed_form_and_limits, test_stokes_drift_V3_exact_path_lines_converge_at_order_ka,
+    test_stokes_drift_V5_deep_water_published. Checks: V2 sympy time average of (7.84a); V1 deep limit; V3 vs
+    :func:`stokes_drift_numeric`; V5 Wikipedia "Stokes drift" deep form. Label: analytic, symbolic.
     """
     k = float(k)
     om = float(omega_gravity(k, H, g))
@@ -456,8 +489,10 @@ def stokes_drift_numeric(z0, a: float = 0.1, k: float = 1.0, H=np.inf, g: float 
                          x0: float = 0.0, rtol: float = 1e-10, atol: float = 1e-12) -> float:
     """Stokes drift measured from exact path lines: (x_p(NT) − x_p(0))/(NT) [m/s], the particle starting on its linear
     orbit about (x₀, z₀). Book: §7.6, Fig. 7.22 (the open orbit advancing ū_L T per period) — our numerical check of
-    (7.86). Parameters: as :func:`particle_path`; periods N. Validation (planned): V3 → (7.86) with relative error
-    O(ka). Label: converged."""
+    (7.86). Parameters: as :func:`particle_path`; periods N. Validation: V3 — tests/test_ch07.py:
+    test_stokes_drift_V3_exact_path_lines_converge_at_order_ka. Checks: V7 → (7.86) with relative error O(ka)
+    (asymptotic order in ka, not a convergence study); V3 integrator-converged (halving rtol changes the drift < 1e-7).
+    Label: analytic, converged (the rtol study only)."""
     om = float(omega_gravity(k, H, g))
     T = _TWO_PI / om
     p = particle_path(x0, z0, [0.0, periods * T], a, k, H, g, "exact", "orbit", rtol, atol)
@@ -469,7 +504,8 @@ def eulerian_mean_u(z, a: float = 0.1, k: float = 1.0, H=np.inf, g: float = G, x
     irrotational wave (the Eulerian mean), although the Lagrangian mean (Stokes drift) is not.
 
     Book: §7.6, text after (7.86) (u = u|_{z=−H} + ∫∂w/∂x dz by irrotationality). ``quad`` over one period.
-    Validation (planned): V1 = 0 to 1e-10. Label: analytic."""
+    Validation: V1 — tests/test_ch07.py: test_stokes_drift_V1_closed_form_and_limits. Checks: V1 = 0 to 1e-10. Label:
+    analytic."""
     om = float(omega_gravity(k, H, g))
     T = _TWO_PI / om
     val, _ = quad(lambda tt: float(wave_fields(x, z, tt, a, k, H, g)["u"]), 0.0, T, epsabs=1e-14, limit=200)
@@ -484,7 +520,9 @@ def wave_energy(a: float = 1.0, k: float = 1.0, H=np.inf, g: float = G, rho: flo
     "quad": E_k = (ρ/2λ)∫₀^λ∫_{−H}^0(u² + w²)dz dx (7.38) and E_p = (ρg/λ)∫₀^λ∫₀^η z dz dx (7.40) by ``dblquad`` over one
     wavelength at t = 0 (deep water: z ≥ −40/k).
     Book: §7.2, Eqs. (7.38)–(7.42). Parameters: a [m]; k [rad/m]; H [m]; g; rho [kg/m³]; method.
-    Validation (planned): V1 quad = closed (1e-8) for kH ∈ {0.1, 1, 10, ∞}; V2 sympy z-integral. Label: analytic.
+    Validation: V1, V2, V7 — tests/test_ch07.py: test_wave_energy_V2_derivation,
+    test_wave_energy_V1_quadrature_equals_closed_form, test_wave_functions_V7_change_of_units. Checks: V1 quad = closed
+    (1e-8) for kH ∈ {0.1, 1, 10, ∞}; V2 sympy z-integral. Label: analytic.
     """
     if method == "closed":
         Ek = 0.25 * float(rho) * float(g) * float(a) ** 2  # Eq. (7.39) with ⟨η²⟩ = a²/2
@@ -513,7 +551,9 @@ def energy_flux(a: float = 1.0, k: float = 1.0, H=np.inf, g: float = G, rho: flo
     "closed": F = [½ρga²][(c/2)(1 + 2kH/sinh 2kH)] (7.44) = E c_g (7.71); "quad": the double integral of p′u from
     :func:`wave_fields` over one period and the depth at x = 0 (7.43) (deep: z ≥ −40/k).
     Book: §7.2, Eqs. (7.43)–(7.44); §7.5 (7.71). (The book's "u from (7.28)" before (7.44) means (7.27).)
-    Validation (planned): V1 quad = closed (1e-8); V2 sympy (7.44) ≡ E c_g. Label: analytic, symbolic.
+    Validation: V1, V2 — tests/test_ch07.py: test_energy_flux_V2_derivation,
+    test_energy_flux_V1_quadrature_equals_closed_form. Checks: V1 quad = closed (1e-8); V2 sympy (7.44) ≡ E c_g. Label:
+    analytic, symbolic.
     """
     k = float(k)
     if method == "closed":
@@ -542,7 +582,8 @@ def curvature(eta_x, eta_xx, linear: bool = False):
     """Curvature 1/R of the surface graph z = η(x): η_xx/(1 + η_x²)^{3/2} [1/m], or its small-slope form η_xx.
 
     Book: §7.3, Eq. (7.53) (positive when the surface is concave up — centre of curvature above, in the air).
-    Parameters: eta_x [–]; eta_xx [1/m]; linear. Validation (planned): V1 circle of radius R → 1/R. Label: analytic.
+    Parameters: eta_x [–]; eta_xx [1/m]; linear. Validation: V1 — tests/test_ch07.py:
+    test_curvature_V1_circle_and_laplace_jump_parity. Checks: V1 circle of radius R → 1/R. Label: analytic.
     """
     if linear:
         return _S(_F(eta_xx))
@@ -553,8 +594,9 @@ def capillary_surface_pressure(eta_xx, sigma: float = 0.0727, eta_x=None, p_a: f
     """Pressure just inside the liquid at the surface with surface tension, p = p_a − σ/R [Pa] (gauge when p_a = 0):
     p = −σ ∂²η/∂x² for small slopes (7.54); exact curvature when eta_x is given (7.53). Under a crest (η_xx < 0) the
     liquid pressure exceeds p_a (the centre of curvature is in the liquid). Book: §7.3, Eqs. (7.53)–(7.54), (1.5).
-    Parameters: eta_xx [1/m]; sigma [N/m]; eta_x [–] or None; p_a [Pa]. Validation (planned): V1 parity with
-    ``core.interfaces.laplace_jump_from_balance`` (one infinite radius). Label: analytic."""
+    Parameters: eta_xx [1/m]; sigma [N/m]; eta_x [–] or None; p_a [Pa]. Validation: V1, V2 — tests/test_ch07.py:
+    test_capillary_V2_derivation_tension_condition, test_curvature_V1_circle_and_laplace_jump_parity. Checks: V1 parity
+    with ``core.interfaces.laplace_jump_from_balance`` (one infinite radius). Label: analytic."""
     kap = curvature(0.0 if eta_x is None else eta_x, eta_xx, linear=eta_x is None)
     return _S(float(p_a) - float(sigma) * _F(kap))  # Eq. (7.53)/(7.54)
 
@@ -565,7 +607,8 @@ def capillary_state(lam, sigma: float = 0.0727, rho: float = 1000.0, H=np.inf, g
     Returns dict(k, omega, c, cg, gravity_term = g/k [m²/s²], tension_term = σk/ρ [m²/s²], tension_ratio = (σk/ρ)/(g/k),
     regime ∈ {"capillary" (ratio > 2), "crossover", "gravity" (ratio < 0.5)}, c_min, lam_m, k_m, cg_min,
     p_crest_per_a = σk² [Pa/m] (liquid pressure excess under a crest per metre of amplitude, (7.54)), cg_over_c).
-    Book: §7.3, Eqs. (7.54), (7.56)–(7.60); §7.5 (c_g, c_g,min). Scalar-callable. Label: analytic.
+    Book: §7.3, Eqs. (7.54), (7.56)–(7.60); §7.5 (c_g, c_g,min). Scalar-callable. Validation: V1 — tests/test_ch07.py:
+    test_capillary_state_V1_explainer_numbers. Label: analytic.
     """
     k = _TWO_PI / float(lam)
     gt, tt = float(g) / k, float(sigma) * k / float(rho)
@@ -594,7 +637,8 @@ def standing_wave_fields(x, z, t, a: float = 0.1, k: float = 1.0, H=np.inf, g: f
     w = −∂ψ/∂x = −2aω[sinh k(z + H)/sinh kH] cos kx sin ωt; φ = −(2aω/k)[cosh k(z + H)/sinh kH] cos kx sin ωt;
     p′ = 2ρga[cosh k(z + H)/cosh kH] cos kx cos ωt.
     Book: §7.4, text before (7.62), Eqs. (7.62)–(7.63), Fig. 7.11. Parameters as :func:`wave_fields`.
-    Returns dict(eta, psi, u, w, phi, p_prime, omega). Validation (planned): V1 equals the sum of
+    Returns dict(eta, psi, u, w, phi, p_prime, omega). Validation: V1, V2 — tests/test_ch07.py:
+    test_standing_wave_V2_derivation, test_standing_wave_V1_sum_of_opposite_waves. Checks: V1 equals the sum of
     ``wave_fields(direction=+1)`` and ``(direction=−1)`` (1e-13); nodes fixed. Label: analytic.
     """
     k = float(k)
@@ -619,8 +663,9 @@ def seiche_modes(L: float, H: float, n=0, g: float = G) -> dict:
     u = 0 at both walls ⇒ sin kL = 0 ⇒ kL = (n + 1)π, λ = 2L/(n + 1) (7.64); ω = √((πg(n + 1)/L) tanh((n + 1)πH/L))
     (7.65) = (7.28) at that k. Book: §7.4, Eqs. (7.63)–(7.65), Fig. 7.12.
     Parameters: L [m]; H [m]; n mode number 0, 1, 2, … (array allowed); g. Returns dict(k [rad/m], lam [m], omega
-    [rad/s], T [s]). Validation (planned): V1 u(0) = u(L) = 0; V3 FD shallow-water eigenproblem → these frequencies.
-    Label: analytic.
+    [rad/s], T [s]). Validation: V1, V3 — tests/test_ch07.py: test_seiche_V1_walls_modes_and_dispersion,
+    test_seiche_V3_finite_difference_sloshing_eigenproblem. Checks: V1 u(0) = u(L) = 0; V3 FD shallow-water eigenproblem
+    → these frequencies. Label: analytic.
     """
     n_ = _F(n)
     k = (n_ + 1.0) * np.pi / float(L)  # kL = (n + 1)π
@@ -632,7 +677,8 @@ def seiche_modes(L: float, H: float, n=0, g: float = G) -> dict:
 def basin_modes(L: float, b: float, H: float, m=1, n=0, g: float = G) -> dict:
     """Modes of a rectangular basin L × b (depth H, vertical walls): k² = (mπ/L)² + (nπ/b)², ω = √(gk tanh kH)
     (Exercises 7.5–7.6; our statement). η ∝ cos(mπx/L) cos(nπy/b). m, n ≥ 0, not both 0.
-    Returns dict(k, lam = 2π/k, omega, T). Book: §7.4 (7.65) generalised. Label: analytic."""
+    Returns dict(k, lam = 2π/k, omega, T). Book: §7.4 (7.65) generalised. Validation: V1 — tests/test_ch07.py:
+    test_seiche_V1_walls_modes_and_dispersion. Label: analytic."""
     m_, n_ = _F(m), _F(n)
     k = np.sqrt((m_ * np.pi / float(L)) ** 2 + (n_ * np.pi / float(b)) ** 2)
     om = _F(omega_gravity(k, H, g))
@@ -642,7 +688,8 @@ def basin_modes(L: float, b: float, H: float, m=1, n=0, g: float = G) -> dict:
 def seiche_state(L: float, H: float, n: int = 0, g: float = G) -> dict:
     """Explainer E4 state: seiche mode n with the shallow-water period T_s = 2L/((n + 1)√(gH)) and its error.
     Returns dict(k, lam, kH, omega, T [s], T_shallow [s], shallow_error = T_s/T − 1, T_min = T/60 [min]).
-    Book: §7.4, (7.64)–(7.65), (7.49). Scalar-callable. Label: analytic."""
+    Book: §7.4, (7.64)–(7.65), (7.49). Scalar-callable. Validation: V7 — tests/test_ch07.py:
+    test_seiche_state_V7_shallow_limit. Label: analytic."""
     s = seiche_modes(L, H, n, g)
     Ts = 2.0 * float(L) / ((float(n) + 1.0) * np.sqrt(float(g) * float(H)))
     return {**{kk: float(v) for kk, v in s.items()}, "kH": float(s["k"]) * float(H), "T_shallow": float(Ts),
@@ -656,7 +703,8 @@ def packet_state(k0: float, H=np.inf, g: float = G, sigma: float = 0.0, rho: flo
     Returns dict(omega, lam, c, cg, ratio = c_g/c, E = ½ρga² [J/m²] (7.42), F = E c_g [W/m] (7.71), t_crest_cross =
     group_length/|c − c_g| [s] (time for a crest to run through a group of that length; inf when c_g = c),
     arrival_h = distance/c_g [h] (energy arrival from a storm), regime ∈ {"cg<c", "cg=c", "cg>c"} (±0.5 %)).
-    group_length defaults to 10λ. Book: §7.5, Eqs. (7.67)–(7.71), (7.42). Scalar-callable. Label: analytic.
+    group_length defaults to 10λ. Book: §7.5, Eqs. (7.67)–(7.71), (7.42). Scalar-callable. Validation: V1 —
+    tests/test_ch07.py: test_packet_state_V1_explainer_numbers. Label: analytic.
     """
     k = float(k0)
     om = float(omega_capillary_gravity(k, H, sigma, rho, g))
@@ -682,8 +730,8 @@ def pond_ripples(x, t, width: float = 0.01, n_modes: int = 256, k_max: float | N
     Book: §7.5, Fig. 7.16 and the stone-in-a-pond paragraph (N72) — our construction (curation "Cauchy–Poisson problem,
     our extension"). Parameters: x [m] (array); t [s] scalar or (M,); width w [m]; n_modes; k_max [rad/m]; H; sigma
     [N/m]; rho; g; a [m]. Returns η [m] (shape of x, or (M, len(x))).
-    Validation (planned): V1 t = 0 reproduces the hump (midpoint sum → integral); V1 parity with ``linear_evolve``.
-    Label: analytic.
+    Validation: V3 — tests/test_ch07.py: test_pond_ripples_V3_cosine_sum_converges_to_the_cauchy_poisson_integral.
+    Checks: V1 t = 0 reproduces the hump (midpoint sum → integral); V1 parity with ``linear_evolve``. Label: analytic.
     """
     w_ = float(width)
     km = 6.0 / w_ if k_max is None else float(k_max)
@@ -711,8 +759,9 @@ def local_wavenumber_frequency(theta_fn: Callable, x, t, h: float = 1e-4, ht: fl
     k ≡ ∂θ/∂x, ω ≡ −∂θ/∂t (7.73), by fourth-order central differences.
 
     Book: §7.5, Eqs. (7.72)–(7.73). Parameters: theta_fn θ(x, t) [rad]; x [m]; t [s]; h [m], ht [s] (default h) steps
-    (choose ≪ the wavelength and period). Returns the tuple (k [rad/m], ω [rad/s]). Validation (planned): V1
-    θ = kx − ωt exact; V3 order 4. Label: analytic, converged."""
+    (choose ≪ the wavelength and period). Returns the tuple (k [rad/m], ω [rad/s]). Validation: V3 — tests/test_ch07.py:
+    test_local_wavenumber_V3_fourth_order_and_crest_conservation. Checks: V1 θ = kx − ωt exact; V3 order 4. Label:
+    analytic, converged."""
     x_, t_ = _F(x), _F(t)
     ht = h if ht is None else ht
     k = _d1(lambda xx: _F(theta_fn(xx, t_)), x_, h)  # Eq. (7.73)
@@ -728,8 +777,9 @@ def crest_conservation_residual(theta_fn: Callable, x, t, H_fn: Callable | None 
     r_dispersion = ω_local − ω(k_local, x); r775 = ∂k/∂t + c_g ∂k/∂x (7.75, homogeneous media only);
     r779 = ∂ω/∂t + c_g ∂ω/∂x (7.79, frequency constant along rays, also for H = H(x)).
     Book: §7.5, Eqs. (7.73)–(7.79). Parameters: theta_fn; x [m]; t [s]; H_fn or omega_fn; h [m], ht [s] (default h)
-    steps; g. Returns dict(r774 [, r775, r779, r_dispersion], k, omega [, cg]). Validation (planned): V1 plane wave;
-    V3 order 4 in h. Label: converged.
+    steps; g. Returns dict(r774 [, r775, r779, r_dispersion], k, omega [, cg]). Validation: V2, V3 — tests/test_ch07.py:
+    test_crest_conservation_V2_derivation, test_local_wavenumber_V3_fourth_order_and_crest_conservation. Checks: V1
+    plane wave; V3 order 4 in h. Label: converged.
     """
     x_, t_ = _F(x), _F(t)
     ht = h if ht is None else ht
@@ -772,7 +822,8 @@ def snell_ray_plane_beach(x, alpha0: float, x0: float, T: float, slope: float, g
     Parameters: x positions ≤ x₀ (array, > 0) [m]; alpha0 incidence angle at x₀ [rad]; x0 start [m]; T period [s];
     slope dH/dx [–]; g. Returns dict(x, y, H, k, alpha, alpha_deg, c, cg, l (alongshore wavenumber), snell = k sin α
     (= l at every point)) along the ray.
-    Validation (planned): V1 parity with :func:`ray_trace` over the same beach; k sin α constant. Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_snell_V2_derivation, test_ray_trace_V1_snell_closed_form_parity.
+    Checks: V1 parity with :func:`ray_trace` over the same beach; k sin α constant. Label: analytic.
     """
     om = _TWO_PI / float(T)
     x_ = np.atleast_1d(_F(x))
@@ -797,7 +848,8 @@ def refraction_state(T: float, alpha0: float, H0: float, H: float, g: float = G)
     """Explainer E6 state: one point of a plane-beach ray. A wave of period T arrives from depth H₀ at angle α₀ to the
     depth-contour normal; at depth H the wavenumber follows from ω = 2π/T fixed (7.28) and the angle from Snell's law
     k sin α = k₀ sin α₀ (curation D24, ours). Returns dict(omega, k0, k, alpha [rad], alpha_deg, c, cg, snell = k sin α,
-    lam). Book: §7.2 refraction (Fig. 7.8); §7.5 (7.79). Scalar-callable. Label: analytic."""
+    lam). Book: §7.2 refraction (Fig. 7.8); §7.5 (7.79). Scalar-callable. Validation: V1 — tests/test_ch07.py:
+    test_refraction_state_V1_worked_example. Label: analytic."""
     om = _TWO_PI / float(T)
     k0 = float(wavenumber_from_omega(om, H0, g))
     k = float(wavenumber_from_omega(om, H, g))
@@ -809,7 +861,8 @@ def refraction_state(T: float, alpha0: float, H0: float, H: float, g: float = G)
 
 def wave_regime_label(kH) -> str:
     """"deep" (kH > 2), "intermediate" or "shallow" (H/λ < 0.07) — the book's thresholds (§7.2, after (7.45) and
-    (7.49)); thin wrapper of :func:`~fluidpy.core.waves.depth_regime` with k = 1. Scalar-callable. Label: analytic."""
+    (7.49)); thin wrapper of :func:`~fluidpy.core.waves.depth_regime` with k = 1. Scalar-callable. Validation: V1 —
+    tests/test_ch07.py: test_depth_regime_V1_book_thresholds_and_errors. Label: analytic."""
     return W.depth_regime(1.0, float(kH))["regime"]
 
 
@@ -817,7 +870,8 @@ def dispersion_state(lam: float, H=np.inf, g: float = G, rho: float = 1000.0, a:
     """Explainer E1 state for a wave of wavelength λ on depth H: dict(k, kH, H_over_lambda, omega, T, c, cg, c_deep =
     √(g/k), c_shallow = √(gH), regime, deep_error, shallow_error, p_bottom_fraction = 1/cosh kH, p_surface_amp = ρga [Pa],
     t_cross_1000km_c_h, t_cross_1000km_cg_h = 10⁶ m / c (or c_g) in hours).
-    Book: §7.2, (7.28), (7.29), (7.31), (7.45), (7.49); §7.5 (7.69). Scalar-callable. Label: analytic."""
+    Book: §7.2, (7.28), (7.29), (7.31), (7.45), (7.49); §7.5 (7.69). Scalar-callable. Validation: V1 —
+    tests/test_ch07.py: test_dispersion_state_V1_explainer_numbers. Label: analytic."""
     k = _TWO_PI / float(lam)
     om = float(omega_gravity(k, H, g))
     c = om / k
@@ -842,8 +896,8 @@ def nonlinear_wavelet_speed(eta, H: float, g: float = G, model: str = "simple"):
     speed — here u from linear shallow-water theory u = (c₀/H)η ((7.51) with (7.52)): c = √(g(H + η)) + c₀η/H.
     model = "simple" (Riemann simple wave, **our extension**, exact for the nonlinear shallow-water equations):
     c = 3√(g(H + η)) − 2c₀. Both = c₀(1 + (3/2)η/H) + O(η²) — the KdV coefficient of (7.87). Crests outrun troughs.
-    Parameters: eta [m]; H [m]; g; model. Returns c [m/s]. Validation (planned): V1 first-order agreement.
-    Label: analytic.
+    Parameters: eta [m]; H [m]; g; model. Returns c [m/s]. Validation: V1 — tests/test_ch07.py:
+    test_simple_wave_V1_breaking_time_and_first_order_speed. Checks: V1 first-order agreement. Label: analytic.
     """
     e = _F(eta)
     c0 = np.sqrt(float(g) * float(H))
@@ -863,8 +917,9 @@ def simple_wave_evolve(eta0, x, t, H: float, g: float = G) -> dict:
     Book: §7.6, Fig. 7.19 (qualitative: "crests overtake troughs", method of characteristics named) — this simple-wave
     solution is **our extension** (labelled). Parameters: eta0 (N,) [m] at x (N,) [m]; t scalar or (M,) [s]; H; g.
     Returns dict(x_points (M, N) or (N,) positions of the surface points (also under the key ``x``), eta (N,)
-    (unchanged along characteristics), t_break [s], c (N,)). Validation (planned): V1 breaking time of a sine vs the
-    formula. Label: analytic.
+    (unchanged along characteristics), t_break [s], c (N,)). Validation: V1 — tests/test_ch07.py:
+    test_simple_wave_V1_breaking_time_and_first_order_speed. Checks: V1 breaking time of a sine vs the formula. Label:
+    analytic.
     """
     e0 = _F(eta0)
     x_ = _F(x)
@@ -881,7 +936,8 @@ def jump_momentum_residual(H1, H2, Q, g: float = G):
     """Momentum balance of a stationary hydraulic jump per unit width and density,
     Q²(1/H₂ − 1/H₁) − ½g(H₁² − H₂²) [m³/s²] (0 for a physical pair of conjugate depths).
     Book: §7.6, Eq. (7.80) (CV (4.17) with d/dt = 0, b = 0, uniform velocity, hydrostatic faces; Fig. 7.20b).
-    Label: analytic."""
+    Validation: V1, V2 — tests/test_ch07.py: test_hydraulic_jump_V2_derivation_belanger,
+    test_hydraulic_jump_V1_momentum_mass_and_numbers. Label: analytic."""
     return _S(_F(Q) ** 2 * (1.0 / _F(H2) - 1.0 / _F(H1)) - 0.5 * float(g) * (_F(H1) ** 2 - _F(H2) ** 2))  # Eq. (7.80)
 
 
@@ -893,9 +949,12 @@ def hydraulic_jump(H1: float, u1: float | None = None, Fr1: float | None = None,
     (H₂ − H₁)³/(4H₁H₂)) only if H₂ > H₁ ⇔ Fr₁ > 1 — Fr₁ < 1 would create mechanical energy (second law forbids).
     Book: §7.6, Eqs. (7.80)–(7.81) and the energy line; Fig. 7.20.
     Parameters: H1 upstream depth [m]; u1 [m/s] or Fr1 [–]; g. Returns dict(H2, u1, u2, Fr1, Fr2, ratio, Q [m²/s],
-    E1, E2, dE [J/kg], head_loss [m], allowed (Fr₁ ≥ 1)). Validation (planned): V2 sympy (7.80) ⇒ quadratic and the
-    energy identity; V1 momentum residual 0; V5 Wikipedia Bélanger form; parity with ``ch04.bore_speed``.
-    Label: analytic, symbolic, benchmark.
+    E1, E2, dE [J/kg], head_loss [m], allowed (Fr₁ ≥ 1)). Validation: V1, V2, V4 — tests/test_ch07.py:
+    test_hydraulic_jump_V2_derivation_belanger, test_hydraulic_jump_V2_derivation_energy_loss,
+    test_hydraulic_jump_V1_momentum_mass_and_numbers, test_hydraulic_jump_V4_second_law,
+    test_hydraulic_jump_V1_form_belanger_published. Checks: V2 sympy (7.80) ⇒ quadratic and the energy identity; V1
+    momentum residual 0; V1 same *form* as Wikipedia's Bélanger equation (a form check, not a numerical benchmark); V4
+    second law; parity with ``ch04.bore_speed``. Label: analytic, symbolic.
     """
     H1 = float(H1)
     if (u1 is None) == (Fr1 is None):
@@ -925,7 +984,8 @@ def jump_state(H1: float, Fr1: float, g: float = G, rho: float = 1000.0, frame: 
     water behind follows at u₁ − u₂ (flow_behind).
     Book: §7.6, (7.80)–(7.81) and the jump energy line; §4.4 Example 4.3. Returns dict(H2, ratio, u1, u2, Q, Fr2, dE,
     head_loss, power_loss, mom_in, mom_out, p_in, p_out, residual, allowed, bore_speed, flow_behind, frame).
-    Scalar-callable. Label: analytic.
+    Scalar-callable. Validation: V1 — tests/test_ch07.py: test_jump_state_V1_budget_and_moving_bore_parity. Label:
+    analytic.
     """
     j = hydraulic_jump(H1, Fr1=Fr1, g=g)
     r = float(rho)
@@ -940,8 +1000,16 @@ def jump_state(H1: float, Fr1: float, g: float = G, rho: float = 1000.0, frame: 
 
 def stokes_wave_speed(k, a, g: float = G):
     """Amplitude-dependent speed of a deep-water Stokes wave c = √((g/k)(1 + k²a²)) [m/s] (to O((ka)²)).
-    Book: §7.6, Eq. (7.83). Parameters: k [rad/m]; a [m]; g. Validation (planned): V2 Exercise 7.2 (γ = 1).
-    Label: analytic."""
+
+    Book: §7.6, Eq. (7.83) (Stokes 1847). The coefficient γ = 1 in c² = (g/k)(1 + γk²a²) comes from the **consistent
+    third-order** Stokes expansion (:func:`stokes_expansion_sympy` ``third_order``), in which the potential's first
+    harmonic carries a correction −(5/8)(ka)² relative to aω/k (−(1/8)(ka)² relative to a√(g/k)), fixed only by the
+    O((ka)³) kinematic balance. The literal Exercise 7.2 ansatz (potential amplitude held at aω/k, kinematic condition
+    truncated at (ka)¹) gives γ = 3/8 instead (``exercise_literal``) — it is not a derivation of (7.83).
+    Parameters: k [rad/m] > 0; a [m]; g [m/s²]. Returns c [m/s].
+    Validation: V1, V2, V5 — tests/test_ch07.py: test_stokes_expansion_V2_third_order_coefficients,
+    test_stokes_wave_V5_speed_and_limiting_steepness, test_stokes_wave_profile_V1_harmonics_and_permanence. Checks: V2
+    consistent third-order expansion (γ = 1); V5 HandWiki "Stokes wave" c = (1 + ½(ka)²)√(g/k). Label: analytic."""
     return _S(np.sqrt(float(g) / _F(k) * (1.0 + (_F(k) * _F(a)) ** 2)))  # Eq. (7.83)
 
 
@@ -950,7 +1018,9 @@ def stokes_wave_profile(x, t, a: float = 0.1, k: float = 1.0, g: float = G, orde
     peaked crests, flat troughs; all harmonics move at one speed, so the profile is permanent. Asymptotic only — keep
     ka ≲ 0.3; the 120° limiting crest is not a property of the truncated series.
     Book: §7.6, Eq. (7.82), Fig. 7.21. Parameters: x [m]; t [s]; a [m]; k [rad/m]; g; order 1–3.
-    Validation (planned): V2 the O(ka) coefficient ½ from Exercise 7.2 (:func:`stokes_expansion_sympy`). Label: analytic."""
+    Validation: V1, V2 — tests/test_ch07.py: test_stokes_expansion_V2_third_order_coefficients,
+    test_stokes_wave_profile_V1_harmonics_and_permanence. Checks: V2 the coefficients ½ and 3/8 from the consistent
+    third-order expansion (:func:`stokes_expansion_sympy`); V1 permanence and harmonics. Label: analytic."""
     k = float(k)
     c = float(stokes_wave_speed(k, a, g))
     th = k * (_F(x) - c * _F(t))
@@ -974,9 +1044,10 @@ def stokes_expansion_sympy() -> dict:
     * ``exercise_literal`` — the exercise's truncated set-up with the potential amplitude fixed at aω/k (β = 0) and the
       kinematic condition only to (ka)¹: α = ½, but the O(ε³) dynamic cos θ balance gives γ = 3/8, not 1. γ = 1 needs the
       O((ka)²) correction of the potential's first harmonic (β = −5/8), which the kinematic condition fixes only at the
-      next order (our finding; reported for the derivation review).
+      next order (our finding, confirmed by the derivation review M2: (7.83) is right, the truncated ansatz is not).
     Book: §7.6, Eqs. (7.82)–(7.83); Exercise 7.2. Returns dict(alpha (= 1/2), gamma (= 1) — the consistent third-order
-    values, third_order=dict(alpha, beta, delta, gamma), exercise_literal=dict(alpha, gamma)). Cached. Label: symbolic.
+    values, third_order=dict(alpha, beta, delta, gamma), exercise_literal=dict(alpha, gamma)). Cached. Validation: V2 —
+    tests/test_ch07.py: test_stokes_expansion_V2_third_order_coefficients. Label: symbolic.
     """
     th, eps, z = sp.symbols("theta epsilon z", real=True)
     al, be, de, ga = sp.symbols("alpha beta delta gamma")
@@ -1013,15 +1084,19 @@ def stokes_expansion_sympy() -> dict:
 
 def solitary_wave_speed(a: float, H: float, g: float = G) -> float:
     """Solitary-wave speed c = c₀(1 + a/2H), c₀ = √(gH) [m/s] — taller is faster. Book: §7.6, after (7.88).
-    Label: analytic."""
+    Validation: V1, V2 — tests/test_ch07.py: test_kdv_V2_solitary_wave_residual,
+    test_kdv_solve_V1_soliton_translates_at_c0_1_plus_a_over_2H, test_cnoidal_V1_form_and_soliton_limit. Label:
+    analytic."""
     return float(np.sqrt(float(g) * float(H)) * (1.0 + float(a) / (2.0 * float(H))))
 
 
 def solitary_wave(x, t, a: float = 0.2, H: float = 1.0, g: float = G, x0: float = 0.0):
     """Solitary wave (soliton) of the KdV equation η = a sech²[(3a/4H³)^{1/2}(x − x₀ − ct)], c = c₀(1 + a/2H) [m].
     Book: §7.6, Eq. (7.88), Fig. 7.23b (Russell 1844; check by substitution, Exercise 7.15 → :func:`kdv_residual_sympy`).
-    Parameters: x [m]; t [s]; a crest height [m]; H depth [m]; g; x0 [m]. Validation (planned): V2 residual 0; V1 KdV
-    solver translates it at c; V5 Wikipedia "Cnoidal wave" solitary limit. Label: analytic, symbolic."""
+    Parameters: x [m]; t [s]; a crest height [m]; H depth [m]; g; x0 [m]. Validation: V1, V2 — tests/test_ch07.py:
+    test_kdv_V2_solitary_wave_residual, test_kdv_solve_V1_soliton_translates_at_c0_1_plus_a_over_2H,
+    test_cnoidal_V1_form_and_soliton_limit. Checks: V2 residual 0; V1 KdV solver translates it at c; V5 Wikipedia
+    "Cnoidal wave" solitary limit. Label: analytic, symbolic."""
     c = solitary_wave_speed(a, H, g)
     arg = np.sqrt(3.0 * float(a) / (4.0 * float(H) ** 3)) * (_F(x) - float(x0) - c * _F(t))
     return _S(float(a) / np.cosh(arg) ** 2)  # Eq. (7.88)
@@ -1036,8 +1111,9 @@ def cnoidal_wave(x, t, H: float = 1.0, height: float = 0.2, m: float = 0.9, g: f
     Book: §7.6, text before (7.88) and Fig. 7.23a (named; not printed) — our derivation from (7.87) with
     (cn²)″ = −6m cn⁴ + 4(2m − 1)cn² + 2(1 − m); cross-checked with Wikipedia "Cnoidal wave". scipy ``ellipj`` (m = k²).
     Parameters: x [m]; t [s]; H depth [m]; height A [m]; m elliptic parameter 0 < m < 1; g.
-    Returns dict(eta, c, wavelength, trough, Delta). Validation (planned): V1 m → 1 limit vs :func:`solitary_wave`
-    (1e-6); V1 KdV residual (spectral) ~ 0. Label: analytic.
+    Returns dict(eta, c, wavelength, trough, Delta). Validation: V1 — tests/test_ch07.py:
+    test_cnoidal_V1_form_and_soliton_limit. Checks: V1 m → 1 limit vs :func:`solitary_wave` (1e-6); V1 KdV residual
+    (spectral) ~ 0. Label: analytic.
     """
     A = float(height)
     Hh = float(H)
@@ -1057,13 +1133,15 @@ def cnoidal_wave(x, t, H: float = 1.0, height: float = 0.2, m: float = 0.9, g: f
 def ursell_number(a, lam, H):
     """Ursell ratio aλ²/H³ [–] of nonlinear to dispersive terms in KdV (7.87): ≳ 16 → steepening to a jump; smaller →
     balance and permanent forms (cnoidal, solitary). Book: §7.6, text after (7.87) (the book says "(7.88)"; the terms are
-    those of (7.87)). Label: analytic."""
+    those of (7.87)). Validation: V1 — tests/test_ch07.py: test_kdv_linear_phase_speed_V1_taylor_of_7_29. Label:
+    analytic."""
     return _S(_F(a) * _F(lam) ** 2 / _F(H) ** 3)
 
 
 def kdv_linear_phase_speed(k, H: float, g: float = G):
     """Phase speed of the linearised KdV equation c = c₀(1 − k²H²/6) [m/s] — the first two Taylor terms of (7.29).
-    Book: §7.6, text after (7.87). Validation (planned): V1 error vs (7.29) ∝ (kH)⁴. Label: analytic."""
+    Book: §7.6, text after (7.87). Validation: V1 — tests/test_ch07.py: test_kdv_linear_phase_speed_V1_taylor_of_7_29.
+    Checks: V1 error vs (7.29) ∝ (kH)⁴. Label: analytic."""
     return _S(np.sqrt(float(g) * float(H)) * (1.0 - _F(k) ** 2 * float(H) ** 2 / 6.0))
 
 
@@ -1079,7 +1157,8 @@ def _kdv_setup(x, H, g):
 def kdv_rhs(eta, x, H: float, g: float = G):
     """Right side of the KdV equation, ∂η/∂t = −c₀η_x − (3/2)(c₀/H)ηη_x − (1/6)c₀H²η_xxx [m/s], by spectral derivatives
     on a periodic grid. Book: §7.6, Eq. (7.87). Parameters: eta (N,) [m]; x (N,) uniform periodic [m]; H; g.
-    Label: analytic."""
+    Validation: V1 — tests/test_ch07.py: test_kdv_solve_V1_soliton_translates_at_c0_1_plus_a_over_2H. Label:
+    analytic."""
     x_, N, dx, kx, c0 = _kdv_setup(x, H, g)
     E = np.fft.fft(_F(eta))
     ex = np.real(np.fft.ifft(1j * kx * E))
@@ -1093,7 +1172,8 @@ def kdv_invariants(eta, x, H: float | None = None, g: float = G) -> dict:
     mass ∫η dx [m²]; momentum ∫η² dx [m³] (the KdV "momentum", ∝ the wave potential energy ½ρg∫η²); energy = the
     Hamiltonian ∫(αη³/6 − βη_x²/2) dx [m⁴/s] with α = (3/2)c₀/H, β = c₀H²/6 (η_x spectral; NaN unless H is given — the
     c₀η_x term only adds total derivatives). Book: §7.6 (7.87) — our diagnostic. Works on (N,) or (M, N) arrays.
-    Validation (planned): V4 all three conserved by ``kdv_solve``. Label: conserved."""
+    Validation: V4 — tests/test_ch07.py: test_kdv_solve_V4_invariants_of_a_splitting_hump. Checks: V4 all three
+    conserved by ``kdv_solve``. Label: conserved."""
     e = _F(eta)
     x_ = _F(x)
     dx = float(x_[1] - x_[0])
@@ -1123,8 +1203,10 @@ def kdv_solve(eta0, x, t_out, H: float, g: float = G, dt: float | None = None, d
     dealias; cache: path of an ``.npz`` file (e.g. outputs/ch07/kdv_run.npz) — reused when it was written with the
     same inputs (SHA-1 of η₀, x, t_out, H, g, dt, dealias; any change recomputes and overwrites).
     Returns dict(t, eta (M, N), mass, momentum, energy (M,) — :func:`kdv_invariants`, dt, steps, cached (bool)).
-    Validation (planned): V1 the solitary wave (7.88) translates at c₀(1 + a/2H); V3 order 4 in dt, spectral in N;
-    V4 mass, momentum, energy conserved. Label: analytic, converged, conserved.
+    Validation: V1, V3, V4 — tests/test_ch07.py: test_kdv_solve_V1_soliton_translates_at_c0_1_plus_a_over_2H,
+    test_kdv_solve_V3_time_order_four_and_spectral_space, test_kdv_solve_V4_invariants_of_a_splitting_hump. Checks: V1
+    the solitary wave (7.88) translates at c₀(1 + a/2H); V3 order 4 in dt, spectral in N; V4 mass, momentum, energy
+    conserved. Label: analytic, converged, conserved.
     """
     if cache is not None:
         key = hashlib.sha1()
@@ -1190,7 +1272,8 @@ def kdv_residual_sympy(nonlinear_coefficient=sp.Rational(3, 2)) -> dict:
     """Exercise 7.15: substitute the solitary wave (7.88) into KdV (7.87) and simplify — the residual is exactly 0 with
     c = c₀(1 + a/2H). Done in the variable T = tanh(β(x − ct)), β = √(3a/4H³) (d/dx → β(1 − T²)d/dT), so the residual is
     a polynomial in T. ``nonlinear_coefficient`` ≠ 3/2 is the discriminating wrong variant (non-zero residual).
-    Book: §7.6, Eqs. (7.87)–(7.88). Returns dict(residual, residual_coefficients, speed). Label: symbolic."""
+    Book: §7.6, Eqs. (7.87)–(7.88). Returns dict(residual, residual_coefficients, speed). Validation: V2 —
+    tests/test_ch07.py: test_kdv_V2_solitary_wave_residual. Label: symbolic."""
     a, H, g, T = sp.symbols("a H g T", positive=True)
     c0 = sp.sqrt(g * H)
     c = c0 * (1 + a / (2 * H))
@@ -1220,7 +1303,9 @@ def interface_fields(x, z, t, a: float = 0.1, k: float = 1.0, rho1: float = 1000
     Returns dict(zeta_interface (interface displacement; also ``zeta``), phi1, phi2, u1, u2, w1, w2, phi, u, w (fluid 1
     for z ≥ 0, fluid 2 below), A, B (complex), omega, gamma_sheet = u₂ − u₁ at z = 0 (u_below − u_above, ch05 convention)
     = 2ωa cos θ).
-    Validation (planned): V1 residuals of (7.90)–(7.94) = 0; A = −B = iωa/k. Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_interface_V2_derivation,
+    test_interface_fields_V1_residuals_vortex_sheet_and_parity. Checks: V1 residuals of (7.90)–(7.94) = 0; A = −B =
+    iωa/k. Label: analytic.
     """
     k = float(k)
     om = float(W.interface_omega(k, rho1, rho2, g))
@@ -1248,7 +1333,8 @@ def interface_residuals(x, t, a: float = 0.1, k: float = 1.0, rho1: float = 1000
     """Residuals of the two-fluid problem for :func:`interface_fields`: Laplace in each fluid (7.90) (O(h⁴) stencil at
     z = ±0.5/k), decay (7.91)–(7.92) (|φ| at z = ±40/k), kinematic (7.93) on both sides and pressure continuity (7.94) at
     z = 0 (analytic derivatives of the complex fields). Book: §7.7, Eqs. (7.90)–(7.94). Returns dict of arrays.
-    Validation (planned): V1 all ~ 0. Label: analytic."""
+    Validation: V1 — tests/test_ch07.py: test_interface_fields_V1_residuals_vortex_sheet_and_parity. Checks: V1 all ~ 0.
+    Label: analytic."""
     k = float(k)
     x_ = _F(x)
     hh = 0.01 / k if h is None else float(h)
@@ -1280,7 +1366,8 @@ def interface_energy(a: float = 0.1, k: float = 1.0, rho1: float = 1000.0, rho2:
     "quad": E_k = (1/λ)∫₀^λ∫_{−∞}^{∞} ½ρ(u² + w²) dz dx and E_p = (1/λ)∫₀^λ∫₀^ζ (ρ₂ − ρ₁)g z dz dx (the energy of lifting
     ρ₂ above z = 0 and lowering ρ₁) by ``dblquad`` (|z| ≤ 40/k).
     Book: §7.7, E_k and E_p lines before and (7.96). (The printed middle form of E_p with ∫₀^{λ/2} and 1/2λ gives ⅛; its
-    outer forms give ¼ — see the module notes.) Validation (planned): V1 quad = closed (1e-8). Label: analytic.
+    outer forms give ¼ — see the module notes.) Validation: V1 — tests/test_ch07.py:
+    test_interface_energy_V1_quarter_from_direct_integration. Checks: V1 quad = closed (1e-8). Label: analytic.
     """
     drho = float(rho2) - float(rho1)
     if method == "closed":
@@ -1329,8 +1416,9 @@ def two_layer_modes(k: float, H: float, rho1: float = 1000.0, rho2: float = 1002
     Returns dict(omega, c, A, B, C, b (complex), eta_over_zeta (a/b, real), p_top, p_interface (complex p′ amplitudes at
     z = 0 and −H), p_hydrostatic = ρ₁ga, p_prime_check = dict(top_over_hydrostatic (= 1: (7.119) at z = 0),
     interface_over_top (→ 1 as kH → 0: depth-independent, hydrostatic)), mode, plus omega_exact, eta_over_zeta_exact when
-    long_wave). Validation (planned): V2 :func:`two_layer_sympy`; V1 :func:`two_layer_residuals` = 0; V7 limits.
-    Label: analytic.
+    long_wave). Validation: V1, V2 — tests/test_ch07.py: test_two_layer_modes_V2_derivation,
+    test_two_layer_modes_V1_amplitude_ratios_and_pressure, test_two_layer_residuals_V1_numeric_and_printed_variant.
+    Checks: V2 :func:`two_layer_sympy`; V1 :func:`two_layer_residuals` = 0; V7 limits. Label: analytic.
     """
     k, H, a = float(k), float(H), float(a)
     w_bt, w_bc = W.two_layer_free_surface_omega(k, H, rho1, rho2, g)
@@ -1369,7 +1457,8 @@ def two_layer_residuals(x, t, k: float = 0.1, H: float = 50.0, rho1: float = 100
     (real parts). ``printed_7_105=True`` uses φ₂ = Ce^{kz}e^{i(k**z** − ωt)} as printed (§9 T3) — its Laplace and interface
     residuals are then non-zero (the wrong variant). Book: §7.7, Eqs. (7.97)–(7.105). Returns dict(laplace2, decay2,
     kin_surface (7.98), dyn_surface (7.99), kin_interface_1, kin_interface_2 (7.100), dyn_interface (7.101)).
-    Validation (planned): V1 all ~ 0 for the correct form. Label: analytic."""
+    Validation: V1 — tests/test_ch07.py: test_two_layer_residuals_V1_numeric_and_printed_variant. Checks: V1 all ~ 0 for
+    the correct form. Label: analytic."""
     k = float(k)
     md = two_layer_modes(k, H, rho1, rho2, g, a, mode)
     om, A, B, C, b = md["omega"], md["A"], md["B"], md["C"], md["b"]
@@ -1415,7 +1504,9 @@ def two_layer_sympy() -> dict:
     Book: §7.7, Eqs. (7.98)–(7.114); Exercise 7.19. Returns dict(A, B, C, b (solved), bc_residuals (the four conditions
     (7.98), (7.99), (7.100) ×2 with the book's (7.106)–(7.109) substituted: 4 zeros), pressure_residual ((7.101) with
     them), common_factor (= ag²k/ω²), dispersion_7110 (its left side), factored (the factorised residual),
-    printed_7105_residual, residuals (dict, all 0), ratio_7_101_to_7_110, omega2_baroclinic). Cached. Label: symbolic."""
+    printed_7105_residual, residuals (dict, all 0), ratio_7_101_to_7_110, omega2_baroclinic). Cached. Validation: V2 —
+    tests/test_ch07.py: test_two_layer_constants_V2_derivation, test_two_layer_dispersion_V2_derivation. Label:
+    symbolic."""
     a, k, H, g, om, r1, r2 = sp.symbols("a k H g omega rho1 rho2", positive=True)
     A, B, C, b = sp.symbols("A B C b")
     I = sp.I
@@ -1460,7 +1551,8 @@ def two_layer_sympy() -> dict:
 def two_layer_rigid_lid_omega(k, h1: float, h2: float, rho1: float, rho2: float, g: float = G):
     """Interfacial waves between rigid lids (upper layer h₁ over lower layer h₂; Exercise 7.20, our derivation):
     ω² = gk(ρ₂ − ρ₁)/(ρ₁ coth kh₁ + ρ₂ coth kh₂) [rad/s]; h₁, h₂ → ∞ recovers (7.95); long waves c² → g(ρ₂ − ρ₁)h₁h₂/
-    (ρ₁h₂ + ρ₂h₁) ≈ g′h₁h₂/(h₁ + h₂). Book: §7.7 (Exercise 7.20). Label: analytic."""
+    (ρ₁h₂ + ρ₂h₁) ≈ g′h₁h₂/(h₁ + h₂). Book: §7.7 (Exercise 7.20). Validation: V7 — tests/test_ch07.py:
+    test_two_layer_V7_limits_and_reduced_gravity. Label: analytic."""
     kk = np.abs(_F(k))
     coth = lambda q: 1.0 / np.tanh(q)  # noqa: E731
     w2 = float(g) * kk * (float(rho2) - float(rho1)) / (float(rho1) * coth(kk * h1) + float(rho2) * coth(kk * h2))
@@ -1472,7 +1564,8 @@ def two_layer_state(k: float, H: float, rho1: float = 1000.0, rho2: float = 1002
                     mode: str = "baroclinic") -> dict:
     """Explainer E8 state: dict(omega_bt, omega_bc, omega (of ``mode``), c_bt, c_bc, T (period of mode), eta_over_zeta
     (of mode), g_prime_lower (7.117), g_prime_upper (ch04), c_long = √(g′H), eps2_density, omega_two_deep (7.95), kH,
-    mode). Book: §7.7, (7.95), (7.110)–(7.118). Scalar-callable. Label: analytic."""
+    mode). Book: §7.7, (7.95), (7.110)–(7.118). Scalar-callable. Validation: V1 — tests/test_ch07.py:
+    test_two_layer_state_V1_explainer_numbers. Label: analytic."""
     w_bt, w_bc = W.two_layer_free_surface_omega(k, H, rho1, rho2, g)
     md = two_layer_modes(k, H, rho1, rho2, g, 1.0, mode)
     kf = float(k)
@@ -1498,7 +1591,8 @@ def boussinesq_linear_sympy() -> dict:
     (7.134), without constant N. Also: the plane wave (7.136) in (7.134) gives (7.137).
     Book: §7.8, Eqs. (7.120)–(7.137), (4.9)–(4.10). Returns dict(r7126, r7128, r7129, r7130, r7131, r7132 (∂_t R₅ −
     ∂_x R₁ − ∂_y R₂ minus (7.132)'s two sides), r7133 (∂_t R₃ − (g/ρ₀)R₄ minus (7.133)'s), r7134, r7137 — each 0;
-    w_equation (the left side of (7.134)), residuals (the same dict), dispersion, N2). Cached. Label: symbolic.
+    w_equation (the left side of (7.134)), residuals (the same dict), dispersion, N2). Cached. Validation: V2 —
+    tests/test_ch07.py: test_boussinesq_linear_V2_derivation, test_w_equation_V2_derivation. Label: symbolic.
     """
     x, y, z, t = sp.symbols("x y z t", real=True)
     g, rho0, eps = sp.symbols("g rho0 epsilon", positive=True)
@@ -1557,8 +1651,10 @@ def internal_wave_fields(x, z, t, k: float = 1.0, m: float = 1.0, N: float = 1.0
     → add second-order finite-difference residuals of (4.10), (7.128), (7.130), (7.131) with steps h [m] (default
     1e-3/K) and ht [s] (default 1e-3/ω).
     Returns dict(u, w, p_prime [Pa], rho_prime [kg/m³], zeta_particle [m] (also ``zeta``), omega, K_dot_u (k u + m w,
-    = 0: (7.141)), amplitudes (complex dict), [residuals]). Validation (planned): V2 polarization by sympy; V3 FD
-    residuals order 2; V1 K·u = 0. Label: analytic, converged.
+    = 0: (7.141)), amplitudes (complex dict), [residuals]). Validation: V1, V2, V3 — tests/test_ch07.py:
+    test_polarization_and_flux_V2_derivation, test_internal_wave_fields_V1_polarization_and_transversality,
+    test_internal_wave_fields_V3_residuals_second_order. Checks: V2 polarization by sympy; V3 FD residuals order 2; V1
+    K·u = 0. Label: analytic, converged.
     """
     k, m = float(k), float(m)
     om = float(internal_wave_omega(k, m, N))
@@ -1595,8 +1691,9 @@ def w_equation_residual(w_fn: Callable, x, z, t, N: float, h: float = 1e-2, ht: 
     """Residual of the internal-wave equation ∂²/∂t²(∂²w/∂x² + ∂²w/∂z²) + N²∂²w/∂x² (7.134) in the x–z plane for a
     callable w(x, z, t), by nested second-order central differences (steps h [m], ht [s]; truncation O(h² + ht²),
     round-off ~ 1e-16/(h²ht²) — hence the default 1e-2 for unit-scale K and ω; scale the steps with 1/K and 1/ω).
-    Book: §7.8, Eq. (7.134). Validation (planned): V1 ≈ 0 for the plane wave with ω from (7.138), ≠ 0 with a wrong ω.
-    Label: converged."""
+    Book: §7.8, Eq. (7.134). Validation: V1 — tests/test_ch07.py:
+    test_w_equation_residual_V1_plane_wave_right_and_wrong_frequency. Checks: V1 ≈ 0 for the plane wave with ω from
+    (7.138), ≠ 0 with a wrong ω. Label: converged."""
     X, Z, T = _F(x), _F(z), _F(t)
 
     def d2(f, var, s):
@@ -1616,7 +1713,8 @@ def layered_flow_check(u_fn: Callable, v_fn: Callable, x, y, z=0.0, h: float = 1
     """The steady solution w = p′ = ρ′ = 0 (§7.8, before Fig. 7.30): any horizontal, horizontally non-divergent (u, v)
     with arbitrary z-dependence, ∂u/∂x + ∂v/∂y = 0 (7.142), satisfies (4.10) and (7.128)–(7.131) — decoupled horizontal
     layers (pancake flow, blocking). Returns dict(divergence (7.142) by central differences, momentum_x = 0,
-    momentum_z = 0, density = 0) for callables u(x, y, z), v(x, y, z). Book: §7.8, Eq. (7.142). Label: analytic."""
+    momentum_z = 0, density = 0) for callables u(x, y, z), v(x, y, z). Book: §7.8, Eq. (7.142). Validation: V1 —
+    tests/test_ch07.py: test_layered_flow_V1_horizontal_nondivergent_layers. Label: analytic."""
     X, Y, Z = _F(x), _F(y), _F(z)
     div = (_F(u_fn(X + h, Y, Z)) - _F(u_fn(X - h, Y, Z))) / (2 * h) \
         + (_F(v_fn(X, Y + h, Z)) - _F(v_fn(X, Y - h, Z))) / (2 * h)  # Eq. (7.142)
@@ -1632,7 +1730,9 @@ def internal_wave_energy(k: float = 1.0, m: float = 1.0, N: float = 1.0, w0: flo
     F = ⟨p′u⟩ = (ρ₀ωmŵ²/2k²)(m/k e_x − e_z) (7.158); c_g E (unnumbered line) = F (7.159).
     Book: §7.8, Eqs. (7.147)–(7.159). Parameters: k ≠ 0, m [rad/m]; N [rad/s]; w0 [m/s]; rho0 [kg/m³]; g.
     Returns dict(Ek, Ep, E [J/m³], F (2,) [W/m²], cgE (2,), cg (2,) [m/s], omega). Sign-safe for k < 0.
-    Validation (planned): V1 E_k = E_p, F = c_g E (1e-14); closed forms = averages of the real fields. Label: analytic.
+    Validation: V1, V2 — tests/test_ch07.py: test_polarization_and_flux_V2_derivation,
+    test_internal_wave_energy_V1_closed_forms_equal_averages. Checks: V1 E_k = E_p, F = c_g E (1e-14); closed forms =
+    averages of the real fields. Label: analytic.
     """
     k, m, w0, r0 = float(k), float(m), float(w0), float(rho0)
     v = internal_wave_velocities(k, m, N)
@@ -1650,7 +1750,8 @@ def internal_energy_budget_residual(x, z, t, k: float = 1.0, m: float = 1.0, N: 
     """Pointwise internal-wave energy equation (7.147) ∂/∂t[½ρ₀(u² + w²)] + gρ′w + ∇·(p′u) = 0 for the plane wave of
     :func:`internal_wave_fields`, by second-order central differences (h [m], default 1e-3/K; ht [s], default 1e-3/ω).
     Book: §7.8, Eqs. (7.147)–(7.148). Returns the residual [W/m³]; terms=True returns dict(dKE_dt, conversion = gρ′w,
-    div_flux, residual). Validation (planned): V4 residual → 0 at order 2. Label: conserved, converged."""
+    div_flux, residual). Validation: V4 — tests/test_ch07.py: test_internal_energy_budget_V4_pointwise_residual. Checks:
+    V4 residual → 0 at order 2. Label: conserved, converged."""
     k_, m_ = float(k), float(m)
     om = float(internal_wave_omega(k_, m_, N))
     K = np.hypot(k_, m_)
@@ -1681,10 +1782,11 @@ def internal_pe_interface_limit(a: float = 1.0, rho1: float = 1000.0, rho2: floa
     sech²(z/ε)/(2ε) → (g/ρ₀)(ρ₂ − ρ₁)δ(z) (7.152); with the two-fluid particle displacement ζ = a e^{−k|z|} cos θ the
     column integral averaged over a wavelength, ∫½N²ρ₀⟨ζ²⟩dz, → ¼(ρ₂ − ρ₁)ga² as ε → 0 with error O(kε).
     Book: §7.8, Eqs. (7.150)–(7.152). Parameters: a [m]; rho1, rho2 [kg/m³]; g; rho0 reference density [kg/m³] (it
-    cancels); eps profile half-width [m]; k wavenumber of the interfacial wave [rad/m] (the relative error is ≈ 1.2 kε;
-    defaults ε = 1 m, k = 0.01 rad/m give 1.2 %). Returns ⟨∫E_p dz⟩ [J/m²]; detail=True → dict(Ep_column, target,
-    rel_error). Our construction (the book argues with δ(z) directly). Validation (planned): V3 order ≥ 1 in ε.
-    Label: converged."""
+    cancels); eps profile half-width [m]; k wavenumber of the interfacial wave [rad/m] (the relative error is
+    −2 ln 2·kε + O((kε)²) ≈ −1.39 kε, since ∫₀^∞ u sech²u du = ln 2 — the column value falls short; the defaults
+    ε = 1 m, k = 0.01 rad/m give −1.37 %, measured). Returns ⟨∫E_p dz⟩ [J/m²]; detail=True → dict(Ep_column, target,
+    rel_error). Our construction (the book argues with δ(z) directly). Validation: V3 — tests/test_ch07.py:
+    test_internal_pe_interface_limit_V3_epsilon_order_one. Checks: V3 order ≥ 1 in ε. Label: converged."""
     r0 = float(rho0)
     drho = float(rho2) - float(rho1)
     e = float(eps)
@@ -1714,7 +1816,8 @@ def st_andrews_cross(x, z, t, omega: float = 0.71, N: float = 1.0, width: float 
     Parameters: x (Nx,), z (Nz,) [m] (or 2-D arrays of the same shape); t [s]; omega < N [rad/s]; N; width [m]; amp;
     wavelength of the phase lines [m] (default 2·width). Returns the ρ′-like field (Nz, Nx) [–, scaled by amp];
     detail=True → dict(field, theta (from the vertical), beams: list of dict(e_beam, K, c, cg)).
-    Validation (planned): V7 beam axis at arccos(ω/N); c ⟂ c_g in each beam. Label: qualitative (illustration).
+    Validation: V7 — tests/test_ch07.py: test_st_andrews_cross_V7_beam_geometry. Checks: V7 beam axis at arccos(ω/N); c
+    ⟂ c_g in each beam. Label: qualitative (illustration).
     """
     th = float(W.beam_angle(omega, N))
     if not np.isfinite(th):
@@ -1749,7 +1852,8 @@ def internal_wave_state(omega_over_N: float, N: float = 1.0, K: float = 1.0, k_s
     Returns dict(theta_K (angle of K above the horizontal, rad), theta_K_deg, beam_from_vertical_deg (= θ_K: analysis
     R10), beam_from_horizontal_deg (= 90° − θ_K), k, m, omega, cx, cz, cgx, cgz, c = |c|, cg = |c_g| [m/s], dot (c·c_g,
     = 0), T = 2π/ω, T_N = 2π/N [s]). Book: §7.8, (7.138)–(7.146), Figs. 7.29, 7.31, 7.33. Scalar-callable.
-    Label: analytic."""
+    Validation: V1 — tests/test_ch07.py: test_internal_wave_velocities_V1_gradient_parity_both_signs. Label:
+    analytic."""
     r = float(omega_over_N)
     th = float(np.arccos(np.clip(r, 0.0, 1.0)))
     k = float(np.sign(k_sign) or 1.0) * float(K) * np.cos(th)
@@ -1771,9 +1875,15 @@ def dyed_line(z0s, t, a: float = 0.1, k: float = 1.0, H=np.inf, g: float = G, x0
               rtol: float = 1e-9, atol: float = 1e-12) -> dict:
     """Positions at time(s) t of fluid particles that start on the vertical line x = x₀ at depths z₀ (t = 0), following
     the exact path lines (7.32)/(7.33) of the linear wave — the dyed line of Fig. 7.22 leaning forward (Stokes drift).
+    The z₀ are **starting** positions, not orbit centres: a particle released at (x₀, z₀) circles about the mean depth
+    z̄ = z₀ − ζ(x₀, z₀, 0) (ζ from (7.35b); at a crest, x₀ = 0, it starts a·sinh k(z₀ + H)/sinh kH above z̄), so its
+    drift is ū_L(z̄), equal to ū_L(z₀) only to O(ka).
     Book: §7.6, Fig. 7.22 (our computation). Parameters: z0s (n,) [m]; t scalar or (M,) [s] (≥ 0); a, k, H, g; x0 [m];
-    rtol, atol (``solve_ivp`` DOP853, all particles integrated together). Returns dict(t, x (M, n), z (M, n)).
-    Validation (planned): V1 small a: net advance per period of each particle ≈ ū_L(z₀)T. Label: analytic.
+    rtol, atol (``solve_ivp`` DOP853, all particles integrated together). Returns dict(t, x (M, n) — or (n,) for
+    scalar t, z likewise).
+    Validation: V1 — tests/test_ch07.py: test_dyed_line_V1_advances_by_the_stokes_drift. Checks: V1 identical to
+    ``particle_path(model="exact", start="mean")``; net advance per period of each particle = ū_L(z̄)T within O(ka) (z̄
+    the mean depth); the top drifts most. Label: analytic.
     """
     zs = np.atleast_1d(_F(z0s))
     n = zs.size
@@ -1803,7 +1913,8 @@ def orbit_state(z0: float, a: float = 0.1, k: float = 1.0, H=np.inf, g: float = 
     """Explainer E2 state for one depth: dict(A, B, focal_half (7.36), B_over_A, omega, T, drift_speed (7.86),
     drift_per_period = ū_L T, eulerian_mean (0, N92), drift_numeric (distance drifted per period from exact path lines
     over ``periods`` periods; NaN unless model = "exact"), orbital_speed = ω·A).
-    Book: §7.2 (7.35)–(7.36); §7.6 (7.85)–(7.86). Scalar-callable. Label: analytic."""
+    Book: §7.2 (7.35)–(7.36); §7.6 (7.85)–(7.86). Scalar-callable. Validation: V1 — tests/test_ch07.py:
+    test_orbit_state_V1_explainer_numbers. Label: analytic."""
     ax = orbit_semi_axes(z0, a, k, H)
     om = float(omega_gravity(k, H, g))
     T = _TWO_PI / om
