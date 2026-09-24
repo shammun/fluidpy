@@ -129,8 +129,9 @@ def ideal_flow_residuals(u_fn, p_fn=None, x=(0.2, 0.15), t: float = 0.0, rho: fl
     2-D, ω in 3-D) [1/s], inertia = |ρ(u·∇)u| [N/m³] (scale for relative checks)).
 
     Book: §6.1, Eq. (6.1) (with (4.10), (4.38)–(4.40)). Assumptions: constant ρ, p measured from its hydrostatic value.
-    Validation (planned): V1 cylinder and corner — all residuals ≈ 0; Poiseuille — viscous force μd²u/dy² = −G, and its
-    Euler residual ρDu/Dt + ∇p equals +μ∇²u (the viscous term the ideal equations drop); V2 μ∇²∇φ ≡ 0 for harmonic φ. Label: analytic.
+    Validation: V1 — tests/test_ch06.py: test_ideal_flow_V1_cylinder_residuals_vanish_on_a_field,
+    test_ideal_flow_V1_poiseuille_control_keeps_its_viscous_force,
+    test_ideal_flow_V1_residuals_accept_flow_objects_and_callables. Label: analytic.
     """
     if isinstance(u_fn, str):
         u_fn, p_def = _residual_preset(u_fn, rho, mu, **p)
@@ -177,8 +178,9 @@ def ideal_flow_applicability(Re: float, M: float = 0.0, baroclinic: bool = False
     (iii) no baroclinic density field — else Kelvin's theorem fails (ch05 ``kelvin_hypotheses``) and vorticity is
     created; (iv) the region is the outer flow (not a boundary layer, wake, separated bubble, duct or turbulent region).
     Returns dict(ok, reasons (list of failed checks, each a sentence), verdict (one sentence), kelvin (ch05 verdict)).
-    Book: §6.1 (applicability, exclusions and inclusions). Validation (planned): V1 table cases (Re = 50, M = 0.5,
-    baroclinic, wake); wrong variant: dropping the Kelvin check passes a baroclinic case. Label: analytic.
+    Book: §6.1 (applicability, exclusions and inclusions).
+    Validation: V1, V6 — tests/test_ch06.py: test_applicability_V1_decision_table, test_book_V6_section_6_1_and_6_3_forms.
+    Label: analytic, book-value.
     """
     from .ch05_vorticity_dynamics import kelvin_hypotheses_text
 
@@ -221,8 +223,8 @@ def vorticity_from_psi(psi_fn, x, y, h: float = 1e-3, **p):
     """Vorticity of a stream-function flow ω_z = ∂v/∂x − ∂u/∂y = −∇²ψ (6.4), by the fourth-order 9-point stencil.
     psi_fn(x, y) [m²/s] or ``"rankine"`` (:func:`rankine_vortex_psi`, keywords ``Gamma``, ``a``); x, y [m]; h [m].
     Returns ω_z [1/s]. Book: §6.2, Eq. (6.4).
-    Validation (planned): V1 ψ = sin x sin y (ω = 2 sin x sin y), Rankine core Γ/πa²; V3 order 4.
-    Label: analytic, converged."""
+    Validation: V1 — tests/test_ch06.py: test_parity_rows_V1_design_part_b_expressions_run,
+    test_psi_vorticity_V1_minus_laplacian_on_fields. Label: analytic."""
     if isinstance(psi_fn, str):
         if psi_fn != "rankine":
             raise ValueError('psi_fn must be a callable or "rankine"')
@@ -245,8 +247,9 @@ def delta_flux_check(fn, center=(0.0, 0.0), radii=(0.01, 0.1, 1.0, 10.0, 100.0),
     ``fn``: a plane flow object (∇φ = (u, v), ∇ψ = e_z × ∇φ = (−v, u) exactly), a callable f(x, y) (4th-order
     differences, step h), or ``"vortex"`` (keyword ``Gamma``, default 2π) / ``"source"`` (keyword ``m``, default 2π) at
     the origin. ``kind`` "psi" or "phi"; periodic trapezoid with n nodes (spectral). Returns an array of fluxes [m²/s],
-    one per radius. Book: §6.2, Eqs. (6.6), (6.13); Exercises 6.1, 6.3. Validation (planned): V1, V4 radius
-    independence. Label: analytic.
+    one per radius. Book: §6.2, Eqs. (6.6), (6.13); Exercises 6.1, 6.3.
+    Validation: V1 — tests/test_ch06.py: test_delta_flux_V1_vortex_and_source_strengths_on_every_circle,
+    test_parity_rows_V1_design_part_b_expressions_run. Label: analytic.
     """
     if isinstance(fn, str):
         if fn == "vortex":
@@ -344,7 +347,8 @@ def doublet_limit_error(eps_list, d: float = 2.0, pts=((1.0, 0.0), (0.0, 1.0), (
     """Relative error of the source–sink pair with m = d/2ε (2mε = |d| held fixed, dipole −d e_x) against the doublet
     (6.29) φ = |d| cos θ/2πr at the points ``pts``: max|φ_pair − φ_doublet|/max|φ_doublet| → 0 as ε² (the next term of
     the log expansion). eps_list [m]; d [m³/s]. Returns an array, one error per ε. Book: §6.3, (6.28)–(6.29).
-    Validation (planned): V3 observed order 2. Label: converged."""
+    Validation: V1, V3 — tests/test_ch06.py: test_doublet_limit_V3_pair_approaches_doublet_at_second_order,
+    test_parity_rows_V1_design_part_b_expressions_run. Label: analytic, converged."""
     P = _F(pts).reshape(-1, 2)
     x, y = P[:, 0], P[:, 1]
     ref = _F(Doublet.from_book_scalar(d).phi(x, y))
@@ -433,7 +437,10 @@ def rankine_oval(U: float = 1.0, m: float = 2.0 * np.pi, a: float = 1.0) -> dict
     Stagnation points x = ±L with L² = a² + ma/πU; body ψ = 0; half-width h from h = (m/πU) tan⁻¹(a/h) (``brentq``).
     Returns dict(half_length L, half_width h, psi_fn (ψ(x, y) [m²/s]), stagnation (complex (−L, +L)), flow (inside =
     the oval), x_stag, psi_body 0, closed True). U [m/s], m [m²/s], a [m]. Book: §6.3 (superposition; Exercise 6.19).
-    Validation (planned): V1 ψ = 0 on the body, V2 root equation (sympy). Label: analytic."""
+    Validation: V1, V4, V6, V7 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+    test_book_V6_sections_6_8_6_9_and_exercises, test_far_field_V7_decay_rates,
+    test_parity_rows_V1_design_part_b_expressions_run, test_rankine_oval_V1_closed_body. Label: analytic, conserved,
+    book-value."""
     U, m, a = float(U), float(m), float(a)
     base = Flow([Uniform(U), Source(m, complex(-a, 0.0)), Source(-m, complex(a, 0.0))])
 
@@ -532,8 +539,10 @@ def cylinder_surface_cp(theta, U: float = 1.0, a: float = 1.0, *, Gamma_cw: floa
                         Gamma_ccw: float | None = None):
     """Surface pressure coefficient of the cylinder C_p = 1 − (u_θ/U)², u_θ from (6.37); for Γ = 0,
     C_p = 1 − 4 sin²θ (6.35) (+1 at the stagnation points, −3 at θ = ±π/2). Book: §6.3, (6.35), (6.39).
-    Validation (planned): V1 vs (6.35); V1 form cross-check Wikipedia "Potential flow around a circular cylinder".
-    Label: analytic."""
+    Validation: V1, V6 — tests/test_ch06.py: test_book_V6_section_6_1_and_6_3_forms,
+    test_cylinder_V1_form_matches_published_potential_flow, test_cylinder_V1_surface_cp_and_dalembert,
+    test_parity_rows_V1_design_part_b_expressions_run, test_reused_tools_V1_smoke_with_chapter_6_inputs. Label:
+    analytic, book-value."""
     ut = _F(cylinder_surface_speed(theta, U, a, Gamma_cw=Gamma_cw, Gamma_ccw=Gamma_ccw))
     return _S(1.0 - (ut / float(U)) ** 2)  # Eq. (6.35) for Γ = 0
 
@@ -551,7 +560,9 @@ def cylinder_stagnation_points(U: float = 1.0, a: float = 1.0, *, Gamma_cw: floa
     sin θ = −Γ_cw/4πaU; at |Γ| = 4πaU one (θ = −π/2 for Γ_cw > 0); for |Γ| > 4πaU one in the flow on the −y axis
     (Γ_cw > 0) at r = [Γ + √(Γ² − (4πaU)²)]/4πU (the other root r₋ = a²/r₊ lies inside; ``include_inside``).
     Returns complex positions [m] (sorted by angle). Book: §6.3, (6.38) and the text after it, Fig. 6.12.
-    Validation (planned): V1 |z| = a; Newton cross-check with ``Flow.stagnation_points``; r₊r₋ = a². Label: analytic."""
+    Validation: V1, V2, V6 — tests/test_ch06.py: test_book_V6_section_6_1_and_6_3_forms,
+    test_lift_V1_stagnation_points_closed_form_and_newton, test_lift_V2_dimensions. Label: analytic, symbolic,
+    book-value."""
     U, a = float(U), float(a)
     Gcw = -gamma_ccw_from(Gamma_cw, Gamma_ccw)
     crit = _FOUR_PI * a * U
@@ -575,8 +586,10 @@ def cylinder_stagnation_points(U: float = 1.0, a: float = 1.0, *, Gamma_cw: floa
 def lift_per_span(rho: float = 1.0, U: float = 1.0, *, Gamma_cw: float | None = None,
                   Gamma_ccw: float | None = None) -> float:
     """Kutta–Zhukhovsky lift per unit span L = ρUΓ (6.40), (6.62) with the book's clockwise Γ (= −ρUΓ_ccw) [N/m].
-    ρ [kg/m³], U [m/s]. Book: §6.3 (6.40), §6.5 (6.62). Validation (planned): V1 pressure integral and Blasius;
-    V1 form cross-check Wikipedia "Kutta–Joukowski theorem". Label: analytic."""
+    ρ [kg/m³], U [m/s]. Book: §6.3 (6.40), §6.5 (6.62).
+    Validation: V1, V2, V6 — tests/test_ch06.py: test_book_V6_section_6_1_and_6_3_forms,
+    test_lift_V1_pressure_integral_gives_rho_U_Gamma, test_lift_V2_dimensions,
+    test_parity_rows_V1_design_part_b_expressions_run. Label: analytic, symbolic, book-value."""
     return float(rho) * float(U) * (-gamma_ccw_from(Gamma_cw, Gamma_ccw))  # Eq. (6.40)
 
 
@@ -604,7 +617,7 @@ def contour_force(p, contour, dcontour=None) -> BlasiusForce:
     (complex or (2, N)), last ≠ first, counterclockwise (ValueError otherwise). With ``dcontour`` = dz/dτ at uniform
     τ ∈ [0, 2π) the periodic trapezoid Σ p (dz/dτ)(2π/N) is used (spectral for smooth bodies); else the trapezoid on the
     segments (second order). Returns (D, L) [N/m]. Book: §6.5, Eqs. (6.55)–(6.56).
-    Validation (planned): V1 uniform p → 0; p = y → L = −A. Label: analytic."""
+    Validation: V1 — tests/test_ch06.py: test_contour_force_V1_pressure_integrals. Label: analytic."""
     z = _contour_z(contour)
     if polygon_signed_area(z) <= 0:
         raise ValueError("the contour must be counterclockwise (signed area > 0), the orientation of (6.56)")
@@ -689,7 +702,8 @@ def circulation_family_check(U: float = 1.0, a: float = 1.0, Gammas_cw=(0.0, 1.0
     (default 1000a); ``radii`` of the loops (default 1.5a, 3a, 10a).
     Returns dict(Gammas_cw, max_normal (array, one per Γ) [m/s], far_field (array: max|u − U| on r = R_far) [m/s],
     circulation (array: loop circulation on r = radii[0]) [m²/s], circulation_by_radius (Γ × radii), radii).
-    Book: §6.3 (uniqueness, Fig. 6.12). Validation (planned): V1, V4. Label: analytic."""
+    Book: §6.3 (uniqueness, Fig. 6.12).
+    Validation: V4 — tests/test_ch06.py: test_lift_V4_circulation_family_is_non_unique. Label: conserved."""
     from .core.vorticity import loop_circulation
 
     radii = (1.5 * a, 3.0 * a, 10.0 * a) if radii is None else radii
@@ -807,7 +821,10 @@ def example_6_1(t, Gamma: float = 1.0, h: float = 1.0, rho: float = 1000.0, p_in
     Returns dict(xi (2,)/(2, T), xi_x, xi_y [m], p_origin [Pa], v_origin [m/s], dphidt [m²/s²], unsteady = −ρ∂φ/∂t
     [Pa], speed_part = −½ρv² [Pa] (p_origin = p∞ + unsteady + speed_part), route).
     Book: §6.3, Example 6.1 (Fig. 5.14). Assumptions: self-induced velocity of the ideal vortex taken as zero.
-    Validation (planned): V1 closed vs numeric (O(dt²)); sign change at 4πh²/Γ; V4 ξ_x conserved. Label: analytic.
+    Validation: V1, V3, V4, V6 — tests/test_ch06.py: test_book_V6_example_6_1_and_section_6_5_6_6,
+    test_example_6_1_V1_closed_form_vs_numeric_route, test_example_6_1_V1_wall_pressure_extension,
+    test_example_6_1_V3_time_derivative_is_second_order, test_example_6_1_V4_vortex_keeps_its_distance,
+    test_parity_rows_V1_design_part_b_expressions_run. Label: analytic, converged, conserved, book-value.
     """
     G, h = float(Gamma), float(h)
     tt = np.atleast_1d(_F(t))
@@ -856,7 +873,8 @@ def example_6_1_wall_pressure(y_wall, t: float, Gamma: float = 1.0, h: float = 1
     (φ(0, y, t) = (Γ/π) tan⁻¹((y − η)/h), u = 0 and v = Γh/πs² on the wall).
     y_wall [m] (scalar or array), t [s]. Returns p [Pa] (= p∞ + both parts), or with ``split=True`` dict(unsteady,
     speed, total, p (= total), speed_part, dphidt, v, eta). Book: §6.3, Example 6.1.
-    Validation (planned): V1 y = 0 equals :func:`example_6_1`. Label: analytic."""
+    Validation: V1 — tests/test_ch06.py: test_example_6_1_V1_wall_pressure_extension,
+    test_parity_rows_V1_design_part_b_expressions_run. Label: analytic."""
     G_, h = float(Gamma), float(h)
     eta = G_ * float(t) / (_FOUR_PI * h)
     s2 = h ** 2 + (_F(y_wall) - eta) ** 2
@@ -1131,8 +1149,11 @@ def elliptic_cylinder_flow(U: float = 1.0, a: float = 1.2, b: float = 1.0, *, Ga
     (dw/dζ)(dζ/dz). ``alpha`` tilts the stream (our extension; 0 in the book). Returns a
     :class:`~fluidpy.core.potential.FunctionFlow` (inside = the ellipse; attributes ``zeta_of``, ``ellipse`` and, for
     α = 0, ``stagnation`` = the circle's stagnation points (6.38) mapped by (6.65)).
-    U [m/s], a > b [m]. Book: §6.6, (6.65)–(6.69). Validation (planned): V1 u·n = 0 on the ellipse, far field U,
-    Blasius L = ρUΓ_cw. Label: analytic."""
+    U [m/s], a > b [m]. Book: §6.6, (6.65)–(6.69).
+    Validation: V1, V3, V4 — tests/test_ch06.py: test_blasius_V1_form_matches_published_theorem,
+    test_blasius_V1_laurent_coefficients_and_contributions, test_blasius_V3_polygon_contours_converge_at_second_order,
+    test_blasius_V4_three_routes_agree, test_elliptic_cylinder_V1_boundary_far_field_and_lift,
+    test_elliptic_cylinder_V1_surface_speed_two_routes and 2 more. Label: analytic, converged, conserved."""
     w_z, dw_z = CM.circle_flow_zeta(U, a, Gamma_cw=Gamma_cw, Gamma_ccw=Gamma_ccw, alpha=alpha)
     zeta_of = lambda z: _C(CM.joukowski_inverse(z, b, branch))  # noqa: E731
     dzeta = lambda z: _C(CM.joukowski_inverse_derivative(z, b, branch))  # noqa: E731
@@ -1258,8 +1279,10 @@ def example_6_2(Q: float = 1.0, n_iter: int | None = None, tol: float = 1e-10, m
     Returns dict(psi ([j, i], NaN in the solid), X, Y (meshgrids [m]), x, y, mask, history, iterations, grid_shape,
     probe (the (j, i) index of the fixed interior point (x, y) = (2 m, 2 m) — the same physical point at every
     refine), flux (ψ_top − ψ_bottom from u = ∂ψ/∂y on every interior vertical grid line — equals Q), dx).
-    Book: §6.7, Example 6.2, Figs. 6.24–6.25. Validation (planned): V6 book grid values (private Q); V3 refinement (order
-    reduced near the 270° corner); V4 flux. Label: converged, conserved.
+    Book: §6.7, Example 6.2, Figs. 6.24–6.25.
+    Validation: V3, V4, V6 — tests/test_ch06.py: test_example_6_2_V3_refinement_order_is_set_by_the_270_degree_corner,
+    test_example_6_2_V4_flux_and_maximum_principle, test_example_6_2_V6_book_grid_values. Label: converged, conserved,
+    book-value.
     """
     g = example_6_2_geometry(refine, Q)
     psi, hist = LS.solve_laplace(g["mask"], np.nan_to_num(g["bc"]), method=method, tol=tol, n_iter=n_iter,
@@ -1397,8 +1420,8 @@ def axisym_flux_between(flow_or_psi, P1, P2, n: int = 64, h: float = 1e-6) -> tu
     """Volume flow rate through the surface of revolution swept by the meridian segment P1 → P2 (P = (R, z)):
     Q = ∫2πR(u·n)ds = ∫2πR(−u_R dz + u_z dR) (Gauss–Legendre, n nodes) vs 2π[ψ(P2) − ψ(P1)] (6.78).
     ``flow_or_psi``: an :class:`~fluidpy.core.potential.AxisymFlow` or a callable ψ(R, z) (velocities by differences).
-    Returns (quad, two_pi_dpsi) [m³/s]. Book: §6.8 (6.78), Fig. 6.26. Validation (planned): V1 (wrong variant without
-    2π fails). Label: analytic."""
+    Returns (quad, two_pi_dpsi) [m³/s]. Book: §6.8 (6.78), Fig. 6.26.
+    Validation: V1 — tests/test_ch06.py: test_axisym_flux_V1_two_pi_dpsi_and_source_strength. Label: analytic."""
     R1, z1 = (float(v) for v in P1)
     R2, z2 = (float(v) for v in P2)
     s, ws = np.polynomial.legendre.leggauss(int(n))
@@ -1439,7 +1462,9 @@ def line_sink_stream_function(R, z, k: float = 1.0, a: float = 1.0, method: str 
     """Stokes stream function of the book's uniform line sink of density k [m²/s] from O (z = 0) to A (z = a):
     (6.93) ψ = (k/4π)∫₀ᵃ cos α dξ, cos α = (z − ξ)/√(R² + (z − ξ)²) (``method="quad"``), and its closed form (6.94)
     ψ = (k/4π)(r − r₁) with r = |OP|, r₁ = |AP| (``"closed"``). Returns ψ [m³/s]. Book: §6.8 (6.93)–(6.94), Fig. 6.28.
-    Validation (planned): V1 closed = quad. Label: analytic."""
+    Validation: V1, V6 — tests/test_ch06.py: test_book_V6_sections_6_8_6_9_and_exercises,
+    test_line_sink_V1_closed_form_equals_quadrature, test_parity_rows_V1_design_part_b_expressions_run. Label: analytic,
+    book-value."""
     R_, z_ = np.broadcast_arrays(_F(R), _F(z))
     if method == "closed":
         r = np.sqrt(R_ ** 2 + z_ ** 2)
@@ -1844,7 +1869,7 @@ def sphere_motion(m: float, a: float, rho: float = 1000.0, F_E=None, t_eval=None
     Parameters: m [kg] (≥ 0), a [m], ρ [kg/m³], t_eval [s] (default 0…1 s, 201 points), u0 [m/s], z0 [m].
     Returns dict(t, x (= z, position along the motion [m]), u, du_dt (= dudt), F_s = −M du/dt [N], M, a0 (initial
     acceleration), work (∫F_net u dt [J]), kinetic = ½(m + M)(u² − u0²) [J]). ``solve_ivp`` RK45, rtol 1e-10. Book: §6.9 (6.109).
-    Validation (planned): V1 constant F_E ⇒ u = F_E t/(m + M); bubble 2g; V4 work = kinetic. Label: analytic, conserved.
+    Validation: V4 — tests/test_ch06.py: test_sphere_motion_V4_newton_with_added_mass. Label: conserved.
     """
     a = float(a)
     V = 4.0 / 3.0 * np.pi * a ** 3
@@ -1887,7 +1912,8 @@ def rayleigh_collapse_time(R0: float = 1.0, rho: float = 1000.0, dp: float = 1.0
     """Collapse time of an empty spherical cavity (Rayleigh; Exercise 6.44): Ṙ² = (2Δp/3ρ)(R₀³/R³ − 1) ⇒
     t_c = R₀√(3ρ/2Δp) ∫₀¹ x^{3/2}(1 − x³)^{−1/2} dx = R₀√(3ρ/2Δp)·B(5/6, 1/2)/3 ≈ 0.91468 R₀√(ρ/Δp).
     ``method``: "closed" (Beta function) or "quad" (the integral numerically). R₀ [m], ρ [kg/m³], Δp [Pa] → t_c [s].
-    Book: §6.9 (Exercise 6.44). Validation (planned): V5 Wikipedia "Rayleigh–Plesset equation" 0.91468. Label: analytic."""
+    Book: §6.9 (Exercise 6.44).
+    Validation: V5 — tests/test_ch06.py: test_rayleigh_collapse_V5_published_constant. Label: benchmark."""
     pre = float(R0) * np.sqrt(3.0 * float(rho) / (2.0 * float(dp)))
     if method == "closed":
         return float(pre * beta_fn(5.0 / 6.0, 0.5) / 3.0)

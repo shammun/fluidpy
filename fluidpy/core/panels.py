@@ -65,8 +65,8 @@ def axial_singularity_solve(z_body, R_body, U: float, N=None, z_nodes=None) -> d
     **1-norm** condition number ``np.linalg.cond(A, 1)``, as the explainer computes it), net_strength Σ k_n Δξ_n (→ 0
     for a closed body), A, rhs, U). Book: §6.8 (Fig. 6.29, "set ψ_m = 0 … N linear algebraic equations"), solved by
     ``np.linalg.solve`` (or ``lstsq``) — the book allows iteration or matrix inversion.
-    Validation (planned): V1 recovers a known smooth distribution; V3 convergence in N; sphere target fenced
-    (a point doublet: ill-conditioned). Label: analytic, converged.
+    Validation: V1 — tests/test_ch06.py: test_axial_method_V1_rankine_oval_moments_and_conditioning,
+    test_axial_method_V1_solver_and_field_consistency. Label: analytic.
     """
     zb, Rb = _F(z_body).ravel(), _F(R_body).ravel()
     if N is not None and np.ndim(N) > 0:
@@ -190,8 +190,10 @@ def source_panels(xb, yb, U: float = 1.0, alpha: float = 0.0) -> dict:
     theta (polar angle of the control points), net_source Σλ_jS_j (→ 0 for a closed body), normals (complex outward
     unit normals), lengths, geo, U, alpha, cond).
     Book: extends §6.7–6.8's singularity-distribution idea to the body surface (analysis row #134).
-    Validation (planned): V3 circle C_p → 1 − 4 sin²θ at order 2; ellipse vs the Zhukhovsky mapped flow.
-    Label: converged.
+    Validation: circle: C_p at the control points equals 1 − 4 sin²θ to round-off for every N (a symmetry of the regular
+    polygon, not a convergence); ellipse: observed order ≈ 2 against the Zhukhovsky-mapped exact surface speed; Σλ_jS_j
+    = 0. V1, V3 — tests/test_ch06.py: test_source_panels_V1_circle_is_exact_and_closed,
+    test_source_panels_V3_ellipse_second_order_and_off_body_first_order. Label: analytic, converged.
     """
     geo = panel_geometry(xb, yb)
     N = geo["S"].size
@@ -211,7 +213,9 @@ def source_panels(xb, yb, U: float = 1.0, alpha: float = 0.0) -> dict:
 def panel_velocity(*args):
     """Velocity (u, v) [m/s] anywhere from a :func:`source_panels` solution (free stream + panel sources): call as
     ``(sol, x, y)`` or ``(x, y, sol)``. Points on a panel use the open-panel formula (evaluate off the body).
-    Label: analytic."""
+    Accuracy: off the body the velocity converges only at about first order in N (the constant-strength panels'
+    end effects), unlike the second-order C_p at the control points on a smooth body. Validation: V3 —
+    tests/test_ch06.py: test_source_panels_V3_ellipse_second_order_and_off_body_first_order. Label: converged."""
     if isinstance(args[0], dict):
         result, x, y = args[:3]
     else:

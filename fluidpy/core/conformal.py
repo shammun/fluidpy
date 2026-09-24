@@ -78,8 +78,8 @@ def angle_preservation(f, dfdz=None, z0: complex = 1.0, dz1: complex = 1.0, dz2:
     centred image vanishes.
 
     α = β wherever f is analytic with f′(z0) ≠ 0; at a critical point (f′ = 0, e.g. z² at 0) the angle is multiplied.
-    Returns (alpha, beta) [rad]. Book: §6.6, Fig. 6.19. Validation (planned): V1 z², e^z, sin z, Zhukhovsky; V7 z² at 0
-    doubles the angle. Label: analytic."""
+    Returns (alpha, beta) [rad]. Book: §6.6, Fig. 6.19.
+    Validation: V1 — tests/test_ch06.py: test_conformal_V1_angles_are_kept_except_at_critical_points. Label: analytic."""
     f, _ = _fdf(f, dfdz, b)
     z0 = complex(z0)
     d1 = eps * complex(dz1) / abs(complex(dz1))
@@ -157,8 +157,9 @@ def joukowski_inverse(z, b: float = 1.0, branch: str = "outside"):
     the slit. ``branch="principal"`` (⚠️ wrong variant, for E6's toggle and tests): ½[z + sqrt(z² − 4b²)] with numpy's
     principal root, which lands inside the circle for Re z < 0.
     z [m] (complex, any shape), b [m] > 0. Returns ζ. Book: §6.6 (6.69) ("the negative root, which falls inside the
-    cylinder, has been excluded"). Validation (planned): V1 joukowski_inverse(joukowski(ζ)) = ζ for |ζ| > b in all four
-    quadrants; wrong-variant test. Label: analytic.
+    cylinder, has been excluded").
+    Validation: V1, V2 — tests/test_ch06.py: test_joukowski_inverse_V1_outside_branch_everywhere_and_wrong_variant,
+    test_joukowski_inverse_V2_derivation. Label: analytic, symbolic.
     """
     zz = _C(z)
     b = float(b)

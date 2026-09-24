@@ -38,7 +38,7 @@ def laplacian_5pt(psi, dx: float = 1.0, dy: float | None = None, mask=None):
     at interior nodes (second-order accurate — the book calls the half-point differences "first-order", they are
     second-order accurate). Array ``psi[j, i]``; NaN on the outer frame and outside ``mask`` (if given).
     Returns an array like psi [unit of ψ / m²]. Book: §6.7, Eqs. (6.70)–(6.71).
-    Validation (planned): V3 observed order 2 on sin(πx) sinh(πy); exact (zero) on xy and x² − y². Label: converged.
+    Validation: V3 — tests/test_ch06.py: test_laplace_5pt_V3_second_order_and_exact_on_quadratics. Label: converged.
     """
     P = _F(psi)
     dy = dx if dy is None else float(dy)
@@ -221,8 +221,9 @@ def solve_laplace(mask, bc, method: str = "gauss_seidel", tol: float = 1e-10, ma
     Iterations are exact matrix forms of the sweeps: Jacobi ψ ← b + Nψ; Gauss–Seidel (I − L)ψ⁺ = b + Uψ; SOR
     (I − ωL)ψ⁺ = ω(b + Uψ) + (1 − ω)ψ (L, U: neighbours before/after in the sweep order) — identical iterates to
     :func:`gauss_seidel_sweep` and :func:`sor_sweep`, fast on large grids.
-    Book: §6.7, (6.72)–(6.73), Example 6.2. Validation (planned): V1 4-point system; exact on discrete-harmonic xy;
-    all methods agree with "direct" to tol; V3 grid refinement. Label: analytic, converged.
+    Book: §6.7, (6.72)–(6.73), Example 6.2.
+    Validation: V1, V3 — tests/test_ch06.py: test_laplace_solver_V1_methods_agree_and_sweep_counts,
+    test_laplace_solver_V3_manufactured_harmonic_second_order. Label: analytic, converged.
     """
     M = np.asarray(mask, bool)
     B = _F(bc).copy()

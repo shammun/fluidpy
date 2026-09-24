@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ch06_drawings import circle, flow_net, parse_args, save, setup
+from ch06_drawings import circle, flow_net, parse_args, pressure_arrows, save, separated_cp_band, setup
 
 from fluidpy import ch03_kinematics as ch03
 from fluidpy import ch06_ideal_flow as ch06
@@ -41,14 +41,15 @@ def main() -> int:
     n = 121 if args.fast else 201
     flow_net(ax[0], fl, (-3, 3), (-2, 2), n=n, psi_levels=np.linspace(-2, 2, 21), body=circle(a),
              stag=fl.stagnation_points(box=(-2, 2, -2, 2)), title="cylinder = stream + doublet d = −2πUa² e_x (6.33)")
+    cz = circle(a, 36)
+    pressure_arrows(ax[0], cz, 0.5 * rho * U ** 2 * np.asarray(ch06.cylinder_surface_cp(np.angle(cz), U, a)),
+                    cz / a, scale=0.25)
     beta = np.linspace(0, np.pi, 181)  # angle from the upstream stagnation point = π − θ
     ax[1].plot(np.degrees(beta), ch06.cylinder_surface_cp(np.pi - beta, U, a), color=COLORS["accent"],
                label="ideal: 1 − 4 sin²θ (6.35)")
-    # qualitative sketch (not data): follows the ideal curve until it reaches a flat, low base pressure
-    sketch = np.maximum(np.asarray(ch06.cylinder_surface_cp(np.pi - beta, U, a)), -1.2)
-    sketch = np.where(beta > np.radians(70.0), -1.2, sketch)
-    ax[1].plot(np.degrees(beta), sketch, color=COLORS["muted"], ls="--",
-               label="real flow (qualitative sketch, not data): separation, low wake pressure")
+    lo, hi = separated_cp_band(np.degrees(beta))
+    ax[1].fill_between(np.degrees(beta), lo, hi, color=COLORS["muted"], alpha=0.3,
+                       label="real flow — qualitative sketch band, not data (separation ≈ 80°)")
     ax[1].set_xlabel("angle from the front stagnation point, π − θ [deg]")
     ax[1].set_ylabel("C_p")
     ax[1].legend(fontsize=8)

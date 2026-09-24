@@ -151,8 +151,11 @@ class _Element:
 class Uniform(_Element):
     """Uniform stream (U, V): ψ = −Vx + Uy (6.7), φ = Ux + Vy (6.14), w = (U − iV)z.
 
-    Book: §6.2, Eqs. (6.7), (6.14). Parameters: U, V [m/s] (x and y components). Validation (planned): V1 Re/Im of w
-    equal (6.14)/(6.7). Label: analytic.
+    Book: §6.2, Eqs. (6.7), (6.14). Parameters: U, V [m/s] (x and y components).
+    Validation: V1, V6, V7 — tests/test_ch06.py: test_book_V6_sections_6_8_6_9_and_exercises,
+    test_circle_theorem_V1_circle_is_a_streamline, test_complex_potential_V1_derivative_is_u_minus_iv,
+    test_complex_potential_V1_element_forms, test_elements_V1_stream_function_recap_and_poisson,
+    test_elements_V1_uniform_source_vortex_forms and 7 more. Label: analytic, book-value.
     """
     U: float = 1.0
     V: float = 0.0
@@ -178,7 +181,10 @@ class Source(_Element):
 
     m is the volume flow rate per unit depth [m²/s]; u_r = m/2πr′. ``cut_angle`` places the branch cut of θ′ (ψ = mθ′/2π
     jumps by m across it; ``theta_range`` "(]" or "[)" closes the branch at either end). Book: §6.2 (6.13), (6.15); §6.3 source velocities; §6.4 (6.48).
-    Validation (planned): V1 flux of ∇φ through any circle = m; V2 Laplace away from z0. Label: analytic.
+    Validation: V1, V4 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+    test_circle_theorem_V1_circle_is_a_streamline, test_complex_potential_V1_derivative_is_u_minus_iv,
+    test_complex_potential_V1_element_forms, test_delta_flux_V1_vortex_and_source_strengths_on_every_circle,
+    test_elements_V1_uniform_source_vortex_forms and 6 more. Label: analytic, conserved.
     """
     m: float = 1.0
     z0: complex = 0j
@@ -208,8 +214,10 @@ class Vortex(_Element):
 
     Γ [m²/s] counterclockwise positive (the book's (6.36)–(6.40) Γ is clockwise: pass −Γ here). ``cut_angle`` places the jump
     of φ = Γθ′/2π. Book: §6.2 (6.6), (6.8); §6.3 vortex velocities; §6.4 (6.47).
-    Validation (planned): V1 circulation on any circle = +Γ (wrong variant ψ = +(Γ/2π) ln r fails); parity with
-    ``core.biot_savart.point_vortex_velocity``. Label: analytic.
+    Validation: V1, V4 — tests/test_ch06.py: test_circle_theorem_V1_circle_is_a_streamline,
+    test_complex_potential_V1_derivative_is_u_minus_iv, test_complex_potential_V1_element_forms,
+    test_delta_flux_V1_vortex_and_source_strengths_on_every_circle, test_elements_V1_uniform_source_vortex_forms,
+    test_example_6_1_V1_wall_pressure_extension and 6 more. Label: analytic, conserved.
     """
     Gamma: float = 1.0
     z0: complex = 0j
@@ -238,8 +246,10 @@ class Doublet(_Element):
 
     ``d_vec`` [m³/s]. The book's (6.49) w = d/2π(z − z′) is a dipole −d e_x: use :meth:`from_book_scalar`. The cylinder
     of radius a in a stream U needs d = −2πUa² e_x (6.33). Book: §6.3 (6.28)–(6.29), §6.4 (6.49).
-    Validation (planned): V1 limit of the source–sink pair (error ∝ ε²); direction (wrong variant d → −d fails).
-    Label: analytic.
+    Validation: V1, V6 — tests/test_ch06.py: test_book_V6_sections_6_8_6_9_and_exercises,
+    test_complex_potential_V1_derivative_is_u_minus_iv, test_doublet_limit_V1_numbers_and_direction,
+    test_images_V1_wall_conditions_and_wrong_variant, test_laplace_residual_V1_every_element_is_harmonic,
+    test_primitives_V1_branches_points_and_function_flows and 1 more. Label: analytic, book-value.
     """
     d_vec: tuple = (-1.0, 0.0)
     z0: complex = 0j
@@ -283,8 +293,11 @@ class Corner(_Element):
     θ = rotate and θ = rotate + α; n = 2 with rotate = π/4 is the 45° turn relating (6.24) and (6.25)). n = 2 is the
     stagnation flow ψ = 2Axy (6.24), φ = A(x² − y²) (6.27); n = ½ the flow round a semi-infinite plate. The branch cut of
     zⁿ is at ``cut_angle`` in the wedge's own frame (default: the middle of the non-fluid sector, π/n + (2π − π/n)/2, so
-    the wedge is continuous). Book: §6.3 (6.24)–(6.27), §6.4 (6.46). Validation (planned): V1 ψ = 0 on both walls;
-    |dw/dz| ∝ r^{n−1}. Label: analytic.
+    the wedge is continuous). Book: §6.3 (6.24)–(6.27), §6.4 (6.46).
+    Validation: V1 — tests/test_ch06.py: test_complex_potential_V1_element_forms,
+    test_corner_V1_quadratic_family_and_rotations, test_corner_V1_walls_speed_exponent_and_branch,
+    test_images_V1_wall_conditions_and_wrong_variant, test_laplace_residual_V1_every_element_is_harmonic,
+    test_primitives_V1_branches_points_and_function_flows and 1 more. Label: analytic.
     """
     A: complex = 1.0
     n: float = 2.0
@@ -447,23 +460,59 @@ class ComplexFlow:
         h = 1e-6 * max(1.0, float(np.max(np.abs(z))))
         return (_C(self.dwdz(z + h)) - _C(self.dwdz(z - h))) / (2.0 * h)
 
+    def _seed_points(self) -> np.ndarray:
+        """Extra Newton starts scaled by the elements: rings of 12 points at radii ℓ·(¼, ½, 1, 2, 4) round every source,
+        vortex and doublet centre, with ℓ its own length scale — |m|/2πU (source), |Γ|/2πU (vortex), √(|d|/2πU)
+        (doublet) — and, without a stream, ¼ of the distance to the nearest other centre (or 1 m). Newton's basin round
+        a stagnation point at distance ℓ is itself of size ~ℓ, so a fixed grid misses small bodies."""
+        els = [e for e in getattr(self, "elements", []) if e.kind in ("source", "vortex", "doublet")]
+        if not els:
+            return np.zeros(0, dtype=complex)
+        U = self.U_inf
+        cen = np.array([complex(e.z0) for e in els])
+        ang = np.exp(2j * np.pi * (np.arange(12) + 0.5) / 12)
+        out = []
+        for e, c in zip(els, cen):
+            if U > 0:
+                s = abs(e.m) if e.kind == "source" else abs(e.Gamma) if e.kind == "vortex" else None
+                ell = s / (_TWO_PI * U) if s is not None else np.sqrt(abs(e.D) / (_TWO_PI * U))
+            else:
+                others = np.abs(cen - c)
+                others = others[others > 0]
+                ell = 0.25 * float(others.min()) if others.size else 1.0
+            if ell > 0 and np.isfinite(ell):
+                for f in (0.25, 0.5, 1.0, 2.0, 4.0):
+                    out.append(c + f * ell * ang)
+        return np.concatenate(out) if out else np.zeros(0, dtype=complex)
+
     def stagnation_points(self, guesses=None, box=None, tol: float = 1e-12, n: int = 9,
                           max_iter: int = 80, keep_inside: bool = False) -> np.ndarray:
-        """Stagnation points (dw/dz = 0) by complex Newton z ← z − f/f′ from ``guesses`` (or an n × n grid over
-        ``box`` = (x0, x1, y0, y1), default (−3, 3, −3, 3) m); converged roots are de-duplicated and sorted by real then imaginary part.
+        """Stagnation points (dw/dz = 0) by complex Newton z ← z − f/f′ from ``guesses`` — or, by default, from an
+        n × n grid over ``box`` = (x0, x1, y0, y1) (default (−3, 3, −3, 3) m) **plus rings of starts round every
+        singular point scaled by its strength** (:meth:`_seed_points`; Newton's basin round a stagnation point at
+        distance ℓ = m/2πU from a source is only ~ℓ wide, so a fixed grid misses small bodies). Only roots with
+        |dw/dz| ≤ max(1e3·tol, 1e-10)·U are kept; duplicates are merged and the roots sorted by real then imaginary part;
+        an imaginary part below 1e-13|z| is set to +0.
 
         Returns a complex array [m]. Points strictly inside the body are dropped unless ``keep_inside``.
         Book: §6.3 (stagnation points of the half-body, (6.38)); analytic d²w/dz² when available.
-        Validation (planned): V1 half-body −m/2πU, cylinder sin θ = −Γ/4πaU. Label: analytic.
+        Validation: V1, V4 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+        test_half_body_V1_stagnation_body_and_width, test_lift_V1_stagnation_points_closed_form_and_newton,
+        test_primitives_V1_branches_points_and_function_flows. Label: analytic, conserved.
         """
         box = (-3.0, 3.0, -3.0, 3.0) if box is None else box
         if guesses is None:
             gx = np.linspace(box[0], box[1], n)
             gy = np.linspace(box[2], box[3], n)
-            G = (gx[None, :] + 1j * gy[:, None]).ravel()
+            G = np.concatenate([(gx[None, :] + 1j * gy[:, None]).ravel(), self._seed_points()])
         else:
             G = np.atleast_1d(_C(guesses)).ravel()
-        scale = max(self.U_inf, 1e-300)
+        scale = self.U_inf
+        if scale <= 0:  # no free stream: the typical speed on the start points sets the tolerance
+            with np.errstate(all="ignore"):
+                fs = np.abs(_C(self.dwdz(G)))
+            fs = fs[np.isfinite(fs) & (fs > 0)]
+            scale = float(np.median(fs)) if fs.size else 1.0
         L = max(abs(box[1] - box[0]), abs(box[3] - box[2]), 1.0)
         roots = []
         with np.errstate(all="ignore"):
@@ -471,6 +520,8 @@ class ComplexFlow:
                 zz = complex(z)
                 for _ in range(max_iter):
                     f = complex(np.asarray(self.dwdz(np.array([zz])))[0])
+                    if f == 0:  # already a root (f′ may be singular there, e.g. the tip of a corner)
+                        break
                     fp = complex(self._d2(np.array([zz]))[0])
                     if not np.isfinite(f) or not np.isfinite(fp) or fp == 0:
                         zz = np.nan
@@ -486,6 +537,8 @@ class ComplexFlow:
                     continue
                 if abs(zz) > 1e3 * L:
                     continue
+                if abs(zz.imag) < 1e-13 * max(1.0, abs(zz)):  # an on-axis root: +0 imaginary part, so ψ is read on
+                    zz = complex(zz.real, 0.0)                  # the upper side of a source's principal cut
                 if not keep_inside and self.inside is not None and bool(np.asarray(self.inside(zz.real, zz.imag))):
                     continue
                 if all(abs(zz - r) > 1e-8 * L for r in roots):
@@ -501,7 +554,11 @@ class Flow(ComplexFlow):
     Parameters: ``elements`` (list of :class:`Uniform`, :class:`Source`, :class:`Vortex`, :class:`Doublet`,
     :class:`Corner`, :class:`Constant` or specs for :func:`element_from_spec`), ``inside`` (optional body test
     (x, y) → bool), ``label``. The free stream is the sum of the uniform elements.
-    Book: §6.2 (superposition after (6.17)), §6.3, §6.4. Validation (planned): V1 linearity to round-off. Label: analytic.
+    Book: §6.2 (superposition after (6.17)), §6.3, §6.4.
+    Validation: V1, V4, V7 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+    test_circle_theorem_V1_circle_is_a_streamline, test_complex_potential_V1_derivative_is_u_minus_iv,
+    test_cylinder_V1_parity_with_ch03_and_closed_forms, test_example_6_1_V1_wall_pressure_extension,
+    test_example_6_1_V4_vortex_keeps_its_distance and 13 more. Label: analytic, conserved.
     """
 
     def __init__(self, elements: Sequence, inside: Callable | None = None, label: str = ""):
@@ -608,8 +665,11 @@ def half_body(U: float = 1.0, m: float = 2.0 * np.pi) -> Flow:
     wrong variant: its cut is the upstream axis, where ψ would jump from m/2 to −m/2), so ψ = m/2 on the whole body and
     on the upstream axis. Stagnation point x = −a = −m/2πU; half-width h = m(π − θ)/2πU → h_max = m/2U.
     Parameters: U [m/s] > 0, m [m²/s] > 0. Returns a :class:`Flow` with ``inside`` = the body.
-    Book: §6.3, Eqs. (6.30)–(6.31), (6.50), Fig. 6.7. Validation (planned): V1 ψ = m/2 on the body both halves;
-    stagnation −m/2πU; V4 mass balance 2Uh_max = m. Label: analytic.
+    Book: §6.3, Eqs. (6.30)–(6.31), (6.50), Fig. 6.7.
+    Validation: V1, V4, V7 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+    test_complex_potential_V1_element_forms, test_far_field_V7_decay_rates, test_half_body_V1_stagnation_body_and_width,
+    test_half_body_V1_surface_pressure_and_its_zero, test_half_body_V4_mass_balance_downstream and 2 more. Label: analytic,
+    conserved.
     """
     U, m = float(U), float(m)
 
@@ -642,8 +702,11 @@ def cylinder(U: float = 1.0, a: float = 1.0, *, Gamma_cw: float | None = None, G
     Built as uniform stream + doublet d = −2πUa² e_x + vortex (Γ_ccw = −Γ_cw) + the constant that keeps ψ = 0 on r = a.
     Parameters: U [m/s]; a [m] > 0; keyword-only ``Gamma_cw`` (book, clockwise) or ``Gamma_ccw`` (project) [m²/s];
     ``center`` of the cylinder. Returns a :class:`Flow` with ``inside`` = the disc.
-    Book: §6.3 (6.33)–(6.37), §6.4 (6.51)–(6.52). Validation (planned): V1 parity with ``ch03.cylinder_flow``; u·n = 0 on
-    r = a for every Γ; sign pinned (Γ_cw > 0 moves the stagnation points down, L = +ρUΓ_cw). Label: analytic.
+    Book: §6.3 (6.33)–(6.37), §6.4 (6.51)–(6.52).
+    Validation: V1, V3, V4, V6, V7 — tests/test_ch06.py: test_bernoulli_V4_pressure_and_cp,
+    test_blasius_V1_cylinder_force_on_every_circle, test_blasius_V1_laurent_coefficients_and_contributions,
+    test_blasius_V3_polygon_contours_converge_at_second_order, test_blasius_V4_three_routes_agree,
+    test_book_V6_section_6_1_and_6_3_forms and 20 more. Label: analytic, converged, conserved, book-value.
     """
     U, a = float(U), float(a)
     if a <= 0:
@@ -667,8 +730,8 @@ def mirror(elements, wall: str = "y=0") -> list:
     sources with the **same** sign (φ₂ = φ₁(x, y) + φ₁(x, −y), no normal velocity on the wall); a doublet's vector is
     reflected (it is a source–sink pair). A uniform stream parallel to the wall is kept once; one crossing the wall,
     a corner flow, or an element on the wall raises. ``wall`` = "y=0" or "x=0".
-    Returns the list (originals first). Book: §6.3, Figs. 6.14–6.16, (6.41). Validation (planned): V1 zero normal
-    velocity on the wall (wrong variant: same-sign vortex image fails). Label: analytic.
+    Returns the list (originals first). Book: §6.3, Figs. 6.14–6.16, (6.41).
+    Validation: V1 — tests/test_ch06.py: test_images_V1_wall_conditions_and_wrong_variant. Label: analytic.
     """
     els = [element_from_spec(e) for e in (elements.elements if isinstance(elements, Flow) else elements)]
     if wall not in ("y=0", "x=0"):
@@ -706,8 +769,8 @@ def circle_theorem(flow, a: float, center=0j) -> FunctionFlow:
     ``flow`` is any object with ``w``/``dwdz`` (e.g. a :class:`Flow` of sources and vortices outside the circle) — then
     a :class:`FunctionFlow` is returned — or a bare callable w(z), for which the callable W(z) is returned.
     dW/dz = w′(z) − (a²/(z − c)²)·conj(w′(c + a²/conj(z − c))). Returns a :class:`FunctionFlow` (NaN inside).
-    Book: §6.3 (images extend to circular boundaries; Exercises 5.14, 6.26). Validation (planned): V1 u·n = 0 on the
-    circle; parity with ``core.biot_savart.circle_image_system`` for vortices. Label: analytic.
+    Book: §6.3 (images extend to circular boundaries; Exercises 5.14, 6.26).
+    Validation: V1 — tests/test_ch06.py: test_circle_theorem_V1_circle_is_a_streamline. Label: analytic.
     """
     a = float(a)
     c = as_complex_point(center)
@@ -774,8 +837,10 @@ def blasius_force(flow_or_dwdz, R: float | None = None, contour=None, rho: float
     segments — second order; must be counterclockwise, signed area > 0, else ValueError).
     Parameters: flow (object with ``dwdz``) or a callable dw/dz(z) [m/s]; ρ [kg/m³].
     Returns :class:`BlasiusForce` (D, L) [N/m] on the body. Book: §6.5, Eqs. (6.57)–(6.60).
-    Validation (planned): V1 cylinder (0, ρUΓ_cw) for every R > a; V3 trapezoid rate; Kutta–Zhukhovsky on the ellipse.
-    Label: analytic.
+    Validation: V1, V3 — tests/test_ch06.py: test_blasius_V1_cylinder_force_on_every_circle,
+    test_blasius_V1_form_matches_published_theorem, test_blasius_V3_polygon_contours_converge_at_second_order,
+    test_elliptic_cylinder_V1_boundary_far_field_and_lift, test_lift_V1_form_matches_published_kutta_joukowski. Label:
+    analytic, converged.
     """
     f = _dwdz_of(flow_or_dwdz)
     if contour is None:
@@ -830,7 +895,7 @@ def laurent_coefficients(flow_or_dwdz, R: float, n: int = 128, kmin: int = -6, k
     c₀ = U, c₋₁ = iΓ_cw/2π (= −iΓ_ccw/2π), c₋₂ = −d/2π (book scalar d).
 
     Returns dict {k: complex c_k} for kmin ≤ k ≤ kmax. Book: §6.5, far-field expansion before (6.61).
-    Validation (planned): V1 cylinder coefficients. Label: analytic.
+    Validation: V1 — tests/test_ch06.py: test_blasius_V1_laurent_coefficients_and_contributions. Label: analytic.
     """
     f = _dwdz_of(flow_or_dwdz)
     c = as_complex_point(center)
@@ -849,7 +914,9 @@ def laplacian_residual(fn: Callable, x, y, h: float = 1e-3):
 
     ``fn(x, y)`` a scalar field (ψ or φ) [m²/s]; h [m]. Returns ∇²f [1/s]. Zero for harmonic f ((6.5), (6.12)); NaN
     within 5h of a singular point when ``fn`` is a bound method of an element or Flow (e.g. ``flow.psi``).
-    Book: §6.2, Eqs. (6.5), (6.12). Validation (planned): V3 observed order 4. Label: converged.
+    Book: §6.2, Eqs. (6.5), (6.12).
+    Validation: V1, V3 — tests/test_ch06.py: test_laplace_residual_V1_every_element_is_harmonic,
+    test_psi_vorticity_V3_ninepoint_stencil_order_four. Label: analytic, converged.
     """
     x_, y_ = _F(x), _F(y)
 
@@ -899,7 +966,9 @@ def normal_velocity_on(flow, curve_pts, normals=None, closed: bool = True) -> fl
     """max |u·n| [m/s] on a sampled curve — the no-through-flow condition (6.16) (≈ 0 on a body; see
     :func:`normal_velocity_values` for the values). ``curve_pts`` complex (or (2, N)), counterclockwise; ``normals``
     complex unit normals or None (from the curve); ``closed=False`` for an open outline (half-body).
-    Book: §6.2, Eq. (6.16). Validation (planned): V1 cylinder/half-body/ellipse ≈ 0. Label: analytic."""
+    Book: §6.2, Eq. (6.16).
+    Validation: V1 — tests/test_ch06.py: test_circle_theorem_V1_circle_is_a_streamline,
+    test_no_through_flow_V1_bodies_are_streamlines. Label: analytic."""
     return normal_velocity_values(flow, curve_pts, normals, closed)["max"]
 
 
@@ -923,7 +992,8 @@ def polar_velocity(fn: Callable, r, theta, kind: str = "psi", h: float = 1e-5):
     kind "psi": u_r = (1/r)∂ψ/∂θ, u_θ = −∂ψ/∂r;  kind "phi": u_r = ∂φ/∂r, u_θ = (1/r)∂φ/∂θ (central differences, O(h²)).
 
     Parameters: fn(r, θ) [m²/s]; r [m]; θ [rad] from +x; h (step in r [m] and in θ [rad]). Returns (u_r, u_θ) [m/s].
-    Book: §6.2, Eqs. (6.21)–(6.22). Validation (planned): V1 cylinder (6.34), (6.37). Label: analytic.
+    Book: §6.2, Eqs. (6.21)–(6.22).
+    Validation: V1 — tests/test_ch06.py: test_polar_velocity_V1_cylinder_components. Label: analytic.
     """
     r_, t_ = _F(r), _F(theta)
     dfr = (_F(fn(r_ + h, t_)) - _F(fn(r_ - h, t_))) / (2 * h)
@@ -989,7 +1059,10 @@ class AxisymUniform(_AxiElement):
 @dataclass
 class PointSource3D(_AxiElement):
     """3-D point source of strength Q [m³/s] on the axis at z0: φ = −Q/4πr, ψ = −Q(z − z0)/4πr = −(Q/4π) cos θ
-    (6.87), u = Q e_r/4πr². Book: §6.8 (6.87). Validation (planned): V4 flux Q through any sphere. Label: analytic."""
+    (6.87), u = Q e_r/4πr². Book: §6.8 (6.87).
+    Validation: V1, V3, V6 — tests/test_ch06.py: test_axisym_elements_V3_doublet3d_is_the_limit_of_a_pair,
+    test_axisym_flux_V1_two_pi_dpsi_and_source_strength, test_book_V6_sections_6_8_6_9_and_exercises,
+    test_stokes_stream_function_V1_field_equation_is_not_laplace. Label: analytic, converged, book-value."""
     Q: float = 1.0
     z0: float = 0.0
     kind = "source"
@@ -1047,8 +1120,10 @@ class LineSource3D(_AxiElement):
     ψ = −(k/4π)(r₁ − r₂) with r_i = √(R² + (z − z_i)²) — (6.93)–(6.94) with the sign flipped for a source (the book's
     sink from O to A is k_book = −k: ψ_sink = (k_book/4π)(r − r₁)); φ = −(k/4π)[asinh((z₂ − z)/R) − asinh((z₁ − z)/R)];
     u_z = (k/4π)(1/r₂ − 1/r₁), u_R = (k/4πR)[(z − z₁)/r₁ − (z − z₂)/r₂].
-    Book: §6.8 (6.93)–(6.94), the axial singularity method. Validation (planned): V1 closed form = quad of (6.93).
-    Label: analytic."""
+    Book: §6.8 (6.93)–(6.94), the axial singularity method.
+    Validation: V1, V3 — tests/test_ch06.py: test_axial_method_V1_solver_and_field_consistency,
+    test_axial_method_V3_ellipsoid_strengths_converge, test_line_sink_V1_closed_form_equals_quadrature,
+    test_stokes_stream_function_V1_field_equation_is_not_laplace. Label: analytic, converged."""
     k: float = 1.0
     z1: float = 0.0
     z2: float = 1.0
@@ -1146,8 +1221,11 @@ def sphere(U: float = 1.0, a: float = 1.0) -> AxisymFlow:
     """Sphere of radius a in a stream U e_z = uniform flow + doublet opposing it, d = 2πa³U (6.89):
     ψ = ½Ur²(1 − a³/r³) sin²θ, φ = Ur(1 + a³/2r³) cos θ; velocity (6.90), surface C_p = 1 − (9/4) sin²θ (6.91).
     Parameters: U [m/s], a [m]. Returns an :class:`AxisymFlow` (NaN inside r < a).
-    Book: §6.8 (6.89)–(6.91), Fig. 6.27. Validation (planned): V1 ψ = 0 on r = a and on the axis; parity with
-    ``core.vortices.hill_stream_function`` exterior; V1 form cross-check McDonald (2015). Label: analytic.
+    Book: §6.8 (6.89)–(6.91), Fig. 6.27.
+    Validation: V1, V6, V7 — tests/test_ch06.py: test_axisym_flux_V1_two_pi_dpsi_and_source_strength,
+    test_axisym_velocity_V1_spherical_components_from_psi_and_phi, test_book_V6_sections_6_8_6_9_and_exercises,
+    test_exports_V1_every_part_c_name_is_reachable, test_sphere_V1_form_matches_published_potential,
+    test_sphere_V1_parity_with_hill_exterior_and_published_form and 3 more. Label: analytic, book-value.
     """
     U, a = float(U), float(a)
 
@@ -1210,7 +1288,9 @@ def moving_sphere_potential(x, xs, us, a: float):
     """Potential of a sphere of radius a centred at x_s moving at u_s through fluid at rest (6.96)–(6.97):
     φ = −(a³/2|ξ|³) u_s·ξ, ξ = x − x_s (dipole d(t) = +2πa³u_s).
     x (3,) or (3, N) [m]; xs, us (3,) [m], [m/s]; a [m]. Returns φ [m²/s].
-    Book: §6.9, Eqs. (6.96)–(6.97). Validation (planned): V1 u·n = u_s·n on |ξ| = a. Label: analytic."""
+    Book: §6.9, Eqs. (6.96)–(6.97).
+    Validation: V1 — tests/test_ch06.py: test_moving_sphere_V1_dphidt_and_pressure,
+    test_moving_sphere_V1_kinematic_condition_and_surface_velocity. Label: analytic."""
     X = _F(x)
     xi = X - _vec(xs, X.ndim)
     r = np.sqrt(np.sum(xi ** 2, axis=0))
@@ -1263,8 +1343,9 @@ def moving_sphere_surface_pressure(e_xi, us, dus_dt, a: float, rho: float = 1000
 
     e_xi (3,) or (3, N) unit outward normals; us [m/s], dus_dt [m/s²] (3,); a [m]; ρ [kg/m³]; p∞ [Pa].
     Returns p_a [Pa], or with ``split=True`` dict(steady, acceleration, total) where steady/acceleration are the gauge
-    parts p − p∞ [Pa] and total = p_a. Book: §6.9, Eqs. (6.100)–(6.106). Validation (planned): V1 parity with
-    ``ch04.accelerating_sphere_pressure``; steady part = (6.91) with θ ↔ π − θ_s. Label: analytic.
+    parts p − p∞ [Pa] and total = p_a. Book: §6.9, Eqs. (6.100)–(6.106).
+    Validation: V1 — tests/test_ch06.py: test_added_mass_V1_force_quadrature_three_directions,
+    test_moving_sphere_V1_dphidt_and_pressure. Label: analytic.
     """
     E = _F(e_xi)
     U = _vec(us, E.ndim)
@@ -1297,6 +1378,10 @@ def sphere_force_quadrature(p_fn: Callable, a: float, n_theta: int = 32, n_phi: 
 
 def added_mass_sphere(a: float, rho: float = 1000.0) -> float:
     """Added (apparent) mass of a sphere M = 2πρa³/3 = ½ × displaced fluid mass [kg] (6.108); F_s = −M du_s/dt.
-    Book: §6.9, Eqs. (6.108)–(6.109). Validation (planned): V1 force quadrature; independent kinetic-energy route;
-    V5 Wikipedia "Added mass" coefficient ½. Label: analytic."""
+    Book: §6.9, Eqs. (6.108)–(6.109).
+    Validation: V1, V2, V4, V5, V6 — tests/test_ch06.py: test_added_mass_V1_energy_route_is_independent,
+    test_added_mass_V1_force_quadrature_three_directions, test_added_mass_V2_dimensions,
+    test_added_mass_V5_published_coefficient_one_half, test_book_V6_sections_6_8_6_9_and_exercises,
+    test_parity_rows_V1_design_part_b_expressions_run and 1 more. Label: analytic, symbolic, conserved, benchmark,
+    book-value."""
     return float(_TWO_PI * float(rho) * float(a) ** 3 / 3.0)  # Eq. (6.108)

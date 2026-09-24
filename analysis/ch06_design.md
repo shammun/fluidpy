@@ -4637,3 +4637,10 @@ words.)
   fluid round it with energy ½MU². The energy route generalises to any shape (M becomes a tensor, T = ½M_ij U_i U_j).
 - **Traps.** ∇·(φ∇φ) = \lvert∇φ\rvert² needs ∇²φ = 0. The normal out of the fluid points into the sphere, which fixes the sign.
   The far surface vanishes only because φ∂φ/∂r ~ r⁻⁵ beats the r² growth of the area.
+
+## Part G — errata from verification (2026-09-23; these override Parts A, B, F where they conflict)
+- **G1 · D21 sympy check (O1).** The principal-root failure fraction is 0.998, not 1.0: the three grid points on the slit (y = 0, |x| ≤ 2b) have |ζ| = b for both roots. Say "fails at every left-half point off the slit" or exclude the slit in the cell.
+- **G2 · C12 / N74 refinement order (O2).** Example 6.2 converges at order **4/3 everywhere**, not "≈ 2 away from the corner": the 270° corner flow behaves as ψ ~ r^{2/3} sin(2θ/3) (n = ⅔ in $w = A z^n$ (6.46)), and this singularity pollutes the whole grid. The notebook's refinement cell must state 4/3 and this reason; second order holds for the smooth test problem (sin πx sinh πy: 1.995).
+- **G3 · E8 text and ranges (O3).** (a) Rankine oval: the axial strengths k_n *alternate in sign* (±9.6 at N = 20, ±18.6 at N = 40); only their moments converge (dipole error 1.4e-3 → 2.9e-6). Do not say "the segments converge to two narrow spikes". (b) Airship: the fitted bars do *not* reproduce a point source plus a flat line sink (k from −4.9 to 14.1 at N = 20, Σk_nΔξ = −0.094). (c) Panels: "C_p converges like 1/N²" holds on the **ellipse**; on the circle constant-source panels are exact at every N. (d) Cap N at 40 in axial mode (the Rankine oval breaks down by N = 80, cond ≈ 3.5e17) or show a conditioning warning; the ellipsoid target is the smooth, convergent one (k_n order ≈ 1).
+- **G4 · Panel velocity off the body** converges at about first order (0.93 → 1), while control-point C_p is exact (circle) or second order (ellipse).
+- **G5 · Fig. 6.10's measured curve** has no fetched dataset: the separated band (`separated_cp_band`) is a labelled *qualitative* sketch.

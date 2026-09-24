@@ -46,17 +46,20 @@ def save(fig, out: Path, name: str) -> Path:
     return path
 
 
-def flow_net(ax, flow, xlim=(-3, 3), ylim=(-2, 2), n: int = 161, n_levels: int = 25, phi: bool = False,
-             body=None, stag=None, title: str = "", psi_levels=None, cut_ray: bool = False):
-    """ψ contours (ink) — and φ contours (dashed teal) if ``phi`` — of a plane flow, the body filled grey, stagnation
-    points as orange dots. ``body``: complex outline; ``stag``: complex array. Automatic levels span the 3rd–97th
-    percentiles (a singularity would swamp them); ``cut_ray`` blanks a thin strip along the positive x-axis where a
-    logarithm's branch cut would otherwise draw a bundle of lines."""
+def flow_net(ax, flow, xlim=(-3, 3), ylim=(-2, 2), n: int = 241, n_levels: int = 21, mask_body=None, *,
+             phi: bool = False, body=None, stag=None, title: str = "", psi_levels=None, cut_ray: bool = False):
+    """ψ contours (ink) — and φ contours (dashed teal) if ``phi`` — of a plane flow, the body filled grey with a black
+    outline (:func:`draw_body`), stagnation points as orange dots. ``mask_body(x, y) → bool`` blanks extra points (NaN);
+    ``body``: complex outline; ``stag``: complex array. Automatic levels span the 3rd–97th percentiles (a singularity
+    would swamp them); ``cut_ray`` blanks a thin strip along the positive x-axis where a logarithm's branch cut would
+    otherwise draw a bundle of lines."""
     x = np.linspace(*xlim, n)
     y = np.linspace(*ylim, n)
     X, Y = np.meshgrid(x, y, indexing="xy")
     with np.errstate(all="ignore"):
         P = np.asarray(flow.psi(X, Y), float)
+    if mask_body is not None:
+        P = np.where(np.asarray(mask_body(X, Y), bool), np.nan, P)
     if cut_ray:
         strip = (np.abs(Y) < 1.5 * (y[1] - y[0])) & (X > 0)
         P = np.where(strip, np.nan, P)
@@ -75,9 +78,7 @@ def flow_net(ax, flow, xlim=(-3, 3), ylim=(-2, 2), n: int = 161, n_levels: int =
             F = np.where(strip, np.nan, F)
         ax.contour(X, Y, F, levels=levels(F), colors=COLORS["teal"], linewidths=0.6, linestyles="--")
     if body is not None:
-        b = np.asarray(body, complex)
-        ax.fill(b.real, b.imag, color="#d9dce4", zorder=3)
-        ax.plot(np.append(b.real, b.real[0]), np.append(b.imag, b.imag[0]), color=COLORS["ink"], lw=1.6, zorder=4)
+        draw_body(ax, body)
     if stag is not None and len(stag):
         s = np.asarray(stag, complex)
         ax.plot(s.real, s.imag, "o", color=COLORS["orange"], ms=6, zorder=5, label="stagnation point")
@@ -94,3 +95,45 @@ def flow_net(ax, flow, xlim=(-3, 3), ylim=(-2, 2), n: int = 161, n_levels: int =
 def circle(a: float = 1.0, n: int = 200, center: complex = 0j) -> np.ndarray:
     th = np.linspace(0, 2 * np.pi, n, endpoint=False)
     return center + a * np.exp(1j * th)
+
+
+def draw_body(ax, pts, **kw):
+    """Fill a body outline (complex array, or (2, N)) light grey and draw its edge black; ``kw`` override
+    ``facecolor``, ``edgecolor``, ``lw``, ``zorder``. Returns the fill patch list."""
+    b = np.asarray(pts)
+    b = b if np.iscomplexobj(b) else np.asarray(b[0], float) + 1j * np.asarray(b[1], float)
+    fc = kw.pop("facecolor", "#d9dce4")
+    ec = kw.pop("edgecolor", COLORS["ink"])
+    lw = kw.pop("lw", 1.6)
+    z = kw.pop("zorder", 3)
+    patches = ax.fill(b.real, b.imag, color=fc, zorder=z, **kw)
+    ax.plot(np.append(b.real, b.real[0]), np.append(b.imag, b.imag[0]), color=ec, lw=lw, zorder=z + 1)
+    return patches
+
+
+def pressure_arrows(ax, pts, p, normals, scale: float = 1.0, **kw):
+    """Surface pressure as arrows along −p n (the force per area the fluid exerts on the body): gauge pressure
+    ``p`` [Pa] at body points ``pts`` (complex) with outward unit ``normals`` (complex); arrow length |p|·scale [m/Pa].
+    Over-pressure (p > 0, pushing in) orange, suction (p < 0, pulling out) blue. Returns the quiver."""
+    z = np.asarray(pts, complex)
+    nn = np.asarray(normals, complex)
+    pv = np.asarray(p, float)
+    f = -pv * nn * float(scale)  # arrow vector −p n
+    tail = z - np.where(pv > 0, f, 0.0)  # over-pressure arrows end on the surface, suction arrows start there
+    cols = np.where(pv > 0, COLORS["orange"], COLORS["blue"])
+    return ax.quiver(tail.real, tail.imag, f.real, f.imag, color=list(cols), angles="xy", scale_units="xy",
+                     scale=1.0, width=kw.pop("width", 0.004), zorder=kw.pop("zorder", 6), **kw)
+
+
+def separated_cp_band(theta_front_deg, sep_deg: float = 80.0):
+    """**Qualitative sketch band, not measured data** (N31, the idea of Fig. 6.10): where a real high-Re cylinder's
+    surface C_p lies, against the angle from the front stagnation point [deg]. Before separation (angle < ``sep_deg``)
+    it follows the ideal 1 − 4 sin²β (6.35) (floored at −1.05, so the two parts join) within ±0.15; after separation
+    it is a flat, low wake pressure between −1.3 and −0.8. Every figure using it must say "qualitative".
+    Returns (lo, hi) arrays (lo ≤ hi)."""
+    b = np.radians(np.asarray(theta_front_deg, float))
+    ideal = np.maximum(1.0 - 4.0 * np.sin(b) ** 2, -1.05)
+    before = b < np.radians(sep_deg)
+    lo = np.where(before, ideal - 0.15, -1.3)
+    hi = np.where(before, np.minimum(ideal + 0.15, 1.0), -0.8)
+    return np.minimum(lo, hi), np.maximum(lo, hi)

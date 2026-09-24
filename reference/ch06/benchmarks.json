@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "chapter": "ch06",
+    "written_by": "reference/ch06/make_refs.py",
+    "verified": "2026-09-23",
+    "note": "Public sources only (pages fetched on the date above, see SOURCES.md). No book values."
+  },
+  "added_mass_sphere": {
+    "formula": "2/3*pi*r**3*rho",
+    "fraction_of_displaced_mass": 0.5,
+    "equation_of_motion": "(m_p + rho*V_p/2) dv/dt = sum F (+ rho*V_p/2 Du/Dt for an accelerating fluid)",
+    "source": "https://en.wikipedia.org/wiki/Added_mass (fetched 2026-09-23)",
+    "label": "V5"
+  },
+  "rayleigh_collapse": {
+    "constant": 0.91468,
+    "formula": "t = 0.91468*R0*sqrt(rho/P_inf)",
+    "digits": "as printed (5 significant figures)",
+    "source": "https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Plesset_equation (fetched 2026-09-23)",
+    "label": "V5"
+  },
+  "cylinder_form": {
+    "phi": "U*r*(1 + R**2/r**2)*cos(theta)",
+    "V_r": "U*(1 - R**2/r**2)*cos(theta)",
+    "V_theta": "-U*(1 + R**2/r**2)*sin(theta)",
+    "cp_surface_max": 1.0,
+    "cp_surface_min": -3.0,
+    "drag": 0.0,
+    "source": "https://en.wikipedia.org/wiki/Potential_flow_around_a_circular_cylinder (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "kutta_joukowski_form": {
+    "lift": "rho*V*Gamma",
+    "circulation_sense": "clockwise (negative) contour",
+    "complex_force": "conj(F) = I*rho/2 * contour_integral(w'**2, z)",
+    "source": "https://en.wikipedia.org/wiki/Kutta%E2%80%93Joukowski_theorem (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "blasius_form": {
+    "force": "F_x - I*F_y = I*rho/2 * contour_integral((dw/dz)**2, z)",
+    "moment": "M = re(-rho/2 * contour_integral(z*(dw/dz)**2, z))",
+    "source": "https://en.wikipedia.org/wiki/Blasius_theorem (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "joukowsky_form": {
+    "map": "z = zeta + 1/zeta",
+    "unit_circle_image": [
+      -2.0,
+      2.0
+    ],
+    "velocity": "W = W_circle/(1 - 1/zeta**2)",
+    "source": "https://en.wikipedia.org/wiki/Joukowsky_transform (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "rankine_half_body_form": {
+    "psi": "U*r*sin(theta) + m*theta/(2*pi)",
+    "b": "m/(2*pi*U)",
+    "body": "b*(pi - theta)/sin(theta)",
+    "source": "https://en.wikipedia.org/wiki/Rankine_half_body (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "sphere_form": {
+    "Phi": "v*(r + a**3/(2*r**2))*cos(theta)",
+    "u_r": "v*(1 - a**3/r**3)*cos(theta)",
+    "u_theta": "-v*(1 + a**3/(2*r**3))*sin(theta)",
+    "u_z_cyl": "v*(1 - a**3*(2*z**2 - rho_c**2)/(2*(z**2 + rho_c**2)**(5/2)))",
+    "u_rho_cyl": "-v*3*a**3*rho_c*z/(2*(z**2 + rho_c**2)**(5/2))",
+    "stream_function_convention": "u_z = (1/rho_c) dPsi/drho_c, u_rho = -(1/rho_c) dPsi/dz",
+    "source": "K. T. McDonald, Pressure in Fluid Flow Past a Sphere, Princeton (2015), http://kirkmcd.princeton.edu/examples/sphereflow.pdf (fetched 2026-09-23)",
+    "label": "V1 form"
+  },
+  "source_panel_method": {
+    "citation": "J. L. Hess & A. M. O. Smith, Calculation of potential flow about arbitrary bodies, Prog. Aerosp. Sci. 8, 1-138 (1967), doi:10.1016/0376-0421(67)90003-6",
+    "label": "method pedigree (not a number)"
+  }
+}
