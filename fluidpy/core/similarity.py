@@ -62,9 +62,16 @@ def froude_number(U, l, g: float = G0):
     return _S(_F(U) / np.sqrt(float(g) * _F(l)))
 
 
-def reduced_gravity(rho1, rho2, g: float = G0):
-    """Reduced gravity g′ = g(ρ₂ − ρ₁)/ρ₁ [m/s²] (after (4.105)); layer 1 lighter, above. Book: §4.11. Label: analytic."""
-    return _S(float(g) * (_F(rho2) - _F(rho1)) / _F(rho1))
+def reduced_gravity(rho1, rho2, g: float = G0, ref: str = "upper"):
+    """Reduced gravity g′ = g(ρ₂ − ρ₁)/ρ₁ [m/s²] (after (4.105)); layer 1 lighter, above. Book: §4.11. Label: analytic.
+
+    ``ref`` (added in ch07, backward compatible): "upper" (default, the ch04 form with ρ₁ in the denominator), "lower"
+    (Ch. 7's (7.117) g′ = g(ρ₂ − ρ₁)/ρ₂) or "mean" ((ρ₁ + ρ₂)/2). The forms differ by the factor ρ₂/ρ₁ (0.3 % in the
+    ocean) — state which one is used wherever g′ appears."""
+    den = {"upper": _F(rho1), "lower": _F(rho2), "mean": 0.5 * (_F(rho1) + _F(rho2))}
+    if ref not in den:
+        raise ValueError("ref must be 'upper' (ch04, rho1), 'lower' (ch07 (7.117), rho2) or 'mean'")
+    return _S(float(g) * (_F(rho2) - _F(rho1)) / den[ref])
 
 
 def internal_froude_number(U, g_prime=None, l=1.0, N=None):
