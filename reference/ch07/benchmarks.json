@@ -1,0 +1,84 @@
+{
+  "_meta": {
+    "chapter": "ch07",
+    "written_by": "reference/ch07/make_refs.py",
+    "verified": "2026-09-24",
+    "note": "Public sources only (pages fetched on the date above, see SOURCES.md). No book values."
+  },
+  "fenton_mckee_1990": {
+    "formula": "k*d = x**2 * (coth(x**nu))**(1/nu), x = omega*sqrt(d/g), nu = 3/2 (Eq. 21: L = L0*tanh((2*pi*sqrt(d/g)/T)**1.5)**(2/3))",
+    "max_error_wavelength_percent": 1.7,
+    "max_error_statement": "accuracy always better than 1.7% (abstract); maximum error of only 1.7% (p. 507)",
+    "optimal_nu": 1.49,
+    "limits": "exact for long (shallow) and short (deep) waves",
+    "source": "https://johndfenton.com/Papers/Fenton90c+McKee-On-calculating-the-lengths-of-water-waves.pdf (PDF fetched 2026-09-24, text extracted with pymupdf) — Coastal Engineering 14, 499-513 (1990), doi:10.1016/0378-3839(90)90032-R",
+    "label": "V5"
+  },
+  "fenton_2006_note": {
+    "fm_statement_percent": 1.5,
+    "guo_5_2_statement_percent": 0.7,
+    "guo_over_fm": "about half",
+    "guo_5_2_formula": "k*d = x**2 * (1 - exp(-x**2.5))**(-2/5)",
+    "source": "https://johndfenton.com/Papers/Dispersion-Relation.pdf (PDF fetched 2026-09-24, text extracted)",
+    "label": "V5 (loose statements; see SOURCES.md for the measured values)"
+  },
+  "guo_2002": {
+    "formula": "k*h = x**2 * (1 - exp(-x**beta))**(-1/beta), x = omega*sqrt(h/g)",
+    "beta": 2.4908,
+    "max_rel_error_percent": 0.75,
+    "source": "doi:10.1016/S0378-3839(02)00039-X (abstract via search results 2026-09-24; publisher page 403)",
+    "label": "V5 (search-confirmed)"
+  },
+  "capillary_wave": {
+    "dispersion": "omega**2 = abs(k)*(((rho - rho_p)/(rho + rho_p))*g + sigma/(rho + rho_p)*k**2)",
+    "lambda_m": "2*pi*sqrt(sigma/((rho - rho_p)*g))",
+    "c_min_m_s": 0.23,
+    "lambda_m_cm": 1.7,
+    "digits": "as printed (2 significant figures)",
+    "source": "https://en.wikipedia.org/wiki/Capillary_wave (fetched 2026-09-24)",
+    "label": "V5 (numbers) + V1 form"
+  },
+  "iapws_surface_tension": {
+    "sigma_20C_mN_m": 72.74,
+    "source": "https://iapws.org/public/documents/CH-L9/Surf-H2O-2014.pdf (reused from ch01; read 2026-09-24 by the concept analyst)",
+    "label": "V5 (input property)"
+  },
+  "stokes_limit": {
+    "H_over_lambda": 0.1410633,
+    "uncertainty": 4e-07,
+    "crest_angle_deg": 120.0,
+    "attribution_on_page": "Schwartz & Fenton (cited by HandWiki); crest angle 2π/3 also in Dyachenko, Lushnikov & Korotkevich, arXiv:1507.02784 (Stud. Appl. Math. 137, 419-472, 2016)",
+    "phase_speed_third_order": "c = (1 + (k*a)**2/2)*sqrt(g/k)",
+    "source": "https://handwiki.org/wiki/Physics:Stokes_wave (fetched 2026-09-24); https://arxiv.org/abs/1507.02784",
+    "label": "V5 (constant) + V1 form (speed)"
+  },
+  "stokes_drift": {
+    "deep_form": "omega*k*a**2*exp(2*k*z)",
+    "quarter_wavelength_fraction_percent": 4,
+    "source": "https://en.wikipedia.org/wiki/Stokes_drift (fetched 2026-09-24)",
+    "label": "V5 (the 4 % number) + V1 form"
+  },
+  "belanger": {
+    "depth_ratio": "(sqrt(1 + 8*Fr1**2) - 1)/2",
+    "head_loss": "(y2 - y1)**3/(4*y1*y2)",
+    "source": "https://en.wikipedia.org/wiki/Hydraulic_jumps_in_rectangular_channels (fetched 2026-09-24)",
+    "label": "V1 form"
+  },
+  "cnoidal": {
+    "kdv": "eta_t + sqrt(g*h)*eta_x + 3/2*sqrt(g/h)*eta*eta_x + 1/6*h**2*sqrt(g*h)*eta_xxx = 0",
+    "trough": "H/m*(1 - m - E/K)",
+    "Delta": "h*sqrt(4*m*h/(3*H))",
+    "c": "sqrt(g*h)*(1 + H/(m*h)*(1 - m/2 - 3/2*E/K))",
+    "wavelength": "2*Delta*K",
+    "solitary": "H*sech((x - c*t)/Delta)**2, c = sqrt(g*h)*(1 + H/(2*h)), Delta = h*sqrt(4*h/(3*H))",
+    "ursell": "H*lambda**2/h**3",
+    "note": "Wikipedia's H (height) is the book's a for the solitary wave; K, E complete elliptic integrals of parameter m",
+    "source": "https://en.wikipedia.org/wiki/Cnoidal_wave (fetched 2026-09-24)",
+    "label": "V1 form"
+  },
+  "st_andrews_cross": {
+    "citation": "D. E. Mowbray & B. S. H. Rarity, J. Fluid Mech. 28, 1-16 (1967)",
+    "url": "https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/theoretical-and-experimental-investigation-of-the-phase-configuration-of-internal-waves-of-small-amplitude-in-a-density-stratified-liquid/BD4159D2420DA60E9640520CD06B68AB",
+    "label": "pedigree (qualitative)"
+  }
+}
