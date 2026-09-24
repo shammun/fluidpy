@@ -194,9 +194,9 @@
       "title": "Gravity Waves",
       "slug": "gravity_waves",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -204,7 +204,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 202 numbered rows + 33 figs (NEW 165/SEEN 37), 144/144 eq labels (7.1-7.159 incl. a/b), CODE 180/DEMO 37/SKIP 19, 68 derivations (6 three-star), 51 impl rows, 9 suspected typos",
+      "notes": "analyze: 202 numbered rows + 33 figs (NEW 165/SEEN 37), 144/144 eq labels (7.1-7.159 incl. a/b), CODE 180/DEMO 37/SKIP 19, 68 derivations (6 three-star), 51 impl rows, 9 suspected typos; curate: A 16 / B 193 / C 27 of 236 (CORE 16, NOTE 199, RECAP 20, SKIP 1); 37 derivations written (9/24/4 by star), 24 demoted; 9 explainers dispersion_relation, particle_orbits, capillary_gravity_waves, seiche_standing_waves, group_velocity_packets, wave_rays_refraction, hydraulic_jump, two_layer_modes, internal_wave_beams (+ backup linearised_free_surface)",
       "updated": "2026-09-24"
     },
     "ch08": {
