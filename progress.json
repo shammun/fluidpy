@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch06",
+  "current_chapter": "ch07",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -193,8 +193,8 @@
     "ch07": {
       "title": "Gravity Waves",
       "slug": "gravity_waves",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -204,8 +204,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 202 numbered rows + 33 figs (NEW 165/SEEN 37), 144/144 eq labels (7.1-7.159 incl. a/b), CODE 180/DEMO 37/SKIP 19, 68 derivations (6 three-star), 51 impl rows, 9 suspected typos",
+      "updated": "2026-09-24"
     },
     "ch08": {
       "title": "Laminar Flow",
