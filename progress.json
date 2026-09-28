@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch07",
+  "current_chapter": "ch08",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -220,8 +220,8 @@
     "ch08": {
       "title": "Laminar Flow",
       "slug": "laminar_flow",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -231,8 +231,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 143 rows, 58/58 eq labels (8.1-8.53 incl a/b), NEW 107/SEEN 35, CODE 120/DEMO 8/SKIP 15, 49 derivations (18/23/8 by star), 41 impl rows, 37 validation rows, ~10 suspected typos (8.13b dp/dx, 8.17a missing nu, Ex 8.1 p(x), 8.19 U0, min pressure sign, Oseen sign)",
+      "updated": "2026-09-28"
     },
     "ch09": {
       "title": "Boundary Layers and Related Topics",
