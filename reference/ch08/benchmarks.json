@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "chapter": "ch08",
+    "written_by": "reference/ch08/make_refs.py",
+    "verified": "2026-09-28",
+    "note": "Public sources only (pages fetched on the date above, see SOURCES.md). No book values."
+  },
+  "san_andres_slider": {
+    "W_form": "W(K) = (log(K) + 2*(1 - K)/(1 + K))/(1 - K)**2, K = h_inlet/h_exit, w = 6*mu*U*L**2*B/h_exit**2 * W",
+    "K_opt": 2.1889,
+    "W_opt": 0.0267,
+    "Pmax_form": "Pmax(K) = (K - 1)/(4*K*(1 + K)), normalised by 6*mu*U*L/h_exit**2",
+    "K_Pmax": 2.414,
+    "Pmax_max": 0.043,
+    "mapping": "K = 1 + alpha (book gap h = h0(1 + alpha x/L), pad moving +x: inlet h0(1+alpha) at x = L, exit h0)",
+    "source": "https://rotorlab.tamu.edu/me626/Notes_pdf/Notes02_App_1D_bearings.pdf (PDF fetched 2026-09-28, text extracted with PyMuPDF, pp. 5-6 read)",
+    "digits": "as printed (K_opt 5 significant figures; W, Pmax 3 figures; K_Pmax 4 figures)",
+    "label": "V5"
+  },
+  "huppert_planar_current": {
+    "pde": "h_t - beta*(h**3*h_x)_x = 0, integral_0^{x_N} h dx = A (half-area)",
+    "h_form": "(3/10)**(1/3) * eta_N**(2/3) * (A**2/beta)**(1/5) * t**(-1/5) * (1 - (x/x_N)**2)**(1/3)",
+    "xN_form": "eta_N * (beta*A**3)**(1/5) * t**(1/5)",
+    "eta_N_form": "((1/5)*(3/10)**(1/3)*sqrt(pi)*gamma(1/3)/gamma(5/6))**(-3/5)",
+    "eta_N": 1.411,
+    "digits": "printed as 1.411... (4 significant figures)",
+    "source": "https://warwick.ac.uk/fac/sci/maths/people/staff/tball/publications/similarity_preprint.pdf (PDF fetched 2026-09-28, text extracted with PyMuPDF, Appendix a, Eqs. A1-A7); citation of record H. E. Huppert, J. Fluid Mech. 121, 43-58 (1982)",
+    "label": "V5"
+  },
+  "oseen_drag": {
+    "force_form": "F = 6*pi*mu*a*U*(1 + 3/8*Re_a), Re_a = rho*U*a/mu (radius)",
+    "cd_form": "C_d = 12/Re_a*(1 + 3/8*Re_a)",
+    "proudman_pearson_form": "F = 6*pi*mu*a*U*(1 + 3/8*Re_a + 9/40*Re_a**2*log(Re_a) + O(Re_a**2))",
+    "oseen_coeff_radius": 0.375,
+    "pp_coeff_radius": 0.225,
+    "source": "https://en.wikipedia.org/wiki/Oseen_equations (fetched 2026-09-28)",
+    "label": "V1 form (coefficients 3/8, 9/40 are exact rationals of the theory)"
+  },
+  "stokes_law": {
+    "drag_form": "F = 6*pi*mu*R*v",
+    "settling_form": "v = 2/9*(rho_p - rho_f)/mu*g*R**2",
+    "pressure_form": "p - p_inf = -3*mu*R*u/2*cos(theta)/r**2 (theta from the direction of the stream)",
+    "source": "https://en.wikipedia.org/wiki/Stokes%27_law (fetched 2026-09-28)",
+    "label": "V1 form"
+  },
+  "stokes_second_problem": {
+    "u_form": "U*exp(-sqrt(omega/(2*nu))*y)*cos(omega*t - sqrt(omega/(2*nu))*y)",
+    "penetration_depth": "sqrt(2*nu/omega)",
+    "source": "https://en.wikipedia.org/wiki/Stokes_problem (fetched 2026-09-28)",
+    "label": "V1 form"
+  },
+  "hagen_poiseuille": {
+    "dp_form": "Delta_p = 8*mu*L*Q/(pi*R**4)",
+    "u_form": "G/(4*mu)*(R**2 - r**2), G = -dp/dz",
+    "darcy_f": "64/Re, Re = rho*V*d/mu (mean velocity, diameter)",
+    "source": "https://en.wikipedia.org/wiki/Hagen%E2%80%93Poiseuille_equation (fetched 2026-09-28)",
+    "label": "V1 form"
+  },
+  "taylor_couette": {
+    "A_form": "Omega1*(mu_r - eta**2)/(1 - eta**2)",
+    "B_form": "Omega1*R1**2*(1 - mu_r)/(1 - eta**2)",
+    "rayleigh": "stable iff d(r*v)**2/dr >= 0 everywhere; for the Couette profile: mu_r > eta**2",
+    "source": "https://en.wikipedia.org/wiki/Taylor%E2%80%93Couette_flow (fetched 2026-09-28)",
+    "label": "V1 form"
+  },
+  "elementary_charge": {
+    "e_C": 1.602176634e-19,
+    "status": "exact (SI 2019), CODATA 2022",
+    "source": "https://physics.nist.gov/cgi-bin/cuu/Value?e (fetched 2026-09-28)",
+    "label": "V5"
+  },
+  "morrison_sphere_drag": {
+    "reuse": "reference/ch04/benchmarks.json → morrison_sphere_drag (core.similarity.sphere_drag_coefficient)",
+    "claim_tested": "the correlation lies between Stokes 24/Re and Oseen (24/Re)(1 + 3Re/16) for 0.1 <= Re <= 5",
+    "label": "V5 (correlation, 3 % class)"
+  },
+  "ussa1976_sutherland": {
+    "reuse": "reference/ch01/ussa1976_constants.json (sutherland_beta_kg_per_m_s_sqrtK, sutherland_S_K)",
+    "label": "V5 (input property)"
+  }
+}
