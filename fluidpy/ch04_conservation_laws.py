@@ -531,15 +531,9 @@ def cube_spin_acceleration(tau12, tau21, rho, h):
 # ======================================================================================================================
 # §4.6 exact profiles used in figures
 # ======================================================================================================================
-def stokes_first_problem(y, t, U: float = 1.0, nu: float = 1e-6):
-    """Stokes' first problem: a plate at y = 0 set moving at U at t = 0, u = U erfc(y/(2√(νt))) [m/s].
-
-    Book: §4.6 (an exact solution of (4.39b): local ∂u/∂t balances ν∂²u/∂y²; derived in Ch. 8) and §4.11 (u/U = erfc(η/2),
-    η = y/√(νt), is the same for every U, ν: similarity). Scalar-callable.
-    Validation: V1 NS residual ≈ 0 (``exact_solution("stokes_first")``); two (U, ν, t) collapse on erfc(η/2).
-    Label: analytic.
-    """
-    return _S(float(U) * erfc(_F(y) / (2.0 * np.sqrt(float(nu) * _F(t)))))
+# Stokes' first problem u = U erfc(y/(2√(νt))) — promoted to ``core.laminar`` in Ch. 8 (derived there, (8.30));
+# re-exported here so ``ch04.stokes_first_problem(y, t, U, nu)`` keeps working (same signature and values).
+from .core.laminar import stokes_first_problem  # noqa: E402,F401
 
 
 def plane_poiseuille(y, G: float = 100.0, h: float = 0.01, mu: float = 1e-3):

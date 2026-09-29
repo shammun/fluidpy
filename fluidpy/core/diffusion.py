@@ -271,5 +271,97 @@ def derivative_2nd_order(f, y):
     return np.gradient(f, y, edge_order=2)
 
 
+def _bc_value(bc, t: float) -> float:
+    return float(bc(t)) if callable(bc) else float(bc)
+
+
+def crank_nicolson_1d(u0, y, dt: float, nsteps: int, D: float, bc_left, bc_right=0.0, startup_be: int = 2,
+                      return_all: bool = False, t0: float = 0.0, save_every: int | None = None, theta: float = 0.5):
+    """March the 1-D diffusion equation ∂u/∂t = D ∂²u/∂y² with the θ-scheme (Crank–Nicolson for θ = ½).
+
+    Book: §8.4, Eq. (8.20) (Stokes' first problem, with (8.21)–(8.23)) and §8.5 (Stokes' second problem, wall condition
+    (8.33)). The book solves these analytically and gives no scheme: the scheme is **ours** (Ch. 8 implementer's choice),
+    second order in space (3-point Laplacian on a uniform node grid) and — for θ = ½ — second order in time and
+    unconditionally stable. Reused by Ch. 9 (marching checks), Ch. 10 (CN vs FTCS), Ch. 13 (Ekman spin-up numerics).
+
+    Scheme: (u^{n+1} − u^n)/Δt = D[θ L u^{n+1} + (1 − θ) L u^n], L u_i = (u_{i+1} − 2u_i + u_{i−1})/Δy², Dirichlet values
+    at both end nodes taken at t_n and t_{n+1}; the tridiagonal system is solved with ``scipy.linalg.solve_banded``.
+
+    Parameters
+    ----------
+    u0 : array_like, shape (N,) — initial profile at the nodes (units of u); its end values are overwritten by the BCs.
+    y : array_like, shape (N,) — uniformly spaced node coordinates [m], N ≥ 3 (first node = left wall).
+    dt : float — time step [s].
+    nsteps : int — number of steps.
+    D : float — diffusivity [m²/s] (ν for momentum).
+    bc_left, bc_right : float or callable t ↦ value — Dirichlet values at y[0] and y[-1] (e.g. ``lambda t: U*np.cos(w*t)``).
+    startup_be : int — number of initial backward-Euler steps (Rannacher start-up) that damp the CN oscillation
+        produced by an impulsive wall jump (Stokes' first problem); 0 = pure CN. Two BE steps keep second-order
+        global accuracy.
+    return_all : bool — False: return the final profile only; True: return (t, U) with every step (or every
+        ``save_every``-th; initial and final always included).
+    t0 : float — start time [s].
+    save_every : int, optional — thinning of the stored steps when ``return_all`` is True.
+    theta : float — implicitness (0.5 Crank–Nicolson; 1.0 backward Euler, first order in time, kept for comparisons).
+
+    Returns
+    -------
+    u : ndarray (N,) — the profile at t0 + nsteps·dt [units of u0];  or, with ``return_all=True``, (t, U): times [s],
+    shape (M,), and profiles, shape (M, N), t[0] = t0 and t[-1] = t0 + nsteps·dt.
+
+    Validation (planned): V3 observed order 2 in space and time against (8.30) and (8.38); backward Euler order 1
+    (wrong variant); stable at Δt = 50× the FTCS limit. Label: converged.
+    """
+    u = np.array(u0, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if u.ndim != 1 or y.shape != u.shape or u.size < 3:
+        raise ValueError("u0 and y must be 1-D arrays of equal length >= 3")
+    dy = np.diff(y)
+    if not np.allclose(dy, dy[0], rtol=1e-9, atol=0.0):
+        raise ValueError("crank_nicolson_1d needs a uniform grid")
+    require_nonnegative("D", D)
+    if not 0.0 <= theta <= 1.0:
+        raise ValueError("theta must lie in [0, 1]")
+    nsteps = int(nsteps)
+    if not return_all:
+        save_every = max(nsteps, 1)
+    else:
+        save_every = 1 if save_every is None else max(1, int(save_every))
+    r = float(D) * float(dt) / dy[0] ** 2
+    n_in = u.size - 2
+    from scipy.linalg import solve_banded
+
+    def banded(th):
+        ab = np.zeros((3, n_in))
+        ab[0, 1:] = -th * r
+        ab[1, :] = 1.0 + 2.0 * th * r
+        ab[2, :-1] = -th * r
+        return ab
+
+    ab_cn, ab_be = banded(theta), banded(1.0)
+    t = float(t0)
+    u[0], u[-1] = _bc_value(bc_left, t), _bc_value(bc_right, t)
+    times, saved = [t], [u.copy()]
+    for n in range(nsteps):
+        th = 1.0 if n < int(startup_be) else float(theta)
+        ab = ab_be if n < int(startup_be) else ab_cn
+        t_new = t + float(dt)
+        uL, uR = _bc_value(bc_left, t_new), _bc_value(bc_right, t_new)
+        lap = u[2:] - 2.0 * u[1:-1] + u[:-2]
+        rhs = u[1:-1] + (1.0 - th) * r * lap
+        rhs[0] += th * r * uL
+        rhs[-1] += th * r * uR
+        u[1:-1] = solve_banded((1, 1), ab, rhs)  # (I − θrL)u^{n+1} = (I + (1 − θ)rL)u^n + BC terms
+        u[0], u[-1] = uL, uR
+        t = t_new
+        if (n + 1) % save_every == 0 or n + 1 == nsteps:
+            if not times or times[-1] != t:
+                times.append(t)
+                saved.append(u.copy())
+    if not return_all:
+        return u
+    return np.array(times), np.array(saved)
+
+
 __all__ = ["stable_time_step", "ftcs_stable_time_step", "ftcs_diffusion_1d", "gaussian_spreading", "couette_startup_profile",
-           "derivative_2nd_order"]
+           "derivative_2nd_order", "crank_nicolson_1d"]
