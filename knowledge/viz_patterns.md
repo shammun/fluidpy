@@ -12,7 +12,7 @@ PASS round 2, 145 parity rows, every page of every pager audited); ch04 E1 `cont
 round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script); ch05 E1
 `vortex_tubes_cannot_end`, E2 `vortex_pressure_funnel`, E3 `kelvin_material_loop`, E4 `baroclinic_torque`, E5
 `vorticity_stretching_tilting`, E6 `biot_savart_filament`, E7 `vorticity_equation_rotating`, E8 `point_vortex_lab`, E9
-`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). **Rule since ch03: 5–10 explainers per chapter, as
+`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). ch08 E1 `couette_poiseuille_backflow`, E2 `lubrication_scaling`, E3 `slider_bearing`, E4 `viscous_gravity_current`, E5 `stokes_first_problem`, E6 `similarity_exponents`, E7 `oscillating_plate`, E8 `stokes_sphere_flow`, E9 `stokes_drag_settling` (all PASS by round 3, 278 parity rows of which 207 JS ↔ fluidpy, 3 312 views, 26 derivations matched step by step against the notebook's `--dump`). **Rule since ch03: 5–10 explainers per chapter, as
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
@@ -171,6 +171,18 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **Physical space + wavenumber space as two square views side by side on portrait phones** (tank cropped to \|x\|, \|z\| ≤ 5 m; K plane a square ±1.1\|K\| window; the third view hidden) | ch07 E9 (round 2) | replaces two squashed strips; K, c, c_g and the right angle stay legible at 360×640 |
 | **Sign-safe preset "K up-left (k < 0)"** with parity rows per quadrant, ω/N-vs-θ view, live w-equation residual, E_k = E_p and F = c_g E invariants | ch07 E9 | the book's k > 0 assumption becomes a thing to try |
 | **Per-mode control hiding by a data attribute + CSS** (`markMode(s, app)` sets `html[data-…-mode]`, CSS hides `[data-viz-key="param:H"]` etc., then `app.fit()`) | ch07 E5, E8, E9 | works around library quirk Q4 without touching the engine; Explore pages shrink |
+| **Line + parabola = sum in colour** (rose Couette + orange Poiseuille = blue u(y)) with a black floor tangent that stands vertical exactly at backflow onset, an amber reversed layer with tracers and a bending dye line, and a Q waterfall (Q_c + Q_p = Q) | ch08 E1 | superposition and the onset criterion du/dy(0) = 0 are one picture; "backflow with Q > 0" is obvious from the bars |
+| **Extremum marker driven by the derivation** (u_max dot at y*, live "5 mm + 2.5 mm = 7.5 mm" on D05 step 9) | ch08 E1 (round 2) | a derivation step has a picture to point at; the dense-grid-verified `state()` keys are finally shown |
+| **Log term bars with a grey "dropped" band** and pressure-scale chips (P_a vs μUL/h²) showing that Λ only rescales p*; the cross-gap verdict "∂p*/∂y* = O(ε²)" moved into the title on phones; a "thick gap ✗" preset that breaks the theory | ch08 E2 | an ordering argument becomes bar lengths; the failing preset shows where the approximation ends |
+| **Pad-frame picture** (u − U profiles, tracers, orange pressure arrows) with a black dp/dx tangent on the pressure hump, the **printed formula as a ghost with a measurable miss** (invariant row: slope error 1.398), golden-section optimum = fluidpy's Brent, Explain splitting C₁ into pressure part + drag part | ch08 E3 | the frame that makes the flow steady is the one drawn; a book slip is seen *and* measured |
+| **Brute-force regime check in the explainer's own JS** (`recirc()` scanning both ends of the gap) independent of the mirrored fluidpy flag | ch08 E3 | it exposed that fluidpy's flag tested x = L only — an explainer can be the second, independent route |
+| **Conservative finite-volume march with the volume in the status** (10⁻¹⁵), the front on log–log bending onto slope ⅕ beside diffusion's ½ ghost, two humps forgetting their start; parity with the implicit solver and Huppert's η_N from the Γ function | ch08 E4 | self-similarity is reached, not assumed; conservation is a live number |
+| **Log clock (0.1–1000 s) + raw/rescaled mode** with Crank–Nicolson dots riding the erfc curve; "stop at T" and "second wall" presets that break the collapse (spread 1); δ₉₉ = 3.643 computed from erfcinv; ghosts of air and honey beside the reader's fluid | ch08 E5 | "profiles at all times are one curve" is shown *and* its failure when a scale is imposed |
+| **Exponent plane** (n, m) with the 2m = 1 and n = m lines and a star; bracket-power chips that turn green when the powers of t match; a conserved-integral inset (∫ω dy ∝ t^0.1) that shows why exponents can match yet be wrong; four systems as modes on one control set; displayed spread = `similarity_collapse_error` | ch08 E6 | exponent matching as a search the reader performs; the second condition (a conserved quantity) is visible |
+| **The discarded root drawn**: D24 step 7 plots the growing solution e^{+y/δ} as a rose dotted curve that explodes, so "B = 0 by boundedness" is seen; a "start from rest" CN march that lands on the periodic solution within a period; the book depth 4√(ν/ω) with its 5.9 % on both views; real presets (tide, molecular vs eddy ν, 1 kHz air, Ekman look-alike) | ch08 E7 | reviewer "excellent"; the reason a solution is rejected becomes a picture; "where is the initial condition?" is answered |
+| **Three models on one control set** (Stokes, Oseen, ideal) with a dashed 1 % disturbance contour, an amber "inertia = friction" circle found by brentq on the exact ratio (41.5a at Re = 0.1) and the ½Re_a r/a asymptote, side-line speeds 0.9248U vs 1.0005U | ch08 E8 | an order-of-magnitude claim ("r ~ a/Re") becomes a measured circle with its prefactor |
+| **Traction sweep**: orange pressure + rose friction arrows round the sphere summing to the same black x-push everywhere; running-drag curves reaching 2πμaU and 4πμaU; end card "2πμaU (⅓) + 4πμaU (⅔) = 6πμaU"; a real-particle table with the current row; ring-sum vs Gauss–Legendre parity row | ch08 E9 | reviewer "excellent"; a surface integral is built in front of the reader and its split is read off |
+| **Derivation step counts checked against the notebook by script** (Playwright dump of `app.cfg.derivations` vs `build_chNN.py --dump`) | ch08 viz review | caught four explainers one step short (D05, D14, D19, D29) where the notebook had inserted moves |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -283,6 +295,17 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | A stray ray label "0.25" without "ω/N =", a phone K plane without a k-axis title, a pond x-axis without "cm" | ch07 E9, E5 (open) | on views < 420 px drop the label or write the symbol; units in the view title |
 | A hard-coded live value in the Code tab (`lam0: '0.0435'`) next to computed ones | ch07 E5 (open) | compute it from the same constant (`CGM.lam`) |
 | Derivation step titles that relied on a bare equation number (eq_refs hits) | ch07 E9 (round 2) | rename the step by its move ("Apply ∇_H² to the second link"); `ref:` badges are accepted |
+| **Explainer Derivation tabs built from design Part F drifted from the notebook**: the notebook inserted moves the design skipped (D05 extremum steps 8–9, D14 step 12 "substitute C₁ and C₂", D19 step 10 "insert A and B", D29 step 4 split) — four explainers one step short; one kept a retracted *why* (D14 step 15) | ch08 E1, E3, E5, E8 (round-1 Must) | **the notebook (`build_chNN.py --dump`) is the reference for step counts and titles**; build Derivation tabs after the notebook's derivations are final, re-dump after every lesson-review round, renumber every walkthrough `derive: {id, step}` link in the same edit |
+| **An explainer mirrored a fluidpy flag that was itself wrong** (slider recirculation at x = L only) and no parity row covered α < −½ although the slider reached −0.9 | ch08 E3 (round-1 Must) | parity rows at every regime of the slider's range, not only the default; when fluidpy changes, re-read the explainer's mirror, Explain text, quiz and code comments ("inlet backflow" → "recirculation at the wide end") |
+| **Design presets that were already past the regime they meant to show**: an "8 Pa/m" favourable/adverse preset already beyond zero net flow (6μU/h²); ice at μ = 10⁴ instead of 10¹³ Pa s; an inconsistent oil density (ν = 10⁻⁴ vs ρ = 870, μ = 0.05); a "Re = 2" bead that is not creeping flow | ch08 E1, E4, E2, E9 (found by the builders) | compute every preset's regime numbers (threshold multiples, Re, Λ) with the fluidpy function before building; a preset's label states its regime and a parity row pins it |
+| **Intermittent phone-land clip** of a "Vorticity content" equation card: a display-size ∫ in a *live* row rendered after the pager had measured it (failed one full run in three) | ch08 E5 (round-2 Must) | **text-size integrals (`\textstyle`) in live rows**; move one-line notes into *why*; run shot twice to confirm (the ch07 E7 KaTeX-late lesson again) |
+| Full-HD Equations clip of a tall Γ-function card whose live line the pager's height estimate missed; raw TeX "\rho g/3\mu" in a symbols list | ch08 E4 (round-1 Must) | split the card or move the formula into `note`; symbol descriptions are plain text or wrapped in `$…$` |
+| Caret text in titles and axis labels ("t^(1/5)", "h τ^m") | ch08 E4 (fixed round 2) | superscript glyphs (t¹ᐟ⁵) as the other explainers do |
+| **Library pager places a tall "now" box as a unit** and leaves ~450 px of blank space on phone-tall derivation pages ("we had" + move title on page 1, "now" on page 2) | ch08 E3 D14 s14, E8 D29 s5 (open; library) | library: allow the "now" box to slice at `aligned` rows, or a derivation-result "chain" option; locally: shorten "we had" (right-hand side only on phones) |
+| Ghost labels at fixed offsets sat on the wrong lines ("water" above the air line) | ch08 E5 (fixed round 2) | anchor each label at its own line's end |
+| Curves identified by colour only on a portrait view; literal "y/δ_e" underscore; a narrow-view "Q 3.33" label over the bars; phone-land term bars that lose their names | ch08 E9, E7, E1, E2 (open) | legend words in the view title on portrait; Unicode subscripts (δₑ); drop value labels below ~200 px; short term names ("inert.", "press.", "fric.") |
+| A minimum labelled "optimum" when the sign flips it into the strongest suction (U < 0) | ch08 E3 (open) | regime-dependent labels for special points |
+| Shot runs under memory pressure fail or time out when nine explainers are audited in parallel | ch08 viz review | run `tools/shot.py` serially (one file at a time) when memory is short; re-run a failing size alone before calling it a physics failure |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -465,6 +488,79 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch08 candidates (listed, **not promoted**: the ch08 knowledge pass ran while the site-publisher was reading `viz/`)
+Counts = explainer files (all 62, ch01–ch08) defining the helper locally outside the inlined library, counted by script
+(`function name(` / `const name =` in the `Viz.app` script, plus `<style data-chapter>` rules); "(ch08 n)" = how many of
+the nine ch08 files. Ranked by payoff for the chapters ahead (**Ch. 9 boundary layers** — similarity profiles, erf/erfc,
+log axes; Ch. 10 CFD; Ch. 11; **Ch. 13 GFD**) and by risk (pure additions first):
+
+| Rank | Helper | Found in (file · local name) | Count (ch08) | Proposed library name | Recommendation |
+|---|---|---|---|---|---|
+| 1 | **pager label on one line** | chapter CSS `.viz-pager-label { white-space: nowrap; … }` — ch08 E1, E3–E9 (8), ch07 ×5 (rank 1 there too) | 12 (8) | one rule in `assets/viz_base.css` | **promote first** (CSS only, backwards compatible; two chapters now carry it) |
+| 2 | **double-precision erfc / erfcinv** (continued fraction above 3, series below, Newton inverse; `erfHP`, `erfinvHP` beside them) | `stokes_first_problem` `erfcHP`, `erfcinvHP`; `similarity_exponents` `erfcHP`, `erfHP`, `erfinvHP`; ch04 `navier_stokes_term_balance` `erfcHi` | 3 (2) | fix `Viz.num.erf`/`erfc` to ~1e-15 and add `Viz.num.erfinv`, `erfcinv` | **promote** — `Viz.num.erfc`'s ~1.2e-7 is a *library defect* (too coarse for 1e-12 parity rows); Ch. 9 (Blasius vs erfc, temporal layers) and Ch. 13 (spin-up) will need it again |
+| 3 | **pixel-space arrow** | `arrowPx` ch08 E2, E3, E5, E7, E8, E9 (+ 21 earlier); `pxArrow` ch08 E1, E4 (+ 3 earlier); `dotPx` 5 earlier | 27 + 5 (6 + 2) | `Viz.arrowPx(ctx, x0, y0, x1, y1, {color, width, head, minLen})`, `Viz.dotPx` | **promote** (ch07 rank 2, now 32 files) |
+| 4 | **number formatters incl. a Python-literal formatter and a length switch** | `f3` 37 (9/9), `t3` 30 (9/9), `t4` 29 (8), `f4` 19 (5); `pn(v, k)` Python literal for Code-tab `live` (E3, E5, E7, E8, E9, E4 — three variants of the exponent rule; `pyNum` 8 earlier files); `fmtLen`/`fmtLenM`/`texLen` µm/mm/cm/m switch (E2, E4, E6; E5 inline) | 37 / 30 / 29 / 13 + 8 / 6 (9 / 9 / 8 / 6 / 3) | `Viz.fixed(v, d, {tex})` (document `sig` shorthands), **`Viz.pyNum(v, sig)`** (one exponent rule: `1e-06` style), **`Viz.fmtLen(m)`** beside `Viz.fmtTime` | **promote** — pure additions; `pyNum` removes three inconsistent Python-literal rules |
+| 5 | **layout probes** | `phone()` 9/9 ch08 (+1), `lay()` 7 ch08; ch07 `narrow()` 9/9 | 10 + 7 (+ 34 `narrow`) | read `g.app.layout` / density, or add `Viz.isPortrait(app)` | **replace, don't promote** — a window test disagrees with the engine inside a notebook iframe; expose the engine's layout |
+| 6 | **narrow-view and log–log plots** | `gutterPlot` ch08 E3, E5, E7 (+ 12 earlier); `logPlot` E8, `logFrame` E9, `logAxes`/`logTicks` 9 earlier | 15 + 11 (3 + 2) | engine y-title gutter below ~420 px (`v.plot({ylabelGutter: true})`); `P.axes({xlog, ylog})` with decade ticks | **promote** as one engine-plot pass (ch07 ranks 3 and 8) |
+| 7 | **moving hatched wall** | `hatch` E1, E5; `hatchShift` E7 (moving with the wall); inline in E3; earlier `hatchPattern` (ch01 E3), `hatch` (ch03 E3), `hatchRect` (ch03 E7, ch04 E1) | 8 (4) | `Viz.hatch(ctx, x, y, w, h, {step, shift, color, angle})` | **promote** — every wall-bounded flow of Ch. 9–11 draws one |
+| 8 | label with a background box | `lab` 31 files (9/9) — `Viz.text(…, {bg: true, size: 12})` wrapped | 31 (9) | document the idiom (`Viz.label = (ctx, s, x, y, o) => Viz.text(ctx, s, x, y, {bg: true, size: 12, …o})`) | small; with rank 4 |
+| 9 | Γ function | `gammaFn` (Lanczos) E4, E6 (Huppert η_N) | 2 (2) | `Viz.num.gamma`, `lgamma` (ch01 E1 has `lgamma`) | promote with rank 2 (numerics pass) |
+| 10 | golden-section maximiser | E3 (slider optimum, parity 1e-6 vs Brent) | 1 (1) | `Viz.num.golden(f, a, b, {max, tol})` beside `brentq` | promote with rank 2 — optima recur (Ch. 11 most unstable k, Ch. 13 maximum growth) |
+| 11 | **derivation-result "chain" option** | E1, E3, E5 result pages repeat every line and page on phones | — | `derivations[i].result.chain: 'short' \| 'full'` (show the first and last lines on phones) | library feature; shortens result pages |
+| 12 | **pager unit-box placement** | E3 D14 s14, E8 D29 s5: a tall "now" box placed as a unit leaves ~450 px blank on phone-tall | — | slice the "now" box at `aligned` rows like other atoms, or pack "now" first when "we had" is long | **library fix** (known, not counted by the reviewer) |
+
+**Recommendation for the next library pass (orchestrator, when nothing reads `viz/`)**: rank 1 (CSS) and rank 2 (erfc
+precision — a defect) first, then ranks 3–4 (arrow, formatters incl. `pyNum`, `fmtLen`), then the engine work (rank 5
+layout exposure, rank 6 gutter + log axes, rank 12 pager slicing, rank 11 chain option), then hatch, gamma, golden.
+Together with the ch07 list (`Viz.waves` and per-mode hiding **before Ch. 13's explainers**). After promotion:
+`tools/viz_inline.py --all`, then `tools/shot.py --chapter ch01 … ch08 --quick` and
+`tools/shot.py templates/viz_example.html --quick` must all PASS (run shot serially if memory is short).
+JS stages the curator flagged as possible helpers (`Viz.profiles`: profiles at several times with a raw/rescaled mode, E5
+and E6; `Viz.channel`: a channel with profile arrows and tracers, E1 and E3) stayed chapter-specific — wait for Ch. 9's
+Blasius explainer before abstracting.
+
+### ch08 machinery TODOs (for the orchestrator; not done in this pass)
+- `tools/nbkit.py` / builders: **automatic equation insertion (`show_eqs`) must skip mentions of the book's printed form**
+  ("printed", "book prints", "the text") — it showed the corrected equation where the text named the slip (lesson M2).
+- **Post-processing regexes must never run inside maths they just created** (`tidy_raw_tex` turned `$e^{…}$` into
+  `$e^(…)$` in 20 places, lesson M1); add a build-time guard (no `$…^(…$`) to `self_check_prose` — move both into nbkit.
+- `_title_no_numbers` deleted "(8.29)", "(8.39)" from derivation headings instead of writing the equation (lesson M8).
+- ch08 scripts need `--no-show` (plt.show() blocks headless runs); `tests/test_ch08.py::test_scripts_V1_*` passes it.
+- `tools/shot.py`: run serially when memory is short; the viz reviewer ran each file alone and confirmed flaky clips with
+  two consecutive runs.
+- A scripted comparison of `app.cfg.derivations` step titles/counts with `build_chNN.py --dump` (the ch08 reviewer's
+  Playwright script) belongs in `tools/embed_check.py` or `shot.py`.
+- API naming: `slider_bearing_state["inlet_backflow"]` → add `wide_end_backflow` (alias) in a machinery pass.
+
+### ch08 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch08) **the notebook is the reference for derivation step counts** — build Derivation tabs
+  from `build_chNN.py --dump`, not from design Part F, and re-dump after every lesson round (four explainers were one step
+  short) · live rows use text-size integrals (display-size ∫ caused an intermittent clip) · parity rows cover every regime
+  the sliders allow (α < −½ was reachable but unpinned) · compute every preset's regime numbers before building (8 Pa/m
+  already past zero net flow; ice 10¹³ Pa s; Re = 2 not creeping) · draw the rejected branch of a solution (the growing
+  root) so a "because bounded" step is seen · an independent JS brute-force of a regime flag is a second route that can
+  catch fluidpy · run shot serially under memory pressure and confirm clips twice.
+- `math-to-python` §7: (ch08) test every parameter at a non-zero value with both signs (the extremum sign hid behind
+  U = 0) · derive a regime flag from the field and brute-force it over the full parameter range (slider recirculation at
+  either end) · every asymmetric solution gets a direction test (Oseen wake) · compare magnitudes of vector terms, not
+  one component (far-field prefactor ½, not ⅛) · keep the book's sign in the argument name (`dpdx`) with the earlier
+  chapter's as a keyword alias (`G=`) · code the corrected form and keep the printed one as a named option
+  (`form="book"`, `model="book"`, `printed_8_13b=True`) · Crank–Nicolson needs backward-Euler start-up steps after a jump
+  (pure CN stalls) · degenerate nonlinear diffusion: implicit Newton + precursor film + conservative faces.
+- `verify-implementation`: (ch08) a verifier "correction" is itself a claim — the implementer's independent magnitude
+  computation overturned the loop-1 "⅛" prefactor; record both and pin the settled value with sympy and a numeric
+  asymptote · write the finite-difference round-off budget into the test (ε r/h_rel² tripled by Richardson) before
+  asserting · "converged" needs an asserted order; Gauss–Legendre exact from n = 1 is analytic; a correlation bracket is
+  benchmark evidence for the bracket only · plant the old code of every review fix as a wrong variant (41/41).
+- `teaching-style` Lessons: (ch08) a slips table up front (printed | corrected | where) plus ghosts and failing code
+  options · three-way parity cells across chapters (ch03 developing profile far downstream = ch04 exact solution = ch08
+  derived) · **measure every "~" claim** (prefactor, crossover, direction) · flag inserted derivation steps ("the book
+  skips this move; we add it") · an approximation that is not required by the theory is labelled as extra, with its cost
+  (the slider's linear load +15.6 % at α = 0.1 is not lubrication's assumption) · the ch08 derivation moves in
+  `concept_map.md`.
+- `colab-notebook` / nbkit: (ch08) `show_eqs` skips "printed" mentions; regex tidies run outside `$…$` only; headings keep
+  their equations; notebook ~196 s with nine explainers.
 
 ### ch07 machinery TODOs (for the orchestrator; not done in this pass)
 - `tools/shot.py` `py:` namespace: the expressions have no builtins and no `np`, so a lambda inside a row must bind numpy
@@ -782,6 +878,25 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   geostrophic adjustment (`linear_evolve` with f); E2's drift panel for Stokes–Coriolis drift.
 - **Ch. 15 compressible (from ch07)**: E7's momentum/energy bars and "forbidden" preset → normal shock (an expansion
   shock is the forbidden case); the simple-wave steepening and x–t characteristics of E6's D22 page → Riemann invariants.
+- **Ch. 8 laminar (done — what came of the plans above)**: the ch04 term-balance idea became E1's line + parabola = sum
+  with a floor tangent at onset; the rotating-cylinder idea stayed the backup (B1 `rotating_cylinders_couette`, not built —
+  C04 taught with a slider figure); new: E2 log term bars with a "dropped" band, E3 pad-frame slider with a printed ghost,
+  E4 conservative thin-film march onto t^{1/5}, E5 raw/rescaled Stokes-first collapse on a log clock, E6 exponent plane,
+  E7 Stokes layer with the rejected root drawn, E8 Stokes/Oseen/ideal on one control set, E9 traction sweep.
+- **Ch. 9 boundary layers (from ch08)**: E5's raw/rescaled stage with a log clock → Blasius profiles at several x
+  collapsing on η = y√(U/νx) (the temporal layer of E6's vortex-sheet mode as a ghost, C_f√Re_x 1.128 vs 0.664); E6's
+  exponent plane + bracket chips → Falkner–Skan m and β; E2's log term bars with a "dropped" band → the boundary-layer
+  ordering (δ/L = Re^{−1/2}, ∂p/∂y ≈ 0); E1's floor tangent at onset → separation where the wall shear crosses zero;
+  E8's measured crossover circle → inner/outer matching.
+- **Ch. 10 CFD (from ch08)**: E5's CN dots on the exact curve + E7's "start from rest" march → scheme stability and order
+  panels (CN vs BE vs FTCS on one clock, the CN oscillation after a jump with and without BE start-up); E4's conservative
+  finite-volume march with volume in the status.
+- **Ch. 11 instability (from ch08)**: E1's channel as the Couette/Poiseuille base state picker; the circular-Couette
+  backup as a Taylor–Couette stage with the Rayleigh line Ω₂/Ω₁ = (R₁/R₂)² drawn in the (Ω₁, Ω₂) plane.
+- **Ch. 13 GFD (from ch08)**: E7 → the Ekman layer (ω → f, add the hodograph spiral and the transport arrow; the
+  "Ekman look-alike" preset already exists); E5's √(νt) clock → spin-up times (E^{−1/2}/f vs L²/ν); E4 → viscous gravity
+  currents and lava/ice (μ up to 10¹³ Pa s preset); E9's settling table → droplets, aerosols, sediment (10 µm droplet
+  1.21 cm/s).
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

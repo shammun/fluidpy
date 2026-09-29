@@ -336,6 +336,64 @@ remark's "(7.88)" means (7.87) · (7.40) stray comma · p. 288 interfacial E_p m
 /λ; ¼ is right) · p. 288 cites Exercise 7.16 for the interfacial E_k (it is 7.18) · the printed (7.138)/(7.145) k > 0
 assumption (above). Not slips: Stokes' γ = 1 in (7.83) is right (a literal truncated exercise set-up gives 3/8).
 
+**⚠️ Pressure-gradient sign (ch08 vs ch04).** The book (and every ch08 function) passes **dp/dx** — favourable when
+negative, driving +x flow; ch04's `plane_poiseuille(y, G, h, mu)` and `exact_solution(..., G=)` take **G = −dp/dx**. ch08
+functions accept both: `channel_flow(y, h, U, dpdx=…)` or `channel_flow(..., G=…)` (G wins the sign flip internally);
+pipe functions take `dpdz` (or `G = −dp/dz`). A planted "G passed as dp/dx" flips the parabola and fails a test. Say the
+sign of the number every time: "dp/dx = −0.5 Pa/m (favourable)".
+
+**⚠️ η = y/√(νt) in ch08, y/(2√(νt)) in ch04 and on the book's own figures.** (8.25) defines η = y/√(νt), so
+u/U = 1 − erf(η/2) and δ₉₉ = 3.643√(νt) (η₉₉ = 3.643); ch04's register row "η (Stokes)" and the book's Figs. 8.13–8.14
+plot y/(2√(νt)), where the 1 % point is at 1.82. `similarity_variable(y, t, nu, half=False)` returns the ch08 η;
+`half=True` the figures' axis. Label every axis with the variable it plots. (η was also ch04's level-set function and
+ch07's surface elevation.)
+
+**⚠️ ω twice inside ch08.** ω (ω_z, ω_φ) is the **vorticity** in §8.1, Example 8.5 and §8.6, but the **oscillation angular
+frequency** [rad/s] in §8.5 (the ch07 meaning). Code: `stokes_second_problem(y, t, U, omega, nu)` takes the frequency;
+vorticity functions are named `*_vorticity`, `vorticity_content`. **Stokes-layer depth**: the literature's e-folding depth
+δ_e = √(2ν/ω) vs the book's "δ ~ 4√(ν/ω)" = 2√2 δ_e (5.91 % amplitude left); `stokes_layer` returns both (`delta_e`,
+`delta_book`).
+
+**⚠️ θ from the downstream axis in §8.6 (sphere); θ an azimuth in Example 8.6.** Stokes' and Oseen's solutions measure θ
+from the +x axis, the direction of the stream U e_x: the **rear** stagnation point is θ = 0, the front θ = π (as ch06
+(6.91); ch03's spherical θ is from +z; ch06 §6.9's moving sphere uses θ_s = π − θ). `frame="body"` = sphere at rest in
+the stream; `frame="fluid"` = stream subtracted (sphere moving to −x, Figs. 8.19–8.20). Example 8.6 (line vortex) uses
+plane polar (r, θ) with θ the azimuth. Always pass θ with its frame.
+
+**⚠️ Four Reynolds numbers in ch08 (and a radius/diameter trap).** Pipe Re = Ud/ν (diameter, mean speed; laminar below
+≈ 2000); lubrication Re_L = ρUL/μ (passage length — the governing group is **ε²Re_L**); generic Re = ρUL/μ (8.40);
+**sphere Re = 2aU/ν (diameter)** in (8.52)–(8.53) and Oseen's C_D = (24/Re)(1 + 3Re/16); the literature (Wikipedia Oseen,
+Proudman–Pearson) and the far-field ratio use the **radius** Re_a = ρUa/μ = Re/2, where Oseen's coefficient is 3/8 and the
+ratio → ½Re_a r/a; Example 8.5 has Re_x = Ux/ν. Every drag function names its Re; `proudman_pearson_drag_coefficient`
+converts.
+
+**⚠️ Two pressure scales in the lubrication scaling (ch08 (8.14)).** The book scales p* = p/P_a with **absolute
+atmospheric** P_a, which makes the bearing number Λ = μUL/(P_a h²) — 49.35 for our engine film, ≈ 10³ for thinner or
+longer films, not "near unity"; the natural (viscous) scale is μUL/h² (5 MPa for the film), the one with Λ = 1.
+`lubrication_term_magnitudes(p_scale="viscous" | "atm")`. At low Re (§8.6) the pressure scale is μU/L (dominant
+balance), at high Re ρU² (4.100) — three pressure scales in one chapter.
+
+**⚠️ Corrected book forms coded in ch08 (analysis §9 R6–R15), printed forms kept as options a test must fail.** (8.13b)
+−∂p/∂**y** (printed ∂p/∂x; `lubrication_nondim_sympy(printed_8_13b=True)`) · (8.17a) and Example 8.2 with **ν** · (8.19)
+with U₀(1 − y/h) (printed + U₀ gives u(h) = U_h + U₀; `lubrication_velocity(form="book")`) · Example 8.1 with (1 + αx/L)
+integrands and a **squared** final denominator (`slider_bearing(model="book")`) · channel V = Q/h (printed middle form
+lacks 1/h) · ∫₀^∞ω dy = **+U** (printed −U) · Example 8.5 η₉₅ = ±2.772 (printed ±2.76) · rear minimum p − p∞ =
+**−**3μU/2a (printed without sign; (8.50) itself is right) · Oseen's equation with **−**∂p/∂x_i · power into the fluid
+−2πR₁σ_Rφu_φ > 0 (printed (2πR₁)τ_Rφu_φ < 0) · (8.44) is (E²)²ψ = 0, not ∇⁴ψ = 0 · cross-references "(9.63)" → (8.43),
+"(9.68)" → (8.48), "(8.33) into (8.20)" → (8.35), Example 8.7's "Example 8.2" → 8.3, Example 8.2's "y" → z, §8.1 "μ the
+kinematic viscosity" → dynamic.
+
+**⚠️ Earlier chapters' functions take different arguments for the same ch08 flow.** ch05 `rotating_cylinder_flow(r, a,
+omega)` takes the cylinder's **vorticity** ω = 2Ω₁ (not its rotation rate); ch05 `diffusing_vortex_sheet(y, t, gamma,
+nu)` takes γ = u_below − u_above, so Example 8.5 (u = ±U) is γ = **−2U**, while ch08 `vortex_sheet_diffusion(y, t, U, nu)`
+takes U; `core.vortices.gaussian_vortex(r, Gamma, sigma)` equals the Lamb–Oseen decay with σ = 2√(νt). Parity tests pass
+the converted arguments (a factor-2 variant is caught).
+
+**⚠️ `slider_bearing_state["inlet_backflow"]` means "recirculation at the wide end".** After the ch08 fix it is True for
+α > 1 (wide end x = L) **and** for α < −½ (wide end x = 0; for U > 0 that is the exit, so "inlet" misleads); `backflow_x`
+gives the station and `backflow_any` equals it. Criterion: wide/narrow gap ratio > 2 (h > 1.5h_m, h_m = 2(1 + α)h₀/(2 + α)).
+In `slider_gap_velocity` y = 0 is the moving pad side; the state docstring's η runs from the floor.
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -579,7 +637,7 @@ assumption (above). Not slips: Stokes' γ = 1 in (7.83) is right (a literal trun
 | **Navier–Stokes and exact solutions (ch04 §4.6)** | | | | | |
 | ω, ∇×ω | vorticity and its curl; viscous force −μ∇×ω when ∇·u = 0 (4.40) | 1/s, 1/(m s) | solid body: ω ≠ 0 but ∇×ω = 0 (no viscous force) | ch03 → | `viscous_force_forms` (laplacian / div2S / curl) |
 | exact solutions | Couette(–Poiseuille), plane and pipe Poiseuille, Stokes' first problem, Taylor–Green, Lamb–Oseen, ideal cylinder, solid body with gravity | – | residual of (4.39b) < 1e-6 of the largest term | ch04 → Ch. 8 | `exact_solution(name, x, t, **p)`, `EXACT_SOLUTIONS`, `ns_terms_preset` |
-| η ⚠️ (Stokes) | similarity variable y/(2√(νt)) of u = U erfc η | – | **η also = surface function (4.90)** | ch04 | `stokes_first_problem(y, t, U, nu)` |
+| η ⚠️ (Stokes) | similarity variable y/(2√(νt)) of u = U erfc η | – | **η also = surface function (4.90)**; **ch08's (8.25) η = y/√(νt) has no factor 2** (see the ch08 η trap) | ch04 | `stokes_first_problem(y, t, U, nu)` (now in `core.laminar`, re-exported by ch04) |
 | **Noninertial frames (ch04 §4.7)** | | | | | |
 | Ω, Ω̇ ⚠️ | angular velocity of the frame and its rate | rad/s, rad/s² | Earth 7.292115e-5 rad/s (WGS-84); NH Ω_z > 0; **§4.11 Ω = imposed frequency** | ch03 → | `Omega`, `dOmega_dt` in `core.rotating`; `OMEGA_EARTH` |
 | U(t), dU/dt ⚠️ | origin velocity and acceleration of the noninertial frame | m/s, m/s² | a vector; a scalar non-zero dU/dt raises | ch04 | `dU_dt` in `frame_acceleration_terms`, `apparent_body_forces` |
@@ -762,6 +820,45 @@ assumption (above). Not slips: Stokes' γ = 1 in (7.83) is right (a literal trun
 | θ ⚠️ (K angle) | angle of K above the horizontal, cos θ = \|k\|/K | rad | ω = N cos θ (7.139); = the beam's angle from the vertical | ch07 → | `beam_angle(omega, N)`, `internal_wave_omega(k, m, N, l)` |
 | ŵ ⚠️ | complex amplitude of w in the plane internal wave | m/s | û = −mŵ/k, p̂ = −ωmρ₀ŵ/k², ρ̂ = iN²ρ₀ŵ/(ωg) (7.153); **`w0` = ch01's initial parcel velocity** | ch07 | `w0` in `internal_wave_fields`, `internal_wave_energy` |
 | i, Re{} | imaginary unit; real part restored at the end | – | see the complex-notation trap | ch06 → | `real_field(amp, phase)` |
+| **ch08 — laminar flow** | | | | | |
+| y, h ⚠️ (channel) | distance from the fixed wall; gap between the plates | m | walls y = 0 (fixed) and y = h (moving at U) — not ±h | ch01 → | `y`, `h` in `channel_flow` |
+| U ⚠️ | wall speed (Couette, slider, Stokes' problems); stream speed (sphere); half the jump of the vortex sheet (Ex. 8.5) | m/s | u = ±U far from the sheet; **U₀, U_h = lower and upper gap walls** | ch01 → | `U`, `U_0`, `U_h` |
+| dp/dx, dp/dz ⚠️ | streamwise pressure gradient (channel; pipe along z) | Pa/m | **book sign: favourable < 0**; `G=` alias = −dp/dx (ch04) | ch04 → | `dpdx`, `dpdz`, `G` |
+| Q, V ⚠️ | flow rate (per unit width in a channel [m²/s]; volume flow in a pipe [m³/s]); mean velocity Q/h or Q/πa² | m²/s or m³/s; m/s | channel V = Q/h (printed middle form lacks 1/h); pipe u_max = 2V | ch08 | `channel_flow_rate` → (Q, V); `pipe_flow_rate` → (Q, V, u_max) |
+| y* | height of the velocity extremum in Couette–Poiseuille flow, h/2 − μU/(h dp/dx) | m | interior only if 0 < y* < h; max (dp/dx < 0, toward the moving wall), min (dp/dx > 0, toward the fixed wall) | ch08 | `couette_poiseuille_state(...)["y_umax"]`, `["y_umin"]` |
+| τ ⚠️, τ₀ | signed shear stress μ du/dy (channel), μ ∂u_z/∂R (pipe); pipe wall stress (a/2)dp/dz | Pa | τ₀ < 0 for forward flow (traction sign); the book draws \|τ\| | ch01 → | `channel_shear_stress`, `pipe_shear_stress`, `pipe_wall_stress` |
+| f ⚠️ (friction) | Darcy friction factor 8τ₀/(ρV²) = 64/Re (laminar) | – | Re on the diameter and mean speed; **f = Coriolis parameter, traction, level set elsewhere** | ch08 → Ch. 12 | `pipe_friction_factor(Re)` |
+| a ⚠️ | pipe radius (§8.2); sphere radius (§8.6) | m | Re_a = ρUa/μ uses it; **d = 2a** in the pipe Re | ch03 → | `a` |
+| R₁, R₂, Ω₁, Ω₂ | inner/outer cylinder radii and rotation rates (circular Couette) | m, rad/s | R₂ = ∞ and R₁ = 0 are exact branches; Rayleigh-stable iff Ω₂/Ω₁ > (R₁/R₂)² (co-rotating) | ch08 → Ch. 11 | `circular_couette(R, R1, R2, Omega1, Omega2)` |
+| A, B ⚠️ (Couette) | u_φ = AR + B/R constants: A = (Ω₂R₂² − Ω₁R₁²)/(R₂² − R₁²), B = −(Ω₂ − Ω₁)R₁²R₂²/(R₂² − R₁²) | 1/s, m²/s | ω_z = 2A; σ_Rφ = −2μB/R²; **A, B, C, D reused as integration constants in every ch08 derivation (D also = drag)** | ch08 → Ch. 11 | `circular_couette(..., return_coeffs=True)` |
+| σ_Rφ ⚠️ | shear stress of circular Couette flow μR d(u_φ/R)/dR | Pa | on the fluid at R₁ the face normal is −e_R: power in = −2πR₁σ_Rφu_φ > 0 | ch08 | `circular_couette_shear_stress`, `circular_couette_power` |
+| ε ⚠️ (fineness) | gap-to-length ratio h/L | – | ε ≪ 1; **ε = dissipation (ch04), ε² density ratio (ch07), kernel smoothing (ch05), roughness (ch01)** | ch08 → Ch. 9 | `lubrication_scales(...)["eps"]` |
+| Re_L, ε²Re_L | passage Reynolds number ρUL/μ; reduced Reynolds number (weight of inertia in a thin gap) | – | lubrication needs ε²Re_L ≪ 1, not Re_L ≪ 1 (engine film 4350 vs 4.35e-3) | ch08 → Ch. 9 | `lubrication_scales(...)["Re_L"]`, `["eps2_Re_L"]` |
+| Λ | bearing number μUL/(P_a h²) = viscous/pressure force ratio with p* = p/P_a | – | 49.35 for the engine film; Λ = 1 ⇔ the viscous scale μUL/h² | ch08 | `lubrication_scales(...)["Lambda"]` |
+| P_a | absolute atmospheric pressure used as the lubrication pressure scale | Pa | 101 325 (`P_ATM`) | ch01 → | `p_a=P_ATM` |
+| h(x, t) ⚠️, q | local gap (or film thickness); gap flux ∫₀^h u dy = −(h³/12μ)p_x + (U₀ + U_h)h/2 | m; m²/s | Reynolds equation h_t + q_x = 0; thin film q = −(ρg/3μ)h³h_x | ch08 | `lubrication_flux`, `thin_film_flux`, `reynolds_pressure_1d` |
+| h₀, α ⚠️ (slider), L, C₁, W | slider inlet gap, taper h = h₀(1 + αx/L), pad length, pad-frame flux constant, load per unit width | m, –, m, m²/s, N/m | α > 0 widens toward x = L; W < 0 if αU < 0; optimum 1 + α = 2.18870; **α = thermal expansion, ray angle elsewhere; C₁ = Ex. 8.4's proportionality constant** | ch08 | `slider_bearing(x, h0, alpha, L, U, mu, p_e, model)`, `slider_bearing_load`, `slider_bearing_state` |
+| h_m | gap at the slider's pressure peak, 2(1 + α)h₀/(2 + α) | m | recirculation where h > 1.5h_m ⇔ gap ratio > 2 | ch08 | (inside `slider_bearing_state`) |
+| p_e | ambient (end) pressure of the slider | Pa | p(0) = p(L) = p_e | ch08 | `p_e` |
+| φ ⚠️ (Hele-Shaw) | gap-averaged velocity potential, ū = ∇φ = −(h²/12μ)∇p | m²/s | the gap coordinate is **z** in Example 8.2; **φ = cylindrical azimuth elsewhere in ch08** | ch08 | `hele_shaw_potential`, `hele_shaw_mean_velocity` |
+| β ⚠️, x_N, η_N | thin-film coefficient ρg/(3μ) (Huppert's β includes Δρ); front position; front constant 1.411245 | 1/(m s); m; – | x_N = η_N(βA³)^{1/5}t^{1/5}; A = area (volume per width) | ch08 → Ch. 13 | `viscous_current_similarity(x, t, area, …)`, `viscous_current_eta_N()`, `thin_film_state` |
+| h_min | precursor film thickness in the spreading solver | m | keeps the diffusivity ρgh³/3μ > 0 ahead of the front; 1e-6 default | ch08 | `thin_film_spread(..., h_min=1e-6)` |
+| η ⚠️ (similarity) | y/√(νt) (8.25) | – | **ch04 and the book's figures: y/(2√(νt))**; ch07: surface elevation; ch04: level set | ch08 → Ch. 9 | `similarity_variable(y, t, nu, half=False)` |
+| F(η) | similarity profile u/U = F(η) | – | Stokes' first problem F = erfc(η/2) | ch08 | `similarity_ode_solve(case)` |
+| δ₉₉ ⚠️, δ(t) ⚠️ | 99 % diffusion thickness 2 erfc⁻¹(0.01)√(νt) = 3.643√(νt); the time-dependent length scale of the ansatz (8.32) | m | **δ also Stokes-layer depth (§8.5), interface thickness (ch05)** | ch08 | `diffusion_thickness(t, nu, level=0.01)`, `transition_width` |
+| γ ⚠️ (ansatz), n, m ⚠️, A, D | dependent variable of γ = At^{−n}F(ξ/δ(t)); decay and spreading exponents with δ = Dt^m | varies | matched powers of t + one conserved quantity fix n, m (Stokes n = 0, m = ½; sheet ½, ½; bead ⅕, ⅕); **γ = sheet strength (ch05), c_p/c_v (ch01), Stokes coefficient (ch07); n = electrons in Millikan; m = vertical wavenumber (ch07)** | ch08 → Ch. 9 | `similarity_reduce_sympy(case)`, `similarity_collapse_error(case, n, m, times)` |
+| ξ ⚠️ | generic spatial coordinate of the ansatz (8.32) | m | **ξ = axial source coordinate / x − x_s in ch06** | ch08 | (sympy symbol) |
+| ω ⚠️ (§8.5) | oscillation angular frequency of the plate | rad/s | **vorticity elsewhere in ch08** (see the trap) | ch07 → | `omega` in `stokes_second_problem`, `stokes_layer` |
+| δ_e ⚠️, δ_book | Stokes-layer e-folding depth √(2ν/ω); the book's depth 4√(ν/ω) = 2√2 δ_e | m | amplitude e^{−y/δ_e}, phase lag y/δ_e; 5.91 % at δ_book; crest speed √(2νω) | ch08 → Ch. 13 (Ekman √(2ν/f)) | `stokes_layer(nu, omega)["delta_e"]`, `["delta_book"]` |
+| k ⚠️ (Stokes layer) | complex decay rate ±(1 + i)√(ω/2ν) | 1/m | only the decaying root kept; **k = wavenumber (ch07), conductivity (ch01)** | ch08 | `stokes_second_sympy()` |
+| Re ⚠️ (sphere), Re_a | 2aU/ν (diameter; (8.52)–(8.53)); ρUa/μ = Re/2 (radius; literature, far-field ratio) | – | C_D = 24/Re; Oseen 3/16 (diameter) = 3/8 (radius); settling "valid" flag Re < 0.1 (our choice) | ch04 → | `stokes_drag_coefficient`, `oseen_drag_coefficient`, `proudman_pearson_drag_coefficient`, `settling_state` |
+| r, θ ⚠️ (sphere) | spherical radius; **polar angle from the downstream +x axis** | m, rad | rear stagnation θ = 0, front π; fields NaN for r < a; `frame="body"\|"fluid"` | ch06 → | `stokes_sphere_*`, `oseen_*` |
+| ψ ⚠️ (Stokes, §8.6) | axisymmetric stream function about the stream axis, u_r = (1/r²sin θ)∂ψ/∂θ, u_θ = −(1/r sin θ)∂ψ/∂r (6.83) | m³/s | uniform stream ½Ur²sin²θ; fluid frame = body frame minus it | ch06 → | `stokes_sphere_streamfunction`, `oseen_streamfunction` |
+| E², E⁴ | Stokes operator ∂²/∂r² + (sin θ/r²)∂/∂θ((1/sin θ)∂/∂θ) and its square | 1/m², 1/m⁴ | ω_φ = −E²ψ/(r sin θ); (E²)²ψ ≠ ∇⁴ψ | ch06 → | `E2(psi, r, theta)`, `E4_residual` (sympy) |
+| D ⚠️ (drag), C_D | drag force on the sphere 6πμaU; drag coefficient D/(½ρU²πa²) | N; – | ⅓ pressure + ⅔ friction; **D = integration constant, diffusivity, diameter elsewhere** | ch04 → | `stokes_drag(mu, a, U, parts=)`, `stokes_drag_running` |
+| U_t, ρ′ | terminal (settling) velocity 2(ρ′ − ρ)ga²/(9μ); particle density | m/s; kg/m³ | g = G0 = 9.80665 in `core.creeping`; warns when Re is not small | ch08 → Ch. 13 | `terminal_velocity(a, rho_p, rho, mu, g)`, `radius_from_terminal_velocity` |
+| E ⚠️ (field), n ⚠️, e | electric field; number of electron charges on the drop; elementary charge | V/m; –; C | ne = 6πμa(U_up + U_t)/E; **E = constant of Ex. 8.7, energy (ch07), E² operator** | ch08 | `millikan_charge`, `synthetic_millikan(seed=0)`, `E_CHARGE` |
+| Re_a r/a | far-field inertia/viscous ratio of the Stokes solution → ½Re_a r/a (axis and θ = π/2) | – | crossover r ≈ 2a/Re_a; the book's "r/a ~ 1/Re" is an order of magnitude | ch08 | `inertia_viscous_ratio(r, theta, U, a, nu)` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -773,3 +870,4 @@ assumption (above). Not slips: Stokes' γ = 1 in (7.83) is right (a literal trun
 | ch05 | right-handed Cartesian, **z up**, g = 9.81 (`core.thermo.G_BOOK`); plane polar (r, θ) and cylindrical (R, φ, z) for vortices and rings; material loops with fixed labels s ∈ [0, 1); rotating frame Ω = Ωe_z (NH > 0); natural frame (e_s, e_n = −Frenet N, e_m) on vortex lines; wall at y = 0 with the fluid above; sheet along x with u₁ above, u₂ below | vortices and rings centred on the axis; tank p_o on the axis at z = 0; line vortex p_∞ far away; lock-exchange interface at x = 0 (heavy on the left); column undisturbed depth h₀ | counterclockwise-positive ω_z, Γ, point-vortex strengths and sheet strength γ = u₂ − u₁; ∇ρ × ∇p order; (5.14) with +1/(4π); ω = vorticity (tank turns at ω/2); σ_rθ viscous stress with the polar metric; Γ_a = Γ + 2Ω·A_vec | none fixed (every function dimensional; the E-series use lab or planetary numbers directly) | dimensional SI throughout; latitudes in degrees only at `*_deg` interfaces |
 | ch06 | 2-D flows in (x, y) with θ from +x (downstream); complex z = x + iy, ζ the Zhukhovsky circle plane; §6.8 cylindrical (R, φ, z) with **z horizontal along the stream**, spherical (r, θ from +z); §6.9 ξ = x − x_s; Laplace grids `mask[j, i]` with x on the last axis | bodies centred at the origin; half-body source at 0 (stagnation at −m/2πU); p∞ far upstream; ideal-flow p measured from hydrostatic; Example 6.1 wall at x = 0 with the vortex at (h, 0) at t = 0 | Γ counterclockwise in code, **clockwise** in (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68), Ex. 6.1 (`Gamma_cw=`); D, L on the body, (6.54) F on the fluid; ccw contour, outward n; 2-D dipole from sink to source; (6.82) = r × App. B | none fixed (U, a or the body length set the scale in each function; C_p is the only non-dimensional output used throughout) | dimensional SI throughout; ρ default 1.2 (2-D forces) or 1000 (Ex. 6.1, §6.9) — pass it explicitly |
 | ch07 | 2-D waves in the (x, z) plane, **z up**, x along propagation; still surface z = 0, flat bottom z = −H (H = ∞ deep); §7.7 origin at the mean free surface, interface at z = −H; §7.8 (x, y, z) with z up, K = (k, l, m); rays in (x, y) with α from the shore normal | still-water level; mean particle position (x₀, z₀) | p **gauge**; p′ = p + ρgz (§7.2) or p − p̄(z) (§7.8); ψ with u = ∂ψ/∂z; ω ≥ 0, direction in sgn k; c_g signed; clockwise orbits for +x waves; sheet γ = u_below − u_above | g = 9.81 (`G_BOOK`) in ch07 and `core.waves`; ρ = 1000; clean water σ = 0.07274 N/m, ρ = 998.2 in teaching numbers; energy per area (surface), per volume (internal) | dimensional SI throughout; complex amplitudes (Re dropped) from §7.7; the KdV solver is dimensional |
+| ch08 | channel: x along the plates, y across, walls y = 0 (fixed) and y = h (moving); pipe and circular Couette: cylindrical (R, φ, z), capital R; lubrication: x along, y across the gap h(x, t) (Hele-Shaw: z across, (x, y) in the plane); §8.4 y normal to the plate, η = y/√(νt); Ex. 8.6 plane polar (r, θ azimuth); §8.6 spherical (r, θ, φ) with θ from the downstream +x axis, body frame (sphere at rest) or fluid frame | fixed lower wall; pipe axis; slider inlet x = 0 with gap h₀; plate at y = 0; sphere centre | p absolute or gauge (only gradients matter) except lubrication p* = p/P_a (absolute atmospheric); dp/dx book sign (favourable < 0), `G` = −dp/dx alias; signed τ; power into the fluid −2πR₁σ_Rφu_φ; §8.6 p − p∞ | lubrication: L along, h = εL across, U, P_a (or μUL/h²); similarity: √(νt); Stokes layer δ_e = √(2ν/ω); low Re: pressure μU/L; Re per section (pipe diameter, Re_L, sphere diameter 2aU/ν, Re_a radius) | dimensional SI throughout; the scaled lubrication and low-Re equations live in the sympy engines (`lubrication_nondim_sympy`, `low_re_scaling_sympy`); g = G0 in `core.lubrication` and `core.creeping` |

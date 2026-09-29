@@ -4,7 +4,7 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184); a new chapter starts at the next free number (ch08: P185). Total so far: 184.
+P165–P184, ch08 P185–P199); a new chapter starts at the next free number (ch09: **P200**). Total so far: 199.
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -222,6 +222,23 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | `np.interp`: reading a curve between samples (P182) | ch07 · §7.5 · C09 | `np.interp(x_new, x, y)` draws a straight line between the neighbouring samples (x increasing); reads the envelope's height at a crest that sits between grid points |
 | `warnings.catch_warnings(record=True)` (P183) | ch07 · §7.7 · C13 | a warning is a message without stopping; inside the `with` block every warning is collected in a list (`simplefilter("always")` so none is swallowed) — shows `interface_omega` flagging ρ₁ > ρ₂ (Rayleigh–Taylor) before returning NaN |
 | `np.errstate(invalid="ignore")` (P184) | ch07 · §7.8 · C15 | silences numpy's RuntimeWarning (0/0 → NaN) for the lines inside the block only; used where the NaN is expected and harmless (at K = 0 the direction of K, hence ω = N cos θ, is undefined) |
+| **ch08 — maths and physics** | | |
+| diffusivity and the diffusion time L²/ν (P185) | ch08 · §8.1 · C01 | a diffusivity D [m²/s] spreads something a distance ~√(Dt) in time t, so crossing L takes ~L²/D (double L, quadruple the time); heat has κ = k/ρC_p, momentum has ν = μ/ρ — why air (ν ≈ 1.5e-5) spreads momentum 15× faster than water; the √(νt) of every later boundary and Ekman layer |
+| Laplacian in cylindrical coordinates (P186) | ch08 · §8.2 · C03 | for u(R): ∇²u = (1/R)d/dR(R du/dR) (the R inside comes from the growing circumference); for a swirl u_φ(R) the φ-component of the vector Laplacian is d/dR[(1/R)d(Ru_φ)/dR] (extra −u_φ/R² because e_φ turns); both from `core.curvilinear` |
+| Euler–Cauchy (equidimensional) ODE (P187) | ch08 · §8.2 · C04 | every term R^k d^ku/dR^k ⇒ try u = R^λ, get a polynomial in λ: R²u″ + Ru′ − u = 0 gives λ = ±1, u = AR + B/R; reused for Stokes' f(r) (roots 4, 2, 1, −1) |
+| anisotropic scaling with two length scales (P188) | ch08 · §8.3 · C05 | long thin flows: x in units of L, y in units of h = εL, so ∂/∂x = (1/L)∂/∂x* but ∂/∂y = (1/εL)∂/∂y*; the cross velocity scale comes from continuity (v ~ εU); each term's size then sits in its coefficient — the lubrication and boundary-layer move |
+| Leibniz rule with a moving upper limit (P189) | ch08 · §8.3 · C06 | ∂/∂x ∫₀^{h(x)} u dy = ∫₀^h ∂u/∂x dy + u(x, h)∂h/∂x: the extra term counts what enters because the limit moved (ch03 P109 had fixed limits); sympy demo returns 0 |
+| nonlinear diffusion in flux form (P191) | ch08 · §8.3 · C08 | ∂h/∂t = ∂/∂x(D(h)∂h/∂x) with D depending on the unknown (thin film: D = ρgh³/3μ, tiny where the layer is thin); written as h_t + q_x = 0 with q = −D h_x, the total ∫h dx is conserved when nothing leaves the ends |
+| Gaussian integral (P194) | ch08 · §8.4 · C09 | ∫_{−∞}^{∞}e^{−ζ²}dζ = √π, √π/2 on each side; no elementary antiderivative, which is why its running integral (erf) has a name |
+| error function erf and its inverses (P195) | ch08 · §8.4 · C09 | erf(ζ) = (2/√π)∫₀^ζ e^{−ξ²}dξ rises 0 → 1, erfc = 1 − erf computed directly (no cancellation; ch04 P123); `erfinv`/`erfcinv` answer "where does the profile reach this level?" — 2 erfcinv(0.01) = 3.643 is δ₉₉ in units of √(νt) |
+| exponent matching for similarity forms (P197) | ch08 · §8.4 · C10 | if c₁t^aF(η) + c₂t^bG(η) = 0 for every t and η then a = b; power laws δ = Dt^m turn every bracket into a power of t, matching gives linear equations for the exponents (sympy: the spreading bead's n = m = 1/5) |
+| dominant balance (P198) | ch08 · §8.6 · C12 | choose a quantity's scale from the term it must balance: at low Re pressure balances viscous stress, p − p∞ ~ μU/L, not ρU² (10 µm particle at 1 mm/s: 0.1 Pa vs 1e-3 Pa); the wrong scale makes a term look negligible |
+| the Stokes operator E² applied twice (P199) | ch08 · §8.6 · C13 | E² = ∂²/∂r² + (sin θ/r²)∂/∂θ((1/sin θ)∂/∂θ) (Ch. 6 (6.77)) turns ψ into vorticity, ω_φ = −E²ψ/(r sin θ); E²(E²ψ) is **not** the biharmonic ∇⁴ψ (a sympy test shows the difference); E² of the uniform stream r²sin²θ is 0 |
+| **ch08 — Python and numerics** | | |
+| `scipy.integrate.cumulative_trapezoid` (P190) | ch08 · §8.3 · C06 | `cumulative_trapezoid(f, x, initial=0)` returns the running integral at every sample — the numerical antiderivative; turns a pressure gradient into a pressure profile (slider from scratch) |
+| implicit time stepping with Picard iteration (P192) | ch08 · §8.3 · C08 | backward Euler evaluates the right side at the new time (stable for any step: damping 1/(1 + 4λ) < 1 where explicit needs λ ≤ ½); with a solution-dependent diffusivity, guess it from the last iterate, solve, update, repeat; a precursor film h_min keeps D > 0 ahead of the front (`thin_film_spread` uses Newton, same fixed point) |
+| Crank–Nicolson with `scipy.linalg.solve_banded` (P193) | ch08 · §8.4 · C09 | average the diffusion term between old and new time: second order in time, stable for any step; each step is a tridiagonal system that `solve_banded((1, 1), ab, rhs)` solves in O(N) from the three diagonals stored as rows (`core.diffusion.crank_nicolson_1d`; two backward-Euler start-up steps tame the jump) |
+| `scipy.integrate.solve_bvp` (P196) | ch08 · §8.4 · C09 | an ODE with conditions at both ends (F(0) = 1, F(η_max) = 0 on a truncated domain), written as a first-order system with a mesh and a guess; knows nothing about erf yet lands on erfc(η/2) (3.7e-13) — the check that η_max is large enough |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -350,3 +367,30 @@ mean (ch03 recap sentence), complex 2 × 2 systems with sympy `I`, `solve`, `fac
 reminder), **WKB** (slowly varying wave trains, defined where first used), **Hamilton's equations** for rays
 (dx/dt = ∂ℋ/∂p, dp/dt = −∂ℋ/∂x with ω as the Hamiltonian ℋ — written ℋ to avoid the depth H, lesson round 2), "take it
 on trust for now (derived in C03–C04)" for the deep-water ω = √(gk) used in §7.1.
+
+Reminders written in ch08 instead of new primers (point here; the "Tools from earlier chapters" 🔁 cells before first
+use — erf and `np.trapezoid` before the entrance-length cell, `meshgrid`/contour and `observed_order` before the C06
+figures, moved there in lesson round 1): dynamic vs kinematic viscosity (ch01 P05 stress), P23 dicts, P04 f-strings,
+P14 tuple unpacking, P15 `assert np.allclose`, P10 random generator, P01 matplotlib, P13 log–log slopes and observed
+order, P29 lambda, component-first arrays, unit normal/tangent (ch02), P108 `brentq`, P123 erfc (first look at erf),
+P37 trapezoid, P25 partial derivative, P42/P167 separation of variables, P44 integrating an ODE twice, P84 FTC, P40 sympy
+and `dsolve`, P57 `np.linalg.solve`, P21/P22 finite differences (tridiagonal from scratch), signed τ = μ du/dy (ch01),
+P19 derivative as a slope, inequalities under division by a positive number, P26 Taylor, P87 `quad`, P17
+`slider_figure`, P18 show_viz, P88 cylindrical coordinates, P36 ln R → −∞, P83/P163 area element 2πR dR, P122 curl of a
+curl, centripetal acceleration (ch04), P68 orders of smallness, P22 `np.gradient`, P133 scaled variables and the chain
+rule, P130 order-of-magnitude scaling, P109 differentiation under the integral sign, P132 kinematic condition at a
+moving wall, P76/P78 `meshgrid`/contour/streamplot, P106 substitution, P170 `minimize_scalar`, P107 `np.log1p`/cancellation,
+P47 live widgets, hydrostatics and a stress-free surface (ch01, ch04), P30 explicit stepping and its limit, P46 `np.where`,
+P16 animate and `show_animation`, P49/P91 chain rule, P43 exponent rules, P17 `animate_figure`, P176 complex amplitudes,
+P159 √i, P45 Euler's formula, P165 phase and time lag, ch06 spherical θ from the stream axis (with the downstream origin
+flagged), P121 Schwarz, ch02 ε_ijk, P31/P94 `solve_ivp` (many tracers in one call), P35 line integral of a gradient,
+P163 surface integrals on a sphere, P131 effective weight and buoyancy, P143 Gauss–Legendre, P117 series of 1 − e^{−s}.
+
+Glosses in ch08 (one sentence where used, no demo unless noted): integrating an ODE twice with a 3-line sympy `dsolve`
+demo, regularity at the axis (ln R → −∞), the area element 2πR dR, bookkeeping of a small parameter ε (multiply through
+so one chosen term has coefficient 1), antiderivatives of (1 + αx/L)^{−n} and partial fractions, stress-free surface and
+hydrostatic thin-layer pressure, order of a PDE vs number of conditions (two in y, one in t), the product rule read
+backwards (ηF)′, complex trial Re{e^{iωt}f(y)} with √i = (1 + i)/√2, curl of a gradient is zero and curl commutes with
+the Cartesian Laplacian, traction projection t_x = σ_rr cos θ − σ_rθ sin θ, line integral of a gradient to recover p,
+asymptotic size of a term far away, the series 1 − e^{−s} = s − s²/2 + …; `np.diag`/`np.r_` for a hand-made
+tridiagonal matrix; "the book skips this move; we add it" for inserted derivation steps.

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790268984">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790268984">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790668723">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790668723">
 </head>
 <body>
 <div class="ce-container">
@@ -293,6 +293,53 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>Why does energy leave at right angles to the crests?</b>
 <p>In a stratified fluid the frequency sets only the angle, omega = N cos theta: drag omega/N and the St Andrew&#x27;s cross tilts, the crests slide across each beam while the energy runs along it, and in the wavenumber plane c_g stays perpendicular to c.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch07/internal_wave_beams.html">Open full window</a><a class="fp-btn" href="../notebooks/ch07_gravity_waves.html#viz-internal_wave_beams">In the chapter</a></div>
+</div></div>
+<h2 id="ch08">Chapter 8 — Laminar Flow</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 8 · explainer 1 · §8.2</small>
+<b>When does fluid flow backwards in a channel?</b>
+<p>A moving wall drags, a pressure gradient pushes: the profile is a straight line plus a parabola, and the floor layer reverses once dp/dx exceeds 2μU/h².</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/couette_poiseuille_backflow.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-couette_poiseuille_backflow">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 2 · §8.3</small>
+<b>Why can a thin film ignore inertia?</b>
+<p>Scale the gap equations with two lengths and every term becomes a bar: inertia is weighed by the reduced Reynolds number, the pressure and the cross-gap friction stay, and across the gap only the pressure is left.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/lubrication_scaling.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-lubrication_scaling">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 3 · §8.3</small>
+<b>How does a film thinner than a hair carry a load?</b>
+<p>The same flux must pass a narrowing gap, so pressure rises inside: drag the taper and the sliding direction and watch the pressure hump, the gap profiles and the load respond, and see the printed pressure formula fail the pressure equation.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/slider_bearing.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-slider_bearing">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 4 · §8.3 8.4</small>
+<b>Why does a honey drop spread like t¹ᐟ⁵?</b>
+<p>A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t¹ᐟ⁵.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/viscous_gravity_current.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-viscous_gravity_current">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 5 · §8.4</small>
+<b>How can profiles at all times be one curve?</b>
+<p>A plate starts suddenly; momentum diffuses a distance of order the square root of nu t; plot against y over that length and every profile, for any time, speed and viscosity, collapses onto one complementary-error-function curve - until a stopping time or a second wall imposes a scale.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/stokes_first_problem.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-stokes_first_problem">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 6 · §8.4</small>
+<b>Where do similarity exponents come from?</b>
+<p>Guess a profile that decays like t^-n and widens like t^m: the rescaled profiles collapse only at the right n and m, fixed by matching the powers of t in the equation and one conserved quantity.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/similarity_exponents.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-similarity_exponents">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 7 · §8.5</small>
+<b>How deep does a shaking plate reach?</b>
+<p>A plate oscillating in its own plane drags a thin layer of fluid: each layer repeats the wall&#x27;s motion, shrunk by exp(-y/delta) and delayed by y/delta radians, with delta = sqrt(2 nu/omega) - a wave-like pattern made only of diffusion.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/oscillating_plate.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-oscillating_plate">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 8 · §8.6</small>
+<b>What does creeping flow round a sphere look like?</b>
+<p>Stokes&#x27; flow past a sphere is fore-aft symmetric and its disturbance decays only like a/r, so it is felt tens of radii away; there inertia catches up with friction, and Oseen&#x27;s correction sweeps the disturbance into a wake. Compare with ideal flow.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/stokes_sphere_flow.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-stokes_sphere_flow">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 8 · explainer 9 · §8.6</small>
+<b>Where does 6πμaU come from?</b>
+<p>Sweep round a creeping sphere: the pressure and friction tractions add to one uniform push, collecting 2πμaU and 4πμaU; then change the particle size and watch the fall speed grow as a² until Re is no longer small.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/stokes_drag_settling.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-stokes_drag_settling">In the chapter</a></div>
 </div></div>
 </div>
 </body>
