@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why does a honey drop spread like t^(1/5)?</title>
+<title>Why does a honey drop spread like t¹ᐟ⁵?</title>
 <meta name="viz:chapter" content="ch08">
 <meta name="viz:slug" content="viscous_gravity_current">
 <meta name="viz:order" content="4">
-<meta name="viz:title" content="Why does a honey drop spread like t^(1/5)?">
-<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t^(1/5).">
+<meta name="viz:title" content="Why does a honey drop spread like t¹ᐟ⁵?">
+<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t¹ᐟ⁵.">
 <meta name="viz:concept" content="viscous gravity current; thin-film equation from mass conservation and the lubrication profile; flux proportional to h cubed times the slope; nonlinear diffusion; self-similar spreading with n = m = 1/5; Huppert dome and front constant">
 <meta name="viz:sections" content="8.3 8.4">
 <meta name="viz:equations" content="8.18 8.32a">
@@ -488,6 +488,8 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
 .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-view[data-view="rescaled"] { display: none !important; }
 .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+/* portrait phones, Explore tab: the layer gets the whole stage (the fronts are in the readouts) */
+.viz-app[data-layout="portrait"][data-tab="explore"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
 /* portrait phones: the preset chips stay on Walkthrough and Explore; the reading tabs give their rows to the text */
 .viz-app[data-layout="portrait"]:is([data-tab="explain"], [data-tab="equations"], [data-tab="code"], [data-tab="check"]) .viz-presets { display: none !important; }
 </style>
@@ -2520,6 +2522,7 @@ function lenUnit(L) {
 const fmtLen = v => { const U = lenUnit(v); return Viz.fmt(v * U.f, { sig: 3 }) + ' ' + U.u; };
 const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '.': '·' };
 const pow10 = k => '10' + String(k).split('').map(c => SUPD[c]).join('');
+const sup = str => String(str).split('').map(c => (c === '/' ? 'ᐟ' : c === 'm' ? 'ᵐ' : SUPD[c] || c)).join('');   // t + sup('1/5') = t¹ᐟ⁵
 function expStr(v) {                                                        // round-off-sized numbers, never printed as 0
   const a = Math.abs(v);
   if (a === 0) return '0 (exact)';
@@ -2693,9 +2696,9 @@ function drawRescaled(v, s, app) {
   v.clear();
   const C = colors(), ctx = v.ctx, c = cur(s), col = c.col, m = Number(s.m), small = v.w < 420 || v.h < 150;
   const xmax = 1.12 * Math.max(col.ximax, m === 0.2 ? ETA_N : 0), ymax = 1.2 * Math.max(col.Hmax, m === 0.2 ? HC0 : 0, 1e-9);
-  const mt = m === 0.2 ? '⅕' : '½';
+  const mt = m === 0.2 ? sup('1/5') : sup('1/2');
   const P = v.plot({ xlim: [0, xmax], ylim: [0, ymax], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } })
-    .axes({ xlabel: 'x / (x₀ τ^' + mt + ')', ylabel: small ? '' : 'h τ^' + mt + ' / x₀', zeroLines: false });
+    .axes({ xlabel: 'x / (x₀ τ' + mt + ')', ylabel: small ? '' : 'h τ' + mt + ' / x₀', zeroLines: false });
   P.clip(() => {
     const n = col.prof.length;
     col.prof.forEach((pr, i) => {
@@ -2716,10 +2719,10 @@ const SIMILAR = 0.02;                                                       // �
 function regime(s) { const c = cur(s); return c.dome > SIMILAR ? 'early' : 'similar'; }
 function readingText(s) {
   const c = cur(s);
-  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the t^(1/5) line: it runs ahead of or behind the law while the start is being forgotten.';
+  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the t¹ᐟ⁵ line: it runs ahead of or behind the law while the start is being forgotten.';
   const catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
   return 'The initial shape is forgotten (only ' + pct(c.dome) + ' of the volume is out of place): the profile is Huppert\'s dome' +
-    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances as t^(' + (isFinite(c.slope) ? c.slope.toFixed(3) : '0.2') + ')') +
+    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances as t' + sup(isFinite(c.slope) ? c.slope.toFixed(3) : '1/5')) +
     ' — exponents forced by the thin-film equation and the conserved volume, not by the start.';
 }
 function interpretText(s) {
@@ -2735,7 +2738,7 @@ function interpretText(s) {
    APP
    --------------------------------------------------------------------------------------------------- */
 const app = Viz.app({
-  title: 'Why does a honey drop spread like t^(1/5)?',
+  title: 'Why does a honey drop spread like t¹ᐟ⁵?',
   subtitle: 'A viscous bead slumping under its own weight: the layer with its flux, the front on log–log axes and the profiles rescaled — one clock',
   autoplay: false,
   params: {
@@ -2759,8 +2762,8 @@ const app = Viz.app({
     const c = cur(s), ph = phone(), vol = 'volume Δ ' + expStr(c.drift);
     if (c.dome > SIMILAR) return { tone: 'warn', text: ph ? '⏳ remembers its start: ' + pct(c.dome) + ' off the dome' : '⏳ still remembers its initial shape — ' + pct(c.dome) + ' of the volume off the dome · ' + vol };
     const sl = isFinite(c.slope) ? c.slope.toFixed(2) : '—', catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
-    return { tone: 'good', text: ph ? '✅ on the dome · front ∝ t^' + sl + (catching ? ' → t^0.2' : '') :
-      '✅ self-similar — ' + pct(c.dome) + ' off the dome, front ∝ t^' + sl + (catching ? ' (still catching up with t^0.2)' : '') + ' · ' + vol };
+    return { tone: 'good', text: ph ? '✅ on the dome · front slope ' + sl + (catching ? ' → 0.2' : '') :
+      '✅ self-similar — ' + pct(c.dome) + ' off the dome, log–log front slope ' + sl + (catching ? ' (still catching up with 1/5)' : '') + ' · ' + vol };
   },
   readouts: [
     { id: 'xs', label: 'Front $x_N$ (simulated)', value: s => cur(s).xf, fmt: v => fmtLen(v) },
@@ -2771,11 +2774,11 @@ const app = Viz.app({
     { id: 't', label: 'Time $t$', value: s => cur(s).t, fmt: v => Viz.fmtTime(v) }
   ],
   stage: {
-    rows: [1.1, 1],
+    rows: [1.4, 1],
     views: [
       { id: 'layer', row: 0, title: s => { const c = cur(s); return '<b>The layer h(x, t)</b> · t = ' + Viz.fmtTime(c.t) + ' · <span class="c-blue">simulated</span>, <span class="c-accent">dome</span>, <span class="c-orange">flux q</span>, <span class="c-teal">front</span>, <span class="c-rose">probe</span>'; } },
       { id: 'front', row: 1, title: s => { const c = cur(s); return '<b>Front x_N(t)</b>, log–log · slope ' + (isFinite(c.slope) ? c.slope.toFixed(2) : '—') + (layoutIs('portrait') ? ' · collapse ' + pct(c.col.spread) : '') + ' · <span class="c-teal">simulated</span> <span class="c-accent">law</span> <span class="c-muted">diffusion</span>'; } },
-      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> h τ^m vs x/τ^m, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
+      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> h τᵐ vs x/τᵐ, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
     ],
     draw(g, s) {
       const a = g.app;
@@ -2799,7 +2802,7 @@ const app = Viz.app({
   inspectHint: 'Click (or drag on) the layer to trace the flux at any x.',
   notes: s => '<p>' + interpretText(s) + '</p>',
   explore: {
-    intro: 'A bead slumps under its own weight. Pick a start shape and a fluid, press ▶ and watch the front join the slope-⅕ line; click the layer to probe the flux.',
+    intro: 'A bead slumps under its own weight. Pick a start shape and a fluid, press ▶ and watch the simulated front close in on the law (readouts); click the layer to probe the flux.',
     controls: ['shape', 'A', 'mu', 'rho', 'm', 'probe'],
     readouts: ['xs', 'xl', 'hc', 't'],
     callouts: [{ kind: 'try', html: 'Multiply the half-area by 32 at a fixed time. Predict first: how much farther is the front? (Watch the law readout.)' }]
@@ -2988,8 +2991,8 @@ dt = 0.2 * dx**2 / h.max()**3     # stable step now: {{sdt}}`,
       note: 'from $' + EQ.e832a + '$ (8.32a) with $n=m=1/5$ (Derivation tab)', symbols: [['A, D', 'constants of the similarity form', 'varies']] },
     { id: 'front', title: 'Front and centre (Huppert 1982)', ref: 'benchmark', tex: '\\begin{aligned}&' + EQ.law + '\\\\&' + EQ.hc + '\\end{aligned}',
       live: s => { const c = cur(s); return '\\begin{aligned}x_N&=' + t3(c.law.x_N) + '\\ \\text{m}\\\\h_c&=' + t3(c.law.h_centre) + '\\ \\text{m}\\end{aligned}'; },
-      symbols: [['\\mathcal A', 'half cross-section area', 'm²'], ['\\beta', '\\rho g/3\\mu', '1/(m s)'], ['\\eta_N', 'front constant 1.411', '–']] },
-    { id: 'eta', title: 'Front constant', ref: 'Huppert (1982)', tex: EQ.eta, live: () => '\\eta_N=' + ETA_N.toFixed(5) }
+      symbols: [['\\mathcal A', 'half cross-section area', 'm²'], ['\\beta', 'thin-film coefficient ρg/(3μ)', '1/(m s)'], ['\\eta_N', 'front constant 1.411', '–']] },
+    { id: 'eta', title: 'Front constant', ref: 'Huppert (1982)', tex: EQ.eta, note: 'evaluated with the Γ function: $\\eta_N = ' + ETA_N.toFixed(5) + '$' }
   ],
   check: [
     { q: 'Make the fluid 1000× more viscous. How much longer does it take to reach the same front?', a: '1000× longer: the only time in the problem is $\\tau=\\beta x_0t$ with $\\beta=\\rho g/3\\mu$, so the same shape (and front) is reached when $t/\\mu$ is the same.', set: { shape: 'box', A: 1e-4, mu: 1000, rho: 1260, lt: 3 } },

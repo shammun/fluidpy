@@ -2360,6 +2360,12 @@ function uP(y, p) { return -p.dpdx / (2 * p.mu) * y * (p.h - y); }              
 function flow(p) { const Q = p.U * p.h / 2 - Math.pow(p.h, 3) * p.dpdx / (12 * p.mu); return { Q, V: Q / p.h }; }
 function tau(y, p) { return p.mu * p.U / p.h - (p.h / 2 - y) * p.dpdx; }                    // τ = μ du/dy
 function thr(p) { return 2 * p.mu * p.U / (p.h * p.h); }                                     // backflow threshold
+// the interior extremum y* = h/2 − μU/(h dp/dx) when 0 < y* < h (a maximum for dp/dx < 0, a minimum for dp/dx > 0)
+function extremum(p) {
+  if (p.dpdx === 0) return null;
+  const y = p.h / 2 - p.mu * p.U / (p.h * p.dpdx);
+  return y > 0 && y < p.h ? { y, u: u(y, p), max: p.dpdx < 0 } : null;
+}
 function floorSlope(p) { return p.U / p.h - p.h / (2 * p.mu) * p.dpdx; }                     // du/dy at y = 0
 function state(p) {
   const h = p.h, U = p.U, mu = p.mu, g = p.dpdx, F = flow(p);
@@ -2560,8 +2566,12 @@ function drawProfile(v, s, app) {
       const yr = R[1] / p.h;
       P.line([lo - pad, hi + pad], [yr, yr], { color: C.amber, width: 1.4, dash: [4, 4] });
     }
-    // fastest point
-    P.dot(100 * S.u_max, S.y_umax / p.h, 4.5, { color: C.blue, stroke: '#fff', strokeWidth: 1.5 });
+    // the extremum y* (where du/dy = 0): a faint level line and a blue ring; else the fastest point on a wall
+    const ex = extremum(p);
+    if (ex) {
+      P.line([lo - pad, hi + pad], [ex.y / p.h, ex.y / p.h], { color: Viz.alpha(C.blue, 0.35), width: 1, dash: [1.5, 3] });
+      P.dot(100 * ex.u, ex.y / p.h, 5.5, { color: C.blue, stroke: '#fff', strokeWidth: 2 });
+    } else P.dot(100 * S.u_max, S.y_umax / p.h, 4.5, { color: C.blue, stroke: '#fff', strokeWidth: 1.5 });
     // probe
     const yf = s.probe, yP = yf * p.h;
     P.line([lo - pad, hi + pad], [yf, yf], { color: Viz.alpha(C.accent, 0.7), width: 1.2, dash: [2, 3] });
@@ -2572,6 +2582,15 @@ function drawProfile(v, s, app) {
   const uP0 = 100 * u(s.probe * p.h, p), xl = P.X(uP0), right = xl < P.px.x + P.px.w * 0.6;
   const yl = P.Y(s.probe) + (s.probe > 0.85 ? 12 : -12);
   Viz.text(ctx, 'u = ' + f3(uP0) + ' cm/s', xl + (right ? 8 : -8), yl, { size: 12, align: right ? 'left' : 'right', color: C.accent, bg: true });
+  const exL = extremum(p);
+  if (exL && v.h > 90) {
+    const xe = P.X(100 * exL.u), ye = P.Y(exL.y / p.h), onRight = xe > P.px.x + 0.55 * P.px.w;
+    const txt = (exL.max ? 'u max ' : 'u min ') + f3(100 * exL.u) + ' cm/s at y* = ' + f3(1000 * exL.y) + ' mm';
+    const txtS = (exL.max ? 'max ' : 'min ') + f3(100 * exL.u) + ' cm/s, y* ' + f3(1000 * exL.y) + ' mm';
+    const near = Math.abs(ye - P.Y(s.probe)) < 16;                       // keep clear of the probe label
+    Viz.text(ctx, small ? txtS : txt, xe + (onRight ? -10 : 10), ye + (near ? (ye < P.Y(s.probe) ? -14 : 14) : (exL.y / p.h > 0.85 ? 13 : -13)),
+      { size: 12, align: onRight ? 'right' : 'left', color: C.blue, bg: true, maxWidth: P.px.w - 8 });
+  }
   if (R && p.U !== 0 && v.h > 120) {
     const yr = R[1] / p.h;
     Viz.text(ctx, 'u = 0 at y = ' + f3(R[1] * 1000) + ' mm', P.px.x + P.px.w - 4, P.Y(yr) + (yr > 0.5 ? 12 : -12), { size: 12, align: 'right', color: C.amber, bg: true });
@@ -2610,7 +2629,7 @@ function drawStress(v, s, app) {
   if (labs) [[0.5, labs[0], C.rose], [1.5, labs[1], C.orange], [2.5, labs[2], C.blue]].forEach(([x, l, c]) =>
     Viz.text(ctx, l, Q.X(x), Q.px.y + Q.px.h + 12, { size: 12, align: 'center', color: c, halo: false }));
   // values above the bars when the columns are wide enough; otherwise only the total (the parts are in Explain §3)
-  const vals = colW >= 44 ? [[0.5, qc, Math.max(0, qc)], [1.5, qp, Math.max(qc, qc + qp)], [2.5, q, Math.max(0, q)]] : [[2.5, q, Math.max(0, q)]];
+  const vals = (W - split) < 200 ? [] : colW >= 44 ? [[0.5, qc, Math.max(0, qc)], [1.5, qp, Math.max(qc, qc + qp)], [2.5, q, Math.max(0, q)]] : [[2.5, q, Math.max(0, q)]];
   vals.forEach(([x, val, top]) => Viz.text(ctx, (colW >= 44 ? '' : 'Q ') + f3(val), Q.X(x), Q.Y(top) - 9, { size: 12, align: colW >= 44 ? 'center' : 'right', color: Viz.color('text'), bg: true }));
 }
 
@@ -2727,7 +2746,7 @@ const app = Viz.app({
       const y = s.probe * p.h, c = uC(y, p), q = uP(y, p), us = c + q, ph = phone();
       let out = W.step(0, 'What you are looking at') +
         W.say('<b>The channel</b>: <span class="c-blue">blue</span> tracers move at the local speed, the dark dye line bends into the profile, <span class="c-amber">amber</span> marks fluid moving backwards; the <span class="c-orange">orange</span> bar is the pressure along the channel. ' +
-          '<b>u(y)</b>: <span class="c-rose">rose dashed</span> = wall-driven (Couette) part, <span class="c-orange">orange dashed</span> = pressure-driven (Poiseuille) part, <span class="c-blue">blue</span> = their sum; the black line is the floor tangent.') +
+          '<b>u(y)</b>: <span class="c-rose">rose dashed</span> = wall-driven (Couette) part, <span class="c-orange">orange dashed</span> = pressure-driven (Poiseuille) part, <span class="c-blue">blue</span> = their sum; the black line is the floor tangent, the blue ring the fastest (or slowest) layer $y^*$.') +
         (portrait() || phone() ? W.hint('On phones the τ(y) and Q view is hidden; Q and τ(0) are in the u(y) title, and §2–§3 below give every number it shows.') : '');
       out += W.step(1, 'The two parts at your probe height') +
         W.say(`Probe at $y = ${t3(y * 1000)}$ mm ($y/h = ${t3(s.probe)}$), the purple dot; click the u(y) plot to move it.`) +
@@ -2755,7 +2774,12 @@ const app = Viz.app({
             (isFinite(S.y_reversal) && S.backflow ? `; reversed layer up to $y = h - \\frac{2\\mu U}{h\\,dp/dx} = \\mathbf{${t3(1000 * S.y_reversal)}}$ mm.` : '; no reversed layer.')) +
           W.say(`The net flow stops only at $dp/dx = 6\\mu U/h^2 = ${t3(S.zero_flow_dpdx)}$ Pa/m, three times the threshold.`)
           : W.box('With $U = 0$ there is no threshold and no backflow: the parabola runs in +x for $dp/dx < 0$ and in −x for $dp/dx > 0$ — a direction, with no plate to flow against.'));
-      out += W.step(5, 'At the current time') +
+      const ex = extremum(p);
+      out += W.step(5, 'The fastest (or slowest) layer') +
+        (ex ? W.line(`$y^* = \\frac h2 - \\frac{\\mu U}{h\\,dp/dx} = ${t3(1000 * p.h / 2)} ${signTex(-p.mu * p.U / (p.h * p.dpdx))} ${t3(Math.abs(1000 * p.mu * p.U / (p.h * p.dpdx)))}$ mm`, f3(1000 * ex.y) + ' mm', 'where du/dy = 0 (the blue dot)') +
+          W.box(`${ex.max ? 'maximum' : 'minimum'} $u(y^*) = \\mathbf{${t3(100 * ex.u)}}$ cm/s at $y^* = ${t3(1000 * ex.y)}$ mm — ` + (ex.max ? 'the pressure push adds to the wall drag and overtakes the plate speed.' : 'the adverse gradient drives the slowest layer backwards.'))
+          : W.say(`No interior extremum: $y^* = h/2 - \\mu U/(h\\,dp/dx)$ lies outside $0 < y < h$ (or $dp/dx = 0$), so the fastest fluid is at a wall: $u_{max} = ${t3(100 * S.u_max)}$ cm/s at $y = ${t3(1000 * S.y_umax)}$ mm.`));
+      out += W.step(6, 'At the current time') +
         W.line('$t$', Viz.live('t') + ' s', 'the transport clock (slow motion ×4)') +
         W.line(`mid-gap dye moved $u(h/2)\\,t = ${t3(100 * u(p.h / 2, p))}\\ \\text{cm/s}\\times t$`, Viz.live('xmid') + ' cm') +
         W.line(`dye at $y = 0.1h$ moved $u(0.1h)\\,t = ${t3(100 * u(0.1 * p.h, p))}\\ \\text{cm/s}\\times t$`, Viz.live('xfloor') + ' cm', 'negative = backwards');
@@ -2870,9 +2894,21 @@ const app = Viz.app({
           why: 'Add $(h/2\\mu)\\,dp/dx$ to both sides and multiply by $2\\mu/h > 0$, which keeps the inequality\'s direction (for $U > 0$).', plain: 'An adverse gradient beyond $2\\mu U/h^2$ reverses the floor layer.',
           set: { U: DEF.U, h: DEF.h, mu: DEF.mu, dpdx: THR0 },
           live: s => { const p = SI(s); return `\\frac{2\\mu U}{h^2} = \\frac{2\\times${t3(p.mu)}\\times${t3(p.U)}}{${t3(p.h * p.h)}} = ${t3(thr(p))}\\ \\text{Pa/m}`; },
-          watch: 'The black floor tangent is vertical.' }
+          watch: 'The black floor tangent is vertical.' },
+        { did: 'Set the slope to zero for the extremum', tex: '\\begin{aligned}\\frac{du}{dy}&=\\frac Uh-\\frac1{2\\mu}\\frac{dp}{dx}(h-2y^*)\\\\&=0\\end{aligned}',
+          why: 'The velocity is largest (or smallest) inside the gap where its y-derivative vanishes; step 3 divided by $\\mu$ gives the slope at any height.',
+          plain: 'The fastest (or slowest) layer is where the profile stands vertical.', set: { U: DEF.U, h: DEF.h, mu: DEF.mu, dpdx: -4 },
+          watch: 'The blue dot on u(y) sits where the blue curve is vertical.' },
+        { did: 'Solve for the extremum\'s height', tex: 'y^*=\\frac h2-\\frac{\\mu U}{h\\,dp/dx}',
+          why: 'Multiply by $2\\mu/(dp/dx)$ and rearrange for $y^*$; it is an interior extremum only when $0 < y^* < h$ (with $U = 0$ it is mid-gap, $h/2$).',
+          plain: 'The extremum leaves mid-gap: for $dp/dx < 0$ it is a maximum, pulled toward the moving wall; for $dp/dx > 0$ it is a minimum, pushed toward the fixed wall.',
+          set: { U: DEF.U, h: DEF.h, mu: DEF.mu, dpdx: -4 },
+          live: s => { const p = SI(s); if (p.dpdx === 0) return '\\frac{dp}{dx} = 0:\\ \\text{no interior extremum}'; const ys = p.h / 2 - p.mu * p.U / (p.h * p.dpdx);
+            return `\\begin{aligned}y^* &= ${t3(1000 * p.h / 2)}\\ \\text{mm} ${signTex(-p.mu * p.U / (p.h * p.dpdx))} ${t3(Math.abs(1000 * p.mu * p.U / (p.h * p.dpdx)))}\\ \\text{mm}\\\\ &= ${t3(1000 * ys)}\\ \\text{mm}` +
+              (ys > 0 && ys < p.h ? `,\\ u(y^*) = ${t3(100 * u(ys, p))}\\ \\text{cm/s}` : '\\ (\\text{outside the gap})') + '\\end{aligned}'; },
+          watch: 'The blue dot and its label on u(y) give y* and the extreme speed.' }
       ],
-      result: { tex: '\\begin{aligned}&\\tau=\\frac{\\mu U}{h}-\\Big(\\frac h2-y\\Big)\\frac{dp}{dx}\\\\&\\text{backflow}\\iff\\frac{dp}{dx}>\\frac{2\\mu U}{h^2}\\end{aligned}',
+      result: { tex: '\\begin{aligned}&\\tau=\\frac{\\mu U}{h}-\\Big(\\frac h2-y\\Big)\\frac{dp}{dx}\\\\&\\text{backflow}\\iff\\frac{dp}{dx}>\\frac{2\\mu U}{h^2}\\\\&\\text{extremum at }y^*=\\frac h2-\\frac{\\mu U}{h\\,dp/dx}\\ (0<y^*<h)\\end{aligned}',
         plain: 'Couette $u = Uy/h$, Poiseuille $u_{max} = -(h^2/8\\mu)\\,dp/dx$, a linear stress, and the floor reverses when the pressure\'s pull there beats the wall\'s.' },
       interpret: s => { const p = SI(s), S = state(p); return p.U !== 0 ? `With your numbers the floor reverses above $dp/dx = ${t3(S.threshold)}$ Pa/m; you are at $${t3(S.ratio)}\\times$ that.` : 'With $U = 0$ there is no threshold: the sign of $dp/dx$ alone decides the direction.'; },
       check: 'Units of $2\\mu U/h^2$: $(\\text{Pa s})(\\text{m/s})/\\text{m}^2 = \\text{Pa/m}$ ✓. Numbers: $h$ = 1 cm, $U$ = 0.1 m/s → 2 Pa/m; at 4 Pa/m the reversed layer reaches $y = h - 2\\mu U/(h\\,dp/dx) = 5$ mm. Poiseuille: $u_{max} = 1.5V$.' }
@@ -2975,6 +3011,8 @@ u = couette + poiseuille            # line + parabola: u = {{su}} m/s`,
       { name: 'y_umax, favourable = dense-grid argmax', js: state(SF).y_umax, expect: dense(SF).ymax, atol: 1e-8 },
       { name: 'u_min, strong adverse = dense-grid min', js: state(SA).u_min, expect: dense(SA).min, rtol: 1e-9 },
       { name: 'y_umin, strong adverse = dense-grid argmin', js: state(SA).y_umin, expect: dense(SA).ymin, atol: 1e-8 },
+      { name: 'y* of the extremum formula (D05 step 9), favourable', js: extremum(SF).y, py: 'ch08.couette_poiseuille_state(0.01, 0.1, -4.0)["y_umax"]', rtol: 1e-12 },
+      { name: 'y* of the extremum formula (D05 step 9), adverse', js: extremum(SA).y, py: 'ch08.couette_poiseuille_state(0.01, 0.1, 8.0)["y_umin"]', rtol: 1e-12 },
       { name: 'u_min, strong adverse (fluidpy)', js: state(SA).u_min, py: 'ch08.couette_poiseuille_state(0.01, 0.1, 8.0)["u_min"]', rtol: 1e-12 },
       { name: 'backflow flag, U = 0 and dp/dx > 0 (a direction, not backflow)', js: state({ h: 0.01, U: 0, dpdx: 4, mu: 0.001 }).backflow ? 1 : 0, expect: 0, atol: 0 }
     ];

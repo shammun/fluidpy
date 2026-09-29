@@ -2353,7 +2353,7 @@ button, input, select { font: inherit; color: inherit; }
      slider_bearing         Ex 8.1  p − p_e = (6μLU/h₀²) α(x/L)(1 − x/L)/[(2 + α)(1 + αx/L)²]   ("exact", squared)
                                     "linear": (3αμLU/h₀²)(x/L)(1 − x/L);  "book": the printed first-power denominator
      slider_bearing_load    Ex 8.1  W = αμL²U/(2h₀²) ("linear"); exact (ours) W = (6μUL²/(h₀²α²))[ln(1 + α) − 2α/(2 + α)]
-     slider_bearing_state   C₁ = −(1 + α)Uh₀/(2 + α), peak at x = L/(2 + α), inlet backflow flag (pad frame, x = L)
+     slider_bearing_state   C₁ = −(1 + α)Uh₀/(2 + α), peak at x = L/(2 + α), recirculation at the wide end (pad frame; α > 1 or α < −½), backflow_x, backflow_any
      slider_gap_velocity    u(x, y) from (8.19) with dp/dx = −12μC₁/h³ − 6μU/h²  (frame "ground" | "pad")
      slider_optimum_taper   α that maximises the exact W (golden-section search here, bounded Brent in fluidpy)
    Pad-frame field used for the tracers (ours, exact rewrite of the same profile): with h_m = 2(1 + α)h₀/(2 + α) (the
@@ -2405,14 +2405,16 @@ function ugap(x, y, S, frame = 'ground') {
 /** Every number of ch08.slider_bearing_state (same keys). */
 function sliderState(S) {
   const a = S.alpha, C1 = C1of(S), xs = L / (2 + a), dpm = pExact(xs, S);
-  const We = Wload(S, 'exact'), Wl = Wload(S, 'linear'), hin = S.h0 * (1 + a);
+  const We = Wload(S, 'exact'), Wl = Wload(S, 'linear');
+  const xw = a > 0 ? L : 0, hin = S.h0 * (1 + a * xw / L);            // the wide end: recirculation is strongest there
   const dpin = -12 * S.mu * C1 / hin ** 3 - 6 * S.mu * S.U / (hin * hin);
   let back = false;
   if (S.U !== 0 && C1 !== 0) {
     for (let i = 1; i < 400; i++) { const u = lubVel(hin * i / 400, hin, dpin, 0, -S.U, S.mu); if (Math.sign(u) === -Math.sign(C1)) { back = true; break; } }
   }
   return { C1, p_max: dpm, dp_max: dpm, x_pmax: xs, h_pmax: S.h0 * (1 + a * xs / L), W_exact: We, W_linear: Wl,
-    err_linear: We !== 0 ? 100 * (Wl / We - 1) : NaN, p_max_atm: dpm / P_ATM, p_visc: S.mu * S.U * L / (S.h0 * S.h0), inlet_backflow: back };
+    err_linear: We !== 0 ? 100 * (Wl / We - 1) : NaN, p_max_atm: dpm / P_ATM, p_visc: S.mu * S.U * L / (S.h0 * S.h0), inlet_backflow: back,
+    backflow_x: back ? xw : NaN, backflow_any: back };
 }
 /** Golden-section maximum of the exact load over α ∈ [0.05, 10] (ch08.slider_optimum_taper). */
 function taperOpt() {
@@ -2426,6 +2428,8 @@ function taperOpt() {
   return { alpha_opt: a, K_opt: 1 + a, W_star: Wc / 6, W_coefficient: Wc };
 }
 const OPT = taperOpt();
+/** How far the linear load overshoots the exact one at α = 0.1 [%] (the same for any h₀, U, μ, L). */
+const LIN01 = 100 * (Wload({ h0: 1, alpha: 0.1, U: 1, mu: 1 }, 'linear') / Wload({ h0: 1, alpha: 0.1, U: 1, mu: 1 }, 'exact') - 1);
 /** Gap at the pressure peak, h_m/h₀ = 2(1 + α)/(2 + α). */
 const HM = a => 2 * (1 + a) / (2 + a);
 /** Recirculation next to the pad (ours): where h > 1.5 h_m, i.e. only when the wide/narrow gap ratio exceeds 2
@@ -2702,7 +2706,7 @@ function drawPress(g, s) {
   });
   [0, 5].forEach(xe => { ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 2; ctx.fillStyle = Viz.color('card'); ctx.beginPath(); ctx.arc(P.X(xe), P.Y(0), 5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore(); });
   const up = n.st.dp_max >= 0, word = up ? 'peak' : 'lowest';
-  if (!shortV && v.w >= 360 && Math.abs(n.st.dp_max) > 0) {
+  if (!shortV && v.w >= 360 && Math.abs(n.st.dp_max) > 0 && !(model === 'compare' && v.w < 560)) {
     const right = n.st.x_pmax * 100 > 2.6, xl = P.X(n.st.x_pmax * 100) + (right ? -8 : 8);
     lab(ctx, v.w < 560 ? `${word} ${MPa(n.st.dp_max)}` : `${word} ${MPa(n.st.dp_max)} at x = L/(2+α) = ${f3(n.st.x_pmax * 100)} cm`, xl, P.Y(n.st.dp_max / 1e6) + (up ? 14 : -14), { color: OR, weight: 650, align: right ? 'right' : 'left' });
   }
@@ -2746,7 +2750,7 @@ function drawLoad(g, s) {
   const wc = n.st.W_exact / 1000, yl = P.ylim;
   if (wc < yl[0] || wc > yl[1]) { const top = wc > yl[1]; const px = P.X(S.alpha), py = top ? P.px.y + 4 : P.px.y + P.px.h - 4; arrowPx(ctx, px, py + (top ? 16 : -16), px, py, AC, 2.4, 8); lab(ctx, `W ${kN(n.st.W_exact)} off scale`, px + (S.alpha > 1 ? -8 : 8), py + (top ? 10 : -10), { color: AC, align: S.alpha > 1 ? 'right' : 'left', weight: 650, bg: true }); }
   if (!shortV && v.w >= 300 && S.U !== 0) {
-    lab(ctx, `optimum 1 + α = ${f4(OPT.K_opt)}`, P.X(OPT.alpha_opt) + 6, P.Y(n.Wopt / 1000) + (sg > 0 ? -12 : 12), { color: AC, align: 'left', weight: 650 });
+    lab(ctx, `${sg > 0 ? 'optimum' : 'strongest suction'} 1 + α = ${f4(OPT.K_opt)}`, P.X(OPT.alpha_opt) + 6, P.Y(n.Wopt / 1000) + (sg > 0 ? -12 : 12), { color: AC, align: 'left', weight: 650 });
     lab(ctx, 'W < 0: suction', P.X(sg > 0 ? -0.85 : 2.95), P.px.y + 12, { color: AM, align: sg > 0 ? 'left' : 'right' });
   }
 }
@@ -2820,7 +2824,7 @@ function explainHtml(s) {
     W.say('The same numbers are the classic design optimum quoted in bearing texts (San Andrés), computed here, not typed.');
   o += W.step(7, 'Recirculation near the wide end (ours)') +
     W.line('pad-frame profile $\\frac{u-U}{U}=-(1-s)\\big[3(\\tfrac{h_m}{h}-1)s+1\\big]$', 'reverses where h > 1.5 h_m', 's = y/h') +
-    W.say(n.rc ? `<b class="c-amber">On</b>: your gap ratio ${f3(1 + a)} (${a > 1 ? 'α > 1' : 'α < −½'}) opens the wide end beyond 1.5 h_m, so oil next to the pad flows back out between x/L = ${f3(n.rc[0])} and ${f3(n.rc[1])}. The flag of $\\texttt{slider\\_bearing\\_state}$ tests x = L only: ${st.inlet_backflow ? 'True' : 'False'}.` : `Off: the wall shear under the pad changes sign only when $3\\alpha/(2+\\alpha)>1$, i.e. α > 1 (gap ratio > 2); you are at α = ${f3(a)}.`);
+    W.say(n.rc ? `<b class="c-amber">On</b>: your gap ratio ${f3(1 + a)} (${a > 1 ? 'α > 1' : 'α < −½'}) opens the wide end beyond 1.5 h_m, so oil next to the pad flows back out between x/L = ${f3(n.rc[0])} and ${f3(n.rc[1])}. The flag of $\\texttt{slider\\_bearing\\_state}$ reports this recirculation at the wide end, x = ${f3(st.backflow_x * 100)} cm.` : `Off: the shear on the pad at the wide end changes sign only when the gap ratio exceeds 2: α > 1, or α < −½ for a pad whose gap narrows along x; you are at α = ${f3(a)} (ratio ${f3(Math.max(1 + a, 1 / (1 + a)))}).`);
   const d = 1e-6 * L, sb = (pModel(n.xs + d, S, 'book') - pModel(n.xs - d, S, 'book')) / (2 * d);
   o += W.step(8, 'The printed pressure formula') +
     W.line('printed: denominator $(2+\\alpha)(1+\\alpha x/L)$', 'meets p(0) = p(L) = pₑ', 'the factor (x/L)(1 − x/L) does that') +
@@ -2962,15 +2966,18 @@ const DERIV = [
         live: s => { const n = N(s), S = n.S; return `C_1=-\\frac{${t3(1 + S.alpha)}}{${t3(2 + S.alpha)}}\\times${t3(S.U)}\\times${t3(S.h0)}=${t3(n.st.C1)}\\ \\text{m}^{2}\\text{/s}`; } },
       { did: 'Back-substitute for C₂', tex: 'C_2=p_e-\\frac{6\\mu LU}{\\alpha h_o^2}\\cdot\\frac{1}{2+\\alpha}',
         why: 'Step 8 with C₁: U − (1 + α)U/(2 + α) = U/(2 + α).', plain: 'The book\'s C₂.' },
-      { did: 'Put p − pₑ over one denominator', tex: '\\begin{aligned}&p-p_e=\\frac{6\\mu LU}{\\alpha h_o^2}\\frac{s(\\alpha-s)}{(2+\\alpha)(1+s)^2}\\\\&s=\\frac{\\alpha x}{L}\\end{aligned}',
-        why: 'The numerator −(1 + α) + (2 + α)(1 + s) − (1 + s)² simplifies to s(α − s).', plain: 'The "some algebra" of the book, done.' },
+      { did: 'Substitute C₁ and C₂ into step 7', tex: '\\begin{aligned}\\frac{p-p_e}{6\\mu LU/(\\alpha h_o^2)}=&-\\frac{1+\\alpha}{(2+\\alpha)(1+s)^2}\\\\&+\\frac{1}{1+s}-\\frac{1}{2+\\alpha}\\end{aligned}',
+        why: 'Insert C₁ from step 10 and C₂ from step 11 into step 7 and subtract pₑ; the factor 6μLU/(αh₀²) comes out of all three terms. Here s = αx/L.',
+        plain: 'Three fractions in the one variable s = αx/L.' },
+      { did: 'Put p − pₑ over one denominator', tex: 'p-p_e=\\frac{6\\mu LU}{\\alpha h_o^2}\\frac{s(\\alpha-s)}{(2+\\alpha)(1+s)^2}',
+        why: 'Over (2 + α)(1 + s)² the numerator is −(1 + α) + (2 + α)(1 + s) − (1 + s)² = −1 − α + 2 + 2s + α + αs − 1 − 2s − s² = s(α − s).', plain: 'The "some algebra" of the book, done.' },
       { did: 'Write s back in terms of x', tex: EPEX,
         why: 's(α − s) = α²(x/L)(1 − x/L); one α cancels. The page prints (1 + αx/L) to the first power: it still meets both end conditions, but only the square satisfies step 5.',
         plain: 'The exact pressure hump.', set: { model: 'compare', xs: 0.8 },
         live: s => { const n = N(s), S = n.S, d = 1e-6 * L, sb = (pModel(n.xs + d, S, 'book') - pModel(n.xs - d, S, 'book')) / (2 * d); return `\\begin{aligned}\\text{ODE: }&${t3(n.dp / 1e6)}\\ \\text{MPa/m}\\\\\\text{printed: }&${t3(sb / 1e6)}\\ \\text{MPa/m}\\end{aligned}`; },
         watch: 'the dotted printed curve meets pₑ at both rings, but at the station its slope (grey) misses the ODE slope (black).' },
       { did: 'Keep the linear term in α', tex: 'p-p_e\\cong\\frac{3\\alpha\\mu LU}{h_o^2}\\frac xL\\Big(1-\\frac xL\\Big)',
-        why: 'For α ≪ 1, (2 + α)(1 + αx/L)² ≈ 2; the lubrication profile of D12 is only valid for small slopes anyway.', plain: 'A symmetric parabola.', set: { model: 'linear', xs: 0.3 } },
+        why: `An extra approximation, not required by lubrication (the wall slope αh₀/L is tiny for any α of order one): for α ≪ 1, (2 + α)(1 + αx/L)² ≈ 2. It costs accuracy: the linear load is ${f3(LIN01)} % high at α = 0.1.`, plain: 'A symmetric parabola.', set: { model: 'linear', xs: 0.3 } },
       { did: 'Integrate for the load', tex: '\\begin{aligned}W&=\\int_0^L(p-p_e)dx=\\frac{3\\alpha\\mu LU}{h_o^2}\\cdot\\frac L6\\\\&=\\frac{\\alpha\\mu L^2U}{2h_o^2}\\end{aligned}',
         why: '∫₀^L (x/L)(1 − x/L)dx = L/2 − L/3 = L/6.', plain: 'The load per unit width.',
         live: s => { const n = N(s), S = n.S; return `W=\\frac{${t3(S.alpha)}\\times${t3(S.mu)}\\times0.05^2\\times${t3(S.U)}}{2\\times(${t3(S.h0)})^2}=${t3(n.st.W_linear / 1000)}\\ \\text{kN/m}`; } }
@@ -3005,10 +3012,11 @@ Wl = ch08.slider_bearing_load(*args, mu=mu,
 print(W, Wl)                 # {{We}}, {{Wl}}
 st = ch08.slider_bearing_state(*args, mu=mu)
 print(st["C1"])              # {{c1}} m²/s
-print(st["inlet_backflow"])  # {{ib}}
+# recirculation at the wide end? where?
+print(st["inlet_backflow"], st["backflow_x"])  # {{ib}}
 opt = ch08.slider_optimum_taper()
 print(opt["K_opt"])          # {{ko}}`,
-    live: s => { const n = N(s), S = n.S; return { h0: pn(S.h0), al: pn(S.alpha, 3), U: pn(S.U, 3), mu: pn(S.mu, 3), pk: pn(Math.abs(n.st.dp_max)), We: pn(n.st.W_exact), Wl: pn(n.st.W_linear), c1: pn(n.st.C1), ib: n.st.inlet_backflow ? 'True' : 'False', ko: pn(OPT.K_opt, 5) }; } },
+    live: s => { const n = N(s), S = n.S; return { h0: pn(S.h0), al: pn(S.alpha, 3), U: pn(S.U, 3), mu: pn(S.mu, 3), pk: pn(Math.abs(n.st.dp_max)), We: pn(n.st.W_exact), Wl: pn(n.st.W_linear), c1: pn(n.st.C1), ib: n.st.inlet_backflow ? 'True, ' + pn(n.st.backflow_x) : 'False, nan', ko: pn(OPT.K_opt, 5) }; } },
   { id: 'ode', title: 'From scratch: integrate the pressure ODE', ref: 'Example 8.1',
     src: `# pad-frame flux [m²/s]: {{sc1}}
 C1 = -(1 + alpha)*U*h0/(2 + alpha)
@@ -3048,7 +3056,7 @@ const TOUR = [
   { title: 'The load', text: `The area under the hump is the load: W = ${kN(N0.st.W_exact)} here, about ${f3(N0.tons)} tonnes per metre of pad width.`,
     set: Object.assign({}, BASE), play: false, readouts: ['W', 'Wl'], code: { id: 'fp', lines: [10, 14] } },
   { title: 'The printed formula', text: 'Press "+ as printed": the dotted curve meets $p_e$ at both ends too, but at the station its slope misses $\\frac{dp}{dx}=-\\frac{12\\mu C_1}{h^3}-\\frac{6\\mu U}{h^2}$.',
-    set: Object.assign({}, BASE, { model: 'compare', xs: 0.8 }), play: false, derive: { id: 'D14', step: 13 } },
+    set: Object.assign({}, BASE, { model: 'compare', xs: 0.8 }), play: false, derive: { id: 'D14', step: 14 } },
   { title: 'Wrong way', text: 'Flip the speed: the gap now widens along the drag, the hump turns into suction and the film pulls the pad down.',
     set: Object.assign({}, BASE, { U: -5 }), play: false, readouts: ['W'] },
   { title: 'Your turn', text: 'Predict the taper that carries the most load at fixed h₀, then drag α and watch W. Check with the "optimum" preset.',
@@ -3080,7 +3088,7 @@ const QUIZ = [
   { q: 'Why does the linear formula overestimate W at α = 0.5?', a: `It drops the $(2+\\alpha)(1+\\alpha x/L)^2$ in the denominator of the exact pressure $${EPEX}$, which lowers the pressure over most of the pad: ${kN(Wload(SI(BASE), 'linear'))} against ${kN(Wload(SI(BASE), 'exact'))}.`, set: Object.assign({}, BASE) },
   { q: 'At α = 0 what is the flow, and what is the load?', a: 'Pure Couette flow: the same drag flux passes every station, the pressure stays at pₑ and the load is zero.', set: Object.assign({}, BASE, { alpha: 0 }) },
   { q: 'Where is the peak pressure for α = 1?', a: 'At x = L/(2 + α) = L/3 ≈ 1.67 cm, toward the narrow end, where the gap is h_m = 2(1 + α)h₀/(2 + α) = 4h₀/3 and dp/dx = 0.', set: Object.assign({}, BASE, { alpha: 1 }) },
-  { q: 'Above which taper does oil start to flow back out near the pad at the wide end?', a: 'α > 1 (gap ratio above 2): there the gap exceeds 1.5 times the peak-pressure gap and the pressure-driven backflow beats the drag next to the pad. Try α = 1.5.', set: Object.assign({}, BASE, { alpha: 1.5 }) }
+  { q: 'For which tapers does oil flow back out next to the pad at the wide end?', a: 'When the wide/narrow gap ratio exceeds 2: α > 1 (wide end at x = L) or α < −½ (wide end at x = 0). There the gap exceeds 1.5 times the peak-pressure gap and the pressure-driven backflow beats the drag next to the pad. Try α = 1.5, then α = −0.6.', set: Object.assign({}, BASE, { alpha: 1.5 }) }
 ];
 
 /* ---- selftest: parity with fluidpy (py) and invariants (expect) -------------------------------------------------- */
@@ -3109,9 +3117,16 @@ function selftestRows() {
     { name: 'state err_linear', js: st0.err_linear, py: `ch08.slider_bearing_state(${A})["err_linear"]`, rtol: 1e-10 },
     { name: 'state p_max_atm', js: st0.p_max_atm, py: `ch08.slider_bearing_state(${A})["p_max_atm"]`, rtol: 1e-12 },
     { name: 'state p_visc', js: st0.p_visc, py: `ch08.slider_bearing_state(${A})["p_visc"]`, rtol: 1e-12 },
-    { name: 'inlet backflow at alpha 1.2', js: sliderState(Object.assign({}, S0, { alpha: 1.2 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 1.2, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
-    { name: 'no inlet backflow at alpha 0.99', js: sliderState(Object.assign({}, S0, { alpha: 0.99 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 0.99, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
-    { name: 'inlet backflow at alpha 1.01', js: sliderState(Object.assign({}, S0, { alpha: 1.01 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 1.01, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
+    { name: 'recirculation at the wide end, alpha -0.6', js: sliderState(Object.assign({}, S0, { alpha: -0.6 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, -0.6, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
+    { name: 'no recirculation at the wide end, alpha -0.49', js: sliderState(Object.assign({}, S0, { alpha: -0.49 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, -0.49, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
+    { name: 'backflow_x at alpha 1.2 (x = L)', js: sliderState(Object.assign({}, S0, { alpha: 1.2 })).backflow_x, py: 'ch08.slider_bearing_state(5e-5, 1.2, 0.05, 5.0, mu=0.05)["backflow_x"]', atol: 0, rtol: 0 },
+    { name: 'backflow_x at alpha -0.6 (x = 0)', js: sliderState(Object.assign({}, S0, { alpha: -0.6 })).backflow_x, py: 'ch08.slider_bearing_state(5e-5, -0.6, 0.05, 5.0, mu=0.05)["backflow_x"]', atol: 0, rtol: 0 },
+    { name: 'backflow_any at alpha -0.6', js: sliderState(Object.assign({}, S0, { alpha: -0.6 })).backflow_any ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, -0.6, 0.05, 5.0, mu=0.05)["backflow_any"]', atol: 0, rtol: 0 },
+    { name: 'backflow_any at alpha 0.5', js: sliderState(S0).backflow_any ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 0.5, 0.05, 5.0, mu=0.05)["backflow_any"]', atol: 0, rtol: 0 },
+    { name: 'linear load overshoot at alpha 0.1 [%]', js: LIN01, py: '100*(ch08.slider_bearing_load(5e-5, 0.1, 0.05, 5.0, mu=0.05, model="linear")/ch08.slider_bearing_load(5e-5, 0.1, 0.05, 5.0, mu=0.05) - 1)', rtol: 1e-10 },
+    { name: 'recirculation at the wide end, alpha 1.2', js: sliderState(Object.assign({}, S0, { alpha: 1.2 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 1.2, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
+    { name: 'no recirculation at the wide end, alpha 0.99', js: sliderState(Object.assign({}, S0, { alpha: 0.99 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 0.99, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
+    { name: 'recirculation at the wide end, alpha 1.01', js: sliderState(Object.assign({}, S0, { alpha: 1.01 })).inlet_backflow ? 1 : 0, py: 'ch08.slider_bearing_state(5e-5, 1.01, 0.05, 5.0, mu=0.05)["inlet_backflow"]', atol: 0, rtol: 0 },
     { name: 'u gap (ground)', js: ugap(0.03, 3e-5, S0, 'ground'), py: `ch08.slider_gap_velocity(0.03, 3e-5, ${A})`, rtol: 1e-10 },
     { name: 'u gap (pad frame)', js: ugap(0.01, 1e-5, S0, 'pad'), py: `ch08.slider_gap_velocity(0.01, 1e-5, ${A}, frame="pad")`, rtol: 1e-10 },
     { name: 'u gap (alpha -0.7, U -3)', js: ugap(0.04, 1e-5, Sn, 'ground'), py: `ch08.slider_gap_velocity(0.04, 1e-5, ${B})`, rtol: 1e-10 },

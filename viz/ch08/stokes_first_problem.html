@@ -2706,7 +2706,7 @@ function drawProfile(g, s) {
 }
 function profileTitle(s) {
   const n = N(s), resc = s.mode === 'rescaled';
-  if (phone()) return `<b>${resc ? 'u/U vs η' : 'u(y)'}</b> · <span class="c-amber">δ ${fL(n.edge)}</span> · <span class="c-orange">u ${f3(n.up)} m/s</span>`;
+  if (phone()) return `<b>${resc ? 'u/U vs η' : 'u(y)'}</b> · ${resc ? '<span class="c-muted">grey: 1 − erf(η/2)</span> · ' : ''}<span class="c-amber">δ ${fL(n.edge)}</span> · <span class="c-orange">u ${f3(n.up)} m/s</span>`;
   return `<b>${resc ? 'u/U against η' : 'u(y)'}</b> · <span class="c-blue">now (bold), earlier (faint)</span> · <span class="c-teal">○ Crank–Nicolson</span> · <span class="c-amber">δ = ${fL(n.edge)}</span>`;
 }
 
@@ -2737,7 +2737,7 @@ function drawThick(g, s) {
     if (isFinite(n.edge) && n.edge > 0) P.dot(s.lt, Math.log10(n.edge), 5.5, { color: AM, stroke: '#fff', strokeWidth: 2 });
   });
   if (!shortV && v.w >= 320) {
-    FLUIDS.forEach(([nm, nu]) => { const yv = Math.log10(co * Math.sqrt(nu * 1000)); if (yv < 0.95) lab(ctx, nm, P.X(2.97), P.Y(yv) - 10, { color: MU, align: 'right' }); });
+    FLUIDS.forEach(([nm, nu]) => { const xl = 2.55, yv = Math.log10(co * Math.sqrt(nu * Math.pow(10, xl))), mine = Math.abs(Math.log10(nu / S.nu)) < 0.05; if (yv < 0.9 && yv > -3.3) lab(ctx, mine ? nm + ' (yours)' : nm, P.X(xl), P.Y(yv), { color: mine ? AM : MU, weight: mine ? 700 : 500, align: 'center' }); });
     // slope triangle ½
     const xa = 0, xb = 1, ya = Math.log10(co * Math.sqrt(S.nu)) - 0.55;
     if (ya > -3.3 && ya + 0.5 < 0.95) { P.line([xa, xb, xb], [ya, ya, ya + 0.5], { color: TX, width: 1.3 }); lab(ctx, 'slope ½', P.X(xb) + 6, P.Y(ya + 0.25), { color: TX, align: 'left' }); }
@@ -2916,8 +2916,10 @@ const DERIV = [
       { did: 'Substitute ξ = 2ζ', tex: '0=2A\\int_0^\\infty e^{-\\zeta^2}d\\zeta+1', why: 'dξ = 2dζ and ξ²/4 = ζ²: the integral becomes the standard Gaussian.', plain: 'The factor 2 that ends up in y/(2√(νt)).',
         set: { mode: 'rescaled', axis: 'half' }, watch: 'the book\'s axis η/2 = y/(2√(νt)): the edge now sits at 1.82, not 3.64.' },
       { did: 'Use the Gaussian integral', tex: '0=2A\\frac{\\sqrt\\pi}{2}+1\\ \\Rightarrow\\ A=-\\frac{1}{\\sqrt\\pi}', why: '∫₀^∞ e^(−ζ²) dζ = √π/2, half of the full √π by symmetry.', plain: 'A is negative: F falls.' },
-      { did: 'Substitute again inside F', tex: 'F(\\eta)=1-\\frac{2}{\\sqrt\\pi}\\int_0^{\\eta/2}e^{-\\zeta^2}d\\zeta', why: 'The same ξ = 2ζ; the upper limit becomes η/2.', plain: 'Ready to be named.' },
-      { did: 'Recognise the error function', tex: '\\begin{aligned}&' + E830 + '\\\\&' + ERFDEF + '\\end{aligned}', why: 'The definition of erf, and η/2 = y/(2√(νt)).', plain: 'The solution: a complementary error function.',
+      { did: 'Insert A and B into the first integral', tex: 'F(\\eta)=1-\\frac{1}{\\sqrt\\pi}\\int_0^\\eta e^{-\\xi^2/4}\\,d\\xi',
+        why: 'Put B = 1 (step 6) and A = −1/√π (step 9) back into $F(\\eta)=A\\int_0^\\eta e^{-\\xi^2/4}d\\xi+B$ (8.29), so both constants are known.', plain: 'The solution, still in the variable ξ.' },
+      { did: 'Substitute again inside F', tex: 'F(\\eta)=1-\\frac{2}{\\sqrt\\pi}\\int_0^{\\eta/2}e^{-\\zeta^2}d\\zeta', why: 'Substitute ξ = 2ζ again (dξ = 2dζ, ξ²/4 = ζ²): the factor 2 turns 1/√π into 2/√π, and the upper limit ξ = η becomes ζ = η/2.', plain: 'Ready to be named.' },
+      { did: 'Recognise the error function', tex: E830, why: 'The definition of erf, $' + ERFDEF + '$, with ζ = η/2 = y/(2√(νt)).', plain: 'The solution: a complementary error function.',
         live: s => { const n = N(s); return `\\frac uU=\\mathrm{erfc}(${t4(n.eta / 2)})=${t4(n.upFree / n.S.U)}\\ \\text{at your probe}`; } }
     ],
     result: { tex: E830, plain: 'The velocity falls from U at the plate as the complementary error function of y/(2√(νt)).', set: { axis: 'eta' } },
@@ -3018,7 +3020,7 @@ const EQS = [
     live: s => { const n = N(s); return `\\eta=${t4(n.eta)}\\ \\text{at } y=${tL(n.yp)}`; } },
   { id: 'e826', title: 'Similarity equation', ref: 'Eq. (8.26)', tex: E826 },
   { id: 'e827', title: 'Its conditions', ref: 'Eqs. (8.27), (8.28)', tex: 'F(\\eta=0)=1,\\quad F(\\eta\\to\\infty)=0' },
-  { id: 'e829', title: 'First integral', ref: 'Eq. (8.29)', tex: 'F(\\eta)=A\\int_0^\\eta\\exp(-\\xi^2/4)\\,d\\xi+B', note: 'A = −1/√π and B = 1 from the two conditions.' },
+  { id: 'e829', title: 'First integral', ref: 'Eq. (8.29)', tex: 'F(\\eta)=A\\textstyle\\int_0^\\eta\\exp(-\\xi^2/4)\\,d\\xi+B', note: 'A = −1/√π and B = 1 from the two conditions.' },
   { id: 'e830', title: 'The solution', ref: 'Eq. (8.30)', tex: '\\begin{aligned}&' + E830 + '\\\\&' + ERFDEF + '\\end{aligned}',
     live: s => { const n = N(s); return `u=${t3(n.S.U)}\\,\\mathrm{erfc}(${t3(n.eta / 2)})=${t4(n.upFree)}\\ \\text{m/s}`; },
     symbols: [['\\mathrm{erf}', 'error function', '–'], ['\\eta/2', 'the argument; the book\'s figure axis', '–']] },
@@ -3026,7 +3028,7 @@ const EQS = [
     live: s => { const n = N(s); return `\\delta_{99}=${t4(coef(0.01))}\\times${tL(n.snt)}=${tL(coef(0.01) * n.snt)}`; },
     note: 'Exact coefficient 2 erfc⁻¹(0.01) = 3.643, in y/√(νt); on the figure axis y/(2√(νt)) the edge is at 1.821.' },
   { id: 'ew', title: 'Vorticity content', ref: '§8.4', tex: '\\begin{aligned}\\textstyle\\int_0^\\infty\\omega_z\\,dy&=\\textstyle\\int_0^\\infty(-\\partial u/\\partial y)\\,dy\\\\&=+U\\end{aligned}',
-    live: s => `\\int\\omega\\,dy=${t4(N(s).wc)}\\ \\text{m/s}`, note: 'The page prints −U; u falls from U to 0, so the integral is +U. It never changes: no vorticity is made after t = 0.' }
+    live: s => `u(0)-u(\\infty)=${t4(N(s).wc)}\\ \\text{m/s}`, note: 'The page prints −U; u falls from U to 0, so it is +U at every time.' }
 ];
 const QUIZ = [
   { q: 'Multiply the time by 4. How does δ₉₉ change?', a: `It doubles: δ₉₉ ∝ √t. Scrub from 25 s to 100 s and watch the readout go from ${fL(d99(25, { nu: 1e-6 }))} to ${fL(d99(100, { nu: 1e-6 }))}.`, set: Object.assign({}, BASE, { lt: Math.log10(25) }) },

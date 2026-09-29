@@ -2813,7 +2813,7 @@ function explainLive(s) {
   return { t: `${f3(s.tau * tr.T)} a/U (${f3(s.tau * 100)} % of the run)`, lag: `${f3(b[0] - a[0])}a` };
 }
 
-/* ---- derivations (design Part F, as refined in notebooks/build_ch08.py: D28 12, D29 10, D32 7, D33 7 steps) ------- */
+/* ---- derivations (design Part F, as refined in notebooks/build_ch08.py: D28 12, D29 11, D32 7, D33 7 steps) ------- */
 const BASE = { model: 'stokes', frame: 'body', Re: 0.1, zoom: 8, pr: 2, pth: 90, shade: true, tau: 0.56 };
 const DERIV = [
   { id: 'D28', title: 'One equation for Stokes\' stream function', short: 'D28 E⁴ψ = 0', ref: 'Eq. (8.44)', view: 'flow',
@@ -2869,8 +2869,10 @@ const DERIV = [
         why: '∂_θ sin²θ = 2 sin θ cos θ; divided by sin θ it is 2 cos θ, whose θ-derivative times sin θ is −2 sin²θ.', plain: 'sin²θ is reproduced.' },
       { did: 'E² of the trial', tex: 'E^2(f\\sin^2\\theta)=\\Big(f\'\'-\\frac{2f}{r^2}\\Big)\\sin^2\\theta',
         why: 'The radial part gives f″ sin²θ; the angular part gives (1/r²)(−2 sin²θ) f.', plain: 'E² acts on f alone.' },
-      { did: 'Apply E² again', tex: 'f^{iv}-\\frac{4f\'\'}{r^2}+\\frac{8f\'}{r^3}-\\frac{8f}{r^4}=0',
-        why: 'With g = f″ − 2f/r² the equation is g″ − 2g/r² = 0; expanding (f/r²)″ = f″/r² − 4f′/r³ + 6f/r⁴ gives this line.', plain: 'A fourth-order Euler–Cauchy equation.' },
+      { did: 'Apply E² again, to g', tex: '\\begin{aligned}&E^2(g\\sin^2\\theta)=\\Big(g\'\'-\\frac{2g}{r^2}\\Big)\\sin^2\\theta=0\\\\&g=f\'\'-\\frac{2f}{r^2}\\end{aligned}',
+        why: 'Step 3 showed E²(f sin²θ) = g sin²θ; the same rule applied to g sin²θ gives $(E^2)^2\\psi=0$ (8.44) as an ODE for g.', plain: 'The stream-function equation becomes g″ − 2g/r² = 0.' },
+      { did: 'Expand the ODE in f', tex: 'f^{iv}-\\frac{4f\'\'}{r^2}+\\frac{8f\'}{r^3}-\\frac{8f}{r^4}=0',
+        why: 'Insert g = f″ − 2f/r² and use (f/r²)″ = f″/r² − 4f′/r³ + 6f/r⁴: g″ − 2g/r² = f⁗ − 2f″/r² + 8f′/r³ − 12f/r⁴ − 2f″/r² + 4f/r⁴.', plain: "The book's fourth-order Euler–Cauchy equation." },
       { did: 'Try f = r^λ', tex: '\\lambda(\\lambda-1)(\\lambda-2)(\\lambda-3)-4\\lambda(\\lambda-1)+8\\lambda-8=0',
         why: 'Every term becomes r^(λ−4) times a polynomial in λ, so the polynomial must vanish.', plain: 'An algebraic equation for the power.' },
       { did: 'Factor the polynomial', tex: '(\\lambda-4)(\\lambda-2)(\\lambda-1)(\\lambda+1)=0',
@@ -2881,7 +2883,7 @@ const DERIV = [
         why: `f must tend to ½Ur² so that $${E847}$ (8.47) holds; an r⁴ term would outgrow the stream; the r and 1/r terms are negligible far away.`, plain: 'The uniform stream survives.',
         set: { zoom: 100 }, watch: 'zoomed out to 100a: an r⁴ term would outgrow the uniform stream everywhere in this window.' },
       { did: 'Apply the two surface conditions', tex: '\\begin{aligned}\\frac{Ua^2}{2}+Ca+\\frac Da&=0\\\\Ua+C-\\frac{D}{a^2}&=0\\end{aligned}',
-        why: 'ψ = 0 and ∂ψ/∂r = 0 at r = a mean f(a) = 0 and f′(a) = 0.', plain: 'No flow through the sphere, no slip on it.', set: { zoom: 8 } },
+        why: '$\\psi(a,\\theta)=0$ (8.45) and $\\partial\\psi(a,\\theta)/\\partial r=0$ (8.46) mean f(a) = 0 and f′(a) = 0.', plain: 'No flow through the sphere, no slip on it.', set: { zoom: 8 } },
       { did: 'Solve and assemble', tex: '\\begin{aligned}&C=-\\frac{3Ua}{4},\\quad D=\\frac{Ua^3}{4}\\\\&' + E848 + '\\end{aligned}',
         why: 'Divide the first by a and add the second: 3Ua/2 + 2C = 0; then D = a²(Ua + C).', plain: 'Stokes\' stream function.',
         live: s => { const n = N(s); return `\\psi(${t3(n.r)}a,${t3(s.pth)}^\\circ)=${t3(n.r * n.r)}\\times${t3(Math.sin(n.th) ** 2)}\\times${t3(0.5 - 0.75 / n.r + 0.25 / n.r ** 3)}=${t4(psiS(n.r, n.th))}\\,Ua^2`; } }
@@ -2992,7 +2994,7 @@ const TOUR = [
   { title: 'A line of dye', text: 'Press ▶: a straight line of dye drifts onto the bead. Near the axis it lags far behind — friction makes a thick layer of fluid crawl round the bead.',
     set: Object.assign({}, BASE, { Re: 0.002, tau: 0.25 }), play: true },
   { title: 'Seen from the still fluid', text: 'Now the fluid is at rest and the bead moves left. Follow the teal paths: the fluid is pushed aside, dragged along, and left behind further along the path.',
-    set: Object.assign({}, BASE, { Re: 0.002, frame: 'fluid', tau: 0.1 }), play: true },
+    set: Object.assign({}, BASE, { Re: 0.002, frame: 'fluid', tau: 0.38 }), play: true },
   { title: 'Felt far away', text: `At 10a beside the bead the stream is still ${f4(100 * (1 - S10))} % slow (${f4(S10)}U); ideal flow is back to ${f5(I10)}U. Stokes' disturbance dies only like 3a/4r.`,
     set: Object.assign({}, BASE, { Re: 0.002, zoom: 30, pr: 10 }), play: false, readouts: ['d10'] },
   { title: 'Where it fails', text: `Far away inertia ~ $\\rho U^2a/r^2$ but friction ~ $\\mu Ua/r^3$, so their ratio grows like $\\mathrm{Re}_a r/a$. At Re = 0.1 the amber circle, inertia = friction, sits at ${f3(crossRc(0.1))}a.`,
@@ -3079,7 +3081,7 @@ const CFG = {
   transport: { param: 'tau', min: 0, max: 1, rate: 0.1, end: 'stop', unit: 'of the run' },
   presets: [
     { label: 'syrup bead', set: { model: 'stokes', frame: 'body', Re: 0.002, zoom: 8 }, title: 'radius 1 mm, 1 mm/s, ν = 10⁻³ m²/s: Re = 0.002' },
-    { label: 'fluid frame', set: { model: 'stokes', frame: 'fluid', zoom: 8, tau: 0.1 }, title: 'the sphere moves through still fluid; press ▶' },
+    { label: 'fluid frame', set: { model: 'stokes', frame: 'fluid', zoom: 8, tau: 0.38 }, title: 'the sphere moves through still fluid; press ▶' },
     { label: 'sand grain', set: { model: 'oseen', frame: 'body', Re: 1, zoom: 30 }, title: '0.1 mm quartz grain settling in water at ≈ 0.9 cm/s: Re ≈ 1 — Oseen\'s wake' },
     { label: 'ideal', set: { model: 'ideal', frame: 'body', zoom: 8 }, title: 'no viscosity (Ch. 6) for contrast' },
     { label: 'far field', set: { zoom: 100 }, title: 'zoom out to 100 radii' }
