@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why does a honey drop spread like t^(1/5)?</title>
+<title>How deep does a shaking plate reach?</title>
 <meta name="viz:chapter" content="ch08">
-<meta name="viz:slug" content="viscous_gravity_current">
-<meta name="viz:order" content="4">
-<meta name="viz:title" content="Why does a honey drop spread like t^(1/5)?">
-<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t^(1/5).">
-<meta name="viz:concept" content="viscous gravity current; thin-film equation from mass conservation and the lubrication profile; flux proportional to h cubed times the slope; nonlinear diffusion; self-similar spreading with n = m = 1/5; Huppert dome and front constant">
-<meta name="viz:sections" content="8.3 8.4">
-<meta name="viz:equations" content="8.18 8.32a">
-<meta name="viz:fluidpy" content="ch08.thin_film_flux ch08.viscous_current_similarity ch08.thin_film_state ch08.thin_film_spread">
-<meta name="viz:derivations" content="D15 D23">
+<meta name="viz:slug" content="oscillating_plate">
+<meta name="viz:order" content="7">
+<meta name="viz:title" content="How deep does a shaking plate reach?">
+<meta name="viz:summary" content="A plate oscillating in its own plane drags a thin layer of fluid: each layer repeats the wall's motion, shrunk by exp(-y/delta) and delayed by y/delta radians, with delta = sqrt(2 nu/omega) - a wave-like pattern made only of diffusion.">
+<meta name="viz:concept" content="Stokes&#x27; second problem: the periodic flow above a plate oscillating as U cos(omega t); the complex form turns the diffusion equation into i omega f = nu f&#x27;&#x27;, only the decaying root (1+i)/delta survives, and the Stokes layer is u = U exp(-y/delta) cos(omega t - y/delta) with delta = sqrt(2 nu/omega); the book&#x27;s depth 4 sqrt(nu/omega) is 2 sqrt(2) delta, where 5.9 % of the wall motion is left; crests climb at sqrt(2 nu omega) (C11)">
+<meta name="viz:sections" content="8.5">
+<meta name="viz:equations" content="8.33 8.34 8.35 8.36 8.37 8.38">
+<meta name="viz:fluidpy" content="ch08.stokes_second_problem ch08.stokes_layer ch08.stokes_layer_state">
+<meta name="viz:derivations" content="D24 D25">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -474,21 +474,20 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style data-chapter>
-/* chapter CSS — viscous_gravity_current. Colours (one meaning each): the layer (simulated thickness) blue; the
-   similarity (Huppert) dome and the t^(1/5) law purple (accent); the flux q orange; the simulated front teal (ticks in
-   the layer, dots on the log–log plot); the probe and its velocity half-parabola rose; ordinary diffusion (slope 1/2) grey.
-   Row 1: the layer (full width); row 2: front log–log + rescaled profiles (the latter hidden on phones; its collapse
-   spread is repeated in the front title there). */
+/* chapter CSS — oscillating_plate. Colours (one meaning each, in text, curves and titles): the plate and its motion
+   U cos(omega t) rose; the velocity profile u(y, t) and the u arrows blue; the dyed line and the tracers purple (accent);
+   the envelope +-e^(-y/delta_e) and the four book phases grey (muted); the book depth 4 sqrt(nu/omega) amber; the probe
+   teal; the start-from-rest Crank-Nicolson march orange.
+   Row 1: the plate | u(y, t) (side by side everywhere); row 2: u(t) at the wall and the probe (desktop and tablets only;
+   its lag is repeated in the profile title and the readouts). */
 .c-amber { color: var(--viz-amber); font-weight: 650; }
 .c-muted { color: var(--viz-muted); font-weight: 650; }
 .viz-pager-label { white-space: nowrap; min-width: 52px; }
 .viz-stage-top .viz-presets { flex-wrap: wrap; }
 .viz-seg { flex-wrap: wrap; }
-/* landscape phones: layer | front side by side, the rescaled view and the preset chips hidden */
-.viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
-.viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-view[data-view="rescaled"] { display: none !important; }
+.viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
 .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
-/* portrait phones: the preset chips stay on Walkthrough and Explore; the reading tabs give their rows to the text */
 .viz-app[data-layout="portrait"]:is([data-tab="explain"], [data-tab="equations"], [data-tab="code"], [data-tab="check"]) .viz-presets { display: none !important; }
 </style>
 </head>
@@ -2345,694 +2344,690 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.lubrication (re-exported by fluidpy.ch08_laminar_flow as ch08.*), SI units.
-   A 2-D bead of viscous fluid on a horizontal plate, symmetric about x = 0; h(x, t) its thickness.
-     flux(h, hx, p)      ↔ ch08.thin_film_flux(h, h_x, rho, g, mu)        q = −(ρg/3μ) h³ ∂h/∂x      (Example 8.3)
-     huppert(x, t, p)    ↔ ch08.viscous_current_similarity(x, t, area, …)  Huppert's dome (Example 8.7 form, n = m = 1/5)
-     state(t, p)         ↔ ch08.thin_film_state(t, area, rho, g, mu)       x_N, h_centre, β, η_N, βh_c³, dx_N/dt, h_c/x_N
-     ETA_N               ↔ ch08.viscous_current_eta_N()                    [(1/5)(3/10)^(1/3) √π Γ(1/3)/Γ(5/6)]^(−3/5)
-     march(h0)           ↔ ch08.thin_film_spread(h0, x, t_out, rho=3, g=1, mu=1, h_min=1e-4)  (β = 1: dimensionless)
-   The march is OURS and differs from the Python solver only in time: the same conservative finite volume in space
-   (face flux β H³ (h_{i+1} − h_i)/Δx, H the mean of the two neighbours, closed ends, precursor film h ≥ 10⁻⁴), but
-   explicit Euler sub-steps Δτ = 0.2 Δx²/h_max³ instead of backward Euler + Newton. It runs ONCE per initial shape in
-   dimensionless variables (x/x₀, h/x₀, τ = βx₀t with x₀ = √𝒜): the thin-film equation has no other parameter, so every
-   (𝒜, μ, ρ) is the same run on another clock and another ruler. 𝒜 is the half cross-section area [m²] (per metre of
-   width); the book's A in (8.32a) is a different constant (the similarity amplitude).
-   --------------------------------------------------------------------------------------------------- */
-const G = 9.80665;                                                          // standard gravity [m/s²] (= fluidpy G0)
-const SI = s => ({ area: s.A, rho: s.rho, g: G, mu: s.mu });
-// Lanczos Γ(z) (g = 7, 9 terms; relative error ~1e-15) with the reflection formula below z = 1/2
-const LZ = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
-  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-function gammaFn(z) {
-  if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gammaFn(1 - z));
-  z -= 1; let x = LZ[0];
-  for (let i = 1; i < 9; i++) x += LZ[i] / (z + i);
-  const t = z + 7.5;
-  return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+/* =====================================================================================================================
+   PHYSICS — mirrors fluidpy.core.laminar / fluidpy.core.diffusion (re-exported by fluidpy.ch08_laminar_flow), §8.5.
+   Same symbols, SI units. The plate is y = 0 and moves as u(0, t) = U cos ωt (8.33); u stays bounded as y → ∞ (8.34).
+   ω is the oscillation FREQUENCY [rad/s] here, not the vorticity.
+     stokes_second_problem  (8.38)  u = U e^{−y/δ_e} cos(ωt − y/δ_e),  δ_e = √(2ν/ω) = 1/k,  k = √(ω/2ν)
+     stokes_layer                   k, δ_e, book depth 4√(ν/ω) = 2√2 δ_e, crest (phase) speed ω/k = √(2νω), wavelength 2π/k,
+                                    amplitude e^{−4/√2} = 0.0591 at the book depth
+     stokes_layer_state             at height y: amplitude U e^{−y/δ_e}, phase lag y/δ_e [rad], time lag (y/δ_e)/ω [s], period
+     stokes_layer_envelope          ±U e^{−y/δ_e}
+     crank_nicolson_1d              θ-scheme with 2 backward-Euler start-up steps (Thomas algorithm here, solve_banded there).
+                                    Run once in the universal variables η = y/δ_e, τ = t/T, where (8.20) reads ∂u/∂τ = π ∂²u/∂η²:
+                                    201 nodes on 0 ≤ η ≤ 20, Δτ = 1/200, 800 steps (4 periods), wall cos 2πτ, far end 0.
+                                    (fluidpy with ω = 1 rad/s, ν = 0.5 m²/s gives δ_e = 1 m, T = 2π s: the same march.)
+   Ours (for the picture): displacement of a fluid particle X = ∫u dt = (U/ω) e^{−y/δ_e} sin(ωt − y/δ_e) (the dyed line).
+   ===================================================================================================================== */
+const PI = Math.PI, SQ2 = Math.SQRT2;
+const OMEGA_M2 = 2 * PI / (12.42 * 3600);          // the M₂ tide (12.42 h) [rad/s]
+const BOOK_ETA = 2 * SQ2;                           // the book depth 4√(ν/ω) in units of δ_e
+const ETA_TOP = 6;                                  // the views show 0 ≤ y ≤ 6 δ_e
+
+/** ch08.stokes_layer(nu, omega) — the same keys. */
+function layer(S) {
+  const k = Math.sqrt(S.omega / (2 * S.nu));
+  return { k, delta_e: 1 / k, delta_book: 4 * Math.sqrt(S.nu / S.omega), ratio_book_to_e: 2 * SQ2,
+    phase_speed: S.omega / k, wavelength: 2 * PI / k, amplitude_at_delta_book: Math.exp(-4 / SQ2) };
 }
-const ETA_N = Math.pow(0.2 * Math.pow(0.3, 1 / 3) * Math.sqrt(Math.PI) * gammaFn(1 / 3) / gammaFn(5 / 6), -0.6);  // Huppert's front constant
-const HC0 = Math.pow(0.3, 1 / 3) * Math.pow(ETA_N, 2 / 3);                 // dome centre height for 𝒜 = β = τ = 1
-function beta(p) { return p.rho * p.g / (3 * p.mu); }                       // β = ρg/3μ [1/(m s)]
-function flux(h, hx, p) { return -p.rho * p.g / (3 * p.mu) * h * h * h * hx; }   // q = −(ρg/3μ) h³ ∂h/∂x [m²/s]
-function huppert(x, t, p) {                                                 // similarity thickness [m] (0 beyond the front)
-  const b = beta(p), A = p.area;
-  const xN = ETA_N * Math.pow(b * A * A * A * t, 0.2);
-  const hc = Math.pow(0.3, 1 / 3) * Math.pow(ETA_N, 2 / 3) * Math.pow(A * A / b, 0.2) * Math.pow(t, -0.2);
-  const s = 1 - x * x / (xN * xN);
-  return s > 0 ? hc * Math.cbrt(s) : 0;
+/** (8.38) u(y, t) [m/s] — ch08.stokes_second_problem(y, t, U, omega, nu). */
+function uStokes(y, t, S) { const k = Math.sqrt(S.omega / (2 * S.nu)); return S.U * Math.exp(-y * k) * Math.cos(S.omega * t - y * k); }
+/** ±U e^{−y/δ_e} [m/s] — ch08.stokes_layer_envelope(y, U, omega, nu). */
+function envelope(y, S) { return S.U * Math.exp(-y * Math.sqrt(S.omega / (2 * S.nu))); }
+/** ch08.stokes_layer_state(nu, omega, y, U) — the same keys. */
+function state(y, S) {
+  const L = layer(S), lag = y / L.delta_e;
+  return { delta_e: L.delta_e, delta_book: L.delta_book, amplitude: S.U * Math.exp(-lag), amp_at_book_depth: L.amplitude_at_delta_book,
+    phase_lag: lag, time_lag: lag / S.omega, crest_speed: L.phase_speed, wavelength: L.wavelength, period: 2 * PI / S.omega, y_over_delta_e: lag };
 }
-function state(t, p) {                                                      // ↔ ch08.thin_film_state
-  const b = beta(p), xN = ETA_N * Math.pow(b * Math.pow(p.area, 3) * t, 0.2), h = huppert(0, t, p);
-  return { x_N: xN, h_centre: h, beta: b, eta_N: ETA_N, effective_diffusivity: b * h * h * h, front_speed: xN / (5 * t), aspect: h / xN };
+/** The complex route of D24, done with explicit complex arithmetic: Re{U e^{iωt} · e^{−(1+i)y/δ_e}}. */
+function uComplex(y, t, S) {
+  const eta = y / layer(S).delta_e, a = S.U * Math.exp(-eta);
+  const zr = Math.cos(S.omega * t), zi = Math.sin(S.omega * t);        // e^{iωt}
+  const fr = a * Math.cos(eta), fi = -a * Math.sin(eta);                // U e^{−(1+i)η}
+  return zr * fr - zi * fi;                                             // real part of the product
+}
+/** The rejected root of (8.37) (B-term, A = 0, B = 1), real part: e^{+η} cos(ωt + η) — unbounded. */
+function uGrow(eta, phase) { return Math.exp(eta) * Math.cos(phase + eta); }
+const B_GHOST = Math.exp(-6);                      // the size of the B-term drawn on D24 step 7
+/** Particle displacement ∫u dt ÷ the wall stroke U/ω (ours): e^{−η} sin(ωt − η). */
+function dispRel(eta, phase) { return Math.exp(-eta) * Math.sin(phase - eta); }
+
+/* ---- start from rest: Crank–Nicolson in η = y/δ_e, τ = t/T (ch08.crank_nicolson_1d) ---------------------------- */
+const CN = { N: 201, L: 20, steps: 800, per: 200 };
+let CNH = null;
+function cnHistory() {
+  if (CNH) return CNH;
+  const N = CN.N, dEta = CN.L / (N - 1), dtau = 1 / CN.per, r = PI * dtau / (dEta * dEta), n = N - 2;
+  const u = new Float64Array(N), H = [], rhs = new Float64Array(n), cp = new Float64Array(n), dp = new Float64Array(n);
+  let tau = 0; u[0] = Math.cos(2 * PI * tau); u[N - 1] = 0; H.push(Float64Array.from(u));
+  for (let k = 0; k < CN.steps; k++) {
+    const th = k < 2 ? 1 : 0.5, tn = tau + dtau, uL = Math.cos(2 * PI * tn), uR = 0;
+    for (let i = 0; i < n; i++) rhs[i] = u[i + 1] + (1 - th) * r * (u[i + 2] - 2 * u[i + 1] + u[i]);
+    rhs[0] += th * r * uL; rhs[n - 1] += th * r * uR;
+    const a = -th * r, b = 1 + 2 * th * r, c = -th * r;               // Thomas algorithm for (I − θrL)
+    cp[0] = c / b; dp[0] = rhs[0] / b;
+    for (let i = 1; i < n; i++) { const m = b - a * cp[i - 1]; cp[i] = c / m; dp[i] = (rhs[i] - a * dp[i - 1]) / m; }
+    u[n] = dp[n - 1];
+    for (let i = n - 2; i >= 0; i--) u[i + 1] = dp[i] - cp[i] * u[i + 2];
+    u[0] = uL; u[N - 1] = uR; tau = tn; H.push(Float64Array.from(u));
+  }
+  // displacement from rest ÷ the wall stroke U/ω: X = 2π ∫₀^τ (u/U) dτ' (trapezoid), for the dyed line in "from rest"
+  const D = [new Float64Array(N)];
+  for (let k = 1; k < H.length; k++) { const d = new Float64Array(N); for (let i = 0; i < N; i++) d[i] = D[k - 1][i] + PI * dtau * (H[k][i] + H[k - 1][i]); D.push(d); }
+  CNH = { H, D, dEta, dtau };
+  return CNH;
+}
+/** Displacement from rest ÷ U/ω at height η (interpolated), at the step nearest τ. */
+function cnDisp(eta, tau) {
+  const C = cnHistory(), row = C.D[cnStep(tau)], x = Math.max(0, Math.min(CN.L, eta)) / C.dEta, i = Math.min(CN.N - 2, Math.floor(x)), f = x - i;
+  return row[i] * (1 - f) + row[i + 1] * f;
+}
+const cnStep = tau => Math.max(0, Math.min(CN.steps, Math.round(tau * CN.per)));
+/** u/U from rest at height η (linear interpolation between nodes), at the step nearest τ. */
+function cnAt(eta, tau) {
+  const C = cnHistory(), row = C.H[cnStep(tau)], x = Math.max(0, Math.min(CN.L, eta)) / C.dEta, i = Math.min(CN.N - 2, Math.floor(x)), f = x - i;
+  return row[i] * (1 - f) + row[i + 1] * f;
+}
+/** max |u_CN − (8.38)|/U over 0 ≤ η ≤ 6 at the step nearest τ. */
+const CNE = {};
+function cnErrAt(tau) {
+  const k = cnStep(tau); if (CNE[k] !== undefined) return CNE[k];
+  const C = cnHistory(), row = C.H[k], ph = 2 * PI * k * C.dtau; let m = 0;
+  for (let i = 0; i * C.dEta <= ETA_TOP + 1e-9; i++) { const eta = i * C.dEta; m = Math.max(m, Math.abs(row[i] - Math.exp(-eta) * Math.cos(ph - eta))); }
+  return (CNE[k] = m);
+}
+/** First time (in periods) after which the march from rest stays within 1 % of (8.38). */
+let TAU1 = null;
+function tauOnePercent() {
+  if (TAU1 !== null) return TAU1;
+  let last = 0;
+  for (let k = 0; k <= CN.steps; k++) if (cnErrAt(k / CN.per) >= 0.01) last = k;
+  return (TAU1 = (last + 1) / CN.per);
 }
 
-/* ---- the dimensionless march (β = 1) on the half domain 0 < x/x₀ < 12, 240 cells ---- */
-const NC = 240, LD = 12, DX = LD / NC, HMIN = 1e-4, CFL = 0.2;
-const LT0 = -2, LT1 = 4, PERDEC = 40, NS = (LT1 - LT0) * PERDEC + 1;          // snapshots at τ = 10^(−2 + k/40)
-const XC = Float64Array.from({ length: NC }, (_, i) => (i + 0.5) * DX);      // cell centres
-const SHAPES = {
-  box: x => (x < 1 ? 1 : 0),                                                // 1 × 1 box: half-area exactly 1 (20 cells)
-  gauss: x => Math.exp(-x * x * Math.PI / 4),                                // e^(−x²/s²), s = 2/√π: half-area 1, peak 1
-  two: x => Math.exp(-Math.pow((x - 2) / 0.6, 2)) + Math.exp(-Math.pow((x + 2) / 0.6, 2))   // humps at ±2
-};
-const sumArr = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; };
-const maxArr = a => { let m = -Infinity; for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; };
-function initial(shape) {
-  const h = XC.map(SHAPES[shape]);
-  if (shape !== 'box') { const S = sumArr(h) * DX; for (let i = 0; i < NC; i++) h[i] /= S; }   // half-area 1
-  return h;
-}
-function frontOf(h, fl) {                                                   // largest x with h ≥ fl, linear interpolation
-  let i = -1;
-  for (let k = NC - 1; k >= 0; k--) if (h[k] >= fl) { i = k; break; }
-  if (i < 0) return NaN;
-  if (i + 1 >= NC) return XC[NC - 1];
-  return XC[i] + (h[i] - fl) / (h[i] - h[i + 1]) * DX;
-}
-function march(h0) {
-  const h = new Float64Array(NC), F = new Float64Array(NC - 1);
-  for (let i = 0; i < NC; i++) h[i] = Math.max(h0[i], HMIN);                // precursor film (the equation degenerates at h = 0)
-  const fl = Math.max(10 * HMIN, 1e-3 * maxArr(h));                          // front level, as in thin_film_spread
-  const v0 = sumArr(h) * DX, hstart = Float64Array.from(h);
-  const snaps = [], fronts = [], vols = [];
-  let t = 0, steps = 0;
-  for (let k = 0; k < NS; k++) {
-    const T = Math.pow(10, LT0 + k / PERDEC);
-    while (t < T * (1 - 1e-14)) {
-      const hm = maxArr(h), dt = Math.min(CFL * DX * DX / (hm * hm * hm), T - t);
-      for (let i = 0; i < NC - 1; i++) { const H = 0.5 * (h[i] + h[i + 1]); F[i] = H * H * H * (h[i + 1] - h[i]) / DX; }  // h³∂h/∂x at the faces
-      h[0] += dt * F[0] / DX;                                                // closed wall at x = 0 (symmetry)
-      for (let i = 1; i < NC - 1; i++) h[i] += dt * (F[i] - F[i - 1]) / DX;
-      h[NC - 1] -= dt * F[NC - 2] / DX;                                      // closed far end
-      t += dt; steps++;
-    }
-    snaps.push(Float64Array.from(h)); fronts.push(frontOf(h, fl)); vols.push(sumArr(h) * DX);
-  }
-  return { snaps, fronts, vols, v0, fl, steps, hstart };
-}
-const RUNS = {};
-function getRun(shape) { if (!RUNS[shape]) RUNS[shape] = march(initial(shape)); return RUNS[shape]; }
-function kOf(lt) { return Math.max(0, Math.min(NS - 1, (lt - LT0) * PERDEC)); }
-function profileAt(run, lt) {                                               // interpolated between snapshots (in log τ)
-  const k = kOf(lt), k0 = Math.min(NS - 2, Math.floor(k)), w = k - k0, a = run.snaps[k0], b = run.snaps[k0 + 1];
-  if (w === 0) return a;
-  const out = new Float64Array(NC);
-  for (let i = 0; i < NC; i++) out[i] = (1 - w) * a[i] + w * b[i];
-  return out;
-}
-function volAt(run, lt) { const k = kOf(lt), k0 = Math.min(NS - 2, Math.floor(k)), w = k - k0; return (1 - w) * run.vols[k0] + w * run.vols[k0 + 1]; }
-function sampleAt(h, xi) {                                                  // h at |x|/x₀ = xi (linear between centres)
-  xi = Math.abs(xi);
-  if (xi <= XC[0]) return h[0];
-  if (xi >= XC[NC - 1]) return h[NC - 1];
-  const j = Math.floor(xi / DX - 0.5), w = xi / DX - 0.5 - j;
-  return (1 - w) * h[j] + w * h[j + 1];
-}
-function slopeAt(h, xi) {                                                   // ∂h/∂x (dimensionless = dimensional), sign of x
-  const d = DX, s = xi < 0 ? -1 : 1;
-  return s * (sampleAt(h, Math.abs(xi) + d) - sampleAt(h, Math.max(0, Math.abs(xi) - d))) / (Math.abs(xi) + d - Math.max(0, Math.abs(xi) - d));
-}
-function domeND(xi, tau) { const xN = ETA_N * Math.pow(tau, 0.2), s = 1 - xi * xi / (xN * xN); return s > 0 ? HC0 * Math.pow(tau, -0.2) * Math.cbrt(s) : 0; }
-function domeDistance(h, tau) {                                             // ∫|h − h_min − dome| dx / half-area (L1, relative)
-  let d = 0;
-  for (let i = 0; i < NC; i++) d += Math.abs(h[i] - HMIN - domeND(XC[i], tau)) * DX;
-  return d;
-}
-function collapse(run, lt, m) {                                             // six profiles rescaled with exponent m
-  const prof = [];
-  for (let k = 5; k >= 0; k--) {
-    const l = lt - 0.4 * k; if (l < LT0 - 1e-9) continue;
-    const tau = Math.pow(10, l), sc = Math.pow(tau, m), h = profileAt(run, l), xf = frontOf(h, run.fl);
-    prof.push({ lt: l, sc, h, xi: xf / sc });
-  }
-  const ref = prof[prof.length - 1], ximax = Math.max(...prof.map(p => p.xi));
-  let spread = 0;
-  if (prof.length > 1) {
-    const n = 80; let area = 0;
-    for (let j = 0; j < n; j++) { const xi = (j + 0.5) / n * ximax; area += Math.max(0, sampleAt(ref.h, xi * ref.sc) - HMIN) * ref.sc; }
-    prof.slice(0, -1).forEach(p => {
-      let d = 0;
-      for (let j = 0; j < n; j++) {
-        const xi = (j + 0.5) / n * ximax;
-        d += Math.abs(Math.max(0, sampleAt(p.h, xi * p.sc) - HMIN) * p.sc - Math.max(0, sampleAt(ref.h, xi * ref.sc) - HMIN) * ref.sc);
-      }
-      spread = Math.max(spread, d / area);
-    });
-  }
-  let Hmax = 0; prof.forEach(p => { Hmax = Math.max(Hmax, (p.h[0] - HMIN) * p.sc); });
-  return { prof, spread, ximax, Hmax };
-}
-let CK = null, CV = null;
-function cur(s) {                                                           // everything the views and texts show, cached
-  const key = [s.shape, s.lt, s.A, s.mu, s.rho, s.m].join('|');
-  if (key === CK) return CV;
-  const run = getRun(s.shape), p = SI(s), b = beta(p), x0 = Math.sqrt(s.A);
-  const tau = Math.pow(10, s.lt), t = tau / (b * x0), hd = profileAt(run, s.lt), xfN = frontOf(hd, run.fl);
-  const v = volAt(run, s.lt), drift = v / run.v0 - 1;
-  const slope = s.lt - 1 >= LT0 - 1e-9 ? Math.log10(xfN / frontOf(profileAt(run, s.lt - 1), run.fl)) : NaN;
-  const hc = Math.max(0, hd[0] - HMIN) * x0, hpk = Math.max(0, maxArr(hd) - HMIN) * x0;   // film above the precursor
-  CV = { run, p, b, x0, tau, t, hd, xfN, xf: xfN * x0, law: state(t, p), vol: 2 * s.A * (1 + drift), drift,
-    dome: 0.5 * domeDistance(hd, tau), slope, hc, hpk, Deff: b * hpk * hpk * hpk, col: collapse(run, s.lt, Number(s.m)) };
-  CK = key;
-  return CV;
-}
-function probeNums(s) {                                                     // h, ∂h/∂x, q at the probe (dimensional)
-  const c = cur(s), xi = s.probe * c.xfN, h = sampleAt(c.hd, xi) * c.x0, hx = slopeAt(c.hd, xi);
-  return { x: xi * c.x0, h, hx, q: flux(h, hx, c.p), u: -c.p.rho * c.p.g / (2 * c.p.mu) * hx * h * h };
+/* ---- the explainer's state → every number on screen ------------------------------------------------------------- */
+const SI = s => ({ U: s.U, omega: s.omega, nu: s.nu });
+function N(s) {
+  const S = SI(s), L = layer(S), T = 2 * PI / S.omega, t = s.tau * T, ph = 2 * PI * s.tau;
+  const yp = s.yp * L.delta_e, st = state(yp, S);
+  const etaC = ((ph % (2 * PI)) + 2 * PI) % (2 * PI);                 // the phase crest (cos = 1) nearest the plate
+  return { S, L, T, t, ph, yp, st, eta: s.yp, up: uStokes(yp, t, S), uw: S.U * Math.cos(S.omega * t), etaC, stroke: S.U / S.omega };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   small helpers (local; formatters as in every earlier chapter — promotion candidates)
-   --------------------------------------------------------------------------------------------------- */
+/* ---- formatting --------------------------------------------------------------------------------------------------- */
 const f3 = v => Viz.fmt(v, { sig: 3 });
+const f4 = v => Viz.fmt(v, { sig: 4 });
 const t3 = v => Viz.tnum(v, 3);
 const t4 = v => Viz.tnum(v, 4);
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-function lenUnit(L) {
-  const a = Math.abs(L);
-  if (a < 0.02) return { f: 1000, u: 'mm' };
-  if (a < 2) return { f: 100, u: 'cm' };
-  if (a < 2000) return { f: 1, u: 'm' };
-  return { f: 1e-3, u: 'km' };
+/** A length unit for a magnitude: [name, factor from metres]. */
+function lenUnit(m) { const a = Math.abs(m); if (a < 1e-4) return ['µm', 1e6]; if (a < 1e-2) return ['mm', 1e3]; if (a < 1) return ['cm', 100]; if (a < 1000) return ['m', 1]; return ['km', 1e-3]; }
+function fL(m) { if (!isFinite(m)) return '—'; const [u, f] = lenUnit(m); return f3(m * f) + ' ' + u; }
+function tL(m) { const [u, f] = lenUnit(m); return t3(m * f) + '\\ \\text{' + (u === 'µm' ? '}\\mu\\text{m' : u) + '}'; }
+function fV(v) { if (!isFinite(v)) return '—'; const [u, f] = lenUnit(v); return f3(v * f) + ' ' + u + '/s'; }
+const fT = t => Viz.fmtTime(t);
+const pct = v => f3(100 * v) + ' %';
+function lay() { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; }
+const phone = () => lay() !== 'wide';
+const PHASE_TEX = ['0', '\\pi/2', '\\pi', '3\\pi/2'];
+
+/* ---- pixel helpers (local; ch08 siblings carry the same) ------------------------------------------------------------ */
+function arrowPx(ctx, x0, y0, x1, y1, color, width = 2, head = 7) {
+  const Ln = Math.hypot(x1 - x0, y1 - y0); if (Ln < 1) return;
+  const ang = Math.atan2(y1 - y0, x1 - x0), hd = Math.min(head, Ln * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - hd * 0.7 * Math.cos(ang), y1 - hd * 0.7 * Math.sin(ang)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.42), y1 - hd * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - hd * Math.cos(ang + 0.42), y1 - hd * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
-const fmtLen = v => { const U = lenUnit(v); return Viz.fmt(v * U.f, { sig: 3 }) + ' ' + U.u; };
-const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '.': '·' };
-const pow10 = k => '10' + String(k).split('').map(c => SUPD[c]).join('');
-function expStr(v) {                                                        // round-off-sized numbers, never printed as 0
-  const a = Math.abs(v);
-  if (a === 0) return '0 (exact)';
-  const e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
-  return (m < 0 ? '−' : '') + Math.abs(m).toFixed(1) + '×' + pow10(e);
+/** Plot with the rotated y title in its own 18 px strip on views narrower than 420 px (ch01/ch05 lesson). */
+function gutterPlot(v, opt, axFn) {
+  const narrowV = v.w < 420, yl = opt.ylabel;
+  const o = Object.assign({}, opt, narrowV ? { rect: { x: 18, y: 0, w: v.w - 18, h: v.h }, ylabel: '' } : {});
+  const P = v.plot(o);
+  P.axes(Object.assign({}, axFn ? axFn(P) : {}, narrowV ? { ylabel: '' } : {}));
+  if (narrowV && yl) { const c = v.ctx; c.save(); c.font = Viz.font(12, 500); c.fillStyle = Viz.color('text-soft'); c.translate(9, P.px.y + P.px.h / 2); c.rotate(-PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore(); }
+  return P;
 }
-const tauStr = lt => { const t = Math.pow(10, lt); return t >= 0.1 && t < 1e4 ? Viz.fmt(t, { sig: 3 }) : Viz.fmt(t, { sig: 2 }); };
-const pct = v => (v >= 0.1 ? (100 * v).toFixed(0) : v >= 0.01 ? (100 * v).toFixed(1) : (100 * v).toFixed(2)) + ' %';
-const mStr = s => (s.m === '0.5' ? '1/2' : '1/5');
-const phone = () => (document.documentElement.clientWidth || window.innerWidth) < 600 || (document.documentElement.clientHeight || window.innerHeight) < 500;
-const layoutIs = name => { const el = document.querySelector('.viz-app'); return !!el && el.getAttribute('data-layout') === name; };
-const colors = () => ({ blue: Viz.color('blue'), rose: Viz.color('rose'), orange: Viz.color('orange'), teal: Viz.color('teal'),
-  accent: Viz.color('accent'), muted: Viz.color('muted'), ink: Viz.color('text'), soft: Viz.color('text-soft') });
-function pxArrow(ctx, x0, y0, x1, y1, color, width) {
-  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 2) return;
-  const head = Math.min(7, 0.5 * L), ang = Math.atan2(y1 - y0, x1 - x0);
-  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - 0.7 * head * Math.cos(ang), y1 - 0.7 * head * Math.sin(ang)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - head * Math.cos(ang - 0.45), y1 - head * Math.sin(ang - 0.45));
-  ctx.lineTo(x1 - head * Math.cos(ang + 0.45), y1 - head * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill(); ctx.restore();
+function lab(ctx, str, x, y, o) { Viz.text(ctx, str, x, y, Object.assign({ size: 12, bg: true, pad: 2 }, o)); }
+/** Hatched slab whose stripes are shifted by `off` px (a moving plate). */
+function hatchShift(ctx, x, y, w, h, color, off) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.fillStyle = Viz.alpha(color, 0.14); ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = Viz.alpha(color, 0.6); ctx.lineWidth = 1.2; ctx.beginPath();
+  const o = ((off % 10) + 10) % 10;
+  for (let X = x - h - 10 + o; X < x + w + 10; X += 10) { ctx.moveTo(X, y + h); ctx.lineTo(X + h, y); }
+  ctx.stroke(); ctx.restore();
+}
+function ticks0(top, n) { return Viz.num.niceTicks(0, top, n).filter(t => t >= 0 && t <= top * 1.001); }
+/** The vertical axis of the plate and profile views: y/δ_e, or metres (mm, cm, …) with the same 0 … 6 δ_e range. */
+function axisInfo(n, s) {
+  if (s.yax === 'phys') { const [u, fac] = lenUnit(ETA_TOP * n.L.delta_e); const f = n.L.delta_e * fac; return { f, top: ETA_TOP * f, label: `y [${u}]`, unit: u }; }
+  return { f: 1, top: ETA_TOP, label: 'y/δ_e', unit: 'δ_e' };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   TeX of the equations (written next to every number that cites them)
-   --------------------------------------------------------------------------------------------------- */
-const EQ = {
-  e45: '\\frac{d}{dt}\\int_{V^*(t)}\\rho\\,dV+\\int_{A^*(t)}\\rho\\,(\\mathbf u-\\mathbf b)\\cdot\\mathbf n\\,dA=0',
-  e83: '\\mathbf t\\cdot\\mathbf U_s=(\\mathbf t\\cdot\\mathbf u)_{\\text{on the surface}}',
-  e818: 'u(x,y,t)\\cong\\frac1\\mu\\frac{\\partial p(x,t)}{\\partial x}\\frac{y^2}{2}+Ay+B',
-  e832a: '\\gamma=At^{-n}F\\big(\\xi/\\delta(t)\\big)\\equiv At^{-n}F(\\eta)',
-  tf: '\\frac{\\partial h}{\\partial t}=\\frac{\\rho g}{3\\mu}\\frac{\\partial}{\\partial x}\\Big(h^3\\frac{\\partial h}{\\partial x}\\Big)',
-  flux: '\\int_0^hu\\,dy\\cong-\\frac{\\rho g}{3\\mu}h^3\\frac{\\partial h}{\\partial x}',
-  sim: 'h(x,t)=At^{-1/5}F\\big(x/Dt^{1/5}\\big)',
-  law: 'x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5}',
-  hc: 'h_c=\\big(\\tfrac{3}{10}\\big)^{1/3}\\eta_N^{2/3}\\Big(\\frac{\\mathcal A^2}{\\beta}\\Big)^{1/5}t^{-1/5}',
-  eta: '\\eta_N=\\Big[\\tfrac15\\big(\\tfrac{3}{10}\\big)^{1/3}\\sqrt\\pi\\,\\frac{\\Gamma(1/3)}{\\Gamma(5/6)}\\Big]^{-3/5}'
-};
-const $ = t => '$' + t + '$';
-
-/* ---------------------------------------------------------------------------------------------------
-   numbers quoted in the walkthrough and the quiz — computed, never typed
-   --------------------------------------------------------------------------------------------------- */
-const GLY = { shape: 'box', A: 1e-4, mu: 1, rho: 1260 };
-const RUN_BOX = getRun('box');
-const GLY_B = beta(SI(GLY)), GLY_X0 = Math.sqrt(GLY.A);
-const tOfLt = (lt, s) => Math.pow(10, lt) / (beta(SI(s)) * Math.sqrt(s.A));
-const T_STEP6 = tOfLt(3, GLY), X_STEP6 = RUN_BOX.fronts[kOf(3)] * GLY_X0;
-
-/* ---------------------------------------------------------------------------------------------------
-   VIEWS
-   --------------------------------------------------------------------------------------------------- */
-let lastLayer = null;
-function drawLayer(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), small = v.w < 420 || v.h < 150;
-  const X = 1.3 * Math.max(c.xf, c.law.x_N), UX = lenUnit(X);
-  const hmax = Math.max(maxArr(c.hd) - HMIN, HC0 * Math.pow(c.tau, -0.2)) * c.x0, Ymax = 1.3 * hmax, UY = lenUnit(Ymax);
-  const P = v.plot({ xlim: [-X * UX.f, X * UX.f], ylim: [0, Ymax * UY.f], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } });
-  P.axes({ xlabel: 'x [' + UX.u + ']', ylabel: small ? '' : 'h [' + UY.u + ']', zeroLines: false });
-  lastLayer = { P, f: UX.f, xf: c.xf };
-  const xs = [], hs = [];
-  for (let i = NC - 1; i >= 0; i--) { xs.push(-XC[i] * c.x0 * UX.f); hs.push(c.hd[i] * c.x0 * UY.f); }
-  for (let i = 0; i < NC; i++) { xs.push(XC[i] * c.x0 * UX.f); hs.push(c.hd[i] * c.x0 * UY.f); }
-  const der = app && app.tab === 'derive';
+/* ---- view 1: the plate and the fluid ------------------------------------------------------------------------------ */
+const TRACERS = [0.3, 0.8, 1.3, 2, 2.8, 3.8, 5];
+let PLP = null;
+function drawPlate(g, s) {
+  const v = g.view('plate'); v.clear(); PLP = null;
+  if (v.w < 40 || v.h < 40) return;
+  const n = N(s), A = axisInfo(n, s), ctx = v.ctx, small = v.w < 330 || v.h < 190, ph = n.ph;
+  const BL = Viz.color('blue'), AC = Viz.color('accent'), RO = Viz.color('rose'), AM = Viz.color('amber'), TE = Viz.color('teal'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const P = gutterPlot(v, { xlim: [-1.45, 1.45], ylim: [-0.1 * A.top, A.top], pad: small ? { l: 40, r: 6, t: 6, b: 6 } : { l: 48, r: 10, t: 8, b: 8 }, ylabel: A.label },
+    () => ({ grid: false, zeroLines: false, xticks: [], yticks: ticks0(A.top, small ? 3 : 5), xlabel: '' }));
+  PLP = P;
+  const Y = eta => P.Y(eta * A.f), X = x => P.X(x);
+  const es = Viz.num.linspace(0, ETA_TOP * 1.05, 140);
+  const xOf = e => (s.rest ? cnDisp(e, s.tau) : dispRel(e, ph));   // periodic state, or displacement from rest (CN)
   P.clip(() => {
-    P.fillBetween(xs, hs, 0, { color: C.blue, alpha: 0.28 });
-    if (s.hl === 'p') {                                                     // hydrostatic pressure ρg(h − y): darker = higher
-      const n = 70;
-      for (let j = 0; j < n; j++) {
-        const xa = -X + 2 * X * j / n, xb = -X + 2 * X * (j + 1) / n, xm = 0.5 * (xa + xb), hh = sampleAt(c.hd, xm / c.x0) * c.x0;
-        if (hh < 0.02 * hmax) continue;
-        const Y0 = P.Y(0), Y1 = P.Y(hh * UY.f), gr = ctx.createLinearGradient(0, Y0, 0, Y1);
-        gr.addColorStop(0, Viz.alpha(C.blue, 0.85 * hh / hmax)); gr.addColorStop(1, Viz.alpha(C.blue, 0));
-        ctx.fillStyle = gr; ctx.fillRect(P.X(xa * UX.f), Y1, P.X(xb * UX.f) - P.X(xa * UX.f) + 0.5, Y0 - Y1);
-      }
-    }
-    P.line(xs, hs, { color: C.blue, width: 2.4 });
-    P.fn(x => domeND(x / UX.f / c.x0, c.tau) * c.x0 * UY.f, { color: C.accent, dash: [7, 5], width: 2, n: 240 });
-  });
-  // flux arrows (orange): 9 stations across the layer, length ∝ q
-  const st = [];
-  for (let k = -4; k <= 4; k++) { const xi = c.xfN * k / 5, h = sampleAt(c.hd, xi) * c.x0, hx = slopeAt(c.hd, xi); st.push({ x: xi * c.x0, h, q: k === 0 ? 0 : flux(h, hx, c.p) }); }
-  const qmax = Math.max(1e-300, ...st.map(o => Math.abs(o.q))), La = (small ? 0.09 : 0.07) * P.px.w;
-  const emph = s.hl === 'q';
-  st.forEach(o => {
-    const X0 = P.X(o.x * UX.f), Y0 = P.Y(0.5 * o.h * UY.f);
-    if (o.q === 0) { ctx.save(); ctx.fillStyle = C.orange; ctx.beginPath(); ctx.arc(X0, Y0, 3, 0, 2 * Math.PI); ctx.fill(); ctx.restore(); return; }
-    pxArrow(ctx, X0, Y0, X0 + La * o.q / qmax, Y0, C.orange, emph ? 3.2 : 2.2);
-  });
-  // simulated front (teal ticks)
-  [-1, 1].forEach(sg => {
-    const Xf = P.X(sg * c.xf * UX.f);
-    ctx.save(); ctx.strokeStyle = C.teal; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(Xf, P.Y(0)); ctx.lineTo(Xf, P.Y(0.3 * Ymax * UY.f)); ctx.stroke(); ctx.restore();
-  });
-  if (!small) Viz.text(ctx, 'front', P.X(c.xf * UX.f) + 4, P.Y(0.3 * Ymax * UY.f), { size: 12, color: C.teal, bg: true });
-  // probe (rose) with the velocity half-parabola u = −(ρg/2μ) h_x y(2h − y)
-  const pn = probeNums(s), Xp = P.X(pn.x * UX.f), hp = pn.h * UY.f;
-  ctx.save(); ctx.strokeStyle = C.rose; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(Xp, P.Y(0)); ctx.lineTo(Xp, P.Y(Math.min(Ymax * UY.f, hp * 1.12))); ctx.stroke(); ctx.restore();
-  const showU = v.w > 300 && P.Y(0) - P.Y(hp) > 26;
-  if (showU && Math.abs(pn.u) > 0) {
-    const nU = 5, Lu = (small ? 0.08 : 0.06) * P.px.w * (s.hl === 'u' ? 1.5 : 1);
-    for (let j = 1; j <= nU; j++) {
-      const y = pn.h * j / nU, uu = -c.p.rho * c.p.g / (2 * c.p.mu) * pn.hx * y * (2 * pn.h - y);
-      pxArrow(ctx, Xp, P.Y(y * UY.f), Xp + Lu * uu / Math.abs(pn.u), P.Y(y * UY.f), C.rose, s.hl === 'u' ? 2.4 : 1.6);
-    }
-  }
-  P.dot(pn.x * UX.f, hp, 4.5, { color: C.rose, stroke: '#fff', strokeWidth: 1.5 });
-  if (small) Viz.text(ctx, 'h [' + UY.u + ']', P.px.x + 4, P.px.y + 9, { size: 12, color: C.soft, bg: true });
-  const E = (P.px.h / (Ymax * UY.f)) / (P.px.w / (2 * X * UX.f)) * (UY.f / UX.f);
-  if (E > 1.5 && v.h > 110) Viz.text(ctx, 'heights ×' + (E >= 10 ? Math.round(E) : E.toFixed(1)), P.px.x + P.px.w - 4, P.px.y + 9, { size: 12, align: 'right', color: C.soft, bg: true });
-  if (s.lt >= LT1 - 1e-9 && !der && v.h > 120) {
-    const lines = ['End of the run (τ = 10⁴):', 'front slope over the last decade ' + c.slope.toFixed(3) + ' (law 0.200)',
-      'volume change ' + expStr(c.drift), 'volume out of place vs the dome: ' + pct(c.dome)];
-    Viz.card(ctx, P.px.x + P.px.w / 2, P.px.y + P.px.h * 0.42, lines, { color: C.teal, maxWidth: Math.min(360, P.px.w - 20) });
-  }
-}
-
-function drawFront(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), run = c.run, small = v.w < 420 || v.h < 150;
-  const off = -Math.log10(c.b * c.x0);                                      // log10 t = log10 τ + off
-  const lx0 = LT0 + off, lx1 = LT1 + off, ly0 = Math.log10(0.4 * c.x0), ly1 = Math.log10(13 * c.x0), UY = lenUnit(3 * c.x0);
-  const P = v.plot({ xlim: [lx0, lx1], ylim: [ly0, ly1], pad: { l: small ? 40 : 50, r: 10, t: 10, b: small ? 28 : 34 } });
-  P.axes({ xticks: [], yticks: [], grid: false, zeroLines: false, xlabel: 't [s], log scale', ylabel: small ? '' : 'x_N [' + UY.u + '], log' });
-  ctx.save(); ctx.font = Viz.font(12); ctx.fillStyle = Viz.color('axis'); ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1;
-  const every = (lx1 - lx0) / Math.max(1, Math.floor(P.px.w / 48)) > 1.01 ? 2 : 1;
-  for (let k = Math.ceil(lx0); k <= Math.floor(lx1); k++) {
-    const X = Math.round(P.X(k)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(X, P.px.y); ctx.lineTo(X, P.px.y + P.px.h); ctx.stroke();
-    if (k % every === 0) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(pow10(k), X, P.px.y + P.px.h + 4); }
-  }
-  const yt = [];
-  for (let k = Math.floor(ly0) - 1; k <= Math.ceil(ly1); k++) [1, 2, 5].forEach(m => { const L = k + Math.log10(m); if (L >= ly0 && L <= ly1) yt.push(L); });
-  const ystep = P.px.h / Math.max(1, yt.length);
-  yt.forEach((L, i) => {
-    const Y = Math.round(P.Y(L)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(P.px.x, Y); ctx.lineTo(P.px.x + P.px.w, Y); ctx.stroke();
-    if (ystep > 14 || i % 2 === 0) { ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(Viz.fmt(Math.pow(10, L) * UY.f, { sig: 2 }), P.px.x - 4, Y); }
-  });
-  ctx.restore();
-  const lts = [], lys = [];
-  for (let k = 0; k < NS; k++) { lts.push(LT0 + k / PERDEC + off); lys.push(Math.log10(run.fronts[k] * c.x0)); }
-  const kNow = Math.round(kOf(s.lt));
-  P.clip(() => {
-    // ordinary diffusion guide: slope 1/2 through the current point (±1 decade)
-    const Xc = s.lt + off, Yc = Math.log10(c.xf);
-    P.line([Xc - 1.2, Xc + 1.2], [Yc - 0.6, Yc + 0.6], { color: Viz.alpha(C.muted, 0.9), width: 1.8, dash: [3, 4] });
-    // the law x_N = η_N (β𝒜³t)^(1/5) (purple dashed)
-    const lawY = lx => Math.log10(ETA_N * Math.pow(c.b * Math.pow(s.A, 3) * Math.pow(10, lx), 0.2));
-    P.line([lx0, lx1], [lawY(lx0), lawY(lx1)], { color: C.accent, width: 2, dash: [7, 5] });
-    // simulated front: faint whole run + bold so far + the current dot (teal)
-    P.line(lts, lys, { color: Viz.alpha(C.teal, 0.28), width: 2 });
-    P.line(lts.slice(0, kNow + 1), lys.slice(0, kNow + 1), { color: C.teal, width: 3 });
-    P.dot(Xc, Yc, 5, { color: C.teal, stroke: '#fff', strokeWidth: 1.5 });
-  });
-  const Xc = s.lt + off, Yc = Math.log10(c.xf);
-  if (v.h > 110) {
-    const gx = Math.min(lx1 - 0.2, Xc + 0.9), gy = Yc + 0.45 * (gx - Xc);
-    const lab = small ? 'slope ½' : 'slope ½: ordinary diffusion';
-    ctx.save(); ctx.font = Viz.font(12); const lw = ctx.measureText(lab).width; ctx.restore();
-    let gxp = P.X(gx), al = 'right';
-    if (gxp - lw < P.px.x + 4) { gxp = P.X(Xc) + 10; al = 'left'; }
-    const gyp = clamp(P.Y(gy) - 10, P.px.y + 9, P.px.y + P.px.h - 9);
-    Viz.text(ctx, lab, gxp, al === 'left' ? clamp(P.Y(Yc) - 22, P.px.y + 9, P.px.y + P.px.h - 9) : gyp, { size: 12, align: al, color: C.muted, bg: true });
-    const lx = lx0 + 0.72 * (lx1 - lx0), ly = Math.log10(ETA_N * Math.pow(c.b * Math.pow(s.A, 3) * Math.pow(10, lx), 0.2));
-    Viz.text(ctx, small ? 'slope ⅕' : 'law, slope ⅕', P.X(lx), P.Y(ly) + 12, { size: 12, align: 'left', color: C.accent, bg: true });
-  }
-}
-
-function drawRescaled(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), col = c.col, m = Number(s.m), small = v.w < 420 || v.h < 150;
-  const xmax = 1.12 * Math.max(col.ximax, m === 0.2 ? ETA_N : 0), ymax = 1.2 * Math.max(col.Hmax, m === 0.2 ? HC0 : 0, 1e-9);
-  const mt = m === 0.2 ? '⅕' : '½';
-  const P = v.plot({ xlim: [0, xmax], ylim: [0, ymax], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } })
-    .axes({ xlabel: 'x / (x₀ τ^' + mt + ')', ylabel: small ? '' : 'h τ^' + mt + ' / x₀', zeroLines: false });
-  P.clip(() => {
-    const n = col.prof.length;
-    col.prof.forEach((pr, i) => {
-      const xs = [], ys = [];
-      for (let j = 0; j < NC; j++) { const xi = XC[j] / pr.sc; if (xi > xmax) break; xs.push(xi); ys.push(Math.max(0, pr.h[j] - HMIN) * pr.sc); }
-      const last = i === n - 1;
-      P.line(xs, ys, { color: Viz.alpha(C.blue, last ? 1 : 0.2 + 0.6 * i / Math.max(1, n - 1)), width: last ? 2.8 : 1.6 });
+    // the region the wall can reach: ±e^{−η} (grey), the rest position
+    ctx.save(); ctx.beginPath();
+    es.forEach((e, i) => { const px = X(Math.exp(-e)), py = Y(e); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+    for (let i = es.length - 1; i >= 0; i--) ctx.lineTo(X(-Math.exp(-es[i])), Y(es[i]));
+    ctx.closePath(); ctx.fillStyle = Viz.alpha(MU, 0.09); ctx.fill(); ctx.restore();
+    P.line(es.map(e => Math.exp(-e)), es.map(e => e * A.f), { color: MU, width: 1.1, dash: [5, 4], alpha: 0.8 });
+    P.line(es.map(e => -Math.exp(-e)), es.map(e => e * A.f), { color: MU, width: 1.1, dash: [5, 4], alpha: 0.8 });
+    P.line([0, 0], [0, A.top], { color: MU, width: 1, dash: [2, 4], alpha: 0.7 });
+    // book depth and δ_e
+    P.line([-1.45, 1.45], [BOOK_ETA * A.f, BOOK_ETA * A.f], { color: AM, width: 2, dash: [7, 5] });
+    if (s.yax === 'phys') P.line([-1.45, 1.45], [A.f, A.f], { color: MU, width: 1, dash: [2, 3] });
+    // probe height
+    P.line([-1.45, 1.45], [n.eta * A.f, n.eta * A.f], { color: TE, width: 1.6, dash: [3, 3] });
+    // tracers: track (their range), position, velocity arrow
+    TRACERS.forEach(e => {
+      const amp = Math.exp(-e), x = xOf(e), u = s.rest ? cnAt(e, s.tau) : amp * Math.cos(ph - e), py = Y(e);
+      ctx.save(); ctx.strokeStyle = Viz.alpha(AC, 0.35); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(X(-amp), py); ctx.lineTo(X(amp), py); ctx.stroke(); ctx.restore();
+      const len = P.sx(0.42 * u);
+      if (Math.abs(len) > 3) arrowPx(ctx, X(x), py, X(x) + len, py, BL, small ? 1.6 : 2, small ? 5 : 7);
+      ctx.save(); ctx.fillStyle = AC; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(x), py, small ? 3.5 : 4.5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore();
     });
-    if (m === 0.2) P.fn(xi => { const q = 1 - xi * xi / (ETA_N * ETA_N); return q > 0 ? HC0 * Math.cbrt(q) : 0; }, { color: C.accent, dash: [7, 5], width: 2, n: 200 });
+    // the dyed line (vertical at rest)
+    P.line(es.map(e => xOf(e)), es.map(e => e * A.f), { color: AC, width: small ? 2.2 : 2.8 });
+    // probe marker on the dyed line
+    ctx.save(); ctx.fillStyle = TE; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(xOf(n.eta)), Y(n.eta), 5.5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore();
   });
-  if (v.h > 100) Viz.text(ctx, (col.prof.length > 1 ? 'spread ' + pct(col.spread) : 'one profile so far'), P.px.x + P.px.w - 4, P.px.y + 10, { size: 12, align: 'right', color: col.spread < 0.05 ? C.teal : C.rose, bg: true });
+  // the plate: hatched slab whose stripes move with the wall displacement, a rose tab and its velocity arrow
+  const yb = Y(0), ye = P.px.y + P.px.h, xw = Math.sin(ph), uw = Math.cos(ph);
+  hatchShift(ctx, P.px.x, yb, P.px.w, ye - yb, RO, P.sx(xw));
+  ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.px.x, yb); ctx.lineTo(P.px.x + P.px.w, yb); ctx.stroke(); ctx.restore();
+  const tabW = small ? 16 : 22, th = Math.max(6, ye - yb - 2);
+  ctx.save(); ctx.fillStyle = RO; Viz.roundRect(ctx, X(xw) - tabW / 2, yb + 1, tabW, th, 3); ctx.fill(); ctx.restore();
+  const alen = P.sx(0.42 * uw);
+  if (Math.abs(alen) > 3) arrowPx(ctx, X(xw), yb - 6, X(xw) + alen, yb - 6, RO, 3, 8);
+  if (!small) {
+    lab(ctx, `4√(ν/ω) = ${fL(n.L.delta_book)}: 5.9 % left`, P.px.x + P.px.w - 4, Y(BOOK_ETA) - 11, { color: AM, weight: 700, align: 'right' });
+    lab(ctx, `probe ${fL(n.yp)}`, P.px.x + 4, Y(n.eta) - 11, { color: TE, weight: 700, align: 'left' });
+    if (s.yax === 'phys') lab(ctx, `δ_e = ${fL(n.L.delta_e)}`, P.px.x + 4, Y(1) - 10, { color: MU, align: 'left' });
+  }
+}
+function plateTitle(s) {
+  const n = N(s);
+  if (phone()) return `<b>Plate & fluid</b> · t = ${f3(s.tau)} T${s.rest ? ' · <span class="c-orange">from rest</span>' : ''}`;
+  return `<b>The plate and the fluid</b> · t = ${fT(n.t)} = ${f3(s.tau)} T${s.rest ? ' · <span class="c-orange">started from rest</span>' : ''} · <span class="c-rose">plate U cos ωt</span> · <span class="c-accent">dyed line, tracers</span> · <span class="c-blue">u</span> · sideways ÷ stroke U/ω = ${fL(n.stroke)}`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   Words for the current regime (status, notes, Explain)
-   --------------------------------------------------------------------------------------------------- */
-const SIMILAR = 0.02;                                                       // ≤ 2 % of the volume out of place = self-similar
-function regime(s) { const c = cur(s); return c.dome > SIMILAR ? 'early' : 'similar'; }
-function readingText(s) {
-  const c = cur(s);
-  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the t^(1/5) line: it runs ahead of or behind the law while the start is being forgotten.';
-  const catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
-  return 'The initial shape is forgotten (only ' + pct(c.dome) + ' of the volume is out of place): the profile is Huppert\'s dome' +
-    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances as t^(' + (isFinite(c.slope) ? c.slope.toFixed(3) : '0.2') + ')') +
-    ' — exponents forced by the thin-film equation and the conserved volume, not by the start.';
+/* ---- view 2: u(y, t) ------------------------------------------------------------------------------------------------ */
+let PRP = null;
+function drawProfile(g, s) {
+  const v = g.view('profile'); v.clear(); PRP = null;
+  if (v.w < 50 || v.h < 40) return;
+  const n = N(s), A = axisInfo(n, s), ctx = v.ctx, small = v.w < 330 || v.h < 190, ph = n.ph;
+  const BL = Viz.color('blue'), AM = Viz.color('amber'), TE = Viz.color('teal'), MU = Viz.color('muted'), OR = Viz.color('orange'), RO = Viz.color('rose'), TX = Viz.color('text');
+  const P = gutterPlot(v, { xlim: [-1.15, 1.15], ylim: [0, A.top], pad: small ? { l: 40, r: 6, t: 6, b: 30 } : { l: 50, r: 12, t: 8, b: 34 }, xlabel: 'u/U', ylabel: A.label },
+    () => ({ xticks: [-1, 0, 1], yticks: ticks0(A.top, small ? 3 : 5), xlabel: 'u/U' }));
+  PRP = P;
+  const es = Viz.num.linspace(0, ETA_TOP, 200), yy = es.map(e => e * A.f);
+  P.clip(() => {
+    P.line(es.map(e => Math.exp(-e)), yy, { color: MU, width: 1.3, dash: [5, 4] });
+    P.line(es.map(e => -Math.exp(-e)), yy, { color: MU, width: 1.3, dash: [5, 4] });
+    [0, PI / 2, PI, 1.5 * PI].forEach(p0 => P.line(es.map(e => Math.exp(-e) * Math.cos(p0 - e)), yy, { color: MU, width: 1.4, alpha: 0.45 }));
+    if (s.grow) {
+      // a tiny B = e^(−6) of the growing root: 0.25 % at the wall, the wall's full amplitude at 6 δ_e, unbounded above
+      const eg = Viz.num.linspace(0, ETA_TOP, 400), B = B_GHOST;
+      P.line(eg.map(e => B * Math.exp(e)), eg.map(e => e * A.f), { color: RO, width: 1.2, dash: [4, 4], alpha: 0.7 });
+      P.line(eg.map(e => -B * Math.exp(e)), eg.map(e => e * A.f), { color: RO, width: 1.2, dash: [4, 4], alpha: 0.7 });
+      P.line(eg.map(e => B * uGrow(e, ph)), eg.map(e => e * A.f), { color: RO, width: 2.4, dash: [2, 4] });
+    }
+    P.line([-1.15, 1.15], [BOOK_ETA * A.f, BOOK_ETA * A.f], { color: AM, width: 2, dash: [7, 5] });
+    P.line([-1.15, 1.15], [n.eta * A.f, n.eta * A.f], { color: TE, width: 1.4, dash: [3, 3] });
+    P.line(es.map(e => Math.exp(-e) * Math.cos(ph - e)), yy, { color: BL, width: 3 });
+    if (s.rest) {
+      const C = cnHistory(), row = C.H[cnStep(s.tau)];
+      for (let i = 0; i * C.dEta <= ETA_TOP + 1e-9; i += 3) P.dot(row[i], i * C.dEta * A.f, small ? 2.6 : 3.2, { color: Viz.color('card'), stroke: OR, strokeWidth: 1.8 });
+    }
+    if (n.etaC <= ETA_TOP) P.dot(Math.exp(-n.etaC), n.etaC * A.f, small ? 4 : 5, { color: BL, stroke: '#fff', strokeWidth: 2 });
+    P.dot(n.up / n.S.U, n.eta * A.f, 5.5, { color: TE, stroke: '#fff', strokeWidth: 2 });
+  });
+  if (!small && v.w >= 300) {
+    lab(ctx, '5.9 % at 4√(ν/ω)', P.px.x + P.px.w - 4, P.Y(BOOK_ETA * A.f) - 11, { color: AM, weight: 700, align: 'right' });
+    if (n.etaC <= ETA_TOP - 0.3) { const xr = Math.exp(-n.etaC) > 0.55; lab(ctx, 'crest ↑', P.X(Math.exp(-n.etaC)) + (xr ? -9 : 9), P.Y(n.etaC * A.f) - (xr ? 12 : 0), { color: BL, weight: 700, align: xr ? 'right' : 'left' }); }
+    if (s.grow) lab(ctx, 'B-term, B = e^(−6): grows ×e per δ_e ✗', P.px.x + 4, P.px.y + 12, { color: RO, weight: 700, align: 'left' });
+    if (s.rest) lab(ctx, `○ from rest, ${f3(s.tau)} periods`, P.px.x + 4, P.px.y + (s.grow ? 30 : 12), { color: OR, weight: 650, align: 'left' });
+  } else if (s.grow && v.w >= 150) lab(ctx, 'B-term: unbounded', P.px.x + 3, P.px.y + 10, { color: RO, weight: 700, align: 'left' });
+  void TX;
 }
-function interpretText(s) {
-  const c = cur(s), wrong = s.m === '0.5';
-  let out = readingText(s);
-  out += ' Right now the thickest point is ' + fmtLen(c.hpk) + ' thick, so the effective diffusivity ρgh³/3μ there is ' + f3(c.Deff) + ' m²/s.';
-  if (s.mu >= 1e10) out += ' * Glacier analogy: real ice is non-Newtonian (its viscosity falls with stress), so only the time scale — ' + Viz.fmtTime(c.t) + ' to reach this shape — is meaningful here.';
-  if (wrong) out += ' With m = 1/2 (diffusion\'s guess) the rescaled curves drift apart (spread ' + pct(c.col.spread) + '): this is not a diffusion length.';
-  return out;
+function profileTitle(s) {
+  const n = N(s);
+  if (phone()) return `<b>u(y, t)</b> · <span class="c-teal">probe ${f3(100 * n.st.amplitude / n.S.U)} % · ${fT(n.st.time_lag)} late</span>`;
+  return `<b>u(y, t)</b> · <span class="c-blue">now</span> · <span class="c-muted">envelope ±e^(−y/δ_e); faint: ωt = 0, π/2, π, 3π/2</span> · <span class="c-teal">probe</span>${s.rest ? ' · <span class="c-orange">○ from rest</span>' : ''}`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
-const app = Viz.app({
-  title: 'Why does a honey drop spread like t^(1/5)?',
-  subtitle: 'A viscous bead slumping under its own weight: the layer with its flux, the front on log–log axes and the profiles rescaled — one clock',
+/* ---- view 3: u(t) at the wall and at the probe ---------------------------------------------------------------------- */
+function drawClock(g, s) {
+  const v = g.view('clock'); v.clear();
+  if (v.w < 60 || v.h < 40) return;
+  const n = N(s), ctx = v.ctx, shortV = v.h < 130, A = n.st.amplitude / n.S.U, phi = n.st.phase_lag;
+  const RO = Viz.color('rose'), TE = Viz.color('teal'), OR = Viz.color('orange'), MU = Viz.color('muted');
+  const P = gutterPlot(v, { xlim: [0, 4], ylim: [-1.2, 1.35], pad: { l: 50, r: 12, t: 8, b: shortV ? 22 : 34 }, xlabel: shortV ? '' : 't/T (periods)', ylabel: 'u/U' },
+    () => ({ xticks: [0, 1, 2, 3, 4], yticks: [-1, 0, 1], xlabel: shortV ? '' : 't/T (periods)' }));
+  const ts = Viz.num.linspace(0, 4, 481), tsNow = ts.filter(x => x <= s.tau + 1e-9).concat([s.tau]);
+  const wall = x => Math.cos(2 * PI * x), probe = x => A * Math.cos(2 * PI * x - phi);
+  P.clip(() => {
+    P.line(ts, ts.map(wall), { color: RO, width: 1.4, alpha: 0.3 });
+    P.line(ts, ts.map(probe), { color: TE, width: 1.4, alpha: 0.35 });
+    P.line(tsNow, tsNow.map(wall), { color: RO, width: 2.6 });
+    P.line(tsNow, tsNow.map(probe), { color: TE, width: 2.6 });
+    if (s.rest) { const tr = []; for (let k = 0; k <= cnStep(s.tau); k += 2) tr.push(k / CN.per); P.line(tr, tr.map(x => cnAt(n.eta, x)), { color: OR, width: 2, dash: [5, 3] }); }
+    P.line([s.tau, s.tau], [-1.2, 1.35], { color: MU, width: 1, dash: [2, 3] });
+    P.dot(s.tau, wall(s.tau), 5, { color: RO, stroke: '#fff', strokeWidth: 2 });
+    P.dot(s.tau, probe(s.tau), 5, { color: TE, stroke: '#fff', strokeWidth: 2 });
+    // the lag: from a wall peak to the next probe peak
+    const k0 = Math.min(3, Math.floor(s.tau)), x1 = k0 + phi / (2 * PI);
+    if (x1 <= 4) {
+      P.line([k0, k0], [1, 1.2], { color: RO, width: 1.2, dash: [2, 2] });
+      P.line([x1, x1], [A, 1.2], { color: TE, width: 1.2, dash: [2, 2] });
+      arrowPx(ctx, P.X(k0), P.Y(1.2), P.X(x1), P.Y(1.2), TE, 2, 7);
+    }
+  });
+  if (!shortV) {
+    const k0 = Math.min(3, Math.floor(s.tau)), x1 = k0 + phi / (2 * PI);
+    if (x1 <= 4) lab(ctx, `lag ${fT(n.st.time_lag)} = ${f3(phi / (2 * PI))} T`, Math.min(P.X(x1) + 6, P.px.x + P.px.w - 150), P.Y(1.2), { color: TE, weight: 700, align: 'left' });
+  }
+}
+function clockTitle(s) {
+  const n = N(s);
+  return `<b>u(t) at the wall and the probe</b> · <span class="c-rose">wall U cos ωt</span> · <span class="c-teal">probe y = ${fL(n.yp)}: ${pct(n.st.amplitude / n.S.U)}, ${f3(n.st.phase_lag)} rad late</span>${s.rest ? ' · <span class="c-orange">from rest (dashed)</span>' : ''}`;
+}
+
+/* ---- real Stokes layers ---------------------------------------------------------------------------------------------- */
+const CASES = [
+  ['plate 1 Hz in water', 2 * PI, 1e-6],
+  ['M₂ tide, molecular ν', OMEGA_M2, 1e-6],
+  ['M₂ tide, eddy ν', OMEGA_M2, 1e-2],
+  ['sound 1 kHz in air', 2 * PI * 1e3, 1.5e-5],
+  ['Ekman look-alike (f, eddy ν)', 1e-4, 1e-2]
+];
+function nearestCase(s) {
+  let best = -1, d = 0.15;
+  CASES.forEach(([, w, nu], i) => { const e = Math.abs(Math.log10(s.omega / w)) + Math.abs(Math.log10(s.nu / nu)); if (e < d) { d = e; best = i; } });
+  return best;
+}
+function caseRows() { return CASES.map(([nm, w, nu]) => [nm, Viz.fmt(w, { sig: 3 }), Viz.fmt(nu, { sig: 2 }), fL(layer({ omega: w, nu }).delta_e)]); }
+
+/* ---- status, inspector, notes ------------------------------------------------------------------------------------- */
+function statusOf(s) {
+  const n = N(s), L = n.L, sm = phone(), wide = lay() === 'wide';
+  if (s.rest) {
+    const e = cnErrAt(s.tau);
+    if (e >= 0.01) return { text: sm ? `⏳ start-up: ${pct(e)} off the periodic layer` : `⏳ start-up from rest: still ${pct(e)} of U away from the periodic layer after ${f3(s.tau)} periods`, tone: 'warn' };
+  }
+  if (sm) return { text: `🌊 δ_e ${fL(L.delta_e)} · felt to ${fL(L.delta_book)}`, tone: 'info' };
+  const probe = ` · probe: ${pct(n.st.amplitude / n.S.U)} of the wall's motion, ${f3(n.st.phase_lag)} rad (${fT(n.st.time_lag)}) late`;
+  return { text: `🌊 δ_e = √(2ν/ω) = ${fL(L.delta_e)} · the wall is felt to ≈ 4√(ν/ω) = ${fL(L.delta_book)}` + (wide ? probe : ''), tone: 'info' };
+}
+function inspectHtml(s) {
+  const n = N(s), st = n.st;
+  return `Probe $y=${tL(n.yp)}=${t4(n.eta)}\\,\\delta_e$:<br>` +
+    `amplitude $e^{-y/\\delta_e}=e^{-${t4(n.eta)}}=\\mathbf{${t4(st.amplitude / n.S.U)}}$<br>` +
+    `phase lag $y/\\delta_e=\\mathbf{${t4(st.phase_lag)}}$ rad<br>` +
+    `time lag $${t4(st.phase_lag)}/\\omega=${t4(st.phase_lag)}/${t4(n.S.omega)}=\\mathbf{${t4(st.time_lag)}}$ s`;
+}
+function interpText(s) {
+  const n = N(s), L = n.L, k = nearestCase(s);
+  let t = `Faster shaking or a less viscous fluid confines the layer (δ_e ∝ √(ν/ω)): here δ_e = ${fL(L.delta_e)}, and the wall is felt up to about 4√(ν/ω) = ${fL(L.delta_book)}. The lag grows by 1 rad per δ_e while the amplitude falls by e, so the profile looks like a wave climbing at √(2νω) = ${fV(L.phase_speed)} — but no restoring force acts: it is diffusion from a shaking wall.`;
+  if (k === 4) t += ' This is not an Ekman layer: ω here is a shaking frequency. In Ch. 13 the Coriolis parameter f takes its place and the same (1 + i)/δ exponent makes the Ekman spiral.';
+  else if (L.delta_e >= 1) t += ' Metres thick: with an eddy viscosity standing in for turbulence, this is the tidal bottom boundary layer of a shelf sea.';
+  else if (L.delta_e < 2e-4) t += ' A fraction of a millimetre: an acoustic boundary layer. The viscous loss inside it is why a wall absorbs a little sound.';
+  if (n.eta > BOOK_ETA) t += ` Your probe sits above the book's depth: less than 5.9 % of the wall's motion reaches it (${pct(n.st.amplitude / n.S.U)}).`;
+  else if (n.eta > PI) t += ' Your probe is more than half a period late: for part of each cycle it moves against the wall.';
+  return t;
+}
+function notesHtml(s) {
+  let o = '<p>' + interpText(s) + '</p>';
+  if (!phone()) {
+    const k = nearestCase(s);
+    o += '<table class="viz-work-table"><tr><th>layer</th><th>ω [rad/s]</th><th>ν [m²/s]</th><th>δ_e</th></tr>' +
+      caseRows().map((r, i) => `<tr${i === k ? ' style="background:color-mix(in srgb, var(--viz-teal) 16%, transparent);font-weight:650"' : ''}><td>${r.join('</td><td>')}</td></tr>`).join('') + '</table>';
+  }
+  return o;
+}
+
+/* ---- Explain: "Explanation & interpretation" ------------------------------------------------------------------------- */
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), S = n.S, L = n.L, st = n.st, sm = phone();
+  let o = W.step(0, 'What the views show') + (sm
+    ? W.say('<b>Plate & fluid</b>: the <b class="c-rose">rose</b> plate shakes; <b class="c-accent">purple</b> tracers and the dyed line follow, with <b class="c-blue">blue</b> velocity arrows. <b>u(y, t)</b>: the profile now (<b class="c-blue">blue</b>), the envelope and four phases (<b class="c-muted">grey</b>), the <b class="c-teal">teal</b> probe.')
+    : W.say('<b>The plate and the fluid</b>: the <b class="c-rose">rose</b> plate moves as U cos ωt; <b class="c-accent">purple</b> tracers at seven heights and the dyed line (vertical at rest) show how far each layer is carried, sideways distances divided by the wall\'s stroke U/ω; <b class="c-blue">blue</b> arrows are u. <b>u(y, t)</b>: the profile now (<b class="c-blue">blue</b>), the envelope ±e^(−y/δ_e) (<b class="c-muted">dashed</b>) and the book\'s four phases ωt = 0, π/2, π, 3π/2 (<b class="c-muted">faint</b>), the depth 4√(ν/ω) (<b class="c-amber">amber</b>). <b>u(t)</b>: the wall (<b class="c-rose">rose</b>) and the <b class="c-teal">teal</b> probe over four periods, with the lag arrow.')) +
+    W.hint('The u(t) view is hidden on phones; its lag is in the u(y, t) title and in §3.');
+  o += W.step(1, 'Evaluate the depth') +
+    W.line(`$\\delta_e=\\sqrt{2\\nu/\\omega}=\\sqrt{2\\times${t3(S.nu)}/${t4(S.omega)}}$`, fL(L.delta_e), 'the e-folding depth: the amplitude falls by e per δ_e') +
+    W.box(`$\\delta_e=\\mathbf{${tL(L.delta_e)}}$ &nbsp;(ω = ${f4(S.omega)} rad/s is the shaking frequency, not a vorticity)`) +
+    W.line(`book: $4\\sqrt{\\nu/\\omega}=2\\sqrt2\\,\\delta_e=2.828\\times${tL(L.delta_e)}$`, fL(L.delta_book), 'the book\'s "diffusive distance" δ ~ 4(ν/ω)^½') +
+    W.line('$e^{-4/\\sqrt2}=e^{-2\\sqrt2}$', f4(L.amplitude_at_delta_book), 'the share of the wall\'s amplitude left there');
+  o += W.step(2, 'Amplitude at your probe') +
+    W.line(`$y=${t4(n.eta)}\\,\\delta_e$`, fL(n.yp), 'the probe slider is in units of δ_e') +
+    W.line(`$e^{-y/\\delta_e}=e^{-${t4(n.eta)}}$`, f4(st.amplitude / S.U), 'the envelope of $u=Ue^{-y/\\delta_e}\\cos(\\omega t-y/\\delta_e)$ (8.38)') +
+    W.box(`$|u|_{max}=${t3(S.U)}\\times${t4(st.amplitude / S.U)}=\\mathbf{${t4(st.amplitude)}}$ m/s at the probe`);
+  o += W.step(3, 'Phase and time lag') +
+    W.line('$\\phi=y/\\delta_e$', `${f4(st.phase_lag)} rad = ${f3(st.phase_lag * 180 / PI)}°`, 'the cosine\'s argument is ωt − y/δ_e') +
+    W.line(`$T=2\\pi/\\omega=2\\pi/${t4(S.omega)}$`, fT(st.period), 'one period of the wall') +
+    W.box(`$\\Delta t=\\phi/\\omega=${t4(st.phase_lag)}/${t4(S.omega)}$ = <b>${fT(st.time_lag)}</b> = ${f3(st.phase_lag / (2 * PI))} T late`);
+  o += W.step(4, 'Crest speed and "wavelength"') +
+    W.line(`$c=\\omega\\delta_e=\\sqrt{2\\nu\\omega}=\\sqrt{2\\times${t3(S.nu)}\\times${t4(S.omega)}}$`, fV(L.phase_speed), 'a point of fixed phase climbs at this speed') +
+    W.line('$\\lambda=2\\pi\\delta_e$', fL(L.wavelength), 'the phase turns once per λ — but the amplitude is down to e^(−2π) = 0.19 % there') +
+    W.say('No restoring force acts: the pattern is diffusion from a periodic wall, not a wave.');
+  o += W.step(5, 'At the current time') +
+    W.line('time', Viz.live('t')) +
+    W.line('wall $u(0,t)=U\\cos(\\omega t)$ (8.33)', Viz.live('uw')) +
+    W.line(`probe $${E838S}$ (8.38)`, Viz.live('up')) +
+    W.line('the crest nearest the plate', Viz.live('crest'));
+  o += W.step(6, 'Starting from rest') +
+    W.say('The book keeps only the periodic state. A Crank–Nicolson march from rest (201 nodes on 20 δ_e, 200 steps per period, two backward-Euler start-up steps; <b class="c-orange">orange</b>) shows how quickly the start-up is forgotten. With it on, the dyed line starts vertical and the tracers are carried by the marched velocity.') +
+    W.line('max |u_rest − u|/U below 6 δ_e', Viz.live('cn')) +
+    W.line('within 1 % of U after', f3(tauOnePercent()) + ' periods', 'the same in every fluid: time counts in periods, height in δ_e');
+  o += W.step(7, 'Real Stokes layers') + (sm
+    ? W.table(['layer', 'δ_e'], caseRows().map(r => [r[0], r[3]]), nearestCase(s))
+    : W.table(['layer', 'ω [rad/s]', 'ν [m²/s]', 'δ_e'], caseRows(), nearestCase(s)));
+  o += W.interpret(interpText(s), 'Reading the current setting');
+  return o;
+}
+function explainLive(s) {
+  const n = N(s), S = n.S;
+  return {
+    t: `t = ${fT(n.t)} = ${f3(s.tau)} T (ωt = ${f3(n.ph)} rad)`,
+    uw: `${f3(S.U)} × cos(${f3(n.ph)}) = ${f3(n.uw)} m/s`,
+    up: `${f3(S.U)} × ${f3(n.st.amplitude / S.U)} × cos(${f3(n.ph)} − ${f3(n.eta)}) = ${f3(n.up)} m/s`,
+    crest: n.etaC <= ETA_TOP ? `y = ${f3(n.etaC)} δ_e = ${fL(n.etaC * n.L.delta_e)}, climbing at ${fV(n.L.phase_speed)}` : '—',
+    cn: s.rest ? `${pct(cnErrAt(s.tau))} after ${f3(s.tau)} periods` : `${pct(cnErrAt(s.tau))} after ${f3(s.tau)} periods (turn on "from rest" to see it)`
+  };
+}
+
+/* ---- derivations (design Part F: D24 10 steps, D25 6 steps) -------------------------------------------------------- */
+const E820 = '\\frac{\\partial u}{\\partial t}=\\nu\\frac{\\partial^2u}{\\partial y^2}';
+const E833 = 'u(0,t)=U\\cos(\\omega t)';
+const E834 = 'u(y\\to\\infty,t)=\\text{bounded}';
+const E835 = 'u(y,t)=\\mathrm{Re}\\{e^{i\\omega t}f(y)\\}';
+const E836 = 'i\\omega f=\\nu\\frac{d^2f}{dy^2}';
+const E837 = '\\begin{aligned}f={}&A\\exp\\{-(i+1)y\\sqrt{\\omega/2\\nu}\\}\\\\&+B\\exp\\{+(i+1)y\\sqrt{\\omega/2\\nu}\\}\\end{aligned}';
+const E838 = '\\begin{aligned}u(y,t)={}&U\\exp\\Big\\{-y\\sqrt{\\frac{\\omega}{2\\nu}}\\Big\\}\\\\&\\times\\cos\\Big(\\omega t-y\\sqrt{\\frac{\\omega}{2\\nu}}\\Big)\\end{aligned}';
+const E838S = 'u=Ue^{-y/\\delta_e}\\cos(\\omega t-y/\\delta_e)';
+const BASE = { omega: 2 * PI, nu: 1e-6, U: 0.1, yp: 1.772, tau: 0, rest: false, grow: false, yax: 'de' };
+const N0 = N(BASE);
+const DERIV = [
+  { id: 'D24', title: 'Stokes\' second problem, step by step', short: 'D24 the layer', ref: 'Eqs. (8.35), (8.36), (8.37), (8.38)', view: 'profile',
+    set: Object.assign({}, BASE),
+    goal: 'Find the periodic flow above a plate that oscillates in its own plane as U cos ωt.',
+    start: { tex: `\\begin{aligned}&${E820}\\\\&${E833},\\ \\ ${E834}\\end{aligned}`,
+      plain: `The diffusion equation (8.20), $${E820}$, with the wall condition (8.33), $${E833}$, and (8.34), $${E834}$. Only the periodic state, after start-up transients have died.` },
+    plan: ['Write u as the real part of a complex exponential in time.', 'Get an ordinary differential equation in y.', 'Find its exponential roots with √i.', 'Keep the bounded root, fix the amplitude, take the real part.'],
+    uses: ['complex exponential e^(iωt) and Euler\'s formula', 'complex square root √i = (1 + i)/√2', 'linear ODE with constant coefficients: try e^(ky)'],
+    steps: [
+      { did: 'Try the complex form', tex: E835 + '\\quad(8.35)', set: { grow: false },
+        why: 'The wall motion is Re{Ue^(iωt)}. The diffusion equation is linear with real coefficients, so we may solve for ũ = e^(iωt)f(y) and take the real part at the end.',
+        plain: 'Every layer oscillates at the wall\'s frequency; only its amplitude and phase f(y) are unknown.' },
+      { did: 'Differentiate ũ', tex: '\\begin{aligned}\\frac{\\partial\\tilde u}{\\partial t}&=i\\omega e^{i\\omega t}f\\\\\\frac{\\partial^2\\tilde u}{\\partial y^2}&=e^{i\\omega t}f\'\'\\end{aligned}',
+        why: 'd/dt of e^(iωt) is iωe^(iωt) (chain rule); y enters only through f.', plain: 'A time derivative becomes a multiplication by iω.' },
+      { did: 'Substitute and cancel e^{iωt}', tex: E836 + '\\quad(8.36)',
+        why: `Insert step 2 into $${E820}$ (8.20); e^(iωt) ≠ 0 divides out. The text says "substitution of (8.33)", $${E833}$; it is the trial (8.35) that is substituted.`,
+        plain: 'An ordinary differential equation with constant coefficients.' },
+      { did: 'Try f = e^{ky}', tex: 'i\\omega=\\nu k^2\\ \\Rightarrow\\ k^2=\\frac{i\\omega}{\\nu}',
+        why: 'The standard trial for constant coefficients: f\'\' = k²f, and e^(ky) ≠ 0 divides out.', plain: 'k is the square root of an imaginary number.',
+        live: s => `k^2=i\\,\\frac{${t4(s.omega)}}{${t3(s.nu)}}=${t3(s.omega / s.nu)}\\,i\\ \\text{m}^{-2}` },
+      { did: 'Take the square root of i', tex: 'k=\\pm\\frac{1+i}{\\sqrt2}\\sqrt{\\frac\\omega\\nu}=\\pm(1+i)\\sqrt{\\frac{\\omega}{2\\nu}}',
+        why: '((1 + i)/√2)² = (1 + 2i − 1)/2 = i, so √i = ±(1 + i)/√2.', plain: 'Real and imaginary parts are equal: decay and oscillation at the same rate.',
+        live: s => `\\sqrt{\\omega/2\\nu}=${t4(layer(SI(s)).k)}\\ \\text{m}^{-1}=1/\\delta_e` },
+      { did: 'Write the general solution', tex: E837 + '\\quad(8.37)', set: { grow: false },
+        why: 'The equation is linear, so any combination of the two exponential solutions is a solution.', plain: 'Two constants: A for the decaying root, B for the growing one.' },
+      { did: 'Discard the growing root', tex: 'B=0', set: { grow: true },
+        why: `The second exponential grows like e^(+y/δ_e) without bound, violating (8.34), $${E834}$.`, plain: 'Only the decaying layer survives.',
+        watch: 'the rose dotted B-term, started as small as B = e^(−6) = 0.25 %, grows by e per δ_e: the full wall amplitude at 6 δ_e, and on without bound.' },
+      { did: 'Match the wall motion', tex: '\\tilde u(0,t)=Ae^{i\\omega t}\\ \\Rightarrow\\ A=U', set: { grow: false },
+        why: `At y = 0 the exponential is 1, and Re{Ae^(iωt)} must equal (8.33), $${E833}$, for every t.`, plain: 'The amplitude is fixed by the wall.' },
+      { did: 'Name the depth', tex: '\\begin{aligned}\\tilde u&=Ue^{-y/\\delta_e}e^{i(\\omega t-y/\\delta_e)}\\\\\\delta_e&=\\sqrt{2\\nu/\\omega}\\end{aligned}',
+        why: 'Split e^(−(1+i)y/δ_e) into a real decay e^(−y/δ_e) and a pure phase e^(−iy/δ_e).', plain: 'Amplitude and phase both change with height.',
+        live: s => `\\delta_e=\\sqrt{2\\times${t3(s.nu)}/${t4(s.omega)}}=${tL(layer(SI(s)).delta_e)}` },
+      { did: 'Take the real part', tex: E838 + '\\quad(8.38)',
+        why: 'Re{e^(iθ)} = cos θ with θ = ωt − y/δ_e, as promised in step 1.', plain: 'The Stokes layer: each height repeats the wall, shrunk and delayed.',
+        live: s => { const n = N(s); return `u(y_p,t)=${t3(n.S.U)}e^{-${t3(n.eta)}}\\cos(${t3(n.ph)}-${t3(n.eta)})=${t3(n.up)}\\ \\text{m/s}`; } }
+    ],
+    result: { tex: E838, plain: 'Each layer repeats the wall\'s motion, shrunk by e^(−y/δ_e) and delayed by y/δ_e radians.', set: { grow: false } },
+    interpret: s => { const n = N(s); return `With your ω = ${f4(n.S.omega)} rad/s and ν = ${Viz.fmt(n.S.nu, { sig: 3 })} m²/s: δ_e = ${fL(n.L.delta_e)}. At the probe (${fL(n.yp)}) the fluid swings with ${pct(n.st.amplitude / n.S.U)} of the wall's amplitude, ${fT(n.st.time_lag)} late.`; },
+    check: 'u(0, t) = U cos ωt ✓; bounded ✓; the residual of the diffusion equation is zero (sympy in the notebook, a finite-difference selftest row here); the complex route and the real formula agree to round-off (selftest); the march from rest lands on it within about one period (orange).' },
+  { id: 'D25', title: 'Reading the Stokes layer: depth, lag, crest speed', short: 'D25 reading it', ref: 'Eq. (8.38)', view: 'profile',
+    set: Object.assign({}, BASE),
+    goal: 'Turn the solution into numbers you can picture: how deep, how late, how fast the apparent wave moves.',
+    start: { tex: `${E838S},\\quad\\delta_e=\\sqrt{2\\nu/\\omega}`, plain: 'Stokes\' second problem (8.38), written with the e-folding depth δ_e.' },
+    plan: ['Read the envelope.', 'Evaluate it at the book\'s depth.', 'Read the phase lag and follow a crest.'],
+    uses: ['phase of a cosine and a time lag', 'exponent rules'],
+    steps: [
+      { did: 'Read the envelope', tex: '|u|\\le Ue^{-y/\\delta_e}', why: 'The cosine is at most 1, so the exponential bounds the motion.', plain: 'The motion shrinks by a factor e every δ_e.',
+        watch: 'the dashed grey envelope: every blue profile stays inside it.' },
+      { did: 'Evaluate at the book\'s depth', tex: 'y=4\\sqrt{\\nu/\\omega}:\\ \\ \\frac{y}{\\delta_e}=\\frac{4}{\\sqrt2}=2\\sqrt2',
+        why: '4√(ν/ω)/√(2ν/ω) = 4/√2. The book\'s δ ~ 4√(ν/ω) is 2√2 = 2.83 times our δ_e.', plain: 'The amplitude there is e^(−2√2) of the wall\'s: 6 % left.',
+        live: () => `e^{-2\\sqrt2}=${Viz.tnum(Math.exp(-2 * SQ2), 4)}`, watch: 'the amber line at 2.83 δ_e.' },
+      { did: 'Read the phase lag', tex: '\\phi(y)=\\frac{y}{\\delta_e}\\ \\text{rad},\\quad\\Delta t=\\frac{y}{\\omega\\delta_e}',
+        why: 'The argument is ωt − y/δ_e, so a layer at y reaches the same phase y/δ_e radians later.', plain: 'Deeper layers lag, linearly with height.',
+        live: s => { const n = N(s); return `\\phi=${t4(n.eta)}\\ \\text{rad},\\ \\ \\Delta t=${t4(n.st.time_lag)}\\ \\text{s}`; } },
+      { did: 'Follow a crest', tex: '\\omega t-\\frac{y}{\\delta_e}=\\text{const}\\ \\Rightarrow\\ \\frac{dy}{dt}=\\omega\\delta_e=\\sqrt{2\\nu\\omega}',
+        why: 'A point of fixed phase moves; differentiate the condition in t.', plain: 'Crests climb away from the plate at √(2νω).',
+        watch: 'press ▶: the blue dot where the profile touches the envelope climbs, and a new one leaves the plate every period.' },
+      { did: 'Read the "wavelength"', tex: '\\lambda=2\\pi\\delta_e',
+        why: 'The phase changes by 2π over Δy = 2πδ_e — but by then the amplitude has fallen to e^(−2π) ≈ 0.2 %.', plain: 'Barely one "wave" is ever visible.' },
+      { did: 'Put in numbers', tex: `\\begin{aligned}\\delta_e&=${tL(N0.L.delta_e)}\\\\4\\sqrt{\\nu/\\omega}&=${tL(N0.L.delta_book)}\\\\\\sqrt{2\\nu\\omega}&=${t3(N0.L.phase_speed * 1000)}\\ \\text{mm/s}\\end{aligned}`,
+        why: 'Direct evaluation with ω = 2π rad/s (1 Hz) and water\'s ν = 10⁻⁶ m²/s.', plain: 'A plate shaken once a second in water moves only about a millimetre of fluid.',
+        live: s => { const L = layer(SI(s)); return `\\text{yours: }\\delta_e=${tL(L.delta_e)},\\ c=${t3(L.phase_speed)}\\ \\text{m/s}`; } }
+    ],
+    result: { tex: '\\begin{aligned}&\\delta_e=\\sqrt{2\\nu/\\omega},\\quad \\tfrac{|u|}{U}\\big|_{4\\sqrt{\\nu/\\omega}}=e^{-2\\sqrt2}\\\\&\\phi=y/\\delta_e,\\quad c=\\sqrt{2\\nu\\omega}\\end{aligned}', plain: 'A diffusion layer with a phase delay: e-folding depth √(2ν/ω), 5.9 % left at the book\'s depth, lag y/δ_e, crests climbing at √(2νω).' },
+    interpret: s => { const L = layer(SI(s)); return `With your settings: δ_e = ${fL(L.delta_e)}, book depth ${fL(L.delta_book)}, crest speed ${fV(L.phase_speed)}, "wavelength" ${fL(L.wavelength)}. It looks like a wave, but there is no restoring force: the pattern is diffusion from a periodic boundary.`; },
+    check: 'Units: √(m²/s ÷ 1/s) = m ✓; √(m²/s × 1/s) = m/s ✓. Trap: the book\'s depth 4√(ν/ω) and the e-folding depth √(2ν/ω) differ by 2√2.' }
+];
+
+/* ---- code, walkthrough, equations, quiz ------------------------------------------------------------------------------- */
+/** A number as Python would print it (short): 1e-06 style below 1e-3 and above 1e5. */
+function pn(v, k = 4) {
+  const a = Math.abs(v); if (a < 1e-300) return '0';
+  if (a < 1e-3 || a >= 1e5) { const [m, e] = v.toExponential(k - 1).split('e'); const E = Number(e); return String(Number(m)) + 'e' + (E < 0 ? '-' : '+') + String(Math.abs(E)).padStart(2, '0'); }
+  return String(Number(v.toPrecision(k)));
+}
+const CODE = [
+  { id: 'fp', title: 'The Stokes layer in fluidpy', ref: 'Eq. (8.38)',
+    src: `import numpy as np
+import fluidpy.ch08_laminar_flow as ch08
+nu, omega, U = {{nu}}, {{omega}}, {{U}}  # SI
+L = ch08.stokes_layer(nu, omega)
+print(L["delta_e"])     # δ_e: {{de}} m
+print(L["delta_book"])  # 4√(ν/ω): {{db}} m
+y = {{yp}}              # probe [m]
+st = ch08.stokes_layer_state(nu, omega, y, U=U)
+print(st["amplitude"])  # {{amp}} m/s
+print(st["time_lag"])   # {{lag}} s late
+t = {{t}}               # now [s]
+u = ch08.stokes_second_problem(y, t, U=U,
+                               omega=omega, nu=nu)
+print(u)                # u(y, t): {{u}} m/s`,
+    live: s => { const n = N(s), S = n.S; return { nu: pn(S.nu, 3), omega: pn(S.omega, 5), U: pn(S.U, 3), de: pn(n.L.delta_e), db: pn(n.L.delta_book), yp: pn(n.yp), amp: pn(n.st.amplitude), lag: pn(n.st.time_lag), t: pn(n.t), u: pn(n.up) }; } },
+  { id: 'cx', title: 'From scratch: the complex route', ref: 'Eqs. (8.35), (8.36), (8.37)',
+    src: `de = np.sqrt(2*nu/omega)       # e-folding depth {{de}} m
+k = (1 + 1j)/de                 # bounded root of iωf = νf''
+f = U*np.exp(-k*y)              # f(y), with A = U and B = 0
+ut = np.exp(1j*omega*t)*f       # ũ = e^(iωt) f(y)
+u_mine = ut.real                # take the real part: {{u}}
+assert np.isclose(u_mine, u)    # the same number as fluidpy`,
+    live: s => { const n = N(s); return { de: pn(n.L.delta_e), u: pn(uComplex(n.yp, n.t, n.S)) }; } },
+  { id: 'cn', title: 'From scratch: start the plate from rest', ref: 'Eqs. (8.20), (8.33)',
+    src: `T = 2*np.pi/omega                # period {{T}} s
+yy = np.linspace(0, 20*de, 201)  # 20 δ_e: the far end is at rest
+wall = lambda tt: U*np.cos(omega*tt)   # the wall condition
+n = {{nst}}                       # steps: {{np}} periods
+un = ch08.crank_nicolson_1d(np.zeros(201), yy, T/200,
+                            n, nu, wall, 0.0)
+ue = ch08.stokes_second_problem(yy, n*T/200,
+                                U=U, omega=omega, nu=nu)
+err = np.abs(un - ue)[yy <= 6*de].max()/U
+print(err)                       # {{err}}`,
+    live: s => { const k = cnStep(s.tau); return { T: pn(2 * PI / s.omega), nst: String(k), np: pn(k / CN.per, 3), err: pn(cnErrAt(s.tau), 3) }; },
+    note: 'Two backward-Euler start-up steps (the default startup_be=2) damp the Crank–Nicolson ringing from the sudden start.' }
+];
+const TOUR = [
+  { title: 'Shake a plate', text: 'A plate under still water slides back and forth once a second. How far above it does the water feel the shaking — and does every layer keep in step with the plate?',
+    set: Object.assign({}, BASE), play: false },
+  { title: 'It lags', text: 'Watch the purple tracers: higher ones swing less and later. The dyed line bends into an S that seems to climb away from the plate.',
+    set: Object.assign({}, BASE), play: true, readouts: ['amp', 'lag'], code: { id: 'fp', lines: [8, 10] } },
+  { title: 'Complex trick', text: `Write $${E835}$ (8.35): a time derivative becomes a factor iω, and the diffusion equation turns into the ordinary equation $${E836}$ (8.36).`,
+    set: Object.assign({}, BASE, { tau: 0.1 }), play: false, derive: { id: 'D24', step: 3 } },
+  { title: 'The layer', text: `Only the decaying root survives: $${E838S}$ (8.38), with $\\delta_e=\\sqrt{2\\nu/\\omega}$ = ${fL(N0.L.delta_e)} here. Blue: the profile now; dashed: its envelope.`,
+    set: Object.assign({}, BASE, { tau: 0.1 }), play: false, eq: 'sol' },
+  { title: 'Start from rest', text: 'The solution has no initial condition. Start the plate from rest instead (orange, a Crank–Nicolson march): within about a period the orange dots land on the blue curve.',
+    set: Object.assign({}, BASE, { rest: true }), play: true, code: { id: 'cn', lines: [5, 6] } },
+  { title: 'Not a wave', text: `The crest climbs at $\\sqrt{2\\nu\\omega}$ = ${fV(N0.L.phase_speed)}, yet no restoring force acts: it is diffusion with a delay. The wall is felt to about $4\\sqrt{\\nu/\\omega}$ = ${fL(N0.L.delta_book)}.`,
+    set: Object.assign({}, BASE), play: true, readouts: ['cs'], notes: true },
+  { title: 'Your turn', text: 'Predict the depth δ_e of the M₂ tidal layer (ω = 1.4×10⁻⁴ rad/s) with an eddy viscosity ν = 10⁻² m²/s. Then set the sliders (or press "M₂ eddy ν") and read δ_e.',
+    set: Object.assign({}, BASE), play: false, controls: ['nu', 'omega'], readouts: ['de'] }
+];
+const EQS = [
+  { id: 'e820', title: 'Diffusion of momentum', ref: 'Eq. (8.20)', tex: E820, note: 'The same equation as Stokes\' first problem; only the wall condition changes.',
+    symbols: [['u', 'velocity along the plate', 'm/s'], ['\\nu', 'kinematic viscosity', 'm²/s']] },
+  { id: 'e833', title: 'Wall and far-field conditions', ref: 'Eqs. (8.33), (8.34)', tex: `\\begin{aligned}&${E833}\\\\&${E834}\\end{aligned}`,
+    live: s => `u(0,t)=${t3(s.U)}\\cos(${t4(s.omega)}\\,t)\\ \\text{m/s}`,
+    symbols: [['U', 'velocity amplitude of the plate', 'm/s'], ['\\omega', 'oscillation frequency (not vorticity)', 'rad/s']] },
+  { id: 'e835', title: 'Complex form', ref: 'Eq. (8.35)', tex: E835, note: 'Periodic state only: every layer oscillates at ω; f(y) is a complex amplitude.' },
+  { id: 'e836', title: 'Equation for f', ref: 'Eq. (8.36)', tex: E836 },
+  { id: 'ek', title: 'Its exponents', ref: '§8.5', tex: 'k=(i\\omega/\\nu)^{1/2}=\\pm(i+1)(\\omega/2\\nu)^{1/2}',
+    live: s => `(\\omega/2\\nu)^{1/2}=${t4(layer(SI(s)).k)}\\ \\text{m}^{-1}` },
+  { id: 'e837', title: 'General solution', ref: 'Eq. (8.37)', tex: E837, note: 'Bounded ⇒ B = 0; the wall ⇒ A = U.' },
+  { id: 'sol', title: 'The Stokes layer', ref: 'Eq. (8.38)', tex: E838,
+    live: s => { const n = N(s); return `\\begin{aligned}u(y_p,t)&=${t3(n.S.U)}e^{-${t3(n.eta)}}\\cos(${t3(n.ph)}-${t3(n.eta)})\\\\&=${t3(n.up)}\\ \\text{m/s}\\end{aligned}`; },
+    note: '√(ω/2ν) = 1/δ_e: the e-folding depth.' },
+  { id: 'depth', title: 'How deep: two conventions', ref: '§8.5', tex: '\\begin{aligned}\\delta&\\sim4(\\nu/\\omega)^{1/2}=2\\sqrt2\\,\\delta_e\\\\\\delta_e&=\\sqrt{2\\nu/\\omega}\\end{aligned}',
+    live: s => { const L = layer(SI(s)); return `4\\sqrt{\\nu/\\omega}=${tL(L.delta_book)},\\ \\ \\delta_e=${tL(L.delta_e)}`; },
+    note: 'Book: 0.059 of the wall\'s amplitude left; δ_e (the literature\'s penetration depth): e^(−1) = 0.37 left.' },
+];
+const QUIZ = [
+  { q: 'Shake four times faster. What happens to δ_e?', a: `It halves: δ_e = √(2ν/ω) ∝ ω^(−½). At 1 Hz in water ${fL(N0.L.delta_e)}; at 4 Hz ${fL(layer({ omega: 8 * PI, nu: 1e-6 }).delta_e)}.`, set: Object.assign({}, BASE, { omega: 8 * PI }) },
+  { q: 'At what height is the fluid exactly half a period late?', a: `Where y/δ_e = π, i.e. y = πδ_e (${fL(PI * N0.L.delta_e)} at the defaults). The amplitude there is e^(−π) = ${pct(Math.exp(-PI))} of the wall's: the fluid moves against the plate, but only a little.`, set: Object.assign({}, BASE, { yp: 3.1416 }) },
+  { q: 'Why must B = 0 in the general solution (8.37), $f=Ae^{-(1+i)y/\\delta_e}+Be^{(1+i)y/\\delta_e}$?', a: 'The B-term grows like e^(+y/δ_e): even B = e^(−6) (the rose dotted curve) reaches the wall\'s full amplitude at 6 δ_e and grows without bound above. It violates (8.34), $u(y\\to\\infty,t)=\\text{bounded}$.', set: Object.assign({}, BASE, { grow: true }) },
+  { q: 'Stokes\' first problem had one curve for all times. Why is there no similarity variable here?', a: 'ω imposes a time scale 1/ω: the groups are u/U, ωt and y√(ω/ν), and y and t never combine. The profiles are universal in y/δ_e, but for each ωt a different curve.' },
+  { q: 'Start the plate from rest. After how many periods is the flow within 1 % of the periodic layer?', a: `After about ${f3(tauOnePercent())} periods (the Crank–Nicolson march, orange). Time counts in periods and height in δ_e, so this is the same in every fluid and at every frequency.`, set: Object.assign({}, BASE, { rest: true, tau: 1 }) }
+];
+
+/* ---- selftest: parity with fluidpy (py) and invariants (expect) --------------------------------------------------- */
+function selftestRows() {
+  const S0 = { U: 1.0, omega: 2 * PI, nu: 1e-6 }, Ssea = { U: 0.5, omega: OMEGA_M2, nu: 1e-2 }, Sair = { U: 0.0025, omega: 2 * PI * 1e3, nu: 1.5e-5 };
+  const C = cnHistory(), L0 = layer(S0), ST = state(1e-3, S0), sea = state(5, Ssea);
+  const h = 1e-6, dt = 1e-5, y = 7e-4, t = 0.3;
+  const ut = (uStokes(y, t + dt, S0) - uStokes(y, t - dt, S0)) / (2 * dt);
+  const uyy = (uStokes(y + h, t, S0) - 2 * uStokes(y, t, S0) + uStokes(y - h, t, S0)) / (h * h);
+  const cnU = n => `ch08.crank_nicolson_1d(np.zeros(201), np.linspace(0, 20, 201), 2*np.pi/200, ${n}, 0.5, np.cos, 0.0)`;
+  return [
+    { name: 'u Stokes layer, 1 Hz water, y = 1 mm, t = 0.3 s', js: uStokes(1e-3, 0.3, S0), py: 'ch08.stokes_second_problem(1e-3, 0.3, U=1.0, omega=2*np.pi, nu=1e-6)', rtol: 1e-12 },
+    { name: 'u Stokes layer, 1 Hz water, y = 2.5 mm, t = 0.8 s', js: uStokes(2.5e-3, 0.8, S0), py: 'ch08.stokes_second_problem(2.5e-3, 0.8, U=1.0, omega=2*np.pi, nu=1e-6)', rtol: 1e-12 },
+    { name: 'u Stokes layer, M2 tide eddy nu, y = 5 m, t = 3 h', js: uStokes(5, 10800, Ssea), py: 'ch08.stokes_second_problem(5.0, 10800.0, U=0.5, omega=2*np.pi/(12.42*3600), nu=1e-2)', rtol: 1e-12 },
+    { name: 'u Stokes layer, 1 kHz air, y = 0.05 mm', js: uStokes(5e-5, 2e-4, Sair), py: 'ch08.stokes_second_problem(5e-5, 2e-4, U=0.0025, omega=2*np.pi*1e3, nu=1.5e-5)', rtol: 1e-12 },
+    { name: 'envelope U e^(-y/de)', js: envelope(2e-3, { U: 0.1, omega: 2 * PI, nu: 1e-6 }), py: 'ch08.stokes_layer_envelope(2e-3, U=0.1, omega=2*np.pi, nu=1e-6)', rtol: 1e-12 },
+    { name: 'layer delta_e', js: L0.delta_e, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["delta_e"]', rtol: 1e-12 },
+    { name: 'layer k', js: L0.k, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["k"]', rtol: 1e-12 },
+    { name: 'layer delta_book 4 sqrt(nu/omega)', js: L0.delta_book, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["delta_book"]', rtol: 1e-12 },
+    { name: 'layer ratio_book_to_e', js: L0.ratio_book_to_e, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["ratio_book_to_e"]', rtol: 1e-14 },
+    { name: 'layer phase_speed sqrt(2 nu omega)', js: L0.phase_speed, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["phase_speed"]', rtol: 1e-12 },
+    { name: 'layer wavelength', js: L0.wavelength, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["wavelength"]', rtol: 1e-12 },
+    { name: 'layer amplitude_at_delta_book', js: L0.amplitude_at_delta_book, py: 'ch08.stokes_layer(1e-6, 2*np.pi)["amplitude_at_delta_book"]', rtol: 1e-14 },
+    { name: 'layer delta_e, M2 tide eddy nu', js: layer(Ssea).delta_e, py: 'ch08.stokes_layer(1e-2, 2*np.pi/(12.42*3600))["delta_e"]', rtol: 1e-12 },
+    { name: 'layer delta_e, 1 kHz air', js: layer(Sair).delta_e, py: 'ch08.stokes_layer(1.5e-5, 2*np.pi*1e3)["delta_e"]', rtol: 1e-12 },
+    { name: 'state time_lag (1 mm, 1 Hz)', js: ST.time_lag, py: 'ch08.stokes_layer_state(1e-6, 2*np.pi, 1e-3)["time_lag"]', rtol: 1e-12 },
+    { name: 'state amplitude (1 mm, 1 Hz)', js: ST.amplitude, py: 'ch08.stokes_layer_state(1e-6, 2*np.pi, 1e-3)["amplitude"]', rtol: 1e-12 },
+    { name: 'state phase_lag (1 mm, 1 Hz)', js: ST.phase_lag, py: 'ch08.stokes_layer_state(1e-6, 2*np.pi, 1e-3)["phase_lag"]', rtol: 1e-12 },
+    { name: 'state period', js: ST.period, py: 'ch08.stokes_layer_state(1e-6, 2*np.pi, 1e-3)["period"]', rtol: 1e-14 },
+    { name: 'state amplitude, tide 5 m, U = 0.5', js: sea.amplitude, py: 'ch08.stokes_layer_state(1e-2, 2*np.pi/(12.42*3600), 5.0, U=0.5)["amplitude"]', rtol: 1e-12 },
+    { name: 'state crest_speed, tide', js: sea.crest_speed, py: 'ch08.stokes_layer_state(1e-2, 2*np.pi/(12.42*3600), 5.0, U=0.5)["crest_speed"]', rtol: 1e-12 },
+    { name: 'Crank-Nicolson from rest, node 10, 4 periods', js: C.H[800][10], py: `${cnU(800)}[10]`, rtol: 1e-10 },
+    { name: 'Crank-Nicolson from rest, node 30, 4 periods', js: C.H[800][30], py: `${cnU(800)}[30]`, rtol: 1e-10 },
+    { name: 'Crank-Nicolson from rest, node 10, half a period', js: C.H[100][10], py: `${cnU(100)}[10]`, rtol: 1e-10 },
+    { name: 'invariant: book depth amplitude e^(-4/sqrt2)', js: Math.exp(-4 * Math.sqrt(1 / 2)) - state(layer(S0).delta_book, S0).amplitude, expect: 0, atol: 1e-14 },
+    { name: 'invariant: complex route = real formula', js: uComplex(1e-3, 0.3, S0) - uStokes(1e-3, 0.3, S0), expect: 0, atol: 1e-14 },
+    { name: 'invariant: wall value U cos(omega t)', js: uStokes(0, 0.3, S0) - Math.cos(2 * PI * 0.3), expect: 0, atol: 1e-15 },
+    { name: 'invariant: residual of the diffusion equation by finite differences', js: (ut - 1e-6 * uyy) / Math.abs(ut), expect: 0, atol: 1e-4 },
+    { name: 'invariant: crest speed = omega delta_e', js: L0.phase_speed / (2 * PI * L0.delta_e), expect: 1, rtol: 1e-14 },
+    { name: 'invariant: march from rest within 0.1 % after 4 periods', js: cnErrAt(4), expect: 0, atol: 1e-3 }
+  ];
+}
+
+/* ---- the app ------------------------------------------------------------------------------------------------------ */
+const CFG = {
+  title: 'How deep does a shaking plate reach?',
+  subtitle: 'A plate shaking in its own plane drags a thin layer of fluid: each height repeats the wall\'s motion, shrunk by e^(−y/δ_e) and delayed by y/δ_e radians, δ_e = √(2ν/ω)',
   autoplay: false,
   params: {
-    shape: { type: 'select', label: 'Initial shape', options: [['box', 'box'], ['gauss', 'Gaussian'], ['two', 'two humps']], value: 'box', display: 'chips' },
-    A: { label: 'Half-area $\\mathcal A$', min: 1e-5, max: 1e8, log: true, value: 1e-4, unit: 'm²', help: 'half the cross-section per metre of width; starts as a √𝒜 × √𝒜 block' },
-    mu: { label: 'Viscosity $\\mu$', min: 0.1, max: 1e14, log: true, value: 1, unit: 'Pa s', help: 'glycerol ≈ 1, honey ≈ 10, lava 10²–10⁴, ice ≈ 10¹³' },
-    rho: { label: 'Density $\\rho$', min: 900, max: 2700, step: 10, value: 1260, unit: 'kg/m³', optional: true, help: 'glycerol 1260, honey 1400, ice 900, basalt 2700' },
-    m: { type: 'select', label: 'Rescale exponent $m$', options: [['0.2', '1/5'], ['0.5', '1/2']], value: '0.2', display: 'chips', optional: true },
-    probe: { label: 'Probe $x/x_N$', min: -0.98, max: 0.98, step: 0.01, value: 0.5, optional: true, help: 'or click the layer' },
-    lt: { label: 'Time $\\log_{10}\\tau$', min: LT0, max: LT1, step: 'any', value: 1, optional: true, fmt: v => 'τ = ' + tauStr(v) }
+    omega: { label: 'Frequency $\\omega$', min: 1e-5, max: 1e4, log: true, value: 2 * PI, fmt: v => Viz.fmt(v, { sig: 3, unit: 'rad/s' }), help: 'shaking frequency (not vorticity); 1 Hz = 6.28 rad/s' },
+    nu: { label: 'Viscosity $\\nu$', min: 1e-6, max: 1e-1, log: true, value: 1e-6, fmt: v => Viz.fmt(v, { sig: 3, unit: 'm²/s' }), help: 'water 10⁻⁶, air 1.5×10⁻⁵; eddy viscosity in the sea 10⁻³ … 10⁻¹' },
+    yp: { label: 'Probe height $y/\\delta_e$', min: 0, max: 5, step: 0.001, value: 1.772, fmt: v => f3(v) + ' δ_e', help: 'or click either view' },
+    rest: { type: 'toggle', label: 'Start from rest (Crank–Nicolson)', value: false },
+    U: { label: 'Plate speed $U$', min: 1e-3, max: 1, log: true, value: 0.1, fmt: v => Viz.fmt(v, { sig: 3, unit: 'm/s' }), optional: true, help: 'only scales u; the shapes are universal' },
+    grow: { type: 'toggle', label: 'Show the rejected root (B ≠ 0)', value: false, optional: true },
+    yax: { type: 'select', label: 'Height axis', options: [['de', 'y/δ_e'], ['phys', 'metres']], value: 'de', display: 'chips', optional: true },
+    tau: { label: 'Time $t/T$', min: 0, max: 4, step: 'any', value: 0, fmt: v => f3(v) + ' periods', optional: true }
   },
-  transport: { param: 'lt', min: LT0, max: LT1, rate: 0.5, end: 'stop', step: 0.25 },
+  transport: { param: 'tau', min: 0, max: 4, rate: 0.5, end: 'loop' },
   presets: [
-    { label: 'honey', set: { mu: 10, rho: 1400, A: 2e-4 }, title: 'honey on a plate: μ = 10 Pa s, ρ = 1400 kg/m³, 𝒜 = 2 cm²' },
-    { label: 'glycerol', set: { mu: 1, rho: 1260, A: 1e-4 }, title: 'a glycerol bead: μ = 1 Pa s, ρ = 1260 kg/m³, 𝒜 = 1 cm²' },
-    { label: 'lava', set: { mu: 1000, rho: 2700, A: 10 }, title: 'a basaltic lava lobe: μ = 10³ Pa s, ρ = 2700 kg/m³, 𝒜 = 10 m²' },
-    { label: 'glacier*', set: { mu: 1e13, rho: 900, A: 1e6 }, title: 'ice-like slab, μ = 10¹³ Pa s, 𝒜 = 10⁶ m²: real ice is non-Newtonian — this only shows the time scale' },
-    { label: 'm = ½?', set: { m: '0.5' }, title: 'rescale with diffusion\'s exponent 1/2: the profiles do not collapse' }
+    { label: '1 Hz water', set: { omega: 2 * PI, nu: 1e-6, U: 0.1 }, title: `a plate shaken once a second in water: δ_e = ${fL(layer({ omega: 2 * PI, nu: 1e-6 }).delta_e)}` },
+    { label: 'M₂ molecular', set: { omega: OMEGA_M2, nu: 1e-6, U: 0.5 }, title: `the 12.42 h tide over the sea floor with water's molecular ν: δ_e = ${fL(layer({ omega: OMEGA_M2, nu: 1e-6 }).delta_e)}` },
+    { label: 'M₂ eddy ν', set: { omega: OMEGA_M2, nu: 1e-2, U: 0.5 }, title: `the same tide with a turbulent eddy viscosity 10⁻² m²/s: δ_e = ${fL(layer({ omega: OMEGA_M2, nu: 1e-2 }).delta_e)}` },
+    { label: '1 kHz air', set: { omega: 2 * PI * 1e3, nu: 1.5e-5, U: 0.0025 }, title: `a 1 kHz sound wave (94 dB) sliding air along a wall: δ_e = ${fL(layer({ omega: 2 * PI * 1e3, nu: 1.5e-5 }).delta_e)}` },
+    { label: 'Ekman look-alike', set: { omega: 1e-4, nu: 1e-2, U: 0.1 }, title: 'ω = 10⁻⁴ rad/s like the Coriolis parameter f, eddy ν: √(2ν/f) = 14 m — the same (1 + i)/δ structure appears in the Ekman layer of Ch. 13, from rotation, not from shaking' }
   ],
-  status: s => {
-    const c = cur(s), ph = phone(), vol = 'volume Δ ' + expStr(c.drift);
-    if (c.dome > SIMILAR) return { tone: 'warn', text: ph ? '⏳ remembers its start: ' + pct(c.dome) + ' off the dome' : '⏳ still remembers its initial shape — ' + pct(c.dome) + ' of the volume off the dome · ' + vol };
-    const sl = isFinite(c.slope) ? c.slope.toFixed(2) : '—', catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
-    return { tone: 'good', text: ph ? '✅ on the dome · front ∝ t^' + sl + (catching ? ' → t^0.2' : '') :
-      '✅ self-similar — ' + pct(c.dome) + ' off the dome, front ∝ t^' + sl + (catching ? ' (still catching up with t^0.2)' : '') + ' · ' + vol };
-  },
+  status: s => statusOf(s),
   readouts: [
-    { id: 'xs', label: 'Front $x_N$ (simulated)', value: s => cur(s).xf, fmt: v => fmtLen(v) },
-    { id: 'xl', label: 'Front from the law', value: s => cur(s).law.x_N, fmt: v => fmtLen(v) },
-    { id: 'hc', label: 'Centre height $h_c$', value: s => cur(s).hc, fmt: v => fmtLen(v) },
-    { id: 'Deff', label: 'Peak $\\rho g h^3/3\\mu$', unit: 'm²/s', value: s => cur(s).Deff },
-    { id: 'vol', label: 'Volume $2\\mathcal A$', unit: 'm²', value: s => cur(s).vol },
-    { id: 't', label: 'Time $t$', value: s => cur(s).t, fmt: v => Viz.fmtTime(v) }
+    { id: 'de', label: 'Depth $\\delta_e=\\sqrt{2\\nu/\\omega}$', value: s => N(s).L.delta_e, fmt: v => fL(v) },
+    { id: 'db', label: 'Book depth $4\\sqrt{\\nu/\\omega}$', value: s => N(s).L.delta_book, fmt: v => fL(v) },
+    { id: 'amp', label: 'Amplitude at probe', value: s => { const n = N(s); return n.st.amplitude / n.S.U; }, fmt: (v, s) => `${pct(v)} = ${fV(v * s.U)}` },
+    { id: 'lag', label: 'Time lag at probe', value: s => N(s).st.time_lag, fmt: (v, s) => `${fT(v)} · ${f3(s.yp)} rad` },
+    { id: 'cs', label: 'Crest speed $\\sqrt{2\\nu\\omega}$', value: s => N(s).L.phase_speed, fmt: v => fV(v) }
   ],
   stage: {
-    rows: [1.1, 1],
+    rows: [1.25, 0.8],
     views: [
-      { id: 'layer', row: 0, title: s => { const c = cur(s); return '<b>The layer h(x, t)</b> · t = ' + Viz.fmtTime(c.t) + ' · <span class="c-blue">simulated</span>, <span class="c-accent">dome</span>, <span class="c-orange">flux q</span>, <span class="c-teal">front</span>, <span class="c-rose">probe</span>'; } },
-      { id: 'front', row: 1, title: s => { const c = cur(s); return '<b>Front x_N(t)</b>, log–log · slope ' + (isFinite(c.slope) ? c.slope.toFixed(2) : '—') + (layoutIs('portrait') ? ' · collapse ' + pct(c.col.spread) : '') + ' · <span class="c-teal">simulated</span> <span class="c-accent">law</span> <span class="c-muted">diffusion</span>'; } },
-      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> h τ^m vs x/τ^m, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
+      { id: 'plate', row: 0, flex: 1.25, title: s => plateTitle(s) },
+      { id: 'profile', row: 0, flex: 1, title: s => profileTitle(s) },
+      { id: 'clock', row: 1, flex: 1, hidePortrait: true, title: s => clockTitle(s) }
     ],
-    draw(g, s) {
-      const a = g.app;
-      drawLayer(g.view('layer'), s, a);
-      drawFront(g.view('front'), s, a);
-      const vr = g.view('rescaled'); if (vr && vr.w > 40 && vr.h > 40) drawRescaled(vr, s, a);
-    },
+    draw(g, s) { drawPlate(g, s); drawProfile(g, s); drawClock(g, s); },
     onPointer(g, ev, s) {
-      if (ev.viewId !== 'layer' || !lastLayer) return false;
-      if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && g.view('layer').pointer.down)) return false;
-      const v = g.view('layer'), x = lastLayer.P.ix(v.pointer.x) / lastLayer.f;
-      g.app.set('probe', Math.round(clamp(x / lastLayer.xf, -0.98, 0.98) * 100) / 100);
+      if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && ev.vizView && ev.vizView.pointer && ev.vizView.pointer.down)) return false;
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      const P = ev.viewId === 'plate' ? PLP : ev.viewId === 'profile' ? PRP : null;
+      if (!P || !P.inside(v.pointer.x, v.pointer.y)) return false;
+      const A = axisInfo(N(s), s), eta = P.iy(v.pointer.y) / A.f;
+      g.app.set({ yp: Number(Math.max(0, Math.min(5, eta)).toFixed(3)) });
       return true;
     }
   },
-  inspect: s => {
-    const c = cur(s), pn = probeNums(s);
-    return `Probe at $x = ${t3(pn.x)}$ m ($x/x_N = ${t3(s.probe)}$), $t$ = ${Viz.fmtTime(c.t)}:<br>` +
-      `$\\begin{aligned}&h = ${t4(pn.h)}\\ \\text{m},\\ h_x = ${t3(pn.hx)}\\\\ &q = -\\tfrac{\\rho g}{3\\mu}h^3h_x\\\\ &\\ \\ = -${t4(c.b)}\\times(${t3(pn.h)})^3\\\\ &\\qquad\\times(${t3(pn.hx)})\\\\ &\\ \\ = \\mathbf{${t4(pn.q)}}\\ \\text{m}^{2}\\text{/s}\\end{aligned}$`;
-  },
-  inspectHint: 'Click (or drag on) the layer to trace the flux at any x.',
-  notes: s => '<p>' + interpretText(s) + '</p>',
+  inspect: s => inspectHtml(s),
+  inspectHint: 'Click either upper view to move the probe; its arithmetic appears here.',
+  notes: s => notesHtml(s),
   explore: {
-    intro: 'A bead slumps under its own weight. Pick a start shape and a fluid, press ▶ and watch the front join the slope-⅕ line; click the layer to probe the flux.',
-    controls: ['shape', 'A', 'mu', 'rho', 'm', 'probe'],
-    readouts: ['xs', 'xl', 'hc', 't'],
-    callouts: [{ kind: 'try', html: 'Multiply the half-area by 32 at a fixed time. Predict first: how much farther is the front? (Watch the law readout.)' }]
+    intro: 'Press ▶ to shake the plate. Drag ω and ν over many decades; click a height to move the teal probe.',
+    controls: ['omega', 'nu', 'yp', 'rest', 'U', 'grow', 'yax'],
+    readouts: ['de', 'db', 'amp', 'lag', 'cs'],
+    callouts: [{ kind: 'try', html: 'Switch the height axis to <b>metres</b> and press <b>M₂ molecular</b>, then <b>M₂ eddy ν</b>: the picture in δ_e units is identical — only the ruler changes, by √(10⁻²/10⁻⁶) = 100×.' }]
   },
-  explain: {
-    html: s => {
-      const W = Viz.work, p = SI(s), b = beta(p), x0 = Math.sqrt(s.A), run = getRun(s.shape), h0 = maxArr(run.hstart) * x0;
-      const tStar = 1 / (b * x0), D0 = b * h0 * h0 * h0;
-      let out = W.step(0, 'What you are looking at') +
-        W.say('<b>The layer</b>: <span class="c-blue">blue</span> = the simulated thickness (both halves), <span class="c-accent">purple dashed</span> = the similarity dome at the same time, <span class="c-orange">orange</span> arrows = the flux $q$, <span class="c-teal">teal</span> ticks = the front, <span class="c-rose">rose</span> = your probe with its velocity half-parabola. ' +
-          '<b>Front</b>: the <span class="c-teal">teal</span> curve is the simulated front on log–log axes, the <span class="c-accent">purple</span> line has slope 1/5, the <span class="c-muted">grey</span> one slope 1/2 (ordinary diffusion). <b>Rescaled</b>: the last six profiles multiplied by $\\tau^m$ against $x/\\tau^m$.') +
-        (layoutIs('portrait') || phone() ? W.hint('On phones the rescaled view is hidden; its collapse spread is in the front title.') : '');
-      out += W.step(1, 'The flux at your probe') +
-        W.line('$\\beta=\\rho g/3\\mu = ' + t3(s.rho) + '\\times9.807/(3\\times' + t3(s.mu) + ')$', f3(b) + ' 1/(m s)', 'the coefficient of the thin-film equation') +
-        W.line('probe $x$', Viz.live('px'), 'a fraction ' + f3(s.probe) + ' of the way to the front') +
-        W.line('thickness $h$ and slope $\\partial h/\\partial x$', Viz.live('ph'), 'read off the simulated profile (centred difference)') +
-        W.box('<span class="c-orange">$q=-\\beta h^3\\,\\partial h/\\partial x$</span> = ' + Viz.live('pq') + ' m²/s per metre of width — positive means outward. It comes from integrating the half-parabola $u=-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y(2h-y)$ across the layer (derivation, step 9).');
-      out += W.step(2, 'The volume stays fixed') +
-        W.line('$\\partial h/\\partial t+\\partial q/\\partial x=0$ in flux form', '', 'what leaves one cell enters its neighbour; the ends are closed') +
-        W.line('volume per metre of width $2\\mathcal A$', f3(2 * s.A) + ' m²') +
-        W.box('relative change since the start: ' + Viz.live('drift') + ' — round-off: the scheme updates each cell by flux differences only.');
-      out += W.step(3, 'The front law') +
-        W.line($(EQ.eta), ETA_N.toFixed(5), 'Huppert (1982) quotes 1.411; ours from the Γ function') +
-        W.line('$x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5} = ' + t4(ETA_N) + '\\times(' + t3(b) + '\\times' + t3(Math.pow(s.A, 3)) + '\\times t)^{1/5}$', Viz.live('xl'), 'Huppert\'s closed form of the Example 8.7 similarity solution') +
-        W.box('law <span class="c-accent">' + Viz.live('xl') + '</span> vs simulated <span class="c-teal">' + Viz.live('xs') + '</span>: ratio ' + Viz.live('ratio'));
-      out += W.step(4, 'Why so slow') +
-        W.line('diffusivity at the start $D_0=\\beta h_0^3 = ' + t3(b) + '\\times(' + t3(h0) + ')^3$', f3(D0) + ' m²/s', '$h_0$ = the starting peak height') +
-        W.line('diffusivity now at the thickest point, $\\beta h_{\\max}^3$', Viz.live('deff') + ' m²/s', 'falls like $h^3\\propto t^{-3/5}$') +
-        W.box('A diffusion that kept $D_0$ would have spread $\\sqrt{D_0t}$ = ' + Viz.live('diff') + ' by now; the bead reached ' + Viz.live('xs') + '. <b>Spreading chokes itself.</b>');
-      out += W.step(5, 'One run, many clocks') +
-        W.line('length scale $x_0=\\sqrt{\\mathcal A}$', fmtLen(x0), 'the start is an $x_0\\times x_0$ block (or a shape of the same area)') +
-        W.line('time scale $t^*=1/(\\beta x_0)$', Viz.fmtTime(tStar), 'dimensionless time $\\tau=\\beta x_0t=t/t^*$') +
-        W.say('The equation has no other parameter, so every fluid runs through the same shapes at the same $\\tau$: $\\mu\\times1000$ multiplies every time by 1000, and $x_N/x_0 = \\eta_N\\tau^{1/5}$ at late times.' +
-          (s.mu >= 1e10 ? ' <b>Glacier*</b>: real ice is non-Newtonian, so treat this only as a time scale.' : ''));
-      out += W.step(6, 'At the current time') +
-        W.line('$t$', Viz.live('t'), '$\\tau$ = ' + Viz.live('tau')) +
-        W.line('centre height $h_c$', Viz.live('hc')) +
-        W.line('front slope over the last decade', Viz.live('slope'), 'the law says 1/5 = 0.2; diffusion would give 0.5');
-      out += W.interpret(Viz.live('reading') + (s.m === '0.5' ? ' With m = 1/2 (diffusion\'s guess) the rescaled curves drift apart: this is not a diffusion length.' : ''), 'Reading the current setting');
-      return out;
-    },
-    live: s => {
-      const c = cur(s), pn = probeNums(s), b = c.b;
-      const h0 = maxArr(c.run.hstart) * c.x0, D0 = b * h0 * h0 * h0;
-      return { px: fmtLen(pn.x), ph: fmtLen(pn.h) + ', ' + f3(pn.hx), pq: f3(pn.q), drift: expStr(c.drift), xl: fmtLen(c.law.x_N), xs: fmtLen(c.xf),
-        ratio: (c.xf / c.law.x_N).toFixed(4), deff: f3(c.Deff), diff: fmtLen(Math.sqrt(D0 * c.t)), t: Viz.fmtTime(c.t), tau: tauStr(s.lt), hc: fmtLen(c.hc),
-        slope: isFinite(c.slope) ? c.slope.toFixed(3) : '— (needs one decade of history)', reading: readingText(s) };
-    }
-  },
-  derivations: [
-    { id: 'D15', title: 'The thin-film equation', short: 'thin film', ref: 'Example 8.3', view: 'layer',
-      goal: 'Find one equation for the thickness $h(x,t)$ of a thin viscous layer spreading under its own weight on a flat plate.',
-      start: { tex: '\\begin{aligned}&' + EQ.e45 + '\\\\&' + EQ.e818 + '\\end{aligned}',
-        plain: 'The control-volume mass balance $' + EQ.e45 + '$ (4.5), applied to a slice of width $dx$, and the generic lubrication profile $' + EQ.e818 + '$ (8.18).' },
-      plan: ['Conserve mass in a thin vertical slice.', 'Get the pressure gradient from hydrostatics.', 'Fix the constants $A$, $B$ with no slip below and no stress on top.', 'Integrate the profile across the layer and insert.'],
-      uses: ['control-volume mass balance (Ch. 4)', 'hydrostatic pressure in a thin layer', 'stress-free surface $\\mu\\,\\partial u/\\partial y=0$', 'integral of a polynomial'],
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 1, probe: 0.5, hl: '' },
-      steps: [
-        { did: 'Balance mass in a slice', tex: '\\begin{aligned}&\\rho\\frac{\\partial h}{\\partial t}dx-\\int_0^{h(x)}\\rho u\\,dy\\\\&+\\int_0^{h(x+dx)}\\rho u\\,dy=0\\end{aligned}',
-          why: 'The mass balance (4.5), $' + EQ.e45 + '$, for a fixed slice of width $dx$ and unit depth: storage change plus net outflow is zero.', plain: 'The layer thickens where more fluid enters than leaves.', set: { hl: '' } },
-        { did: 'Divide by ρ dx and shrink dx', tex: '\\frac{\\partial h}{\\partial t}+\\frac{\\partial}{\\partial x}\\int_0^hu\\,dy=0',
-          why: 'ρ is constant; the difference of the two integrals over $dx$ becomes an $x$-derivative as $dx\\to0$.', plain: 'The thickness changes by the divergence of the flux $q=\\int_0^hu\\,dy$.', set: { hl: 'q' } },
-        { did: 'Write the hydrostatic pressure', tex: 'p=p_a+\\rho g(h-y)',
-          why: 'In a thin layer with a small slope the vertical balance is hydrostatic (the lubrication ordering); the air pressure $p_a$ sits on top.', plain: 'The pressure grows with depth below the surface.',
-          set: { hl: 'p' }, watch: 'Under the crest the hydrostatic pressure is highest (the darkest blue).' },
-        { did: 'Take its x-derivative', tex: '\\frac{\\partial p}{\\partial x}=\\rho g\\frac{\\partial h}{\\partial x}',
-          why: '$p_a$ is uniform and $y$ does not depend on $x$.', plain: 'The surface slope drives the flow — equally at every height.', set: { hl: 'p' } },
-        { did: 'Put it into the lubrication profile', tex: 'u\\cong\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y^2+Ay+B',
-          why: 'Replace $\\partial p/\\partial x$ in $' + EQ.e818 + '$ (8.18) by step 4.', plain: 'A parabola in $y$ with two unknown constants.', set: { hl: 'u' } },
-        { did: 'Apply no slip on the plate', tex: 'u(0)=0\\ \\Rightarrow\\ B=0',
-          why: 'No slip, $' + EQ.e83 + '$ (8.3), on the plate at rest makes the velocity vanish at $y=0$.', plain: 'The bottom layer sticks to the plate.', set: { hl: 'u' } },
-        { did: 'Apply no stress on the surface', tex: '\\begin{aligned}&\\mu\\frac{\\partial u}{\\partial y}\\Big\\rvert_h=\\rho g\\frac{\\partial h}{\\partial x}h+\\mu A=0\\\\&\\Rightarrow\\ A=-\\frac{\\rho g}{\\mu}h\\frac{\\partial h}{\\partial x}\\end{aligned}',
-          why: 'The air exerts no shear on the free surface, so $\\partial u/\\partial y=0$ there (not $u=0$).', plain: 'The velocity stops changing with height at the surface.', set: { hl: 'u' } },
-        { did: 'Assemble the profile', tex: 'u\\cong-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}\\,y(2h-y)',
-          why: 'Insert $A$ and $B$: $\\frac{\\rho g}{2\\mu}h_x(y^2-2hy)$, then take out $-y$.', plain: 'A half-parabola, fastest at the surface, pointing down the slope.', set: { hl: 'u' },
-          watch: 'The rose arrows at the probe are this half-parabola.',
-          live: s => { const pn = probeNums(s), c = cur(s); return `\\begin{aligned}u(h)&=${t3(-c.p.rho * c.p.g / (2 * c.p.mu))}\\times(${t3(pn.hx)})\\times(${t3(pn.h)})^2\\\\&=${t3(pn.u)}\\ \\text{m/s}\\end{aligned}`; } },
-        { did: 'Integrate across the layer', tex: '\\begin{aligned}\\int_0^hu\\,dy&=-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}\\cdot\\frac{2h^3}{3}\\\\&=-\\frac{\\rho g}{3\\mu}h^3\\frac{\\partial h}{\\partial x}\\end{aligned}',
-          why: 'Only $y(2h-y)$ depends on $y$; integrate it term by term: $\\int_0^hy(2h-y)\\,dy=h^3-h^3/3=2h^3/3$.', plain: 'The flux is $h^3$ times the slope: a thin film barely moves.', set: { hl: 'q' },
-          live: s => { const pn = probeNums(s), c = cur(s); return `\\begin{aligned}q&=-${t4(c.b)}\\times(${t3(pn.h)})^3\\times(${t3(pn.hx)})\\\\&=${t3(pn.q)}\\ \\text{m}^{2}\\text{/s}\\end{aligned}`; } },
-        { did: 'Insert into the mass balance', tex: EQ.tf,
-          why: 'Step 9 into step 2; the two minus signs cancel.', plain: 'A nonlinear diffusion equation for $h$, with diffusivity $\\rho gh^3/3\\mu$.', set: { hl: '' } }
-      ],
-      result: { tex: EQ.tf, plain: 'A diffusion whose diffusivity $\\rho gh^3/3\\mu$ collapses as the layer thins.' },
-      interpret: s => { const c = cur(s); return `With your numbers $\\beta=\\rho g/3\\mu=${t3(c.b)}$ 1/(m s); the thickest point is ${fmtLen(c.hpk)} thick, so the local diffusivity $\\beta h^3$ there is ${f3(c.Deff)} m²/s — it falls eightfold each time the layer halves.`; },
-      check: 'Units: $\\rho g/3\\mu$ in $(\\text{kg/m}^3)(\\text{m/s}^2)/(\\text{Pa s})=1/(\\text{m s})$; $\\partial_x(h^3\\partial_xh)$ in m²; product m/s = $\\partial h/\\partial t$ ✓. The volume $\\int h\\,dx$ is conserved (flux form). Glycerol: $\\rho g/3\\mu = ' + t3(GLY_B) + '$ 1/(m s).' },
-    { id: 'D23', title: 'Why the exponents are one fifth', short: 'n = m = 1/5', ref: 'Example 8.7', view: 'front',
-      goal: 'Find the similarity form of the spreading bead from its equation and its conserved volume.',
-      start: { tex: '\\begin{aligned}&' + EQ.tf + '\\\\&h=At^{-n}F\\big(x/\\delta(t)\\big)\\end{aligned}',
-        plain: 'The thin-film equation (previous derivation) and the similarity ansatz $' + EQ.e832a + '$ (8.32a) with $\\gamma=h$, $\\xi=x$. Here $A$ is the ansatz constant, not the half-area $\\mathcal A$.' },
-      plan: ['Compute every derivative of the ansatz.', 'Bracket the time dependence of each term.', 'Match two brackets; use the constant volume.', 'Solve the two exponent equations.'],
-      uses: ['product rule', 'chain rule through $\\eta=x/\\delta(t)$', 'matching powers of $t$'],
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3, m: '0.2', hl: '' },
-      steps: [
-        { did: 'Differentiate in time', tex: "\\frac{\\partial h}{\\partial t}=-nAt^{-n-1}F-At^{-n}\\eta\\frac{\\delta'}{\\delta}F'",
-          why: 'Product rule on $t^{-n}F$, chain rule through $\\eta=x/\\delta(t)$, whose time derivative is $-\\eta\\delta\'/\\delta$.', plain: 'The bead sinks and stretches at the same time.' },
-        { did: 'Differentiate in space', tex: "\\frac{\\partial h}{\\partial x}=At^{-n}\\frac{F'}{\\delta}",
-          why: 'Chain rule with $\\partial\\eta/\\partial x=1/\\delta$; the prefactor $At^{-n}$ does not depend on $x$.', plain: 'The surface slope.' },
-        { did: 'Form the flux factor', tex: "h^3\\frac{\\partial h}{\\partial x}=A^4t^{-4n}\\frac{F^3F'}{\\delta}",
-          why: 'Multiply the cube of the ansatz, $A^3t^{-3n}F^3$, by step 2.', plain: 'The $h^3$ brings three more powers of $At^{-n}$.' },
-        { did: 'Differentiate the flux factor', tex: "\\frac{\\partial}{\\partial x}\\Big(h^3\\frac{\\partial h}{\\partial x}\\Big)=\\frac{A^4t^{-4n}}{\\delta^2}(3F^2F'^2+F^3F'')",
-          why: "Product rule: $(F^3F')'=3F^2F'^2+F^3F''$, and one more $1/\\delta$ from the chain rule.", plain: 'The diffusion side of the equation.' },
-        { did: 'Assemble with brackets', tex: "\\begin{aligned}&-[nAt^{-n-1}]F-\\Big[At^{-n}\\frac{\\delta'}{\\delta}\\Big]\\eta F'\\\\&=\\Big[\\frac{\\rho g}{3\\mu}\\frac{A^4t^{-4n}}{\\delta^2}\\Big](3F^2F'^2+F^3F'')\\end{aligned}",
-          why: 'Steps 1 and 4 in the thin-film equation; each bracket collects what depends on $t$.', plain: 'Three bracketed coefficients multiply functions of $\\eta$ alone.' },
-        { did: 'Match the first two brackets', tex: "\\frac{\\delta'}{\\delta}=\\frac{Cn}{t}\\ \\Rightarrow\\ \\delta=Dt^m,\\ \\ m=Cn",
-          why: "Their ratio must be a constant $C$, or $F$ could not depend on $\\eta$ alone; $\\delta'/\\delta\\propto1/t$ integrates to a power law.", plain: 'The width grows as a power of time.' },
-        { did: 'Match the second and third', tex: 't^{-n-1}\\propto t^{-4n}\\delta^{-2}=t^{-4n-2m}\\ \\Rightarrow\\ -1=-3n-2m',
-          why: 'Equal powers of $t$ on both sides; the constant factors are absorbed into $F$.', plain: 'The first relation between the exponents.' },
-        { did: 'Conserve the volume', tex: '\\begin{aligned}\\int_{-\\infty}^{\\infty}h\\,dx&=At^{-n}Dt^m\\int F\\,d\\eta\\\\&=\\text{const}\\ \\Rightarrow\\ -n+m=0\\end{aligned}',
-          why: '$dx=\\delta\\,d\\eta$ and $\\int F\\,d\\eta$ is a number, so the power of $t$ in front must vanish.', plain: 'The second relation — from a conserved quantity, not a boundary condition.',
-          live: s => { const c = cur(s); return `\\begin{aligned}2\\mathcal A&=${t3(c.vol)}\\ \\text{m}^{2}\\\\ \\text{change}&=${Viz.tnum(c.drift, 2, { keepTiny: true })}\\end{aligned}`; } },
-        { did: 'Solve the two relations', tex: 'n=m,\\ \\ 3n+2n=1\\ \\Rightarrow\\ n=m=\\tfrac15',
-          why: 'Two linear equations in $n$ and $m$: put $m=n$ into $-1=-3n-2m$.', plain: 'The height falls and the width grows like $t^{1/5}$: $' + EQ.sim + '$.',
-          set: { m: '0.2', lt: 3.8 }, watch: 'The teal dots follow the slope-1/5 line.',
-          live: s => { const c = cur(s); return `\\text{measured front slope over the last decade} = ${isFinite(c.slope) ? c.slope.toFixed(3) : '-'}`; } }
-      ],
-      result: { tex: EQ.sim, plain: 'The bead spreads as $t^{1/5}$ and thins as $t^{-1/5}$; Huppert solved the shape: $F\\propto(1-\\eta^2/\\eta_N^2)^{1/3}$ with $\\eta_N=1.411$.' },
-      interpret: s => { const c = cur(s); return `With your settings the simulated front slope over the last decade is ${isFinite(c.slope) ? c.slope.toFixed(3) : '— (too early)'}, and the front is ${fmtLen(c.xf)} against ${fmtLen(c.law.x_N)} from $${EQ.law}$.`; },
-      check: 'Volume $\\propto t^{-1/5}t^{1/5}$ = const ✓. `similarity_reduce_sympy("spreading")` returns $n=m=1/5$; the simulated front slope at late times is 0.200 ± 0.005. The book\'s last line of the example names Example 8.2; it means the thin-film equation of Example 8.3.' }
-  ],
-  code: [
-    { id: 'main', title: 'The dome, its front and the flux (fluidpy)', ref: 'Example 8.3, 8.7',
-      src: `import numpy as np
-import fluidpy.ch08_laminar_flow as ch08
-rho, g, mu, A = {{crho}}, 9.80665, {{cmu}}, {{cA}}  # SI; A = half-area
-t = {{ct}}                                   # time [s]
-st = ch08.thin_film_state(t, A, rho=rho, g=g, mu=mu)
-print(st["x_N"], st["h_centre"])             # {{cxN}} m, {{chc}} m
-x = np.linspace(-st["x_N"], st["x_N"], 101)  # across the dome [m]
-h = ch08.viscous_current_similarity(x, t, A, rho=rho, g=g, mu=mu)
-hx = np.gradient(h, x)                       # surface slope [-]
-q = ch08.thin_film_flux(h[75], hx[75], rho=rho, g=g, mu=mu)
-print(q)                           # flux at x = x_N/2: {{cq}} m²/s`,
-      live: s => {
-        const c = cur(s), p = SI(s), st = state(c.t, p), dx = 2 * st.x_N / 100, xa = -st.x_N + 75 * dx;
-        const hq = huppert(xa, c.t, p), hxq = (huppert(xa + dx, c.t, p) - huppert(xa - dx, c.t, p)) / (2 * dx);
-        return { crho: String(+s.rho.toPrecision(4)), cmu: String(+s.mu.toPrecision(3)), cA: String(+s.A.toPrecision(3)), ct: c.t.toPrecision(4),
-          cxN: st.x_N.toPrecision(4), chc: st.h_centre.toPrecision(4), cq: flux(hq, hxq, p).toPrecision(4) };
-      } },
-    { id: 'march', title: 'The same spreading, marched in numbers (β = 1)', ref: 'Example 8.3',
-      src: `N, L = 240, 12.0              # cells; half domain in units of x0
-dx = L / N
-x = (np.arange(N) + 0.5) * dx     # cell centres
-h0 = np.where(x < 1.0, 1.0, 0.0)  # the box: half-area 1
-run = ch08.thin_film_spread(h0, x, [{{mtau}}], rho=3.0, g=1.0,
-                            mu=1.0, h_min=1e-4, growth=1.002)
-print(run["x_front"][0])          # front ≈ {{mxf}} x0 (box)
-print(run["volume"][0])           # {{mvol}}: the start's volume`,
-      live: s => { const k = Math.round(kOf(s.lt)), r = RUN_BOX; return { mtau: Number(Math.pow(10, LT0 + k / PERDEC).toPrecision(4)).toString(), mxf: r.fronts[k].toPrecision(5), mvol: r.vols[k].toPrecision(8) }; },
-      note: 'The page marches the same cells with explicit steps; thin_film_spread uses implicit steps — the fronts agree to 10⁻⁴ (selftest).' },
-    { id: 'step', title: 'One explicit step by hand', ref: 'Example 8.3',
-      src: `def step(h, dt):                  # flux form, beta = 1
-    H = 0.5 * (h[1:] + h[:-1])    # thickness at the faces
-    F = H**3 * np.diff(h) / dx    # h³ ∂h/∂x at faces (q = -F)
-    div = np.zeros_like(h)
-    div[:-1] += F; div[1:] -= F   # net inflow per cell
-    return h + dt * div / dx      # sum(h)*dx unchanged
-dt = 0.2 * dx**2 / h.max()**3     # stable step now: {{sdt}}`,
-      live: s => { const c = cur(s), hm = maxArr(c.hd); return { sdt: (CFL * DX * DX / (hm * hm * hm)).toPrecision(3) }; } }
-  ],
-  tour: [
-    { title: 'Honey on a plate', text: 'A 1 cm × 1 cm bead of glycerol slumps on a plate. <b>Each doubling of its width takes 32 times longer than the last.</b> Why does a spreading drop slow down so much?',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, m: '0.2', lt: 1, probe: 0.5, hl: '' }, play: false },
-    { title: 'Weight pushes', text: 'Under the thick middle the hydrostatic pressure $p=p_a+\\rho g(h-y)$ is highest (darkest blue), so fluid is pushed from thick to thin — the <b class="c-orange">orange</b> flux arrows. Watch the box slump.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: LT0, hl: 'p' }, play: true, derive: { id: 'D15', step: 9 } },
-    { title: 'The flux chokes', text: 'The flux carries $h^3$: halve the thickness and it falls eightfold. So the effective diffusivity $\\rho gh^3/3\\mu$ collapses as the layer thins — scrub the time and watch it drop.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 2, hl: '' }, play: false, readouts: ['hc', 'Deff'], code: { id: 'main', lines: [10, 11] } },
-    { title: 'One fifth, not one half', text: 'On log–log axes the <b class="c-teal">teal</b> front bends onto the <b class="c-accent">purple</b> line of slope 1/5, far below the grey slope 1/2 of ordinary diffusion.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3.5, hl: '' }, play: false, eq: 'front', highlight: ['readout:xs', 'readout:xl'] },
-    { title: 'The start is forgotten', text: 'Now start from two separate humps. They merge, and the profile ends on the same <b class="c-accent">purple</b> dome as the box; the status turns ✅ once under 2 % of the volume is out of place.',
-      set: { shape: 'two', A: 1e-4, mu: 1, rho: 1260, lt: LT0, hl: '' }, play: true, notes: true },
-    { title: 'Your turn', text: 'Here glycerol has spread to ±' + fmtLen(X_STEP6) + ' in ' + Viz.fmtTime(T_STEP6) + '. <b>Predict</b>: a fluid 1000× more viscous (μ = 1000 Pa s, lava-like) — how long to the same front? Then drag μ and read $t$.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3, hl: '' }, play: false, controls: ['mu'], readouts: ['t'] }
-  ],
-  equations: [
-    { id: 'tf', title: 'Thin-film equation', ref: 'Example 8.3', tex: EQ.tf,
-      live: s => '\\beta=\\frac{\\rho g}{3\\mu}=' + t3(beta(SI(s))) + '\\ \\text{1/(m s)}',
-      note: 'from the mass balance and the lubrication profile (Derivation tab)', symbols: [['h', 'layer thickness', 'm'], ['\\rho', 'density', 'kg/m³'], ['\\mu', 'dynamic viscosity', 'Pa s'], ['g', 'gravity', 'm/s²']] },
-    { id: 'flux', title: 'Volume flux per unit width', ref: 'Example 8.3', tex: EQ.flux,
-      live: s => { const pn = probeNums(s); return 'q(x_{\\text{probe}}) = ' + t3(pn.q) + '\\ \\text{m}^{2}\\text{/s}'; },
-      symbols: [['q', 'volume flux per metre of width', 'm²/s'], ['\\partial h/\\partial x', 'surface slope', '–']] },
-    { id: 'prof', title: 'Lubrication profile', ref: 'Eq. (8.18)', tex: EQ.e818,
-      note: 'with $p=p_a+\\rho g(h-y)$, no slip below and no stress on top: $u\\cong-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y(2h-y)$',
-      symbols: [['A, B', 'constants of the profile (functions of x, t)', 'varies']] },
-    { id: 'sim', title: 'Similarity form', ref: 'Example 8.7', tex: EQ.sim,
-      note: 'from $' + EQ.e832a + '$ (8.32a) with $n=m=1/5$ (Derivation tab)', symbols: [['A, D', 'constants of the similarity form', 'varies']] },
-    { id: 'front', title: 'Front and centre (Huppert 1982)', ref: 'benchmark', tex: '\\begin{aligned}&' + EQ.law + '\\\\&' + EQ.hc + '\\end{aligned}',
-      live: s => { const c = cur(s); return '\\begin{aligned}x_N&=' + t3(c.law.x_N) + '\\ \\text{m}\\\\h_c&=' + t3(c.law.h_centre) + '\\ \\text{m}\\end{aligned}'; },
-      symbols: [['\\mathcal A', 'half cross-section area', 'm²'], ['\\beta', '\\rho g/3\\mu', '1/(m s)'], ['\\eta_N', 'front constant 1.411', '–']] },
-    { id: 'eta', title: 'Front constant', ref: 'Huppert (1982)', tex: EQ.eta, live: () => '\\eta_N=' + ETA_N.toFixed(5) }
-  ],
-  check: [
-    { q: 'Make the fluid 1000× more viscous. How much longer does it take to reach the same front?', a: '1000× longer: the only time in the problem is $\\tau=\\beta x_0t$ with $\\beta=\\rho g/3\\mu$, so the same shape (and front) is reached when $t/\\mu$ is the same.', set: { shape: 'box', A: 1e-4, mu: 1000, rho: 1260, lt: 3 } },
-    { q: 'Multiply the half-area $\\mathcal A$ by 32. How much farther is the front at a given time (late)?', a: '$32^{3/5}=8$ times: $x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5}\\propto\\mathcal A^{3/5}$. Compare the law readout for 𝒜 = 1 cm² and 32 cm² at a fixed $t$.', set: { shape: 'box', A: 3.2e-3, mu: 1, rho: 1260, lt: 3.5 } },
-    { q: 'Why is the front slope on the log–log plot not 1/2, as for diffusion?', a: 'The diffusivity $\\rho gh^3/3\\mu$ falls as the layer thins; with a fixed volume the similarity exponents are $n=m=1/5$ ($-1=-3n-2m$ and $-n+m=0$). The grey slope-1/2 line shows how far a constant diffusivity would have carried it.', set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3.5, m: '0.2' } },
-    { q: 'Is the volume exactly conserved by the simulation?', a: 'Yes, to round-off (about 10⁻¹⁵, see the status): every cell changes by the difference of the fluxes through its two faces, so whatever leaves one cell enters its neighbour and the closed ends let nothing out.', set: { shape: 'two', lt: 4 } }
-  ],
-  selftest: () => {
-    const S0 = { area: 1e-4, rho: 1260, g: 9.80665, mu: 1 }, S1 = { area: 2e-4, rho: 1400, g: 9.80665, mu: 10 }, SL = { area: 10, rho: 2700, g: 9.80665, mu: 1000 };
-    const box = getRun('box'), two = getRun('two'), k100 = Math.round(kOf(2)), k1000 = Math.round(kOf(3)), kEnd = NS - 1;
-    const driftMax = r => { let d = 0; r.vols.forEach(v => { d = Math.max(d, Math.abs(v / r.v0 - 1)); }); return d; };
-    const st100 = state(100, S0);
-    const n = 1 / 5, m = n;                                                 // −1 = −3n − 2m and m = n
-    const X1 = 'ch08.np.linspace(0.025, 11.975, 240)';
-    const SPREAD = 'ch08.thin_film_spread(ch08.np.where(' + X1 + ' < 1.0, 1.0, 0.0), ' + X1 + ', [100.0], rho=3.0, g=1.0, mu=1.0, h_min=1e-4, growth=1.002)';
-    return [
-      { name: 'flux q (glycerol, h = 1 cm, slope -0.5)', js: flux(0.01, -0.5, S0), py: 'ch08.thin_film_flux(0.01, -0.5, rho=1260.0, g=9.80665, mu=1.0)', rtol: 1e-12 },
-      { name: 'Huppert h (x = 2 cm, t = 100 s)', js: huppert(0.02, 100, S0), py: 'ch08.viscous_current_similarity(0.02, 100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)', rtol: 1e-12 },
-      { name: 'Huppert h (honey, x = 3 cm, t = 10 s)', js: huppert(0.03, 10, S1), py: 'ch08.viscous_current_similarity(0.03, 10.0, 2e-4, rho=1400.0, g=9.80665, mu=10.0)', rtol: 1e-12 },
-      { name: 'Huppert h beyond the front = 0', js: huppert(0.2, 100, S0), py: 'ch08.viscous_current_similarity(0.2, 100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)', atol: 1e-15 },
-      { name: 'front x_N (t = 100 s)', js: st100.x_N, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["x_N"]', rtol: 1e-12 },
-      { name: 'centre h_c (t = 100 s)', js: st100.h_centre, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["h_centre"]', rtol: 1e-12 },
-      { name: 'effective diffusivity beta h_c^3', js: st100.effective_diffusivity, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["effective_diffusivity"]', rtol: 1e-12 },
-      { name: 'front speed x_N/(5t)', js: st100.front_speed, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["front_speed"]', rtol: 1e-12 },
-      { name: 'front x_N, lava lobe (t = 1 h)', js: state(3600, SL).x_N, py: 'ch08.thin_film_state(3600.0, 10.0, rho=2700.0, g=9.80665, mu=1000.0)["x_N"]', rtol: 1e-12 },
-      { name: 'eta_N from the Gamma function', js: ETA_N, py: 'ch08.viscous_current_eta_N()', rtol: 1e-12 },
-      { name: 'eta_N = 1.411 (Huppert 1982, benchmark)', js: ETA_N, expect: 1.411, rtol: 5e-4 },
-      { name: 'march: front at tau = 100 (box) vs implicit solver', js: box.fronts[k100], py: SPREAD + '["x_front"][0]', rtol: 1e-4 },
-      { name: 'march: centre cell at tau = 100 vs implicit solver', js: box.snaps[k100][0], py: SPREAD + '["h"][0][0]', rtol: 5e-4 },
-      { name: 'march: volume at tau = 100 vs implicit solver', js: box.vols[k100], py: SPREAD + '["volume"][0]', rtol: 1e-12 },
-      { name: 'march: volume drift over the whole box run', js: driftMax(box), expect: 0, atol: 1e-12 },
-      { name: 'march: volume drift over the two-hump run', js: driftMax(two), expect: 0, atol: 1e-12 },
-      { name: 'late front / Huppert law (tau = 1000, box)', js: box.fronts[k1000] / (ETA_N * Math.pow(1000, 0.2)), expect: 1, rtol: 1e-2 },
-      { name: 'front slope over the last decade (tau = 1e4)', js: Math.log10(box.fronts[kEnd] / box.fronts[kEnd - PERDEC]), expect: 0.2, atol: 5e-3 },
-      { name: 'profile distance from the dome (tau = 1e4, box)', js: domeDistance(box.snaps[kEnd], 1e4), expect: 0, atol: 5e-3 },
-      { name: 'two humps forget their start (tau = 1e4)', js: domeDistance(two.snaps[kEnd], 1e4), expect: 0, atol: 2e-2 },
-      { name: 'collapse with m = 1/5 at late time (box)', js: collapse(box, LT1, 0.2).spread, expect: 0, atol: 2e-2 },
-      { name: 'exponent n from the two relations', js: n, py: 'ch08.similarity_reduce_sympy("spreading")["n"]', rtol: 1e-12 },
-      { name: 'exponent m from the two relations', js: m, py: 'ch08.similarity_reduce_sympy("spreading")["m"]', rtol: 1e-12 },
-      { name: 'relation -1 = -3n - 2m holds', js: -3 * n - 2 * m, expect: -1, rtol: 1e-12 }
-    ];
-  }
-});
+  explain: { html: s => explainHtml(s), live: s => explainLive(s) },
+  derivations: DERIV,
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
+};
+const app = Viz.app(CFG);
 </script>
 </body>
 </html>

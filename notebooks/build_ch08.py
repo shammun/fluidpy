@@ -170,6 +170,16 @@ def _maths_before(before: str) -> bool:
     return before.rstrip(" *\n").endswith("$")
 
 
+_PRINTED = re.compile(r"printed|book prints|The text|the text (?:calls|says)", re.I)
+
+
+def _names_printed(before: str) -> bool:
+    """Does the text just before an equation number talk about the book's PRINTED (slipped) form? Then the corrected
+    equation must not be inserted after the number (lesson review round 1, Must-fix 2); the printed form is written out
+    by hand where it matters."""
+    return bool(_PRINTED.search(before[-32:]))
+
+
 def show_eqs(text: str) -> str:
     """Write the equation next to the first mention of a book equation number "(8.25)" in a text that names it without
     writing it — the house rule "show the equation, not just its number"."""
@@ -180,6 +190,7 @@ def show_eqs(text: str) -> str:
         nxt = text[m.end():m.end() + 16]
         if (n in done or n not in EQ or EQ[n] in text or nxt.lstrip(", :").startswith("$")
                 or _plain_eq_follows(text[m.end():]) or _maths_before(text[:m.start()])
+                or _names_printed(text[:m.start()])
                 or nxt.startswith(" — the line above") or nxt.startswith(" — the result")
                 or nxt[:1] in "/–-)" or text[max(0, m.start() - 1):m.start()] in ("(", "–", "-")):
             return m.group(0)
@@ -411,6 +422,64 @@ pf_sub("D22", "check", "✓ (sympy)", "✓ (sympy, the check cell below)")
 pf_sub("D30", "check", "sympy: both components of ∇p = μ∇²u hold (check_src in C14 item 45).",
        "sympy: both components of ∇p = μ∇²u hold (the check cell below).")
 
+# ---- lesson review round 1 --------------------------------------------------------------------------------------
+# M2: where the text talks about the printed slip, write the printed form (the corrected one is never auto-inserted there)
+pf_sub("D12", "step8.why", "The printed (8.19) adds U₀ instead of U₀(1 − y/h)",
+       r"The printed (8.19), $u\cong-\frac{h^2}{2\mu}\frac{\partial p}{\partial x}\frac yh(1-\frac yh)+U_h\frac yh+U_0$, "
+       r"adds U₀ instead of U₀(1 − y/h)")
+pf_sub("D11", "goal", "restoring the ν the printed (8.17a) omits.",
+       r"restoring the ν that the printed (8.17a), $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\frac{\partial^2u}{\partial y^2}$, omits.")
+pf_sub("D10", "check", "the printed ∂p/∂x in (8.13b) gives a set that does not match (8.16b).",
+       r"the printed y-equation (8.13b), with $-\frac1\rho\frac{\partial p}{\partial x}$ in place of $-\frac1\rho\frac{\partial p}{\partial y}$, "
+       "gives a set that does not match (8.16b).")
+pf_sub("D10", "traps", "the printed ∂p/∂x in (8.13b) must be ∂p/∂y.",
+       r"the printed y-equation (8.13b) carries $-\frac1\rho\frac{\partial p}{\partial x}$; it must be $-\frac1\rho\frac{\partial p}{\partial y}$.")
+# M7: α ≪ 1 is an extra approximation, not a consequence of lubrication; step pointers after the inserted step
+pf_sub("D14", "step15.why", "For α ≪ 1, (2 + α)(1 + αx/L)² ≈ 2; (8.19) is only valid for small slopes anyway.",
+       "An extra approximation, not required by lubrication (the wall slope αh₀/L is tiny for any α of order one): for α ≪ 1, "
+       "(2 + α)(1 + αx/L)² ≈ 2. It costs accuracy — the linear load is 15.6 % high at α = 0.1 (N35, printed in C07).")
+pf_sub("D14", "assumptions", "step 14", "step 15")
+pf_sub("D14", "traps", "step 14", "step 15")
+# S7: D27 step 5 in words
+pf_sub("D27", "step5.plain", "vorticity neither diffuses nor is advected here — it is simply harmonic.",
+       "no advection and no change in time: the diffusion of ω balances itself, so each Cartesian component is harmonic.")
+# M8: headings keep the equations they name
+PF["D07"]["title"] = r"Stress $\tau=\frac R2\frac{dp}{dz}$ (8.7), wall stress $\tau_0=\frac a2\frac{dp}{dz}$ (8.8) as a force balance, Hagen–Poiseuille and f = 64/Re"
+PF["D19"]["title"] = (r"Solving the ODE: $F(\eta)=A\int_0^\eta e^{-\xi^2/4}d\xi+B$ (8.29) and "
+                      r"$\frac uU=1-\mathrm{erf}\big(\frac{y}{2\sqrt{\nu t}}\big)$ (8.30)")
+PF["D25"]["title"] = r"Reading $u=Ue^{-y/\delta_e}\cos(\omega t-y/\delta_e)$ (8.38): 0.059U at 4√(ν/ω), crest speed √(2νω), e-folding depth √(2ν/ω)"
+PF["D26"]["title"] = r"From $\rho\mathbf u\cdot\nabla\mathbf u+\nabla p=\mu\nabla^2\mathbf u$ (8.39) to the Stokes equations $\nabla p=\mu\nabla^2\mathbf u$ (8.43)"
+PF["D33"]["title"] = r"Oseen's $\psi$ (8.53) reduces to Stokes' $\psi=Ur^2\sin^2\theta\big(\frac12-\frac{3a}{4r}+\frac{a^3}{4r^3}\big)$ (8.48) near the sphere"
+PF["D12"]["title"] = r"The lubrication profile: $u\cong\frac1\mu\frac{\partial p}{\partial x}\frac{y^2}{2}+Ay+B$ (8.18) → the consistent lubrication profile"
+PF["D10"]["title"] = r"The scaled gap equations: continuity (8.15) and the two momentum equations (8.16a), (8.16b)"
+# M6: the extremum of the Couette–Poiseuille profile (two more moves at the end of D05)
+PF["D05"]["steps"].append(dict(
+    did="Set the slope to zero for the extremum",
+    tex=r"\frac{du}{dy}=\frac Uh-\frac1{2\mu}\frac{dp}{dx}(h-2y^*)=0",
+    why="The velocity is largest (or smallest) inside the gap where its y-derivative vanishes; step 3 divided by μ gives the "
+        "slope at any height.",
+    plain="the fastest (or slowest) layer is where the profile stands vertical."))
+PF["D05"]["steps"].append(dict(
+    did="Solve for the extremum's height",
+    tex=r"y^*=\frac h2-\frac{\mu U}{h\,dp/dx}",
+    why="Multiply by 2μ/(dp/dx) and rearrange for y*; it is an interior extremum only when 0 < y* < h (with U = 0 it is "
+        "mid-gap, h/2).",
+    plain="the extremum leaves mid-gap: for dp/dx < 0 it is a maximum, pulled toward the moving wall; for dp/dx > 0 it is a minimum, pushed toward the fixed wall."))
+pf_sub("D05", "check", "Poiseuille u_max = 1.5V (V = −(h²/12μ)dp/dx).",
+       "Poiseuille u_max = 1.5V (V = −(h²/12μ)dp/dx). Extremum: h = 1 cm, U = 1 cm/s, dp/dx = −0.5 Pa/m give "
+       "y* = 5 mm + 2 mm = 7 mm (the code cell after the tiny example of C02 prints it from `couette_poiseuille_state`).")
+# S8: D29 step 4 held two moves — write (8.44) for g first, then expand in f
+_d29 = PF["D29"]["steps"]
+_d29[3] = dict(did="Apply E² again, to g",
+               tex=r"E^2(g\sin^2\theta)=\Big(g''-\frac{2g}{r^2}\Big)\sin^2\theta=0,\qquad g=f''-\frac{2f}{r^2}",
+               why="Step 3 showed E²(f sin²θ) = g sin²θ; the same rule applied to g sin²θ gives (8.44) as an ODE for g.",
+               plain="(8.44) becomes g″ − 2g/r² = 0.")
+_d29.insert(4, dict(did="Expand the ODE in f",
+                    tex=r"f^{iv}-\frac{4f''}{r^2}+\frac{8f'}{r^3}-\frac{8f}{r^4}=0",
+                    why="Insert g = f″ − 2f/r² and use (f/r²)″ = f″/r² − 4f′/r³ + 6f/r⁴: g″ − 2g/r² = f⁗ − 2f″/r² + 8f′/r³ − "
+                        "12f/r⁴ − 2f″/r² + 4f/r⁴.",
+                    plain="the book's fourth-order Euler–Cauchy ODE."))
+
 # Starts and Results that Part F writes as numbers or words: show the equations (house rule)
 PF["D01"]["result"] = (r"\nu=\frac{\mu}{\rho},\qquad t_d\sim\frac{L^2}{\nu},\qquad \frac{\nu_{air}}{\nu_w}\approx15", PF["D01"]["result"][1])
 PF["D02"]["start"] = (r"\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}=0\ \text{((4.10) in 2-D)},\qquad " + EQ["8.1"] + r"\ \text{(8.1)}",
@@ -419,6 +488,8 @@ PF["D02"]["result"] = (eq_display(["8.4a", "8.4b"]), PF["D02"]["result"][1])
 PF["D04"]["start"] = (r"\mu\frac{d^2u}{dy^2}=\frac{dp}{dx}=\text{const (D03)},\qquad u(0)=0,\ \ u(h)=U", PF["D04"]["start"][1])
 PF["D05"]["result"] = (r"\begin{array}{l}\text{Couette: }u=\frac{Uy}{h},\qquad \text{Poiseuille: }u_{max}=-\frac{h^2}{8\mu}\frac{dp}{dx} \\ "
                        r"\tau=\frac{\mu U}{h}-\Big(\frac h2-y\Big)\frac{dp}{dx},\qquad \text{backflow}\iff\frac{dp}{dx}>\frac{2\mu U}{h^2}\end{array}",
+                       PF["D05"]["result"][1])
+PF["D05"]["result"] = (PF["D05"]["result"][0].replace(r"\end{array}", r" \\ \text{extremum at }y^*=\frac h2-\frac{\mu U}{h\,dp/dx}\ (0<y^*<h)\end{array}"),
                        PF["D05"]["result"][1])
 PF["D06"]["start"] = (r"\mathbf u=(u_R,u_\varphi,u_z)=(0,\,0,\,u_z(R)),\qquad " + EQ["8.1"] + r"\ \text{(8.1) in cylindrical form}",
                       "steady, fully developed, axisymmetric flow along a round pipe")
@@ -629,7 +700,8 @@ def _mentions(unit: str) -> list[tuple[int, int, list[str], bool]]:
                 if line.lstrip().startswith("#") or line.startswith("**Step "):
                     continue
                 s0, e0 = pos + m.start(), pos + m.end()
-                adj = _maths_before(unit[:s0]) or unit[e0:].lstrip(" *,:").startswith("$")
+                adj = (_maths_before(unit[:s0]) or unit[e0:].lstrip(" *,:").startswith("$")
+                       or _names_printed(unit[:s0]))       # a mention of the PRINTED form: never insert the corrected one
                 plain = len(labs) == 1 and _plain_eq_follows(unit[e0:])
                 out.append((s0, e0, labs, adj, plain))
         pos += len(seg)
@@ -695,7 +767,8 @@ def tidy_raw_tex() -> int:
         parts = _PROSE_SPLIT.split(c.source)
         for k in range(0, len(parts), 2):
             seg = re.sub(r"(?:(?<![A-Za-z\\])[A-Za-z0-9])?(?<!\\)(?:e\^\{[^{}$]*\})+", _exp_to_maths, parts[k])
-            seg = re.sub(r"\^\{([^{}$]*)\}", r"^(\1)", seg)
+            sub = re.split(r"(\$[^$]+\$)", seg)          # the maths just created must keep its braces (review M1):
+            seg = "".join(q if q.startswith("$") else re.sub(r"\^\{([^{}$]*)\}", r"^(\1)", q) for q in sub)
             parts[k] = seg
             if k and parts[k].startswith("$") and parts[k - 1].endswith("$"):
                 parts[k] = " " + parts[k]
@@ -719,6 +792,10 @@ def self_check_prose() -> list[str]:
         cmds = re.findall(r"\\[A-Za-z]+|[\^_]\{", prose) + re.findall(r"\\text\{[^}]*\\_", c.source)
         if cmds:
             bad.append(f"cell {i}: TeX outside maths {sorted(set(cmds))[:5]}: {c.source[:80]!r}")
+        maths = [seg for k, seg in enumerate(_PROSE_SPLIT.split(c.source)) if k % 2 and seg.startswith("$")]
+        garbled = [m_ for m_ in maths if "^(" in m_]            # '$e^(…)$' renders only '(' as the exponent
+        if garbled:
+            bad.append(f"cell {i}: garbled exponent in maths {garbled[:2]}")
         real = []
         for unit in c.source.split("\n---\n"):
             seen: set[str] = set()
@@ -911,16 +988,16 @@ nb.md(r"""
 |---|---|---|
 | §8.1 calls μ "the kinematic viscosity" | μ is the **dynamic** viscosity; ν = μ/ρ is the kinematic one | C01 |
 | channel mean velocity written $V=\int_0^hu\,dy$ in the middle expression | $V\equiv Q/h$ (the 1/h is missing; units m²/s ≠ m/s) | C02 (N10) |
-| (8.13b) with $-\frac1\rho\frac{\partial p}{\partial x}$ | $-\frac1\rho\frac{\partial p}{\partial y}$ in the y-momentum equation | C05 (N24, D10) |
-| (8.17a) as $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\frac{\partial^2u}{\partial y^2}$ | $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\nu\frac{\partial^2u}{\partial y^2}$ (units) | C05 (D11) |
-| "(8.16a) can be integrated twice" | it is the simplified (8.17a) that is integrated | C06 (N33) |
-| (8.19) ending in $+U_0$ | $+U_0\big(1-\frac yh\big)$ (otherwise u(h) = U_h + U₀) | C06 (N34, D12) |
+| printed (8.13b) $\frac{\partial v}{\partial t}+u\frac{\partial v}{\partial x}+v\frac{\partial v}{\partial y}=-\frac1\rho\frac{\partial p}{\partial x}+\frac\mu\rho\big(\frac{\partial^2v}{\partial x^2}+\frac{\partial^2v}{\partial y^2}\big)$ | $\frac{\partial v}{\partial t}+u\frac{\partial v}{\partial x}+v\frac{\partial v}{\partial y}=-\frac1\rho\frac{\partial p}{\partial y}+\frac\mu\rho\big(\frac{\partial^2v}{\partial x^2}+\frac{\partial^2v}{\partial y^2}\big)$ — ∂p/∂**y** in the y-equation | C05 (N24, D10) |
+| printed (8.17a) $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\frac{\partial^2u}{\partial y^2}$ | $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\nu\frac{\partial^2u}{\partial y^2}$ (units) | C05 (D11) |
+| "the scaled x-equation can be integrated twice" | it is the simplified lubrication balance $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\nu\frac{\partial^2u}{\partial y^2}$ *(8.17a)* that is integrated | C06 (N33) |
+| printed (8.19) $u\cong-\frac{h^2}{2\mu}\frac{\partial p}{\partial x}\frac yh\big(1-\frac yh\big)+U_h\frac yh+U_0$ | $u\cong-\frac{h^2}{2\mu}\frac{\partial p}{\partial x}\frac yh\big(1-\frac yh\big)+U_h\frac yh+U_0\big(1-\frac yh\big)$ (otherwise u(h) = U_h + U₀) | C06 (N34, D12) |
 | Example 8.1: intermediate integrals with $(1-\alpha x/L)$; final pressure with the denominator to the **first** power | $(1+\alpha x/L)$; the denominator **squared** | C07 (D14) |
 | Example 8.2's lubrication equations without ν and walls at "y = 0, h" | with ν; the gap coordinate is z | C06 (N36) |
 | "the final equation of Example 8.2" (in Example 8.7) | Example 8.3 | C10 (N63) |
 | $\int_0^\infty\omega\,dy=-U$ | $+U$ (u falls upward, so ω > 0) | C09 (N53) |
 | Example 8.5's ±2.76 | ±2.772 (its own width 5.54 is right) | C10 (N59) |
-| "substitution of (8.33) into (8.20)" | it is (8.35) that is substituted | C11 (N68) |
+| "substitution of the wall condition into the diffusion equation" | it is the complex trial $u(y,t)=\mathrm{Re}\{e^{i\omega t}f(y)\}$ *(8.35)* that is substituted | C11 (N68) |
 | rear pressure minimum +3μU/2a | **−**3μU/2a | C14 (N88, D30) |
 | "(9.63)" and "(9.68)" in §8.6 | (8.43) and (8.48) | C13 (N93), C15 (N98) |
 | Oseen's equation with $+\partial p/\partial x_i$ | $-\partial p/\partial x_i$ | C15 (N95) |
@@ -1069,10 +1146,13 @@ for yc, U, lab in ((0.6, 0.1, "laminar"), (-0.6, 0.5, "turbulent")):     # two t
     Re, verdict = ch08.pipe_flow_regime(U, 0.01, NU_W)   # the regime from the real Re of a 1 cm water pipe
     if verdict == "laminar":                             # a straight dye thread on the axis
         a1.plot(x, yc + 0*x, color=COLORS["blue"], lw=2)
-    else:                                                # a seeded random walk that fills the tube (schematic only)
+    else:                                                # eight seeded random walks that fill the tube (schematic only)
         rng = np.random.default_rng(1)                   # reproducible "chaos"
-        yy = np.clip(np.cumsum(rng.normal(0, 0.03, x.size)) * (x > 0.25), -0.28, 0.28)   # starts to wander at x = 0.25 m
-        a1.plot(x, yc + yy, color=COLORS["blue"], lw=1)
+        w = 0.28                                         # half-width available to the dye [schematic units]
+        for k in range(8):                               # eight dye streaks leaving the injector
+            walk = np.cumsum(rng.normal(0, 0.04, x.size)) * (x > 0.25)   # each starts to wander at x = 0.25 m
+            z = np.mod(walk + w, 4*w)                    # fold the walk back at the walls (a reflecting wall) …
+            a1.plot(x, yc + np.where(z < 2*w, z, 4*w - z) - w, color=COLORS["blue"], lw=0.8, alpha=0.8)   # … so it fills the tube
     a1.text(0.02, yc + 0.34, f"Re = {Re:.0f}: {verdict}", fontsize=9)    # label with the computed Re
 a1.set_xlim(0, 1); a1.set_ylim(-1.1, 1.2); a1.set_yticks([])            # schematic: no vertical scale
 a1.set_xlabel("distance along the tube [m]"); a1.set_title("Reynolds's dye (schematic — not a simulation)", fontsize=10)
@@ -1202,6 +1282,8 @@ edge with the diffusion estimate $\delta_{99}\sim3.64\sqrt{\nu t}$ *(8.31)* and 
 """)
 remind([
     ("scipy.optimize.brentq", "`optimize.brentq(f, a, b)` finds the root of f between a and b where f changes sign (Ch. 3 P108); here: where the wall layer reaches mid-gap."),
+    ("error function erf (a first look)", "`special.erf(z)` rises smoothly from 0 at z = 0 to 1 for large z; its complement erfc = 1 − erf is Ch. 4's P123. Here it only shapes a schematic wall layer; C09 (primer P195) explains where it comes from."),
+    ("trapezoid rule (from scratch)", "`np.trapezoid(f, x)` adds up trapezoids under the sampled curve (Ch. 1 P37) — here to scale the schematic profiles to one mean speed."),
 ])
 nb.figure(r"""
 h, Uin = 0.01, 0.01                                       # gap 1 cm, inflow speed 1 cm/s [m, m/s]
@@ -1293,7 +1375,10 @@ Q, V = ch08.channel_flow_rate(h, U=U, dpdx=4.0)          # flow rate per unit wi
 print(f"Q = {Q:.4g} m²/s, V = {V:.4g} m/s, threshold 2μU/h² = {ch08.channel_backflow_threshold(U, h):.3g} Pa/m")
 s = ch08.couette_poiseuille_state(h, U, 4.0)             # everything the explainer shows, in one dictionary
 print({k: (round(s[k], 6) if not isinstance(s[k], bool) else s[k]) for k in
-       ("Q_couette", "Q_poiseuille", "tau_bottom", "tau_top", "backflow", "y_reversal", "zero_flow_dpdx")})
+       ("Q_couette", "Q_poiseuille", "tau_bottom", "tau_top", "backflow", "y_reversal", "zero_flow_dpdx", "u_max", "y_umax", "u_min", "y_umin")})
+s2 = ch08.couette_poiseuille_state(0.01, 0.01, -0.5)     # D05's extremum example: h = 1 cm, U = 1 cm/s, dp/dx = −0.5 Pa/m
+y_star = 0.01/2 - MU_W*0.01/(0.01*(-0.5))                # y* = h/2 − μU/(h dp/dx) (D05 step 9) [m]
+print(f"extremum: y* = {1e3*y_star:.2f} mm by hand, library y_umax = {1e3*s2['y_umax']:.2f} mm, u_max = {100*s2['u_max']:.3f} cm/s")
 ps = ch08.parallel_flow_sympy("channel")                 # D02–D04 done symbolically
 print("sympy profile:", ps["profile"], "   (G here is the symbol for dp/dx)")
 print("reduced x-momentum (8.4a):", ps["momentum_x"])   # with p = p(x): the y-equation (8.4b) is satisfied identically
@@ -1352,24 +1437,24 @@ h, U = 0.01, 0.1                                          # the tiny example's c
 yy = np.linspace(0, h, 201)                               # heights [m]
 cases = [-4.0, 0.0, 2.0, 4.0, 8.0]                        # dp/dx [Pa/m]: favourable, none, threshold, 2×, 4×
 cols = [COLORS["blue"], COLORS["accent"], COLORS["teal"], COLORS["orange"], COLORS["amber"]]   # blue → amber
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6))
-for G_, c in zip(cases, cols):
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6))    # the figure and its panels
+for G_, c in zip(cases, cols):                           # one profile per pressure gradient
     u = ch08.channel_flow(yy, h, U=U, dpdx=G_)            # (8.5)
     Q_ = ch08.channel_flow_rate(h, U=U, dpdx=G_)[0]       # net flow rate [m²/s]: its sign matters beyond 6μU/h²
-    tag = ", net flow reversed" if Q_ < 0 else ""
-    a1.plot(u/U, yy/h, color=c, lw=2, label=f"dp/dx = {G_:+g} Pa/m (Q = {1e4*Q_:+.2f} cm²/s{tag})")
+    tag = ", net flow reversed" if Q_ < 0 else ""        # past 6μU/h² the net flow itself runs backwards
+    a1.plot(u/U, yy/h, color=c, lw=2, label=f"dp/dx = {G_:+g} Pa/m (Q = {1e4*Q_:+.2f} cm²/s{tag})")   # a curve (its label says which)
     if G_ > ch08.channel_backflow_threshold(U, h):       # shade the reversed layer (backflow) amber
-        a1.fill_betweenx(yy/h, 0, u/U, where=u < 0, color=COLORS["amber"], alpha=0.35)
+        a1.fill_betweenx(yy/h, 0, u/U, where=u < 0, color=COLORS["amber"], alpha=0.35)   # backflow region shaded amber
     a2.plot(1e3*ch08.channel_shear_stress(yy, h, U=U, dpdx=G_), yy/h, color=c, lw=2)   # signed τ(y) [mPa]
-a1.plot(ch08.channel_flow(yy, h, U=0.0, dpdx=-4.0)/U, yy/h, color=COLORS["orange"], ls="--", lw=1.2,
+a1.plot(ch08.channel_flow(yy, h, U=0.0, dpdx=-4.0)/U, yy/h, color=COLORS["orange"], ls="--", lw=1.2,   # a curve (its label says which)
         label="pure Poiseuille (U = 0, dp/dx = −4)")      # the parabola alone, for comparison
-a1.axvline(0, color=COLORS["muted"], lw=0.8)
-a1.set_xlabel("u/U [–]"); a1.set_ylabel("y/h [–]"); a1.legend(fontsize=7, loc="upper left")
-a1.set_title("Profiles: the floor flow reverses past 2μU/h²", fontsize=10)
-a2.axvline(0, color=COLORS["muted"], lw=0.8)
-a2.set_xlabel("shear stress τ [mPa]"); a2.set_ylabel("y/h [–]"); a2.set_title("Stress: straight lines; τ(0) = 0 at the threshold", fontsize=10)
-fig.suptitle("Adverse pressure beats the wall near the floor once dp/dx > 2μU/h²", fontsize=11)
-savefig(fig, "ch08", "c02_couette_poiseuille"); plt.show()
+a1.axvline(0, color=COLORS["muted"], lw=0.8)             # reference line
+a1.set_xlabel("u/U [–]"); a1.set_ylabel("y/h [–]"); a1.legend(fontsize=7, loc="upper left")   # labels with units
+a1.set_title("Profiles: the floor flow reverses past 2μU/h²", fontsize=10)   # each panel says its message
+a2.axvline(0, color=COLORS["muted"], lw=0.8)             # reference line
+a2.set_xlabel("shear stress τ [mPa]"); a2.set_ylabel("y/h [–]"); a2.set_title("Stress: straight lines; τ(0) = 0 at the threshold", fontsize=10)   # labels with units
+fig.suptitle("Adverse pressure beats the wall near the floor once dp/dx > 2μU/h²", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c02_couette_poiseuille"); plt.show()   # save the PNG to outputs/ch08, then draw
 """, see=r"""Five profiles through (0, 0) and (1, 1); the two most adverse ones dip below zero near the floor (amber). At 4 Pa/m
 the net flow is still forward (Q > 0 in the legend); at 8 Pa/m, beyond the zero-flow gradient $6\mu U/h^2$ (6 Pa/m here), the
 net flow itself has reversed (Q < 0). The stresses are straight lines, and the dashed orange parabola is pure Poiseuille flow —
@@ -1400,11 +1485,11 @@ for G_ in Gs:
     s = ch08.couette_poiseuille_state(h, U, G_)           # Q, backflow flag, threshold
     verdict = f"backflow below y = {1e3*s['y_reversal']:.1f} mm" if s["backflow"] else "all forward"
     titles.append(f"A line plus a parabola: Q = {1e4*s['Q']:.2f} cm²/s, {verdict}")
-step_titles(fig, titles)
+step_titles(fig, titles)                                 # numbers that follow the slider
 colors = {"sum u(y)": COLORS["blue"], "Couette part Uy/h": COLORS["rose"], "Poiseuille part": COLORS["orange"],
           "reversed layer (u < 0)": COLORS["amber"]}     # colours by meaning
 recolor(fig, colors, {"Couette part Uy/h": "dash", "Poiseuille part": "dash"})
-fig.show()
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 The slider re-evaluates (8.5) for 21 pressure gradients (11 in FAST mode). Watch the blue sum cross u = 0 at the floor as
 dp/dx passes 2 Pa/m: the amber reversed layer appears and the title switches from "all forward" to "backflow".
@@ -1462,8 +1547,8 @@ circle's circumference growing with R. For an azimuthal velocity $u_\varphi(R)$ 
 $\frac{d}{dR}\big[\frac1R\frac{d(Ru_\varphi)}{dR}\big]$ (it contains an extra $-u_\varphi/R^2$ because the unit vector
 $\mathbf e_\varphi$ turns). Both come from `core.curvilinear`.
 """, code=r"""
-import sympy as sp
-R = sp.symbols('R', positive=True)
+import sympy as sp                                       # symbolic maths
+R = sp.symbols('R', positive=True)                       # the radius as a positive symbol
 u = R**2                                                 # a test profile
 print(sp.simplify(sp.diff(R*sp.diff(u, R), R)/R))        # (1/R)(R u')' = 4 for u = R²
 """)
@@ -1516,9 +1601,7 @@ print("sympy:", pp["profile"], "  unbounded term:", pp["unbounded_term"], "  (G 
    far downstream, and Ch. 4's exact-solution preset on the axis (0.25 m/s).
 4. `parallel_flow_sympy("pipe")` returns the profile and the term $C_1\ln R$ it discarded because it is unbounded on the axis.
 """)
-remind([
-    ("trapezoid rule (from scratch)", "`np.trapezoid(f, x)` adds up trapezoids under the sampled curve (Ch. 1 P37)."),
-])
+nb.md("*(`np.trapezoid`, reminded in C02, integrates the sampled profile below.)*")
 nb.check_agree(r"""
 RR = np.linspace(0, a, 2001)                             # 2001 radii [m]
 Q_trap = np.trapezoid(ch08.pipe_poiseuille(RR, a, G) * 2*np.pi*RR, RR)   # Q = ∫ u 2πR dR by trapezoids [m³/s]
@@ -1531,36 +1614,37 @@ print(f"force balance on a 1 m slug: pressure {F_pressure:.4g} N = wall friction
 """)
 nb.figure(r"""
 a, G = 1e-3, -1000.0                                      # the tiny example's tube
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6))    # the figure and its panels
 R = np.linspace(-a, a, 201)                               # a diameter, from wall to wall [m]
 u = ch08.pipe_poiseuille(np.abs(R), a, G)                 # (8.6) along the diameter [m/s]
-a1.plot(1e3*R, u, color=COLORS["blue"], lw=2, label="u_z(R), (8.6)")
+a1.plot(1e3*R, u, color=COLORS["blue"], lw=2, label="u_z(R), (8.6)")   # a curve (its label says which)
 for Rk in np.linspace(-0.8*a, 0.8*a, 9):                  # nine velocity arrows (blue)
-    a1.annotate("", xy=(1e3*Rk, ch08.pipe_poiseuille(abs(Rk), a, G)), xytext=(1e3*Rk, 0),
-                arrowprops=dict(arrowstyle="->", color=COLORS["blue"], lw=0.8))
+    a1.annotate("", xy=(1e3*Rk, ch08.pipe_poiseuille(abs(Rk), a, G)), xytext=(1e3*Rk, 0),   # an arrow
+                arrowprops=dict(arrowstyle="->", color=COLORS["blue"], lw=0.8))   # its style
 a1.axvline(-1, color=COLORS["muted"], lw=3); a1.axvline(1, color=COLORS["muted"], lw=3)   # the pipe walls
-a1.set_xlabel("R [mm] (across a diameter)"); a1.set_ylabel("u_z [m/s]", color=COLORS["blue"])
+a1.set_xlabel("R [mm] (across a diameter)"); a1.set_ylabel("u_z [m/s]", color=COLORS["blue"])   # labels with units
 b1 = a1.twinx()                                           # second axis for the stress (rose)
 b1.plot(1e3*R, np.sign(R)*ch08.pipe_shear_stress(np.abs(R), G), color=COLORS["rose"], lw=1.5, ls="--")   # τ = (R/2) dp/dz
-b1.set_ylabel("τ [Pa] (on the +R side: (R/2)dp/dz)", color=COLORS["rose"]); b1.axhline(0, color=COLORS["grid"], lw=0.8)
-b1.text(0.55, ch08.pipe_wall_stress(a, G), "τ₀ = −0.5 Pa", color=COLORS["rose"], fontsize=8, va="bottom")
-a1.set_title("Paraboloid and linear stress", fontsize=10)
+b1.set_ylabel("τ [Pa] (on the +R side: (R/2)dp/dz)", color=COLORS["rose"]); b1.axhline(0, color=COLORS["grid"], lw=0.8)   # labels with units
+b1.text(0.55, ch08.pipe_wall_stress(a, G), "τ₀ = −0.5 Pa", color=COLORS["rose"], fontsize=8, va="bottom")   # a label on the plot
+a1.set_title("Paraboloid and linear stress", fontsize=10)   # each panel says its message
 aa = np.geomspace(1e-4, 1e-2, 60)                         # radii from 0.1 mm to 1 cm [m]
 QV = np.array([ch08.pipe_flow_rate(a_, G)[:2] for a_ in aa])   # (Q, V) for each radius (the function takes one a)
 Qs, Res = QV[:, 0], QV[:, 1]*2*aa/NU_W                    # Q(a) [m³/s] and Re(a) = V·2a/ν with the mean speed
 lam = Res < 2000                                          # where the laminar law is trustworthy
-a2.loglog(aa[lam], Qs[lam], color=COLORS["blue"], lw=2, label="Hagen–Poiseuille (laminar)")
-a2.loglog(aa[~lam], Qs[~lam], color=COLORS["blue"], lw=1, ls="--", label="Re > 2000: turbulent beyond")
-a2.loglog(aa, Qs[0]*(aa/aa[0])**4, color=COLORS["muted"], lw=1, ls=":", label="slope 4")
-a_cross = aa[np.argmax(~lam)]                             # first radius where Re passes 2000
-a2.axvline(a_cross, color=COLORS["amber"], lw=0.8); a2.text(a_cross*1.1, Qs[0]*10, f"Re = 2000\na ≈ {1e3*a_cross:.1f} mm", fontsize=8, color=COLORS["amber"])
-a2.set_xlabel("radius a [m]"); a2.set_ylabel("Q [m³/s] at dp/dz = −1000 Pa/m"); a2.legend(fontsize=7, loc="lower right")
-a2.set_title("Q ∝ a⁴", fontsize=10)
-fig.suptitle("Flow rate grows like the fourth power of the radius", fontsize=11)
-savefig(fig, "ch08", "c03_pipe"); plt.show()
+a2.loglog(aa[lam], Qs[lam], color=COLORS["blue"], lw=2, label="Hagen–Poiseuille (laminar)")   # a curve (its label says which)
+a2.loglog(aa[~lam], Qs[~lam], color=COLORS["blue"], lw=1, ls="--", label="Re > 2000: turbulent beyond")   # a curve (its label says which)
+a2.loglog(aa, Qs[0]*(aa/aa[0])**4, color=COLORS["muted"], lw=1, ls=":", label="slope 4")   # a curve (its label says which)
+a_cross = optimize.brentq(lambda a_: ch08.pipe_flow_rate(a_, G)[1]*2*a_/NU_W - 2000, 1e-4, 1e-2)   # Re(a) = 2000 exactly [m]
+print(f"Re = V·2a/ν reaches 2000 at a = {1e3*a_cross:.2f} mm")   # a³ = 4μν·2000/|dp/dz| = 8 × 10⁻⁹ m³
+a2.axvline(a_cross, color=COLORS["amber"], lw=0.8); a2.text(a_cross*0.93, Qs[0]*1e6, f"Re = 2000\na = {1e3*a_cross:.2f} mm", fontsize=8, color=COLORS["amber"], ha="right")   # reference line
+a2.set_xlabel("radius a [m]"); a2.set_ylabel("Q [m³/s] at dp/dz = −1000 Pa/m"); a2.legend(fontsize=7, loc="upper left")   # labels with units
+a2.set_title("Q ∝ a⁴", fontsize=10)                      # each panel says its message
+fig.suptitle("Flow rate grows like the fourth power of the radius", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c03_pipe"); plt.show()             # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) a parabola across the diameter with the stress line (rose dashed) growing from zero on the axis to −0.5 Pa at the
 wall — our remake of the book's pipe sketch `N104`; (b) a straight log–log line of slope 4.""",
-    read=r"""Each decade of radius gives four decades of flow; past Re = 2000 (the amber line, a ≈ 2.5 mm here) the laminar line
+    read=r"""Each decade of radius gives four decades of flow; past Re = 2000 (the amber line, a = 2.00 mm, printed above) the laminar line
 is no longer trustworthy, so it is dashed.""",
     change=r"""…the artery narrowed by 20 %: $0.8^4=0.41$ — the same pressure pushes 59 % less blood, so the heart must raise the
 pressure 2.4× to keep Q.""")
@@ -1579,12 +1663,13 @@ titles = []                                               # Q and Re for each ra
 for a_ in radii:
     Q_, V_, _ = ch08.pipe_flow_rate(a_, G)                # Hagen–Poiseuille flow rate and mean speed
     titles.append(f"a = {1e3*a_:.2f} mm: Q = {1e6*Q_:.3g} mL/s, Re = {V_*2*a_/NU_W:.0f} — Q ∝ a⁴")
-step_titles(fig, titles)
+step_titles(fig, titles)                                 # numbers that follow the slider
 recolor(fig, {"u_z(R), (8.6)": COLORS["blue"]})           # velocity profiles in blue
-fig.show()
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 Each slider step is one radius between 0.2 and 2 mm at the same dp/dz; the title prints Q and Re. Doubling a multiplies the
-centre speed by 4 and Q by 16 (compare the steps near a = 0.5 mm and 1 mm); past about 2.5 mm Re would exceed 2000.
+centre speed by 4 and Q by 16 (compare the steps near a = 0.5 mm and 1 mm); past a = 2.00 mm (computed with the figure
+above) Re would exceed 2000.
 """)
 whatif(r"""
 …the walls moved instead of a pressure pushing — sideways, round the axis? Then the velocity is azimuthal, $u_\varphi(R)$,
@@ -1636,8 +1721,8 @@ An ODE in which every term has the form $R^k\,d^ku/dR^k$ (each derivative comes 
 $u=R^\lambda$: every term becomes a constant times $R^\lambda$, so λ must solve a polynomial. For $R^2u''+Ru'-u=0$ the
 polynomial is $\lambda^2-1=0$, so $u=AR+B/R$.
 """, code=r"""
-import sympy as sp
-R, lam = sp.symbols('R lambda')
+import sympy as sp                                       # symbolic maths
+R, lam = sp.symbols('R lambda')                          # radius and the trial exponent λ
 u = R**lam                                               # trial power
 print(sp.factor(sp.simplify((R**2*sp.diff(u, R, 2) + R*sp.diff(u, R) - u)/u)))   # (lambda - 1)*(lambda + 1)
 """)
@@ -1668,14 +1753,14 @@ R₁ = 0.01 m, R₂ = 0.02 m, Ω₁ = 1 rad/s, Ω₂ = 0.
 nb.code(r"""
 R1, R2 = 0.01, 0.02                                      # cylinder radii [m]
 u, A, B = ch08.circular_couette(0.015, R1, R2, 1.0, 0.0, return_coeffs=True)   # (8.10) at mid-gap, and A, B of (8.9)
-print(f"u_φ(1.5 cm) = {u:.4g} m/s, A = {A:.4g} 1/s, B = {B:.4g} m²/s")
-print("R₂ = ∞ (free vortex):", ch08.circular_couette(0.05, R1, np.inf, 1.0, 0.0),
+print(f"u_φ(1.5 cm) = {u:.4g} m/s, A = {A:.4g} 1/s, B = {B:.4g} m²/s")   # show the numbers
+print("R₂ = ∞ (free vortex):", ch08.circular_couette(0.05, R1, np.inf, 1.0, 0.0),   # show the numbers
       "  Ch. 5 with ω = 2Ω₁:", ch05.rotating_cylinder_flow(0.05, R1, 2*1.0)[0])   # (8.11) vs Ch. 5 at R = 5 cm
-print("R₁ = 0 (solid body): ", ch08.circular_couette(0.01, 0.0, R2, 0.0, 3.0),
+print("R₁ = 0 (solid body): ", ch08.circular_couette(0.01, 0.0, R2, 0.0, 3.0),   # show the numbers
       "  Ch. 5 solid body:", VX.solid_body_rotation(0.01, 3.0))               # (8.12) vs Ch. 5 at R = 1 cm, Ω₂ = 3 rad/s
-print(f"pressure rise across the gap: {ch08.circular_couette_pressure(R2, R1, R2, 1.0, 0.0):.4g} Pa")
+print(f"pressure rise across the gap: {ch08.circular_couette_pressure(R2, R1, R2, 1.0, 0.0):.4g} Pa")   # show the numbers
 pw = ch08.circular_couette_power(R1, R2, 1.0, 0.0, mu=MU_W)   # torques, power and dissipation per metre of length
-print({k: f"{pw[k]:.4g}" for k in ("torque_inner", "torque_outer", "power_in", "power_out", "dissipation")})
+print({k: f"{pw[k]:.4g}" for k in ("torque_inner", "torque_outer", "power_in", "power_out", "dissipation")})   # show the numbers
 print("sympy profile:", ch08.parallel_flow_sympy("circular_couette")["profile"])   # D08 symbolically
 """, explain=r"""
 1. `circular_couette` evaluates (8.10); with `return_coeffs=True` it also returns A = −1/3 s⁻¹ and B = 1.333 × 10⁻⁴ m²/s,
@@ -1722,33 +1807,33 @@ for case in ("channel", "pipe", "circular_couette"):     # u·∇u computed symb
 nb.figure(r"""
 R1, R2 = 0.01, 0.02                                       # the annulus of the tiny example [m] (R₁/R₂ = 0.5)
 Rr = np.linspace(R1, R2, 200)                             # radii across the gap [m]
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8), gridspec_kw=dict(width_ratios=[1.2, 1, 1.1]))
-cases = [((1, 0), "inner only", COLORS["blue"]), ((0, 1), "outer only", COLORS["teal"]),
-         ((1, 1), "co-rotating (solid body)", COLORS["accent"]), ((1, -1), "counter-rotating", COLORS["amber"])]
+fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8), gridspec_kw=dict(width_ratios=[1.2, 1, 1.1]))   # the figure and its panels
+cases = [((1, 0), "inner only", COLORS["blue"]), ((0, 1), "outer only", COLORS["teal"]),   # four wall combinations
+         ((1, 1), "co-rotating (solid body)", COLORS["accent"]), ((1, -1), "counter-rotating", COLORS["amber"])]   # (Ω₁, Ω₂) pairs [rad/s], name, colour
 for (O1, O2), lab, c in cases:                            # four (Ω₁, Ω₂) pairs [rad/s]
     a1.plot(1e2*Rr, 1e3*ch08.circular_couette(Rr, R1, R2, O1, O2), color=c, lw=2, label=lab)   # (8.10) [mm/s]
 _, A, B = ch08.circular_couette(Rr, R1, R2, 1, 0, return_coeffs=True)   # the two parts of the inner-only case
-a1.plot(1e2*Rr, 1e3*A*Rr, color=COLORS["orange"], ls="--", lw=1, label="AR part (inner only)")
-a1.plot(1e2*Rr, 1e3*B/Rr, color=COLORS["rose"], ls="--", lw=1, label="B/R part (inner only)")
-a1.axhline(0, color=COLORS["muted"], lw=0.8)
-a1.set_xlabel("R [cm]"); a1.set_ylabel("u_φ [mm/s]"); a1.legend(fontsize=7); a1.set_title("Every swirl is AR + B/R", fontsize=10)
+a1.plot(1e2*Rr, 1e3*A*Rr, color=COLORS["orange"], ls="--", lw=1, label="AR part (inner only)")   # a curve (its label says which)
+a1.plot(1e2*Rr, 1e3*B/Rr, color=COLORS["rose"], ls="--", lw=1, label="B/R part (inner only)")   # a curve (its label says which)
+a1.axhline(0, color=COLORS["muted"], lw=0.8)             # reference line
+a1.set_xlabel("R [cm]"); a1.set_ylabel("u_φ [mm/s]"); a1.legend(fontsize=7); a1.set_title("Every swirl is AR + B/R", fontsize=10)   # labels with units
 ph = np.linspace(0, 2*np.pi, 13)[:-1]                     # 12 angles
 for Rk in np.linspace(R1*1.1, R2*0.95, 5):                # 5 radii: arrows ∝ u_φ, tangent to circles (inner-only case)
-    uk = ch08.circular_couette(Rk, R1, R2, 1, 0)
-    a2.quiver(Rk*np.cos(ph), Rk*np.sin(ph), -uk*np.sin(ph), uk*np.cos(ph), color=COLORS["blue"], scale=0.06, width=0.006)
-t_ = np.linspace(0, 2*np.pi, 200)
-a2.fill(R1*np.cos(t_), R1*np.sin(t_), color=COLORS["muted"]); a2.plot(R2*np.cos(t_), R2*np.sin(t_), color=COLORS["ink"], lw=2)
-a2.set_aspect("equal"); a2.axis("off"); a2.set_title("Seen from above (inner cylinder turning)", fontsize=10)
+    uk = ch08.circular_couette(Rk, R1, R2, 1, 0)         # u_φ at this radius (inner cylinder turning) [m/s]
+    a2.quiver(Rk*np.cos(ph), Rk*np.sin(ph), -uk*np.sin(ph), uk*np.cos(ph), color=COLORS["blue"], scale=0.06, width=0.006)   # velocity arrows
+t_ = np.linspace(0, 2*np.pi, 200)                        # angles for drawing the two circles
+a2.fill(R1*np.cos(t_), R1*np.sin(t_), color=COLORS["muted"]); a2.plot(R2*np.cos(t_), R2*np.sin(t_), color=COLORS["ink"], lw=2)   # a filled shape
+a2.set_aspect("equal"); a2.axis("off"); a2.set_title("Seen from above (inner cylinder turning)", fontsize=10)   # each panel says its message
 Rf = np.linspace(R1, 6*R1, 200)                           # outside a lone cylinder (R₂ = ∞) [m]
 uf = ch08.circular_couette(Rf, R1, np.inf, 1.0, 0.0)      # (8.11): Ω₁R₁²/R
 Gam = 2*np.pi*1.0*R1**2                                   # circulation Γ = 2πΩ₁R₁² [m²/s]
 zs = -Gam**2/(8*np.pi**2*9.81*Rf**2)                      # free-surface height relative to far away (ours, Ch. 5's funnel) [m]
-a3.plot(1e2*Rf, 1e3*uf, color=COLORS["blue"], lw=2, label="u_φ = Ω₁R₁²/R (8.11) [mm/s]")
-a3.plot(1e2*Rf, 1e6*zs, color=COLORS["accent"], lw=2, label="free-surface dip z_s [µm] (ours)")
-a3.axhline(0, color=COLORS["muted"], lw=0.8)
-a3.set_xlabel("R [cm]"); a3.legend(fontsize=7); a3.set_title("R₂ → ∞: the ideal vortex and its dip", fontsize=10)
-fig.suptitle("Every swirl between cylinders is AR + B/R", fontsize=11)
-savefig(fig, "ch08", "c04_circular_couette"); plt.show()
+a3.plot(1e2*Rf, 1e3*uf, color=COLORS["blue"], lw=2, label="u_φ = Ω₁R₁²/R (8.11) [mm/s]")   # a curve (its label says which)
+a3.plot(1e2*Rf, 1e6*zs, color=COLORS["accent"], lw=2, label="free-surface dip z_s [µm] (ours)")   # a curve (its label says which)
+a3.axhline(0, color=COLORS["muted"], lw=0.8)             # reference line
+a3.set_xlabel("R [cm]"); a3.legend(fontsize=7); a3.set_title("R₂ → ∞: the ideal vortex and its dip", fontsize=10)   # labels with units
+fig.suptitle("Every swirl between cylinders is AR + B/R", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c04_circular_couette"); plt.show() # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) four curves joining the two wall speeds; the co-rotating one is a straight line; the counter-rotating one crosses
 zero inside the gap; (b) the annulus from above with arrows growing toward the inner cylinder (our remake of Fig. 8.6
 `N104`); (c) the free vortex outside a lone cylinder and the free surface dipping toward it (our Fig. 8.7).""",
@@ -1768,16 +1853,16 @@ def frame(r_):                                            # r_ = Ω₂/Ω₁ wit
 
 
 ratios = np.linspace(-2, 2, 21 if not FAST else 11)       # slider values Ω₂/Ω₁ [–]
-fig = slider_figure(frame, "Ω₂/Ω₁", ratios, unit="", xlabel="R [cm]", ylabel="u_φ [mm/s]", title="")
+fig = slider_figure(frame, "Ω₂/Ω₁", ratios, unit="", xlabel="R [cm]", ylabel="u_φ [mm/s]", title="")   # precompute every slider/time position
 titles = []                                               # A, B and the Rayleigh verdict for each ratio
-for r_ in ratios:
+for r_ in ratios:                                        # each slider value
     st = ch08.circular_couette_state(R1, R2, 1.0, r_)     # constants of (8.9) and (Ru_φ)² increasing outward?
-    tag = "Rayleigh-stable" if st["rayleigh_stable"] else "can become unstable (Ch. 11)"
-    titles.append(f"A = {st['A']:.2f} 1/s, B = {1e4*st['B']:.2f} cm²/s — {tag}")
-step_titles(fig, titles)
-recolor(fig, {"u_φ(R), (8.10)": COLORS["blue"], "solid body Ω₂R": COLORS["orange"], "free vortex Ω₁R₁²/R": COLORS["rose"]},
-        {"solid body Ω₂R": "dash", "free vortex Ω₁R₁²/R": "dash"})
-fig.show()
+    tag = "Rayleigh-stable" if st["rayleigh_stable"] else "can become unstable (Ch. 11)"   # Rayleigh's verdict
+    titles.append(f"A = {st['A']:.2f} 1/s, B = {1e4*st['B']:.2f} cm²/s — {tag}")   # the title for this step
+step_titles(fig, titles)                                 # numbers that follow the slider
+recolor(fig, {"u_φ(R), (8.10)": COLORS["blue"], "solid body Ω₂R": COLORS["orange"], "free vortex Ω₁R₁²/R": COLORS["rose"]},   # colours by meaning (as in the static figures)
+        {"solid body Ω₂R": "dash", "free vortex Ω₁R₁²/R": "dash"})   # (continued)
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 The slider sets the outer wall's rotation relative to the inner one (Ω₁ = 1 rad/s). The title prints A, B and whether
 Rayleigh's criterion (angular momentum growing outward) holds; the dashed references are the two pure limits.
@@ -1863,6 +1948,15 @@ assert sp.simplify(sol["y_coeffs"]["pressure"] - 1/Lam) == 0          # step 13'
 assert sp.simplify(sol["y_coeffs"]["diff_across"] - eps**2) == 0      # step 14: y-friction across the gap ε²
 print("with the printed ∂p/∂x in (8.13b):", sol["printed_13b_y_coeffs"])   # pressure ε/Λ: not the set of (8.16b)
 assert sp.simplify(sol["printed_13b_y_coeffs"]["pressure"] - 1/Lam) != 0   # the printed slip fails
+# rebuild steps 5, 6, 8–10 here, term by term, from the scalings (8.14) (independent of the engine):
+inertia = (U_/L_)*U_                                     # step 5: u ∂u/∂x with u = U u*, ∂/∂x = (1/L)∂/∂x* → size U²/L
+pressure = Pa_/(rho_*L_)                                 # step 6: (1/ρ)∂p/∂x with p = P_a p* → size P_a/(ρL)
+across = mu_*U_/(rho_*(eps*L_)**2)                       # step 7: (μ/ρ)∂²u/∂y² with ∂/∂y = (1/εL)∂/∂y* → μU/(ρε²L²)
+factor = rho_*eps**2*L_**2/(mu_*U_)                      # step 8: divide by the cross-gap friction's size
+print("inertia coefficient:", sp.simplify(inertia*factor), "  pressure coefficient:", sp.simplify(pressure*factor),
+      "  cross-gap friction:", sp.simplify(across*factor))
+assert sp.simplify(inertia*factor - eps**2*rho_*U_*L_/mu_) == 0   # step 9: ε² times Re_L = ρUL/μ
+assert sp.simplify(pressure*factor - Pa_*(eps*L_)**2/(mu_*U_*L_)) == 0   # step 10: 1/Λ with Λ = μUL/(P_a h²), h = εL
 """)
 note("N27 [B], N28 [B], N29 [B] · What D10 delivered.", r"""
 **N27** The scaled continuity equation (8.15) has no coefficient: mass is conserved exactly — v is small *because* u varies
@@ -1892,11 +1986,11 @@ ours).
 nb.code(r"""
 L, h, U, rho, mu = 0.05, 50e-6, 5.0, 870.0, 0.05          # the engine film: length, gap [m], speed [m/s], ρ, μ
 s = ch08.lubrication_scales(L, h, U, rho, mu)             # ε, Re_L, ε²Re_L, Λ (with P_a) and μUL/h²
-print({k: f"{v:.4g}" for k, v in s.items()})
-keys = ("x_inertia", "x_pressure", "x_diff_along", "x_diff_across", "y_inertia", "y_pressure", "y_diff_along", "y_diff_across")
+print({k: f"{v:.4g}" for k, v in s.items()})             # show the numbers
+keys = ("x_inertia", "x_pressure", "x_diff_along", "x_diff_across", "y_inertia", "y_pressure", "y_diff_along", "y_diff_across")   # the eight coefficients, in order
 for scale in ("viscous", "atm"):                          # pressure scaled by μUL/h² (Λ = 1) or by P_a (the book's)
     t = ch08.lubrication_term_magnitudes(L, h, U, rho, mu, p_scale=scale)   # the coefficients of (8.16a), (8.16b)
-    print(scale, {k: f"{t[k]:.3g}" for k in keys})
+    print(scale, {k: f"{t[k]:.3g}" for k in keys})       # show the numbers
 """, explain=r"""
 1. `lubrication_scales` returns ε = 10⁻³, Re_L = 4350, ε²Re_L = 4.35 × 10⁻³, Λ = 49.3 and the natural pressure scale
    μUL/h² = 5 × 10⁶ Pa.
@@ -1907,28 +2001,28 @@ for scale in ("viscous", "atm"):                          # pressure scaled by �
 nb.check_agree(r"""
 eps = h/L; ReL = rho*U*L/mu; Lam = mu*U*L/(101325*h**2)   # ε, Re_L, Λ by hand (P_a = 101 325 Pa)
 mine = [eps**2*ReL, 1/Lam, eps**2, 1.0, eps**4*ReL, 1/Lam, eps**4, eps**2]   # the eight coefficients of D10
-lib = ch08.lubrication_term_magnitudes(L, h, U, rho, mu, p_scale="atm")
+lib = ch08.lubrication_term_magnitudes(L, h, U, rho, mu, p_scale="atm")   # the library's coefficients (P_a scale)
 assert np.allclose(mine, [lib[k] for k in keys], rtol=1e-12)   # same numbers, in the order of `keys`
-print("hand-made coefficients = library coefficients")
+print("hand-made coefficients = library coefficients")   # show the numbers
 """)
 nb.figure(r"""
 L, U, rho, mu = 0.05, 5.0, 870.0, 0.05                    # fixed: Re_L = ρUL/μ = 4350
 epss = np.geomspace(1e-4, 0.3, 60)                        # fineness ratios ε = h/L
 T = [ch08.lubrication_term_magnitudes(L, e*L, U, rho, mu, p_scale="viscous") for e in epss]   # coefficients at each ε
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
-for ax, pre, title in ((a1, "x", "x-momentum (8.16a)"), (a2, "y", "y-momentum (8.16b)")):
-    ax.loglog(epss, [t_[pre + "_inertia"] for t_ in T], color=COLORS["teal"], lw=2, label="inertia")
-    ax.loglog(epss, [t_[pre + "_pressure"] for t_ in T], color=COLORS["orange"], lw=2, label="pressure")
-    ax.loglog(epss, [t_[pre + "_diff_along"] for t_ in T], color=COLORS["rose"], lw=1.2, ls=":", label="friction along the gap")
-    ax.loglog(epss, [t_[pre + "_diff_across"] for t_ in T], color=COLORS["rose"], lw=2, label="friction across the gap")
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)   # the figure and its panels
+for ax, pre, title in ((a1, "x", "x-momentum (8.16a)"), (a2, "y", "y-momentum (8.16b)")):   # x-equation left, y-equation right
+    ax.loglog(epss, [t_[pre + "_inertia"] for t_ in T], color=COLORS["teal"], lw=2, label="inertia")   # a curve (its label says which)
+    ax.loglog(epss, [t_[pre + "_pressure"] for t_ in T], color=COLORS["orange"], lw=4, alpha=0.6, label="pressure")   # thick, under the rose dashes   # a curve (its label says which)
+    ax.loglog(epss, [t_[pre + "_diff_along"] for t_ in T], color=COLORS["rose"], lw=1.2, ls=":", label="friction along the gap")   # a curve (its label says which)
+    ax.loglog(epss, [t_[pre + "_diff_across"] for t_ in T], color=COLORS["rose"], lw=2, ls="--", label="friction across the gap")   # dashed: where it equals the pressure, both show   # a curve (its label says which)
     e_fail = 1/np.sqrt(4350.0)                            # where ε²Re_L = 1
-    ax.axvline(e_fail, color=COLORS["muted"], ls="--", lw=1)
-    ax.text(e_fail*1.1, 1e-9, "ε²Re_L = 1:\nlubrication\nfails to the right", fontsize=7)
-    ax.axvline(1e-3, color=COLORS["amber"], lw=0.8); ax.text(1.1e-3, 1e2, "engine film", fontsize=7, color=COLORS["amber"])
-    ax.set_xlabel("ε = h/L [–]"); ax.set_title(title, fontsize=10); ax.set_ylim(1e-14, 1e4)
-a1.set_ylabel("coefficient (size of the term) [–]"); a1.legend(fontsize=7, loc="lower right")
-fig.suptitle("In a thin gap inertia is weighed with ε²Re_L, not Re_L (Re_L = 4350, pressure scale μUL/h²)", fontsize=11)
-savefig(fig, "ch08", "c05_term_magnitudes"); plt.show()
+    ax.axvline(e_fail, color=COLORS["muted"], ls="--", lw=1)   # reference line
+    ax.text(e_fail*1.1, 1e-3, "ε²Re_L = 1:\nlubrication\nfails to the right", fontsize=7)   # a label on the plot
+    ax.axvline(1e-3, color=COLORS["amber"], lw=0.8); ax.text(1.1e-3, 1e2, "engine film", fontsize=7, color=COLORS["amber"])   # reference line
+    ax.set_xlabel("ε = h/L [–]"); ax.set_title(title, fontsize=10); ax.set_ylim(1e-14, 1e4)   # labels with units
+a1.set_ylabel("coefficient (size of the term) [–]"); a1.legend(fontsize=7, loc="lower left")   # labels with units
+fig.suptitle("In a thin gap inertia is weighed with ε²Re_L, not Re_L (Re_L = 4350, pressure scale μUL/h²)", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c05_term_magnitudes"); plt.show()  # save the PNG to outputs/ch08, then draw
 """, see=r"""Two flat lines on the left (pressure and cross-gap friction) and falling lines for everything else; on the right only the
 pressure stays at 1 — every other y-term falls like ε² or faster.""",
     read=r"""Read each term's size at your ε: at ε = 10⁻³ (amber line) inertia is 4.35 × 10⁻³ of the kept terms; only near
@@ -1979,7 +2073,8 @@ has "constants" A, B that may depend on x and t (step 3). ⚠️ The text says (
 simplified (8.17a) that is integrated.
 """, equation=EQ["8.18"], ref="8.18")
 note("N34 [B] · The U₀ term.", r"""
-The printed (8.19) adds $U_0$ to the Couette part, so at the upper wall it gives $u(h)=U_h+U_0$ instead of $U_h$. The
+The printed (8.19) reads $u\cong-\frac{h^2}{2\mu}\frac{\partial p}{\partial x}\frac yh\big(1-\frac yh\big)+U_h\frac yh+U_0$:
+it adds $U_0$ to the Couette part, so at the upper wall it gives $u(h)=U_h+U_0$ instead of $U_h$. The
 consistent profile is $U_h\frac yh+U_0\big(1-\frac yh\big)$ (D12 step 7). Every example of the chapter has U₀ = 0, so no
 result changes; our code uses the consistent form and keeps the printed one as `form='book'` for a test that must fail.
 """)
@@ -1993,7 +2088,7 @@ Differentiating an integral whose upper limit moves adds a boundary term:
 $\frac{\partial}{\partial x}\int_0^{h(x)}u\,dy=\int_0^{h}\frac{\partial u}{\partial x}dy+u(x,h)\frac{\partial h}{\partial x}$.
 The second term counts what enters or leaves because the limit itself moved (Ch. 3 met the fixed-limit version).
 """, code=r"""
-import sympy as sp
+import sympy as sp                                       # symbolic maths
 x, y = sp.symbols('x y')
 h = 1 + x**2                                             # a moving upper limit
 u = x*y                                                  # a test integrand
@@ -2012,6 +2107,12 @@ assert sp.simplify(r["leibniz_residual"]) == 0           # step 2: the Leibniz r
 assert sp.simplify(r["kinematic_cancellation"]) == 0     # steps 5–7: the u(h)·h_x terms cancel
 assert sp.simplify(r["reynolds_residual"]) == 0          # step 12: h_t + q_x = 0 is the gap integral of u_x + v_y = 0
 print("Reynolds equation:", r["reynolds_equation"])      # the 1-D Reynolds equation, expanded
+# rebuild steps 8–11 here: integrate the consistent profile (8.19) across the gap
+y_, hh_, px, U0_, Uh_, mu_ = sp.symbols("y h p_x U_0 U_h mu", positive=True)   # height, gap, ∂p/∂x, wall speeds, μ
+u_prof = -hh_**2/(2*mu_)*px*(y_/hh_)*(1 - y_/hh_) + Uh_*y_/hh_ + U0_*(1 - y_/hh_)   # D12's consistent profile
+q_hand = sp.integrate(u_prof, (y_, 0, hh_))              # step 8: q = ∫₀ʰ u dy
+print("q by hand:", sp.factor(q_hand))
+assert sp.simplify(q_hand - (-hh_**3*px/(12*mu_) + (U0_ + Uh_)*hh_/2)) == 0   # steps 9–11: −h³p_x/(12μ) + (U₀ + U_h)h/2
 """)
 note("N32 [B] · Completing a lubrication problem.", r"""
 The profile alone is not a solution: we still need p(x). Integrating continuity across the gap gives
@@ -2023,9 +2124,9 @@ P("P190", "scipy.integrate.cumulative_trapezoid", r"""
 `cumulative_trapezoid(f, x, initial=0)` returns the running integral $\int_{x_0}^{x_i}f\,dx$ at every sample — the numerical
 antiderivative. We use it to turn a pressure gradient into a pressure profile.
 """, code=r"""
-from scipy.integrate import cumulative_trapezoid
-import numpy as np
-x = np.linspace(0, 1, 5)
+from scipy.integrate import cumulative_trapezoid         # the running-integral function
+import numpy as np                                       # numbers
+x = np.linspace(0, 1, 5)                                 # five samples on [0, 1]
 print(cumulative_trapezoid(2*x, x, initial=0))           # ≈ x²: [0, 0.0625, 0.25, 0.5625, 1.0]
 """)
 nb.worked_example("the flux through a 50 µm gap", r"""
@@ -2089,6 +2190,10 @@ parts at the end stations — our remake of Fig. 8.8.""",
 forward where it falls. In the ground frame the flux grows with the gap, $q=C_1+Uh$, because the pad-frame flux $C_1$ is the
 same at every station (D14).""",
     change=r"""…the pad slid the other way (U < 0): every profile flips, and the pressure hump becomes a suction dip (C07).""")
+remind([
+    ("meshgrid, contour and streamplot", "`X, Y = np.meshgrid(x, y)` gives every point of a grid; `ax.contour(X, Y, psi, levels)` draws streamlines as lines of constant ψ (Ch. 2 P76, P78) — used in the Hele-Shaw figure below and again in §8.6."),
+    ("observed order of convergence", "if an error behaves like C·Δᵖ, the slope of log(error) against log(Δ) is p; `observed_order` fits it (Ch. 1 P13, log–log slopes) — used in the grid check below and in C09, C15."),
+])
 note("N36 [B] · Hele-Shaw flow (Example 8.2): viscous flow that draws ideal streamlines.", r"""
 Between two plates z = 0 and z = h the lubrication balances $0\cong-\frac1\rho\frac{\partial p}{\partial x}+\nu\frac{\partial^2u}
 {\partial z^2}$, $0\cong-\frac1\rho\frac{\partial p}{\partial y}+\nu\frac{\partial^2v}{\partial z^2}$,
@@ -2103,24 +2208,24 @@ and writes the wall conditions at "y = 0, h" — the gap coordinate here is z.
 nb.figure(r"""
 a, gap, Um = 0.01, 1e-3, 1e-3                             # disc radius [m], plate gap [m], mean speed [m/s]
 xg = np.linspace(-0.04, 0.04, 241 if not FAST else 121)   # a 8 cm × 8 cm window [m]
-X, Y = np.meshgrid(xg, xg)
+X, Y = np.meshgrid(xg, xg)                               # every point of the window
 hs = ch08.hele_shaw_cylinder(X, Y, None, Um, a, gap)      # depth-averaged Hele-Shaw flow (z = None → gap average)
 psi_ideal = PF.stream_function(PF.cylinder(Um, a), X, Y)  # Ch. 6: ideal flow past a circular cylinder
 inside = X**2 + Y**2 < a**2                               # the disc
 lev = np.linspace(-3.5e-5, 3.5e-5, 15)                    # streamline levels [m²/s]
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4.2), gridspec_kw=dict(width_ratios=[1.4, 1]))
-a1.contour(X*1e2, Y*1e2, np.where(inside, np.nan, hs["psi_mean"]), lev, colors=COLORS["blue"], linewidths=1.6)
-a1.contour(X*1e2, Y*1e2, np.where(inside, np.nan, psi_ideal), lev, colors=COLORS["muted"], linewidths=1, linestyles="--")
-a1.add_patch(plt.Circle((0, 0), a*1e2, color=COLORS["muted"]))
-a1.set_aspect("equal"); a1.set_xlabel("x [cm]"); a1.set_ylabel("y [cm]")
-a1.set_title("Hele-Shaw dye lines (blue) on ideal streamlines (dashed)", fontsize=10)
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4.2), gridspec_kw=dict(width_ratios=[1.4, 1]))   # the figure and its panels
+a1.contour(X*1e2, Y*1e2, np.where(inside, np.nan, hs["psi_mean"]), lev, colors=COLORS["blue"], linewidths=1.6)   # streamlines = lines of constant ψ
+a1.contour(X*1e2, Y*1e2, np.where(inside, np.nan, psi_ideal), lev, colors=COLORS["muted"], linewidths=1, linestyles="--")   # streamlines = lines of constant ψ
+a1.add_patch(plt.Circle((0, 0), a*1e2, color=COLORS["muted"]))   # the disc between the plates
+a1.set_aspect("equal"); a1.set_xlabel("x [cm]"); a1.set_ylabel("y [cm]")   # labels with units
+a1.set_title("Hele-Shaw dye lines (blue) on ideal streamlines (dashed)", fontsize=10)   # each panel says its message
 z = np.linspace(0, gap, 50)                               # across the gap [m]
 dpdx = -12*MU_W*Um/gap**2                                 # the far-field gradient that drives the mean speed Um [Pa/m]
 u_z, _ = ch08.hele_shaw_velocity(z, gap, (dpdx, 0.0))     # the parabola across the gap [m/s]
-a2.plot(1e3*u_z, 1e3*z, color=COLORS["blue"], lw=2); a2.axvline(1e3*Um, color=COLORS["muted"], ls="--", lw=1)
-a2.text(1e3*Um*1.02, 0.1, "mean", fontsize=8, color=COLORS["muted"])
-a2.set_xlabel("u [mm/s]"); a2.set_ylabel("z across the gap [mm]"); a2.set_title("Profile across the gap (far away)", fontsize=10)
-savefig(fig, "ch08", "c06_hele_shaw"); plt.show()
+a2.plot(1e3*u_z, 1e3*z, color=COLORS["blue"], lw=2); a2.axvline(1e3*Um, color=COLORS["muted"], ls="--", lw=1)   # reference line
+a2.text(1e3*Um*1.02, 0.1, "mean", fontsize=8, color=COLORS["muted"])   # a label on the plot
+a2.set_xlabel("u [mm/s]"); a2.set_ylabel("z across the gap [mm]"); a2.set_title("Profile across the gap (far away)", fontsize=10)   # labels with units
+savefig(fig, "ch08", "c06_hele_shaw"); plt.show()        # save the PNG to outputs/ch08, then draw
 """, see=r"""The blue gap-averaged dye lines of Hele-Shaw flow lie exactly on the dashed ideal-flow streamlines round a cylinder,
 while across the 1 mm gap the flow is a viscous parabola — our remake of Fig. 8.10.""",
     read=r"""The pressure is harmonic, so the depth-averaged velocity is a potential flow; only a thin layer at the disc (too thin to
@@ -2136,11 +2241,11 @@ order**: doubling the grid roughly halves the error.
 nb.code(r"""
 ns = (33, 65, 129) if not FAST else (33, 65)             # nodes per side of the square grid
 errs, hs_ = [], []                                        # far-field error and grid step for each grid
-for n_ in ns:
+for n_ in ns:                                            # each grid
     g_ = ch08.hele_shaw_streamfunction_grid(n=n_, a=1.0, U_mean=1.0, box=4.0)   # disc radius 1, box ±4 (non-dimensional)
     errs.append(g_["err_far"]); hs_.append(g_["h"])        # max |ψ − ψ_ideal| where r ≥ 2a, and the step
-    print(f"n = {n_}: step {g_['h']:.3f}, max error {g_['err_far']:.2e}")
-print(f"observed order ≈ {observed_order(hs_, errs):.2f}  (first order: the staircase disc)")
+    print(f"n = {n_}: step {g_['h']:.3f}, max error {g_['err_far']:.2e}")   # show the numbers
+print(f"observed order ≈ {observed_order(hs_, errs):.2f}  (first order: the staircase disc)")   # show the numbers
 """)
 whatif(r"""
 …the gap were the space under a real, tilted pad with the same pressure $p_e$ at both ends? The flux must be constant along
@@ -2178,6 +2283,14 @@ assert sp.simplify(sb["ode_residual_book"]) != 0         # the printed first-pow
 assert all(sp.simplify(r_) == 0 for r_ in sb["bc_residuals"])   # p(0) = p(L) = p_e
 print("W_linear =", sb["W_linear"])                      # step 15: αμL²U/(2h₀²)
 print("W_exact  =", sb["W_exact_series"])                # N35's exact load expanded in α: starts with W_linear
+# rebuild steps 5–10 here: integrate step 5's ODE and let the two end pressures choose C₁
+C1_, xx_ = sp.symbols("C_1 x_")                          # the unknown pad-frame flux and a dummy integration variable
+h_x = h0_*(1 + al_*xx_/L_)                               # step 6: the gap h₀(1 + αx/L)
+dpdx_ = -12*mu_*C1_/h_x**3 - 6*mu_*U_/h_x**2             # step 5: dp/dx = −12μC₁/h³ − 6μU/h²
+rise = sp.integrate(dpdx_, (xx_, 0, L_))                 # steps 7–9: p(L) − p(0) for any C₁
+C1_hand = sp.solve(sp.Eq(rise, 0), C1_)[0]               # step 10: equal end pressures fix C₁
+print("C1 by hand:", sp.simplify(C1_hand))
+assert sp.simplify(C1_hand + (1 + al_)*U_*h0_/(2 + al_)) == 0   # = −(1 + α)U h₀/(2 + α)
 """)
 confusion(r"""
 **two printing slips in Example 8.1.** The intermediate integrals are printed with $(1-\alpha x/L)$, although the gap is
@@ -2205,15 +2318,15 @@ for model in ("exact", "linear", "book"):                # corrected exact, O(α
     print(f"{model:6s} p(L/2) − p_e = {ch08.slider_bearing(0.025, h0, 0.1, L, U, mu=mu, model=model):.4g} Pa")
 st = ch08.slider_bearing_state(h0, 0.1, L, U, mu=mu)     # everything the explainer shows
 print({k: (round(st[k], 7) if not isinstance(st[k], bool) else st[k]) for k in
-       ("C1", "p_max", "x_pmax", "W_exact", "W_linear", "err_linear", "p_max_atm", "inlet_backflow")})
+       ("C1", "p_max", "x_pmax", "W_exact", "W_linear", "err_linear", "p_max_atm", "backflow_any", "backflow_x")})
 print(ch08.slider_optimum_taper())                       # the taper that maximises the exact load
 print("reversed U:", ch08.slider_bearing_load(h0, 0.1, L, -U, mu=mu, model="linear"), "N/m")   # suction
 """, explain=r"""
 1. The three models at mid-pad: exact 3.239 × 10⁵ Pa, linear 3.75 × 10⁵ Pa, and the printed first-power form 3.401 × 10⁵ Pa —
    5 % off, and (D14 check) it does not satisfy the pressure equation.
 2. The state: the pad-frame flux C₁ = −1.310 × 10⁻⁴ m²/s, the peak 3.247 × 10⁵ Pa at x = 2.38 cm (x/L = 0.476, just before
-   mid-pad), the exact load 10.8 kN/m against the linear 12.5 kN/m — the linear one 15.6 % high — the peak in atmospheres, and no inlet
-   recirculation (α ≤ 1).
+   mid-pad), the exact load 10.8 kN/m against the linear 12.5 kN/m — the linear one 15.6 % high — the peak in atmospheres, and no recirculation at the
+   wide end (`backflow_any = False`: the gap ratio 1 + α = 1.1 is below 2, see the note after N35).
 3. `slider_optimum_taper` maximises the exact load: α = 1.189, inlet/outlet gap ratio 1 + α = 2.189, dimensionless load
    W h₀²/(6μUL²) = 0.02671 (the San Andrés benchmark).
 4. Reversing U turns the load negative: the pad is sucked down.
@@ -2229,30 +2342,30 @@ assert np.allclose(C1, st["C1"], rtol=1e-8)              # same flux constant
 assert np.allclose(p_mine, ch08.slider_bearing(x, h0, 0.1, L, U, mu=mu), rtol=1e-6, atol=1.0)   # same pressure hump
 """)
 nb.figure(r"""
-L, h0, U, mu = 0.05, 50e-6, 5.0, 0.05
+L, h0, U, mu = 0.05, 50e-6, 5.0, 0.05                    # the pad: length [m], film [m], speed [m/s], oil viscosity [Pa s]
 x = np.linspace(0, L, 400)                                # along the pad [m]
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.8))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.8))    # the figure and its panels
 for al, c in ((0.1, COLORS["orange"]), (0.5, COLORS["amber"]), (1.189, COLORS["rose"])):   # three tapers
-    a1.plot(x/L, ch08.slider_bearing(x, h0, al, L, U, mu=mu)/1e6, color=c, lw=2, label=f"α = {al:g}, exact")
-    a1.plot(x/L, ch08.slider_bearing(x, h0, al, L, U, mu=mu, model="linear")/1e6, color=c, lw=1, ls="--")
-a1.plot(x/L, ch08.slider_bearing(x, h0, 0.5, L, U, mu=mu, model="book")/1e6, color=COLORS["muted"], lw=1.5, ls=":",
-        label="α = 0.5 as printed (first power)")
-a1.plot([], [], color=COLORS["ink"], ls="--", lw=1, label="linear in α")
-a1.set_xlabel("x/L [–]"); a1.set_ylabel("p − p_e [MPa]"); a1.legend(fontsize=7); a1.set_title("Pressure humps", fontsize=10)
+    a1.plot(x/L, ch08.slider_bearing(x, h0, al, L, U, mu=mu)/1e6, color=c, lw=2, label=f"α = {al:g}, exact")   # a curve (its label says which)
+    a1.plot(x/L, ch08.slider_bearing(x, h0, al, L, U, mu=mu, model="linear")/1e6, color=c, lw=1, ls="--")   # a curve (its label says which)
+a1.plot(x/L, ch08.slider_bearing(x, h0, 0.5, L, U, mu=mu, model="book")/1e6, color=COLORS["muted"], lw=1.5, ls=":",   # a curve (its label says which)
+        label="α = 0.5 as printed (first power)")        # (continued)
+a1.plot([], [], color=COLORS["ink"], ls="--", lw=1, label="linear in α")   # a curve (its label says which)
+a1.set_xlabel("x/L [–]"); a1.set_ylabel("p − p_e [MPa]"); a1.legend(fontsize=7); a1.set_title("Pressure humps", fontsize=10)   # labels with units
 als = np.linspace(-0.9, 3.0, 200)                         # tapers, including negative (pad sliding the wrong way)
 W_ex = np.array([ch08.slider_bearing_load(h0, a_, L, U, mu=mu) for a_ in als])       # N35 exact load [N/m]
-W_li = np.array([ch08.slider_bearing_load(h0, a_, L, U, mu=mu, model="linear") for a_ in als])
-opt = ch08.slider_optimum_taper()
-a2.plot(als, W_ex/1e3, color=COLORS["blue"], lw=2, label="exact (N35)")
-a2.plot(als, W_li/1e3, color=COLORS["blue"], lw=1, ls="--", label="linear αμL²U/(2h₀²)")
-a2.axvline(opt["alpha_opt"], color=COLORS["muted"], lw=0.8)
-a2.text(opt["alpha_opt"]*1.03, 5, f"optimum α = {opt['alpha_opt']:.3f}", fontsize=8)
-a2.fill_between(als, W_ex/1e3, 0, where=als < 0, color=COLORS["amber"], alpha=0.3, label="W < 0: pad sucked down")
-a2.axhline(0, color=COLORS["muted"], lw=0.8); a2.set_ylim(-60, 100)
-a2.set_xlabel("taper α [–]"); a2.set_ylabel("load W [kN/m]"); a2.legend(fontsize=7); a2.set_title("Load against taper", fontsize=10)
-fig.suptitle("A pressure hump carries the load — best at inlet/outlet gap ratio 2.19", fontsize=11)
-savefig(fig, "ch08", "c07_slider_pressure"); plt.show()
-""", see=r"""(a) pressure humps peaking just before mid-pad and growing with α, their linear-α parabolas (dashed) and the printed
+W_li = np.array([ch08.slider_bearing_load(h0, a_, L, U, mu=mu, model="linear") for a_ in als])   # the linear-α load [N/m]
+opt = ch08.slider_optimum_taper()                        # the taper with the largest exact load
+a2.plot(als, W_ex/1e3, color=COLORS["blue"], lw=2, label="exact (N35)")   # a curve (its label says which)
+a2.plot(als, W_li/1e3, color=COLORS["blue"], lw=1, ls="--", label="linear αμL²U/(2h₀²)")   # a curve (its label says which)
+a2.axvline(opt["alpha_opt"], color=COLORS["muted"], lw=0.8)   # reference line
+a2.text(opt["alpha_opt"]*1.03, 5, f"optimum α = {opt['alpha_opt']:.3f}", fontsize=8)   # a label on the plot
+a2.fill_between(als, W_ex/1e3, 0, where=als < 0, color=COLORS["amber"], alpha=0.3, label="W < 0: pad sucked down")   # a filled shape
+a2.axhline(0, color=COLORS["muted"], lw=0.8); a2.set_ylim(-60, 100)   # reference line
+a2.set_xlabel("taper α [–]"); a2.set_ylabel("load W [kN/m]"); a2.legend(fontsize=7); a2.set_title("Load against taper", fontsize=10)   # labels with units
+fig.suptitle("A pressure hump carries the load — best at inlet/outlet gap ratio 2.19", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c07_slider_pressure"); plt.show()  # save the PNG to outputs/ch08, then draw
+""", see=r"""(a) pressure humps peaking before mid-pad (at x = L/(2 + α)) and growing with α, their linear-α parabolas (dashed) and the printed
 first-power form for α = 0.5 (dotted grey) missing the exact hump; (b) the exact load curve bending over and peaking near
 α = 1.19, while the linear formula keeps rising — our remake of Fig. 8.9 `N105`.""",
     read=r"""The load is the area under a hump; the linear formula is fine only for α ≲ 0.1 — 15.6 % high at 0.1, about 90 % high at 0.5;
@@ -2269,30 +2382,48 @@ W_formula = ch08.slider_bearing_load(h0, 0.5, L, U, mu=mu)     # N35 for α = 0.
 W_quad = integrate.quad(lambda xx: ch08.slider_bearing(xx, h0, 0.5, L, U, mu=mu), 0, L)[0]   # ∫(p − p_e)dx numerically
 print(f"W (formula) = {W_formula:.5g} N/m, W (quad) = {W_quad:.5g} N/m")   # both 3.279e4
 """)
+nb.md(r"""
+**When does the oil recirculate under the pad?** (ours; the book does not ask). In the pad frame the floor moves at −U and
+the pad is still. With η = y/h and $h_m=\frac{2(1+\alpha)}{2+\alpha}h_o$ the gap at the pressure peak (where dp/dx = 0, i.e.
+$C_1=-Uh_m/2$), the lubrication profile with the slider's pressure gradient becomes
+$$\frac{u-U}{U}=-(1-\eta)+3\Big(1-\frac{h_m}{h}\Big)\eta(1-\eta)=(1-\eta)\Big[-1+3\Big(1-\frac{h_m}{h}\Big)\eta\Big].$$
+Next to the pad (η → 1) the bracket is $-1+3(1-h_m/h)$, so the fluid there moves *against* the floor — a recirculation — exactly
+when $h>\tfrac32h_m$. The largest gap is the worst place: the **wide end**. For α > 0 it is x = L with $h=h_o(1+\alpha)$, and
+$h/h_m=(2+\alpha)/2>3/2\iff\alpha>1$; for α < 0 it is x = 0 with $h=h_o$, and $h/h_m=\frac{2+\alpha}{2(1+\alpha)}>\frac32\iff\alpha<-\tfrac12$.
+Both say the same thing: **recirculation at the wide end iff the wide/narrow gap ratio exceeds 2**.
+""")
+nb.code(r"""
+for al in (0.1, 0.99, 1.01, 1.5, -0.45, -0.55, -0.7):    # tapers either side of the two thresholds α = 1 and α = −½
+    st_ = ch08.slider_bearing_state(h0, al, L, U, mu=mu)  # the library's verdict (checked against the profile's sign in the tests)
+    ratio = max(1 + al, 1/(1 + al))                       # wide/narrow gap ratio
+    print(f"α = {al:+.2f}: gap ratio {ratio:.2f}, recirculation {st_['backflow_any']}"
+          + (f" at x = {100*st_['backflow_x']:.0f} cm" if st_["backflow_any"] else ""))   # where: the wide end
+""")
 nb.plotly(r"""
-L, h0, U, mu = 0.05, 50e-6, 5.0, 0.05
+L, h0, U, mu = 0.05, 50e-6, 5.0, 0.05                    # the pad: length [m], film [m], speed [m/s], oil viscosity [Pa s]
 xs = np.linspace(0, L, 150)                              # stations [m]
 
 
 def frame(al):                                            # curves for one taper α
-    return {"exact": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu)/1e6),
-            "linear in α": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu, model="linear")/1e6),
-            "as printed (first power)": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu, model="book")/1e6)}
+    return {"exact": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu)/1e6),   # the curves of this position
+            "linear in α": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu, model="linear")/1e6),   # (continued)
+            "as printed (first power)": (xs/L, ch08.slider_bearing(xs, h0, al, L, U, mu=mu, model="book")/1e6)}   # (continued)
 
 
 als = np.linspace(-0.8, 3.0, 20 if not FAST else 10)      # slider values α [–]
-fig = slider_figure(frame, "α", als, unit="", xlabel="x/L [–]", ylabel="p − p_e [MPa]", title="", yrange=[-2.0, 2.5])
+fig = slider_figure(frame, "α", als, unit="", xlabel="x/L [–]", ylabel="p − p_e [MPa]", title="", yrange=[-2.0, 2.5])   # precompute every slider/time position
 titles = []                                               # the two loads in each title
-for al in als:
-    s_ = ch08.slider_bearing_state(h0, al, L, U, mu=mu)
-    titles.append(f"α = {al:.2f}: W exact = {s_['W_exact']/1e3:.1f} kN/m, W linear = {s_['W_linear']/1e3:.1f} kN/m")
-step_titles(fig, titles)
-recolor(fig, {"exact": COLORS["orange"], "linear in α": COLORS["orange"], "as printed (first power)": COLORS["muted"]},
-        {"linear in α": "dash", "as printed (first power)": "dot"})
-fig.show()
+for al in als:                                           # every slider value
+    s_ = ch08.slider_bearing_state(h0, al, L, U, mu=mu)   # loads for this taper
+    titles.append(f"α = {al:.2f}: W exact = {s_['W_exact']/1e3:.1f} kN/m, W linear = {s_['W_linear']/1e3:.1f} kN/m")   # the title for this step
+step_titles(fig, titles)                                 # numbers that follow the slider
+recolor(fig, {"exact": COLORS["orange"], "linear in α": COLORS["orange"], "as printed (first power)": COLORS["muted"]},   # colours by meaning (as in the static figures)
+        {"linear in α": "dash", "as printed (first power)": "dot"})   # (continued)
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 Each slider step is one taper α from −0.8 to 3; the title prints the exact and linear loads. For α < 0 the hump becomes a
-suction dip; for large α the linear formula wildly overestimates the load; the grey dotted "as printed" curve meets both end
+suction dip (and below α = −½ the oil also recirculates at the wide end, now x = 0); for large α the linear formula wildly
+overestimates the load; the grey dotted "as printed" curve meets both end
 pressures but is the wrong shape.
 """)
 remind([
@@ -2301,20 +2432,22 @@ remind([
 nb.live(r"""
 def bearing(h0_um=50.0, alpha=0.5, U=5.0, mu=0.05):      # film thickness [µm], taper, sliding speed [m/s], oil viscosity [Pa s]
     s_ = ch08.slider_bearing_state(h0_um*1e-6, alpha, 0.05, U, mu=mu)   # a 5 cm pad
-    print(f"p_max = {s_['p_max']/1e5:.3g} bar at x/L = {s_['x_pmax']/0.05:.3f}; W exact = {s_['W_exact']/1e3:.3g} kN/m, "
-          f"W linear = {s_['W_linear']/1e3:.3g} kN/m ({s_['err_linear']:.1f} % off); inlet backflow: {s_['inlet_backflow']}")
+    print(f"p_max = {s_['p_max']/1e5:.3g} bar at x/L = {s_['x_pmax']/0.05:.3f}; W exact = {s_['W_exact']/1e3:.3g} kN/m, "   # show the numbers
+          f"W linear = {s_['W_linear']/1e3:.3g} kN/m ({s_['err_linear']:.1f} % off); recirculation at the wide end: {s_['backflow_any']}")   # (continued)
 
 
-live(bearing, h0_um=(10, 200, 5), alpha=(-0.8, 3.0, 0.05), U=(-10, 10, 0.5), mu=(0.005, 0.5, 0.005))
+live(bearing, h0_um=(10, 200, 5), alpha=(-0.8, 3.0, 0.05), U=(-10, 10, 0.5), mu=(0.005, 0.5, 0.005))   # sliders for the four inputs (kernel only)
 """)
 explainer("slider_bearing", "How does a film thinner than a hair carry a load?", r"""
 Drag the taper and flip the sliding direction: the pressure hump, the station-by-station Couette-plus-Poiseuille profiles and
-the load change together, the printed-slip ghost visibly departs from the exact hump, and past α = 1 a small recirculation
-appears at the wide inlet — the whole of Example 8.1 in one picture.""",
+the load change together, the printed-slip ghost visibly departs from the exact hump, and once the wide end is more than twice
+the narrow gap (α > 1, or α < −½) a small recirculation appears at the wide end — the whole of Example 8.1 in one
+picture.""",
           ["Set α = 0.1 and compare the exact and linear humps; then α = 1.19 (the optimum) and read the load.",
            "Flip U to negative: the hump turns into suction and the status says the pad is sucked down.",
            "Choose 'compare': the printed curve meets both end pressures but sits above the exact one — it fails the pressure equation.",
-           "Push α past 1 and look at the inlet profiles in the pad frame: a backward-moving layer appears under the pad."])
+           "Push α past 1 and look at the profiles at the wide end in the pad frame: a backward-moving layer appears under the pad.",
+           "Set α = −0.7: the wide end is now at x = 0, and the recirculation appears there (gap ratio 1/0.3 > 2)."])
 whatif(r"""
 …there were no upper wall at all — a free surface — and gravity, not a pressure applied at the ends, pushed the fluid? The
 thin-layer balance still holds, with the hydrostatic pressure of the layer itself (C08).
@@ -2346,7 +2479,7 @@ on the unknown — here $D=\rho gh^3/(3\mu)$, large where the layer is thick, ti
 $\partial h/\partial t+\partial q/\partial x=0$ with the flux $q=-D\,\partial h/\partial x$, integrating over x shows the total
 volume ∫h dx never changes when no fluid leaves the ends.
 """, code=r"""
-import numpy as np
+import numpy as np                                       # numbers
 rho, g, mu = 1260.0, 9.81, 1.0                           # glycerol
 for h in (0.01, 0.005, 0.001):                           # layer thickness [m]
     print(h, rho*g*h**3/(3*mu))                          # effective diffusivity [m²/s] falls as h³
@@ -2360,7 +2493,7 @@ time, which is stable for any step; when the diffusivity depends on the unknown 
 linear system, update the guess and repeat until it stops changing (Picard iteration; our solver uses the faster Newton
 version of the same fixed point). A thin "precursor film" $h_{min}$ keeps the diffusivity positive ahead of the front.
 """, code=r"""
-import numpy as np
+import numpy as np                                       # numbers
 D, dt, dx = 1.0, 0.1, 0.1                                # an explicit step would need dt ≤ dx²/(2D) = 0.005
 lam = D*dt/dx**2                                         # = 10: explicit would blow up
 print(1/(1 + 4*lam))                                     # backward-Euler damping of the shortest mode: 0.024 < 1, stable
@@ -2379,7 +2512,7 @@ remind([
 nb.code(r"""
 x = np.linspace(-0.2, 0.2, 400 if not FAST else 200)     # nodes across a 40 cm plate [m]
 h0 = np.where(np.abs(x) < 0.01, 0.01, 0.0)               # a box 1 cm high and 2 cm wide: area 2 × 10⁻⁴ m² (half-area 10⁻⁴)
-t_out = np.r_[0.0, np.geomspace(0.1, 1000, 24 if not FAST else 12)]   # output times on a log clock [s]
+t_out = np.r_[0.0, np.geomspace(0.1, 1000, 20 if not FAST else 12)]   # output times on a log clock [s]
 run = ch08.thin_film_spread(h0, x, t_out, rho=1260.0, mu=1.0)   # backward Euler + Newton, conservative flux form
 print(f"volume: first {run['volume'][0]:.6e}, last {run['volume'][-1]:.6e} m² (relative change {abs(run['volume'][-1]/run['volume'][0] - 1):.1e})")
 for t_ in (10, 100, 1000):                               # compare the front with the similarity law of C10
@@ -2393,8 +2526,9 @@ print("flux at h = 1 cm, slope −0.5:", ch08.thin_film_flux(0.01, -0.5, rho=126
    of 1 µm adds a constant 4 × 10⁻⁷ m² to it.
 2. The steps are implicit (backward Euler, Newton iterations), so large time steps are stable although the diffusivity is
    stiff.
-3. The fronts approach the similarity law of C10, $x_N=\eta_N(\beta A^3t)^{1/5}$: a few percent ahead at 10 s (the box has not
-   been forgotten yet), within 2 % at 1000 s.
+3. The fronts approach the similarity law of C10, $x_N=\eta_N(\beta\mathcal A^3t)^{1/5}$ with $\beta=\rho g/3\mu$ and the
+   half-area $\mathcal A=\int_0^{x_N}h\,dx$ = 10⁻⁴ m² (written 𝒜 so as not to clash with the constant A of the similarity form):
+   about 2 % ahead at the early times (the box has not been forgotten yet), about 1 % at 1000 s.
 4. `thin_film_flux` is the tiny example's 2.06 × 10⁻³ m²/s.
 """)
 nb.check_agree(r"""
@@ -2413,30 +2547,40 @@ print(f"t = {t_end:.3f} s: volume by hand {he.sum()*dxe:.8e} m²; max |explicit 
 assert abs(he.sum()*dxe - vol0) < 1e-12*vol0             # the explicit scheme conserves the volume to round-off
 assert np.max(np.abs(he - ref)) < 0.01*0.01              # agree to 1 % of the bead height (the library adds a 1 µm precursor film)
 """)
+nb.md(r"""
+**What does the code above do?**
+
+1. It marches the thin-film equation by hand with explicit finite-volume steps: face thicknesses, face fluxes
+   $q=-\beta h^3\partial h/\partial x$, and each cell updated by flux in minus flux out, with a time step well below the explicit
+   stability limit.
+2. The printed volume never changes (to round-off): the flux form conserves it exactly, as P191 promised.
+3. After 2000 small steps (0.39 s) the hand-made film differs from `thin_film_spread` by at most 6 × 10⁻⁵ m — under 1 % of
+   the 1 cm bead; the implicit library solver reaches the same state with far fewer, larger steps.
+""")
 remind([
     ("animate and show_animation", "`animate(update, frames, fig)` calls update(i) for every frame; `show_animation(anim, player=\"frames\")` gives ◀ ▮▮ ▶ buttons to stop at any time (Ch. 1 P16)."),
 ])
 nb.animation(r"""
 xN = ch08.viscous_current_similarity(0.0, run["t"][1:], 1e-4, rho=1260.0, mu=1.0, return_front=True)[1]   # similarity fronts [m]
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.5, 3.4), gridspec_kw=dict(width_ratios=[1.6, 1]))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(9.5, 3.4), gridspec_kw=dict(width_ratios=[1.6, 1]))   # the figure and its panels
 fill = [a1.fill_between(100*x, 1000*run["h"][0], color=COLORS["blue"], alpha=0.5)]   # the bead (a list so update can replace it)
 front, = a1.plot([], [], "|", color=COLORS["amber"], ms=18, mew=2)    # the front marker
-a1.set_xlim(-15, 15); a1.set_ylim(0, 10.5); a1.set_xlabel("x [cm]"); a1.set_ylabel("h [mm]")
-a2.loglog(run["t"][1:], 100*xN, color=COLORS["accent"], ls="--", lw=1.5, label="slope 1/5 (similarity)")
-dots, = a2.loglog([], [], "o", color=COLORS["teal"], ms=4, label="numerical front")
-a2.set_xlim(0.08, 1300); a2.set_ylim(0.8, 20); a2.set_xlabel("t [s]"); a2.set_ylabel("front x_N [cm]"); a2.legend(fontsize=7)
+a1.set_xlim(-15, 15); a1.set_ylim(0, 10.5); a1.set_xlabel("x [cm]"); a1.set_ylabel("h [mm]")   # labels with units
+a2.loglog(run["t"][1:], 100*xN, color=COLORS["accent"], ls="--", lw=1.5, label="slope 1/5 (similarity)")   # a curve (its label says which)
+dots, = a2.loglog([], [], "o", color=COLORS["teal"], ms=4, label="numerical front")   # an empty line to be filled by each frame
+a2.set_xlim(0.08, 1300); a2.set_ylim(0.8, 20); a2.set_xlabel("t [s]"); a2.set_ylabel("front x_N [cm]"); a2.legend(fontsize=7)   # labels with units
 
 
 def update(i):                                            # frame i = output time run["t"][i]
     fill[0].remove()                                      # replace the filled bead
-    fill[0] = a1.fill_between(100*x, 1000*run["h"][i], color=COLORS["blue"], alpha=0.5)
+    fill[0] = a1.fill_between(100*x, 1000*run["h"][i], color=COLORS["blue"], alpha=0.5)   # a filled shape
     front.set_data([100*run["x_front"][i]], [0.3])        # front marker on the plate
     dots.set_data(run["t"][1:i+1], 100*run["x_front"][1:i+1])   # the front history so far
-    a1.set_title(f"t = {run['t'][i]:.3g} s · area ∫h dx = {run['volume'][i]*1e4:.4f} cm² (never changes)", fontsize=9)
-    return []
+    a1.set_title(f"t = {run['t'][i]:.3g} s · area ∫h dx = {run['volume'][i]*1e4:.4f} cm² (never changes)", fontsize=9)   # each panel says its message
+    return []                                            # nothing to blit: the artists were changed in place
 
 
-show_animation(animate(update, frames=len(run["t"]), fig=fig, interval=200), player="frames")
+show_animation(animate(update, frames=len(run["t"]), fig=fig, interval=200), player="frames")   # render the frames (MP4 video or step player)
 """)
 see_read_change(r"""A box of glycerol slumps into a dome and keeps spreading ever more slowly; the amber front marker creeps outward; on
 the right the numerical front (teal dots) settles onto the purple slope-1/5 line; the volume in the title never changes — the
@@ -2533,7 +2677,7 @@ P("P194", "Gaussian integral", r"""
 The bell curve $e^{-\zeta^2}$ has total area √π: $\int_{-\infty}^{\infty}e^{-\zeta^2}d\zeta=\sqrt\pi$, and by symmetry half of it,
 √π/2, lies on each side. No elementary antiderivative exists, which is why its running integral gets a name (next primer).
 """, code=r"""
-import numpy as np
+import numpy as np                                       # numbers
 from scipy.integrate import quad
 print(quad(lambda z: np.exp(-z**2), 0, np.inf)[0], np.sqrt(np.pi)/2)   # 0.886227 0.886227
 """)
@@ -2560,7 +2704,7 @@ P("P196", "scipy.integrate.solve_bvp", r"""
 `solve_bvp` solves an ODE with conditions at two ends (here F(0) = 1 and F(η_max) = 0 on a truncated domain) by collocation on
 a mesh; we give it the system as first-order equations (F′ = G, G′ = −ηG/2) and a guess.
 """, code=r"""
-import numpy as np
+import numpy as np                                       # numbers
 from scipy.integrate import solve_bvp
 eta = np.linspace(0, 12, 50)                             # the truncated η-domain and initial mesh
 sol = solve_bvp(lambda e, Y: np.vstack([Y[1], -e/2*Y[1]]),   # Y = (F, F′): F′ = G, G′ = −(η/2)G  (8.26)
@@ -2615,14 +2759,11 @@ for any step. Each step solves a tridiagonal system, which `scipy.linalg.solve_b
 stored as rows. An impulsive start (the plate jumps to U) makes pure Crank–Nicolson ring, so we take the first two steps
 with backward Euler (fully implicit), which damps the ringing.
 """, code=r"""
-import numpy as np
-from scipy.linalg import solve_banded
+import numpy as np                                       # numbers
+from scipy.linalg import solve_banded                    # the banded (tridiagonal) solver
 ab = np.array([[0, -1, -1], [4, 4, 4], [-1, -1, 0]], float)   # upper, main, lower diagonals (as rows)
 print(solve_banded((1, 1), ab, np.array([3.0, 2.0, 3.0])))    # [1. 1. 1.]
 """)
-remind([
-    ("observed order of convergence", "if the error behaves like C·Δyᵖ, the slope of log(error) against log(Δy) is p; `observed_order` fits it (Ch. 1 P13, log–log slopes)."),
-])
 nb.check_agree(r"""
 U0, t_end = 0.1, 1000.0                                  # plate speed [m/s] and final time [s]
 
@@ -2660,30 +2801,41 @@ for N2 in (100, 200, 400):
     print(f"N = {N2}: max error {errs[-1]:.2e} m/s")
 print(f"observed order ≈ {observed_order(steps, errs):.2f}")   # ≈ 2: second order in space and time
 """)
+nb.md(r"""
+**What does the code above do?**
+
+1. `cn_by_hand` marches (8.20) with Crank–Nicolson: two backward-Euler start-up steps, then the average of old and new
+   diffusion terms, one tridiagonal `solve_banded` per step. After 1000 s it lands on the erfc curve (8.30) to about 10⁻⁶ m/s.
+2. `ch08.crank_nicolson_1d` with the same inputs gives the *identical* profile (difference below 10⁻¹²): the library does
+   exactly this.
+3. Ch. 1's explicit FTCS scheme also agrees, but needs 5528 small steps (its stability limit) against 200.
+4. The convergence table halves Δy and Δt together: the error falls by about 4 each time, observed order 2.00 — second order
+   in space and time.
+""")
 nb.figure(r"""
 U0 = 0.1                                                  # plate speed [m/s]
 ts = [10, 30, 100, 300, 1000]                             # five times [s]
 shades = plt.cm.Blues(np.linspace(0.4, 1.0, len(ts)))     # darker blue for later times
 y = np.linspace(0, 0.14, 400)                             # heights [m]
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8))
-for t_, c in zip(ts, shades):
+fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8))   # the figure and its panels
+for t_, c in zip(ts, shades):                            # one profile per time
     u = ch08.stokes_first_problem(y, t_, U0, NU_W)        # (8.30)
-    a1.plot(u/U0, 100*y, color=c, lw=2, label=f"t = {t_} s")
+    a1.plot(u/U0, 100*y, color=c, lw=2, label=f"t = {t_} s")   # a curve (its label says which)
     d99 = ch08.diffusion_thickness(t_, NU_W)              # (8.31)
     a1.plot([0, 0.08], [100*d99]*2, color=COLORS["amber"], lw=2)   # δ99 tick
     a2.plot(u/U0, ch08.similarity_variable(y, t_, NU_W), color=c, lw=2)   # the same profile against η
-a2.plot(u_cn[::8]/U0, ch08.similarity_variable(yy[::8], 1000.0, NU_W), "o", color=COLORS["teal"], ms=3, label="Crank–Nicolson, t = 1000 s")
-a1.set_xlabel("u/U [–]"); a1.set_ylabel("y [cm]"); a1.legend(fontsize=7); a1.set_title("Raw profiles (amber: δ99)", fontsize=10)
-a2.set_xlabel("u/U [–]"); a2.set_ylabel("η = y/√(νt) [–]"); a2.set_ylim(0, 6); a2.legend(fontsize=7)
-a2.axhline(3.643, color=COLORS["amber"], lw=0.8); a2.text(0.5, 3.75, "η99 = 3.643", color=COLORS["amber"], fontsize=8)
-sec = a2.secondary_yaxis("right", functions=(lambda e: e/2, lambda e: 2*e)); sec.set_ylabel("η/2 = y/(2√(νt)) (book's axis)")
-a2.set_title("Against η: one curve", fontsize=10)
+a2.plot(u_cn[::8]/U0, ch08.similarity_variable(yy[::8], 1000.0, NU_W), "o", color=COLORS["teal"], ms=3, label="Crank–Nicolson, t = 1000 s")   # a curve (its label says which)
+a1.set_xlabel("u/U [–]"); a1.set_ylabel("y [cm]"); a1.legend(fontsize=7); a1.set_title("Raw profiles (amber: δ99)", fontsize=10)   # labels with units
+a2.set_xlabel("u/U [–]"); a2.set_ylabel("η = y/√(νt) [–]"); a2.set_ylim(0, 6); a2.legend(fontsize=7)   # labels with units
+a2.axhline(3.643, color=COLORS["amber"], lw=0.8); a2.text(0.5, 3.75, "η99 = 3.643", color=COLORS["amber"], fontsize=8)   # reference line
+sec = a2.secondary_yaxis("right", functions=(lambda e: e/2, lambda e: 2*e)); sec.set_ylabel("η/2 = y/(2√(νt)) (book's axis)")   # a second scale: η/2, the book's axis
+a2.set_title("Against η: one curve", fontsize=10)        # each panel says its message
 tt = np.geomspace(1, 1e4, 50)                             # times [s]
-a3.loglog(tt, 100*ch08.diffusion_thickness(tt, NU_W), color=COLORS["blue"], lw=2, label="water")
-a3.loglog(tt, 100*ch08.diffusion_thickness(tt, nu_air), color=COLORS["teal"], lw=2, label="air")
-a3.set_xlabel("t [s]"); a3.set_ylabel("δ99 [cm]"); a3.legend(fontsize=8); a3.set_title("δ99 ∝ t^½", fontsize=10)
-fig.suptitle("One curve for all times: the profile only stretches like √(νt)", fontsize=11)
-savefig(fig, "ch08", "c09_stokes_first"); plt.show()
+a3.loglog(tt, 100*ch08.diffusion_thickness(tt, NU_W), color=COLORS["blue"], lw=2, label="water")   # a curve (its label says which)
+a3.loglog(tt, 100*ch08.diffusion_thickness(tt, nu_air), color=COLORS["teal"], lw=2, label="air")   # a curve (its label says which)
+a3.set_xlabel("t [s]"); a3.set_ylabel("δ99 [cm]"); a3.legend(fontsize=8); a3.set_title("δ99 ∝ t^½", fontsize=10)   # labels with units
+fig.suptitle("One curve for all times: the profile only stretches like √(νt)", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c09_stokes_first"); plt.show()     # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) five profiles of growing thickness with their 99 % heights (amber ticks); (b) the same five profiles against
 η — they coincide exactly, and the Crank–Nicolson dots sit on them; (c) two straight lines of slope ½ — our remake of
 Figs. 8.12–8.13 `N52`.""",
@@ -2712,30 +2864,30 @@ y = h (R14) and a length scale appears. Either way the profiles stop collapsing 
 of this kind.
 """)
 nb.figure(r"""
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.4))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.4))    # the figure and its panels
 eta_ = np.linspace(0, 6, 200)                             # η grid [–]
-a1.plot(special.erfc(eta_/2), eta_, color=COLORS["accent"], ls="--", lw=1.5, label="erfc(η/2): plate never stops")
+a1.plot(special.erfc(eta_/2), eta_, color=COLORS["accent"], ls="--", lw=1.5, label="erfc(η/2): plate never stops")   # a curve (its label says which)
 for t_, c in ((50, COLORS["blue"]), (150, COLORS["teal"]), (400, COLORS["orange"])):   # times [s]; the plate stops at T = 100 s
     y_ = eta_*np.sqrt(NU_W*t_)                            # heights at this time [m]
-    a1.plot(ch08.stokes_first_stopped(y_, t_, 100.0, U=1.0, nu=NU_W), eta_, color=c, lw=2, label=f"t = {t_} s")
-a1.set_xlabel("u/U [–]"); a1.set_ylabel("η = y/√(νt) [–]"); a1.legend(fontsize=7); a1.set_title("Plate stopped at T = 100 s", fontsize=10)
+    a1.plot(ch08.stokes_first_stopped(y_, t_, 100.0, U=1.0, nu=NU_W), eta_, color=c, lw=2, label=f"t = {t_} s")   # a curve (its label says which)
+a1.set_xlabel("u/U [–]"); a1.set_ylabel("η = y/√(νt) [–]"); a1.legend(fontsize=7); a1.set_title("Plate stopped at T = 100 s", fontsize=10)   # labels with units
 h_ = 0.02                                                 # a second, fixed plate 2 cm away [m]
-for t_, c in ((10, COLORS["blue"]), (100, COLORS["teal"]), (400, COLORS["orange"])):
+for t_, c in ((10, COLORS["blue"]), (100, COLORS["teal"]), (400, COLORS["orange"])):   # three times [s]
     yb = np.linspace(0, h_, 200)                          # the gap [m]; Ch. 1's function moves the plate at y = h
     ub = diffusion.couette_startup_profile(yb, t_, 0.1, h_, NU_W)   # Fourier series of the start-up [m/s]
     a2.plot(ub/0.1, (h_ - yb)/np.sqrt(NU_W*t_), color=c, lw=2, label=f"t = {t_} s")   # distance from the moving plate, in η
-a2.plot(special.erfc(eta_/2), eta_, color=COLORS["accent"], ls="--", lw=1.5, label="erfc(η/2)")
-a2.set_ylim(0, 6); a2.set_xlabel("u/U [–]"); a2.set_ylabel("η from the moving plate [–]"); a2.legend(fontsize=7)
-a2.set_title("A second wall 2 cm away (Couette start-up)", fontsize=10)
-fig.suptitle("An imposed time or length scale breaks the collapse", fontsize=11)
-savefig(fig, "ch08", "c09_no_collapse"); plt.show()
+a2.plot(special.erfc(eta_/2), eta_, color=COLORS["accent"], ls="--", lw=1.5, label="erfc(η/2)")   # a curve (its label says which)
+a2.set_ylim(0, 6); a2.set_xlabel("u/U [–]"); a2.set_ylabel("η from the moving plate [–]"); a2.legend(fontsize=7)   # labels with units
+a2.set_title("A second wall 2 cm away (Couette start-up)", fontsize=10)   # each panel says its message
+fig.suptitle("An imposed time or length scale breaks the collapse", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c09_no_collapse"); plt.show()      # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) after the plate stops (T = 100 s) the curves no longer lie on the erfc line and the wall speed drops to zero;
 (b) the Couette start-up curves follow erfc while the layer is thin (10 s) and leave it once it feels the far wall (400 s).""",
     read=r"""In (b) η₉₉ = 3.64 corresponds to δ₉₉ = 3.64√(νt): 1.2 cm at 10 s (well inside the 2 cm gap), 7.3 cm at 400 s (far
 beyond it) — the far wall's no-slip condition bends the curve back to the straight Couette line.""",
     change=r"""…T → ∞ (the plate never stops): the stopped-plate curves rejoin the erfc curve.""")
 nb.animation(r"""
-nfr = 60 if not FAST else 30                              # frames
+nfr = 40 if not FAST else 20                              # frames
 tf = np.geomspace(1, 1000, nfr)                           # a log clock t = 1 … 1000 s
 U0 = 0.1                                                  # plate speed [m/s]
 yv = np.linspace(0, 0.12, 121)                            # heights [m]
@@ -2754,14 +2906,14 @@ a2.set_xlim(0, 1.05); a2.set_ylim(0, 12); a2.set_xlabel("u/U [–]"); a2.legend(
 
 
 def update(i):                                            # frame i: time tf[i]
-    t_ = tf[i]
+    t_ = tf[i]                                           # the time of this frame [s]
     dye.set_xdata(disp[i])                                # the dye line
     prof.set_data(ch08.stokes_first_problem(yv, t_, U0, NU_W)/U0, 100*yv)   # the exact profile
     k = np.argmin(np.abs(tcn - t_))                       # the nearest Crank–Nicolson output
     dots.set_data(Ucn[k][::4]/U0, 100*yv[::4])
     mark.set_ydata([100*ch08.diffusion_thickness(t_, NU_W)]*2)   # the rising δ99 marker
     a1.set_title(f"t = {t_:6.1f} s", fontsize=10)
-    return []
+    return []                                            # nothing to blit: the artists were changed in place
 
 
 show_animation(animate(update, frames=nfr, fig=fig, interval=80))
@@ -2781,16 +2933,16 @@ yv = np.linspace(0, 0.08, 120)                            # heights [m]
 
 def frame(t_):                                            # curves at time t_ [s]
     u = ch08.stokes_first_problem(yv, t_, 0.1, NU_W)/0.1  # u/U
-    return {"raw: u/U against y [cm]": (u, 100*yv),
-            "rescaled: u/U against η = y/√(νt)": (u, ch08.similarity_variable(yv, t_, NU_W))}
+    return {"raw: u/U against y [cm]": (u, 100*yv),      # the curves of this position
+            "rescaled: u/U against η = y/√(νt)": (u, ch08.similarity_variable(yv, t_, NU_W))}   # (continued)
 
 
-fig = animate_figure(frame, np.geomspace(1, 1000, 25 if not FAST else 12), time_label="t", unit="s",
-                     xlabel="u/U [–]", ylabel="y [cm] (blue) or η [–] (purple)", title="Raw profiles spread; rescaled ones do not",
-                     yrange=[0, 8], xrange=[0, 1])
-recolor(fig, {"raw: u/U against y [cm]": COLORS["blue"], "rescaled: u/U against η = y/√(νt)": COLORS["accent"]},
-        {"rescaled: u/U against η = y/√(νt)": "dash"})
-fig.show()
+fig = animate_figure(frame, np.geomspace(1, 1000, 25 if not FAST else 12), time_label="t", unit="s",   # precompute every slider/time position
+                     xlabel="u/U [–]", ylabel="y [cm] (blue) or η [–] (purple)", title="Raw profiles spread; rescaled ones do not",   # (continued)
+                     yrange=[0, 8], xrange=[0, 1])       # (continued)
+recolor(fig, {"raw: u/U against y [cm]": COLORS["blue"], "rescaled: u/U against η = y/√(νt)": COLORS["accent"]},   # colours by meaning (as in the static figures)
+        {"rescaled: u/U against η = y/√(νt)": "dash"})   # (continued)
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 Press Play: the blue profile (plotted against y in centimetres) thickens as √t, while the purple one (the same profile plotted
 against η) never moves — the collapse, without a kernel.
@@ -2828,7 +2980,7 @@ If $c_1t^aF(\eta)+c_2t^bG(\eta)=0$ must hold for every t and every η, the power
 by $t^a$ leaves a t that no function of η can cancel. Power laws $\delta=Dt^m$ turn every bracket into a power of t, and
 matching powers gives linear equations for the exponents.
 """, code=r"""
-import sympy as sp
+import sympy as sp                                       # symbolic maths
 n, m = sp.symbols('n m')
 print(sp.solve([sp.Eq(-n - 1, -4*n - 2*m), sp.Eq(-n + m, 0)], [n, m]))   # {n: 1/5, m: 1/5}
 """)
@@ -2897,8 +3049,10 @@ print(np.allclose(ch08.line_vortex_decay(0.01, 100.0, 1e-3, NU_W), VX.gaussian_v
 D("D23")
 note("N63 [B] · Example 8.7 solved.", r"""
 The spreading bead of C08 is self-similar with n = m = 1/5: $h(x,t)=At^{-1/5}F(x/Dt^{1/5})$. Solving the ODE for F (not done in
-the book) gives Huppert's (1982) dome $F\propto(1-\eta^2/\eta_N^2)^{1/3}$ and the front $x_N=\eta_N(\beta A^3t)^{1/5}$,
-$\eta_N=1.411$ (benchmark V5) — the `viscous_current_similarity` used in C08. ⚠️ The book's last line says "the final equation of
+the book) gives Huppert's (1982) dome $F\propto(1-\eta^2/\eta_N^2)^{1/3}$ and the front $x_N=\eta_N(\beta\mathcal A^3t)^{1/5}$,
+with $\beta=\rho g/3\mu$, the half-area $\mathcal A=\int_0^{x_N}h\,dx$ (not the constant A of the similarity form) and
+$\eta_N=1.411$ (benchmark V5) — the `viscous_current_similarity` used in C08. For a real ice sheet (μ of order 10¹³ Pa s and a
+non-Newtonian rheology) this Newtonian law gives only a time-scale estimate. ⚠️ The book's last line says "the final equation of
 Example 8.2"; it means Example 8.3.
 """)
 nb.worked_example("a 1 cm/s shear layer after one second", r"""
@@ -2911,11 +3065,11 @@ U = 0.01 m/s on each side, ν = 10⁻⁶ m²/s, t = 1 s.
 """)
 nb.code(r"""
 for case in ("stokes1", "vortex_sheet", "line_vortex", "spreading"):   # four similarity reductions in sympy
-    s = ch08.similarity_reduce_sympy(case)
-    print(f"{case:13s} n = {s['n']},  δ(t) = {s['delta']}")
+    s = ch08.similarity_reduce_sympy(case)               # the sympy reduction for this case
+    print(f"{case:13s} n = {s['n']},  δ(t) = {s['delta']}")   # show the numbers
 good = ch08.similarity_collapse_error("spreading", 0.2, 0.2, [10, 30, 100, 300, 1000])    # right exponents n = m = 1/5
 bad = ch08.similarity_collapse_error("spreading", 0.25, 0.5, [10, 30, 100, 300, 1000])    # a diffusion-like guess m = 1/2
-print(f"collapse spread of the bead: {good:.1e} at (n, m) = (1/5, 1/5), {bad:.2f} at (1/4, 1/2)")
+print(f"collapse spread of the bead: {good:.1e} at (n, m) = (1/5, 1/5), {bad:.2f} at (1/4, 1/2)")   # show the numbers
 """, explain=r"""
 1. `similarity_reduce_sympy` repeats Examples 8.4–8.7 symbolically: n = 0 and δ = √(νt) for Stokes' first problem, n = ½ for
    the sheet, n = 1 (a power of r) for the line vortex, and n = m = 1/5 with δ = Dt^(1/5) for the bead.
@@ -2933,25 +3087,25 @@ assert abs(slope_sheet - 0.5) < 5e-3                     # D22's n = 1/2 measure
 assert abs(slope_bead - 0.2) < 1e-2                      # D23's m = 1/5 measured (the front is found on a grid: ~1 %)
 """)
 nb.figure(r"""
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8))
+fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(12, 3.8))   # the figure and its panels
 yv = np.linspace(-0.012, 0.012, 400)                      # across the sheet [m]
 for t_, c in ((1.0, COLORS["accent"]), (4.0, COLORS["blue"])):   # two times [s]
     u, w = ch08.vortex_sheet_diffusion(yv, t_, 0.01, NU_W)   # Example 8.5 with U = 1 cm/s
-    a1.plot(w, 1e3*yv, color=c, lw=2, label=f"t = {t_:g} s")
-    a2.plot(u/0.01, ch08.similarity_variable(yv, t_, NU_W, half=True), color=c, lw=2, ls="-" if t_ == 1 else "--")
-a1.set_xlabel("ω_z [1/s]"); a1.set_ylabel("y [mm]"); a1.legend(fontsize=8); a1.set_title("Sheet vorticity: peak halves, width doubles", fontsize=9)
-a2.set_ylim(-3, 3); a2.set_xlabel("u/U [–]"); a2.set_ylabel("y/(2√(νt)) (the book's axis)"); a2.set_title("One curve for both times", fontsize=9)
+    a1.plot(w, 1e3*yv, color=c, lw=2, label=f"t = {t_:g} s")   # a curve (its label says which)
+    a2.plot(u/0.01, ch08.similarity_variable(yv, t_, NU_W, half=True), color=c, lw=2, ls="-" if t_ == 1 else "--")   # a curve (its label says which)
+a1.set_xlabel("ω_z [1/s]"); a1.set_ylabel("y [mm]"); a1.legend(fontsize=8); a1.set_title("Sheet vorticity: peak halves, width doubles", fontsize=9)   # labels with units
+a2.set_ylim(-3, 3); a2.set_xlabel("u/U [–]"); a2.set_ylabel("y/(2√(νt)) (the book's axis)"); a2.set_title("One curve for both times", fontsize=9)   # labels with units
 rr = np.linspace(1e-4, 0.03, 300)                          # radius [m]
 G0_ = 1e-4                                                 # circulation Γ [m²/s] (ours)
-a3.plot(100*rr, 1e3*G0_/(2*np.pi*rr), color=COLORS["muted"], ls="--", lw=1.5, label="νt = 0: ideal vortex")
+a3.plot(100*rr, 1e3*G0_/(2*np.pi*rr), color=COLORS["muted"], ls="--", lw=1.5, label="νt = 0: ideal vortex")   # a curve (its label says which)
 for nt_, c in ((1e-5, COLORS["blue"]), (4e-5, COLORS["teal"]), (1.6e-4, COLORS["orange"])):   # νt [m²] (our values)
-    a3.plot(100*rr, 1e3*ch08.line_vortex_decay(rr, nt_/NU_W, G0_, NU_W), color=c, lw=2, label=f"νt = {nt_:.1e} m²")
+    a3.plot(100*rr, 1e3*ch08.line_vortex_decay(rr, nt_/NU_W, G0_, NU_W), color=c, lw=2, label=f"νt = {nt_:.1e} m²")   # a curve (its label says which)
     rc = 2.24*np.sqrt(nt_)                                  # the solid-body core edge ≈ 2.24√(νt)
-    a3.plot(100*rc, 1e3*ch08.line_vortex_decay(rc, nt_/NU_W, G0_, NU_W), "o", color=c)
-a3.set_ylim(0, 10); a3.set_xlabel("r [cm]"); a3.set_ylabel("u_θ [mm/s]"); a3.legend(fontsize=7)
-a3.set_title("Decaying line vortex (dots: core edge)", fontsize=9)
-fig.suptitle("Three self-similar diffusions", fontsize=11)
-savefig(fig, "ch08", "c10_vortex_diffusion"); plt.show()
+    a3.plot(100*rc, 1e3*ch08.line_vortex_decay(rc, nt_/NU_W, G0_, NU_W), "o", color=c)   # a curve (its label says which)
+a3.set_ylim(0, 10); a3.set_xlabel("r [cm]"); a3.set_ylabel("u_θ [mm/s]"); a3.legend(fontsize=7)   # labels with units
+a3.set_title("Decaying line vortex (dots: core edge)", fontsize=9)   # each panel says its message
+fig.suptitle("Three self-similar diffusions", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c10_vortex_diffusion"); plt.show() # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) the Gaussian vorticity of the thickening sheet: from 1 s to 4 s the peak halves and the width doubles; (b) both
 velocity profiles on one curve against the book's axis y/(2√(νt)); (c) the ideal vortex (dashed) smoothed into a solid-body
 core that grows with νt — our remake of Figs. 8.14–8.15 `N106` (our values of νt, not the book's).""",
@@ -2959,36 +3113,36 @@ core that grows with νt — our remake of Figs. 8.14–8.15 `N106` (our values 
 still falls as Γ/2πr.""",
     change=r"""…Γ doubled: every curve in (c) doubles; its shape and the core radius 2.24√(νt) do not change.""")
 nb.animation(r"""
-nfr = 60 if not FAST else 30                              # frames
+nfr = 40 if not FAST else 20                              # frames
 tf = np.geomspace(0.5, 50, nfr)                           # a log clock [s]
 yv = np.linspace(-0.02, 0.02, 300); rr = np.linspace(1e-4, 0.03, 300)   # across the sheet, and radius [m]
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(9, 3.4))
-l1, = a1.plot([], [], color=COLORS["blue"], lw=2, label="u/U")
-l2, = a1.plot([], [], color=COLORS["accent"], lw=2, label="ω/ω_peak(0.5 s)")
-l3, = a2.plot([], [], color=COLORS["blue"], lw=2)
-a1.legend(fontsize=7, loc="upper left"); a1.set_xlim(-1.1, 1.1)
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(9, 3.4))     # the figure and its panels
+l1, = a1.plot([], [], color=COLORS["blue"], lw=2, label="u/U")   # an empty line to be filled by each frame
+l2, = a1.plot([], [], color=COLORS["accent"], lw=2, label="ω/ω_peak(0.5 s)")   # an empty line to be filled by each frame
+l3, = a2.plot([], [], color=COLORS["blue"], lw=2)        # an empty line to be filled by each frame
+a1.legend(fontsize=7, loc="upper left"); a1.set_xlim(-1.1, 1.1)   # legend
 nres = int(0.75*nfr)                                      # the last quarter of the frames switches to rescaled axes
 w0 = abs(ch08.vortex_sheet_diffusion(0.0, tf[0], 0.01, NU_W)[1])   # the first frame's peak vorticity [1/s]
 
 
 def update(i):                                            # frame i
-    t_ = tf[i]
+    t_ = tf[i]                                           # the time of this frame [s]
     u, w = ch08.vortex_sheet_diffusion(yv, t_, 0.01, NU_W)   # the sheet at t_
     ut = ch08.line_vortex_decay(rr, t_, 1e-4, NU_W)       # the vortex at t_
     if i < nres:                                          # raw axes
-        l1.set_data(u/0.01, 1e3*yv); l2.set_data(w/w0, 1e3*yv); a1.set_ylim(-20, 20); a1.set_ylabel("y [mm]")
-        l3.set_data(100*rr, 1e3*ut); a2.set_xlim(0, 3); a2.set_ylim(0, 3); a2.set_xlabel("r [cm]"); a2.set_ylabel("u_θ [mm/s]")
-        a1.set_title(f"t = {t_:.2f} s: the sheet thickens", fontsize=9); a2.set_title("the vortex decays", fontsize=9)
+        l1.set_data(u/0.01, 1e3*yv); l2.set_data(w/w0, 1e3*yv); a1.set_ylim(-20, 20); a1.set_ylabel("y [mm]")   # labels with units
+        l3.set_data(100*rr, 1e3*ut); a2.set_xlim(0, 3); a2.set_ylim(0, 3); a2.set_xlabel("r [cm]"); a2.set_ylabel("u_θ [mm/s]")   # labels with units
+        a1.set_title(f"t = {t_:.2f} s: the sheet thickens", fontsize=9); a2.set_title("the vortex decays", fontsize=9)   # each panel says its message
     else:                                                 # rescaled axes: every profile falls on one curve
-        s_ = np.sqrt(NU_W*t_)
-        l1.set_data(u/0.01, yv/s_); l2.set_data(w/abs(w).max(), yv/s_); a1.set_ylim(-6, 6); a1.set_ylabel("y/√(νt)")
-        l3.set_data(rr/s_, ut*2*np.pi*rr/1e-4); a2.set_xlim(0, 10); a2.set_ylim(0, 1.05)
-        a2.set_xlabel("r/√(νt)"); a2.set_ylabel("2πr u_θ/Γ")
-        a1.set_title(f"t = {t_:.2f} s: rescaled — one curve", fontsize=9); a2.set_title("rescaled — one curve", fontsize=9)
-    return []
+        s_ = np.sqrt(NU_W*t_)                            # the diffusion length √(νt) [m]
+        l1.set_data(u/0.01, yv/s_); l2.set_data(w/abs(w).max(), yv/s_); a1.set_ylim(-6, 6); a1.set_ylabel("y/√(νt)")   # labels with units
+        l3.set_data(rr/s_, ut*2*np.pi*rr/1e-4); a2.set_xlim(0, 10); a2.set_ylim(0, 1.05)   # fixed axis limits
+        a2.set_xlabel("r/√(νt)"); a2.set_ylabel("2πr u_θ/Γ")   # labels with units
+        a1.set_title(f"t = {t_:.2f} s: rescaled — one curve", fontsize=9); a2.set_title("rescaled — one curve", fontsize=9)   # each panel says its message
+    return []                                            # nothing to blit: the artists were changed in place
 
 
-show_animation(animate(update, frames=nfr, fig=fig, interval=90))
+show_animation(animate(update, frames=nfr, fig=fig, interval=90))   # render the frames (MP4 video or step player)
 """)
 see_read_change(r"""Left: the vortex sheet's velocity (blue) and vorticity (purple) spreading; right: the line vortex losing its peak. In
 the last quarter of the movie both switch to rescaled axes and stop changing — the `A5` animation.""",
@@ -3123,25 +3277,25 @@ assert err < 2e-3*0.1                                    # the start-up transien
 """)
 nb.figure(r"""
 yd = np.linspace(0, 6, 300)                               # y/δ_e = y√(ω/2ν), the book's axis [–]
-fig, ax = plt.subplots(figsize=(6.5, 4.2))
+fig, ax = plt.subplots(figsize=(6.5, 4.2))               # the figure and its panels
 for k, wt in enumerate((0, np.pi/2, np.pi, 3*np.pi/2)):  # four phases of the wall
     u = ch08.stokes_second_problem(yd*de, wt/(2*np.pi), U=1.0, omega=2*np.pi, nu=NU_W)   # (8.38) with U = 1
-    ax.plot(u, yd, color=plt.cm.Blues(0.45 + 0.18*k), lw=2, label=f"ωt = {['0', 'π/2', 'π', '3π/2'][k]}")
-ax.plot(np.exp(-yd), yd, color=COLORS["muted"], ls="--", lw=1, label="envelope ±e^(−y/δ_e)")
-ax.plot(-np.exp(-yd), yd, color=COLORS["muted"], ls="--", lw=1)
+    ax.plot(u, yd, color=plt.cm.Blues(0.45 + 0.18*k), lw=2, label=f"ωt = {['0', 'π/2', 'π', '3π/2'][k]}")   # a curve (its label says which)
+ax.plot(np.exp(-yd), yd, color=COLORS["muted"], ls="--", lw=1, label="envelope ±e^(−y/δ_e)")   # a curve (its label says which)
+ax.plot(-np.exp(-yd), yd, color=COLORS["muted"], ls="--", lw=1)   # a curve (its label says which)
 yb = 2*np.sqrt(2)                                          # the book's depth 4√(ν/ω) in units of δ_e
-ax.axhline(yb, color=COLORS["amber"], lw=1.2)
-ax.text(0.35, yb + 0.1, f"book depth 4√(ν/ω) = 2√2 δ_e: amplitude {np.exp(-yb):.4f}", color=COLORS["amber"], fontsize=8)
-ax.set_xlabel("u/U [–]"); ax.set_ylabel("y/δ_e = y√(ω/2ν) [–]"); ax.legend(fontsize=8, loc="upper right")
-ax.set_title("Each layer is the wall's motion, delayed and shrunk", fontsize=10)
-savefig(fig, "ch08", "c11_stokes_layer"); plt.show()
+ax.axhline(yb, color=COLORS["amber"], lw=1.2)            # reference line
+ax.text(0.35, yb + 0.1, f"book depth 4√(ν/ω) = 2√2 δ_e: amplitude {np.exp(-yb):.4f}", color=COLORS["amber"], fontsize=8)   # a label on the plot
+ax.set_xlabel("u/U [–]"); ax.set_ylabel("y/δ_e = y√(ω/2ν) [–]"); ax.legend(fontsize=8, loc="upper right")   # labels with units
+ax.set_title("Each layer is the wall's motion, delayed and shrunk", fontsize=10)   # each panel says its message
+savefig(fig, "ch08", "c11_stokes_layer"); plt.show()     # save the PNG to outputs/ch08, then draw
 """, see=r"""Four S-shaped profiles (one per quarter period) inside a narrowing funnel, the envelope $\pm e^{-y/\delta_e}$; the amber
 line is the book's depth 4√(ν/ω), where 0.0591 of the motion is left — our remake of Fig. 8.16 (part of `N107`).""",
     read=r"""At any height the spread of the curves is the local amplitude; the height where a curve crosses zero moves up with ωt —
 that is the apparent "wave".""",
     change=r"""…the fluid were ten times more viscous: all lengths grow √10 ≈ 3.2 times; in these rescaled axes nothing moves.""")
 nb.animation(r"""
-nfr = 60 if not FAST else 30                              # frames (two periods)
+nfr = 40 if not FAST else 20                              # frames (two periods)
 tf = np.linspace(0, 2.0, nfr)                             # time [s], 1 Hz plate
 de = np.sqrt(2*NU_W/(2*np.pi))                            # e-folding depth [m]
 yv = np.linspace(0, 5*de, 150)                            # heights [m]
@@ -3160,7 +3314,7 @@ Dp = lambda y_, t_: np.imag(np.exp(1j*2*np.pi*t_)*np.exp(-(1 + 1j)*y_/de))/(2*np
 
 
 def update(i):                                            # frame i
-    t_ = tf[i]
+    t_ = tf[i]                                           # the time of this frame [s]
     u = ch08.stokes_second_problem(yv, t_, U=1.0, omega=2*np.pi, nu=NU_W)   # (8.38) with U = 1
     prof.set_data(u, 1e3*yv)
     probe.set_data([ch08.stokes_second_problem(de, t_, U=1.0, omega=2*np.pi, nu=NU_W)], [1e3*de])
@@ -3168,7 +3322,7 @@ def update(i):                                            # frame i
     trac.set_offsets(np.c_[xs0 + 3*Dp(ytr, t_), 1e3*ytr]) # tracers oscillate with growing lag
     plate.set_xdata(np.array([-0.2, 1.2]) + 3*Dp(0.0, t_))   # the plate itself
     a1.set_title(f"t = {t_:.2f} s (1 Hz plate)", fontsize=10); a2.set_title("profile and probe at y = δ_e", fontsize=10)
-    return []
+    return []                                            # nothing to blit: the artists were changed in place
 
 
 show_animation(animate(update, frames=nfr, fig=fig, interval=60))
@@ -3184,15 +3338,15 @@ yd = np.linspace(0, 6, 120)                               # y/δ_e [–]
 
 
 def frame(wt):                                            # curves at phase ωt
-    return {"u/U, (8.38)": (ch08.stokes_second_problem(yd*de, wt/(2*np.pi), U=1.0, omega=2*np.pi, nu=NU_W), yd),
-            "envelope +": (np.exp(-yd), yd), "envelope −": (-np.exp(-yd), yd)}
+    return {"u/U, (8.38)": (ch08.stokes_second_problem(yd*de, wt/(2*np.pi), U=1.0, omega=2*np.pi, nu=NU_W), yd),   # the curves of this position
+            "envelope +": (np.exp(-yd), yd), "envelope −": (-np.exp(-yd), yd)}   # (continued)
 
 
-fig = animate_figure(frame, np.linspace(0, 2*np.pi, 25 if not FAST else 12), time_label="ωt", unit="rad",
-                     xlabel="u/U [–]", ylabel="y/δ_e [–]", title="The Stokes layer through one period", xrange=[-1.05, 1.05], yrange=[0, 6])
-recolor(fig, {"u/U, (8.38)": COLORS["blue"], "envelope +": COLORS["muted"], "envelope −": COLORS["muted"]},
-        {"envelope +": "dash", "envelope −": "dash"})
-fig.show()
+fig = animate_figure(frame, np.linspace(0, 2*np.pi, 25 if not FAST else 12), time_label="ωt", unit="rad",   # precompute every slider/time position
+                     xlabel="u/U [–]", ylabel="y/δ_e [–]", title="The Stokes layer through one period", xrange=[-1.05, 1.05], yrange=[0, 6])   # (continued)
+recolor(fig, {"u/U, (8.38)": COLORS["blue"], "envelope +": COLORS["muted"], "envelope −": COLORS["muted"]},   # colours by meaning (as in the static figures)
+        {"envelope +": "dash", "envelope −": "dash"})    # (continued)
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 The page-surviving version of the animation: Play runs one period of (8.38) inside its envelope.
 """)
@@ -3298,28 +3452,28 @@ nb.check_agree(r"""
 Re_ = 0.016                                              # the droplet's Reynolds number
 dyn, visc = [1, 1, 1/Re_], [Re_, 1, 1]                   # by hand: dynamic scaling, and viscous scaling × Re
 Re_sym = sp.Symbol("Re", positive=True)                  # the symbol the engine uses
-assert np.allclose(dyn, [float(lr["dynamic"][k].subs(Re_sym, Re_)) if hasattr(lr["dynamic"][k], "subs") else float(lr["dynamic"][k])
-                         for k in ("inertia", "pressure", "viscous")])
-assert np.allclose(visc, [float(lr["viscous_times_Re"][k].subs(Re_sym, Re_)) if hasattr(lr["viscous_times_Re"][k], "subs") else float(lr["viscous_times_Re"][k])
-                          for k in ("inertia", "pressure", "viscous")])
-print("hand coefficients = engine coefficients at Re = 0.016")
+assert np.allclose(dyn, [float(lr["dynamic"][k].subs(Re_sym, Re_)) if hasattr(lr["dynamic"][k], "subs") else float(lr["dynamic"][k])   # check the engine against the hand values
+                         for k in ("inertia", "pressure", "viscous")])   # (continued)
+assert np.allclose(visc, [float(lr["viscous_times_Re"][k].subs(Re_sym, Re_)) if hasattr(lr["viscous_times_Re"][k], "subs") else float(lr["viscous_times_Re"][k])   # check the engine against the hand values
+                          for k in ("inertia", "pressure", "viscous")])   # (continued)
+print("hand coefficients = engine coefficients at Re = 0.016")   # show the numbers
 """)
 nb.figure(r"""
 Re = np.geomspace(1e-3, 1e3, 100)                          # Reynolds numbers
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
-a1.loglog(Re, Re, color=COLORS["teal"], lw=2, label="inertia (Re)")
-a1.loglog(Re, Re, color=COLORS["orange"], lw=2, ls="--", label="pressure (Re)")
-a1.loglog(Re, 1 + 0*Re, color=COLORS["rose"], lw=2, label="viscous (1)")
-a1.set_title("(8.41): dynamic pressure scale × Re — pressure dies with inertia", fontsize=9)
-a2.loglog(Re, Re, color=COLORS["teal"], lw=2, label="inertia (Re)")
-a2.loglog(Re, 1 + 0*Re, color=COLORS["orange"], lw=2, label="pressure (1)")
-a2.loglog(Re, 1.05 + 0*Re, color=COLORS["rose"], lw=2, ls="--", label="viscous (1)")
-a2.set_title("(8.42): viscous pressure scale — only inertia dies", fontsize=9)
-for ax in (a1, a2):
-    ax.axvline(1, color=COLORS["muted"], lw=0.8); ax.set_xlabel("Re [–]"); ax.legend(fontsize=7)
-a1.set_ylabel("coefficient of the term [–]")
-fig.suptitle("Rescale pressure, not just inertia", fontsize=11)
-savefig(fig, "ch08", "c12_low_re_scaling"); plt.show()
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)   # the figure and its panels
+a1.loglog(Re, Re, color=COLORS["teal"], lw=2, label="inertia (Re)")   # a curve (its label says which)
+a1.loglog(Re, Re, color=COLORS["orange"], lw=2, ls="--", label="pressure (Re)")   # a curve (its label says which)
+a1.loglog(Re, 1 + 0*Re, color=COLORS["rose"], lw=2, label="viscous (1)")   # a curve (its label says which)
+a1.set_title("(8.41): dynamic pressure scale × Re — pressure dies with inertia", fontsize=9)   # each panel says its message
+a2.loglog(Re, Re, color=COLORS["teal"], lw=2, label="inertia (Re)")   # a curve (its label says which)
+a2.loglog(Re, 1 + 0*Re, color=COLORS["orange"], lw=2, label="pressure (1)")   # a curve (its label says which)
+a2.loglog(Re, 1.05 + 0*Re, color=COLORS["rose"], lw=2, ls="--", label="viscous (1)")   # a curve (its label says which)
+a2.set_title("(8.42): viscous pressure scale — only inertia dies", fontsize=9)   # each panel says its message
+for ax in (a1, a2):                                      # both panels
+    ax.axvline(1, color=COLORS["muted"], lw=0.8); ax.set_xlabel("Re [–]"); ax.legend(fontsize=7)   # labels with units
+a1.set_ylabel("coefficient of the term [–]")             # labels with units
+fig.suptitle("Rescale pressure, not just inertia", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c12_low_re_scaling"); plt.show()   # save the PNG to outputs/ch08, then draw
 """, see=r"""Left: with the pressure scaled by ρU² and the equation multiplied by Re, the pressure coefficient falls together with
 inertia; right: with the pressure scaled by μU/L, pressure and viscous terms stay at 1 and only inertia falls.""",
     read=r"""Read off which terms survive as Re → 0 (the left end): on the right, pressure and friction balance — the Stokes equations
@@ -3327,17 +3481,17 @@ $\nabla p=\mu\nabla^2\mathbf u$ *(8.43)*.""",
     change=r"""…Re = 1: the two scalings coincide — neither term is negligible and the full equation is needed.""")
 nb.plotly(r"""
 def frame(lr10):                                          # coefficients at Re = 10^lr10
-    R_ = 10**lr10
-    return {"dynamic scale × Re: inertia, pressure, viscous": ([1, 2, 3], np.log10([R_, R_, 1.0])),
-            "viscous scale × Re: inertia, pressure, viscous": ([1, 2, 3], np.log10([R_, 1.0, 1.0]))}
+    R_ = 10**lr10                                        # Re itself
+    return {"dynamic scale × Re: inertia, pressure, viscous": ([1, 2, 3], np.log10([R_, R_, 1.0])),   # the curves of this position
+            "viscous scale × Re: inertia, pressure, viscous": ([1, 2, 3], np.log10([R_, 1.0, 1.0]))}   # (continued)
 
 
-fig = slider_figure(frame, "log10 Re", np.linspace(-3, 3, 25 if not FAST else 13), unit="",
-                    xlabel="term: 1 = inertia, 2 = pressure, 3 = viscous", ylabel="log10(coefficient)",
-                    title="Which terms survive as Re → 0?", modes={"dynamic scale × Re: inertia, pressure, viscous": "lines+markers",
-                                                                  "viscous scale × Re: inertia, pressure, viscous": "lines+markers"})
-recolor(fig, {"dynamic scale × Re: inertia, pressure, viscous": COLORS["muted"], "viscous scale × Re: inertia, pressure, viscous": COLORS["orange"]})
-fig.show()
+fig = slider_figure(frame, "log10 Re", np.linspace(-3, 3, 25 if not FAST else 13), unit="",   # precompute every slider/time position
+                    xlabel="term: 1 = inertia, 2 = pressure, 3 = viscous", ylabel="log10(coefficient)",   # (continued)
+                    title="Which terms survive as Re → 0?", modes={"dynamic scale × Re: inertia, pressure, viscous": "lines+markers",   # (continued)
+                                                                  "viscous scale × Re: inertia, pressure, viscous": "lines+markers"})   # (continued)
+recolor(fig, {"dynamic scale × Re: inertia, pressure, viscous": COLORS["muted"], "viscous scale × Re: inertia, pressure, viscous": COLORS["orange"]})   # colours by meaning (as in the static figures)
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 Slide log₁₀ Re down to −3: with the dynamic scale (grey) both inertia and pressure drop below the viscous term; with the
 viscous scale (orange) the pressure stays level with the viscous term.
@@ -3388,9 +3542,9 @@ coordinates the operator means −∇×∇×ω (the book's footnote).
 D("D27", check_src=r"""
 S = ch08.stokes_sphere_sympy()                           # the Stokes-sphere results in sympy (cached; shared by D28–D31)
 r, th, a, U, mu = S["symbols"]                           # its symbols: r, θ, a, U, μ
-X = (r, th, sp.Symbol("phi", real=True))                 # spherical coordinates for core.curvilinear
+XS = (r, th, sp.Symbol("phi", real=True))                 # spherical coordinates for core.curvilinear
 w = [0, 0, S["omega_phi"]]                               # Stokes' vorticity ω = ω_φ e_φ, ω_φ = −(3Ua/2r²) sin θ
-cc = CL.curl(CL.curl(w, "spherical", X), "spherical", X) # ∇ × (∇ × ω), component by component
+cc = CL.curl(CL.curl(w, "spherical", XS), "spherical", XS) # ∇ × (∇ × ω), component by component
 print("ω_φ =", S["omega_phi"])
 print("∇×∇×ω =", [sp.simplify(c) for c in cc])          # [0, 0, 0]: −∇×∇×ω = 0 holds for Stokes' solution
 assert all(sp.simplify(c) == 0 for c in cc)
@@ -3401,8 +3555,8 @@ For axisymmetric flow the operator $E^2=\frac{\partial^2}{\partial r^2}+\frac{\s
 $\omega_\varphi=-E^2\psi/(r\sin\theta)$. Applying it twice, $E^2(E^2\psi)$, is **not** the biharmonic ∇⁴ψ — a sympy test in D28
 shows the difference.
 """, code=r"""
-import sympy as sp
-r, th = sp.symbols('r theta', positive=True)
+import sympy as sp                                       # symbolic maths
+r, th = sp.symbols('r theta', positive=True)             # spherical r and θ as symbols
 E2 = lambda f: sp.diff(f, r, 2) + sp.sin(th)/r**2*sp.diff(sp.diff(f, th)/sp.sin(th), th)   # the Stokes operator
 print(sp.simplify(E2(r**2*sp.sin(th)**2)))               # 0: the uniform stream has no vorticity
 """)
@@ -3413,7 +3567,7 @@ in the footnote's sense gives (8.44). ⚠️ It is the square of E², not the bi
 """, equation=EQ["8.44"], ref="8.44")
 D("D28", ref="8.44", check_src=r"""
 A_ = sp.Function("A")(r, th)                             # a generic azimuthal field A(r, θ) e_φ
-cc = CL.curl(CL.curl([0, 0, A_], "spherical", X, False), "spherical", X, False)   # ∇×∇×(A e_φ), not simplified yet
+cc = CL.curl(CL.curl([0, 0, A_], "spherical", XS, False), "spherical", XS, False)   # ∇×∇×(A e_φ), not simplified yet
 E2 = lambda f: sp.diff(f, r, 2) + sp.sin(th)/r**2*sp.diff(sp.diff(f, th)/sp.sin(th), th)   # the Stokes operator E²
 assert sp.simplify(cc[0]) == 0 and sp.simplify(cc[1]) == 0   # steps 7–9: the curl–curl of an azimuthal field is azimuthal …
 assert sp.simplify(cc[2] + E2(r*sp.sin(th)*A_)/(r*sp.sin(th))) == 0   # … and equals −E²(r sinθ A)/(r sinθ) e_φ
@@ -3434,7 +3588,7 @@ nb.code(r"""
 print("u_r =", sp.factor(S["u_r"]))                      # (8.49), factored: vanishes at r = a
 print("u_θ =", sp.factor(S["u_theta"]))
 print("on r = a:", S["u_r"].subs(r, a), S["u_theta"].subs(r, a))   # 0 0: no slip
-print("f-roots:", S["roots"], " constants:", S["constants"])        # D29 steps 6 and 8–10
+print("f-roots:", S["roots"], " constants:", S["constants"])        # D29 steps 7 and 9–11
 """)
 nb.worked_example("a bead in syrup, two radii out on the side", r"""
 a = 1 mm, U = 1 mm/s, ν = 10⁻³ m²/s (syrup: Re = 2aU/ν = 0.002). At r = 2a, θ = π/2: u_r = 0,
@@ -3444,10 +3598,10 @@ ideal-flow disturbance is already 0.05 %.
 """)
 nb.code(r"""
 for rr_ in (2.0, 10.0):                                  # two distances on the side line, in radii
-    print(f"r = {rr_:g}a: Stokes |u| = {ch08.side_line_speed(rr_*1e-3, U=1e-3, a=1e-3, model='stokes')/1e-3:.4f} U, "
-          f"ideal |u| = {ch08.side_line_speed(rr_*1e-3, U=1e-3, a=1e-3, model='ideal')/1e-3:.4f} U")
-print("(u_r, u_θ) at r = 2a, θ = π/2:", ch08.stokes_sphere_velocity(2e-3, np.pi/2, U=1e-3, a=1e-3), "m/s")
-print("fluid-frame ψ at r = 2a, θ = π/4:", ch08.stokes_sphere_streamfunction(2e-3, np.pi/4, U=1e-3, a=1e-3, frame="fluid"), "m³/s")
+    print(f"r = {rr_:g}a: Stokes |u| = {ch08.side_line_speed(rr_*1e-3, U=1e-3, a=1e-3, model='stokes')/1e-3:.4f} U, "   # show the numbers
+          f"ideal |u| = {ch08.side_line_speed(rr_*1e-3, U=1e-3, a=1e-3, model='ideal')/1e-3:.4f} U")   # (continued)
+print("(u_r, u_θ) at r = 2a, θ = π/2:", ch08.stokes_sphere_velocity(2e-3, np.pi/2, U=1e-3, a=1e-3), "m/s")   # show the numbers
+print("fluid-frame ψ at r = 2a, θ = π/4:", ch08.stokes_sphere_streamfunction(2e-3, np.pi/4, U=1e-3, a=1e-3, frame="fluid"), "m³/s")   # show the numbers
 """, explain=r"""
 1. `side_line_speed` evaluates the speed at θ = π/2 for Stokes' (8.49) and for Ch. 6's ideal sphere: 0.594U against 1.0625U at
    2a, 0.925U against 1.0005U at 10a — the tiny example.
@@ -3469,13 +3623,10 @@ Subtract the stream: ψ below (Fig. 8.19). The pattern is fore–aft symmetric �
 maps u → −u and p − p∞ → −(p − p∞). ⚠️ The text calls the equation "(9.63)"; it means (8.43). Ch. 16 returns to this
 reversibility (why a swimming bacterium cannot use a reciprocal stroke).
 """, equation=r"\psi=Ur^2\sin^2\theta\Big(-\frac{3a}{4r}+\frac{a^3}{4r^3}\Big)")
-remind([
-    ("meshgrid, contour and streamplot", "`X, Y = np.meshgrid(x, y)` gives every point; `ax.contour(X, Y, psi, levels)` draws streamlines as lines of constant ψ (Ch. 2 P78)."),
-])
 nb.figure(r"""
 n_ = 301 if not FAST else 151                              # grid points per side
 xg = np.linspace(-6, 6, n_); yg = np.linspace(-4, 4, n_)   # in sphere radii (a = 1)
-X, Y = np.meshgrid(xg, yg)
+X, Y = np.meshgrid(xg, yg)                               # every point of the window
 Rr = np.hypot(X, Y); Th = np.arccos(np.clip(X/np.maximum(Rr, 1e-12), -1, 1))   # spherical r and θ from +x
 out = Rr > 1                                              # outside the sphere
 psi_b = np.where(out, ch08.stokes_sphere_streamfunction(Rr, Th, 1.0, 1.0, frame="body"), np.nan)   # (8.48)
@@ -3483,28 +3634,29 @@ psi_f = np.where(out, ch08.stokes_sphere_streamfunction(Rr, Th, 1.0, 1.0, frame=
 ur, ut = ch08.stokes_sphere_velocity(Rr, Th, 1.0, 1.0)    # (8.49) body frame
 speed = np.where(out, np.hypot(ur, ut), np.nan)           # |u|/U
 psi_i = np.where(out, PF.sphere(1.0, 1.0).psi(np.abs(Y), X) - 0.5*Y**2, np.nan)   # Ch. 6 ideal sphere, fluid frame
-fig, axs = plt.subplots(1, 3, figsize=(13, 3.8))
-im = axs[0].pcolormesh(X, Y, speed, cmap="Blues", vmin=0, vmax=1.1, shading="auto")
-axs[0].contour(X, Y, psi_b, np.linspace(-4, 4, 17), colors=COLORS["ink"], linewidths=0.8)
-fig.colorbar(im, ax=axs[0], label="|u|/U")
-axs[1].contour(X, Y, psi_f, np.linspace(-1.2, 1.2, 25), colors=COLORS["blue"], linewidths=0.9)
-axs[2].contour(X, Y, psi_i, np.linspace(-0.5, 0.5, 21), colors=COLORS["muted"], linewidths=0.9)
+fig, axs = plt.subplots(1, 3, figsize=(13, 3.8))         # the figure and its panels
+im = axs[0].pcolormesh(X, Y, speed, cmap="Blues", vmin=0, vmax=1.1, shading="auto")   # speed as a colour map
+axs[0].contour(X, Y, psi_b, np.linspace(-4, 4, 17), colors=COLORS["ink"], linewidths=0.8)   # streamlines = lines of constant ψ
+fig.colorbar(im, ax=axs[0], label="|u|/U")               # the colour scale
+axs[1].contour(X, Y, psi_f, np.linspace(-1.2, 1.2, 25), colors=COLORS["blue"], linewidths=0.9)   # streamlines = lines of constant ψ
+axs[2].contour(X, Y, psi_i, np.linspace(-0.5, 0.5, 21), colors=COLORS["muted"], linewidths=0.9)   # streamlines = lines of constant ψ
 for ax, title in zip(axs, ("Body frame: stream past the sphere", "Fluid frame: sphere moving left (Stokes)", "Fluid frame: ideal flow (Ch. 6)")):
-    sphere(ax, 1.0); ax.set_xlim(-6, 6); ax.set_ylim(-4, 4); ax.set_xlabel("x/a"); ax.set_title(title, fontsize=10)
-axs[0].set_ylabel("y/a")
-fig.suptitle("Creeping flow: symmetric, and felt far away", fontsize=11)
-savefig(fig, "ch08", "c13_stokes_sphere"); plt.show()
-""", see=r"""(a) the stream parting round the sphere, slowed over a wide region (pale blue); (b) closed loops that look the same in
-front of and behind the moving sphere; (c) Ch. 6's ideal flow in the same frame, a much more compact disturbance — our remakes
-of Figs. 8.17 (sphere) and 8.19 `N107`.""",
-    read=r"""Count the radii where the loops still bend: in (b) the disturbance is visible beyond 5a (it decays like a/r), in (c) it
-is nearly gone by 3a (like a³/r³).""",
+    sphere(ax, 1.0); ax.set_xlim(-6, 6); ax.set_ylim(-4, 4); ax.set_xlabel("x/a"); ax.set_title(title, fontsize=10)   # labels with units
+axs[0].set_ylabel("y/a")                                 # labels with units
+fig.suptitle("Creeping flow: symmetric, and felt far away", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c13_stokes_sphere"); plt.show()    # save the PNG to outputs/ch08, then draw
+""", see=r"""(a) the stream parting round the sphere, slowed over a wide region (pale blue); (b) open U-shaped streamlines that
+bend round the moving sphere and open out far away (y² grows like r) — mirror images front to back, no wake; (c)
+Ch. 6's ideal flow in the same frame: the closed loops of a dipole, a much more compact disturbance — our remakes of
+Figs. 8.17 (sphere) and 8.19 `N107`.""",
+    read=r"""Count the radii where the lines still bend: in (b) they are still curved at 6a — the disturbance decays only like a/r —
+while in (c) the loops shrink fast toward the sphere (like a³/r³).""",
     change=r"""…Re were 1: inertia breaks the symmetry and a wake forms behind (C15).""")
 remind([
     ("advecting many tracers in one solve_ivp call", "stack all tracer positions into one long state vector and let `solve_ivp` move them together (Ch. 5 P137)."),
 ])
 nb.animation(r"""
-nfr = 60 if not FAST else 30                              # frames
+nfr = 40 if not FAST else 20                              # frames
 T_end = 10.0                                              # the sphere travels 10 radii (a = 1, U = 1, time in a/U)
 y0s = np.linspace(0.25, 3.0, 10)                          # ten tracers on the line x = 0, above the axis
 z0 = np.r_[np.zeros(10), y0s]                              # state: all x's then all y's
@@ -3544,7 +3696,7 @@ def update(i):                                            # frame i
         for k in range(10):
             tr[k].set_data(sol.y[k, :i+1], sol.y[10 + k, :i+1])   # their paths so far
         ball.center = (5.0 - tf[i], 0.0)                  # the sphere moves left at U
-    return []
+    return []                                            # nothing to blit: the artists were changed in place
 
 
 show_animation(animate(update, frames=nfr, fig=fig, interval=70))
@@ -3557,12 +3709,12 @@ Stokes loops are large even three radii away — the slow a/r decay.""",
                 r"""…the sphere stopped halfway: the tracers would stop at once — there is no inertia to coast on (reversibility).""")
 explainer("stokes_sphere_flow", "What does creeping flow round a sphere look like?", r"""
 Toggle body and fluid frames and Stokes, Oseen and ideal flow, and drag Re: symmetric loops, a disturbance that decays only
-like a/r, and then a wake that grows from far downstream once r reaches a/Re — three comparisons that need motion and switching
+like a/r, and then a wake that grows from far downstream once r reaches order a/Re_a (about 2a/Re_a, C15) — three comparisons that need motion and switching
 to be believed. (Its Oseen mode previews C15.)""",
           ["Fluid frame, Stokes: follow one tracer — it goes round a loop and comes back.",
            "Read the side-line speed view: at 10a Stokes still shows a 7.5 % deficit, ideal flow none.",
            "Switch to Oseen and raise Re to 1: where does the circle r = a/Re_a sit, and where does the wake begin?",
-           "Open the Derivation tab at D29 step 8: zoom out to see why the r⁴ term must go."])
+           "Open the Derivation tab at the far-field step of D29 (A = 0): zoom out to see why the r⁴ term must go."])
 whatif(r"""
 …we asked for the force? The pressure and the shear stress on the surface follow from (8.49); integrating them gives the drag
 (C14).
@@ -3596,8 +3748,10 @@ remind([
 gloss("Traction", r"""The force per unit area that the fluid exerts on the sphere is $\mathbf t=\boldsymbol\sigma\cdot\mathbf e_r$
 (Cauchy, Ch. 2 §2.6); its x-component is $\sigma_{rr}\cos\theta-\sigma_{r\theta}\sin\theta$ with θ measured from +x.""")
 D("D30", ref="8.50", check_src=r"""
+r, th, a, U, mu = S["symbols"]                           # the engine's symbols again (numbers were reused in between)
+XS = (r, th, sp.Symbol("phi", real=True))                # spherical coordinates for core.curvilinear
 ur, uth, p = S["u_r"], S["u_theta"], S["p"]              # (8.49) and (8.50) from the cached engine
-L_ = CL.vector_laplacian([ur, uth, 0], "spherical", X)   # ∇²u in spherical components (core.curvilinear)
+L_ = CL.vector_laplacian([ur, uth, 0], "spherical", XS)  # ∇²u in spherical components (core.curvilinear)
 print("p − p∞ =", p)                                     # −3μaU cosθ/(2r²)
 assert sp.simplify(sp.diff(p, r) - mu*L_[0]) == 0        # radial component of ∇p = μ∇²u
 assert sp.simplify(sp.diff(p, th)/r - mu*L_[1]) == 0     # polar component: consistent (D30 step 9)
@@ -3609,7 +3763,7 @@ note("N88 [B], N89 [B] · Pressure and surface stresses.", r"""
 (ours): on r = a the viscous normal stress vanishes, $\sigma_{rr}=-p$, and $\sigma_{r\theta}=-\frac{3\mu U}{2a}\sin\theta$.
 """, equation=EQ["8.50"], ref="8.50")
 D("D31", ref="8.51", check_src=r"""
-Sm = CL.strain_rate([ur, uth, 0], "spherical", X)        # strain-rate tensor of (8.49) in spherical components
+Sm = CL.strain_rate([ur, uth, 0], "spherical", XS)        # strain-rate tensor of (8.49) in spherical components
 srr = sp.simplify((-p + 2*mu*Sm[0, 0]).subs(r, a))       # σ_rr on the sphere (steps 3–4, 8)
 srt = sp.simplify((2*mu*Sm[0, 1]).subs(r, a))            # σ_rθ on the sphere (steps 5–7)
 print("σ_rr(a) =", srr, "  σ_rθ(a) =", srt, "  viscous part of σ_rr(a):", S["sigma_rr_viscous_a"])
@@ -3633,11 +3787,11 @@ remind([
 ])
 nb.code(r"""
 st = ch08.settling_state(10e-6, 1000.0, 1.2, 1.81e-5)    # droplet radius [m], ρ′, ρ [kg/m³], μ of air [Pa s] (g = 9.80665)
-print({k: (f"{st[k]:.4g}" if not isinstance(st[k], bool) else st[k]) for k in ("U_t", "Re", "D", "C_D", "valid", "D_pressure", "D_friction")})
+print({k: (f"{st[k]:.4g}" if not isinstance(st[k], bool) else st[k]) for k in ("U_t", "Re", "D", "C_D", "valid", "D_pressure", "D_friction")})   # show the numbers
 print(ch08.stokes_drag(1.81e-5, 10e-6, st["U_t"], parts=True))   # (8.51) split into its two parts [N]
-srr_, srt_, tx = ch08.stokes_sphere_surface_stresses(np.array([0, np.pi/2, np.pi]), U=st["U_t"], a=10e-6, mu=1.81e-5)
-print("x-traction at the rear, side, front:", tx, "Pa   (3μU/2a =", 1.5*1.81e-5*st["U_t"]/10e-6, ")")
-print("drag collected from the rear to the side:", ch08.stokes_drag_running(np.pi/2, 1.81e-5, 10e-6, st["U_t"]))
+srr_, srt_, tx = ch08.stokes_sphere_surface_stresses(np.array([0, np.pi/2, np.pi]), U=st["U_t"], a=10e-6, mu=1.81e-5)   # σ_rr, σ_rθ and the x-traction at the rear, side and front [Pa]
+print("x-traction at the rear, side, front:", tx, "Pa   (3μU/2a =", 1.5*1.81e-5*st["U_t"]/10e-6, ")")   # show the numbers
+print("drag collected from the rear to the side:", ch08.stokes_drag_running(np.pi/2, 1.81e-5, 10e-6, st["U_t"]))   # show the numbers
 print("C_D:", ch08.stokes_drag_coefficient(st["Re"]), SIM.sphere_drag_coefficient(st["Re"], "stokes"))   # (8.52), and Ch. 4's
 """, explain=r"""
 1. `settling_state` solves the terminal balance (N90 below) and checks Re < 0.1: U_t = 1.20 cm/s, Re = 0.016, D = 4.10 × 10⁻¹¹ N,
@@ -3661,6 +3815,15 @@ assert np.allclose([Dp_, Df_], [D_["pressure"], D_["friction"]], rtol=1e-6)
 tx_fn = lambda th_: ch08.stokes_sphere_surface_stresses(th_, U=U_, a=a_, mu=mu_)[2]   # x-traction as a function of θ
 assert np.isclose(ch08.sphere_drag_quadrature(tx_fn, a_, n=16), D_["total"], rtol=1e-12)   # Gauss–Legendre: exact already
 """)
+nb.md(r"""
+**What does the code above do?**
+
+1. It cuts the sphere into 2000 rings, projects the pressure and friction tractions on x, multiplies by the ring areas
+   $2\pi a^2\sin\theta\,\Delta\theta$ and adds up: 1.3676 × 10⁻¹¹ N from pressure and 2.7352 × 10⁻¹¹ N from friction —
+   one third and two thirds of $6\pi\mu aU$, as D31 found.
+2. The Gauss–Legendre sum `sphere_drag_quadrature` with only 16 nodes gives the total to 10⁻¹²: the x-traction is the same
+   everywhere on the sphere, so any quadrature that integrates sin θ dθ exactly is already exact.
+""")
 note("N90 [B], N91 [B] · Terminal velocity and Millikan's oil drops.", r"""
 **N90** The balance $(4/3)\pi a^3g(\rho'-\rho)=6\pi\mu aU$ gives $U_t=\frac{2(\rho'-\rho)ga^2}{9\mu}$ — ∝ a²: halve the droplet,
 quarter the speed. This sets how long aerosols and cloud droplets stay aloft and how fast silt settles (Ch. 13). **N91**
@@ -3678,7 +3841,7 @@ With the frontal area πa² in $C_D\equiv\frac{F_D}{\tfrac12\rho U^2A}$ *(4.107)
 """, equation=EQ["8.52"], ref="8.52")
 nb.figure(r"""
 import warnings                                           # to silence the "Re > 0.1" warnings of the dashed extensions
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(13, 3.8))
+fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(13, 3.8))   # the figure and its panels
 th_ = np.linspace(0, 2*np.pi, 13)[:-1]                    # 12 points round the circle in the drawing plane
 for t0 in th_:                                            # traction arrows at each point (units μU/a, U = a = μ = 1)
     c, s = np.cos(t0), np.sin(t0)                         # the point (and the outward normal e_r) on the circle
@@ -3687,40 +3850,43 @@ for t0 in th_:                                            # traction arrows at e
     e_th = np.array([-abs(s), np.sign(s)*c])              # unit vector of increasing θ in the drawing plane
     t_p = srr1*np.array([c, s])                           # pressure (normal) part of the traction
     t_f = srt1*e_th                                       # friction (tangential) part
-    for vec, col, lw in ((t_p, COLORS["orange"], 1.0), (t_f, COLORS["rose"], 1.0), (t_p + t_f, COLORS["ink"], 1.6)):
-        a1.annotate("", xy=(1.1*c + 0.5*vec[0], 1.1*s + 0.5*vec[1]), xytext=(1.1*c, 1.1*s),
-                    arrowprops=dict(arrowstyle="->", color=col, lw=lw))
-sphere(a1, 1.0); a1.set_xlim(-2.4, 2.8); a1.set_ylim(-2.2, 2.2); a1.axis("off")
-a1.set_title("Tractions: pressure (orange), friction (rose),\nsum (black) = 3μU/2a in x everywhere", fontsize=9)
+    for vec, col, lw in ((t_p, COLORS["orange"], 1.0), (t_f, COLORS["rose"], 1.0), (t_p + t_f, COLORS["ink"], 1.6)):   # pressure, friction and their sum
+        a1.annotate("", xy=(1.1*c + 0.5*vec[0], 1.1*s + 0.5*vec[1]), xytext=(1.1*c, 1.1*s),   # an arrow
+                    arrowprops=dict(arrowstyle="->", color=col, lw=lw), zorder=5)   # its style, drawn over the sphere
+sphere(a1, 1.0); a1.set_xlim(-2.4, 2.8); a1.set_ylim(-2.2, 2.2); a1.axis("off")   # fixed axis limits
+a1.set_title("Tractions: pressure (orange), friction (rose),\nsum (black) = 3μU/2a in x everywhere", fontsize=9)   # each panel says its message
 thv = np.linspace(0, np.pi, 200)                          # from the rear (0) to the front (π)
-a2.plot(thv, ch08.stokes_sphere_pressure(1.0, thv, 1.0, 1.0, 1.0), color=COLORS["orange"], lw=2, label="p − p∞ [μU/a]")
-a2.plot(thv, ch08.stokes_sphere_surface_stresses(thv, 1.0, 1.0, 1.0)[1], color=COLORS["rose"], lw=2, label="σ_rθ [μU/a]")
+a2.plot(thv, ch08.stokes_sphere_pressure(1.0, thv, 1.0, 1.0, 1.0), color=COLORS["orange"], lw=2, label="p − p∞ [μU/a]")   # a curve (its label says which)
+a2.plot(thv, ch08.stokes_sphere_surface_stresses(thv, 1.0, 1.0, 1.0)[1], color=COLORS["rose"], lw=2, label="σ_rθ [μU/a]")   # a curve (its label says which)
 b2 = a2.twinx()                                           # running drag on a second axis
 run_ = ch08.stokes_drag_running(thv, 1.0, 1.0, 1.0)       # pressure and friction parts collected up to θ [μaU]
-b2.plot(thv, run_["pressure"]/np.pi, color=COLORS["orange"], ls="--", lw=1.2)
-b2.plot(thv, run_["friction"]/np.pi, color=COLORS["rose"], ls="--", lw=1.2)
-b2.set_ylabel("running drag [π μaU] (dashed)"); b2.set_ylim(0, 4.4)
-a2.set_xlabel("θ from the rear [rad]"); a2.legend(fontsize=7, loc="lower left"); a2.set_title("Stresses and the drag they build: 2π + 4π", fontsize=9)
+b2.plot(thv, run_["pressure"]/np.pi, color=COLORS["orange"], ls="--", lw=1.2)   # a curve (its label says which)
+b2.plot(thv, run_["friction"]/np.pi, color=COLORS["rose"], ls="--", lw=1.2)   # a curve (its label says which)
+b2.set_ylabel("running drag [π μaU] (dashed)"); b2.set_ylim(0, 4.4)   # labels with units
+a2.set_xlabel("θ from the rear [rad]"); a2.legend(fontsize=7, loc="upper left"); a2.set_title("Stresses and the drag they build: 2π + 4π", fontsize=9)   # labels with units
 radii = np.geomspace(1e-6, 1e-3, 80)                      # particle radii [m]
-fams = [("water droplets in air", 1000.0, 1.2, 1.81e-5, COLORS["blue"]), ("quartz sand in water", 2650.0, 1000.0, 1e-3, COLORS["amber"]),
-        ("bacteria in water", 1100.0, 1000.0, 1e-3, COLORS["teal"])]
-with warnings.catch_warnings():
+fams = [("water droplets in air", 1000.0, 1.2, 1.81e-5, COLORS["blue"]), ("quartz sand in water", 2650.0, 1000.0, 1e-3, COLORS["amber"]),   # (continued)
+        ("bacteria in water", 1100.0, 1000.0, 1e-3, COLORS["teal"])]   # (continued)
+with warnings.catch_warnings():                          # a block with its own warning settings
     warnings.simplefilter("ignore")                       # beyond Re = 0.1 the law is drawn dashed, not trusted
-    for name, rp, rf, mf, c in fams:
+    for name, rp, rf, mf, c in fams:                     # one line per kind of particle
         Ut = ch08.terminal_velocity(radii, rp, rf, mf, warn=False)   # N90 [m/s]
         Re_ = 2*radii*Ut*rf/mf                            # Reynolds number with the diameter
-        ok = Re_ < 0.1
-        a3.loglog(1e6*radii[ok], Ut[ok], color=c, lw=2, label=name)
-        a3.loglog(1e6*radii[~ok], Ut[~ok], color=c, lw=1, ls="--")
-a3.set_xlabel("radius a [µm]"); a3.set_ylabel("U_t [m/s]"); a3.legend(fontsize=7); a3.set_title("Fall speed ∝ a² (dashed: Re > 0.1)", fontsize=9)
-fig.suptitle("A third pressure, two thirds friction; fall speed ∝ a²", fontsize=11)
-savefig(fig, "ch08", "c14_stokes_drag"); plt.show()
+        ok = Re_ < 0.1                                   # where Stokes' law is trustworthy
+        a3.loglog(1e6*radii[ok], Ut[ok], color=c, lw=2, label=name)   # a curve (its label says which)
+        a3.loglog(1e6*radii[~ok], Ut[~ok], color=c, lw=1, ls="--")   # a curve (its label says which)
+for name, rp, rf, mf, c in fams:                          # the fall speed of a 10 µm particle of each kind
+    print(f"10 µm {name}: U_t = {1e3*ch08.terminal_velocity(10e-6, rp, rf, mf, warn=False):.3g} mm/s")
+a3.set_xlabel("radius a [µm]"); a3.set_ylabel("U_t [m/s]"); a3.legend(fontsize=7); a3.set_title("Fall speed ∝ a² (dashed: Re > 0.1)", fontsize=9)   # labels with units
+fig.suptitle("A third pressure, two thirds friction; fall speed ∝ a²", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c14_stokes_drag"); plt.show()      # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) arrows round the sphere: pressure (orange) pushing at the front and pulling at the rear, friction (rose) along the
 surface, and their sum (black) the same everywhere; (b) the pressure and shear stress against θ and their running integrals
 (dashed) reaching 2π and 4π μaU; (c) straight lines of slope 2 for droplets, sand and bacteria, dashed where Re > 0.1 — our
 remake of Fig. 8.17's stress plot (`N107`).""",
     read=r"""In (b) the orange dashed curve ends at 2 and the rose one at 4 (in units of πμaU): one third and two thirds of 6πμaU. In
-(c) read a fall speed: a 10 µm droplet falls about 1 cm/s, a 10 µm sand grain about 0.2 mm/s.""",
+(c) read a fall speed: a 10 µm droplet falls about 1.2 cm/s, a 10 µm sand grain about 0.36 mm/s (both printed above the
+figure).""",
     change=r"""…the droplet were oil (ρ′ = 900 kg/m³): $U_t\propto(\rho'-\rho)$, so it falls about 10 % more slowly.""")
 explainer("stokes_drag_settling", "Where does 6πμaU come from?", r"""
 Sweep around the sphere and watch the local pressure and shear tractions as arrows and curves while their running integrals
@@ -3797,21 +3963,21 @@ Re = 2aU/ν = 0.02, so $\mathrm{Re}_a=\mathrm{Re}/2=0.01$.
 """)
 nb.code(r"""
 Re_a = 1e-3*1e-3/1e-4                                    # U a/ν with U = 1 mm/s, a = 1 mm, ν = 10⁻⁴ m²/s: 0.01
-for th_, name in ((0.0, "axis θ = 0"), (np.pi/4, "θ = π/4"), (np.pi/2, "side line θ = π/2")):
+for th_, name in ((0.0, "axis θ = 0"), (np.pi/4, "θ = π/4"), (np.pi/2, "side line θ = π/2")):   # three directions from the sphere
     for rr_ in (10.0, 100.0, 400.0):                     # distances in radii
         ratio = ch08.inertia_viscous_ratio(rr_*1e-3, th_, U=1e-3, a=1e-3, nu=1e-4)   # |u·∇u| / |ν∇²u| on Stokes' field
-        print(f"{name:18s} r = {rr_:5.0f}a: ratio = {ratio:.4f}, ratio ÷ (Re_a r/a) = {ratio/(Re_a*rr_):.3f}")
-print("C_D at Re = 0.5: Oseen", ch08.oseen_drag_coefficient(0.5), " Stokes", ch08.stokes_drag_coefficient(0.5),
-      " Proudman–Pearson", round(ch08.proudman_pearson_drag_coefficient(0.5), 3), " Morrison (data fit)", round(SIM.sphere_drag_coefficient(0.5), 3))
-print("ψ Oseen (Re = 1e-6) vs Stokes at r = 2a, θ = π/3:", ch08.oseen_streamfunction(2e-3, np.pi/3, U=1e-3, a=1e-3, Re=1e-6),
-      ch08.stokes_sphere_streamfunction(2e-3, np.pi/3, U=1e-3, a=1e-3))
+        print(f"{name:18s} r = {rr_:5.0f}a: ratio = {ratio:.4f}, ratio ÷ (Re_a r/a) = {ratio/(Re_a*rr_):.3f}")   # show the numbers
+print("C_D at Re = 0.5: Oseen", ch08.oseen_drag_coefficient(0.5), " Stokes", ch08.stokes_drag_coefficient(0.5),   # show the numbers
+      " Proudman–Pearson", round(ch08.proudman_pearson_drag_coefficient(0.5), 3), " Morrison (data fit)", round(SIM.sphere_drag_coefficient(0.5), 3))   # (continued)
+print("ψ Oseen (Re = 1e-6) vs Stokes at r = 2a, θ = π/3:", ch08.oseen_streamfunction(2e-3, np.pi/3, U=1e-3, a=1e-3, Re=1e-6),   # show the numbers
+      ch08.stokes_sphere_streamfunction(2e-3, np.pi/3, U=1e-3, a=1e-3))   # Stokes' (8.48) at the same point
 """, explain=r"""
 1. `inertia_viscous_ratio` evaluates |u·∇u| / |ν∇²u| on Stokes' field by finite differences. It grows in proportion to r, and
    ratio ÷ (Re_a r/a) tends to **½ on the axis and on the side line** — so inertia equals friction at r ≈ 2a/Re_a (200a here). At
    θ = π/4 the leading inertia term nearly cancels (it changes sign near θ ≈ 55°) and the prefactor is smaller, about 0.16. The
    book's r ~ a/Re is the right order of magnitude.
-2. The drag laws at Re = 0.5: Oseen 52.5, Stokes 48, Proudman–Pearson and the Morrison correlation of the measurements close to
-   Oseen.
+2. The drag laws at Re = 0.5: Oseen 52.5, Stokes 48, Proudman–Pearson 51.6 (close to Oseen) and the Morrison correlation of
+   the measurements 48.4 — between Stokes and Oseen, as the book says.
 3. At a vanishing Re Oseen's ψ equals Stokes' to about 10⁻⁶ (D33).
 """)
 nb.check_agree(r"""
@@ -3841,33 +4007,43 @@ slope = observed_order(rs, [ch08.inertia_viscous_ratio(r_*1e-3, np.pi/2, U=1e-3,
 print(f"log–log slope of the ratio for r/a in [50, 500]: {slope:.3f}")
 assert abs(slope - 1) < 0.05                             # D32: the ratio grows like r
 """)
+nb.md(r"""
+**What does the code above do?**
+
+1. At three points on the axis behind the sphere it builds u·∇u and ν∇²u by hand from central differences of Stokes'
+   velocity (using the axial symmetry for the z-curvature) and takes the ratio of their sizes.
+2. The hand ratios equal the library's `inertia_viscous_ratio` — 0.24, 0.49 and 0.99 at 50a, 100a and 200a with Re_a = 0.01 —
+   each about ½ Re_a r/a.
+3. Fitting the ratio against r on log–log axes for r/a from 50 to 500 gives slope 1.006: inertia over friction grows in
+   proportion to r, as D32 argued.
+""")
 nb.figure(r"""
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(13, 3.8))
-rs = np.geomspace(1.5, 3000, 60)                          # r/a
+fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(13, 3.8))   # the figure and its panels
+rs = np.geomspace(1.5, 1000, 60)                          # r/a (beyond ~1000a even this step meets round-off)
 for Rea, c in ((1e-3, COLORS["blue"]), (1e-2, COLORS["teal"]), (1e-1, COLORS["orange"])):   # three Re_a
     nu_ = 1e-3*1e-3/Rea                                    # ν that gives this Re_a with U = 1 mm/s, a = 1 mm
-    a1.loglog(rs, ch08.inertia_viscous_ratio(rs*1e-3, np.pi/2, U=1e-3, a=1e-3, nu=nu_), color=c, lw=2, label=f"Re_a = {Rea:g}")
-a1.axhline(1, color=COLORS["muted"], ls="--", lw=1); a1.text(2, 1.3, "inertia = friction", fontsize=8)
-a1.set_xlabel("r/a"); a1.set_ylabel("|u·∇u| / |ν∇²u| (side line)"); a1.legend(fontsize=7); a1.set_title("Inertia returns far away", fontsize=10)
+    a1.loglog(rs, ch08.inertia_viscous_ratio(rs*1e-3, np.pi/2, U=1e-3, a=1e-3, nu=nu_, h_rel=1e-2), color=c, lw=2, label=f"Re_a = {Rea:g}")   # finite-difference step 1 % of r: no round-off noise far away
+a1.axhline(1, color=COLORS["muted"], ls="--", lw=1); a1.text(2, 1.3, "inertia = friction", fontsize=8)   # reference line
+a1.set_xlabel("r/a"); a1.set_ylabel("|u·∇u| / |ν∇²u| (side line)"); a1.legend(fontsize=7); a1.set_title("Inertia returns far away", fontsize=10)   # labels with units
 n_ = 200 if not FAST else 100                             # contour grid
-xg = np.linspace(-15, 15, n_); yg = np.linspace(-10, 10, n_)
-Xo, Yo = np.meshgrid(xg, yg); Ro = np.hypot(Xo, Yo); To = np.arccos(np.clip(Xo/np.maximum(Ro, 1e-12), -1, 1))
-outo = Ro > 1
-ps_ = np.where(outo, ch08.stokes_sphere_streamfunction(Ro, To, 1.0, 1.0, frame="fluid"), np.nan)
-po_ = np.where(outo, ch08.oseen_streamfunction(Ro, To, 1.0, 1.0, Re=1.0, frame="fluid"), np.nan)
-lev = np.linspace(-4, 4, 33)
-a2.contour(Xo, Yo, ps_, lev, colors=COLORS["muted"], linewidths=0.7, linestyles="--")
-a2.contour(Xo, Yo, po_, lev, colors=COLORS["blue"], linewidths=1.0)
-sphere(a2, 1.0); a2.set_xlim(-15, 15); a2.set_ylim(-10, 10); a2.set_xlabel("x/a (sphere moving left)")
-a2.set_title("Fluid frame, Re = 1: Oseen (blue) vs Stokes (dashed)", fontsize=9)
-Res = np.geomspace(0.01, 10, 100)
-a3.semilogx(Res, ch08.stokes_drag_coefficient(Res)*Res/24, color=COLORS["muted"], lw=2, label="Stokes 24/Re")
-a3.semilogx(Res, ch08.oseen_drag_coefficient(Res)*Res/24, color=COLORS["blue"], lw=2, label="Oseen (1 + 3Re/16)")
-a3.semilogx(Res, np.array([ch08.proudman_pearson_drag_coefficient(r_) for r_ in Res])*Res/24, color=COLORS["accent"], lw=1.5, ls="--", label="Proudman–Pearson")
-a3.semilogx(Res, np.array([SIM.sphere_drag_coefficient(r_) for r_ in Res])*Res/24, color=COLORS["amber"], lw=2, label="Morrison (measurements)")
-a3.set_ylim(0.9, 3); a3.set_xlabel("Re = 2aU/ν"); a3.set_ylabel("C_D·Re/24 [–]"); a3.legend(fontsize=7); a3.set_title("Drag laws", fontsize=10)
-fig.suptitle("Stokes is right near the sphere and wrong far away", fontsize=11)
-savefig(fig, "ch08", "c15_oseen"); plt.show()
+xg = np.linspace(-15, 15, n_); yg = np.linspace(-10, 10, n_)   # a window of 30 × 20 radii
+Xo, Yo = np.meshgrid(xg, yg); Ro = np.hypot(Xo, Yo); To = np.arccos(np.clip(Xo/np.maximum(Ro, 1e-12), -1, 1))   # grid, spherical r and θ from +x
+outo = Ro > 1                                            # points outside the sphere
+ps_ = np.where(outo, ch08.stokes_sphere_streamfunction(Ro, To, 1.0, 1.0, frame="fluid"), np.nan)   # Stokes' ψ, fluid frame (N93)
+po_ = np.where(outo, ch08.oseen_streamfunction(Ro, To, 1.0, 1.0, Re=1.0, frame="fluid"), np.nan)   # Oseen's ψ (8.53) at Re = 1, fluid frame
+lev = np.linspace(-6, -0.5, 12)                         # streamline levels ψ/(Ua²) (the fluid-frame ψ is negative)
+a2.contour(Xo, Yo, ps_, lev, colors=COLORS["muted"], linewidths=0.7, linestyles="--")   # streamlines = lines of constant ψ
+a2.contour(Xo, Yo, po_, lev, colors=COLORS["blue"], linewidths=1.0)   # streamlines = lines of constant ψ
+sphere(a2, 1.0); a2.set_xlim(-15, 15); a2.set_ylim(-10, 10); a2.set_xlabel("x/a (sphere moving left)")   # labels with units
+a2.set_title("Fluid frame, Re = 1: Oseen (blue) vs Stokes (dashed)", fontsize=9)   # each panel says its message
+Res = np.geomspace(0.01, 10, 100)                        # Reynolds numbers 2aU/ν
+a3.semilogx(Res, ch08.stokes_drag_coefficient(Res)*Res/24, color=COLORS["muted"], lw=2, label="Stokes 24/Re")   # a curve (its label says which)
+a3.semilogx(Res, ch08.oseen_drag_coefficient(Res)*Res/24, color=COLORS["blue"], lw=2, label="Oseen (1 + 3Re/16)")   # a curve (its label says which)
+a3.semilogx(Res, np.array([ch08.proudman_pearson_drag_coefficient(r_) for r_ in Res])*Res/24, color=COLORS["accent"], lw=1.5, ls="--", label="Proudman–Pearson")   # a curve (its label says which)
+a3.semilogx(Res, np.array([SIM.sphere_drag_coefficient(r_) for r_ in Res])*Res/24, color=COLORS["amber"], lw=2, label="Morrison (measurements)")   # a curve (its label says which)
+a3.set_ylim(0.9, 3); a3.set_xlabel("Re = 2aU/ν"); a3.set_ylabel("C_D·Re/24 [–]"); a3.legend(fontsize=7); a3.set_title("Drag laws", fontsize=10)   # labels with units
+fig.suptitle("Stokes is right near the sphere and wrong far away", fontsize=11)   # the figure's message
+savefig(fig, "ch08", "c15_oseen"); plt.show()            # save the PNG to outputs/ch08, then draw
 """, see=r"""(a) the inertia/friction ratio growing in proportion to r for three Re_a, crossing 1 at r ≈ 2a/Re_a; (b) at Re = 1 the
 Oseen streamlines (blue) are crowded behind the moving sphere into a wake while Stokes' (dashed) stay symmetric — our remake of
 Fig. 8.20 `N100`; (c) C_D·Re/24: Stokes flat at 1, Oseen rising, the Morrison correlation of measurements between them below
@@ -3883,39 +4059,39 @@ Proudman & Pearson 1957) continue the series: $D=6\pi\mu aU\big(1+\frac38\mathrm
 """, equation=r"C_D=\frac{24}{\mathrm{Re}}\Big(1+\frac3{16}\mathrm{Re}\Big)")
 nb.plotly(r"""
 n_ = 200 if not FAST else 100                             # contour grid
-xg = np.linspace(-15, 15, n_); yg = np.linspace(-10, 10, n_)
-Xo, Yo = np.meshgrid(xg, yg); Ro = np.hypot(Xo, Yo); To = np.arccos(np.clip(Xo/np.maximum(Ro, 1e-12), -1, 1))
-lev = np.linspace(-4, 4, 25)                              # streamline levels
+xg = np.linspace(-15, 15, n_); yg = np.linspace(-10, 10, n_)   # a window of 30 × 20 radii
+Xo, Yo = np.meshgrid(xg, yg); Ro = np.hypot(Xo, Yo); To = np.arccos(np.clip(Xo/np.maximum(Ro, 1e-12), -1, 1))   # grid, spherical r and θ from +x
+lev = np.linspace(-6, -0.5, 12)                          # streamline levels ψ/(Ua²) (negative in the fluid frame)
 
 
 def polylines(psi_):                                      # contour lines of ψ as one (x, y) polyline with NaN breaks
     cs = plt.figure().add_subplot().contour(Xo, Yo, psi_, lev)   # matplotlib finds the lines (figure discarded)
-    xs, ys = [], []
-    for path in cs.get_paths():
+    xs, ys = [], []                                      # the collected x and y points of every line
+    for path in cs.get_paths():                          # each contour level
         for poly in path.to_polygons(closed_only=False):  # every separate piece of the line
-            xs += list(poly[:, 0]) + [np.nan]; ys += list(poly[:, 1]) + [np.nan]
-    plt.close("all")
-    return np.array(xs), np.array(ys)
+            xs += list(poly[:, 0]) + [np.nan]; ys += list(poly[:, 1]) + [np.nan]   # append the piece, then a NaN break
+    plt.close("all")                                     # discard the helper figure
+    return np.array(xs), np.array(ys)                    # one long polyline per ψ-field
 
 
-stokes_lines = polylines(np.where(Ro > 1, ch08.stokes_sphere_streamfunction(Ro, To, 1.0, 1.0, frame="fluid"), np.nan))
+stokes_lines = polylines(np.where(Ro > 1, ch08.stokes_sphere_streamfunction(Ro, To, 1.0, 1.0, frame="fluid"), np.nan))   # Stokes' fluid-frame streamlines, once
 cache = {}                                                # Oseen lines for each Re, computed once
-for Re_ in (0.1, 0.2, 0.5, 1.0, 2.0):
-    cache[Re_] = polylines(np.where(Ro > 1, ch08.oseen_streamfunction(Ro, To, 1.0, 1.0, Re=Re_, frame="fluid"), np.nan))
+for Re_ in (0.1, 0.2, 0.5, 1.0, 2.0):                    # one set of Oseen lines per Re
+    cache[Re_] = polylines(np.where(Ro > 1, ch08.oseen_streamfunction(Ro, To, 1.0, 1.0, Re=Re_, frame="fluid"), np.nan))   # Oseen's (8.53), fluid frame
 circle = (np.cos(np.linspace(0, 2*np.pi, 60)), np.sin(np.linspace(0, 2*np.pi, 60)))   # the sphere's outline
 
 
 def frame(Re_):                                           # the figure for one Re
-    return {"Oseen streamlines": cache[Re_], "Stokes streamlines": stokes_lines, "sphere": circle}
+    return {"Oseen streamlines": cache[Re_], "Stokes streamlines": stokes_lines, "sphere": circle}   # the curves of this position
 
 
-Rs = [0.1, 0.2, 0.5, 1.0, 2.0]
-fig = slider_figure(frame, "Re", Rs, unit="", xlabel="x/a (sphere moving left)", ylabel="y/a", title="", xrange=[-15, 15], yrange=[-10, 10])
-step_titles(fig, [f"Re = {r_:g}: C_D Oseen {ch08.oseen_drag_coefficient(r_):.1f}, Stokes {ch08.stokes_drag_coefficient(r_):.1f}" for r_ in Rs])
-recolor(fig, {"Oseen streamlines": COLORS["blue"], "Stokes streamlines": COLORS["muted"], "sphere": COLORS["ink"]},
-        {"Stokes streamlines": "dot"})
-fig.update_traces(line_width=1.2)
-fig.show()
+Rs = [0.1, 0.2, 0.5, 1.0, 2.0]                           # the five Reynolds numbers of the slider
+fig = slider_figure(frame, "Re", Rs, unit="", xlabel="x/a (sphere moving left)", ylabel="y/a", title="", xrange=[-15, 15], yrange=[-10, 10])   # precompute every slider/time position
+step_titles(fig, [f"Re = {r_:g}: C_D Oseen {ch08.oseen_drag_coefficient(r_):.1f}, Stokes {ch08.stokes_drag_coefficient(r_):.1f}" for r_ in Rs])   # numbers that follow the slider
+recolor(fig, {"Oseen streamlines": COLORS["blue"], "Stokes streamlines": COLORS["muted"], "sphere": COLORS["ink"]},   # colours by meaning (as in the static figures)
+        {"Stokes streamlines": "dot"})                   # (continued)
+fig.update_traces(line_width=1.2)                        # thinner lines for the dense streamlines
+fig.show()                                               # draw the interactive figure
 """, explain=r"""
 Precomputed Oseen streamlines (fluid frame) for five Reynolds numbers over Stokes' symmetric ones (dotted); the title gives both
 drag coefficients. Slide Re up and watch the wake form behind the sphere.

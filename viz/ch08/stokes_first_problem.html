@@ -2638,8 +2638,9 @@ function drawFluid(g, s) {
     if (!small && ye - yb >= 14) lab(ctx, `plate: U = ${f3(s.U)} m/s`, xb + 6, ym, { color: RO, weight: 700, align: 'left' });
   } else if (ye - yb >= 12) lab(ctx, small ? 'plate stopped' : `plate stopped at T = ${fT(Tstop(s))}`, X(0.5), ym, { color: RO, weight: 700, align: 'center' });
   if (!small) {
-    if (isFinite(n.edge) && n.edge < n.ymax) lab(ctx, `δ = ${fL(n.edge)}`, P.px.x + P.px.w - 4, Y(n.edge) - 11, { color: AM, weight: 700, align: 'right' });
-    lab(ctx, `dye: plate moved ${fL(n.trav)}`, X(0.95), P.px.y + 12, { color: TE, weight: 650, align: 'right' });
+    const nearWall = k === 'couette' && n.edge > 0.8 * hWall(s);
+    if (isFinite(n.edge) && n.edge < n.ymax && !nearWall) lab(ctx, `δ = ${fL(n.edge)}`, P.px.x + P.px.w - 4, Y(n.edge) - 11, { color: AM, weight: 700, align: 'right' });
+    lab(ctx, `dye: plate moved ${fL(n.trav)}`, X(0.95), k === 'couette' ? Y(hWall(s)) + 14 : P.px.y + 12, { color: TE, weight: 650, align: 'right' });
     if (k === 'couette') lab(ctx, `fixed wall, h = ${fL(hWall(s))}`, X(0.03), Y(hWall(s)) - 11, { color: TX, align: 'left' });
   }
   if (g.app.holding) {
@@ -2653,7 +2654,7 @@ function drawFluid(g, s) {
 function fluidTitle(s) {
   const n = N(s);
   if (phone()) return `<b>Fluid</b> · ${fT(n.t)} · <span class="c-amber">δ ${fL(n.edge)}</span>`;
-  return `<b>Above the plate</b> · t = ${fT(n.t)} · <span class="c-blue">u arrows</span> · <span class="c-teal">dye line</span> · <span class="c-accent">vorticity</span> · <span class="c-amber">edge δ</span> · <span class="c-orange">probe</span>`;
+  return `<b>Above the plate</b> · t = ${fT(n.t)} · <span class="c-blue">u arrows</span> · <span class="c-teal">dye line</span> · <span class="c-accent">vorticity</span> · <span class="c-amber">edge δ</span>`;
 }
 
 /* ---- view 2: u(y), raw or rescaled ---------------------------------------------------------------------------- */
@@ -2691,21 +2692,22 @@ function drawProfile(g, s) {
     const [xs, ys] = prof(t, (y, tt) => uS(y, tt, s)); P.line(xs, ys, { color: BL, width: 3 });
     // Crank–Nicolson dots
     const cn = cnScene(s, t);
-    for (let i = 0; i < cn.u.length; i += (small ? 9 : 6)) { const a = toAx(cn.ys[i], t); if (a > ytopAx) break; P.dot(cn.u[i] / S.U, a, small ? 2.6 : 3.2, { color: Viz.color('card'), stroke: TE, strokeWidth: 1.8 }); }
+    const yCut = 1.25 * Math.max(isFinite(n.edge) ? n.edge : 0, n.d);
+    for (let i = 0; i < cn.u.length; i += (small ? 9 : 6)) { const a = toAx(cn.ys[i], t); if (a > ytopAx || (n.k !== 'couette' && cn.ys[i] > yCut)) break; P.dot(cn.u[i] / S.U, a, small ? 2.6 : 3.2, { color: Viz.color('card'), stroke: TE, strokeWidth: 1.8 }); }
     // edge and probe
     if (isFinite(n.edge)) { const a = toAx(n.edge, t); if (a <= ytopAx) P.line([0, 1.08], [a, a], { color: AM, width: 2, dash: [7, 5] }); }
     const ap = toAx(n.yp, t); if (ap <= ytopAx) P.dot(n.up / S.U, ap, 5, { color: OR, stroke: '#fff', strokeWidth: 2 });
   });
   if (!small && v.w >= 300) {
-    if (resc) lab(ctx, half ? '1 − erf(η/2), the book\'s axis' : 'the one curve 1 − erf(η/2)', P.X(0.5), P.Y(ytopAx * 0.72), { color: TX, weight: 650, align: 'left' });
-    if (isFinite(n.edge) && toAx(n.edge, t) <= ytopAx) lab(ctx, resc ? `η at the edge = ${f4(n.edge / n.snt / hf)}` : `δ = ${fL(n.edge)}`, P.X(1.06), P.Y(toAx(n.edge, t)) - 11, { color: AM, weight: 700, align: 'right' });
+    if (resc) lab(ctx, half ? '1 − erf(η/2), the book\'s axis' : 'the one curve 1 − erf(η/2)', P.X(0.2), P.Y(ytopAx * 0.84), { color: TX, weight: 650, align: 'left' });
+    if (isFinite(n.edge) && toAx(n.edge, t) <= ytopAx && !(n.k === 'couette' && n.edge > 0.8 * hWall(s))) lab(ctx, resc ? `η at the edge = ${f4(n.edge / n.snt / hf)}` : `δ = ${fL(n.edge)}`, P.X(1.06), P.Y(toAx(n.edge, t)) - 11, { color: AM, weight: 700, align: 'right' });
     if (n.k !== 'free') lab(ctx, 'free plate (ghost)', P.X(1.06), P.px.y + 12, { color: MU, align: 'right' });
   }
 }
 function profileTitle(s) {
   const n = N(s), resc = s.mode === 'rescaled';
   if (phone()) return `<b>${resc ? 'u/U vs η' : 'u(y)'}</b> · <span class="c-amber">δ ${fL(n.edge)}</span> · <span class="c-orange">u ${f3(n.up)} m/s</span>`;
-  return `<b>${resc ? 'u/U against η' : 'u(y)'}</b> · <span class="c-blue">now (bold), every half decade since 0.1 s (faint)</span> · <span class="c-teal">○ Crank–Nicolson</span> · <span class="c-amber">δ = ${fL(n.edge)}</span>`;
+  return `<b>${resc ? 'u/U against η' : 'u(y)'}</b> · <span class="c-blue">now (bold), earlier (faint)</span> · <span class="c-teal">○ Crank–Nicolson</span> · <span class="c-amber">δ = ${fL(n.edge)}</span>`;
 }
 
 /* ---- view 3: δ(t), log–log ------------------------------------------------------------------------------------ */
@@ -2941,43 +2943,53 @@ const DERIV = [
 ];
 
 /* ---- code, walkthrough, equations, quiz --------------------------------------------------------------------------- */
-const pn = (v, k = 4) => (Math.abs(v) < 1e-300 ? '0' : String(Number(v.toPrecision(k))));
+const pn = (v, k = 4) => (Math.abs(v) < 1e-300 ? '0' : Math.abs(v) < 1e-3 ? v.toExponential(k - 1).replace(/\.?0+e/, 'e') : String(Number(v.toPrecision(k))));
 const CODE = [
   { id: 'fp', title: 'Stokes\' first problem in fluidpy', ref: 'Eqs. (8.25), (8.30), (8.31)',
     src: `import numpy as np
 import fluidpy.ch08_laminar_flow as ch08
-U, nu, t = {{U}}, {{nu}}, {{t}}  # m/s, m²/s, s
-y = {{y}}                       # probe height [m]
+U, nu = {{U}}, {{nu}}   # m/s, m²/s
+t, y = {{t}}, {{y}}     # time [s], probe [m]
 eta = ch08.similarity_variable(y, t, nu)
-print(eta)                      # η = {{eta}}
-u = ch08.stokes_first_problem(y, t, U=U, nu=nu)
-print(u)                        # {{u}} m/s
-d = ch08.diffusion_thickness(t, nu, level={{lev}})
-print(d)                        # edge: {{d}} m
-st = ch08.stokes_first_state(t, U=U, nu=nu, rho={{rho}})
-print(st["tau_w"])              # τ_w = {{tw}} Pa
-print(st["vorticity_content"])  # ∫ω dy = {{wc}} m/s`,
+print(eta)            # η = {{eta}}
+u = ch08.stokes_first_problem(
+        y, t, U=U, nu=nu)
+print(u)              # {{u}} m/s
+d = ch08.diffusion_thickness(
+        t, nu, level={{lev}})
+print(d)              # edge {{d}} m
+st = ch08.stokes_first_state(
+        t, U=U, nu=nu, rho={{rho}})
+print(st["tau_w"])    # {{tw}} Pa
+w = st["vorticity_content"]
+print(w)              # ∫ω dy = {{wc}} m/s`,
     live: s => { const n = N(s), S = n.S, st = state(n.t, S, n.lev, s.rho); return { U: pn(S.U, 3), nu: pn(S.nu, 3), t: pn(n.t, 4), y: pn(n.yp, 4), eta: pn(n.eta), u: pn(n.upFree), lev: String(n.lev), d: pn(n.d), rho: pn(s.rho, 4), tw: pn(st.tau_w), wc: pn(st.vorticity_content, 3) }; } },
   { id: 'scene', title: 'Breaking similarity: a stop time or a wall', ref: 'Exercise 8.30; Ch. 1 start-up',
-    src: `T, h = {{T}}, {{h}}   # stop time [s], wall height [m]
-us = ch08.stokes_first_stopped(y, t, T, U=U, nu=nu)
-print(us)            # {{us}} m/s (plate stopped at T)
-# the library's Couette start-up moves its UPPER plate,
-# so measure from the fixed wall: y_up = h − y
+    src: `T = {{T}}      # stop time [s]
+h = {{h}}      # second wall [m]
+us = ch08.stokes_first_stopped(
+        y, t, T, U=U, nu=nu)
+print(us)     # {{us}} m/s (stopped)
+# the library moves its UPPER plate:
+# measure from the fixed wall, h − y
 yc = min(y, h)
-uc = ch08.couette_startup_profile(h - yc, t, U, h, nu)
-print(uc)            # {{uc}} m/s (second wall at h)`,
+uc = ch08.couette_startup_profile(
+        h - yc, t, U, h, nu)
+print(uc)     # {{uc}} m/s (wall at h)`,
     live: s => { const n = N(s), S = n.S, T = Tstop(s), h = hWall(s), yc = Math.min(n.yp, h); return { T: pn(T, 4), h: pn(h, 4), us: pn(stopped(n.yp, n.t, T, S)), uc: pn(couette(h - yc, n.t, h, S)) }; } },
   { id: 'cn', title: 'From scratch: march the diffusion equation', ref: 'Eq. (8.20)',
-    src: `N = 200                         # grid nodes
-L = 10*np.sqrt(nu*t)            # domain {{L}} m (≥ 9.5√(νt))
+    src: `N = 200                # grid nodes
+L = 10*np.sqrt(nu*t)   # {{L}} m ≥ 9.5√(νt)
 yy = np.linspace(0, L, N)
-ucn = ch08.crank_nicolson_1d(np.zeros(N), yy, t/200,
-        200, nu, bc_left=U)     # 2 backward-Euler starts
-ue = ch08.stokes_first_problem(yy, t, U=U, nu=nu)
-err = np.abs(ucn - ue).max()/U
-print(err)                      # {{err}}
-assert err < 2e-3               # agrees with (8.30)`,
+# Crank–Nicolson, 2 backward-Euler starts
+ucn = ch08.crank_nicolson_1d(
+        np.zeros(N), yy, t/200, 200,
+        nu, bc_left=U)
+ue = ch08.stokes_first_problem(
+        yy, t, U=U, nu=nu)
+err = np.max(np.abs(ucn - ue))/U
+print(err)             # {{err}}
+assert err < 2e-3      # matches erfc`,
     live: s => { const n = N(s), S = n.S, L = 10 * n.snt, u = cnMarch(new Float64Array(200), L, n.t / 200, 200, S.nu, S.U); let m = 0; u.forEach((v, i) => { m = Math.max(m, Math.abs(v - uFree(L * i / 199, n.t, S))); }); return { L: pn(L), err: pn(m / S.U, 3) }; },
     note: 'The two backward-Euler steps damp the oscillation that the sudden jump of the wall velocity excites in pure Crank–Nicolson.' }
 ];
@@ -2985,14 +2997,14 @@ const N0 = N(BASE);
 const TOUR = [
   { title: 'Yank a plate', text: 'A plate under still water suddenly slides at 10 cm/s. How far up does the water feel it after one second? After 100 s?',
     set: Object.assign({}, BASE), play: false },
-  { title: 'It diffuses', text: `Nothing changes along the plate and no pressure pushes, so only $${E820}$ (8.20) is left: momentum spreads upward like heat. Press ▶ and watch the dye bend.`,
+  { title: 'It diffuses', text: `Nothing changes along the plate and no pressure pushes, so only $${E820}$ (8.20) is left: momentum spreads upward like heat. Watch the dye bend as the log clock runs.`,
     set: Object.assign({}, BASE, { lt: -1 }), play: true, derive: { id: 'D16', step: 6 } },
   { title: 'No ruler', text: 'The problem owns no length except $\\sqrt{\\nu t}$, so the profile can only stretch: $u/U=F(y/\\sqrt{\\nu t})\\equiv F(\\eta)$ (8.25).',
     set: Object.assign({}, BASE, { lt: 3 }), play: false, derive: { id: 'D17', step: 7 } },
   { title: 'One curve', text: 'Rescaled: plotted against η, every earlier profile lands on the same grey curve. The status measures the gap.',
     set: Object.assign({}, BASE, { lt: 3, mode: 'rescaled' }), play: false, eq: 'e830' },
   { title: 'How thick', text: `$\\delta_{99}\\sim3.64\\sqrt{\\nu t}$ (8.31); computed exactly, 2 erfc⁻¹(0.01) = ${f4(coef(0.01))}: ${fL(N0.d)} after 100 s in water. Watch the amber edge.`,
-    set: Object.assign({}, BASE), play: false, readouts: ['d99', 'snt'] },
+    set: Object.assign({}, BASE), play: false, readouts: ['d99'], code: { id: 'fp', lines: [10, 12] } },
   { title: 'Break it', text: 'Stop the plate at T = 100 s. Now a clock exists, t/T is a second variable, and after T the rescaled curves part from the grey one.',
     set: Object.assign({}, BASE, { scene: 'stop', lT: 2, lt: 2.6, mode: 'rescaled' }), play: false, notes: true },
   { title: 'Your turn', text: 'Predict δ₉₉ in air (ν = 1.5×10⁻⁵ m²/s) after 100 s. Then drag ν or press the air preset and check the readout.',
@@ -3013,12 +3025,12 @@ const EQS = [
   { id: 'e831', title: 'Thickness of the moving layer', ref: 'Eq. (8.31)', tex: '\\delta_{99}\\sim3.64\\sqrt{\\nu t}',
     live: s => { const n = N(s); return `\\delta_{99}=${t4(coef(0.01))}\\times${tL(n.snt)}=${tL(coef(0.01) * n.snt)}`; },
     note: 'Exact coefficient 2 erfc⁻¹(0.01) = 3.643, in y/√(νt); on the figure axis y/(2√(νt)) the edge is at 1.821.' },
-  { id: 'ew', title: 'Vorticity content', ref: '§8.4', tex: '\\int_0^\\infty\\omega_z\\,dy=\\int_0^\\infty\\Big(-\\frac{\\partial u}{\\partial y}\\Big)dy=+U',
+  { id: 'ew', title: 'Vorticity content', ref: '§8.4', tex: '\\begin{aligned}\\textstyle\\int_0^\\infty\\omega_z\\,dy&=\\textstyle\\int_0^\\infty(-\\partial u/\\partial y)\\,dy\\\\&=+U\\end{aligned}',
     live: s => `\\int\\omega\\,dy=${t4(N(s).wc)}\\ \\text{m/s}`, note: 'The page prints −U; u falls from U to 0, so the integral is +U. It never changes: no vorticity is made after t = 0.' }
 ];
 const QUIZ = [
   { q: 'Multiply the time by 4. How does δ₉₉ change?', a: `It doubles: δ₉₉ ∝ √t. Scrub from 25 s to 100 s and watch the readout go from ${fL(d99(25, { nu: 1e-6 }))} to ${fL(d99(100, { nu: 1e-6 }))}.`, set: Object.assign({}, BASE, { lt: Math.log10(25) }) },
-  { q: 'Air instead of water at the same time: how much thicker is the layer?', a: `√(ν_air/ν_water) = √15 ≈ ${f3(Math.sqrt(15))} times thicker, because δ ∝ √ν.`, set: Object.assign({}, BASE, { nu: 1.5e-5, yp: 0.0387 }) },
+  { q: 'Air instead of water at the same time: how much thicker is the layer?', a: `√(ν_air/ν_water) = √15 ≈ ${f3(Math.sqrt(15))} times thicker, because δ ∝ √ν.`, set: Object.assign({}, BASE, { nu: 1.5e-5, yp: 0.03873 }) },
   { q: 'Does the plate speed U change the rescaled curve?', a: 'No: the equation is linear, so u/U does not depend on U (that is why the group y/Ut dropped out). Drag U in rescaled mode — nothing moves.', set: Object.assign({}, BASE, { mode: 'rescaled' }) },
   { q: 'Why does stopping the plate break the collapse?', a: 'T is an imposed time scale: u/U now depends on η and on t/T. Before T every curve still collapses; after T they peel off the grey curve.', set: Object.assign({}, BASE, { scene: 'stop', lt: 2.6, mode: 'rescaled' }) }
 ];
@@ -3086,7 +3098,7 @@ const CFG = {
   transport: { param: 'lt', min: -1, max: 3, rate: 0.33, end: 'hold', hold: 2.5 },
   presets: [
     { label: 'water', set: { nu: 1e-6, rho: 1000, yp: 0.01, scene: 'free' }, title: 'ν = 1.0×10⁻⁶ m²/s' },
-    { label: 'air', set: { nu: 1.5e-5, rho: 1.2, yp: 0.0387, scene: 'free' }, title: 'ν = 1.5×10⁻⁵ m²/s: 15× water, a √15 ≈ 3.9× thicker layer' },
+    { label: 'air', set: { nu: 1.5e-5, rho: 1.2, yp: 0.03873, scene: 'free' }, title: 'ν = 1.5×10⁻⁵ m²/s: 15× water, a √15 ≈ 3.9× thicker layer' },
     { label: 'honey', set: { nu: 1e-3, rho: 1400, yp: 0.316, scene: 'free' }, title: 'ν ≈ 10⁻³ m²/s (runny honey)' },
     { label: 'stop at T', set: { scene: 'stop', lT: 2, lt: 2.6 }, title: 'the plate stops at T = 100 s: an imposed time' },
     { label: 'second wall', set: { scene: 'couette', hcm: 2, lt: 2.3 }, title: 'a fixed wall 2 cm above: an imposed length' }

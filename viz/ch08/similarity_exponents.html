@@ -2628,7 +2628,7 @@ function drawRaw(v, s) {
   } else if (s.mode === 'vortex_sheet') {
     if (P.px.h > 70) lab('orange area = ∫ω dy = −2U', P.X(M.rawX[0]) + 6, P.Y(-4.6), { color: orange });
   } else if (s.mode === 'line_vortex') {
-    if (P.px.h > 70) lab('dashed: Γ/2πr (t = 0)', P.X(12), P.Y(4.3), { color: COL.muted() });
+    if (P.px.h > 70) lab(P.px.w > 330 ? 'dashed: Γ/2πr (t = 0)' : 'Γ/2πr', P.X(P.px.w > 330 ? 12 : 8), P.Y(4.3), { color: COL.muted() });
   } else if (s.mode === 'spreading') {
     if (P.px.h > 70) lab('orange area = ∫h dx = 2 cm²', P.X(M.rawX[0]) + 6, P.Y(4.7), { color: orange });
   }
@@ -2651,7 +2651,7 @@ function drawCons(v, s, rect) {          // the constraint quantity vs t (or r),
   Viz.text(ctx, c.short + ' ÷ start value', rect.x + 6, rect.y + 10, { size: 12, color: Viz.color('text'), weight: 650, maxWidth: rect.w - 10 });
   const yEnd = Math.max(-1.8, Math.min(1.8, 2 * c.pow));
   Viz.text(ctx, pw(c.v, c.pow) + (I.cok ? ' ✓' : ''), P.X(1.95), P.Y(yEnd) + (yEnd >= 0 ? 12 : -12), { size: 12, align: 'right', color: col, bg: true, weight: 700 });
-  Viz.text(ctx, 'exact: fixed', P.X(0.05), P.Y(0) - 11, { size: 12, color: COL.muted(), bg: true, weight: 600 });
+  Viz.text(ctx, 'exact: fixed', P.X(0.05), P.Y(0) + (c.pow >= 0 ? 12 : -12), { size: 12, color: COL.muted(), bg: true, weight: 600 });
 }
 
 /* ---------------------------------------------------------------------------------------------------
@@ -2666,7 +2666,7 @@ function drawScaled(v, s) {
   R.P.concat([cur]).forEach(r => r.forEach(y => { if (isFinite(y)) { lo = Math.min(lo, y); hi = Math.max(hi, y); } }));
   const padY = 0.08 * (hi - lo || 1);
   const xl = M.sym ? [-M.nat, M.nat] : [0, M.nat];
-  const P = v.plot({ xlim: xl, ylim: [lo - (lo < 0 ? padY : 0), hi + (hi > 0 ? padY : 0)], pad: { l: 50, r: 10, t: 8, b: small ? 26 : 30 } })
+  const P = v.plot({ xlim: xl, ylim: [lo - (lo < 0 ? padY : 0.03 * (hi - lo || 1)), hi + (hi > 0 ? padY : 0.03 * (hi - lo || 1))], pad: { l: 50, r: 10, t: 8, b: small ? 26 : 30 } })
     .axes({ xlabel: `${M.xName} ÷ (t/1 s)ᵐ [${M.xUnit}]`, ylabel: v.h < 120 ? '' : (M.form === 'b' ? `${M.gName}·(r/1 mm)ⁿ [${M.gUnit}]` : `${M.gName}·(t/1 s)ⁿ [${M.gUnit}]`), yticks: v.h < 90 ? [0] : null });
   GEO.scaled = P;
   const side = arr => M.sym ? arr.slice().reverse().concat(arr) : arr;
@@ -2719,11 +2719,19 @@ function drawPlane(v, s) {
     .axes({ xlabel: 'trial n', ylabel: v.h - top > 110 ? 'trial m' : '', grid: false, zeroLines: false, xticks: [-0.5, 0, 0.5, 1, 1.5], yticks: [0, 0.5, 1] });
   GEO.plane = P;
   P.clip(() => {
-    H.ns.forEach((n, i) => H.ms.forEach((m, j) => {
-      const q = Math.max(0, Math.min(1, (3 - H.L[i][j]) / 9));        // log10 spread 3 … −6 → 0 … 1
-      const X0 = P.X(n - 0.025), X1 = P.X(n + 0.025), Y0 = P.Y(Math.min(1, m + 0.025)), Y1 = P.Y(Math.max(0, m - 0.025));
-      ctx.fillStyle = Viz.alpha('#334155', 0.04 + 0.62 * q * q); ctx.fillRect(X0, Y0, X1 - X0 + 0.6, Y1 - Y0 + 0.6);
-    }));
+    // one pixel per (n, m) sample, stretched with smoothing: spread ≥ 1 white … 10⁻³ dark (darker = better collapse)
+    if (!H.img) {
+      const c = document.createElement('canvas'); c.width = H.ns.length; c.height = H.ms.length;
+      const cx = c.getContext('2d'), im = cx.createImageData(c.width, c.height);
+      H.ns.forEach((n, i) => H.ms.forEach((m, j) => {
+        const q = Math.max(0, Math.min(1, (0.5 - H.L[i][j]) / 3.5)), k = 4 * ((c.height - 1 - j) * c.width + i);
+        im.data[k] = 51; im.data[k + 1] = 65; im.data[k + 2] = 85; im.data[k + 3] = Math.round(255 * (0.03 + 0.62 * q));
+      }));
+      cx.putImageData(im, 0, 0); H.img = c;
+    }
+    ctx.save(); ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(H.img, P.X(-0.525), P.Y(1.025), P.X(1.525) - P.X(-0.525), P.Y(-0.025) - P.Y(1.025));
+    ctx.restore();
     const nn = linspace(-0.5, 1.5, 81);
     P.line(nn, nn.map(L.br), { color: COL.br(), width: 3 });
     if (L.cons.vert !== undefined) P.line([L.cons.vert, L.cons.vert], [0, 1], { color: COL.cons(), width: 3, dash: [7, 4] });
@@ -2809,7 +2817,7 @@ const app = Viz.app({
       { id: 'scaled', row: 1, flex: 1.2, title: s => { const R = rescaled(s.mode, s.n, s.m), I = info(s.mode, s.n, s.m);
           return phone() ? `<b>Rescaled</b> n = ${fx(s.n)}, m = ${fx(s.m)} · ${I.ok ? '<b class="c-teal">one curve ✓</b>' : '<b class="c-rose">spread ' + f3(R.fl) + '</b>'} · brackets ${I.items.map(it => pw('t', it.pow)).join(' ')}`
             : `<b>Rescaled with your n = ${fx(s.n)}, m = ${fx(s.m)}</b> · <b class="c-rose">spread band</b> ${f3(R.fl)}`; } },
-      { id: 'plane', row: 1, flex: 1, hidePortrait: true, title: s => `<b>Exponent plane</b> · <b class="c-teal">brackets equal</b> · <b class="c-accent">conserved</b> · ★ answer · <b class="c-orange">●</b> you` }
+      { id: 'plane', row: 1, flex: 1, hidePortrait: true, title: s => `<b>Exponent plane</b> · <b class="c-teal">brackets</b> · <b class="c-accent">conserved</b> · ★ · <b class="c-orange">●</b> you · darker = closer` }
     ],
     draw(g, s) {
       drawRaw(g.view('raw'), s);
@@ -2845,7 +2853,7 @@ const app = Viz.app({
       ['plate', '0', '½', 'wall speed'], ['vortex sheet', '½', '½', '∫ω dy = −2U'], ['line vortex', '1 (of r)', '½', 'circulation Γ'], ['bead', '⅕', '⅕', 'volume']], cur);
   },
   explore: {
-    intro: 'Pick a system, then drag $n$ and $m$ until the rescaled curves become one. Click the rescaled view to trace a point; on wide screens click or drag in the exponent plane.',
+    intro: 'Pick a system; drag $n$ and $m$ until the rescaled curves become one. Click the rescaled view to trace a point.',
     controls: ['n', 'm'],
     readouts: ['spread', 'br', 'cons', 'now'],
     callouts: [{ kind: 'try', html: 'Predict first: in bead mode, is the width law $t^{1/2}$ like diffusion? Press "diffusion m = ½" and read the bracket powers.' }]
@@ -3028,22 +3036,27 @@ const app = Viz.app({
     { id: 'main', title: 'The collapse test in Python', ref: '(8.32a,b)',
       src: `
 from fluidpy import ch08_laminar_flow as ch08
-times = [1, 3, 10, 30, 100]          # s: the five profiles
-n, m = {{n}}, {{m}}                  # your trial exponents
-err = ch08.similarity_collapse_error("{{case}}", n, m, times)
-print(err)                           # spread = {{err}}`,
+times = [1, 3, 10, 30, 100]   # s: five profiles
+n, m = {{n}}, {{m}}           # your trial exponents
+err = ch08.similarity_collapse_error(
+    "{{case}}", n, m, times)  # rescale, compare
+print(err)                    # spread = {{err}}`,
       live: s => ({ n: tx(s.n), m: tx(s.m), case: s.mode, err: Viz.fmt(rescaled(s.mode, s.n, s.m).fl, { sig: 4, keepTiny: true }) }) },
     { id: 'exact', title: 'The exact solutions at time t', ref: 'Examples 8.5–8.7',
       src: `
-t = {{t}}                            # s, the transport time
-u, w = ch08.vortex_sheet_diffusion(1e-3, t, U=0.01, nu=1e-6)
-print(u, w)                          # {{u}} m/s, {{w}} 1/s
-print(ch08.transition_width(t, 1e-6))              # {{wd}} m
-print(ch08.vorticity_content(t, U=0.01, nu=1e-6))  # +U: {{vc}} m/s
-print(ch08.line_vortex_decay(0.01, t, 1e-3, nu=1e-6))  # {{ut}} m/s
-h, xN = ch08.viscous_current_similarity(0.0, t, 1e-4, 1260,
-                 9.81, 1.4, return_front=True)
-print(h, xN)                         # {{h}} m, {{xn}} m`,
+t = {{t}}                     # s, the transport time
+u, w = ch08.vortex_sheet_diffusion(
+    1e-3, t, U=0.01, nu=1e-6) # at y = 1 mm
+print(u, w)                   # {{u}} m/s, {{w}} 1/s
+W = ch08.transition_width(t, 1e-6)
+print(W)                      # 5.544√(νt) = {{wd}} m
+I = ch08.vorticity_content(t, U=0.01, nu=1e-6)
+print(I)                      # +U = {{vc}} m/s
+ut = ch08.line_vortex_decay(0.01, t, 1e-3, nu=1e-6)
+print(ut)                     # at r = 1 cm: {{ut}} m/s
+h, xN = ch08.viscous_current_similarity(
+    0.0, t, 1e-4, 1260, 9.81, 1.4, return_front=True)
+print(h, xN)                  # {{h}} m, {{xn}} m`,
       live: s => { const t = tNow(s), S = sheet(1e-3, t, U0, NU), B = beadNow(0, t), F = v => Viz.fmt(v, { sig: 4 });
         return { t: t.toFixed(3), u: F(S.u), w: F(S.w), wd: F(width(t, NU)), vc: F(vortContent(t, U0, NU)), ut: F(vortex(0.01, t, GAM, NU)), h: F(B.hc), xn: F(B.xN) }; } },
     { id: 'sym', title: 'The exponent algebra in sympy', ref: 'Example 8.7',
@@ -3065,7 +3078,7 @@ print(v["n"], v["AD"])          # 1/2, -U/(sqrt(pi)*sqrt(nu))`,
     { title: 'A conserved quantity', text: 'Vortex sheet at $m=\\tfrac12$: the brackets match, yet the curves fan out. The total vorticity $\\int\\omega_z\\,dy=-2U$ must stay fixed, and it scales as $t^{m-n}$:',
       set: { mode: 'vortex_sheet', n: 0.4, m: 0.5, lt: 0, probe: null }, play: false, derive: { id: 'D22', step: 9 } },
     { title: 'The bead', text: 'Glycerine spreading under gravity: the brackets give $3n+2m=1$, the conserved volume gives $n=m$. So $n=m=\\tfrac15$ — slower than diffusion\u2019s ½. Watch the five beads become one.',
-      set: { mode: 'spreading', n: 0.2, m: 0.2, lt: 0, probe: null }, play: true, readouts: ['now'] },
+      set: { mode: 'spreading', n: 0.2, m: 0.2, lt: 0, probe: null }, play: true, code: { id: 'main', lines: [4, 6] } },
     { title: 'Your turn', text: 'Line vortex, $\\gamma=A\\xi^{-n}F(\\xi/\\delta(t))$ (8.32b). Predict first: what stays fixed far from the axis? Then drag $n$ and $m$ until the status turns green.',
       set: { mode: 'line_vortex', n: 0.3, m: 0.3, lt: 0, probe: null }, play: false, controls: ['n', 'm'] }
   ],
@@ -3082,7 +3095,7 @@ print(v["n"], v["AD"])          # 1/2, -U/(sqrt(pi)*sqrt(nu))`,
     { id: 'x86', title: 'The decaying line vortex', ref: 'Example 8.6', tex: EQ.x86, note: 'the Gaussian vortex with σ² = 4νt',
       symbols: [['u_\\theta', 'swirl speed', 'm/s'], ['\\Gamma', 'circulation', 'm²/s']] },
     { id: 'x83', title: 'The spreading bead', ref: 'Example 8.3', tex: EQ.x83, symbols: [['h', 'thickness', 'm'], ['\\mu', 'dynamic viscosity', 'Pa s']] },
-    { id: 'x87', title: 'Its similarity form', ref: 'Example 8.7', tex: EQ.x87, live: s => '-1=-3n-2m,\\ \\ m-n=0\\ \\Rightarrow\\ n=m=\\tfrac15' }
+    { id: 'x87', title: 'Its similarity form', ref: 'Example 8.7', tex: EQ.x87, live: s => '\\begin{aligned}&-1=-3n-2m,\\ \\ m-n=0\\\\ &\\Rightarrow\\ n=m=\\tfrac15\\end{aligned}' }
   ],
   check: [
     { q: 'Plate mode: why must $n=0$?', a: 'The wall moves at $U$ for every $t>0$, so $u(0,t)=UAt^{-n}F(0)$ must not change: $n=0$. Set $n=0.3$ and the wall-speed chip turns red while the brackets stay green.', set: { mode: 'stokes1', n: 0.3, m: 0.5 } },

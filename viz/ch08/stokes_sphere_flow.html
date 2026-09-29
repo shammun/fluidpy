@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why does a honey drop spread like t^(1/5)?</title>
+<title>What does creeping flow round a sphere look like?</title>
 <meta name="viz:chapter" content="ch08">
-<meta name="viz:slug" content="viscous_gravity_current">
-<meta name="viz:order" content="4">
-<meta name="viz:title" content="Why does a honey drop spread like t^(1/5)?">
-<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t^(1/5).">
-<meta name="viz:concept" content="viscous gravity current; thin-film equation from mass conservation and the lubrication profile; flux proportional to h cubed times the slope; nonlinear diffusion; self-similar spreading with n = m = 1/5; Huppert dome and front constant">
-<meta name="viz:sections" content="8.3 8.4">
-<meta name="viz:equations" content="8.18 8.32a">
-<meta name="viz:fluidpy" content="ch08.thin_film_flux ch08.viscous_current_similarity ch08.thin_film_state ch08.thin_film_spread">
-<meta name="viz:derivations" content="D15 D23">
+<meta name="viz:slug" content="stokes_sphere_flow">
+<meta name="viz:order" content="8">
+<meta name="viz:title" content="What does creeping flow round a sphere look like?">
+<meta name="viz:summary" content="Stokes' flow past a sphere is fore-aft symmetric and its disturbance decays only like a/r, so it is felt tens of radii away; there inertia catches up with friction, and Oseen's correction sweeps the disturbance into a wake. Compare with ideal flow.">
+<meta name="viz:concept" content="Creeping flow obeys the linear Stokes equations grad p = mu Laplacian u; for an axisymmetric body the stream function satisfies the squared Stokes operator (E^2)^2 psi = 0, whose separable solution with no slip on the sphere is psi = U r^2 sin^2(theta)(1/2 - 3a/4r + a^3/4r^3). The slowly decaying Stokeslet a/r makes inertia match friction at r of order a/Re_a, where Oseen&#x27;s linearised advection U du&#x27;/dx builds a wake (C13, C15)">
+<meta name="viz:sections" content="8.6">
+<meta name="viz:equations" content="8.43 8.44 8.45 8.46 8.47 8.48 8.49 8.53">
+<meta name="viz:fluidpy" content="ch08.stokes_sphere_streamfunction ch08.stokes_sphere_velocity ch08.oseen_streamfunction ch08.oseen_velocity ch08.side_line_speed ch08.inertia_viscous_ratio">
+<meta name="viz:derivations" content="D28 D29 D32 D33">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -474,22 +474,23 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style data-chapter>
-/* chapter CSS — viscous_gravity_current. Colours (one meaning each): the layer (simulated thickness) blue; the
-   similarity (Huppert) dome and the t^(1/5) law purple (accent); the flux q orange; the simulated front teal (ticks in
-   the layer, dots on the log–log plot); the probe and its velocity half-parabola rose; ordinary diffusion (slope 1/2) grey.
-   Row 1: the layer (full width); row 2: front log–log + rescaled profiles (the latter hidden on phones; its collapse
-   spread is repeated in the front title there). */
+/* chapter CSS — stokes_sphere_flow. Colours (one meaning each, in text, curves and bars): Stokes blue; Oseen accent
+   purple; ideal flow muted grey (dashed); the dye line and the inertia/friction ratio teal; the crossover where inertia
+   equals friction amber; the blue shade is the disturbance |u − U e_x|/U. Row 1: the meridian plane; row 2: the
+   side-line speed and the inertia/friction ratio (hidden on portrait phones and on landscape phones outside the
+   Derivation tab; its crossover number is in the flow view's title and the readouts). */
 .c-amber { color: var(--viz-amber); font-weight: 650; }
 .c-muted { color: var(--viz-muted); font-weight: 650; }
-.viz-pager-label { white-space: nowrap; min-width: 52px; }
 .viz-stage-top .viz-presets { flex-wrap: wrap; }
-.viz-seg { flex-wrap: wrap; }
-/* landscape phones: layer | front side by side, the rescaled view and the preset chips hidden */
+.viz-pager-label { white-space: nowrap; min-width: 52px; }
 .viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
-.viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-view[data-view="rescaled"] { display: none !important; }
+.viz-app[data-layout="portrait"]:not([data-tab="derive"]) .viz-views > .viz-row:first-child { flex: 1.7 1 0 !important; }
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:first-child { flex: 1.25 1 0 !important; }
+.viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-view[data-view="ratio"] { display: none !important; }
 .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
-/* portrait phones: the preset chips stay on Walkthrough and Explore; the reading tabs give their rows to the text */
-.viz-app[data-layout="portrait"]:is([data-tab="explain"], [data-tab="equations"], [data-tab="code"], [data-tab="check"]) .viz-presets { display: none !important; }
+.viz-app[data-layout="portrait"][data-tab="derive"] .viz-view[data-view="ratio"]:not(.viz-der-off) { display: flex !important; }
+@media (max-height: 720px) { .viz-app[data-layout="portrait"] .viz-presets { display: none !important; } }
+
 </style>
 </head>
 <body>
@@ -2345,694 +2346,792 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.lubrication (re-exported by fluidpy.ch08_laminar_flow as ch08.*), SI units.
-   A 2-D bead of viscous fluid on a horizontal plate, symmetric about x = 0; h(x, t) its thickness.
-     flux(h, hx, p)      ↔ ch08.thin_film_flux(h, h_x, rho, g, mu)        q = −(ρg/3μ) h³ ∂h/∂x      (Example 8.3)
-     huppert(x, t, p)    ↔ ch08.viscous_current_similarity(x, t, area, …)  Huppert's dome (Example 8.7 form, n = m = 1/5)
-     state(t, p)         ↔ ch08.thin_film_state(t, area, rho, g, mu)       x_N, h_centre, β, η_N, βh_c³, dx_N/dt, h_c/x_N
-     ETA_N               ↔ ch08.viscous_current_eta_N()                    [(1/5)(3/10)^(1/3) √π Γ(1/3)/Γ(5/6)]^(−3/5)
-     march(h0)           ↔ ch08.thin_film_spread(h0, x, t_out, rho=3, g=1, mu=1, h_min=1e-4)  (β = 1: dimensionless)
-   The march is OURS and differs from the Python solver only in time: the same conservative finite volume in space
-   (face flux β H³ (h_{i+1} − h_i)/Δx, H the mean of the two neighbours, closed ends, precursor film h ≥ 10⁻⁴), but
-   explicit Euler sub-steps Δτ = 0.2 Δx²/h_max³ instead of backward Euler + Newton. It runs ONCE per initial shape in
-   dimensionless variables (x/x₀, h/x₀, τ = βx₀t with x₀ = √𝒜): the thin-film equation has no other parameter, so every
-   (𝒜, μ, ρ) is the same run on another clock and another ruler. 𝒜 is the half cross-section area [m²] (per metre of
-   width); the book's A in (8.32a) is a different constant (the similarity amplitude).
-   --------------------------------------------------------------------------------------------------- */
-const G = 9.80665;                                                          // standard gravity [m/s²] (= fluidpy G0)
-const SI = s => ({ area: s.A, rho: s.rho, g: G, mu: s.mu });
-// Lanczos Γ(z) (g = 7, 9 terms; relative error ~1e-15) with the reflection formula below z = 1/2
-const LZ = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
-  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-function gammaFn(z) {
-  if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gammaFn(1 - z));
-  z -= 1; let x = LZ[0];
-  for (let i = 1; i < 9; i++) x += LZ[i] / (z + i);
-  const t = z + 7.5;
-  return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+/* =====================================================================================================================
+   PHYSICS — mirrors fluidpy.core.creeping (re-exported by fluidpy.ch08_laminar_flow), §8.6, Eqs. (8.43)–(8.53).
+   Units: lengths in the sphere radius a, speeds in U, ψ in Ua², times in a/U, so Re = 2aU/ν gives ν = 2/Re.
+   θ is measured from the DOWNSTREAM +x axis (rear stagnation point θ = 0, front θ = π). frame "body": sphere at rest in
+   a stream U e_x (the book's solution); frame "fluid": the stream subtracted (the sphere moves to −x through still fluid).
+     psiS / velS   (8.48), (8.49)          ↔ ch08.stokes_sphere_streamfunction / ch08.stokes_sphere_velocity
+     psiO / velO   (8.53) (−expm1 form)    ↔ ch08.oseen_streamfunction / ch08.oseen_velocity   (Re = 2aU/ν)
+     psiI / velI   ideal sphere, Ch. 6 §6.8: ψ = ½U sin²θ(r² − a³/r), u_r = U cos θ(1 − a³/r³), u_θ = −U sin θ(1 + a³/2r³)
+                                           ↔ core.potential.sphere(U, a).psi(R, z), ch08.side_line_speed(model="ideal")
+     side          |u| on θ = π/2          ↔ ch08.side_line_speed(r, U, a, model, Re, frame)
+     ivParts       |u·∇u| / |ν∇²u| on Stokes' field, in closed form (ours): with F = 1 − 3/2r + 1/2r³, G = 1 − 3/4r − 1/4r³,
+                   (u·∇u)_r = cos²θ F F′ + sin²θ G(F − G)/r,  (u·∇u)_θ = sinθ cosθ [−F G′ + G(G − F)/r],
+                   |ν∇²u| = |∇p|/ρ = (3ν/2r³)(4cos²θ + sin²θ)^{1/2}   ↔ ch08.inertia_viscous_ratio (finite differences)
+   ===================================================================================================================== */
+const PI = Math.PI;
+const outside = r => r >= 1 - 1e-12;
+/** Stokes' stream function ψ/(Ua²), Eq. (8.48); fluid frame without the ½r² sin²θ of the stream. */
+function psiS(r, th, frame = 'body') {
+  if (!outside(r)) return NaN;
+  const s2 = Math.sin(th) ** 2, lead = frame === 'fluid' ? 0 : 0.5;
+  return r * r * s2 * (lead - 0.75 / r + 0.25 / r ** 3);
 }
-const ETA_N = Math.pow(0.2 * Math.pow(0.3, 1 / 3) * Math.sqrt(Math.PI) * gammaFn(1 / 3) / gammaFn(5 / 6), -0.6);  // Huppert's front constant
-const HC0 = Math.pow(0.3, 1 / 3) * Math.pow(ETA_N, 2 / 3);                 // dome centre height for 𝒜 = β = τ = 1
-function beta(p) { return p.rho * p.g / (3 * p.mu); }                       // β = ρg/3μ [1/(m s)]
-function flux(h, hx, p) { return -p.rho * p.g / (3 * p.mu) * h * h * h * hx; }   // q = −(ρg/3μ) h³ ∂h/∂x [m²/s]
-function huppert(x, t, p) {                                                 // similarity thickness [m] (0 beyond the front)
-  const b = beta(p), A = p.area;
-  const xN = ETA_N * Math.pow(b * A * A * A * t, 0.2);
-  const hc = Math.pow(0.3, 1 / 3) * Math.pow(ETA_N, 2 / 3) * Math.pow(A * A / b, 0.2) * Math.pow(t, -0.2);
-  const s = 1 - x * x / (xN * xN);
-  return s > 0 ? hc * Math.cbrt(s) : 0;
+/** Stokes' velocity [u_r, u_θ]/U, Eq. (8.49). */
+function velS(r, th, frame = 'body') {
+  if (!outside(r)) return [NaN, NaN];
+  const c = Math.cos(th), sn = Math.sin(th), q = 1 / r;
+  let ur = c * (1 - 1.5 * q + 0.5 * q ** 3), ut = -sn * (1 - 0.75 * q - 0.25 * q ** 3);
+  if (frame === 'fluid') { ur -= c; ut += sn; }
+  return [ur, ut];
 }
-function state(t, p) {                                                      // ↔ ch08.thin_film_state
-  const b = beta(p), xN = ETA_N * Math.pow(b * Math.pow(p.area, 3) * t, 0.2), h = huppert(0, t, p);
-  return { x_N: xN, h_centre: h, beta: b, eta_N: ETA_N, effective_diffusivity: b * h * h * h, front_speed: xN / (5 * t), aspect: h / xN };
+/** Ideal (potential) flow past a sphere (Ch. 6 §6.8): ψ/(Ua²). */
+function psiI(r, th, frame = 'body') {
+  if (!outside(r)) return NaN;
+  const s2 = Math.sin(th) ** 2;
+  return frame === 'fluid' ? -0.5 * s2 / r : 0.5 * s2 * (r * r - 1 / r);
 }
+function velI(r, th, frame = 'body') {
+  if (!outside(r)) return [NaN, NaN];
+  const c = Math.cos(th), sn = Math.sin(th);
+  let ur = c * (1 - 1 / r ** 3), ut = -sn * (1 + 0.5 / r ** 3);
+  if (frame === 'fluid') { ur -= c; ut += sn; }
+  return [ur, ut];
+}
+/** (1 − e^{−s})/s, stable as s → 0 (core.creeping._phi1). */
+function phi1(s) { return Math.abs(s) > 1e-300 ? -Math.expm1(-s) / s : 1; }
+/** Oseen's stream function ψ/(Ua²), Eq. (8.53), in the form −(3/4)(r/a) sin²θ (1 − e^{−s})/s, s = (Re/4)(r/a)(1 − cos θ). */
+function psiO(r, th, Re, frame = 'body') {
+  if (!outside(r)) return NaN;
+  const c = Math.cos(th), s2 = Math.sin(th) ** 2, s = Re / 4 * r * (1 - c);
+  let psi = (r * r / 2 + 1 / (4 * r)) * s2 - 0.75 * r * s2 * phi1(s);
+  if (frame === 'fluid') psi -= 0.5 * r * r * s2;
+  return psi;
+}
+/** Oseen's velocity [u_r, u_θ]/U from (8.53) by (6.83) (core.creeping.oseen_velocity). */
+function velO(r, th, Re, frame = 'body') {
+  if (!outside(r)) return [NaN, NaN];
+  const c = Math.cos(th), sn = Math.sin(th), q = 1 / r, s = Re / 4 / q * (1 - c), es = Math.exp(-s);
+  let ur = c * (1 + 0.5 * q ** 3) + 0.75 * q * ((1 - c) * phi1(s) - (1 + c) * es);
+  let ut = -sn * (1 - 0.25 * q ** 3 - 0.75 * q * es);
+  if (frame === 'fluid') { ur -= c; ut += sn; }
+  return [ur, ut];
+}
+function psiM(model, r, th, Re, frame) { return model === 'oseen' ? psiO(r, th, Re, frame) : model === 'ideal' ? psiI(r, th, frame) : psiS(r, th, frame); }
+function velM(model, r, th, Re, frame) { return model === 'oseen' ? velO(r, th, Re, frame) : model === 'ideal' ? velI(r, th, frame) : velS(r, th, frame); }
+/** |u|/U on the side line θ = π/2 (ch08.side_line_speed). */
+function side(r, model = 'stokes', Re = 0.1, frame = 'body') { const v = velM(model, r, PI / 2, Re, frame); return Math.hypot(v[0], v[1]); }
+/** Disturbance |u − U e_x|/U (= the fluid-frame speed, the same in both frames). */
+function dist(model, r, th, Re) { const v = velM(model, r, th, Re, 'fluid'); return Math.hypot(v[0], v[1]); }
+/** Inertia |u·∇u| and viscous |ν∇²u| on Stokes' field (units U²/a), ν = 2aU/Re, and their ratio. */
+function ivParts(r, th, Re) {
+  const nu = 2 / Re, c = Math.cos(th), sn = Math.sin(th);
+  const F = 1 - 1.5 / r + 0.5 / r ** 3, Fp = 1.5 / r ** 2 - 1.5 / r ** 4;
+  const G = 1 - 0.75 / r - 0.25 / r ** 3, Gp = 0.75 / r ** 2 + 0.75 / r ** 4;
+  const ar = c * c * F * Fp + sn * sn * G * (F - G) / r, at = sn * c * (-F * Gp + G * (G - F) / r);
+  const inert = Math.hypot(ar, at), visc = nu * 1.5 / r ** 3 * Math.sqrt(4 * c * c + sn * sn);
+  return { ar, at, inert, visc, ratio: inert / visc, nu };
+}
+const ratio = (r, th, Re) => ivParts(r, th, Re).ratio;
+/** On the axis θ = 0 the ratio is Re·F·F′·r³/6 exactly; it equals 1 at the crossover r_c (brentq). */
+const axisRatio = (r, Re) => Re * (1 - 1.5 / r + 0.5 / r ** 3) * (1.5 / r ** 2 - 1.5 / r ** 4) * r ** 3 / 6;
+const RC = {};
+function crossRc(Re) { const k = Re.toPrecision(12); if (!(k in RC)) RC[k] = Viz.num.brentq(r => axisRatio(r, Re) - 1, 1.0001, 1e9, 1e-12); return RC[k]; }
+/** Radius where the side-line disturbance falls to eps·U. */
+function feltR(model, Re, eps) { return Viz.num.brentq(r => side(r, model, Re, 'fluid') - eps, 1, 1e7, 1e-12); }
 
-/* ---- the dimensionless march (β = 1) on the half domain 0 < x/x₀ < 12, 240 cells ---- */
-const NC = 240, LD = 12, DX = LD / NC, HMIN = 1e-4, CFL = 0.2;
-const LT0 = -2, LT1 = 4, PERDEC = 40, NS = (LT1 - LT0) * PERDEC + 1;          // snapshots at τ = 10^(−2 + k/40)
-const XC = Float64Array.from({ length: NC }, (_, i) => (i + 0.5) * DX);      // cell centres
-const SHAPES = {
-  box: x => (x < 1 ? 1 : 0),                                                // 1 × 1 box: half-area exactly 1 (20 cells)
-  gauss: x => Math.exp(-x * x * Math.PI / 4),                                // e^(−x²/s²), s = 2/√π: half-area 1, peak 1
-  two: x => Math.exp(-Math.pow((x - 2) / 0.6, 2)) + Math.exp(-Math.pow((x + 2) / 0.6, 2))   // humps at ±2
-};
-const sumArr = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s; };
-const maxArr = a => { let m = -Infinity; for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i]; return m; };
-function initial(shape) {
-  const h = XC.map(SHAPES[shape]);
-  if (shape !== 'box') { const S = sumArr(h) * DX; for (let i = 0; i < NC; i++) h[i] /= S; }   // half-area 1
-  return h;
+/* ---- tracer (dye) paths: RK4 in the body frame, lab position = ξ + x_s(t) in the fluid frame ------------------------ */
+const NSAMP = 480, NSEED = 16;
+const X0of = Z => 2.1 * Z;                         // dye starts 2.1 Z upstream; the run lasts T = 2 X0 (in a/U)
+function cartVel(model, Re, x, w) {
+  const r = Math.max(Math.hypot(x, w), 1), th = Math.atan2(Math.abs(w), x), v = velM(model, r, th, Re, 'body');
+  const c = Math.cos(th), sn = Math.sin(th), uw = v[0] * sn + v[1] * c;
+  return [v[0] * c - v[1] * sn, w < 0 ? -uw : uw];
 }
-function frontOf(h, fl) {                                                   // largest x with h ≥ fl, linear interpolation
-  let i = -1;
-  for (let k = NC - 1; k >= 0; k--) if (h[k] >= fl) { i = k; break; }
-  if (i < 0) return NaN;
-  if (i + 1 >= NC) return XC[NC - 1];
-  return XC[i] + (h[i] - fl) / (h[i] - h[i + 1]) * DX;
-}
-function march(h0) {
-  const h = new Float64Array(NC), F = new Float64Array(NC - 1);
-  for (let i = 0; i < NC; i++) h[i] = Math.max(h0[i], HMIN);                // precursor film (the equation degenerates at h = 0)
-  const fl = Math.max(10 * HMIN, 1e-3 * maxArr(h));                          // front level, as in thin_film_spread
-  const v0 = sumArr(h) * DX, hstart = Float64Array.from(h);
-  const snaps = [], fronts = [], vols = [];
-  let t = 0, steps = 0;
-  for (let k = 0; k < NS; k++) {
-    const T = Math.pow(10, LT0 + k / PERDEC);
-    while (t < T * (1 - 1e-14)) {
-      const hm = maxArr(h), dt = Math.min(CFL * DX * DX / (hm * hm * hm), T - t);
-      for (let i = 0; i < NC - 1; i++) { const H = 0.5 * (h[i] + h[i + 1]); F[i] = H * H * H * (h[i + 1] - h[i]) / DX; }  // h³∂h/∂x at the faces
-      h[0] += dt * F[0] / DX;                                                // closed wall at x = 0 (symmetry)
-      for (let i = 1; i < NC - 1; i++) h[i] += dt * (F[i] - F[i - 1]) / DX;
-      h[NC - 1] -= dt * F[NC - 2] / DX;                                      // closed far end
-      t += dt; steps++;
-    }
-    snaps.push(Float64Array.from(h)); fronts.push(frontOf(h, fl)); vols.push(sumArr(h) * DX);
-  }
-  return { snaps, fronts, vols, v0, fl, steps, hstart };
-}
-const RUNS = {};
-function getRun(shape) { if (!RUNS[shape]) RUNS[shape] = march(initial(shape)); return RUNS[shape]; }
-function kOf(lt) { return Math.max(0, Math.min(NS - 1, (lt - LT0) * PERDEC)); }
-function profileAt(run, lt) {                                               // interpolated between snapshots (in log τ)
-  const k = kOf(lt), k0 = Math.min(NS - 2, Math.floor(k)), w = k - k0, a = run.snaps[k0], b = run.snaps[k0 + 1];
-  if (w === 0) return a;
-  const out = new Float64Array(NC);
-  for (let i = 0; i < NC; i++) out[i] = (1 - w) * a[i] + w * b[i];
-  return out;
-}
-function volAt(run, lt) { const k = kOf(lt), k0 = Math.min(NS - 2, Math.floor(k)), w = k - k0; return (1 - w) * run.vols[k0] + w * run.vols[k0 + 1]; }
-function sampleAt(h, xi) {                                                  // h at |x|/x₀ = xi (linear between centres)
-  xi = Math.abs(xi);
-  if (xi <= XC[0]) return h[0];
-  if (xi >= XC[NC - 1]) return h[NC - 1];
-  const j = Math.floor(xi / DX - 0.5), w = xi / DX - 0.5 - j;
-  return (1 - w) * h[j] + w * h[j + 1];
-}
-function slopeAt(h, xi) {                                                   // ∂h/∂x (dimensionless = dimensional), sign of x
-  const d = DX, s = xi < 0 ? -1 : 1;
-  return s * (sampleAt(h, Math.abs(xi) + d) - sampleAt(h, Math.max(0, Math.abs(xi) - d))) / (Math.abs(xi) + d - Math.max(0, Math.abs(xi) - d));
-}
-function domeND(xi, tau) { const xN = ETA_N * Math.pow(tau, 0.2), s = 1 - xi * xi / (xN * xN); return s > 0 ? HC0 * Math.pow(tau, -0.2) * Math.cbrt(s) : 0; }
-function domeDistance(h, tau) {                                             // ∫|h − h_min − dome| dx / half-area (L1, relative)
-  let d = 0;
-  for (let i = 0; i < NC; i++) d += Math.abs(h[i] - HMIN - domeND(XC[i], tau)) * DX;
-  return d;
-}
-function collapse(run, lt, m) {                                             // six profiles rescaled with exponent m
-  const prof = [];
-  for (let k = 5; k >= 0; k--) {
-    const l = lt - 0.4 * k; if (l < LT0 - 1e-9) continue;
-    const tau = Math.pow(10, l), sc = Math.pow(tau, m), h = profileAt(run, l), xf = frontOf(h, run.fl);
-    prof.push({ lt: l, sc, h, xi: xf / sc });
-  }
-  const ref = prof[prof.length - 1], ximax = Math.max(...prof.map(p => p.xi));
-  let spread = 0;
-  if (prof.length > 1) {
-    const n = 80; let area = 0;
-    for (let j = 0; j < n; j++) { const xi = (j + 0.5) / n * ximax; area += Math.max(0, sampleAt(ref.h, xi * ref.sc) - HMIN) * ref.sc; }
-    prof.slice(0, -1).forEach(p => {
-      let d = 0;
-      for (let j = 0; j < n; j++) {
-        const xi = (j + 0.5) / n * ximax;
-        d += Math.abs(Math.max(0, sampleAt(p.h, xi * p.sc) - HMIN) * p.sc - Math.max(0, sampleAt(ref.h, xi * ref.sc) - HMIN) * ref.sc);
+let TRJ = { key: '' };
+function trajectories(model, Re, Z) {
+  const key = model + '|' + (model === 'oseen' ? Re.toPrecision(6) : '') + '|' + Z.toPrecision(6);
+  if (TRJ.key === key) return TRJ;
+  const X0 = X0of(Z), T = 2 * X0, dT = T / NSAMP, seeds = [];
+  for (let j = -NSEED; j <= NSEED; j++) seeds.push(Z * j / NSEED);
+  const f = (t, p) => cartVel(model, Re, p[0], p[1]);
+  const paths = seeds.map(w0 => {
+    let p = [-X0, w0]; const pts = [p.slice()];
+    for (let k = 0; k < NSAMP; k++) {
+      let left = dT;
+      while (left > 1e-12) {
+        const r = Math.hypot(p[0], p[1]), h = Math.min(left, Math.max(0.02, 0.2 * (r - 1)));
+        p = Viz.num.rk4Step(f, 0, p, h); left -= h;
+        const rr = Math.hypot(p[0], p[1]);
+        if (rr < 1.002) { const k2 = 1.002 / Math.max(rr, 1e-9); p = [p[0] * k2, p[1] * k2]; }
       }
-      spread = Math.max(spread, d / area);
-    });
-  }
-  let Hmax = 0; prof.forEach(p => { Hmax = Math.max(Hmax, (p.h[0] - HMIN) * p.sc); });
-  return { prof, spread, ximax, Hmax };
+      pts.push(p.slice());
+    }
+    return pts;
+  });
+  TRJ = { key, X0, T, dT, seeds, paths };
+  return TRJ;
 }
-let CK = null, CV = null;
-function cur(s) {                                                           // everything the views and texts show, cached
-  const key = [s.shape, s.lt, s.A, s.mu, s.rho, s.m].join('|');
-  if (key === CK) return CV;
-  const run = getRun(s.shape), p = SI(s), b = beta(p), x0 = Math.sqrt(s.A);
-  const tau = Math.pow(10, s.lt), t = tau / (b * x0), hd = profileAt(run, s.lt), xfN = frontOf(hd, run.fl);
-  const v = volAt(run, s.lt), drift = v / run.v0 - 1;
-  const slope = s.lt - 1 >= LT0 - 1e-9 ? Math.log10(xfN / frontOf(profileAt(run, s.lt - 1), run.fl)) : NaN;
-  const hc = Math.max(0, hd[0] - HMIN) * x0, hpk = Math.max(0, maxArr(hd) - HMIN) * x0;   // film above the precursor
-  CV = { run, p, b, x0, tau, t, hd, xfN, xf: xfN * x0, law: state(t, p), vol: 2 * s.A * (1 + drift), drift,
-    dome: 0.5 * domeDistance(hd, tau), slope, hc, hpk, Deff: b * hpk * hpk * hpk, col: collapse(run, s.lt, Number(s.m)) };
-  CK = key;
-  return CV;
+function posAt(tr, j, tau, frame) {
+  const f = Math.max(0, Math.min(1, tau)) * NSAMP, i = Math.min(NSAMP - 1, Math.floor(f)), w = f - i;
+  const P = tr.paths[j], a = P[i], b = P[i + 1];
+  const x = a[0] * (1 - w) + b[0] * w, y = a[1] * (1 - w) + b[1] * w;
+  return frame === 'fluid' ? [x + tr.X0 * (1 - 2 * tau), y] : [x, y];
 }
-function probeNums(s) {                                                     // h, ∂h/∂x, q at the probe (dimensional)
-  const c = cur(s), xi = s.probe * c.xfN, h = sampleAt(c.hd, xi) * c.x0, hx = slopeAt(c.hd, xi);
-  return { x: xi * c.x0, h, hx, q: flux(h, hx, c.p), u: -c.p.rho * c.p.g / (2 * c.p.mu) * hx * h * h };
+const sphereX = (s) => (s.frame === 'fluid' ? X0of(s.zoom) * (1 - 2 * s.tau) : 0);
+
+/* ---- the explainer's state → every number on screen ------------------------------------------------------------- */
+const MODEL = { stokes: 'Stokes', oseen: 'Oseen', ideal: 'ideal' };
+function N(s) {
+  const th = s.pth * PI / 180, r = s.pr, m = s.model, Re = s.Re, fr = s.frame;
+  const v = velM(m, r, th, Re, fr), psi = psiM(m, r, th, Re, fr);
+  const iv = ivParts(r, th, Re), rc = crossRc(Re);
+  return { th, r, v, speed: Math.hypot(v[0], v[1]), psi, iv, rc, Rea: Re / 2,
+    s10: side(10, m, Re, 'body'), def10: 100 * (1 - side(10, m, Re, 'body')), X0: X0of(s.zoom), T: 2 * X0of(s.zoom) };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   small helpers (local; formatters as in every earlier chapter — promotion candidates)
-   --------------------------------------------------------------------------------------------------- */
+/* ---- formatting --------------------------------------------------------------------------------------------------- */
 const f3 = v => Viz.fmt(v, { sig: 3 });
+const f4 = v => Viz.fmt(v, { sig: 4 });
+const f5 = v => Viz.fmt(v, { sig: 5 });
 const t3 = v => Viz.tnum(v, 3);
 const t4 = v => Viz.tnum(v, 4);
-const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-function lenUnit(L) {
-  const a = Math.abs(L);
-  if (a < 0.02) return { f: 1000, u: 'mm' };
-  if (a < 2) return { f: 100, u: 'cm' };
-  if (a < 2000) return { f: 1, u: 'm' };
-  return { f: 1e-3, u: 'km' };
-}
-const fmtLen = v => { const U = lenUnit(v); return Viz.fmt(v * U.f, { sig: 3 }) + ' ' + U.u; };
-const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '.': '·' };
-const pow10 = k => '10' + String(k).split('').map(c => SUPD[c]).join('');
-function expStr(v) {                                                        // round-off-sized numbers, never printed as 0
-  const a = Math.abs(v);
-  if (a === 0) return '0 (exact)';
-  const e = Math.floor(Math.log10(a)), m = v / Math.pow(10, e);
-  return (m < 0 ? '−' : '') + Math.abs(m).toFixed(1) + '×' + pow10(e);
-}
-const tauStr = lt => { const t = Math.pow(10, lt); return t >= 0.1 && t < 1e4 ? Viz.fmt(t, { sig: 3 }) : Viz.fmt(t, { sig: 2 }); };
-const pct = v => (v >= 0.1 ? (100 * v).toFixed(0) : v >= 0.01 ? (100 * v).toFixed(1) : (100 * v).toFixed(2)) + ' %';
-const mStr = s => (s.m === '0.5' ? '1/2' : '1/5');
-const phone = () => (document.documentElement.clientWidth || window.innerWidth) < 600 || (document.documentElement.clientHeight || window.innerHeight) < 500;
-const layoutIs = name => { const el = document.querySelector('.viz-app'); return !!el && el.getAttribute('data-layout') === name; };
-const colors = () => ({ blue: Viz.color('blue'), rose: Viz.color('rose'), orange: Viz.color('orange'), teal: Viz.color('teal'),
-  accent: Viz.color('accent'), muted: Viz.color('muted'), ink: Viz.color('text'), soft: Viz.color('text-soft') });
-function pxArrow(ctx, x0, y0, x1, y1, color, width) {
-  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 2) return;
-  const head = Math.min(7, 0.5 * L), ang = Math.atan2(y1 - y0, x1 - x0);
-  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - 0.7 * head * Math.cos(ang), y1 - 0.7 * head * Math.sin(ang)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - head * Math.cos(ang - 0.45), y1 - head * Math.sin(ang - 0.45));
-  ctx.lineTo(x1 - head * Math.cos(ang + 0.45), y1 - head * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill(); ctx.restore();
-}
+const tsig = v => (v < 0 ? '' : '+') + t3(v);
+function lay() { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; }
+const phone = () => lay() !== 'wide';
+const DEC = { '-4': '10⁻⁴', '-3': '10⁻³', '-2': '0.01', '-1': '0.1', '0': '1', '1': '10', '2': '100', '3': '10³', '4': '10⁴' };
 
-/* ---------------------------------------------------------------------------------------------------
-   TeX of the equations (written next to every number that cites them)
-   --------------------------------------------------------------------------------------------------- */
-const EQ = {
-  e45: '\\frac{d}{dt}\\int_{V^*(t)}\\rho\\,dV+\\int_{A^*(t)}\\rho\\,(\\mathbf u-\\mathbf b)\\cdot\\mathbf n\\,dA=0',
-  e83: '\\mathbf t\\cdot\\mathbf U_s=(\\mathbf t\\cdot\\mathbf u)_{\\text{on the surface}}',
-  e818: 'u(x,y,t)\\cong\\frac1\\mu\\frac{\\partial p(x,t)}{\\partial x}\\frac{y^2}{2}+Ay+B',
-  e832a: '\\gamma=At^{-n}F\\big(\\xi/\\delta(t)\\big)\\equiv At^{-n}F(\\eta)',
-  tf: '\\frac{\\partial h}{\\partial t}=\\frac{\\rho g}{3\\mu}\\frac{\\partial}{\\partial x}\\Big(h^3\\frac{\\partial h}{\\partial x}\\Big)',
-  flux: '\\int_0^hu\\,dy\\cong-\\frac{\\rho g}{3\\mu}h^3\\frac{\\partial h}{\\partial x}',
-  sim: 'h(x,t)=At^{-1/5}F\\big(x/Dt^{1/5}\\big)',
-  law: 'x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5}',
-  hc: 'h_c=\\big(\\tfrac{3}{10}\\big)^{1/3}\\eta_N^{2/3}\\Big(\\frac{\\mathcal A^2}{\\beta}\\Big)^{1/5}t^{-1/5}',
-  eta: '\\eta_N=\\Big[\\tfrac15\\big(\\tfrac{3}{10}\\big)^{1/3}\\sqrt\\pi\\,\\frac{\\Gamma(1/3)}{\\Gamma(5/6)}\\Big]^{-3/5}'
-};
-const $ = t => '$' + t + '$';
-
-/* ---------------------------------------------------------------------------------------------------
-   numbers quoted in the walkthrough and the quiz — computed, never typed
-   --------------------------------------------------------------------------------------------------- */
-const GLY = { shape: 'box', A: 1e-4, mu: 1, rho: 1260 };
-const RUN_BOX = getRun('box');
-const GLY_B = beta(SI(GLY)), GLY_X0 = Math.sqrt(GLY.A);
-const tOfLt = (lt, s) => Math.pow(10, lt) / (beta(SI(s)) * Math.sqrt(s.A));
-const T_STEP6 = tOfLt(3, GLY), X_STEP6 = RUN_BOX.fronts[kOf(3)] * GLY_X0;
-
-/* ---------------------------------------------------------------------------------------------------
-   VIEWS
-   --------------------------------------------------------------------------------------------------- */
-let lastLayer = null;
-function drawLayer(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), small = v.w < 420 || v.h < 150;
-  const X = 1.3 * Math.max(c.xf, c.law.x_N), UX = lenUnit(X);
-  const hmax = Math.max(maxArr(c.hd) - HMIN, HC0 * Math.pow(c.tau, -0.2)) * c.x0, Ymax = 1.3 * hmax, UY = lenUnit(Ymax);
-  const P = v.plot({ xlim: [-X * UX.f, X * UX.f], ylim: [0, Ymax * UY.f], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } });
-  P.axes({ xlabel: 'x [' + UX.u + ']', ylabel: small ? '' : 'h [' + UY.u + ']', zeroLines: false });
-  lastLayer = { P, f: UX.f, xf: c.xf };
-  const xs = [], hs = [];
-  for (let i = NC - 1; i >= 0; i--) { xs.push(-XC[i] * c.x0 * UX.f); hs.push(c.hd[i] * c.x0 * UY.f); }
-  for (let i = 0; i < NC; i++) { xs.push(XC[i] * c.x0 * UX.f); hs.push(c.hd[i] * c.x0 * UY.f); }
-  const der = app && app.tab === 'derive';
-  P.clip(() => {
-    P.fillBetween(xs, hs, 0, { color: C.blue, alpha: 0.28 });
-    if (s.hl === 'p') {                                                     // hydrostatic pressure ρg(h − y): darker = higher
-      const n = 70;
-      for (let j = 0; j < n; j++) {
-        const xa = -X + 2 * X * j / n, xb = -X + 2 * X * (j + 1) / n, xm = 0.5 * (xa + xb), hh = sampleAt(c.hd, xm / c.x0) * c.x0;
-        if (hh < 0.02 * hmax) continue;
-        const Y0 = P.Y(0), Y1 = P.Y(hh * UY.f), gr = ctx.createLinearGradient(0, Y0, 0, Y1);
-        gr.addColorStop(0, Viz.alpha(C.blue, 0.85 * hh / hmax)); gr.addColorStop(1, Viz.alpha(C.blue, 0));
-        ctx.fillStyle = gr; ctx.fillRect(P.X(xa * UX.f), Y1, P.X(xb * UX.f) - P.X(xa * UX.f) + 0.5, Y0 - Y1);
-      }
-    }
-    P.line(xs, hs, { color: C.blue, width: 2.4 });
-    P.fn(x => domeND(x / UX.f / c.x0, c.tau) * c.x0 * UY.f, { color: C.accent, dash: [7, 5], width: 2, n: 240 });
-  });
-  // flux arrows (orange): 9 stations across the layer, length ∝ q
-  const st = [];
-  for (let k = -4; k <= 4; k++) { const xi = c.xfN * k / 5, h = sampleAt(c.hd, xi) * c.x0, hx = slopeAt(c.hd, xi); st.push({ x: xi * c.x0, h, q: k === 0 ? 0 : flux(h, hx, c.p) }); }
-  const qmax = Math.max(1e-300, ...st.map(o => Math.abs(o.q))), La = (small ? 0.09 : 0.07) * P.px.w;
-  const emph = s.hl === 'q';
-  st.forEach(o => {
-    const X0 = P.X(o.x * UX.f), Y0 = P.Y(0.5 * o.h * UY.f);
-    if (o.q === 0) { ctx.save(); ctx.fillStyle = C.orange; ctx.beginPath(); ctx.arc(X0, Y0, 3, 0, 2 * Math.PI); ctx.fill(); ctx.restore(); return; }
-    pxArrow(ctx, X0, Y0, X0 + La * o.q / qmax, Y0, C.orange, emph ? 3.2 : 2.2);
-  });
-  // simulated front (teal ticks)
-  [-1, 1].forEach(sg => {
-    const Xf = P.X(sg * c.xf * UX.f);
-    ctx.save(); ctx.strokeStyle = C.teal; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(Xf, P.Y(0)); ctx.lineTo(Xf, P.Y(0.3 * Ymax * UY.f)); ctx.stroke(); ctx.restore();
-  });
-  if (!small) Viz.text(ctx, 'front', P.X(c.xf * UX.f) + 4, P.Y(0.3 * Ymax * UY.f), { size: 12, color: C.teal, bg: true });
-  // probe (rose) with the velocity half-parabola u = −(ρg/2μ) h_x y(2h − y)
-  const pn = probeNums(s), Xp = P.X(pn.x * UX.f), hp = pn.h * UY.f;
-  ctx.save(); ctx.strokeStyle = C.rose; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(Xp, P.Y(0)); ctx.lineTo(Xp, P.Y(Math.min(Ymax * UY.f, hp * 1.12))); ctx.stroke(); ctx.restore();
-  const showU = v.w > 300 && P.Y(0) - P.Y(hp) > 26;
-  if (showU && Math.abs(pn.u) > 0) {
-    const nU = 5, Lu = (small ? 0.08 : 0.06) * P.px.w * (s.hl === 'u' ? 1.5 : 1);
-    for (let j = 1; j <= nU; j++) {
-      const y = pn.h * j / nU, uu = -c.p.rho * c.p.g / (2 * c.p.mu) * pn.hx * y * (2 * pn.h - y);
-      pxArrow(ctx, Xp, P.Y(y * UY.f), Xp + Lu * uu / Math.abs(pn.u), P.Y(y * UY.f), C.rose, s.hl === 'u' ? 2.4 : 1.6);
-    }
-  }
-  P.dot(pn.x * UX.f, hp, 4.5, { color: C.rose, stroke: '#fff', strokeWidth: 1.5 });
-  if (small) Viz.text(ctx, 'h [' + UY.u + ']', P.px.x + 4, P.px.y + 9, { size: 12, color: C.soft, bg: true });
-  const E = (P.px.h / (Ymax * UY.f)) / (P.px.w / (2 * X * UX.f)) * (UY.f / UX.f);
-  if (E > 1.5 && v.h > 110) Viz.text(ctx, 'heights ×' + (E >= 10 ? Math.round(E) : E.toFixed(1)), P.px.x + P.px.w - 4, P.px.y + 9, { size: 12, align: 'right', color: C.soft, bg: true });
-  if (s.lt >= LT1 - 1e-9 && !der && v.h > 120) {
-    const lines = ['End of the run (τ = 10⁴):', 'front slope over the last decade ' + c.slope.toFixed(3) + ' (law 0.200)',
-      'volume change ' + expStr(c.drift), 'volume out of place vs the dome: ' + pct(c.dome)];
-    Viz.card(ctx, P.px.x + P.px.w / 2, P.px.y + P.px.h * 0.42, lines, { color: C.teal, maxWidth: Math.min(360, P.px.w - 20) });
-  }
+/* ---- pixel helpers ------------------------------------------------------------------------------------------------ */
+function arrowPx(ctx, x0, y0, x1, y1, color, width = 2, head = 7) {
+  const Ln = Math.hypot(x1 - x0, y1 - y0); if (Ln < 1) return;
+  const ang = Math.atan2(y1 - y0, x1 - x0), hd = Math.min(head, Ln * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - hd * 0.7 * Math.cos(ang), y1 - hd * 0.7 * Math.sin(ang)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.42), y1 - hd * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - hd * Math.cos(ang + 0.42), y1 - hd * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
-
-function drawFront(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), run = c.run, small = v.w < 420 || v.h < 150;
-  const off = -Math.log10(c.b * c.x0);                                      // log10 t = log10 τ + off
-  const lx0 = LT0 + off, lx1 = LT1 + off, ly0 = Math.log10(0.4 * c.x0), ly1 = Math.log10(13 * c.x0), UY = lenUnit(3 * c.x0);
-  const P = v.plot({ xlim: [lx0, lx1], ylim: [ly0, ly1], pad: { l: small ? 40 : 50, r: 10, t: 10, b: small ? 28 : 34 } });
-  P.axes({ xticks: [], yticks: [], grid: false, zeroLines: false, xlabel: 't [s], log scale', ylabel: small ? '' : 'x_N [' + UY.u + '], log' });
-  ctx.save(); ctx.font = Viz.font(12); ctx.fillStyle = Viz.color('axis'); ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1;
-  const every = (lx1 - lx0) / Math.max(1, Math.floor(P.px.w / 48)) > 1.01 ? 2 : 1;
-  for (let k = Math.ceil(lx0); k <= Math.floor(lx1); k++) {
-    const X = Math.round(P.X(k)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(X, P.px.y); ctx.lineTo(X, P.px.y + P.px.h); ctx.stroke();
-    if (k % every === 0) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(pow10(k), X, P.px.y + P.px.h + 4); }
-  }
-  const yt = [];
-  for (let k = Math.floor(ly0) - 1; k <= Math.ceil(ly1); k++) [1, 2, 5].forEach(m => { const L = k + Math.log10(m); if (L >= ly0 && L <= ly1) yt.push(L); });
-  const ystep = P.px.h / Math.max(1, yt.length);
-  yt.forEach((L, i) => {
-    const Y = Math.round(P.Y(L)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(P.px.x, Y); ctx.lineTo(P.px.x + P.px.w, Y); ctx.stroke();
-    if (ystep > 14 || i % 2 === 0) { ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(Viz.fmt(Math.pow(10, L) * UY.f, { sig: 2 }), P.px.x - 4, Y); }
-  });
+function lab(ctx, str, x, y, o) { Viz.text(ctx, str, x, y, Object.assign({ size: 12, bg: true, pad: 2 }, o)); }
+/** Plot whose y title sits in its own 18 px strip on views narrower than 420 px; decade ticks for log axes. */
+function logPlot(v, o) {
+  const narrowV = v.w < 420, shortV = v.h < 150;
+  const pad = Object.assign({ l: 44, r: 10, t: 8, b: shortV ? 20 : 32 }, o.pad || {});
+  const P = v.plot({ rect: narrowV ? { x: 18, y: 0, w: v.w - 18, h: v.h } : undefined, xlim: o.xlim, ylim: o.ylim, pad });
+  const ctx = v.ctx;
+  P.axes({ grid: false, xticks: [], yticks: [], xlabel: '', ylabel: '' });
+  ctx.save(); ctx.font = Viz.font(12, 500); ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1;
+  const xt = []; for (let d = Math.ceil(o.xlim[0]); d <= o.xlim[1]; d++) xt.push(d);
+  let yt = o.ylog ? [] : (o.yticks || Viz.num.niceTicks(o.ylim[0], o.ylim[1], 3));
+  if (o.ylog) { const st = shortV ? 2 : 1; for (let d = Math.ceil(o.ylim[0]); d <= o.ylim[1]; d += st) yt.push(d); }
+  if (shortV) yt = o.ylog ? yt : [o.yticks ? o.yticks[0] : 0, 1].filter(q => q >= o.ylim[0] && q <= o.ylim[1]);
+  ctx.beginPath();
+  xt.forEach(d => { const X = Math.round(P.X(d)) + 0.5; ctx.moveTo(X, P.px.y); ctx.lineTo(X, P.px.y + P.px.h); });
+  yt.forEach(d => { const Y = Math.round(P.Y(d)) + 0.5; ctx.moveTo(P.px.x, Y); ctx.lineTo(P.px.x + P.px.w, Y); });
+  ctx.stroke();
+  ctx.fillStyle = Viz.color('axis'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  xt.forEach(d => ctx.fillText(DEC[String(d)] || ('10^' + d), P.X(d), P.px.y + P.px.h + 3));
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  yt.forEach(d => ctx.fillText(o.ylog ? (DEC[String(d)] || '10^' + d) : Viz.fmt(d, { sig: 2 }), P.px.x - 4, P.Y(d)));
+  ctx.fillStyle = Viz.color('text-soft');
+  if (o.xlabel && !shortV) { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(o.xlabel, P.px.x + P.px.w / 2, v.h - 1); }
+  if (o.ylabel) { ctx.translate(narrowV ? 9 : 11, P.px.y + P.px.h / 2); ctx.rotate(-PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.ylabel, 0, 0); }
   ctx.restore();
-  const lts = [], lys = [];
-  for (let k = 0; k < NS; k++) { lts.push(LT0 + k / PERDEC + off); lys.push(Math.log10(run.fronts[k] * c.x0)); }
-  const kNow = Math.round(kOf(s.lt));
+  return P;
+}
+
+/* ---- view 1: the meridian plane -------------------------------------------------------------------------------- */
+let FLP = null;
+const GC = { key: '', heat: null, psi: null, levels: null };
+function flowGrids(s, P) {
+  const xs = sphereX(s), m = s.model, Re = s.Re, fr = s.frame;
+  const key = [m, fr, m === 'oseen' ? Re : '', s.zoom, xs.toFixed(4), P.px.w, P.px.h, P.xlim[0].toFixed(4), P.ylim[0].toFixed(4)].join('|');
+  if (GC.key === key) return GC;
+  const nh = Math.max(40, Math.min(150, Math.round(P.px.w / 4))), nhy = Math.max(30, Math.round(nh * P.px.h / P.px.w));
+  const polar = (x, w) => [Math.hypot(x - xs, w), Math.atan2(Math.abs(w), x - xs)];
+  GC.heat = Viz.field.grid((x, w) => { const q = polar(x, w); if (!outside(q[0])) return NaN; return Math.log10(Math.max(1e-3, Math.min(1, dist(m, q[0], q[1], Re)))); }, P.xlim, P.ylim, nh, nhy);
+  const np = Math.max(60, Math.min(200, Math.round(P.px.w / 3))), npy = Math.max(40, Math.round(np * P.px.h / P.px.w));
+  GC.psi = Viz.field.grid((x, w) => { const q = polar(x, w); return psiM(m, q[0], q[1], Re, fr); }, P.xlim, P.ylim, np, npy);
+  const Z = Math.min(P.ylim[1], s.zoom * 1.25), NL = 9, lv = [];
+  for (let k = 1; k <= NL; k++) { const wk = 1 + (Z - 1) * Math.pow(k / NL, 1.6); lv.push(psiM(m, wk, PI / 2, Re, fr)); }
+  GC.levels = lv; GC.key = key;
+  return GC;
+}
+function drawFlow(g, s) {
+  const v = g.view('flow'); v.clear(); FLP = null;
+  if (v.w < 40 || v.h < 40) return;
+  const ctx = v.ctx, Z = s.zoom, small = v.w < 420 || v.h < 200;
+  const pad = small ? { l: 34, r: 6, t: 4, b: 18 } : { l: 44, r: 8, t: 6, b: 30 };
+  const ph = v.h - pad.t - pad.b, maxPw = 1.9 * ph;
+  const barW = (!small && v.w - pad.l - pad.r > maxPw + 70) ? 70 : 0;
+  let rx = 0, rw = v.w - barW;
+  if (rw - pad.l - pad.r > maxPw) { rw = maxPw + pad.l + pad.r; rx = Math.max(0, (v.w - barW - rw) / 2); }
+  const P = v.plot({ rect: { x: rx, y: 0, w: rw, h: v.h }, xlim: [-Z, Z], ylim: [-Z, Z], equal: true, pad });
+  FLP = P;
+  const tk = Viz.num.niceTicks(-Z, Z, small ? 2 : 4).filter(t => t > P.ylim[0] && t < P.ylim[1]);
+  const tkx = Viz.num.niceTicks(P.xlim[0], P.xlim[1], small ? 3 : 6).filter(t => t > P.xlim[0] && t < P.xlim[1]);
+  P.axes({ grid: false, zeroLines: false, xticks: tkx, yticks: tk, xlabel: small ? '' : (s.frame === 'fluid' ? 'x/a  (the sphere moves toward −x)' : 'x/a  (the stream runs along +x)'), ylabel: small ? '' : 'ϖ/a (distance from the axis)' });
+  const n = N(s), xs = sphereX(s), GR = flowGrids(s, P), m = s.model;
+  const BL = Viz.color('blue'), TE = Viz.color('teal'), AM = Viz.color('amber'), TX = Viz.color('text'), MU = Viz.color('muted'), AC = Viz.color('accent');
+  const curve = m === 'oseen' ? AC : m === 'ideal' ? MU : BL;
+  if (s.shade) Viz.field.heatmap(P, GR.heat, { cmap: 'blues', vmin: -3, vmax: 0, alpha: 0.5 });
+  if (s.shade) Viz.field.drawContours(P, GR.heat, [-1, -2], { color: Viz.alpha(BL, 0.85), width: 1.3, dash: [6, 4] });
+  Viz.field.drawContours(P, GR.psi, GR.levels, { color: Viz.alpha(TX, 0.5), width: 1.1 });
+  const tr = trajectories(m, s.Re, Z);
   P.clip(() => {
-    // ordinary diffusion guide: slope 1/2 through the current point (±1 decade)
-    const Xc = s.lt + off, Yc = Math.log10(c.xf);
-    P.line([Xc - 1.2, Xc + 1.2], [Yc - 0.6, Yc + 0.6], { color: Viz.alpha(C.muted, 0.9), width: 1.8, dash: [3, 4] });
-    // the law x_N = η_N (β𝒜³t)^(1/5) (purple dashed)
-    const lawY = lx => Math.log10(ETA_N * Math.pow(c.b * Math.pow(s.A, 3) * Math.pow(10, lx), 0.2));
-    P.line([lx0, lx1], [lawY(lx0), lawY(lx1)], { color: C.accent, width: 2, dash: [7, 5] });
-    // simulated front: faint whole run + bold so far + the current dot (teal)
-    P.line(lts, lys, { color: Viz.alpha(C.teal, 0.28), width: 2 });
-    P.line(lts.slice(0, kNow + 1), lys.slice(0, kNow + 1), { color: C.teal, width: 3 });
-    P.dot(Xc, Yc, 5, { color: C.teal, stroke: '#fff', strokeWidth: 1.5 });
+    // the amber circle: inertia = friction on the axis
+    if (m !== 'ideal' && n.rc < 1.6 * Math.max(P.xlim[1], P.ylim[1])) {
+      ctx.save(); ctx.strokeStyle = AM; ctx.lineWidth = 2; ctx.setLineDash([7, 5]); ctx.beginPath();
+      ctx.arc(P.X(xs), P.Y(0), P.sx(n.rc), 0, 2 * PI); ctx.stroke(); ctx.restore();
+    }
+    // pathlines of three dye particles in the fluid frame (faint whole, bold so far)
+    if (s.frame === 'fluid') {
+      [NSEED + 2, NSEED + 5, NSEED + 9].forEach(j => {
+        const pts = [], sofar = [];
+        for (let k = 0; k <= NSAMP; k += 2) { const q = posAt(tr, j, k / NSAMP, 'fluid'); pts.push(q); if (k / NSAMP <= s.tau) sofar.push(q); }
+        sofar.push(posAt(tr, j, s.tau, 'fluid'));
+        P.poly(pts, { color: Viz.alpha(TE, 0.35), width: 1.2 });
+        P.poly(sofar, { color: TE, width: 2.2 });
+      });
+    }
+    // the dye line
+    const dye = tr.seeds.map((w, j) => posAt(tr, j, s.tau, s.frame));
+    ctx.save(); ctx.strokeStyle = TE; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.beginPath();
+    for (let j = 1; j < dye.length; j++) {                    // skip a segment that would cut through the sphere
+      const a = dye[j - 1], b = dye[j], mx = (a[0] + b[0]) / 2 - xs, my = (a[1] + b[1]) / 2;
+      if (Math.hypot(mx, my) < 1.05) continue;
+      ctx.moveTo(P.X(a[0]), P.Y(a[1])); ctx.lineTo(P.X(b[0]), P.Y(b[1]));
+    }
+    ctx.stroke(); ctx.restore();
+    dye.forEach(q => P.dot(q[0], q[1], small ? 2 : 2.6, { color: TE }));
   });
-  const Xc = s.lt + off, Yc = Math.log10(c.xf);
-  if (v.h > 110) {
-    const gx = Math.min(lx1 - 0.2, Xc + 0.9), gy = Yc + 0.45 * (gx - Xc);
-    const lab = small ? 'slope ½' : 'slope ½: ordinary diffusion';
-    ctx.save(); ctx.font = Viz.font(12); const lw = ctx.measureText(lab).width; ctx.restore();
-    let gxp = P.X(gx), al = 'right';
-    if (gxp - lw < P.px.x + 4) { gxp = P.X(Xc) + 10; al = 'left'; }
-    const gyp = clamp(P.Y(gy) - 10, P.px.y + 9, P.px.y + P.px.h - 9);
-    Viz.text(ctx, lab, gxp, al === 'left' ? clamp(P.Y(Yc) - 22, P.px.y + 9, P.px.y + P.px.h - 9) : gyp, { size: 12, align: al, color: C.muted, bg: true });
-    const lx = lx0 + 0.72 * (lx1 - lx0), ly = Math.log10(ETA_N * Math.pow(c.b * Math.pow(s.A, 3) * Math.pow(10, lx), 0.2));
-    Viz.text(ctx, small ? 'slope ⅕' : 'law, slope ⅕', P.X(lx), P.Y(ly) + 12, { size: 12, align: 'left', color: C.accent, bg: true });
+  // the sphere and its motion
+  P.clip(() => { ctx.save(); ctx.beginPath(); ctx.arc(P.X(xs), P.Y(0), Math.max(2, P.sx(1)), 0, 2 * PI);
+  ctx.fillStyle = Viz.alpha(MU, 0.55); ctx.fill(); ctx.strokeStyle = TX; ctx.lineWidth = 1.4; ctx.stroke(); ctx.restore(); });
+  const aw = Math.min(56, P.px.w * 0.12);
+  if (s.frame === 'body') {
+    const yA = P.px.y + P.px.h * 0.5, x0 = P.px.x + 8;
+    arrowPx(ctx, x0, yA, x0 + aw, yA, TX, 2.4, 8);
+    if (!small) lab(ctx, 'U', x0 + aw / 2, yA - 12, { color: TX, align: 'center', weight: 700 });
+  } else if (P.X(xs) > P.px.x && P.X(xs) < P.px.x + P.px.w) {
+    const yA = P.Y(0) + Math.max(4, P.sx(1)) + 12, xc = P.X(xs);
+    arrowPx(ctx, xc + aw / 2, yA, xc - aw / 2, yA, TX, 2.4, 8);
+    if (!small) lab(ctx, 'sphere moves at U', xc + aw / 2 + 6, yA, { color: TX, align: 'left' });
+  }
+  // the probe and its velocity (current frame)
+  const px = xs + n.r * Math.cos(n.th), pw = n.r * Math.sin(n.th);
+  if (P.inside(P.X(px), P.Y(pw))) {
+    const c = Math.cos(n.th), sn = Math.sin(n.th), ux = n.v[0] * c - n.v[1] * sn, uw = n.v[0] * sn + n.v[1] * c;
+    const L = Math.min(60, P.px.w * 0.12);
+    arrowPx(ctx, P.X(px), P.Y(pw), P.X(px) + L * ux, P.Y(pw) - L * uw, curve, 2.4, 7);
+    ctx.save(); ctx.fillStyle = Viz.color('card'); ctx.strokeStyle = curve; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P.X(px), P.Y(pw), 4.5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  // labels
+  if (!small) {
+    if (m !== 'ideal' && n.rc < 1.6 * Math.max(P.xlim[1], P.ylim[1])) {
+      const ang = -PI * 0.28, lx = P.X(xs + n.rc * Math.cos(ang)), ly = P.Y(-n.rc * Math.sin(ang));
+      if (P.inside(lx, ly) && P.sx(n.rc) > 60) lab(ctx, `inertia = friction, r ≈ ${f3(n.rc)}a`, lx, ly, { color: AM, weight: 650, align: 'center' });
+    }
+    if (s.shade) {
+      [[0.1, '10 %'], [0.01, '1 %']].forEach(([e, t]) => {
+        const rr = feltR(m, s.Re, e), X = P.X(xs), Y = P.Y(-rr);
+        if (Y < P.px.y + P.px.h - 10 && Y > P.px.y + 10 && P.sx(rr) > 45) lab(ctx, `|u′| = ${t} of U`, X, Y, { color: BL, align: 'center' });
+      });
+    }
+  }
+  // colour bar on wide views
+  if (barW && s.shade) {
+    const x0 = v.w - barW + 10, y0 = P.px.y + 18, hb = Math.max(40, P.px.h - 36);
+    for (let i = 0; i < hb; i++) { const c = Viz.cmap('blues', 1 - i / hb); ctx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},0.6)`; ctx.fillRect(x0, y0 + i, 12, 1); }
+    ctx.strokeStyle = Viz.color('border'); ctx.strokeRect(x0 + 0.5, y0 + 0.5, 12, hb);
+    ctx.save(); ctx.font = Viz.font(12, 500); ctx.fillStyle = Viz.color('axis'); ctx.textBaseline = 'middle';
+    [['1', 0], ['0.1', 1 / 3], ['0.01', 2 / 3], ['10⁻³', 1]].forEach(([t, q]) => ctx.fillText(t, x0 + 16, y0 + q * hb));
+    ctx.textBaseline = 'bottom'; ctx.fillStyle = Viz.color('text-soft'); ctx.fillText('|u′|/U', x0, y0 - 5); ctx.restore();
+  }
+  // end of the run in the fluid frame: the dye has been dragged forward
+  if (s.frame === 'fluid' && s.tau >= 0.999) {
+    const d = j => tr.paths[j][NSAMP][0] - tr.X0;
+    Viz.card(ctx, P.px.x + P.px.w / 2, P.px.y + P.px.h * 0.2, [`The ${MODEL[m]} sphere has gone by; the dye was dragged along:`,
+      `${f3(-d(NSEED + 5))}a at ϖ = ${f3(tr.seeds[NSEED + 5])}a, ${f3(-d(2 * NSEED))}a at ϖ = ${f3(tr.seeds[2 * NSEED])}a.`], { color: TE, maxWidth: Math.min(P.px.w - 8, 480) });
   }
 }
+function flowTitle(s) {
+  const n = N(s), fw = s.frame === 'fluid' ? 'fluid frame' : 'sphere frame';
+  const rcTxt = s.model === 'ideal' ? 'no inertia limit' : `<span class="c-amber">inertia = friction at ${f3(n.rc)}a</span>`;
+  if (phone()) return `<b>${MODEL[s.model]}</b> · ${fw} · ${rcTxt}`;
+  return `<b>${MODEL[s.model]} flow</b> in a plane through the axis · ${fw} · <span class="c-blue">shade: disturbance |u′|/U</span> · <span class="c-teal">dye line</span> · ${rcTxt}`;
+}
 
-function drawRescaled(v, s, app) {
-  v.clear();
-  const C = colors(), ctx = v.ctx, c = cur(s), col = c.col, m = Number(s.m), small = v.w < 420 || v.h < 150;
-  const xmax = 1.12 * Math.max(col.ximax, m === 0.2 ? ETA_N : 0), ymax = 1.2 * Math.max(col.Hmax, m === 0.2 ? HC0 : 0, 1e-9);
-  const mt = m === 0.2 ? '⅕' : '½';
-  const P = v.plot({ xlim: [0, xmax], ylim: [0, ymax], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } })
-    .axes({ xlabel: 'x / (x₀ τ^' + mt + ')', ylabel: small ? '' : 'h τ^' + mt + ' / x₀', zeroLines: false });
+/* ---- view 2: speed along the side line θ = 90° ---------------------------------------------------------------- */
+let SDP = null;
+function drawSide(g, s) {
+  const v = g.view('side'); v.clear(); SDP = null;
+  if (v.w < 50 || v.h < 40) return;
+  const ctx = v.ctx, fr = s.frame, n = N(s), shortV = v.h < 150;
+  const P = logPlot(v, { xlim: [0, 3], ylim: [0, 1.6], yticks: [0, 0.5, 1, 1.5], xlabel: v.w < 420 ? 'r/a (log scale)' : 'r/a on the side line θ = 90° (log scale)', ylabel: '|u|/U' });
+  SDP = P;
+  const rs = Viz.num.linspace(0, 3, 240);
+  const BL = Viz.color('blue'), AC = Viz.color('accent'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const mods = [['ideal', MU, [6, 4]], ['stokes', BL, []], ['oseen', AC, []]];
   P.clip(() => {
-    const n = col.prof.length;
-    col.prof.forEach((pr, i) => {
-      const xs = [], ys = [];
-      for (let j = 0; j < NC; j++) { const xi = XC[j] / pr.sc; if (xi > xmax) break; xs.push(xi); ys.push(Math.max(0, pr.h[j] - HMIN) * pr.sc); }
-      const last = i === n - 1;
-      P.line(xs, ys, { color: Viz.alpha(C.blue, last ? 1 : 0.2 + 0.6 * i / Math.max(1, n - 1)), width: last ? 2.8 : 1.6 });
+    P.line([0, 3], [1, 1], { color: Viz.alpha(TX, 0.35), width: 1, dash: [3, 3] });
+    mods.forEach(([m, col, dash]) => {
+      const cur = m === s.model;
+      P.line(rs, rs.map(q => side(10 ** q, m, s.Re, fr)), { color: col, width: cur ? 3 : 1.6, dash, alpha: cur ? 1 : 0.6 });
     });
-    if (m === 0.2) P.fn(xi => { const q = 1 - xi * xi / (ETA_N * ETA_N); return q > 0 ? HC0 * Math.cbrt(q) : 0; }, { color: C.accent, dash: [7, 5], width: 2, n: 200 });
+    const lp = Math.log10(n.r);
+    P.line([lp, lp], [0, 1.6], { color: Viz.alpha(TX, 0.4), width: 1, dash: [4, 3] });
+    const col = s.model === 'oseen' ? AC : s.model === 'ideal' ? MU : BL;
+    P.dot(1, side(10, s.model, s.Re, fr), 5, { color: col, stroke: '#fff', strokeWidth: 2 });
   });
-  if (v.h > 100) Viz.text(ctx, (col.prof.length > 1 ? 'spread ' + pct(col.spread) : 'one profile so far'), P.px.x + P.px.w - 4, P.px.y + 10, { size: 12, align: 'right', color: col.spread < 0.05 ? C.teal : C.rose, bg: true });
+  if (!shortV && v.w >= 300) {
+    const y10 = side(10, s.model, s.Re, fr), up = y10 > 0.8;
+    lab(ctx, `at 10a: ${f5(y10)}U`, P.X(1) + 8, P.Y(y10) + (up ? 14 : -14), { color: TX, align: 'left', weight: 650 });
+    lab(ctx, fr === 'body' ? 'U far away' : 'still fluid far away', P.px.x + P.px.w - 4, P.Y(fr === 'body' ? 1 : 0) + (fr === 'body' ? -10 : -10), { color: MU, align: 'right' });
+  }
+}
+function sideTitle(s) {
+  const y10 = side(10, s.model, s.Re, s.frame);
+  if (phone()) return `<b>Side-line speed</b> · 10a: ${f4(y10)}U · <span class="c-blue">Stokes</span> <span class="c-accent">Oseen</span> <span class="c-muted">ideal</span>`;
+  return `<b>Speed beside the sphere</b> (θ = 90°) · <span class="c-blue">Stokes</span> · <span class="c-accent">Oseen, Re ${f3(s.Re)}</span> · <span class="c-muted">ideal (dashed)</span> · ● at 10a`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   Words for the current regime (status, notes, Explain)
-   --------------------------------------------------------------------------------------------------- */
-const SIMILAR = 0.02;                                                       // ≤ 2 % of the volume out of place = self-similar
-function regime(s) { const c = cur(s); return c.dome > SIMILAR ? 'early' : 'similar'; }
-function readingText(s) {
-  const c = cur(s);
-  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the t^(1/5) line: it runs ahead of or behind the law while the start is being forgotten.';
-  const catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
-  return 'The initial shape is forgotten (only ' + pct(c.dome) + ' of the volume is out of place): the profile is Huppert\'s dome' +
-    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances as t^(' + (isFinite(c.slope) ? c.slope.toFixed(3) : '0.2') + ')') +
-    ' — exponents forced by the thin-film equation and the conserved volume, not by the start.';
+/* ---- view 3: inertia / viscous on Stokes' field ----------------------------------------------------------------- */
+let RTP = null;
+function drawRatio(g, s) {
+  const v = g.view('ratio'); v.clear(); RTP = null;
+  if (v.w < 50 || v.h < 40) return;
+  const ctx = v.ctx, n = N(s), Re = s.Re, shortV = v.h < 150;
+  const P = logPlot(v, { xlim: [0, 4], ylim: [-4, 3], ylog: true, xlabel: 'r/a (log scale)', ylabel: 'inertia / friction' });
+  RTP = P;
+  const TE = Viz.color('teal'), AM = Viz.color('amber'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const lg = x => (x > 0 ? Math.log10(x) : NaN);
+  const rs = Viz.num.linspace(0.002, 4, 260);
+  P.clip(() => {
+    P.line([0, 4], [0, 0], { color: AM, width: 1.6 });
+    P.line(rs, rs.map(q => lg(0.25 * Re * 10 ** q)), { color: MU, width: 1.6, dash: [7, 5] });
+    P.line(rs, rs.map(q => lg(0.5 * Re * 10 ** q)), { color: MU, width: 1.4, dash: [2, 4] });
+    P.line(rs, rs.map(q => lg(ratio(10 ** q, PI / 2, Re))), { color: TE, width: 1.6, dash: [5, 4], alpha: 0.8 });
+    P.line(rs, rs.map(q => lg(ratio(10 ** q, 0, Re))), { color: TE, width: 2.6 });
+    for (let k = 1; k <= 16; k++) { const q = k / 4, y = lg(ratio(10 ** q, 0, Re)); if (isFinite(y)) P.dot(q, y, 3, { color: TE, stroke: '#fff', strokeWidth: 1 }); }
+    const rp = lg(n.iv.ratio); if (isFinite(rp)) P.dot(lg(n.r), rp, 5, { color: Viz.color('card'), stroke: TE, strokeWidth: 2 });
+    if (n.rc <= 1e4) P.dot(lg(n.rc), 0, 5.5, { color: AM, stroke: '#fff', strokeWidth: 2 });
+  });
+  if (!shortV && v.w >= 300) {
+    if (n.rc <= 1e4) lab(ctx, `r_c ≈ ${f3(n.rc)}a`, P.X(lg(n.rc)) + (lg(n.rc) > 2.8 ? -8 : 8), P.Y(0) + 14, { color: AM, weight: 650, align: lg(n.rc) > 2.8 ? 'right' : 'left' });
+    else lab(ctx, `r_c ≈ ${f3(n.rc)}a (off scale)`, P.px.x + P.px.w - 4, P.Y(0) + 14, { color: AM, weight: 650, align: 'right' });
+    lab(ctx, '½Re_a r/a', P.px.x + P.px.w - 4, P.px.y + 12, { color: MU, align: 'right' });
+  }
 }
-function interpretText(s) {
-  const c = cur(s), wrong = s.m === '0.5';
-  let out = readingText(s);
-  out += ' Right now the thickest point is ' + fmtLen(c.hpk) + ' thick, so the effective diffusivity ρgh³/3μ there is ' + f3(c.Deff) + ' m²/s.';
-  if (s.mu >= 1e10) out += ' * Glacier analogy: real ice is non-Newtonian (its viscosity falls with stress), so only the time scale — ' + Viz.fmtTime(c.t) + ' to reach this shape — is meaningful here.';
-  if (wrong) out += ' With m = 1/2 (diffusion\'s guess) the rescaled curves drift apart (spread ' + pct(c.col.spread) + '): this is not a diffusion length.';
-  return out;
+function ratioTitle(s) {
+  return `<b>Inertia / friction</b> on Stokes' field · <span class="c-teal">axis θ = 0 (solid, dots), side (dashed)</span> · <span class="c-muted">Re_a r/a dotted, ½Re_a r/a dashed</span>`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
-const app = Viz.app({
-  title: 'Why does a honey drop spread like t^(1/5)?',
-  subtitle: 'A viscous bead slumping under its own weight: the layer with its flux, the front on log–log axes and the profiles rescaled — one clock',
+/* ---- status, inspector, notes ------------------------------------------------------------------------------------ */
+function statusOf(s) {
+  const n = N(s), sm = phone();
+  if (s.model === 'ideal') return { text: sm ? '💨 ideal: no friction, a³/r³' : '💨 ideal flow (Ch. 6): no friction · fore–aft symmetric · the disturbance dies like a³/r³', tone: 'info' };
+  if (s.model === 'stokes') {
+    if (s.Re > 1) return { text: sm ? `⚠️ Re ${f3(s.Re)}: Stokes is rough` : `⚠️ Stokes at Re = ${f3(s.Re)}: inertia matters already at r ≈ ${f3(n.rc)}a — only a rough guide`, tone: 'warn' };
+    return { text: sm ? `↔️ Stokes · symmetric · r_c ${f3(n.rc)}a` : `↔️ Stokes: linear, fore–aft symmetric · inertia catches up with friction at r ≈ ${f3(n.rc)}a (Re = ${f3(s.Re)})`, tone: 'good' };
+  }
+  return { text: sm ? `🌊 Oseen wake · Re ${f3(s.Re)}` : `🌊 Oseen: the stream sweeps the disturbance downstream into a wake · Re = ${f3(s.Re)}, inertia = friction at r ≈ ${f3(n.rc)}a`, tone: s.Re > 2 ? 'warn' : 'info' };
+}
+function inspectHtml(s) {
+  const n = N(s), r = n.r, th = n.th, c = Math.cos(th), sn = Math.sin(th), fr = s.frame === 'fluid' ? ' (fluid frame: minus the stream)' : '';
+  let o = `Probe $r=${t3(r)}a$, $\\theta=${t3(s.pth)}^\\circ$${fr}:<br>`;
+  if (s.model === 'stokes') {
+    o += `$u_r=U\\cos\\theta\\big(1-\\frac{3a}{2r}+\\frac{a^3}{2r^3}\\big)$<br>$\\quad=${t3(c)}\\times${t3(1 - 1.5 / r + 0.5 / r ** 3)}=${t3(velS(r, th)[0])}\\,U$<br>` +
+      `$u_\\theta=-U\\sin\\theta\\big(1-\\frac{3a}{4r}-\\frac{a^3}{4r^3}\\big)$<br>$\\quad=-${t3(sn)}\\times${t3(1 - 0.75 / r - 0.25 / r ** 3)}=${t3(velS(r, th)[1])}\\,U$<br>`;
+  } else if (s.model === 'ideal') {
+    o += `$u_r=U\\cos\\theta\\big(1-\\frac{a^3}{r^3}\\big)=${t3(velI(r, th)[0])}\\,U$<br>$u_\\theta=-U\\sin\\theta\\big(1+\\frac{a^3}{2r^3}\\big)=${t3(velI(r, th)[1])}\\,U$<br>`;
+  } else {
+    const sO = s.Re / 4 * r * (1 - c);
+    o += `$s=\\frac{\\mathrm{Re}}4\\frac ra(1-\\cos\\theta)=${t3(sO)}$, $e^{-s}=${t3(Math.exp(-sO))}$<br>` +
+      `$u_\\theta=-U\\sin\\theta\\big(1-\\frac{a^3}{4r^3}-\\frac{3a}{4r}e^{-s}\\big)=${t3(velO(r, th, s.Re)[1])}\\,U$<br>$u_r=${t3(velO(r, th, s.Re)[0])}\\,U$ (Stokes: ${t3(velS(r, th)[0])})<br>`;
+  }
+  return o + `$|\\mathbf u|=\\mathbf{${t4(n.speed)}}\\,U$, $\\ \\psi=${t4(n.psi)}\\,Ua^2$`;
+}
+function interpText(s) {
+  const n = N(s);
+  if (s.model === 'ideal') return `Without viscosity nothing drags the fluid: it must hurry round the sphere (1.5U at the equator) and the disturbance dies like a³/r³ — at 10a the side speed is ${f5(side(10, 'ideal'))}U. There is no friction, so no drag (d'Alembert) and no crossover radius.`;
+  if (s.model === 'stokes') return `Linear equations: reversing the stream reverses every arrow, so front and back look alike and there is no wake. The a/r term lets the sphere be felt far away — ${f3(n.def10)} % slow at 10a. That same slow decay is why inertia returns at r ≈ ${f3(n.rc)}a${s.Re > 1 ? '; at this Re that is next to the sphere, so Stokes\' solution is only a rough guide' : ', far beyond the region that matters for the drag'}.`;
+  return `Far away the stream sweeps the disturbance downstream (U ∂u′/∂x): the blue shade stretches into a wake behind the sphere and thins in front, while near the sphere the flow is Stokes' again. At Re = ${f3(s.Re)} the crossover is ${f3(n.rc)}a and the drag grows by the factor 1 + 3Re/16 = ${f4(1 + 3 * s.Re / 16)}.`;
+}
+
+/* ---- Explain: "Explanation & interpretation" ---------------------------------------------------------------------- */
+const E848 = '\\psi=Ur^2\\sin^2\\theta\\Big(\\frac12-\\frac{3a}{4r}+\\frac{a^3}{4r^3}\\Big)';
+const E849r = 'u_r=U\\cos\\theta\\Big(1-\\frac{3a}{2r}+\\frac{a^3}{2r^3}\\Big)';
+const E849t = 'u_\\theta=-U\\sin\\theta\\Big(1-\\frac{3a}{4r}-\\frac{a^3}{4r^3}\\Big)';
+const E849 = '\\begin{aligned}' + E849r.replace('=', '&=') + '\\\\' + E849t.replace('=', '&=') + '\\end{aligned}';
+const E849c = '\\begin{aligned}u_r&=U\\cos\\theta\\big(1-\\tfrac{3a}{2r}+\\tfrac{a^3}{2r^3}\\big)\\\\u_\\theta&=-U\\sin\\theta\\big(1-\\tfrac{3a}{4r}-\\tfrac{a^3}{4r^3}\\big)\\end{aligned}';
+const E843 ='\\nabla p=\\mu\\nabla^2\\mathbf u';
+const E853 = '\\begin{aligned}\\frac{\\psi}{Ua^2}=&\\Big[\\frac{r^2}{2a^2}+\\frac a{4r}\\Big]\\sin^2\\theta-\\frac3{\\mathrm{Re}}(1+\\cos\\theta)\\\\&\\times\\Big\\{1-\\exp\\Big[-\\frac{\\mathrm{Re}}4\\frac ra(1-\\cos\\theta)\\Big]\\Big\\}\\end{aligned}';
+const E853in = '\\frac{\\psi}{Ua^2}=\\big[\\frac{r^2}{2a^2}+\\frac a{4r}\\big]\\sin^2\\theta-\\frac3{\\mathrm{Re}}(1+\\cos\\theta)\\{1-e^{-s}\\}';
+const E2DEF = 'E^2=\\frac{\\partial^2}{\\partial r^2}+\\frac{\\sin\\theta}{r^2}\\frac{\\partial}{\\partial\\theta}\\Big(\\frac{1}{\\sin\\theta}\\frac{\\partial}{\\partial\\theta}\\Big)';
+const E683 = 'u_r=\\frac{1}{r^2\\sin\\theta}\\frac{\\partial\\psi}{\\partial\\theta},\\ \\ u_\\theta=-\\frac{1}{r\\sin\\theta}\\frac{\\partial\\psi}{\\partial r}';
+const E847 = '\\psi\\to\\frac12Ur^2\\sin^2\\theta';
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), sm = phone(), m = s.model, r = n.r, th = n.th, Re = s.Re;
+  let o = W.step(0, 'What the views show') + (sm
+    ? W.say('<b>Plane through the axis</b>: grey sphere, <b class="c-teal">teal</b> dye line, thin streamlines, <b class="c-blue">blue</b> shade = the disturbance, <b class="c-amber">amber</b> circle = where inertia equals friction. <b>Side-line speed</b>: <b class="c-blue">Stokes</b>, <b class="c-accent">Oseen</b>, <span class="c-muted">ideal</span>.')
+    : W.say('<b>Plane through the axis</b> (the flow is the same in every such plane): the grey sphere, thin streamlines (lines of constant ψ), the <b class="c-teal">teal</b> dye line carried by the flow, a <b class="c-blue">blue</b> shade whose darkness is the disturbance $|\\mathbf u-U\\mathbf e_x|/U$ (dashed: 10 % and 1 %), and the <b class="c-amber">amber</b> circle where inertia catches up with friction. <b>Speed beside the sphere</b>: <b class="c-blue">Stokes</b>, <b class="c-accent">Oseen</b> and <span class="c-muted">ideal flow (dashed)</span>. <b>Inertia / friction</b>: the ratio computed on Stokes\' field, with the order-of-magnitude estimates.')) +
+    W.hint('The <b>Inertia / friction</b> view is hidden on portrait phones; its crossover radius is in the title of the flow view and in §3.');
+  o += W.step(1, `Your probe (${MODEL[m]}, r = ${f3(r)}a, θ = ${f3(s.pth)}°)`);
+  if (m === 'stokes') {
+    o += W.line(`$${E848}$ (8.48)`, f4(psiS(r, th, s.frame)) + ' Ua²', s.frame === 'fluid' ? 'fluid frame: without the ½r² sin²θ of the stream' : 'Stokes\' stream function')
+      + W.line(`$${E849r}$ (8.49)`, f4(n.v[0]) + ' U', `${f3(Math.cos(th))} × ${f3(1 - 1.5 / r + 0.5 / r ** 3)}` + (s.frame === 'fluid' ? ' − cos θ' : ''))
+      + W.line(`$${E849t}$`, f4(n.v[1]) + ' U', `−${f3(Math.sin(th))} × ${f3(1 - 0.75 / r - 0.25 / r ** 3)}` + (s.frame === 'fluid' ? ' + sin θ' : ''));
+  } else if (m === 'ideal') {
+    o += W.line('$\\psi=\\tfrac12U\\sin^2\\theta\\big(r^2-\\frac{a^3}{r}\\big)$ (Ch. 6)', f4(psiI(r, th, s.frame)) + ' Ua²', 'uniform stream + doublet')
+      + W.line('$u_r=U\\cos\\theta\\big(1-\\frac{a^3}{r^3}\\big)$', f4(n.v[0]) + ' U', 'no slip is not imposed')
+      + W.line('$u_\\theta=-U\\sin\\theta\\big(1+\\frac{a^3}{2r^3}\\big)$', f4(n.v[1]) + ' U', 'faster than U beside the sphere');
+  } else {
+    const sO = Re / 4 * r * (1 - Math.cos(th));
+    o += W.line('$s=\\frac{\\mathrm{Re}}4\\frac ra(1-\\cos\\theta)$', f4(sO), 'how far inertia reaches at the probe')
+      + W.line(`$${E853in}$ (8.53)`, f4(n.psi) + ' Ua²', `Stokes gives ${f4(psiS(r, th, s.frame))}`)
+      + W.line('$u_r,\\ u_\\theta$ from $\\psi$ by (6.83)', `${f4(n.v[0])}, ${f4(n.v[1])} U`, 'differentiated in closed form');
+  }
+  o += W.box(`$|\\mathbf u|=\\mathbf{${t4(n.speed)}}\\,U$ at the probe` + (s.frame === 'fluid' ? ' (seen by a still observer)' : ' (seen from the sphere)'));
+  const r1s = feltR('stokes', Re, 0.01), r1i = feltR('ideal', Re, 0.01), r1o = feltR('oseen', Re, 0.01);
+  o += W.step(2, 'How far the sphere is felt') +
+    W.line('Stokes, side line at 10a: $1-\\frac{3}{40}-\\frac{1}{4000}$', f4(side(10, 'stokes')) + ' U', `${f4(100 * (1 - side(10, 'stokes')))} % slow`) +
+    W.line('ideal, side line at 10a: $1+\\frac{1}{2000}$', f5(side(10, 'ideal')) + ' U', 'already back to the stream') +
+    W.line(`Oseen (Re = ${f3(Re)}) at 10a`, f4(side(10, 'oseen', Re)) + ' U', 'between the two') +
+    W.box(`the disturbance falls to 1 % of U at $r=\\mathbf{${t3(r1s)}}a$ (Stokes), $${t3(r1i)}a$ (ideal), $${t3(r1o)}a$ (Oseen)`) +
+    W.say('Stokes\' $-\\frac{3a}{4r}$ term (a point force, the "Stokeslet") decays like 1/r; the ideal doublet only like $a^3/r^3$.');
+  o += W.step(3, 'Where Stokes\' solution fails') +
+    W.line(`$\\mathrm{Re}_a=\\frac{Ua}{\\nu}=\\frac{\\mathrm{Re}}{2}$`, f3(n.Rea), 'the book\'s estimate uses the radius') +
+    W.line('$\\frac{\\text{inertia}}{\\text{viscous}}\\sim\\mathrm{Re}_a\\frac ra$ → 1 at', f3(1 / n.Rea) + 'a', 'order of magnitude') +
+    W.line('exact on the axis: $\\frac{\\mathrm{Re}}6F F\' r^3\\to\\frac12\\mathrm{Re}_a\\frac ra$', 'prefactor ½', 'with $F=1-\frac{3a}{2r}+\frac{a^3}{2r^3}$ of $u_r=U\cos\theta\,F$ (8.49)') +
+    W.box(`inertia = friction at $r_c=\\mathbf{${t4(n.rc)}}a$ (axis, solved exactly) $\\approx\\frac{4a}{\\mathrm{Re}}=${t3(4 / Re)}a$`) +
+    W.line(`at your probe: $|\\mathbf u\\cdot\\nabla\\mathbf u|/|\\nu\\nabla^2\\mathbf u|$`, f3(n.iv.ratio), `${f3(n.iv.inert)} ÷ ${f3(n.iv.visc)} (units U²/a)`) +
+    W.say(`A real case: a bead of radius a = 1 mm sinking at 1 mm/s through syrup (ν = 10⁻³ m²/s) has Re = 0.002, so inertia wakes up only ${f3(crossRc(0.002) / 1000)} m away; in water (ν = 10⁻⁶ m²/s) Re = 2 and Stokes fails at the bead itself.`);
+  const pD = Math.abs(psiO(5, PI / 4, Re, 'fluid')), pU = Math.abs(psiO(5, 3 * PI / 4, Re, 'fluid'));
+  o += W.step(4, 'Oseen\'s correction') +
+    W.line('near the sphere, $1-e^{-s}\\approx s$ turns (8.53) into (8.48)', `ψ_O/ψ_S = ${f4(psiO(r, th, Re) / psiS(r, th))}`, 'at your probe (sphere frame)') +
+    W.line('fluid-frame |ψ| at 5a, 45° behind vs 135° in front', `${f4(pD)} vs ${f4(pU)} Ua²`, pD > pU ? 'larger behind: the wake' : 'about equal') +
+    W.box(`drag grows by $C_D=\\frac{24}{\\mathrm{Re}}\\big(1+\\frac{3}{16}\\mathrm{Re}\\big)$: factor $\\mathbf{${t4(1 + 3 * Re / 16)}}$`) +
+    (m === 'oseen' ? '' : W.hint('Press <b>Oseen</b> above the picture to see the wake.'));
+  o += W.step(5, 'The dye line right now') +
+    W.line('time since release $t=\\tau\\cdot 2X_0/U$', Viz.live('t')) +
+    W.line('near-axis dye (ϖ = Z/4) behind the outer dye (ϖ = Z)', Viz.live('lag'));
+  o += W.interpret(interpText(s), 'Reading the current setting');
+  return o;
+}
+function explainLive(s) {
+  const tr = trajectories(s.model, s.Re, s.zoom), a = posAt(tr, NSEED + 4, s.tau, 'body'), b = posAt(tr, 2 * NSEED, s.tau, 'body');
+  return { t: `${f3(s.tau * tr.T)} a/U (${f3(s.tau * 100)} % of the run)`, lag: `${f3(b[0] - a[0])}a` };
+}
+
+/* ---- derivations (design Part F, as refined in notebooks/build_ch08.py: D28 12, D29 10, D32 7, D33 7 steps) ------- */
+const BASE = { model: 'stokes', frame: 'body', Re: 0.1, zoom: 8, pr: 2, pth: 90, shade: true, tau: 0.56 };
+const DERIV = [
+  { id: 'D28', title: 'One equation for Stokes\' stream function', short: 'D28 E⁴ψ = 0', ref: 'Eq. (8.44)', view: 'flow',
+    set: Object.assign({}, BASE),
+    goal: 'Turn the vorticity form of the Stokes equations into one scalar equation for the stream function ψ.',
+    start: { tex: '\\begin{aligned}&' + E683 + '\\\\&\\boldsymbol\\omega=\\omega_\\varphi\\mathbf e_\\varphi,\\quad -\\nabla\\times\\nabla\\times\\boldsymbol\\omega=0\\end{aligned}',
+      plain: `Stokes' stream function (6.83) above, the azimuthal vorticity, and the vorticity equation from the curl of $${E843}$ (8.43).` },
+    plan: ['Write ω_φ through ψ with the operator E².', 'Show that the curl of any azimuthal field, taken twice, is an E² operation.', 'Combine the two.'],
+    uses: ['Stokes stream function (Ch. 6)', 'curl in spherical coordinates (Ch. 3)', 'the Stokes operator E²', 'sympy check in the notebook'],
+    steps: [
+      { did: 'Keep only the azimuthal vorticity', tex: '\\boldsymbol\\omega=\\omega_\\varphi(r,\\theta)\\,\\mathbf e_\\varphi',
+        why: 'With no swirl (u_φ = 0) and nothing depending on φ, the r- and θ-components of the spherical curl vanish.', plain: 'Vorticity circles the axis, like smoke rings.' },
+      { did: 'Write ω_φ from the velocity', tex: '\\omega_\\varphi=\\frac1r\\Big[\\frac{\\partial(ru_\\theta)}{\\partial r}-\\frac{\\partial u_r}{\\partial\\theta}\\Big]',
+        why: 'The φ-component of the curl in spherical coordinates (Ch. 3).', plain: 'A rotation rate in the meridian plane.' },
+      { did: 'Insert u_θ from the stream function', tex: '\\frac{\\partial(ru_\\theta)}{\\partial r}=-\\frac{1}{\\sin\\theta}\\frac{\\partial^2\\psi}{\\partial r^2}',
+        why: 'r u_θ = −(1/sin θ)∂ψ/∂r, and sin θ does not depend on r.', plain: 'The first half of the bracket.' },
+      { did: 'Insert u_r from the stream function', tex: '\\frac{\\partial u_r}{\\partial\\theta}=\\frac{1}{r^2}\\frac{\\partial}{\\partial\\theta}\\Big(\\frac{1}{\\sin\\theta}\\frac{\\partial\\psi}{\\partial\\theta}\\Big)',
+        why: 'u_r = (1/r²)(1/sin θ)∂ψ/∂θ; differentiate in θ at fixed r.', plain: 'The second half.' },
+      { did: 'Combine', tex: '\\begin{aligned}\\omega_\\varphi=-\\frac1r\\Big[&\\frac{1}{\\sin\\theta}\\frac{\\partial^2\\psi}{\\partial r^2}\\\\&+\\frac1{r^2}\\frac{\\partial}{\\partial\\theta}\\Big(\\frac1{\\sin\\theta}\\frac{\\partial\\psi}{\\partial\\theta}\\Big)\\Big]\\end{aligned}',
+        why: 'Insert steps 3 and 4 into the curl formula of step 2 and collect the bracket.', plain: 'The vorticity written through ψ alone.' },
+      { did: 'Factor out 1/sin θ', tex: '\\begin{aligned}&\\omega_\\varphi=-\\frac{E^2\\psi}{r\\sin\\theta}\\\\&' + E2DEF + '\\end{aligned}',
+        why: 'Multiply and divide the bracket by sin θ; the operator left over is Ch. 6\'s E².', plain: 'Vorticity = −E²ψ/(r sin θ).',
+        live: s => { const n = N(s); return `\\text{Stokes: }\\omega_\\varphi=-\\frac{3Ua}{2r^2}\\sin\\theta=${t3(-1.5 * Math.sin(n.th) / (n.r * n.r))}\\,U/a`; },
+        watch: 'the vorticity is largest on the sphere\'s equator (−1.5 U/a) and fades like 1/r².' },
+      { did: 'Curl an azimuthal field', tex: '\\begin{aligned}\\nabla\\times(A\\,\\mathbf e_\\varphi)=&\\frac{\\partial_\\theta(\\sin\\theta\\,A)}{r\\sin\\theta}\\mathbf e_r\\\\&-\\frac{\\partial_r(rA)}{r}\\mathbf e_\\theta\\end{aligned}',
+        why: 'The spherical curl of A = A(r, θ) e_φ. We need the curl twice, so we work it out for any A.', plain: 'An azimuthal field curls into a meridional one.' },
+      { did: 'Introduce Ψ = r sin θ A', tex: '\\begin{aligned}\\nabla\\times(A\\,\\mathbf e_\\varphi)=&\\frac{1}{r^2\\sin\\theta}\\frac{\\partial\\Psi}{\\partial\\theta}\\mathbf e_r\\\\&-\\frac{1}{r\\sin\\theta}\\frac{\\partial\\Psi}{\\partial r}\\mathbf e_\\theta\\end{aligned}',
+        why: 'sin θ A = Ψ/r and rA = Ψ/sin θ turn step 7 into exactly the stream-function pattern, with Ψ in place of ψ.', plain: 'The curl looks like a velocity made from a stream function Ψ.' },
+      { did: 'Curl again using step 6', tex: '\\nabla\\times\\nabla\\times(A\\,\\mathbf e_\\varphi)=-\\frac{E^2\\Psi}{r\\sin\\theta}\\mathbf e_\\varphi',
+        why: 'Steps 2–6 showed that the curl of a field built from a stream function Ψ is −E²Ψ/(r sin θ) e_φ.', plain: 'Taking the curl twice is an E² operation.' },
+      { did: 'Apply it to the vorticity', tex: '\\Psi=r\\sin\\theta\\,\\omega_\\varphi=-E^2\\psi',
+        why: 'Take A = ω_φ and use step 6.', plain: 'The "stream function" of the vorticity is −E²ψ.' },
+      { did: 'Insert into the vorticity equation', tex: '\\begin{aligned}-\\nabla\\times\\nabla\\times\\boldsymbol\\omega&=\\frac{E^2\\Psi}{r\\sin\\theta}\\mathbf e_\\varphi\\\\&=-\\frac{E^2(E^2\\psi)}{r\\sin\\theta}\\mathbf e_\\varphi=0\\end{aligned}',
+        why: 'Put step 10 into step 9 with A = ω_φ, then set the result to zero as the vorticity equation demands.', plain: 'One scalar equation is left.' },
+      { did: 'Divide by r sin θ', tex: 'E^2(E^2\\psi)=0',
+        why: 'r sin θ ≠ 0 off the axis. This is the square of the operator E², not the biharmonic ∇⁴ (the book\'s footnote).', plain: 'The stream-function equation of creeping flow.' }
+    ],
+    result: { tex: '\\Big[\\frac{\\partial^2}{\\partial r^2}+\\frac{\\sin\\theta}{r^2}\\frac{\\partial}{\\partial\\theta}\\Big(\\frac{1}{\\sin\\theta}\\frac{\\partial}{\\partial\\theta}\\Big)\\Big]^2\\psi=0',
+      plain: 'This is (8.44): creeping axisymmetric flow obeys the squared Stokes operator, $(E^2)^2\\psi=0$ — a fourth-order equation, so it needs four conditions (two on the sphere, two far away).' },
+    interpret: s => { const n = N(s); return `For Stokes' solution the vorticity at your probe is ω_φ = −(3U/2a)(a/r)² sin θ = ${f3(-1.5 * Math.sin(n.th) / (n.r * n.r))} U/a: vorticity made at the sphere spreads out and decays like 1/r², while the velocity disturbance decays only like 1/r.`; },
+    check: 'Units: E² is 1/m², so E⁴ψ ~ ψ/m⁴ ✓. sympy (notebook): E⁴ψ = 0 for Stokes\' ψ, but ∇⁴ψ ≠ 0; the curl–curl identity of steps 7–9 holds for a generic A(r, θ).' },
+  { id: 'D29', title: 'Solving for Stokes\' stream function', short: 'D29 ψ', ref: 'Eq. (8.48)', view: 'flow',
+    set: Object.assign({}, BASE),
+    goal: 'Solve the stream-function equation with no flow through the sphere, no slip on it and the uniform stream far away.',
+    start: { tex: '\\begin{aligned}&(E^2)^2\\psi=0,\\quad \\psi(a,\\theta)=0,\\\\&\\frac{\\partial\\psi}{\\partial r}(a,\\theta)=0,\\quad ' + E847 + '\\end{aligned}',
+      plain: 'The stream-function equation $(E^2)^2\psi=0$ (8.44) with its three conditions (8.45)–(8.47) shown above: no flow through the sphere, no slip on it, the stream far away.' },
+    plan: ['Separate ψ = f(r) sin²θ.', 'Get an ordinary differential equation for f.', 'Find its power-law solutions.', 'Fix the four constants from the conditions.'],
+    uses: ['the Stokes operator E²', 'Euler–Cauchy equations (try r^λ)', 'a 2 × 2 linear system'],
+    steps: [
+      { did: 'Try a separable form', tex: '\\psi=f(r)\\sin^2\\theta',
+        why: `The far field $${E847}$ (8.47) has sin²θ; if E² keeps sin²θ, the whole problem reduces to r.`, plain: 'Guess the angular shape from infinity.' },
+      { did: 'Apply the angular part', tex: '\\sin\\theta\\frac{\\partial}{\\partial\\theta}\\Big(\\frac{1}{\\sin\\theta}\\frac{\\partial\\sin^2\\theta}{\\partial\\theta}\\Big)=-2\\sin^2\\theta',
+        why: '∂_θ sin²θ = 2 sin θ cos θ; divided by sin θ it is 2 cos θ, whose θ-derivative times sin θ is −2 sin²θ.', plain: 'sin²θ is reproduced.' },
+      { did: 'E² of the trial', tex: 'E^2(f\\sin^2\\theta)=\\Big(f\'\'-\\frac{2f}{r^2}\\Big)\\sin^2\\theta',
+        why: 'The radial part gives f″ sin²θ; the angular part gives (1/r²)(−2 sin²θ) f.', plain: 'E² acts on f alone.' },
+      { did: 'Apply E² again', tex: 'f^{iv}-\\frac{4f\'\'}{r^2}+\\frac{8f\'}{r^3}-\\frac{8f}{r^4}=0',
+        why: 'With g = f″ − 2f/r² the equation is g″ − 2g/r² = 0; expanding (f/r²)″ = f″/r² − 4f′/r³ + 6f/r⁴ gives this line.', plain: 'A fourth-order Euler–Cauchy equation.' },
+      { did: 'Try f = r^λ', tex: '\\lambda(\\lambda-1)(\\lambda-2)(\\lambda-3)-4\\lambda(\\lambda-1)+8\\lambda-8=0',
+        why: 'Every term becomes r^(λ−4) times a polynomial in λ, so the polynomial must vanish.', plain: 'An algebraic equation for the power.' },
+      { did: 'Factor the polynomial', tex: '(\\lambda-4)(\\lambda-2)(\\lambda-1)(\\lambda+1)=0',
+        why: '8λ − 8 = 8(λ − 1) and the other terms also carry (λ − 1); the cubic left, λ³ − 5λ² + 2λ + 8, has the roots 4, 2, −1.', plain: 'Four powers.' },
+      { did: 'Write the general solution', tex: 'f=Ar^4+Br^2+Cr+\\frac Dr',
+        why: 'The equation is linear, so any combination of the four power solutions solves it.', plain: 'Four constants to find.' },
+      { did: 'Apply the far field', tex: 'A=0,\\quad B=\\frac U2',
+        why: `f must tend to ½Ur² so that $${E847}$ (8.47) holds; an r⁴ term would outgrow the stream; the r and 1/r terms are negligible far away.`, plain: 'The uniform stream survives.',
+        set: { zoom: 100 }, watch: 'zoomed out to 100a: an r⁴ term would outgrow the uniform stream everywhere in this window.' },
+      { did: 'Apply the two surface conditions', tex: '\\begin{aligned}\\frac{Ua^2}{2}+Ca+\\frac Da&=0\\\\Ua+C-\\frac{D}{a^2}&=0\\end{aligned}',
+        why: 'ψ = 0 and ∂ψ/∂r = 0 at r = a mean f(a) = 0 and f′(a) = 0.', plain: 'No flow through the sphere, no slip on it.', set: { zoom: 8 } },
+      { did: 'Solve and assemble', tex: '\\begin{aligned}&C=-\\frac{3Ua}{4},\\quad D=\\frac{Ua^3}{4}\\\\&' + E848 + '\\end{aligned}',
+        why: 'Divide the first by a and add the second: 3Ua/2 + 2C = 0; then D = a²(Ua + C).', plain: 'Stokes\' stream function.',
+        live: s => { const n = N(s); return `\\psi(${t3(n.r)}a,${t3(s.pth)}^\\circ)=${t3(n.r * n.r)}\\times${t3(Math.sin(n.th) ** 2)}\\times${t3(0.5 - 0.75 / n.r + 0.25 / n.r ** 3)}=${t4(psiS(n.r, n.th))}\\,Ua^2`; } }
+    ],
+    result: { tex: E848, plain: 'This is (8.48): the stream, minus a slowly decaying $\\frac{3a}{4r}$ term (a point force, the Stokeslet), plus a small $\\frac{a^3}{4r^3}$ doublet.' },
+    interpret: s => `At 10a beside the sphere the speed is ${f4(side(10, 'stokes'))}U, still ${f3(100 * (1 - side(10, 'stokes')))} % slow: the −3a/4r term makes the sphere felt tens of radii away — exactly why inertia returns far away (D32).`,
+    check: 'ψ(a) = Ua²(½ − ¾ + ¼) = 0 ✓; ∂ψ/∂r at a = Ua sin²θ(1 − ¾ − ¼) = 0 ✓; E⁴ψ = 0 (sympy, notebook). Selftest rows "psi Stokes body" and "u_theta Stokes" compare with ch08.' },
+  { id: 'D32', title: 'Why Stokes\' solution fails far away', short: 'D32 far field', ref: '§8.6 (after Fig. 8.19)', view: 'ratio',
+    set: Object.assign({}, BASE, { zoom: 100, pr: 20, pth: 0 }),
+    goal: 'Show that however small Re is, inertia matches friction at some distance from the sphere.',
+    start: { tex: E849c, plain: 'Stokes\' velocities (8.49) above, far from the sphere (r ≫ a).' },
+    plan: ['Size the disturbance far away.', 'Size the inertia and the viscous force.', 'Take their ratio.'],
+    uses: ['the asymptotic size of a term', 'the Reynolds number on the radius'],
+    steps: [
+      { did: 'Keep the slowest-decaying disturbance', tex: '\\lvert\\mathbf u-U\\mathbf e_x\\rvert\\sim\\frac{Ua}{r}',
+        why: `In $${E849r}$ (8.49) the 3a/2r term decays like 1/r (so does 3a/4r in u_θ); the a³/r³ terms are much smaller far away.`, plain: 'The sphere is felt as Ua/r.' },
+      { did: 'Size the disturbance\'s gradient', tex: '\\lvert\\nabla\\mathbf u\'\\rvert\\sim\\frac{Ua}{r^2},\\quad \\mathbf u\'=\\mathbf u-U\\mathbf e_x',
+        why: 'Differentiating a 1/r term brings another 1/r; we call the part of the velocity that differs from the stream the disturbance u′.', plain: 'Gradients fall as 1/r².' },
+      { did: 'Size the inertia', tex: '\\rho\\,\\mathbf u\\cdot\\nabla\\mathbf u\\sim\\rho U\\frac{\\partial\\mathbf u\'}{\\partial x}\\sim\\frac{\\rho U^2a}{r^2}',
+        why: 'Far away the velocity is U plus the small u′, so the largest part of u·∇u is the stream carrying the disturbance, U ∂u′/∂x (the term Oseen keeps).', plain: 'The stream sweeps the disturbance past: inertia ~ ρU²a/r².' },
+      { did: 'Size the viscous force', tex: '\\mu\\nabla^2\\mathbf u\\sim\\mu\\frac{Ua/r}{r^2}=\\frac{\\mu Ua}{r^3}',
+        why: 'Two derivatives of the Ua/r disturbance; the uniform stream has none.', plain: 'Friction ~ μUa/r³.' },
+      { did: 'Take the ratio', tex: '\\frac{\\text{inertia}}{\\text{viscous}}\\sim\\frac{\\rho U^2a/r^2}{\\mu Ua/r^3}=\\frac{\\rho Ur}{\\mu}',
+        why: 'Divide step 3 by step 4.', plain: 'The ratio grows in proportion to r.',
+        live: s => { const n = N(s); return `\\text{at the probe } r=${t3(n.r)}a:\\ ${t3(n.iv.inert)}\\div${t3(n.iv.visc)}=${t3(n.iv.ratio)}`; },
+        watch: 'the teal curve rises with slope 1 on the log–log plot.' },
+      { did: 'Write it with a Reynolds number', tex: '\\frac{\\rho Ur}{\\mu}=\\frac{\\rho Ua}{\\mu}\\frac ra=\\mathrm{Re}_a\\frac ra',
+        why: 'Re_a uses the radius; the Re = 2aU/ν of Oseen\'s formula and of this explainer\'s slider uses the diameter, Re = 2Re_a.', plain: 'A small Re times a large distance.' },
+      { did: 'Find the crossover', tex: '\\mathrm{Re}_a\\frac ra\\sim1\\ \\Rightarrow\\ \\frac ra\\sim\\frac{1}{\\mathrm{Re}_a}',
+        why: 'Set the ratio to one. Order of magnitude: the exact prefactor is ½ on the axis and the side line, so inertia equals friction at r ≈ 2a/Re_a.',
+        plain: 'Beyond r ~ a/Re_a Stokes\' solution is wrong.',
+        live: s => { const n = N(s); return `\\mathrm{Re}_a=${t3(n.Rea)}:\\ \\frac{1}{\\mathrm{Re}_a}=${t3(1 / n.Rea)},\\ \\ r_c=${t4(n.rc)}a`; },
+        watch: 'the teal axis curve crosses the amber line (ratio = 1) at r_c; the dotted estimate crosses it at 1/Re_a.' }
+    ],
+    result: { tex: '\\frac{\\text{inertia}}{\\text{viscous}}\\sim\\frac{\\rho Ua}{\\mu}\\frac ra=\\mathrm{Re}_a\\frac ra', plain: 'An order of magnitude: the failure of Stokes\' solution is at infinity, not at the sphere — the region where it fails moves out as Re → 0 but never disappears.' },
+    interpret: s => { const n = N(s); return `With Re = ${f3(s.Re)} (Re_a = ${f3(n.Rea)}) the estimate puts the crossover at 1/Re_a = ${f3(1 / n.Rea)}a; solving the exact axis ratio gives ${f4(n.rc)}a. Out there the stream's advection is as strong as friction, and Oseen's correction is needed.`; },
+    check: 'Log–log slope 1 of the teal curve (ch08.inertia_viscous_ratio has slope 1 ± 0.05 for r/a ∈ [50, 500]); ratio ÷ (Re_a r/a) → ½ on the axis (selftest "ratio at r = 400a"); units: (kg/m³)(m/s)(m)/(Pa s) is dimensionless ✓.' },
+  { id: 'D33', title: 'Oseen\'s solution near the sphere is Stokes\'', short: 'D33 Oseen → Stokes', ref: 'Eqs. (8.53), (8.48)', view: 'flow',
+    set: Object.assign({}, BASE, { model: 'oseen', Re: 0.01 }),
+    goal: 'Check that Oseen\'s improved solution agrees with Stokes\' where Stokes\' is valid.',
+    start: { tex: E853, plain: 'Oseen\'s stream function (8.53) above, with Re = 2aU/ν on the diameter.' },
+    plan: ['Name the exponent.', 'Expand the exponential where it is small.', 'Simplify with sin²θ = (1 − cos θ)(1 + cos θ).'],
+    uses: ['the series of 1 − e^(−s)', 'sin²θ = 1 − cos²θ'],
+    steps: [
+      { did: 'Name the exponent', tex: 's=\\frac{\\mathrm{Re}}{4}\\frac ra(1-\\cos\\theta)',
+        why: 'The whole Oseen correction depends on this one combination.', plain: 's measures how far inertia reaches.',
+        live: s => { const n = N(s); return `s=${t3(s.Re / 4 * n.r * (1 - Math.cos(n.th)))}\\ \\text{at the probe}`; } },
+      { did: 'State where s is small', tex: 's\\ll1\\iff\\mathrm{Re}\\,\\frac ra\\ll1',
+        why: '0 ≤ 1 − cos θ ≤ 2, so s is small exactly where D32 says Stokes\' solution holds.', plain: 'Near the sphere at small Re.' },
+      { did: 'Expand the exponential', tex: '1-e^{-s}=s-\\frac{s^2}{2}+\\ldots\\approx s',
+        why: 'Taylor series of e^(−s); keep the leading term.', plain: 'The curly bracket is linear in s.' },
+      { did: 'Insert into the Oseen term', tex: '\\frac3{\\mathrm{Re}}(1+\\cos\\theta)s=\\frac3{\\mathrm{Re}}(1+\\cos\\theta)\\frac{\\mathrm{Re}}4\\frac ra(1-\\cos\\theta)',
+        why: 'Replace 1 − e^(−s) by its leading term s from step 3.', plain: 'Re cancels.' },
+      { did: 'Use sin²θ = (1 + cos θ)(1 − cos θ)', tex: '=\\frac34\\frac ra\\sin^2\\theta',
+        why: 'The product of the two brackets is 1 − cos²θ.', plain: 'The Stokeslet term appears.' },
+      { did: 'Collect the terms', tex: '\\frac{\\psi}{Ua^2}\\approx\\Big[\\frac{r^2}{2a^2}-\\frac{3r}{4a}+\\frac{a}{4r}\\Big]\\sin^2\\theta',
+        why: 'Subtract step 5 from the first bracket of Oseen\'s stream function.', plain: 'Three terms, like Stokes\'.' },
+      { did: 'Multiply by Ua²', tex: '\\psi\\approx ' + E848.slice(5),
+        why: `Ua² × [r²/2a², −3r/4a, a/4r] = Ur²[½, −3a/4r, a³/4r³]. The page's "(9.68)" is a misprint for $${E848}$ (8.48).`, plain: 'Stokes\' solution recovered, up to an O(Re r/a) remainder.',
+        live: s => { const n = N(s); return `\\psi_{O}/\\psi_{S}=${t4(psiO(n.r, n.th, s.Re) / psiS(n.r, n.th))}\\ \\text{at the probe}`; },
+        watch: 'at Re = 0.01 the Oseen streamlines round the sphere are Stokes\' ones; only far out does the shade lean downstream.' }
+    ],
+    result: { tex: '\\psi_{Oseen}=\\psi_{Stokes}+O\\Big(\\mathrm{Re}\\frac ra\\Big)', plain: 'Oseen changes only the far field: near the sphere it is Stokes\' flow; far away its exponential sweeps the disturbance downstream into a wake, and the drag gains the factor $1+\\frac{3}{16}\\mathrm{Re}$.' },
+    interpret: s => { const n = N(s); return `At your probe (r = ${f3(n.r)}a) with Re = ${f3(s.Re)}: ψ_Oseen/ψ_Stokes = ${f4(psiO(n.r, n.th, s.Re) / psiS(n.r, n.th))}. Raise Re or move the probe outward and the two separate.`; },
+    check: 'At Re = 10⁻⁹ the JS Oseen ψ equals Stokes\' to round-off (selftest "Oseen → Stokes"); Oseen\'s solution meets no slip on r = a only to O(Re).' }
+];
+
+/* ---- code, walkthrough, equations, quiz --------------------------------------------------------------------------- */
+const pn = (v, k = 4) => (Math.abs(v) < 1e-300 ? '0' : String(Number(v.toPrecision(k))));
+const CODE = [
+  { id: 'fp', title: 'Stokes and Oseen in fluidpy', ref: 'Eqs. (8.48), (8.49), (8.53)',
+    src: `import numpy as np
+import fluidpy.ch08_laminar_flow as ch08
+U, a, Re = 1.0, 1.0, {{Re}}   # speed, radius, Re = 2aU/nu
+r, th = {{r}}, {{th}}   # probe; theta from downstream [rad]
+psi = ch08.stokes_sphere_streamfunction(r, th, U, a)
+print(psi)          # (8.48): {{psi}} U a^2
+ur, ut = ch08.stokes_sphere_velocity(r, th, U, a)
+print(ur, ut)       # (8.49): {{ur}}, {{ut}} U
+s10 = ch08.side_line_speed(10.0, U, a, model="stokes")
+print(s10)          # side line at 10a: {{s10}} U
+po = ch08.oseen_streamfunction(r, th, U, a, Re)
+print(po)           # (8.53): {{po}} U a^2
+nu = 2 * a * U / Re                 # viscosity from Re
+q = ch08.inertia_viscous_ratio(r, th, U, a, nu)
+print(q)            # inertia/viscous: {{iv}}`,
+    live: s => { const n = N(s); return { Re: pn(s.Re, 3), r: pn(n.r, 4), th: pn(n.th, 4), psi: pn(psiS(n.r, n.th)), ur: pn(velS(n.r, n.th)[0]), ut: pn(velS(n.r, n.th)[1]),
+      s10: pn(side(10, 'stokes')), po: pn(psiO(n.r, n.th, s.Re)), iv: pn(n.iv.ratio) }; } },
+  { id: 'rc', title: 'From scratch: where inertia catches up', ref: '§8.6',
+    src: `from scipy.optimize import brentq
+def axis_ratio(r):          # exact on theta = 0, Stokes field
+    F = 1 - 1.5/r + 0.5/r**3        # u_r/(U cos th), (8.49)
+    dF = 1.5/r**2 - 1.5/r**4        # dF/dr
+    return Re * F * dF * r**3 / 6   # |u.grad u| / |nu lap u|
+rc = brentq(lambda x: axis_ratio(x) - 1, 1.0001, 1e9)
+print(rc)                  # {{rc}} a  (4/Re = {{r4}} a)
+q = ch08.inertia_viscous_ratio(rc, 0.0, U, a, nu)
+assert abs(q - 1) < 1e-4   # finite differences agree`,
+    live: s => ({ rc: pn(crossRc(s.Re), 5), r4: pn(4 / s.Re, 4) }),
+    note: 'On the axis the inertia is u_r ∂u_r/∂r = U²FF′/a and the friction |∇p| = 3μUa/r³ (from the pressure $p-p_\infty=-\frac{3\mu aU\cos\theta}{2r^2}$ (8.50)); their ratio tends to ½Re_a r/a.' }
+];
+const S10 = side(10, 'stokes'), I10 = side(10, 'ideal');
+const TOUR = [
+  { title: 'A bead in syrup', text: 'A bead sinks slowly through syrup. What does the flow round it look like?',
+    set: Object.assign({}, BASE, { Re: 0.002 }), play: false },
+  { title: 'Front equals back', text: `Hold the bead still in a slow stream. The Stokes equations $${E843}$ (8.43) are linear: reverse the stream and every arrow flips, so the streamlines in front mirror those behind.`,
+    set: Object.assign({}, BASE, { Re: 0.002 }), play: false, eq: '843' },
+  { title: 'A line of dye', text: 'Press ▶: a straight line of dye drifts onto the bead. Near the axis it lags far behind — friction makes a thick layer of fluid crawl round the bead.',
+    set: Object.assign({}, BASE, { Re: 0.002, tau: 0.25 }), play: true },
+  { title: 'Seen from the still fluid', text: 'Now the fluid is at rest and the bead moves left. Follow the teal paths: the fluid is pushed aside, dragged along, and left behind further along the path.',
+    set: Object.assign({}, BASE, { Re: 0.002, frame: 'fluid', tau: 0.1 }), play: true },
+  { title: 'Felt far away', text: `At 10a beside the bead the stream is still ${f4(100 * (1 - S10))} % slow (${f4(S10)}U); ideal flow is back to ${f5(I10)}U. Stokes' disturbance dies only like 3a/4r.`,
+    set: Object.assign({}, BASE, { Re: 0.002, zoom: 30, pr: 10 }), play: false, readouts: ['d10'] },
+  { title: 'Where it fails', text: `Far away inertia ~ $\\rho U^2a/r^2$ but friction ~ $\\mu Ua/r^3$, so their ratio grows like $\\mathrm{Re}_a r/a$. At Re = 0.1 the amber circle, inertia = friction, sits at ${f3(crossRc(0.1))}a.`,
+    set: Object.assign({}, BASE, { Re: 0.1, zoom: 100, pr: 20, pth: 0 }), play: false, derive: { id: 'D32', step: 7 } },
+  { title: 'Oseen\'s wake', text: 'Oseen keeps the stream\'s advection $U\\,\\partial\\mathbf u\'/\\partial x$. At Re = 1 the blue disturbance is swept downstream: the dashed 1 % contour stretches far behind the sphere but stays close in front — a wake.',
+    set: Object.assign({}, BASE, { model: 'oseen', Re: 1, zoom: 30, tau: 0.5 }), play: false },
+  { title: 'Your turn', text: 'Predict where the amber circle sits at Re = 0.05 (hint: about 4a/Re), then drag Re and the view radius to check.',
+    set: Object.assign({}, BASE, { Re: 1, zoom: 100 }), play: false, controls: ['Re', 'zoom'] }
+];
+const EQS = [
+  { id: '843', title: 'Stokes (creeping-flow) equations', ref: 'Eq. (8.43)', tex: E843,
+    note: 'Navier–Stokes with the inertia dropped (Re → 0), plus $\\nabla\\cdot\\mathbf u=0$. Linear: reversing U reverses u and p − p∞.', symbols: [['p', 'pressure', 'Pa'], ['\\mu', 'dynamic viscosity', 'Pa s']] },
+  { id: '844', title: 'Stream-function equation (the square of E²)', ref: 'Eq. (8.44)', tex: '\\begin{aligned}&(E^2)^2\\psi=0\\\\&' + E2DEF + '\\end{aligned}',
+    note: 'The square of the operator, not the biharmonic ∇⁴ (book footnote).', symbols: [['\\psi', 'Stokes stream function', 'm³/s'], ['\\theta', 'polar angle from the downstream axis', 'rad']] },
+  { id: '845', title: 'Boundary conditions', ref: 'Eqs. (8.45), (8.46), (8.47)', tex: '\\begin{aligned}\\psi(a,\\theta)&=0\\\\\\frac{\\partial\\psi}{\\partial r}(a,\\theta)&=0\\\\\\psi(r\\to\\infty)&=\\tfrac12Ur^2\\sin^2\\theta\\end{aligned}',
+    note: 'No flow through the sphere, no slip on it, the uniform stream far away.' },
+  { id: '848', title: 'Stokes\' stream function', ref: 'Eq. (8.48)', tex: E848,
+    live: s => { const n = N(s); return `\\psi(\\text{probe})=${t4(psiS(n.r, n.th))}\\,Ua^2`; }, symbols: [['a', 'sphere radius', 'm'], ['U', 'stream speed', 'm/s']] },
+  { id: '849', title: 'Stokes\' velocity', ref: 'Eq. (8.49)', tex: E849,
+    live: s => { const n = N(s), v = velS(n.r, n.th); return `u_r=${t4(v[0])}U,\\ u_\\theta=${t4(v[1])}U`; } },
+  { id: 'iv', title: 'Inertia against friction far away', ref: '§8.6 (after Fig. 8.19)', tex: '\\frac{\\text{inertia}}{\\text{viscous}}\\sim\\frac{\\rho Ua}{\\mu}\\frac ra=\\mathrm{Re}_a\\frac ra',
+    live: s => `r_c=${t4(crossRc(s.Re))}a\\ \\text{(exact, axis)}`, note: 'The book\'s Re here is on the radius, Re_a = Re/2; the exact prefactor is ½ on the axis.' },
+  { id: 'os', title: 'Oseen\'s equation', ref: '§8.6 (Oseen)', tex: '\\rho U\\frac{\\partial u_i\'}{\\partial x}=-\\frac{\\partial p}{\\partial x_i}+\\mu\\nabla^2u_i\'',
+    note: 'Keeps the stream carrying the disturbance, $U\\partial\\mathbf u\'/\\partial x$; the page prints the pressure term without its minus sign.' },
+  { id: '853', title: 'Oseen\'s stream function', ref: 'Eq. (8.53)', tex: E853,
+    live: s => { const n = N(s); return `\\psi_O(\\text{probe})=${t4(psiO(n.r, n.th, s.Re))}\\,Ua^2`; }, note: 'Re = 2aU/ν on the diameter. Drag: $C_D=\\frac{24}{\\mathrm{Re}}\\big(1+\\frac3{16}\\mathrm{Re}\\big)$.' }
+];
+const QUIZ = [
+  { q: 'In Stokes mode, are the streamlines in front of the sphere the mirror image of those behind? What changes in Oseen mode at Re = 1?', a: `Stokes: yes — $${E843}$ (8.43) is linear, so reversing the stream only reverses the arrows. Oseen: the disturbance is swept downstream into a wake, so the picture is no longer symmetric.`, set: Object.assign({}, BASE) },
+  { q: 'Why is the speed beside the sphere below U in Stokes flow but above U in ideal flow?', a: `Friction drags a thick layer of fluid along with the sphere (${f4(side(2, 'stokes'))}U at 2a); ideal fluid cannot be dragged, so it must hurry past to get round (${f4(side(2, 'ideal'))}U at 2a).`, set: Object.assign({}, BASE, { pr: 2 }) },
+  { q: 'At Re = 0.01, where does inertia become as large as friction?', a: `The estimate 1/Re_a gives 200a (Re_a = 0.005); solving the exact axis ratio gives ${f3(crossRc(0.01))}a — about 4a/Re. Set Re = 0.01 and read the crossover.`, set: Object.assign({}, BASE, { Re: 0.01, zoom: 100 }) },
+  { q: 'Watch the fluid frame to the end of the run. Where does the dye end up compared with where it started?', a: 'Pushed forward along the sphere\'s path (the end card gives the distances): Stokes drags a thick layer along; ideal flow moves the dye much less.', set: Object.assign({}, BASE, { frame: 'fluid', tau: 1 }) },
+  { q: 'Does Oseen\'s correction change the drag?', a: `Yes: $C_D=\\frac{24}{\\mathrm{Re}}\\big(1+\\frac{3}{16}\\mathrm{Re}\\big)$ — at Re = 1 it is ${f3(100 * 3 / 16)} % above Stokes' 24/Re.`, set: Object.assign({}, BASE, { model: 'oseen', Re: 1 }) }
+];
+
+/* ---- selftest: parity with fluidpy (py) and invariants (expect) -------------------------------------------------- */
+function selftestRows() {
+  const d = 1e-6, dpsidr = (psiS(1 + d, 1.1) - psiS(1, 1.1)) / d;
+  return [
+    { name: 'psi Stokes body', js: psiS(2, 1.0, 'body'), py: 'ch08.stokes_sphere_streamfunction(2.0, 1.0, 1.0, 1.0)', rtol: 1e-12 },
+    { name: 'psi Stokes fluid', js: psiS(3, 2.0, 'fluid'), py: 'ch08.stokes_sphere_streamfunction(3.0, 2.0, 1.0, 1.0, "fluid")', rtol: 1e-12 },
+    { name: 'u_r Stokes', js: velS(2, 1.0)[0], py: 'ch08.stokes_sphere_velocity(2.0, 1.0, 1.0, 1.0)[0]', rtol: 1e-12 },
+    { name: 'u_theta Stokes', js: velS(2, 1.0)[1], py: 'ch08.stokes_sphere_velocity(2.0, 1.0, 1.0, 1.0)[1]', rtol: 1e-12 },
+    { name: 'u_theta Stokes fluid', js: velS(4, 0.7, 'fluid')[1], py: 'ch08.stokes_sphere_velocity(4.0, 0.7, 1.0, 1.0, "fluid")[1]', rtol: 1e-12 },
+    { name: 'psi Oseen', js: psiO(3, 2.0, 0.5), py: 'ch08.oseen_streamfunction(3.0, 2.0, 1.0, 1.0, 0.5)', rtol: 1e-12 },
+    { name: 'psi Oseen fluid', js: psiO(6, 0.6, 1.0, 'fluid'), py: 'ch08.oseen_streamfunction(6.0, 0.6, 1.0, 1.0, 1.0, "fluid")', rtol: 1e-12 },
+    { name: 'psi Oseen tiny Re', js: psiO(2.5, 1.2, 1e-9), py: 'ch08.oseen_streamfunction(2.5, 1.2, 1.0, 1.0, 1e-9)', rtol: 1e-12 },
+    { name: 'u_r Oseen', js: velO(3, 2.0, 0.5)[0], py: 'ch08.oseen_velocity(3.0, 2.0, 1.0, 1.0, 0.5)[0]', rtol: 1e-12 },
+    { name: 'u_theta Oseen fluid', js: velO(5, 0.4, 2.0, 'fluid')[1], py: 'ch08.oseen_velocity(5.0, 0.4, 1.0, 1.0, 2.0, "fluid")[1]', rtol: 1e-12 },
+    { name: 'side Stokes 10a', js: side(10, 'stokes'), py: 'ch08.side_line_speed(10.0, 1.0, 1.0, model="stokes")', rtol: 1e-12 },
+    { name: 'side ideal 10a', js: side(10, 'ideal'), py: 'ch08.side_line_speed(10.0, 1.0, 1.0, model="ideal")', rtol: 1e-12 },
+    { name: 'side Oseen 7a (Re 1)', js: side(7, 'oseen', 1.0), py: 'ch08.side_line_speed(7.0, 1.0, 1.0, model="oseen", Re=1.0)', rtol: 1e-12 },
+    { name: 'side Stokes fluid 3a', js: side(3, 'stokes', 0.1, 'fluid'), py: 'ch08.side_line_speed(3.0, 1.0, 1.0, model="stokes", frame="fluid")', rtol: 1e-12 },
+    { name: 'side ideal fluid 1.5a', js: side(1.5, 'ideal', 0.1, 'fluid'), py: 'ch08.side_line_speed(1.5, 1.0, 1.0, model="ideal", frame="fluid")', rtol: 1e-12 },
+    { name: 'side ideal 2a', js: side(2, 'ideal'), py: 'ch08.side_line_speed(2.0, 1.0, 1.0, model="ideal")', rtol: 1e-12 },
+    { name: 'inertia/viscous side 50a (nu 10)', js: ratio(50, 1.5708, 0.2), py: 'ch08.inertia_viscous_ratio(50.0, 1.5708, 1.0, 1.0, 10.0)', rtol: 2e-5 },
+    { name: 'inertia/viscous at r = 400a on the axis', js: ratio(400, 0, 0.1), py: 'ch08.inertia_viscous_ratio(400.0, 0.0, 1.0, 1.0, 20.0)', rtol: 2e-5 },
+    { name: 'inertia/viscous near sphere 1.5a', js: ratio(1.5, 2.5, 0.05), py: 'ch08.inertia_viscous_ratio(1.5, 2.5, 1.0, 1.0, 40.0)', rtol: 2e-5 },
+    { name: 'inertia/viscous at the crossover (Re 0.1)', js: ratio(crossRc(0.1), 0, 0.1), py: `ch08.inertia_viscous_ratio(${crossRc(0.1)}, 0.0, 1.0, 1.0, 20.0)`, rtol: 2e-5 },
+    { name: 'invariant: psi = 0 on the sphere', js: psiS(1, 1.1), expect: 0, atol: 1e-15 },
+    { name: 'invariant: no slip, d psi/dr = 0 at r = a', js: dpsidr, expect: 0, atol: 1e-5 },
+    { name: 'invariant: Oseen -> Stokes as Re -> 0', js: psiO(2.5, 1.2, 1e-9) / psiS(2.5, 1.2), expect: 1, rtol: 1e-8 },
+    { name: 'invariant: axis ratio / (Re_a r/a) -> 1/2', js: ratio(1e4, 0, 0.1) / (0.05 * 1e4), expect: 0.5, rtol: 2e-4 },
+    { name: 'invariant: 1 % radius of Stokes on the side', js: feltR('stokes', 0.1, 0.01), expect: 75.00444391780469, rtol: 1e-9 },
+    { name: 'invariant: crossover near 4/Re at small Re', js: crossRc(0.002) * 0.002 / 4, expect: 1.00075, rtol: 1e-4 }
+  ];
+}
+
+/* ---- the app ------------------------------------------------------------------------------------------------------ */
+const CFG = {
+  title: 'What does creeping flow round a sphere look like?',
+  subtitle: 'A sphere in a slow viscous stream: symmetric streamlines, a disturbance that reaches tens of radii, and the distance where inertia returns — Stokes, Oseen and ideal flow side by side',
   autoplay: false,
   params: {
-    shape: { type: 'select', label: 'Initial shape', options: [['box', 'box'], ['gauss', 'Gaussian'], ['two', 'two humps']], value: 'box', display: 'chips' },
-    A: { label: 'Half-area $\\mathcal A$', min: 1e-5, max: 1e8, log: true, value: 1e-4, unit: 'm²', help: 'half the cross-section per metre of width; starts as a √𝒜 × √𝒜 block' },
-    mu: { label: 'Viscosity $\\mu$', min: 0.1, max: 1e14, log: true, value: 1, unit: 'Pa s', help: 'glycerol ≈ 1, honey ≈ 10, lava 10²–10⁴, ice ≈ 10¹³' },
-    rho: { label: 'Density $\\rho$', min: 900, max: 2700, step: 10, value: 1260, unit: 'kg/m³', optional: true, help: 'glycerol 1260, honey 1400, ice 900, basalt 2700' },
-    m: { type: 'select', label: 'Rescale exponent $m$', options: [['0.2', '1/5'], ['0.5', '1/2']], value: '0.2', display: 'chips', optional: true },
-    probe: { label: 'Probe $x/x_N$', min: -0.98, max: 0.98, step: 0.01, value: 0.5, optional: true, help: 'or click the layer' },
-    lt: { label: 'Time $\\log_{10}\\tau$', min: LT0, max: LT1, step: 'any', value: 1, optional: true, fmt: v => 'τ = ' + tauStr(v) }
+    frame: { type: 'select', label: 'Seen from', options: [['body', 'the sphere'], ['fluid', 'the still fluid']], value: 'body', display: 'chips', help: 'sphere frame: a stream U past a sphere at rest; fluid frame: the sphere moves left through still fluid' },
+    Re: { label: 'Reynolds number $\\mathrm{Re}=2aU/\\nu$', min: 0.001, max: 5, step: 0.001, value: 0.1, log: true, fmt: v => `${f3(v)} (Re_a ${f3(v / 2)})`, help: 'sets Oseen\'s wake and the amber circle; Stokes\' streamlines do not depend on it' },
+    zoom: { label: 'View radius $Z$', min: 3, max: 100, step: 0.1, value: 8, log: true, unit: 'a', help: 'half-height of the picture in sphere radii' },
+    pr: { label: 'Probe distance $r$', min: 1, max: 100, step: 0.01, value: 2, log: true, unit: 'a', optional: true, help: 'or click the flow picture' },
+    pth: { label: 'Probe angle $\\theta$', min: 0, max: 180, step: 1, value: 90, unit: '°', optional: true, help: 'from the downstream axis: 0 behind, 180 in front' },
+    shade: { type: 'toggle', label: 'Shade the disturbance $|\\mathbf u-U\\mathbf e_x|/U$', value: true, optional: true },
+    tau: { label: 'run $\\tau$', min: 0, max: 1, step: 'any', value: 0.5, optional: true, fmt: v => `${f3(v * 100)} %` }
   },
-  transport: { param: 'lt', min: LT0, max: LT1, rate: 0.5, end: 'stop', step: 0.25 },
+  modes: { param: 'model', label: 'Model', options: [['stokes', 'Stokes'], ['oseen', 'Oseen'], ['ideal', 'ideal']], value: 'stokes' },
+  transport: { param: 'tau', min: 0, max: 1, rate: 0.1, end: 'stop', unit: 'of the run' },
   presets: [
-    { label: 'honey', set: { mu: 10, rho: 1400, A: 2e-4 }, title: 'honey on a plate: μ = 10 Pa s, ρ = 1400 kg/m³, 𝒜 = 2 cm²' },
-    { label: 'glycerol', set: { mu: 1, rho: 1260, A: 1e-4 }, title: 'a glycerol bead: μ = 1 Pa s, ρ = 1260 kg/m³, 𝒜 = 1 cm²' },
-    { label: 'lava', set: { mu: 1000, rho: 2700, A: 10 }, title: 'a basaltic lava lobe: μ = 10³ Pa s, ρ = 2700 kg/m³, 𝒜 = 10 m²' },
-    { label: 'glacier*', set: { mu: 1e13, rho: 900, A: 1e6 }, title: 'ice-like slab, μ = 10¹³ Pa s, 𝒜 = 10⁶ m²: real ice is non-Newtonian — this only shows the time scale' },
-    { label: 'm = ½?', set: { m: '0.5' }, title: 'rescale with diffusion\'s exponent 1/2: the profiles do not collapse' }
+    { label: 'syrup bead', set: { model: 'stokes', frame: 'body', Re: 0.002, zoom: 8 }, title: 'radius 1 mm, 1 mm/s, ν = 10⁻³ m²/s: Re = 0.002' },
+    { label: 'fluid frame', set: { model: 'stokes', frame: 'fluid', zoom: 8, tau: 0.1 }, title: 'the sphere moves through still fluid; press ▶' },
+    { label: 'sand grain', set: { model: 'oseen', frame: 'body', Re: 1, zoom: 30 }, title: '0.1 mm quartz grain settling in water at ≈ 0.9 cm/s: Re ≈ 1 — Oseen\'s wake' },
+    { label: 'ideal', set: { model: 'ideal', frame: 'body', zoom: 8 }, title: 'no viscosity (Ch. 6) for contrast' },
+    { label: 'far field', set: { zoom: 100 }, title: 'zoom out to 100 radii' }
   ],
-  status: s => {
-    const c = cur(s), ph = phone(), vol = 'volume Δ ' + expStr(c.drift);
-    if (c.dome > SIMILAR) return { tone: 'warn', text: ph ? '⏳ remembers its start: ' + pct(c.dome) + ' off the dome' : '⏳ still remembers its initial shape — ' + pct(c.dome) + ' of the volume off the dome · ' + vol };
-    const sl = isFinite(c.slope) ? c.slope.toFixed(2) : '—', catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
-    return { tone: 'good', text: ph ? '✅ on the dome · front ∝ t^' + sl + (catching ? ' → t^0.2' : '') :
-      '✅ self-similar — ' + pct(c.dome) + ' off the dome, front ∝ t^' + sl + (catching ? ' (still catching up with t^0.2)' : '') + ' · ' + vol };
-  },
+  status: s => statusOf(s),
   readouts: [
-    { id: 'xs', label: 'Front $x_N$ (simulated)', value: s => cur(s).xf, fmt: v => fmtLen(v) },
-    { id: 'xl', label: 'Front from the law', value: s => cur(s).law.x_N, fmt: v => fmtLen(v) },
-    { id: 'hc', label: 'Centre height $h_c$', value: s => cur(s).hc, fmt: v => fmtLen(v) },
-    { id: 'Deff', label: 'Peak $\\rho g h^3/3\\mu$', unit: 'm²/s', value: s => cur(s).Deff },
-    { id: 'vol', label: 'Volume $2\\mathcal A$', unit: 'm²', value: s => cur(s).vol },
-    { id: 't', label: 'Time $t$', value: s => cur(s).t, fmt: v => Viz.fmtTime(v) }
+    { id: 'sp', label: '$|\\mathbf u|$ at the probe', value: s => N(s).speed, unit: 'U' },
+    { id: 'psi', label: '$\\psi$ at the probe', value: s => N(s).psi, unit: 'Ua²' },
+    { id: 'd10', label: 'Side deficit at 10a', value: s => N(s).def10, unit: '%' },
+    { id: 'rc', label: 'Inertia = friction at', value: s => N(s).rc, unit: 'a' },
+    { id: 'iv', label: 'Inertia/friction, probe', value: s => N(s).iv.ratio, unit: '' }
   ],
   stage: {
-    rows: [1.1, 1],
+    rows: [1.25, 1],
     views: [
-      { id: 'layer', row: 0, title: s => { const c = cur(s); return '<b>The layer h(x, t)</b> · t = ' + Viz.fmtTime(c.t) + ' · <span class="c-blue">simulated</span>, <span class="c-accent">dome</span>, <span class="c-orange">flux q</span>, <span class="c-teal">front</span>, <span class="c-rose">probe</span>'; } },
-      { id: 'front', row: 1, title: s => { const c = cur(s); return '<b>Front x_N(t)</b>, log–log · slope ' + (isFinite(c.slope) ? c.slope.toFixed(2) : '—') + (layoutIs('portrait') ? ' · collapse ' + pct(c.col.spread) : '') + ' · <span class="c-teal">simulated</span> <span class="c-accent">law</span> <span class="c-muted">diffusion</span>'; } },
-      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> h τ^m vs x/τ^m, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
+      { id: 'flow', row: 0, flex: 1, title: s => flowTitle(s) },
+      { id: 'side', row: 1, flex: 1.1, title: s => sideTitle(s) },
+      { id: 'ratio', row: 1, flex: 1, hidePortrait: true, title: s => ratioTitle(s) }
     ],
-    draw(g, s) {
-      const a = g.app;
-      drawLayer(g.view('layer'), s, a);
-      drawFront(g.view('front'), s, a);
-      const vr = g.view('rescaled'); if (vr && vr.w > 40 && vr.h > 40) drawRescaled(vr, s, a);
-    },
+    draw(g, s) { drawFlow(g, s); drawSide(g, s); drawRatio(g, s); },
     onPointer(g, ev, s) {
-      if (ev.viewId !== 'layer' || !lastLayer) return false;
-      if (ev.type !== 'pointerdown' && !(ev.type === 'pointermove' && g.view('layer').pointer.down)) return false;
-      const v = g.view('layer'), x = lastLayer.P.ix(v.pointer.x) / lastLayer.f;
-      g.app.set('probe', Math.round(clamp(x / lastLayer.xf, -0.98, 0.98) * 100) / 100);
-      return true;
+      if (ev.type !== 'pointerdown') return false;
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      const Xp = v.pointer.x, Yp = v.pointer.y;
+      if (ev.viewId === 'flow' && FLP && FLP.inside(Xp, Yp)) {
+        const x = FLP.ix(Xp) - sphereX(s), w = FLP.iy(Yp), r = Math.max(1, Math.min(100, Math.hypot(x, w)));
+        g.app.set({ pr: Math.round(r * 100) / 100, pth: Math.round(Math.atan2(Math.abs(w), x) * 180 / PI) }); return true;
+      }
+      if (ev.viewId === 'side' && SDP && SDP.inside(Xp, Yp)) { g.app.set({ pr: Math.round(Math.max(1, Math.min(100, 10 ** SDP.ix(Xp))) * 100) / 100, pth: 90 }); return true; }
+      if (ev.viewId === 'ratio' && RTP && RTP.inside(Xp, Yp)) { g.app.set({ pr: Math.round(Math.max(1, Math.min(100, 10 ** RTP.ix(Xp))) * 100) / 100, pth: 0 }); return true; }
+      return false;
     }
   },
-  inspect: s => {
-    const c = cur(s), pn = probeNums(s);
-    return `Probe at $x = ${t3(pn.x)}$ m ($x/x_N = ${t3(s.probe)}$), $t$ = ${Viz.fmtTime(c.t)}:<br>` +
-      `$\\begin{aligned}&h = ${t4(pn.h)}\\ \\text{m},\\ h_x = ${t3(pn.hx)}\\\\ &q = -\\tfrac{\\rho g}{3\\mu}h^3h_x\\\\ &\\ \\ = -${t4(c.b)}\\times(${t3(pn.h)})^3\\\\ &\\qquad\\times(${t3(pn.hx)})\\\\ &\\ \\ = \\mathbf{${t4(pn.q)}}\\ \\text{m}^{2}\\text{/s}\\end{aligned}$`;
-  },
-  inspectHint: 'Click (or drag on) the layer to trace the flux at any x.',
-  notes: s => '<p>' + interpretText(s) + '</p>',
+  inspect: s => inspectHtml(s),
+  inspectHint: 'Click the flow picture (or a graph) to move the probe; its arithmetic appears here.',
+  notes: s => '<p>' + interpText(s) + '</p>',
   explore: {
-    intro: 'A bead slumps under its own weight. Pick a start shape and a fluid, press ▶ and watch the front join the slope-⅕ line; click the layer to probe the flux.',
-    controls: ['shape', 'A', 'mu', 'rho', 'm', 'probe'],
-    readouts: ['xs', 'xl', 'hc', 't'],
-    callouts: [{ kind: 'try', html: 'Multiply the half-area by 32 at a fixed time. Predict first: how much farther is the front? (Watch the law readout.)' }]
+    intro: 'Switch the model above the picture, choose the frame, drag Re and the view radius; click the picture to probe.',
+    controls: ['frame', 'Re', 'zoom', 'pr', 'pth', 'shade'],
+    readouts: ['sp', 'd10', 'rc'],
+    callouts: [{ kind: 'try', html: 'Press <b>ideal</b>, then <b>Stokes</b>: the blue disturbance grows from a thin halo into a cloud tens of radii wide — viscosity makes the sphere felt far away.' }]
   },
-  explain: {
-    html: s => {
-      const W = Viz.work, p = SI(s), b = beta(p), x0 = Math.sqrt(s.A), run = getRun(s.shape), h0 = maxArr(run.hstart) * x0;
-      const tStar = 1 / (b * x0), D0 = b * h0 * h0 * h0;
-      let out = W.step(0, 'What you are looking at') +
-        W.say('<b>The layer</b>: <span class="c-blue">blue</span> = the simulated thickness (both halves), <span class="c-accent">purple dashed</span> = the similarity dome at the same time, <span class="c-orange">orange</span> arrows = the flux $q$, <span class="c-teal">teal</span> ticks = the front, <span class="c-rose">rose</span> = your probe with its velocity half-parabola. ' +
-          '<b>Front</b>: the <span class="c-teal">teal</span> curve is the simulated front on log–log axes, the <span class="c-accent">purple</span> line has slope 1/5, the <span class="c-muted">grey</span> one slope 1/2 (ordinary diffusion). <b>Rescaled</b>: the last six profiles multiplied by $\\tau^m$ against $x/\\tau^m$.') +
-        (layoutIs('portrait') || phone() ? W.hint('On phones the rescaled view is hidden; its collapse spread is in the front title.') : '');
-      out += W.step(1, 'The flux at your probe') +
-        W.line('$\\beta=\\rho g/3\\mu = ' + t3(s.rho) + '\\times9.807/(3\\times' + t3(s.mu) + ')$', f3(b) + ' 1/(m s)', 'the coefficient of the thin-film equation') +
-        W.line('probe $x$', Viz.live('px'), 'a fraction ' + f3(s.probe) + ' of the way to the front') +
-        W.line('thickness $h$ and slope $\\partial h/\\partial x$', Viz.live('ph'), 'read off the simulated profile (centred difference)') +
-        W.box('<span class="c-orange">$q=-\\beta h^3\\,\\partial h/\\partial x$</span> = ' + Viz.live('pq') + ' m²/s per metre of width — positive means outward. It comes from integrating the half-parabola $u=-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y(2h-y)$ across the layer (derivation, step 9).');
-      out += W.step(2, 'The volume stays fixed') +
-        W.line('$\\partial h/\\partial t+\\partial q/\\partial x=0$ in flux form', '', 'what leaves one cell enters its neighbour; the ends are closed') +
-        W.line('volume per metre of width $2\\mathcal A$', f3(2 * s.A) + ' m²') +
-        W.box('relative change since the start: ' + Viz.live('drift') + ' — round-off: the scheme updates each cell by flux differences only.');
-      out += W.step(3, 'The front law') +
-        W.line($(EQ.eta), ETA_N.toFixed(5), 'Huppert (1982) quotes 1.411; ours from the Γ function') +
-        W.line('$x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5} = ' + t4(ETA_N) + '\\times(' + t3(b) + '\\times' + t3(Math.pow(s.A, 3)) + '\\times t)^{1/5}$', Viz.live('xl'), 'Huppert\'s closed form of the Example 8.7 similarity solution') +
-        W.box('law <span class="c-accent">' + Viz.live('xl') + '</span> vs simulated <span class="c-teal">' + Viz.live('xs') + '</span>: ratio ' + Viz.live('ratio'));
-      out += W.step(4, 'Why so slow') +
-        W.line('diffusivity at the start $D_0=\\beta h_0^3 = ' + t3(b) + '\\times(' + t3(h0) + ')^3$', f3(D0) + ' m²/s', '$h_0$ = the starting peak height') +
-        W.line('diffusivity now at the thickest point, $\\beta h_{\\max}^3$', Viz.live('deff') + ' m²/s', 'falls like $h^3\\propto t^{-3/5}$') +
-        W.box('A diffusion that kept $D_0$ would have spread $\\sqrt{D_0t}$ = ' + Viz.live('diff') + ' by now; the bead reached ' + Viz.live('xs') + '. <b>Spreading chokes itself.</b>');
-      out += W.step(5, 'One run, many clocks') +
-        W.line('length scale $x_0=\\sqrt{\\mathcal A}$', fmtLen(x0), 'the start is an $x_0\\times x_0$ block (or a shape of the same area)') +
-        W.line('time scale $t^*=1/(\\beta x_0)$', Viz.fmtTime(tStar), 'dimensionless time $\\tau=\\beta x_0t=t/t^*$') +
-        W.say('The equation has no other parameter, so every fluid runs through the same shapes at the same $\\tau$: $\\mu\\times1000$ multiplies every time by 1000, and $x_N/x_0 = \\eta_N\\tau^{1/5}$ at late times.' +
-          (s.mu >= 1e10 ? ' <b>Glacier*</b>: real ice is non-Newtonian, so treat this only as a time scale.' : ''));
-      out += W.step(6, 'At the current time') +
-        W.line('$t$', Viz.live('t'), '$\\tau$ = ' + Viz.live('tau')) +
-        W.line('centre height $h_c$', Viz.live('hc')) +
-        W.line('front slope over the last decade', Viz.live('slope'), 'the law says 1/5 = 0.2; diffusion would give 0.5');
-      out += W.interpret(Viz.live('reading') + (s.m === '0.5' ? ' With m = 1/2 (diffusion\'s guess) the rescaled curves drift apart: this is not a diffusion length.' : ''), 'Reading the current setting');
-      return out;
-    },
-    live: s => {
-      const c = cur(s), pn = probeNums(s), b = c.b;
-      const h0 = maxArr(c.run.hstart) * c.x0, D0 = b * h0 * h0 * h0;
-      return { px: fmtLen(pn.x), ph: fmtLen(pn.h) + ', ' + f3(pn.hx), pq: f3(pn.q), drift: expStr(c.drift), xl: fmtLen(c.law.x_N), xs: fmtLen(c.xf),
-        ratio: (c.xf / c.law.x_N).toFixed(4), deff: f3(c.Deff), diff: fmtLen(Math.sqrt(D0 * c.t)), t: Viz.fmtTime(c.t), tau: tauStr(s.lt), hc: fmtLen(c.hc),
-        slope: isFinite(c.slope) ? c.slope.toFixed(3) : '— (needs one decade of history)', reading: readingText(s) };
-    }
-  },
-  derivations: [
-    { id: 'D15', title: 'The thin-film equation', short: 'thin film', ref: 'Example 8.3', view: 'layer',
-      goal: 'Find one equation for the thickness $h(x,t)$ of a thin viscous layer spreading under its own weight on a flat plate.',
-      start: { tex: '\\begin{aligned}&' + EQ.e45 + '\\\\&' + EQ.e818 + '\\end{aligned}',
-        plain: 'The control-volume mass balance $' + EQ.e45 + '$ (4.5), applied to a slice of width $dx$, and the generic lubrication profile $' + EQ.e818 + '$ (8.18).' },
-      plan: ['Conserve mass in a thin vertical slice.', 'Get the pressure gradient from hydrostatics.', 'Fix the constants $A$, $B$ with no slip below and no stress on top.', 'Integrate the profile across the layer and insert.'],
-      uses: ['control-volume mass balance (Ch. 4)', 'hydrostatic pressure in a thin layer', 'stress-free surface $\\mu\\,\\partial u/\\partial y=0$', 'integral of a polynomial'],
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 1, probe: 0.5, hl: '' },
-      steps: [
-        { did: 'Balance mass in a slice', tex: '\\begin{aligned}&\\rho\\frac{\\partial h}{\\partial t}dx-\\int_0^{h(x)}\\rho u\\,dy\\\\&+\\int_0^{h(x+dx)}\\rho u\\,dy=0\\end{aligned}',
-          why: 'The mass balance (4.5), $' + EQ.e45 + '$, for a fixed slice of width $dx$ and unit depth: storage change plus net outflow is zero.', plain: 'The layer thickens where more fluid enters than leaves.', set: { hl: '' } },
-        { did: 'Divide by ρ dx and shrink dx', tex: '\\frac{\\partial h}{\\partial t}+\\frac{\\partial}{\\partial x}\\int_0^hu\\,dy=0',
-          why: 'ρ is constant; the difference of the two integrals over $dx$ becomes an $x$-derivative as $dx\\to0$.', plain: 'The thickness changes by the divergence of the flux $q=\\int_0^hu\\,dy$.', set: { hl: 'q' } },
-        { did: 'Write the hydrostatic pressure', tex: 'p=p_a+\\rho g(h-y)',
-          why: 'In a thin layer with a small slope the vertical balance is hydrostatic (the lubrication ordering); the air pressure $p_a$ sits on top.', plain: 'The pressure grows with depth below the surface.',
-          set: { hl: 'p' }, watch: 'Under the crest the hydrostatic pressure is highest (the darkest blue).' },
-        { did: 'Take its x-derivative', tex: '\\frac{\\partial p}{\\partial x}=\\rho g\\frac{\\partial h}{\\partial x}',
-          why: '$p_a$ is uniform and $y$ does not depend on $x$.', plain: 'The surface slope drives the flow — equally at every height.', set: { hl: 'p' } },
-        { did: 'Put it into the lubrication profile', tex: 'u\\cong\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y^2+Ay+B',
-          why: 'Replace $\\partial p/\\partial x$ in $' + EQ.e818 + '$ (8.18) by step 4.', plain: 'A parabola in $y$ with two unknown constants.', set: { hl: 'u' } },
-        { did: 'Apply no slip on the plate', tex: 'u(0)=0\\ \\Rightarrow\\ B=0',
-          why: 'No slip, $' + EQ.e83 + '$ (8.3), on the plate at rest makes the velocity vanish at $y=0$.', plain: 'The bottom layer sticks to the plate.', set: { hl: 'u' } },
-        { did: 'Apply no stress on the surface', tex: '\\begin{aligned}&\\mu\\frac{\\partial u}{\\partial y}\\Big\\rvert_h=\\rho g\\frac{\\partial h}{\\partial x}h+\\mu A=0\\\\&\\Rightarrow\\ A=-\\frac{\\rho g}{\\mu}h\\frac{\\partial h}{\\partial x}\\end{aligned}',
-          why: 'The air exerts no shear on the free surface, so $\\partial u/\\partial y=0$ there (not $u=0$).', plain: 'The velocity stops changing with height at the surface.', set: { hl: 'u' } },
-        { did: 'Assemble the profile', tex: 'u\\cong-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}\\,y(2h-y)',
-          why: 'Insert $A$ and $B$: $\\frac{\\rho g}{2\\mu}h_x(y^2-2hy)$, then take out $-y$.', plain: 'A half-parabola, fastest at the surface, pointing down the slope.', set: { hl: 'u' },
-          watch: 'The rose arrows at the probe are this half-parabola.',
-          live: s => { const pn = probeNums(s), c = cur(s); return `\\begin{aligned}u(h)&=${t3(-c.p.rho * c.p.g / (2 * c.p.mu))}\\times(${t3(pn.hx)})\\times(${t3(pn.h)})^2\\\\&=${t3(pn.u)}\\ \\text{m/s}\\end{aligned}`; } },
-        { did: 'Integrate across the layer', tex: '\\begin{aligned}\\int_0^hu\\,dy&=-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}\\cdot\\frac{2h^3}{3}\\\\&=-\\frac{\\rho g}{3\\mu}h^3\\frac{\\partial h}{\\partial x}\\end{aligned}',
-          why: 'Only $y(2h-y)$ depends on $y$; integrate it term by term: $\\int_0^hy(2h-y)\\,dy=h^3-h^3/3=2h^3/3$.', plain: 'The flux is $h^3$ times the slope: a thin film barely moves.', set: { hl: 'q' },
-          live: s => { const pn = probeNums(s), c = cur(s); return `\\begin{aligned}q&=-${t4(c.b)}\\times(${t3(pn.h)})^3\\times(${t3(pn.hx)})\\\\&=${t3(pn.q)}\\ \\text{m}^{2}\\text{/s}\\end{aligned}`; } },
-        { did: 'Insert into the mass balance', tex: EQ.tf,
-          why: 'Step 9 into step 2; the two minus signs cancel.', plain: 'A nonlinear diffusion equation for $h$, with diffusivity $\\rho gh^3/3\\mu$.', set: { hl: '' } }
-      ],
-      result: { tex: EQ.tf, plain: 'A diffusion whose diffusivity $\\rho gh^3/3\\mu$ collapses as the layer thins.' },
-      interpret: s => { const c = cur(s); return `With your numbers $\\beta=\\rho g/3\\mu=${t3(c.b)}$ 1/(m s); the thickest point is ${fmtLen(c.hpk)} thick, so the local diffusivity $\\beta h^3$ there is ${f3(c.Deff)} m²/s — it falls eightfold each time the layer halves.`; },
-      check: 'Units: $\\rho g/3\\mu$ in $(\\text{kg/m}^3)(\\text{m/s}^2)/(\\text{Pa s})=1/(\\text{m s})$; $\\partial_x(h^3\\partial_xh)$ in m²; product m/s = $\\partial h/\\partial t$ ✓. The volume $\\int h\\,dx$ is conserved (flux form). Glycerol: $\\rho g/3\\mu = ' + t3(GLY_B) + '$ 1/(m s).' },
-    { id: 'D23', title: 'Why the exponents are one fifth', short: 'n = m = 1/5', ref: 'Example 8.7', view: 'front',
-      goal: 'Find the similarity form of the spreading bead from its equation and its conserved volume.',
-      start: { tex: '\\begin{aligned}&' + EQ.tf + '\\\\&h=At^{-n}F\\big(x/\\delta(t)\\big)\\end{aligned}',
-        plain: 'The thin-film equation (previous derivation) and the similarity ansatz $' + EQ.e832a + '$ (8.32a) with $\\gamma=h$, $\\xi=x$. Here $A$ is the ansatz constant, not the half-area $\\mathcal A$.' },
-      plan: ['Compute every derivative of the ansatz.', 'Bracket the time dependence of each term.', 'Match two brackets; use the constant volume.', 'Solve the two exponent equations.'],
-      uses: ['product rule', 'chain rule through $\\eta=x/\\delta(t)$', 'matching powers of $t$'],
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3, m: '0.2', hl: '' },
-      steps: [
-        { did: 'Differentiate in time', tex: "\\frac{\\partial h}{\\partial t}=-nAt^{-n-1}F-At^{-n}\\eta\\frac{\\delta'}{\\delta}F'",
-          why: 'Product rule on $t^{-n}F$, chain rule through $\\eta=x/\\delta(t)$, whose time derivative is $-\\eta\\delta\'/\\delta$.', plain: 'The bead sinks and stretches at the same time.' },
-        { did: 'Differentiate in space', tex: "\\frac{\\partial h}{\\partial x}=At^{-n}\\frac{F'}{\\delta}",
-          why: 'Chain rule with $\\partial\\eta/\\partial x=1/\\delta$; the prefactor $At^{-n}$ does not depend on $x$.', plain: 'The surface slope.' },
-        { did: 'Form the flux factor', tex: "h^3\\frac{\\partial h}{\\partial x}=A^4t^{-4n}\\frac{F^3F'}{\\delta}",
-          why: 'Multiply the cube of the ansatz, $A^3t^{-3n}F^3$, by step 2.', plain: 'The $h^3$ brings three more powers of $At^{-n}$.' },
-        { did: 'Differentiate the flux factor', tex: "\\frac{\\partial}{\\partial x}\\Big(h^3\\frac{\\partial h}{\\partial x}\\Big)=\\frac{A^4t^{-4n}}{\\delta^2}(3F^2F'^2+F^3F'')",
-          why: "Product rule: $(F^3F')'=3F^2F'^2+F^3F''$, and one more $1/\\delta$ from the chain rule.", plain: 'The diffusion side of the equation.' },
-        { did: 'Assemble with brackets', tex: "\\begin{aligned}&-[nAt^{-n-1}]F-\\Big[At^{-n}\\frac{\\delta'}{\\delta}\\Big]\\eta F'\\\\&=\\Big[\\frac{\\rho g}{3\\mu}\\frac{A^4t^{-4n}}{\\delta^2}\\Big](3F^2F'^2+F^3F'')\\end{aligned}",
-          why: 'Steps 1 and 4 in the thin-film equation; each bracket collects what depends on $t$.', plain: 'Three bracketed coefficients multiply functions of $\\eta$ alone.' },
-        { did: 'Match the first two brackets', tex: "\\frac{\\delta'}{\\delta}=\\frac{Cn}{t}\\ \\Rightarrow\\ \\delta=Dt^m,\\ \\ m=Cn",
-          why: "Their ratio must be a constant $C$, or $F$ could not depend on $\\eta$ alone; $\\delta'/\\delta\\propto1/t$ integrates to a power law.", plain: 'The width grows as a power of time.' },
-        { did: 'Match the second and third', tex: 't^{-n-1}\\propto t^{-4n}\\delta^{-2}=t^{-4n-2m}\\ \\Rightarrow\\ -1=-3n-2m',
-          why: 'Equal powers of $t$ on both sides; the constant factors are absorbed into $F$.', plain: 'The first relation between the exponents.' },
-        { did: 'Conserve the volume', tex: '\\begin{aligned}\\int_{-\\infty}^{\\infty}h\\,dx&=At^{-n}Dt^m\\int F\\,d\\eta\\\\&=\\text{const}\\ \\Rightarrow\\ -n+m=0\\end{aligned}',
-          why: '$dx=\\delta\\,d\\eta$ and $\\int F\\,d\\eta$ is a number, so the power of $t$ in front must vanish.', plain: 'The second relation — from a conserved quantity, not a boundary condition.',
-          live: s => { const c = cur(s); return `\\begin{aligned}2\\mathcal A&=${t3(c.vol)}\\ \\text{m}^{2}\\\\ \\text{change}&=${Viz.tnum(c.drift, 2, { keepTiny: true })}\\end{aligned}`; } },
-        { did: 'Solve the two relations', tex: 'n=m,\\ \\ 3n+2n=1\\ \\Rightarrow\\ n=m=\\tfrac15',
-          why: 'Two linear equations in $n$ and $m$: put $m=n$ into $-1=-3n-2m$.', plain: 'The height falls and the width grows like $t^{1/5}$: $' + EQ.sim + '$.',
-          set: { m: '0.2', lt: 3.8 }, watch: 'The teal dots follow the slope-1/5 line.',
-          live: s => { const c = cur(s); return `\\text{measured front slope over the last decade} = ${isFinite(c.slope) ? c.slope.toFixed(3) : '-'}`; } }
-      ],
-      result: { tex: EQ.sim, plain: 'The bead spreads as $t^{1/5}$ and thins as $t^{-1/5}$; Huppert solved the shape: $F\\propto(1-\\eta^2/\\eta_N^2)^{1/3}$ with $\\eta_N=1.411$.' },
-      interpret: s => { const c = cur(s); return `With your settings the simulated front slope over the last decade is ${isFinite(c.slope) ? c.slope.toFixed(3) : '— (too early)'}, and the front is ${fmtLen(c.xf)} against ${fmtLen(c.law.x_N)} from $${EQ.law}$.`; },
-      check: 'Volume $\\propto t^{-1/5}t^{1/5}$ = const ✓. `similarity_reduce_sympy("spreading")` returns $n=m=1/5$; the simulated front slope at late times is 0.200 ± 0.005. The book\'s last line of the example names Example 8.2; it means the thin-film equation of Example 8.3.' }
-  ],
-  code: [
-    { id: 'main', title: 'The dome, its front and the flux (fluidpy)', ref: 'Example 8.3, 8.7',
-      src: `import numpy as np
-import fluidpy.ch08_laminar_flow as ch08
-rho, g, mu, A = {{crho}}, 9.80665, {{cmu}}, {{cA}}  # SI; A = half-area
-t = {{ct}}                                   # time [s]
-st = ch08.thin_film_state(t, A, rho=rho, g=g, mu=mu)
-print(st["x_N"], st["h_centre"])             # {{cxN}} m, {{chc}} m
-x = np.linspace(-st["x_N"], st["x_N"], 101)  # across the dome [m]
-h = ch08.viscous_current_similarity(x, t, A, rho=rho, g=g, mu=mu)
-hx = np.gradient(h, x)                       # surface slope [-]
-q = ch08.thin_film_flux(h[75], hx[75], rho=rho, g=g, mu=mu)
-print(q)                           # flux at x = x_N/2: {{cq}} m²/s`,
-      live: s => {
-        const c = cur(s), p = SI(s), st = state(c.t, p), dx = 2 * st.x_N / 100, xa = -st.x_N + 75 * dx;
-        const hq = huppert(xa, c.t, p), hxq = (huppert(xa + dx, c.t, p) - huppert(xa - dx, c.t, p)) / (2 * dx);
-        return { crho: String(+s.rho.toPrecision(4)), cmu: String(+s.mu.toPrecision(3)), cA: String(+s.A.toPrecision(3)), ct: c.t.toPrecision(4),
-          cxN: st.x_N.toPrecision(4), chc: st.h_centre.toPrecision(4), cq: flux(hq, hxq, p).toPrecision(4) };
-      } },
-    { id: 'march', title: 'The same spreading, marched in numbers (β = 1)', ref: 'Example 8.3',
-      src: `N, L = 240, 12.0              # cells; half domain in units of x0
-dx = L / N
-x = (np.arange(N) + 0.5) * dx     # cell centres
-h0 = np.where(x < 1.0, 1.0, 0.0)  # the box: half-area 1
-run = ch08.thin_film_spread(h0, x, [{{mtau}}], rho=3.0, g=1.0,
-                            mu=1.0, h_min=1e-4, growth=1.002)
-print(run["x_front"][0])          # front ≈ {{mxf}} x0 (box)
-print(run["volume"][0])           # {{mvol}}: the start's volume`,
-      live: s => { const k = Math.round(kOf(s.lt)), r = RUN_BOX; return { mtau: Number(Math.pow(10, LT0 + k / PERDEC).toPrecision(4)).toString(), mxf: r.fronts[k].toPrecision(5), mvol: r.vols[k].toPrecision(8) }; },
-      note: 'The page marches the same cells with explicit steps; thin_film_spread uses implicit steps — the fronts agree to 10⁻⁴ (selftest).' },
-    { id: 'step', title: 'One explicit step by hand', ref: 'Example 8.3',
-      src: `def step(h, dt):                  # flux form, beta = 1
-    H = 0.5 * (h[1:] + h[:-1])    # thickness at the faces
-    F = H**3 * np.diff(h) / dx    # h³ ∂h/∂x at faces (q = -F)
-    div = np.zeros_like(h)
-    div[:-1] += F; div[1:] -= F   # net inflow per cell
-    return h + dt * div / dx      # sum(h)*dx unchanged
-dt = 0.2 * dx**2 / h.max()**3     # stable step now: {{sdt}}`,
-      live: s => { const c = cur(s), hm = maxArr(c.hd); return { sdt: (CFL * DX * DX / (hm * hm * hm)).toPrecision(3) }; } }
-  ],
-  tour: [
-    { title: 'Honey on a plate', text: 'A 1 cm × 1 cm bead of glycerol slumps on a plate. <b>Each doubling of its width takes 32 times longer than the last.</b> Why does a spreading drop slow down so much?',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, m: '0.2', lt: 1, probe: 0.5, hl: '' }, play: false },
-    { title: 'Weight pushes', text: 'Under the thick middle the hydrostatic pressure $p=p_a+\\rho g(h-y)$ is highest (darkest blue), so fluid is pushed from thick to thin — the <b class="c-orange">orange</b> flux arrows. Watch the box slump.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: LT0, hl: 'p' }, play: true, derive: { id: 'D15', step: 9 } },
-    { title: 'The flux chokes', text: 'The flux carries $h^3$: halve the thickness and it falls eightfold. So the effective diffusivity $\\rho gh^3/3\\mu$ collapses as the layer thins — scrub the time and watch it drop.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 2, hl: '' }, play: false, readouts: ['hc', 'Deff'], code: { id: 'main', lines: [10, 11] } },
-    { title: 'One fifth, not one half', text: 'On log–log axes the <b class="c-teal">teal</b> front bends onto the <b class="c-accent">purple</b> line of slope 1/5, far below the grey slope 1/2 of ordinary diffusion.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3.5, hl: '' }, play: false, eq: 'front', highlight: ['readout:xs', 'readout:xl'] },
-    { title: 'The start is forgotten', text: 'Now start from two separate humps. They merge, and the profile ends on the same <b class="c-accent">purple</b> dome as the box; the status turns ✅ once under 2 % of the volume is out of place.',
-      set: { shape: 'two', A: 1e-4, mu: 1, rho: 1260, lt: LT0, hl: '' }, play: true, notes: true },
-    { title: 'Your turn', text: 'Here glycerol has spread to ±' + fmtLen(X_STEP6) + ' in ' + Viz.fmtTime(T_STEP6) + '. <b>Predict</b>: a fluid 1000× more viscous (μ = 1000 Pa s, lava-like) — how long to the same front? Then drag μ and read $t$.',
-      set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3, hl: '' }, play: false, controls: ['mu'], readouts: ['t'] }
-  ],
-  equations: [
-    { id: 'tf', title: 'Thin-film equation', ref: 'Example 8.3', tex: EQ.tf,
-      live: s => '\\beta=\\frac{\\rho g}{3\\mu}=' + t3(beta(SI(s))) + '\\ \\text{1/(m s)}',
-      note: 'from the mass balance and the lubrication profile (Derivation tab)', symbols: [['h', 'layer thickness', 'm'], ['\\rho', 'density', 'kg/m³'], ['\\mu', 'dynamic viscosity', 'Pa s'], ['g', 'gravity', 'm/s²']] },
-    { id: 'flux', title: 'Volume flux per unit width', ref: 'Example 8.3', tex: EQ.flux,
-      live: s => { const pn = probeNums(s); return 'q(x_{\\text{probe}}) = ' + t3(pn.q) + '\\ \\text{m}^{2}\\text{/s}'; },
-      symbols: [['q', 'volume flux per metre of width', 'm²/s'], ['\\partial h/\\partial x', 'surface slope', '–']] },
-    { id: 'prof', title: 'Lubrication profile', ref: 'Eq. (8.18)', tex: EQ.e818,
-      note: 'with $p=p_a+\\rho g(h-y)$, no slip below and no stress on top: $u\\cong-\\frac{\\rho g}{2\\mu}\\frac{\\partial h}{\\partial x}y(2h-y)$',
-      symbols: [['A, B', 'constants of the profile (functions of x, t)', 'varies']] },
-    { id: 'sim', title: 'Similarity form', ref: 'Example 8.7', tex: EQ.sim,
-      note: 'from $' + EQ.e832a + '$ (8.32a) with $n=m=1/5$ (Derivation tab)', symbols: [['A, D', 'constants of the similarity form', 'varies']] },
-    { id: 'front', title: 'Front and centre (Huppert 1982)', ref: 'benchmark', tex: '\\begin{aligned}&' + EQ.law + '\\\\&' + EQ.hc + '\\end{aligned}',
-      live: s => { const c = cur(s); return '\\begin{aligned}x_N&=' + t3(c.law.x_N) + '\\ \\text{m}\\\\h_c&=' + t3(c.law.h_centre) + '\\ \\text{m}\\end{aligned}'; },
-      symbols: [['\\mathcal A', 'half cross-section area', 'm²'], ['\\beta', '\\rho g/3\\mu', '1/(m s)'], ['\\eta_N', 'front constant 1.411', '–']] },
-    { id: 'eta', title: 'Front constant', ref: 'Huppert (1982)', tex: EQ.eta, live: () => '\\eta_N=' + ETA_N.toFixed(5) }
-  ],
-  check: [
-    { q: 'Make the fluid 1000× more viscous. How much longer does it take to reach the same front?', a: '1000× longer: the only time in the problem is $\\tau=\\beta x_0t$ with $\\beta=\\rho g/3\\mu$, so the same shape (and front) is reached when $t/\\mu$ is the same.', set: { shape: 'box', A: 1e-4, mu: 1000, rho: 1260, lt: 3 } },
-    { q: 'Multiply the half-area $\\mathcal A$ by 32. How much farther is the front at a given time (late)?', a: '$32^{3/5}=8$ times: $x_N=\\eta_N(\\beta\\mathcal A^3t)^{1/5}\\propto\\mathcal A^{3/5}$. Compare the law readout for 𝒜 = 1 cm² and 32 cm² at a fixed $t$.', set: { shape: 'box', A: 3.2e-3, mu: 1, rho: 1260, lt: 3.5 } },
-    { q: 'Why is the front slope on the log–log plot not 1/2, as for diffusion?', a: 'The diffusivity $\\rho gh^3/3\\mu$ falls as the layer thins; with a fixed volume the similarity exponents are $n=m=1/5$ ($-1=-3n-2m$ and $-n+m=0$). The grey slope-1/2 line shows how far a constant diffusivity would have carried it.', set: { shape: 'box', A: 1e-4, mu: 1, rho: 1260, lt: 3.5, m: '0.2' } },
-    { q: 'Is the volume exactly conserved by the simulation?', a: 'Yes, to round-off (about 10⁻¹⁵, see the status): every cell changes by the difference of the fluxes through its two faces, so whatever leaves one cell enters its neighbour and the closed ends let nothing out.', set: { shape: 'two', lt: 4 } }
-  ],
-  selftest: () => {
-    const S0 = { area: 1e-4, rho: 1260, g: 9.80665, mu: 1 }, S1 = { area: 2e-4, rho: 1400, g: 9.80665, mu: 10 }, SL = { area: 10, rho: 2700, g: 9.80665, mu: 1000 };
-    const box = getRun('box'), two = getRun('two'), k100 = Math.round(kOf(2)), k1000 = Math.round(kOf(3)), kEnd = NS - 1;
-    const driftMax = r => { let d = 0; r.vols.forEach(v => { d = Math.max(d, Math.abs(v / r.v0 - 1)); }); return d; };
-    const st100 = state(100, S0);
-    const n = 1 / 5, m = n;                                                 // −1 = −3n − 2m and m = n
-    const X1 = 'ch08.np.linspace(0.025, 11.975, 240)';
-    const SPREAD = 'ch08.thin_film_spread(ch08.np.where(' + X1 + ' < 1.0, 1.0, 0.0), ' + X1 + ', [100.0], rho=3.0, g=1.0, mu=1.0, h_min=1e-4, growth=1.002)';
-    return [
-      { name: 'flux q (glycerol, h = 1 cm, slope -0.5)', js: flux(0.01, -0.5, S0), py: 'ch08.thin_film_flux(0.01, -0.5, rho=1260.0, g=9.80665, mu=1.0)', rtol: 1e-12 },
-      { name: 'Huppert h (x = 2 cm, t = 100 s)', js: huppert(0.02, 100, S0), py: 'ch08.viscous_current_similarity(0.02, 100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)', rtol: 1e-12 },
-      { name: 'Huppert h (honey, x = 3 cm, t = 10 s)', js: huppert(0.03, 10, S1), py: 'ch08.viscous_current_similarity(0.03, 10.0, 2e-4, rho=1400.0, g=9.80665, mu=10.0)', rtol: 1e-12 },
-      { name: 'Huppert h beyond the front = 0', js: huppert(0.2, 100, S0), py: 'ch08.viscous_current_similarity(0.2, 100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)', atol: 1e-15 },
-      { name: 'front x_N (t = 100 s)', js: st100.x_N, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["x_N"]', rtol: 1e-12 },
-      { name: 'centre h_c (t = 100 s)', js: st100.h_centre, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["h_centre"]', rtol: 1e-12 },
-      { name: 'effective diffusivity beta h_c^3', js: st100.effective_diffusivity, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["effective_diffusivity"]', rtol: 1e-12 },
-      { name: 'front speed x_N/(5t)', js: st100.front_speed, py: 'ch08.thin_film_state(100.0, 1e-4, rho=1260.0, g=9.80665, mu=1.0)["front_speed"]', rtol: 1e-12 },
-      { name: 'front x_N, lava lobe (t = 1 h)', js: state(3600, SL).x_N, py: 'ch08.thin_film_state(3600.0, 10.0, rho=2700.0, g=9.80665, mu=1000.0)["x_N"]', rtol: 1e-12 },
-      { name: 'eta_N from the Gamma function', js: ETA_N, py: 'ch08.viscous_current_eta_N()', rtol: 1e-12 },
-      { name: 'eta_N = 1.411 (Huppert 1982, benchmark)', js: ETA_N, expect: 1.411, rtol: 5e-4 },
-      { name: 'march: front at tau = 100 (box) vs implicit solver', js: box.fronts[k100], py: SPREAD + '["x_front"][0]', rtol: 1e-4 },
-      { name: 'march: centre cell at tau = 100 vs implicit solver', js: box.snaps[k100][0], py: SPREAD + '["h"][0][0]', rtol: 5e-4 },
-      { name: 'march: volume at tau = 100 vs implicit solver', js: box.vols[k100], py: SPREAD + '["volume"][0]', rtol: 1e-12 },
-      { name: 'march: volume drift over the whole box run', js: driftMax(box), expect: 0, atol: 1e-12 },
-      { name: 'march: volume drift over the two-hump run', js: driftMax(two), expect: 0, atol: 1e-12 },
-      { name: 'late front / Huppert law (tau = 1000, box)', js: box.fronts[k1000] / (ETA_N * Math.pow(1000, 0.2)), expect: 1, rtol: 1e-2 },
-      { name: 'front slope over the last decade (tau = 1e4)', js: Math.log10(box.fronts[kEnd] / box.fronts[kEnd - PERDEC]), expect: 0.2, atol: 5e-3 },
-      { name: 'profile distance from the dome (tau = 1e4, box)', js: domeDistance(box.snaps[kEnd], 1e4), expect: 0, atol: 5e-3 },
-      { name: 'two humps forget their start (tau = 1e4)', js: domeDistance(two.snaps[kEnd], 1e4), expect: 0, atol: 2e-2 },
-      { name: 'collapse with m = 1/5 at late time (box)', js: collapse(box, LT1, 0.2).spread, expect: 0, atol: 2e-2 },
-      { name: 'exponent n from the two relations', js: n, py: 'ch08.similarity_reduce_sympy("spreading")["n"]', rtol: 1e-12 },
-      { name: 'exponent m from the two relations', js: m, py: 'ch08.similarity_reduce_sympy("spreading")["m"]', rtol: 1e-12 },
-      { name: 'relation -1 = -3n - 2m holds', js: -3 * n - 2 * m, expect: -1, rtol: 1e-12 }
-    ];
-  }
-});
+  explain: { html: s => explainHtml(s), live: s => explainLive(s) },
+  derivations: DERIV,
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
+};
+const app = Viz.app(CFG);
+
 </script>
 </body>
 </html>
