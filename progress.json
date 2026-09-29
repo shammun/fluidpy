@@ -228,7 +228,7 @@
       "review": "pass",
       "viz": "pass",
       "notebook": "pass",
-      "knowledge": "show",
+      "knowledge": "done",
       "publish": "pass",
       "explainers": [
         "couette_poiseuille_backflow",
