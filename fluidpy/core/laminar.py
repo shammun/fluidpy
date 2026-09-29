@@ -72,7 +72,15 @@ def channel_flow(y, h, U: float = 0.0, dpdx: float | None = 0.0, mu: float = 1e-
     u : float or ndarray — streamwise velocity [m/s].
 
     Assumptions: incompressible, constant μ, steady, fully developed (∂u/∂x = 0 ⇒ v = 0), p = p(x) only.
-    Validation (planned): V1 NS residual ≈ 0 (``core.navier_stokes.ns_incompressible_terms``), BCs; V2 sympy
+    Validation — tests/test_ch08.py: test_channel_flow_V1_navier_stokes_residual_and_walls,
+      test_channel_flow_V1_parity_with_ch04_and_the_sign_convention, test_couette_poiseuille_V2_derivation,
+      test_channel_flow_rate_V1_quadrature_and_printed_V_units, test_channel_shear_stress_V1_derivative_and_wall_values,
+      test_channel_backflow_V1_threshold_by_bisection_and_state, test_channel_flow_V7_superposition_and_mirror_symmetry,
+      test_lubrication_velocity_V1_walls_flux_and_printed_form,
+      test_reuse_V1_couette_startup_ftcs_and_navier_stokes_presets,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 NS residual ≈ 0 (``core.navier_stokes.ns_incompressible_terms``), BCs; V2 sympy
     μu″ = dp/dx; parity with ch04 ``exact_solution("couette", G=−dpdx)`` and ``plane_poiseuille``.
     Label: analytic, symbolic.
     """
@@ -99,7 +107,11 @@ def channel_flow_rate(h, U: float = 0.0, dpdx: float | None = 0.0, mu: float = 1
     -------
     (Q, V) : flow rate per unit width [m²/s] and mean velocity [m/s].
 
-    Validation (planned): V1 ``quad`` of :func:`channel_flow` equals Q; V = Q/h; wrong variant: printed V (units).
+    Validation — tests/test_ch08.py: test_channel_flow_rate_V1_quadrature_and_printed_V_units,
+      test_channel_backflow_V1_threshold_by_bisection_and_state,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 ``quad`` of :func:`channel_flow` equals Q; V = Q/h; wrong variant: printed V (units).
     Label: analytic.
     """
     h = float(h)
@@ -123,7 +135,11 @@ def channel_shear_stress(y, h, U: float = 0.0, dpdx: float | None = 0.0, mu: flo
     -------
     tau : float or ndarray — τ_xy [Pa], signed (positive: the fluid above drags the fluid below toward +x).
 
-    Validation (planned): V1 μ times the analytic derivative of (8.5); |τ_w| = (h/2)|dp/dx| at both walls for U = 0.
+    Validation — tests/test_ch08.py: test_channel_shear_stress_V1_derivative_and_wall_values,
+      test_channel_backflow_V1_threshold_by_bisection_and_state,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 μ times the analytic derivative of (8.5); |τ_w| = (h/2)|dp/dx| at both walls for U = 0.
     Label: analytic.
     """
     y_, h = _F(y), float(h)
@@ -145,7 +161,9 @@ def channel_backflow_threshold(U, h, mu: float = 1e-3):
     -------
     dpdx_star : float — threshold dp/dx [Pa/m] (for U > 0 backflow appears iff dp/dx > dpdx_star).
 
-    Validation (planned): V1 bisection of min u on a y grid. Label: analytic.
+    Validation — tests/test_ch08.py: test_channel_backflow_V1_threshold_by_bisection_and_state,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 bisection of min u on a y grid. Label: analytic.
     """
     return _S(2.0 * float(mu) * _F(U) / float(h) ** 2)
 
@@ -163,12 +181,15 @@ def couette_poiseuille_state(h, U, dpdx: float | None = 0.0, mu: float = 1e-3, G
     -------
     dict of floats: Q [m²/s], V [m/s], Q_couette = Uh/2, Q_poiseuille = −h³(dp/dx)/12μ [m²/s] (Q = sum);
     tau_bottom = τ(0), tau_top = τ(h) [Pa] (signed τ_xy); backflow (bool: somewhere inside 0 < y < h the fluid moves
-    against the plate's direction (against +x when U = 0) — for U > 0 iff dp/dx > 2μU/h², Fig. 8.4b; mirrored for
-    U < 0); threshold = 2μU/h² [Pa/m]; ratio = (dp/dx)/threshold (NaN if U = 0); zero_flow_dpdx = 6μU/h² [Pa/m] (Q = 0);
+    against the plate's direction — for U > 0 iff dp/dx > 2μU/h², Fig. 8.4b; mirrored for U < 0; always False for
+    U = 0, since a pure Poiseuille profile is one-signed and running in −x is a flow direction, not backflow); threshold = 2μU/h² [Pa/m]; ratio = (dp/dx)/threshold (NaN if U = 0); zero_flow_dpdx = 6μU/h² [Pa/m] (Q = 0);
     u_max, y_umax (largest u and where, walls included) [m/s, m]; u_min, y_umin; y_reversal = h − 2μU/(h dp/dx) when
     inside (0, h), else NaN [m]; dpdx [Pa/m] (the resolved gradient).
 
-    Validation (planned): V1 against :func:`channel_flow` sampled on a fine grid. Label: analytic.
+    Validation — tests/test_ch08.py: test_channel_backflow_V1_threshold_by_bisection_and_state,
+      test_couette_poiseuille_state_V1_extrema_match_dense_grid,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against :func:`channel_flow` sampled on a fine grid. Label: analytic.
     """
     h, U, mu = float(h), float(U), float(mu)
     g = float(_grad(dpdx, G))
@@ -176,7 +197,7 @@ def couette_poiseuille_state(h, U, dpdx: float | None = 0.0, mu: float = 1e-3, G
     cands = [0.0, h]
     y_rev = np.nan
     if g != 0.0:
-        ys = h / 2.0 + mu * U / (h * g)  # du/dy = 0
+        ys = h / 2.0 - mu * U / (h * g)  # du/dy = U/h - g(h - 2y)/(2mu) = 0 from Eq. (8.5)
         if 0.0 < ys < h:
             cands.append(ys)
         yr = h - 2.0 * mu * U / (h * g)  # u = 0 away from y = 0
@@ -186,8 +207,11 @@ def couette_poiseuille_state(h, U, dpdx: float | None = 0.0, mu: float = 1e-3, G
     i_max, i_min = int(np.argmax(vals)), int(np.argmin(vals))
     scale = max(abs(U), abs(g) * h ** 2 / (8.0 * mu), 1e-300)
     yy = np.linspace(0.0, h, 403)[1:-1]  # interior points
-    sgn = 1.0 if U >= 0.0 else -1.0  # flow direction set by the plate (+x when U = 0)
-    backflow = bool(np.min(sgn * _F(channel_flow(yy, h, U, g, mu))) < -1e-12 * scale)  # flow against the plate
+    if U == 0.0:
+        backflow = False  # pure Poiseuille: one-signed profile, its sign is a flow direction, not backflow
+    else:
+        sgn = 1.0 if U > 0.0 else -1.0  # flow direction set by the plate
+        backflow = bool(np.min(sgn * _F(channel_flow(yy, h, U, g, mu))) < -1e-12 * scale)  # flow against the plate
     thr = float(channel_backflow_threshold(U, h, mu))
     return dict(Q=float(Q), V=float(V), Q_couette=U * h / 2.0, Q_poiseuille=-h ** 3 * g / (12.0 * mu),
                 tau_bottom=float(channel_shear_stress(0.0, h, U, g, mu)),
@@ -219,7 +243,11 @@ def pipe_poiseuille(R, a, dpdz: float | None = None, mu: float = 1e-3, G: float 
     u_z : float or ndarray — axial velocity [m/s].
 
     Assumptions: steady, fully developed, axisymmetric, no swirl, constant μ.
-    Validation (planned): V1 parity with ch04 ``exact_solution("pipe_poiseuille", G=−dpdz)`` and ch03 ``pipe_profile``
+    Validation — tests/test_ch08.py: test_pipe_poiseuille_V1_parity_ns_residual_and_ch03,
+      test_pipe_flow_rate_V1_quadrature_umax_and_friction_factor, test_pipe_wall_stress_V4_control_volume_force_balance,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 parity with ch04 ``exact_solution("pipe_poiseuille", G=−dpdz)`` and ch03 ``pipe_profile``
     far downstream; u_z(a) = 0; V2 sympy residual. Label: analytic, symbolic.
     """
     R_, a = _F(R), float(a)
@@ -241,7 +269,9 @@ def pipe_shear_stress(R, dpdz: float | None = None, G: float | None = None):
     -------
     tau : [Pa], signed (negative for dp/dz < 0: the outer fluid holds the inner fluid back).
 
-    Validation (planned): V1 μ × derivative of (8.6). Label: analytic.
+    Validation — tests/test_ch08.py: test_pipe_wall_stress_V4_control_volume_force_balance,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 μ × derivative of (8.6). Label: analytic.
     """
     g = _grad(dpdz, G, "dpdz")
     return _S(_F(R) / 2.0 * g)  # Eq. (8.7)
@@ -261,7 +291,11 @@ def pipe_wall_stress(a, dpdz: float | None = None, G: float | None = None):
     -------
     tau0 : [Pa], signed like (8.8).
 
-    Validation (planned): V1 (8.7) at R = a; V4 CV momentum balance on a pipe slug. Label: analytic, conserved.
+    Validation — tests/test_ch08.py: test_pipe_flow_rate_V1_quadrature_umax_and_friction_factor,
+      test_pipe_wall_stress_V4_control_volume_force_balance,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 (8.7) at R = a; V4 CV momentum balance on a pipe slug. Label: analytic, conserved.
     """
     g = _grad(dpdz, G, "dpdz")
     return _S(_F(a) / 2.0 * g)  # Eq. (8.8)
@@ -281,7 +315,11 @@ def pipe_flow_rate(a, dpdz: float | None = None, mu: float = 1e-3, G: float | No
     -------
     (Q, V, u_max) : [m³/s], [m/s], [m/s].
 
-    Validation (planned): V1 ``quad`` of 2πR u_z; u_max = 2V. Label: analytic.
+    Validation — tests/test_ch08.py: test_pipe_poiseuille_V1_parity_ns_residual_and_ch03,
+      test_pipe_flow_rate_V1_quadrature_umax_and_friction_factor,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 ``quad`` of 2πR u_z; u_max = 2V. Label: analytic.
     """
     a, mu = float(a), float(mu)
     g = _grad(dpdz, G, "dpdz")
@@ -294,7 +332,10 @@ def pipe_friction_factor(Re):
     """Darcy friction factor of laminar pipe flow, f = 64/Re with Re = Vd/ν (ours; not printed in the book).
 
     Book: §8.2 (follows from (8.8) and V: Δp/L = f (ρV²/2)/d, τ₀ = f ρV²/8). Parameters: Re [–] (diameter, mean
-    velocity). Returns f [–]. Validation (planned): V1 from :func:`pipe_wall_stress` and :func:`pipe_flow_rate`.
+    velocity). Returns f [–].
+    Validation — tests/test_ch08.py: test_pipe_flow_rate_V1_quadrature_umax_and_friction_factor,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 from :func:`pipe_wall_stress` and :func:`pipe_flow_rate`.
     Label: analytic.
     """
     return _S(64.0 / _F(Re))
@@ -333,7 +374,13 @@ def circular_couette(R, R1, R2, Omega1, Omega2, return_coeffs: bool = False):
     -------
     u_phi : [m/s]  (or (u_phi, A, B)).
 
-    Validation (planned): V1 u(R1) = Ω₁R₁, u(R2) = Ω₂R₂; limits vs ch05 ``rotating_cylinder_flow(r, a, omega=2Ω₁)``
+    Validation — tests/test_ch08.py: test_circular_couette_V1_walls_ode_vorticity,
+      test_circular_couette_V2_engine_and_D08_derivation, test_circular_couette_V7_limits_and_ch05_ch03_parity,
+      test_circular_couette_V1_navier_stokes_residual_with_pressure, test_circular_couette_pressure_V1_radial_balance,
+      test_circular_couette_V4_torque_and_power_equal_dissipation, test_circular_couette_R10_V1_zero_net_viscous_force,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 u(R1) = Ω₁R₁, u(R2) = Ω₂R₂; limits vs ch05 ``rotating_cylinder_flow(r, a, omega=2Ω₁)``
     (ω there is the cylinder's vorticity 2Ω₁) and ``core.vortices.solid_body_rotation``; ω_z = 2A; V2 sympy ODE.
     Label: analytic, symbolic.
     """
@@ -359,7 +406,10 @@ def circular_couette_pressure(R, R1, R2, Omega1, Omega2, rho: float = 1000.0, p1
     -------
     p : [Pa].
 
-    Validation (planned): V1 finite-difference dp/dR = ρu_φ²/R. Label: analytic.
+    Validation — tests/test_ch08.py: test_circular_couette_V1_navier_stokes_residual_with_pressure,
+      test_circular_couette_pressure_V1_radial_balance,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 finite-difference dp/dR = ρu_φ²/R. Label: analytic.
     """
     A, B = _cc_coeffs(R1, R2, Omega1, Omega2)
     R_, R1 = _F(R), float(R1)
@@ -382,7 +432,10 @@ def circular_couette_shear_stress(R, R1, R2, Omega1, Omega2, mu: float = 1e-3):
     -------
     sigma_Rphi : [Pa] (stress exerted on the fluid inside radius R by the fluid outside, φ-direction, face normal +e_R).
 
-    Validation (planned): V1 against the printed limit; torque 2πR²σ independent of R. Label: analytic.
+    Validation — tests/test_ch08.py: test_circular_couette_V4_torque_and_power_equal_dissipation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 against the printed limit; torque 2πR²σ independent of R. Label: analytic.
     """
     _, B = _cc_coeffs(R1, R2, Omega1, Omega2)
     return _S(-2.0 * float(mu) * B / _F(R) ** 2)
@@ -407,7 +460,9 @@ def circular_couette_power(R1, R2, Omega1, Omega2, mu: float = 1e-3) -> dict:
     they sum to zero in steady flow); power_inner, power_outer [W/m] (power delivered to the fluid by each cylinder;
     ``power_out`` is the same number as ``power_outer``, the design Part C key); power_in [W/m] (their sum, the net); dissipation [W/m] (closed form); dissipation_quad [W/m] (``quad``); quad_error.
 
-    Validation (planned): V4 power_in = dissipation (quadrature), torque balance; R2 = inf, Ω₂ = 0: 4πμΩ₁²R₁².
+    Validation — tests/test_ch08.py: test_circular_couette_V4_torque_and_power_equal_dissipation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V4 power_in = dissipation (quadrature), torque balance; R2 = inf, Ω₂ = 0: 4πμΩ₁²R₁².
     Label: analytic, conserved.
     """
     A, B = _cc_coeffs(R1, R2, Omega1, Omega2)
@@ -442,7 +497,10 @@ def circular_couette_state(R1, R2, Omega1, Omega2, mu: float = 1e-3, rho: float 
     dict of floats: A [1/s], B [m²/s], vorticity = 2A [1/s], torque_inner, torque_outer [N m/m], power_in,
     dissipation [W/m], dp_gap (alias dp) = p(R2) − p(R1) [Pa] (NaN if R2 = inf), rayleigh_stable (bool: A(AR² + B) ≥ 0 at both walls).
 
-    Validation (planned): V1 against the component functions. Label: analytic.
+    Validation — tests/test_ch08.py: test_circular_couette_pressure_V1_radial_balance,
+      test_circular_couette_state_V1_rayleigh_criterion,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against the component functions. Label: analytic.
     """
     pw = circular_couette_power(R1, R2, Omega1, Omega2, mu)
     A, B = pw["A"], pw["B"]
@@ -464,7 +522,9 @@ def similarity_variable(y, t, nu: float = 1e-6, half: bool = False):
     """Similarity variable of Stokes' first problem, η = y/√(νt) (``half=True``: y/(2√(νt)), the axis of Figs. 8.13–8.14).
 
     Book: §8.4, Eq. (8.25). Parameters: y [m]; t [s] (> 0); nu ν [m²/s]. Returns η [–].
-    Validation (planned): V1 definition. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_first_V1_boundaries_collapse_and_parity,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 definition. Label: analytic.
     """
     eta = _F(y) / np.sqrt(float(nu) * _F(t))  # Eq. (8.25)
     return _S(eta / 2.0 if half else eta)
@@ -488,7 +548,14 @@ def stokes_first_problem(y, t, U: float = 1.0, nu: float = 1e-6):
     u : [m/s].
 
     Assumptions: semi-infinite fluid at rest, ∂p/∂x = 0, constant ν. erfc (not 1 − erf) avoids cancellation at large η.
-    Validation (planned): V2 sympy residual of (8.20); V1 BCs, collapse in η; V3 Crank–Nicolson order 2 (I25);
+    Validation — tests/test_ch08.py: test_stokes_first_V1_boundaries_collapse_and_parity,
+      test_stokes_first_V2_derivation_D17_D18_D19, test_crank_nicolson_V3_second_order_space_and_time,
+      test_crank_nicolson_V3_impulsive_start_and_stability, test_vorticity_content_V1_plus_U_and_vorticity_field,
+      test_stokes_first_stopped_V1_superposition, test_temporal_bl_V1_wall_stress_and_cf,
+      test_reuse_V1_couette_startup_ftcs_and_navier_stokes_presets,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 sympy residual of (8.20); V1 BCs, collapse in η; V3 Crank–Nicolson order 2 (I25);
     parity with ch04 ``exact_solution("stokes_first")``. Label: analytic, symbolic, converged.
     """
     y_, t_ = np.broadcast_arrays(_F(y), _F(t))
@@ -501,11 +568,17 @@ def stokes_first_vorticity(y, t, U: float = 1.0, nu: float = 1e-6):
     """Vorticity of Stokes' first problem, ω_z = −∂u/∂y = (U/√(πνt)) exp(−y²/4νt).
 
     Book: §8.4 (text after (8.30): a vortex sheet created at t = 0 diffuses away; ∫₀^∞ ω dy = U — the page prints −U,
-    analysis §9 R10). Parameters: y [m]; t [s] (> 0); U [m/s]; nu [m²/s]. Returns ω_z [1/s].
-    Validation (planned): V1 −∂u/∂y of (8.30); ∫ω dy = U (``quad``). Label: analytic.
+    analysis §9 R10). Parameters: y [m]; t [s] (for t ≤ 0 the fluid is at rest (8.21) and 0 is returned, as in
+    :func:`stokes_first_problem`; the t → 0⁺ limit is a delta-function sheet at y = 0, not representable pointwise);
+    U [m/s]; nu [m²/s]. Returns ω_z [1/s].
+    Validation — tests/test_ch08.py: test_vorticity_content_V1_plus_U_and_vorticity_field,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 −∂u/∂y of (8.30); ∫ω dy = U (``quad``). Label: analytic.
     """
-    t_ = _F(t)
-    return _S(float(U) / np.sqrt(np.pi * float(nu) * t_) * np.exp(-_F(y) ** 2 / (4.0 * float(nu) * t_)))
+    y_, t_ = np.broadcast_arrays(_F(y), _F(t))
+    ts = np.where(t_ > 0, t_, 1.0)  # safe denominator; masked below
+    w = float(U) / np.sqrt(np.pi * float(nu) * ts) * np.exp(-y_ ** 2 / (4.0 * float(nu) * ts))  # ω = −∂u/∂y of (8.30)
+    return _S(np.where(t_ > 0, w, 0.0))
 
 
 def diffusion_thickness(t, nu: float = 1e-6, level: float = 0.01):
@@ -521,7 +594,9 @@ def diffusion_thickness(t, nu: float = 1e-6, level: float = 0.01):
     -------
     delta : [m].
 
-    Validation (planned): V1 erfc(δ/2√(νt)) = level; brentq cross-check; V6 the printed 3.64 (private JSON).
+    Validation — tests/test_ch08.py: test_diffusion_thickness_V1_level_inversion_and_D20_numbers,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 erfc(δ/2√(νt)) = level; brentq cross-check; V6 the printed 3.64 (private JSON).
     Label: analytic, book-value.
     """
     if not 0.0 < float(level) < 1.0:
@@ -534,7 +609,11 @@ def transition_width(t, nu: float = 1e-6, level: float = 0.95):
 
     Book: §8.4, Example 8.5 (u = ±0.95U; the page prints η = ±2.76 but the width 5.54√(νt) = 2 × 2.772 — rounding slip,
     analysis §9 R11). Parameters: t [s]; nu [m²/s]; level (0, 1). Returns width [m].
-    Validation (planned): V1 erf(w/(4√(νt))) = level. Label: analytic.
+    Validation — tests/test_ch08.py: test_vortex_sheet_V2_derivation,
+      test_vortex_sheet_V4_conserved_jump_and_ch05_parity,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 erf(w/(4√(νt))) = level. Label: analytic.
     """
     if not 0.0 < float(level) < 1.0:
         raise ValueError("level must lie in (0, 1)")
@@ -555,7 +634,9 @@ def stokes_first_stopped(y, t, T: float, U: float = 1.0, nu: float = 1e-6):
     -------
     u : [m/s].
 
-    Validation (planned): V1 equals (8.30) for t ≤ T, u(0, t > T) = 0, diffusion residual 0. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_first_stopped_V1_superposition,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 equals (8.30) for t ≤ T, u(0, t > T) = 0, diffusion residual 0. Label: analytic.
     """
     y_, t_ = np.broadcast_arrays(_F(y), _F(t))
     u = _F(stokes_first_problem(y_, t_, U, nu))
@@ -578,7 +659,11 @@ def stokes_first_state(t, U: float = 1.0, nu: float = 1e-6, level: float = 0.01,
     [Pa] (stress on the plate from the fluid is −τ_w), vorticity_content = ∫₀^∞ ω dy = U [m/s] (constant in time),
     omega_wall = U/√(πνt) [1/s].
 
-    Validation (planned): V1 against the component functions. Label: analytic.
+    Validation — tests/test_ch08.py: test_vorticity_content_V1_plus_U_and_vorticity_field,
+      test_diffusion_thickness_V1_level_inversion_and_D20_numbers,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 against the component functions. Label: analytic.
     """
     t, U, nu = float(t), float(U), float(nu)
     s = np.sqrt(nu * t)
@@ -601,7 +686,11 @@ def vortex_sheet_diffusion(y, t, U: float = 1.0, nu: float = 1e-6):
     -------
     (u, omega_z) : [m/s], [1/s].
 
-    Validation (planned): V2 diffusion residual; V4 ∫ω dy = −2U for all t; parity ch05 with γ = −2U. Label: analytic,
+    Validation — tests/test_ch08.py: test_vortex_sheet_V2_derivation,
+      test_vortex_sheet_V4_conserved_jump_and_ch05_parity, test_temporal_bl_V1_wall_stress_and_cf,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 diffusion residual; V4 ∫ω dy = −2U for all t; parity ch05 with γ = −2U. Label: analytic,
     symbolic, conserved.
     """
     y_, t_ = _F(y), _F(t)
@@ -625,7 +714,9 @@ def temporal_bl_wall_stress(t, U: float = 1.0, nu: float = 1e-6, rho: float = 10
     -------
     dict of floats: tau_w [Pa], Cf [–], Re_x (alias Rex) = U²t/ν [–], Cf_coefficient = 2/√π, Cf_of_Rex = (2/√π)Re_x^{−1/2}.
 
-    Validation (planned): V1 finite-difference ∂u/∂y at the wall of :func:`vortex_sheet_diffusion`. Label: analytic.
+    Validation — tests/test_ch08.py: test_temporal_bl_V1_wall_stress_and_cf,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 finite-difference ∂u/∂y at the wall of :func:`vortex_sheet_diffusion`. Label: analytic.
     """
     t, U, nu, rho = float(t), float(U), float(nu), float(rho)
     tau = rho * nu * U / np.sqrt(np.pi * nu * t)
@@ -649,7 +740,10 @@ def line_vortex_decay(r, t, Gamma: float = 1.0, nu: float = 1e-6):
     -------
     u_theta : [m/s].
 
-    Validation (planned): V2 residual of ∂u/∂t = ν∂/∂r[(1/r)∂(ru)/∂r]; parity ``core.vortices.gaussian_vortex(σ=2√(νt))``
+    Validation — tests/test_ch08.py: test_line_vortex_V1_parity_circulation_and_axis,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 residual of ∂u/∂t = ν∂/∂r[(1/r)∂(ru)/∂r]; parity ``core.vortices.gaussian_vortex(σ=2√(νt))``
     and ch04 ``exact_solution("lamb_oseen")``; V4 circulation → Γ at large r. Label: analytic, symbolic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(t))
@@ -674,7 +768,10 @@ def line_vortex_spinup(r, t, Gamma: float = 1.0, nu: float = 1e-6):
     -------
     u_theta : [m/s].
 
-    Validation (planned): V2 diffusion residual; circulation at fixed r → Γ as t → ∞, → 0 as t → 0. Label: analytic,
+    Validation — tests/test_ch08.py: test_line_vortex_V1_parity_circulation_and_axis,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 diffusion residual; circulation at fixed r → Γ as t → ∞, → 0 as t → 0. Label: analytic,
     symbolic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(t))
@@ -699,7 +796,11 @@ def stokes_second_problem(y, t, U: float = 1.0, omega: float = 2.0 * np.pi, nu: 
     -------
     u : [m/s] (the periodic state after transients; no initial condition).
 
-    Validation (planned): V2 residual of (8.20); V1 u(0, t) = U cos ωt; V3 Crank–Nicolson after 10 periods.
+    Validation — tests/test_ch08.py: test_stokes_second_V1_wall_envelope_phase_speed_and_D25,
+      test_stokes_second_V1_form_wikipedia, test_stokes_second_V3_crank_nicolson_orders_and_transients,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 residual of (8.20); V1 u(0, t) = U cos ωt; V3 Crank–Nicolson after 10 periods.
     Label: analytic, symbolic, converged.
     """
     k = np.sqrt(float(omega) / (2.0 * float(nu)))
@@ -722,7 +823,10 @@ def stokes_layer(nu: float = 1e-6, omega: float = 2.0 * np.pi) -> dict:
     dict of floats: k = √(ω/2ν) [1/m], delta_e [m], delta_book [m], ratio_book_to_e = 2√2, phase_speed [m/s],
     wavelength [m], amplitude_at_delta_book = e^{−4/√2} [–].
 
-    Validation (planned): V1 closed forms; V3 phase speed from zero-crossing tracking. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_second_V1_wall_envelope_phase_speed_and_D25,
+      test_stokes_second_V1_form_wikipedia, test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 closed forms; V3 phase speed from zero-crossing tracking. Label: analytic.
     """
     nu, omega = float(nu), float(omega)
     require_positive("omega", omega)
@@ -752,7 +856,9 @@ def stokes_layer_state(nu: float, omega: float, y, U: float = 1.0) -> dict:
     relative amplitude at y = 4√(ν/ω)); phase_lag = y/δ_e [rad]; time_lag = phase_lag/ω [s]; crest_speed = √(2νω)
     [m/s]; wavelength [m]; period = 2π/ω [s]; y_over_delta_e [–].
 
-    Validation (planned): V1 against :func:`stokes_second_problem` (maximum over a period at y). Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_second_V1_wall_envelope_phase_speed_and_D25,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against :func:`stokes_second_problem` (maximum over a period at y). Label: analytic.
     """
     s = stokes_layer(nu, omega)
     y = float(y)

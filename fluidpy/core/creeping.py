@@ -65,7 +65,9 @@ def stokes_residual(u_fn: Callable, p_fn: Callable, x, mu: float = 1e-3, h: floa
     -------
     res : ndarray (3,) or (3, N) [Pa/m].
 
-    Validation (planned): V1 ≈ 0 (relative 1e-6) for the Stokes sphere; ≠ 0 for the ideal-flow sphere.
+    Validation — tests/test_ch08.py: test_stokes_residual_V1_sphere_field_and_ideal_flow_fails,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 ≈ 0 (relative 1e-6) for the Stokes sphere; ≠ 0 for the ideal-flow sphere.
     Label: analytic.
     """
     U = lambda X, T: u_fn(X)  # noqa: E731
@@ -88,7 +90,9 @@ def E4_residual(psi, r: sp.Symbol, theta: sp.Symbol):
     """E²(E²ψ), simplified — zero for Stokes-flow stream functions.
 
     Book: §8.6, Eq. (8.44) (the square of the operator, footnote 2 — not the biharmonic). Returns sympy expression.
-    Validation (planned): V2 zero for (8.48); nonzero for the biharmonic misreading. Label: symbolic.
+    Validation — tests/test_ch08.py: test_stokes_sphere_sympy_V2_engine,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 zero for (8.48); nonzero for the biharmonic misreading. Label: symbolic.
     """
     return sp.simplify(E2(E2(psi, r, theta), r, theta))  # Eq. (8.44)
 
@@ -119,7 +123,9 @@ def _stokes_sphere_sympy() -> dict:
     divergence (0), sigma_rr_a (= −p on r = a), sigma_rr_viscous_a (2μ∂u_r/∂r at a, 0), sigma_rtheta_a, t_x_a,
     D_pressure (= drag_pressure, 2πμaU), D_friction (= drag_friction, 4πμaU), drag (6πμaU).
 
-    Validation (planned): V2 every residual simplifies to 0; drag parts 2πμaU and 4πμaU. Label: symbolic.
+    Validation — tests/test_ch08.py: (via stokes_sphere_sympy) test_stokes_sphere_sympy_V2_engine,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 every residual simplifies to 0; drag parts 2πμaU and 4πμaU. Label: symbolic.
     """
     r, th, a, U, mu = sp.symbols("r theta a U mu", positive=True)
     f = sp.Function("f")
@@ -197,7 +203,11 @@ def stokes_sphere_streamfunction(r, theta, U: float = 1.0, a: float = 1.0, frame
     -------
     psi : Stokes stream function [m³/s] (u_r = ψ_θ/(r² sin θ), u_θ = −ψ_r/(r sin θ), (6.83)).
 
-    Validation (planned): V2 E⁴ψ = 0, BCs (8.45)–(8.47). Label: symbolic, analytic.
+    Validation — tests/test_ch08.py: test_stokes_sphere_velocity_V1_walls_far_field_divergence,
+      test_stokes_sphere_V7_frames_and_fore_aft_symmetry, test_oseen_V1_velocity_axis_wake_and_no_slip_order,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 E⁴ψ = 0, BCs (8.45)–(8.47). Label: symbolic, analytic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
     a, U = float(a), float(U)
@@ -221,7 +231,12 @@ def stokes_sphere_velocity(r, theta, U: float = 1.0, a: float = 1.0, frame: str 
     -------
     (u_r, u_theta) : [m/s] (NaN inside the sphere).
 
-    Validation (planned): V1 no slip at r = a, → U e_x far away, fore–aft symmetry of |u| in the fluid frame; V2 from
+    Validation — tests/test_ch08.py: test_stokes_sphere_velocity_V1_walls_far_field_divergence,
+      test_stokes_sphere_V7_frames_and_fore_aft_symmetry, test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_oseen_V1_velocity_axis_wake_and_no_slip_order,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 no slip at r = a, → U e_x far away, fore–aft symmetry of |u| in the fluid frame; V2 from
     (8.48) via (6.83), ∇·u = 0. Label: analytic, symbolic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
@@ -253,7 +268,10 @@ def stokes_sphere_velocity_xyz(x, y, z, U: float = 1.0, a: float = 1.0, frame: s
 
     Book: §8.6, Eq. (8.49) with e_r = (cos θ, sin θ ĉ), e_θ = (−sin θ, cos θ ĉ), ĉ the unit vector from the x axis in the
     (y, z) plane. Parameters: x, y, z [m] (broadcast); U [m/s]; a [m]; frame. Returns (u, v, w) [m/s] (NaN inside).
-    Validation (planned): V1 ∇·u = 0 by finite differences; Stokes residual (8.43) ≈ 0. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_residual_V1_sphere_field_and_ideal_flow_fails,
+      test_stokes_sphere_velocity_V1_walls_far_field_divergence,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 ∇·u = 0 by finite differences; Stokes residual (8.43) ≈ 0. Label: analytic.
     """
     r, th, cy, cz = _spherical_from_xyz(x, y, z)
     ur, ut = stokes_sphere_velocity(r, th, U, a, frame)
@@ -278,7 +296,12 @@ def stokes_sphere_pressure(r, theta, U: float = 1.0, a: float = 1.0, mu: float =
     -------
     p : [Pa] (NaN inside).
 
-    Validation (planned): V2 both components of ∇p = μ∇²u; V1 the extremes (wrong variant: +3μaU cos θ/2r²).
+    Validation — tests/test_ch08.py: test_stokes_residual_V1_sphere_field_and_ideal_flow_fails,
+      test_stokes_sphere_V7_frames_and_fore_aft_symmetry, test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_stokes_pressure_V1_extremes_and_printed_minimum,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 both components of ∇p = μ∇²u; V1 the extremes (wrong variant: +3μaU cos θ/2r²).
     Label: symbolic, analytic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
@@ -303,7 +326,10 @@ def stokes_sphere_surface_stresses(theta, U: float = 1.0, a: float = 1.0, mu: fl
     -------
     (sigma_rr, sigma_rtheta, t_x) : [Pa].
 
-    Validation (planned): V2 sympy from the fields; the integral of t_x over the sphere is 6πμaU. Label: symbolic.
+    Validation — tests/test_ch08.py: test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_stokes_pressure_V1_extremes_and_printed_minimum,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 sympy from the fields; the integral of t_x over the sphere is 6πμaU. Label: symbolic.
     """
     t_ = _F(theta)
     k = 3.0 * float(mu) * float(U) / (2.0 * float(a))
@@ -326,7 +352,11 @@ def stokes_drag(mu: float, a: float, U: float, parts: bool = False):
     -------
     D : [N] (or dict of floats).
 
-    Validation (planned): V2 sympy surface integral; V3 Gauss–Legendre quadrature of the tractions. Label: symbolic,
+    Validation — tests/test_ch08.py: test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_stokes_law_V1_form_and_drag_coefficient,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 sympy surface integral; V3 Gauss–Legendre quadrature of the tractions. Label: symbolic,
     analytic.
     """
     D = 6.0 * np.pi * float(mu) * float(a) * float(U)  # Eq. (8.51)
@@ -350,7 +380,9 @@ def stokes_drag_running(theta, mu: float, a: float, U: float) -> dict:
     -------
     dict: pressure, friction, total [N] (floats or arrays like theta).
 
-    Validation (planned): V1 quadrature of the tractions; V2 sympy; endpoints ⅓/⅔. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 quadrature of the tractions; V2 sympy; endpoints ⅓/⅔. Label: analytic.
     """
     c = np.cos(_F(theta))
     k = np.pi * float(mu) * float(a) * float(U)
@@ -365,7 +397,10 @@ def side_line_speed(r, U: float = 1.0, a: float = 1.0, model: str = "stokes", Re
     Book: §8.6 — ``"stokes"`` (8.49): u_θ = −U(1 − 3a/4r − a³/4r³); ``"ideal"`` the potential-flow sphere of §6.8
     (6.90): u_θ = −U(1 + a³/2r³); ``"oseen"`` (8.53) via :func:`oseen_velocity`. ``frame="fluid"`` subtracts the stream
     (at θ = π/2 that adds U to u_θ). Parameters: r [m] (≥ a); U [m/s]; a [m]; model; Re (Oseen only); frame.
-    Returns |u| [m/s] (NaN inside). Validation (planned): V1 against the component functions. Label: analytic.
+    Returns |u| [m/s] (NaN inside).
+    Validation — tests/test_ch08.py: test_stokes_sphere_V7_frames_and_fore_aft_symmetry,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against the component functions. Label: analytic.
     """
     r_ = _F(r)
     fl = _frame(frame)
@@ -398,7 +433,10 @@ def sphere_drag_quadrature(stress_fn: Callable, a: float, n: int = 64) -> float:
     -------
     D : [N].
 
-    Validation (planned): V3 → 6πμaU for the Stokes tractions. Label: converged.
+    Validation — tests/test_ch08.py: test_stokes_drag_V1_quadrature_parts_and_slip_sphere,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 = 6πμaU for the Stokes tractions. The Stokes x-traction is uniform over the sphere, so Gauss–Legendre
+    quadrature is exact from n = 1 (no convergence to observe). Label: analytic.
     """
     xg, wg = np.polynomial.legendre.leggauss(int(n))
     return float(2.0 * np.pi * float(a) ** 2 * np.sum(wg * _F(stress_fn(np.arccos(xg)))))
@@ -410,7 +448,12 @@ def sphere_drag_quadrature(stress_fn: Callable, a: float, n: int = 64) -> float:
 def stokes_drag_coefficient(Re):
     """Stokes drag coefficient C_D = D/(½ρU²πa²) = 24/Re, Re = 2aU/ν (diameter).
 
-    Book: §8.6, Eq. (8.52). Parameters: Re [–]. Returns C_D [–]. Validation (planned): V1 from (8.51); parity
+    Book: §8.6, Eq. (8.52). Parameters: Re [–]. Returns C_D [–].
+    Validation — tests/test_ch08.py: test_stokes_law_V1_form_and_drag_coefficient,
+      test_drag_laws_V5_oseen_proudman_pearson_morrison,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 from (8.51); parity
     ``core.similarity.sphere_drag_coefficient(Re, "stokes")``. Label: analytic.
     """
     return _S(24.0 / _F(Re))  # Eq. (8.52)
@@ -419,8 +462,13 @@ def stokes_drag_coefficient(Re):
 def oseen_drag_coefficient(Re):
     """Oseen's drag coefficient C_D = (24/Re)(1 + 3Re/16), Re = 2aU/ν (diameter).
 
-    Book: §8.6 (after (8.53); stated). Parameters: Re [–]. Returns C_D [–]. Validation (planned): V5 Wikipedia
-    "Oseen equations" radius form (12/Re_a)(1 + 3Re_a/8) with Re_a = Re/2. Label: benchmark.
+    Book: §8.6 (after (8.53); stated). Parameters: Re [–]. Returns C_D [–].
+    Validation — tests/test_ch08.py: test_drag_laws_V5_oseen_proudman_pearson_morrison,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V5 Wikipedia
+    "Oseen equations" radius form (12/Re_a)(1 + 3Re_a/8) with Re_a = Re/2 — an algebraic cross-check of the formula's
+    form (no data compared). Label: analytic (form cross-check).
     """
     R = _F(Re)
     return _S(24.0 / R * (1.0 + 3.0 * R / 16.0))
@@ -430,7 +478,9 @@ def proudman_pearson_drag_coefficient(Re):
     """Proudman–Pearson (1957) matched-expansion drag, C_D = (24/Re)[1 + (3/8)Re_a + (9/40)Re_a² ln Re_a], Re_a = Re/2.
 
     Book: §8.6 (named: Kaplun, Proudman & Pearson; the formula is not printed — Wikipedia "Oseen equations").
-    Parameters: Re = 2aU/ν [–] (converted to the radius Reynolds number). Returns C_D [–]. Label: benchmark.
+    Parameters: Re = 2aU/ν [–] (converted to the radius Reynolds number). Returns C_D [–].
+    Validation — tests/test_ch08.py: test_drag_laws_V5_oseen_proudman_pearson_morrison (its form against the cited
+    radius-Re expression and its Re → 0 approach to Stokes' 24/Re; no data compared). Label: analytic (form cross-check).
     """
     R = _F(Re)
     Ra = R / 2.0
@@ -454,7 +504,10 @@ def terminal_velocity(a, rho_p, rho, mu, g: float = G0, warn: bool = True):
     -------
     U : [m/s].
 
-    Validation (planned): V1 drag = effective weight. Label: analytic.
+    Validation — tests/test_ch08.py: test_stokes_law_V1_form_and_drag_coefficient,
+      test_terminal_velocity_V1_force_balance_round_trip_and_warning, test_millikan_V5_synthetic_experiment_recovers_e,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 drag = effective weight. Label: analytic.
     """
     a_ = _F(a)
     U = 2.0 * (float(rho_p) - float(rho)) * float(g) * a_ ** 2 / (9.0 * float(mu))
@@ -468,7 +521,9 @@ def radius_from_terminal_velocity(U, rho_p, rho, mu, g: float = G0):
     """Radius of a sphere from its Stokes terminal velocity, a = √(9μU/(2(ρ′ − ρ)g)) (Millikan's first step).
 
     Book: §8.6. Parameters: U [m/s] (> 0 downward); rho_p, rho [kg/m³]; mu [Pa s]; g [m/s²]. Returns a [m].
-    Validation (planned): V1 round trip with :func:`terminal_velocity`. Label: analytic.
+    Validation — tests/test_ch08.py: test_terminal_velocity_V1_force_balance_round_trip_and_warning,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 round trip with :func:`terminal_velocity`. Label: analytic.
     """
     return _S(np.sqrt(9.0 * float(mu) * _F(U) / (2.0 * (float(rho_p) - float(rho)) * float(g))))
 
@@ -488,7 +543,9 @@ def millikan_charge(U_fall, U_rise, rho_p, rho, mu, E, g: float = G0):
     -------
     q : [C].
 
-    Validation (planned): V1 identity; V5 synthetic drops recover e (CODATA). Label: analytic.
+    Validation — tests/test_ch08.py: test_millikan_V5_synthetic_experiment_recovers_e,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 identity; V5 synthetic drops recover e (CODATA). Label: analytic.
     """
     a = _F(radius_from_terminal_velocity(U_fall, rho_p, rho, mu, g))
     q = (6.0 * np.pi * float(mu) * _F(U_rise) * a + 4.0 / 3.0 * np.pi * a ** 3 * float(g) * (float(rho_p) - float(rho))) / float(E)
@@ -502,7 +559,14 @@ def settling_state(a, rho_p, rho, mu, g: float = G0) -> dict:
     Parameters: a [m]; rho_p, rho [kg/m³]; mu [Pa s]; g [m/s²].
     Returns dict of floats: U_t [m/s], Re = 2aU_tρ/μ [–], D [N] (= effective weight), C_D = 24/Re [–], valid
     (bool, Re < 0.1), D_pressure, D_friction [N], weight_eff [N].
-    Validation (planned): V1 against the component functions. Label: analytic.
+    The ``valid`` cut-off Re < 0.1 is **ours** (a conservative creeping-flow flag, the same as the warning in
+    :func:`terminal_velocity`); the book only says the Stokes/Oseen results are "fairly accurate for Re < 5" relative
+    to experiment, and Stokes' C_D = 24/Re is already ≈ 2 % low at Re = 0.1 (Oseen's 1 + 3Re/16).
+    Validation — tests/test_ch08.py: test_low_re_scaling_V2_engine_and_D26_derivation,
+      test_stokes_pressure_V1_extremes_and_printed_minimum,
+      test_terminal_velocity_V1_force_balance_round_trip_and_warning,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against the component functions. Label: analytic.
     """
     a, mu, rho = float(a), float(mu), float(rho)
     U = float(terminal_velocity(a, rho_p, rho, mu, g, warn=False))
@@ -520,6 +584,16 @@ def inertia_viscous_ratio(r, theta, U: float = 1.0, a: float = 1.0, nu: float = 
     as r → ∞: inertia matters beyond r/a ~ 1/Re. Evaluated with second-order central differences of the Cartesian
     field (8.49) in the plane z = 0 (point (r cos θ, r sin θ, 0)), step h = h_rel·r.
 
+    Which Re: the book's estimate uses the radius Reynolds number Re_a = ρUa/μ = Ua/ν; this module's convention
+    elsewhere (drag coefficients, :func:`oseen_streamfunction`) is the diameter Re = 2aU/ν = 2 Re_a.
+
+    The O(1) prefactor (ours, sympy on (8.48)–(8.49), body frame): at leading order in a/r the θ-component of u·∇u has
+    no O(U²a/r²) term, and the radial one is (3U²a/16r²)(8cos²θ − 4sin²θ) = (3U²a/4r²)(2 − 3sin²θ); the viscous term
+    ν∇²u = ∇p/ρ has magnitude (3νUa/2r³)(4cos²θ + sin²θ)^{1/2}. Hence on the axis (θ = 0, π) and at θ = π/2
+    ratio → (1/2) Re_a (r/a) = (1/4) Re (r/a), so the crossover (ratio = 1) is at r/a ≈ 2/Re_a = 4/Re there; near
+    sin²θ = 2/3 (θ ≈ 54.7°) the leading inertia term vanishes and the ratio is smaller (≈ 0.16 Re_a r/a at θ = π/4).
+    The function returns the full finite-difference ratio, not this asymptote.
+
     Parameters
     ----------
     r : [m] (> a);  theta : [rad] from +x;  U : [m/s];  a : [m];  nu : ν [m²/s];  h_rel : relative step.
@@ -528,7 +602,10 @@ def inertia_viscous_ratio(r, theta, U: float = 1.0, a: float = 1.0, nu: float = 
     -------
     ratio : [–].
 
-    Validation (planned): V7 grows linearly in r with slope ∝ Ua/ν (log–log slope 1 ± 0.05 for r/a ∈ [50, 500]).
+    Validation — tests/test_ch08.py: test_inertia_viscous_ratio_V7_linear_growth_in_r_and_Re,
+      test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V7 grows linearly in r with slope ∝ Ua/ν (log–log slope 1 ± 0.05 for r/a ∈ [50, 500]).
     Label: analytic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
@@ -570,7 +647,11 @@ def oseen_streamfunction(r, theta, U: float = 1.0, a: float = 1.0, Re: float = 0
     -------
     psi : [m³/s] (NaN inside).
 
-    Validation (planned): V2 Re → 0 limit = (8.48); V1 ψ = 0 on the axis; wake asymmetry. Label: symbolic, analytic.
+    Validation — tests/test_ch08.py: test_oseen_V1_velocity_axis_wake_and_no_slip_order,
+      test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 Re → 0 limit = (8.48); V1 ψ = 0 on the axis; wake asymmetry. Label: symbolic, analytic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
     a, U, Re = float(a), float(U), float(Re)
@@ -600,7 +681,9 @@ def oseen_velocity(r, theta, U: float = 1.0, a: float = 1.0, Re: float = 0.1, fr
     -------
     (u_r, u_theta) : [m/s] (NaN inside).
 
-    Validation (planned): V1 finite differences of :func:`oseen_streamfunction`; Re → 0 equals (8.49). Label: analytic.
+    Validation — tests/test_ch08.py: test_oseen_V1_velocity_axis_wake_and_no_slip_order,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 finite differences of :func:`oseen_streamfunction`; Re → 0 equals (8.49). Label: analytic.
     """
     r_, t_ = np.broadcast_arrays(_F(r), _F(theta))
     a, U, Re = float(a), float(U), float(Re)

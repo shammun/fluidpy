@@ -1,21 +1,23 @@
-# Chapter 8 verification — Laminar Flow                     2026-09-28, commit 720f54e + working tree (loop 1)
+# Chapter 8 verification — Laminar Flow                     2026-09-28, commit 641a3dd + working tree (loop 2)
 
-Verifier: math-verifier. Suite: `tests/test_ch08.py` (97 test functions = 97 collected items; 1 marked `slow`),
+Verifier: math-verifier. Suite: `tests/test_ch08.py` (101 test functions = 101 collected items; 1 marked `slow`),
 figures/metrics: `tests/ch08_verify_figures.py` → `outputs/ch08/verify/` (git-ignored), cited data: `reference/ch08/`
 (`make_refs.py`, `benchmarks.json`, `SOURCES.md`). Nothing in `fluidpy/` or `scripts/` was edited by the verifier.
 
 ## Environment
 Python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · matplotlib 3.11.2 (Windows, `.venv`).
 
-Runs (serial, no `-n`): `pytest tests/test_ch08.py -q -p no:cacheprovider` → **97 passed in 101 s** (with the private book file; without it the three V6 tests skip cleanly — checked). `-m "not slow"` (drops the
-12-script smoke test) → **96 passed in ≈ 75 s** (the sympy engines dominate: `stokes_sphere_sympy` 8 s, D28 6 s,
-`lubrication_nondim_sympy` 6 s, `slider_bearing_sympy` 5 s; the 60 s target is missed by ≈ 15 s — every test kept,
-none marked slow except the scripts). Full suite `pytest tests -q -p no:cacheprovider` → **979 passed in 606 s** (ch01–ch07 + machinery 882 + the 97 ch08 items; no warnings reported).
+Runs (serial, no `-n`), loop 2: `pytest tests/test_ch08.py -q -p no:cacheprovider` → **101 passed in 169 s** (with the
+private book file; without it the three V6 tests skip cleanly — checked in loop 1). Full suite
+`pytest tests -q -p no:cacheprovider` → **983 passed in 660 s** (ch01–ch07 + machinery 882 + the 101 ch08 items; no
+warnings reported). Loop 1 for reference: 97 passed in 101 s, full suite 979 in 606 s; the sympy engines dominate
+(`stokes_sphere_sympy` 8 s, D28 6 s, `lubrication_nondim_sympy` 6 s, `slider_bearing_sympy` 5 s), and the loop-2
+wall time also reflects a busier machine (other agents were running) — every test kept, none marked slow except the scripts.
 All 12 `scripts/ch08_*.py` exit 0 headless with `--no-show` (2–5 s each; `ch08_common.py`, `ch08_drawings.py` are
 helpers). `tests/ch08_verify_figures.py` runs and writes 10 PNGs.
 
-Collected items per evidence tag (tag of the `def` line): **V1 43 · V2 30 (22 of them `V2 derivation`) · V3 5 · V4 4 ·
-V5 6 · V6 3 · V7 6** (= 97). Most tests carry further levels inside (a V1 test that also measures an order, a V2
+Collected items per evidence tag (first tag of the `def` line): **V1 46 · V2 31 (22 of them `V2 derivation`) · V3 5 ·
+V4 4 · V5 6 · V6 3 · V7 6** (= 101; loop 2 added three V1 and one V2, two of which also carry a second level inside). Most tests carry further levels inside (a V1 test that also measures an order, a V2
 derivation that also checks the design's numbers); the table lists every level exercised per item.
 
 ## Loop 1 — what the first runs found (all test-side; no physics defect)
@@ -28,7 +30,29 @@ the circular-Couette (4.39b) residual and the zero net viscous force now asserte
 used to compare two `solve_bvp` grids (now cubic splines, 2e-7 = twice the per-solution 1e-7); a sympy `erf` vs `erfc`
 simplification; a design-D32 reading (see O3: the θ-component of u·∇u has no 1/r² term — the radial one carries it); a
 wrong-variant check normalised by the largest C_D (now point-wise); and the "Re_a r/a ~ 1 crossover" asserted with
-prefactor 1 (the exact prefactor is (8cos²θ − 4sin²θ)/(16cos θ), O3).
+prefactor 1 (loop 1 then quoted a radial-component-only prefactor (8cos²θ − 4sin²θ)/(16cos θ); that was wrong — the
+magnitudes give ½ on the axis and at π/2, see O3 as corrected in loop 2).
+
+## Loop 2 — after the derivation review (`reports/ch08_review.md`) and the implementer's fixes
+Four tests added (97 → 101), one test comment and one test comment-block corrected, nothing loosened:
+
+| review item | new test | what it proves | wrong variant planted (scratch copy) | caught |
+|---|---|---|---|---|
+| M1 extremum of (8.5) | `test_couette_poiseuille_state_V1_extrema_match_dense_grid` | for h = 0.01 m, μ = 1e-3 Pa s, (U, dp/dx) ∈ {(0.01, ±0.5), (0.01, ±1), (0, ±0.5)}: u_max, u_min agree with the max/min of `channel_flow` on 20 001 points (walls included) within the grid's own bound 0 ≤ u* − u_grid ≤ \|dp/dx\|/(2μ)(Δy/2)² (= 3.1e-11 m/s at 1 Pa/m); y_umax, y_umin within Δy/2 = 2.5e-7 m of the grid arg-extrema (ties at both walls allowed); interior extremum at y* = h/2 − μU/(h dp/dx) to 1e-12 (U = 1 cm/s, dp/dx = −0.5 Pa/m ⇒ 7 mm); backflow False for U = 0 at dp/dx = ±0.5, ±1 (new semantics); threshold 2μU/h² = 0.2 Pa/m unchanged: 0.19/0.21 → False/True, mirrored for U = −0.01 | `ys = h/2 + μU/(h g)` (the old sign) | yes — u_min at (0.01, 0.5) reported 0.0 at a wall against the grid's −2.25e-3 m/s |
+| SF1 Oseen wake direction | `test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream` | (1) coded ψ = the (8.53) closed form on a 30 × 31 field for Re = 0.3, 1, 3 (max rel. 1e-11, so the sympy statements are about the coded function); (2) sympy, exact rational points (30 digits): E⁴ψ − (U/ν)∂ₓ(E²ψ) = 0 with ν = 2aU/Re, ∂ₓ = cos θ ∂_r − (sin θ/r)∂_θ, residual < 1e-20 of the term size at 4 points; the opposite sign leaves ≥ 1e-3 of the term size (e.g. −0.24 at r = 2.3a, θ = 0.7, Re = 0.8); (3) fluid-frame \|ψ\|(θ) > 1.05 \|ψ\|(π − θ) for 14 θ ∈ [0.1, 1.4] at r = 1.5a, 3a, 8a (Re = 1), and the ratio grows with r (0.36 rad: 1.49 → 1.92 → 3.77) | θ ↔ π − θ in `oseen_streamfunction` (s with 1 + cos θ) | yes — parity 2.1e-2 (and the older `test_oseen_V1_velocity…` also fails, since ψ and u then disagree) |
+| O3 (my loop-1 finding, corrected) | `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote` | ratio/(Re_a r/a) at θ = 0, π/2, π for r/a = 100 … 800: 0.4981 (axis) and 0.4991 (π/2) at 400; deviation from ½ ∝ a/r (observed order 1.00 ± 0.05); Richardson 2f(2r) − f(r) = ½ within (a/r_min)² + 3ε r_max/(h_rel² a) = 1.5e-4 (observed ≤ 5.2e-5); V2 sympy on (8.49): the r → ∞ limit of \|u·∇u\|/\|ν∇²u\| ÷ (Ua/ν · r/a) is exactly ½ at θ = 0 and π/2 | ratio × ¼ (the loop-1 "≈ 1/8" prefactor) | yes |
+| coordinator: slider recirculation at either end | `test_slider_backflow_both_ends` | brute force from `slider_gap_velocity(frame="pad")` on 401 × 799 (x, η) points, independent of `slider_bearing_state`: recirculation (pad-frame u against the flux sign) iff h > 1.5h_m, h_m = 2(1 + α)h₀/(2 + α) — re-derived here as u/U = −s + 3(1 − h_m/h)s(1 − s), s from the pad; α = 0.99/1.01 → False/True, −0.49/−0.51 → False/True, 0.5 False, 2.0 and −0.7 True, each for U = ±5 m/s; `backflow_any` = `inlet_backflow` = grid verdict; `backflow_x` = the station of the strongest reversal (L for α > 0, 0 for α < 0), NaN otherwise; the set of recirculating stations = {h > 1.5h_m} except within one x-cell of the edge; h₀ = 50 µm, α = −0.7, U = 5 m/s, μ = 0.05 Pa s: pad-frame u at x = 0 spans −4.98 … +0.2930 m/s on this grid (analytic peak 0.29304 m/s, grid agrees to 1e-5; the floor value itself is −U = −5 m/s, so the coordinator's "about −4.74" is the last interior point of a coarser y grid — the lower end depends on the grid, the upper end does not) | (a) `x_wide = L` always (the old x = L-only check); (b) threshold h > h_m instead of 1.5h_m | both yes |
+| test comment at the temporal-BL check | — | the comment said "stokes_first(2U)", the assertion (correct) uses U: U − u(y) = U erfc(y/2√(νt)) = `stokes_first_problem(y, t, U)`; the jump across the sheet is 2U, the half-profile deficit is U | — | — |
+
+The first run of the new ratio test failed at its a-priori Richardson bound 5e-5 (observed 5.18e-5 at θ = π/2, pair
+400/800): that bound ignored the finite-difference round-off of `inertia_viscous_ratio` itself, ε r/(h_rel² a) ≈ 1.8e-5
+per value at r = 800a, tripled by 2f(2r) − f(r). The bound is now written from that budget in the test (1.5e-4 total);
+the physics claim (limit ½, O(a/r) approach, order 1.00) was never in question and is additionally pinned by sympy.
+
+`slider_bearing_state["inlet_backflow"]` changed meaning with the implementer's generalisation: it is now True for
+α < −½ as well (recirculation at the wide end, wherever it is), and equals `backflow_any`. The old assertion
+`inlet_backflow is (α > 1)` for α ∈ {0.1, 0.8, 1.5} still holds; the explainer/notebook text that calls it "inlet"
+should be read as "wide end" (O9).
 
 One earlier probe (not a test) looked like a physics failure and was mine: `thin_film_spread`'s clock starts at 0, so a
 run started on Huppert's profile at t₀ = 10 s must be compared with the similarity solution at t₀ + T, not at T.
@@ -38,7 +62,7 @@ run started on Huppert's profile at t₀ = 10 s must be compared with the simila
 |---|---|---|---|---|---|---|
 | C01 Re = Ud/ν, regimes; ν = μ/ρ; L²/ν (§8.1) | CORE | `pipe_flow_regime`, `momentum_diffusivity`, `diffusion_time`, `inertia_viscous_scales` | V1, V5, V7, V6 | Re exact; band edges exact at 2000/3000 (1e-12 either side); ν_air/ν_w(293 K) = 15.007; Sutherland from USSA constants 1e-12; scale/units invariance 1e-14 | analytic, benchmark | wrong: radius Re; μ instead of ν |
 | R01, R04, R05 (inertia/viscous, (8.2), (8.3)) | RECAP | `inertia_viscous_scales`, `wall_bc_residuals` | V1, V7 | ratio = Re (1e-14); normal/tangential residual split exact | analytic | wrong: t·u ignored |
-| C02 (8.5) Couette–Poiseuille | CORE | `channel_flow` (+ `_rate`, `_shear_stress`, `_backflow_threshold`, `couette_poiseuille_state`) | V1, V2, V7 | (4.39b) residual ≤ round-off bound (stencil exact for quadratics); ch04 parity 1e-14; sympy residual 0; D04 re-derived; Q by quad 1e-12; backflow threshold by bisection 2e-3 (y-grid) of 2μU/h² = 2 Pa/m; y_rev = 5 mm | analytic, symbolic | wrong: G passed as dp/dx; printed V (units) |
+| C02 (8.5) Couette–Poiseuille | CORE | `channel_flow` (+ `_rate`, `_shear_stress`, `_backflow_threshold`, `couette_poiseuille_state`) | V1, V2, V7 | (4.39b) residual ≤ round-off bound (stencil exact for quadratics); ch04 parity 1e-14; sympy residual 0; D04 re-derived; Q by quad 1e-12; backflow threshold by bisection 2e-3 (y-grid) of 2μU/h² = 2 Pa/m; y_rev = 5 mm; loop 2: state extrema = dense-grid max/min within (dp/dx)/(2μ)(Δy/2)², locations within Δy/2, y* = h/2 − μU/(h dp/dx) (M1) | analytic, symbolic | wrong: G passed as dp/dx; printed V (units); old +μU/(h dp/dx) extremum |
 | N04–N11 (v ≡ 0, (8.4a,b), constant dp/dx, Q, V, cases) | NOTE | `parallel_flow_sympy("channel")`, `channel_flow_rate` | V2, V1 | all engine residuals 0; non-constant dp/dx leaves −f′(x)/ρ ≠ 0 | symbolic | R9 printed V = ∫u dy has m²/s (pint) |
 | C03 (8.6) pipe Poiseuille, (8.7), (8.8), Q, f = 64/Re | CORE | `pipe_poiseuille`, `pipe_shear_stress`, `pipe_wall_stress`, `pipe_flow_rate`, `pipe_friction_factor` | V1, V2, V4 | ch04 parity 1e-14; ch03 `pipe_profile` (z→∞) 1e-12; 3-D (4.39b) residual at round-off; D06, D07 re-derived; Q quad 1e-12; u_max = 2V; f·Re = 64 (1e-12); CV force balance πa²Δp + 2πaLτ₀ = 0 (1e-15) | analytic, symbolic, conserved | wrong: 1/(2μ) (Laplacian gives 2G/μ); A ln R unbounded |
 | C04 (8.9)–(8.12) circular Couette | CORE | `circular_couette` (+ `_pressure`, `_shear_stress`, `_power`, `_state`) | V1, V2, V4, V7 | walls 1e-13; ω_z = 2A by FD; Euler ODE residual ≤ 1e-5 scale; (4.39b) residual → 0 at order 2.00; D08, D09 re-derived; Wikipedia A, B form identical; R₂ = 1e6R₁ vs ∞ branch 1e-10; ch05 `rotating_cylinder_flow(ω = 2Ω₁)` 1e-14 (ω = Ω₁ off by 2) | analytic, symbolic, conserved | Rayleigh criterion μ > η² reproduced |
@@ -46,16 +70,16 @@ run started on Huppert's profile at t₀ = 10 s must be compared with the simila
 | C05 (8.14)–(8.17) lubrication scaling and balance | CORE | `lubrication_nondim_sympy`, `lubrication_scales`, `lubrication_term_magnitudes` | V2, V1 | coefficient sets {ε²Re_L, 1/Λ, ε², 1}, {ε⁴Re_L, 1/Λ, ε⁴, ε²}; D10 re-derived line by line with O(1) test fields; D11 limit + re-dimensionalisation; engine film ε = 1e-3, Re_L = 4350, ε²Re_L = 4.35e-3, Λ = 49.35; numeric magnitudes = sympy coefficients (1e-12) | symbolic, analytic | R6: printed ∂p/∂x in (8.13b) gives ε/Λ; R7: (8.17a) without ν fails pint |
 | C06 (8.18)–(8.19), gap flux, 1-D Reynolds equation | CORE | `lubrication_velocity`, `lubrication_flux`, `reynolds_pressure_1d`, `reynolds_equation_sympy` | V1, V2, V3 | u(0) = U₀, u(h) = U_h; flux = quad 1e-12; μu″ = p_x; D12, D13 re-derived (Leibniz, kinematic cancellation, h/6 and h/2 pieces); callable-h route = exact slider 1e-10; array-h trapezoid order **2.000** | analytic, symbolic, converged | R8b: `form="book"` gives u(h) = U_h + U₀ |
 | N36 Hele-Shaw | NOTE | `hele_shaw_velocity`, `_potential`, `_mean_velocity`, `hele_shaw_cylinder`, `hele_shaw_streamfunction_grid` | V1, V2, V3 | u = ∂φ/∂x 1e-12; no slip; ū = −(h²/12μ)∇p (quad 1e-12); gap average = ch04 ideal cylinder 1e-12; ∇²φ = 0 for harmonic p (sympy); grid solve order **1.11** (staircase disk) | analytic, symbolic, converged | wrong: φ sign; see O5 on the order |
-| C07 Example 8.1 slider bearing, load, optimum | CORE | `slider_bearing`, `_load`, `_optimum_taper`, `_state`, `slider_gap_velocity`, `slider_bearing_sympy` | V2, V1, V5, V7 | D14 re-derived through all 15 steps (step 12 numerator identity, step 13 squared denominator, steps 14–15); engine residuals 0; quad ∫p dx = W (1e-9) for α = 1e-4…3; series/closed branches continuous (1e-8); San Andrés K_opt 2.18870 (−9e-5), W* 0.026707, P_max(K) identity 1e-12, K = 2.4142, 0.0429; pad-frame flux = C₁ at every x (1e-9) | symbolic, analytic, benchmark | R8: printed first power fails the ODE and carries a > 5 % wrong load; (1 − αx/L) integrands miss p(L) = p_e |
-| C08 Example 8.3 thin film | CORE | `thin_film_velocity`, `thin_film_flux`, `thin_film_spread`, `viscous_current_similarity`, `thin_film_state`, `viscous_current_eta_N` | V1, V2, V4, V5 | BCs u(0) = 0, u_y(h) = 0; flux = quad 1e-12; D15 re-derived; Huppert form solves the PDE exactly (sympy) and holds ∫h = A (1e-8); volume drift **2.2e-16**; front slope **0.1965** (target 0.2 ± 0.005); x_front/x_N = 1.019 at 1000 s; from the similarity profile L2 < 2 % at N = 200, 400, 800; η_N = 1.411245 (Huppert 1.411) | analytic, symbolic, conserved, benchmark | wrong: h³/(2μ) (1.5× flux) |
-| C09 (8.20)–(8.31) Stokes' first problem | CORE | `stokes_first_problem`, `similarity_variable`, `stokes_first_vorticity`, `vorticity_content`, `diffusion_thickness`, `stokes_first_state`, `stokes_first_stopped`, `similarity_ode_solve`, `crank_nicolson_1d` | V1, V2, V3 | collapse over three (U, ν, t) sets 1e-14; ch04 parity 1e-14 (and identity re-export); sympy residual 0; D17–D19 re-derived; `solve_bvp` 3.7e-13 (Stokes), 2.5e-9 (line vortex), η_max 10…14 agree 2e-7; CN time order **2.000**, space **1.995**; BE **0.996** (wrong variant); impulsive start with two BE steps **1.99**, pure CN stalls; stable at 50× FTCS; ∫ω dy = +U (1e-10); η₉₉ = 3.6428 | analytic, symbolic, converged | R10 (−U) rejected; wrong erfc(y/√νt) fails (8.20) |
+| C07 Example 8.1 slider bearing, load, optimum | CORE | `slider_bearing`, `_load`, `_optimum_taper`, `_state`, `slider_gap_velocity`, `slider_bearing_sympy` | V2, V1, V5, V7 | D14 re-derived through all 15 steps (step 12 numerator identity, step 13 squared denominator, steps 14–15); engine residuals 0; quad ∫p dx = W (1e-9) for α = 1e-4…3; series/closed branches continuous (1e-8); San Andrés K_opt 2.18870 (−9e-5), W* 0.026707, P_max(K) identity 1e-12, K = 2.4142, 0.0429; pad-frame flux = C₁ at every x (1e-9); loop 2: recirculation iff h > 1.5h_m at either end (α > 1 or α < −½), brute-force pad-frame sign test on 401 × 799 points for α = ±(threshold ± 0.01), U = ±5 m/s | symbolic, analytic, benchmark | R8: printed first power fails the ODE and carries a > 5 % wrong load; (1 − αx/L) integrands miss p(L) = p_e |
+| C08 Example 8.3 thin film | CORE | `thin_film_velocity`, `thin_film_flux`, `thin_film_spread`, `viscous_current_similarity`, `thin_film_state`, `viscous_current_eta_N` | V1, V2, V4, V5 | BCs u(0) = 0, u_y(h) = 0; flux = quad 1e-12; D15 re-derived; Huppert form solves the PDE exactly (sympy) and holds ∫h = A (1e-8); volume drift **2.2e-16**; front slope **0.1965** (target 0.2 ± 0.005); x_front/x_N = 1.019 at 1000 s; from the similarity profile L2 < 2 % at N = 200, 400, 800; η_N = 1.411245 (Huppert 1.411) | analytic, symbolic, conserved, benchmark (`thin_film_spread` itself: conserved, benchmark — no grid-refinement order is claimed; the N = 200/400/800 row below is a benchmark distance, not a convergence study) | wrong: h³/(2μ) (1.5× flux) |
+| C09 (8.20)–(8.31) Stokes' first problem | CORE | `stokes_first_problem`, `similarity_variable`, `stokes_first_vorticity`, `vorticity_content`, `diffusion_thickness`, `stokes_first_state`, `stokes_first_stopped`, `similarity_ode_solve`, `crank_nicolson_1d` | V1, V2, V3 | collapse over three (U, ν, t) sets 1e-14; ch04 parity 1e-14 (and identity re-export); sympy residual 0; D17–D19 re-derived; `solve_bvp` 3.7e-13 (Stokes), 2.5e-9 (line vortex), η_max 10…14 agree 2e-7; CN time order **2.000**, space **1.995**; BE **0.996** (wrong variant); impulsive start with two BE steps **1.99**, pure CN stalls; stable at 50× FTCS; ∫ω dy = +U (1e-10); η₉₉ = 3.6428 | analytic, symbolic, converged (the "converged" is Crank–Nicolson's; `similarity_ode_solve` is analytic — closed-form agreement and η_max-insensitivity, no mesh order measured, although its test name carries "V3") | R10 (−U) rejected; wrong erfc(y/√νt) fails (8.20) |
 | N56 stopped plate (ours) | NOTE | `stokes_first_stopped` | V1 | = (8.30) for t ≤ T (1e-15); u(0, t > T) = 0; diffusion residual → 0 at order 2; ∫u dy = 2U√(νt/π) (1e-9) | analytic | |
 | C10 (8.32a,b), Examples 8.4–8.7 | CORE | `similarity_reduce_sympy`, `similarity_collapse_error`, `vortex_sheet_diffusion`, `transition_width`, `temporal_bl_wall_stress`, `line_vortex_decay`, `line_vortex_spinup` | V2, V1, V4 | D21, D22 (★★★, 14 steps), D23 re-derived; collapse spread < 1e-12 at (0, ½), (½, ½), (1, ½), (⅕, ⅕) and > 1e-2 off by 0.1; −∫ω dy = 2U (1e-10) at three t; ch05 parity with γ = −2U 1e-14; τ_w by FD 1e-7; C_f = 1.1284 Re_x^{−1/2}; Lamb–Oseen = Gaussian vortex σ = 2√(νt) (1e-14) and ch04 preset (1e-12) | symbolic, analytic, conserved | R11: 2.76 is not the 95 % point (2.7718); wrong γ = +2U, σ² = 2νt, n = ¼ |
 | C11 (8.33)–(8.38) Stokes' second problem | CORE | `stokes_second_problem`, `stokes_layer`, `stokes_layer_state`, `stokes_layer_envelope`, `stokes_second_sympy` | V2, V1, V3 | D24 re-derived; wall U cos ωt 1e-15; envelope over a period 2e-5; crest speed by zero-crossing tracking = √(2νω) (1e-6); e^{−2√2} = 0.05911; CN space order **1.99**, time **2.00**; from rest after 10 periods 7.7e-5U within 6δ_e | symbolic, analytic, converged | wrong: growing root unbounded |
 | C12 (8.39)–(8.43) Stokes equations | CORE | `low_re_scaling_sympy`, `stokes_residual` | V2, V1, V3 | D26 re-derived (dynamic {1, 1, 1/Re}, ×Re → pressure lost; viscous {Re, 1, 1}); Stokes sphere residual < 1e-6·3μUa/r³ on 50 random points, → 0 at order **2.0**; ideal-flow sphere fails (> 0.1 scale) | symbolic, analytic, converged | |
 | C13 (8.44)–(8.49) stream function | CORE | `E2`, `E4_residual`, `stokes_sphere_sympy`, `stokes_sphere_streamfunction`, `stokes_sphere_velocity(_xyz)`, `side_line_speed` | V2, V1, V7 | D27, D28 (★★★: ∇×∇×(Ae_φ) = −E²(r sinθ A)/(r sinθ)e_φ for a generic A), D29 re-derived; roots {−1, 1, 2, 4}; constants; no slip 1e-15; far field 1e-5 at 1e6a; ∇·u (FD) < 1e-8; (6.83) by FD 1e-7; fluid frame fore–aft symmetric 1e-13; ideal side speed = `core.potential.sphere` 1e-12 | symbolic, analytic | R17: ∇⁴ψ ≠ 0 |
-| C14 (8.50)–(8.52) drag, settling, Millikan | CORE | `stokes_sphere_pressure`, `_surface_stresses`, `stokes_drag`, `stokes_drag_running`, `sphere_drag_quadrature`, `stokes_drag_coefficient`, `terminal_velocity`, `radius_from_terminal_velocity`, `settling_state`, `millikan_charge`, `synthetic_millikan` | V2, V1, V5 | D30 (★★★, with `core.curvilinear.vector_laplacian`) and D31 (★★★, with `strain_rate`) re-derived: 2πμaU + 4πμaU; Gauss–Legendre exact for n ≥ 1 (1e-12); running integrals' derivative = integrand (1e-7); σ_rθ by FD 1e-4 (one-sided); C_D parity with ch04 1e-15; drag = weight 1e-14; 10 µm droplet U_t = 1.21 cm/s, Re = 0.016, D = 4.10e-11 N; synthetic e error **5.1e-4** (CODATA) | symbolic, analytic, benchmark | R12: printed +3μU/2a minimum rejected; slip-sphere 4πμaU rejected |
-| C15 far-field breakdown, Oseen (8.53) | CORE | `inertia_viscous_ratio`, `oseen_streamfunction`, `oseen_velocity`, `oseen_limit_sympy`, `oseen_linearisation_sympy`, drag laws | V7, V2, V1, V5 | log–log slope **0.995** (r/a 50–500, three θ); ∝ 1/ν exact, ∝ U 2e-5; D32 (asymptotics), D33 re-derived; Re → 0 limit 0 (sympy) and 1e-9 numerically; ψ = 0 on the axis; (6.83) by FD 1e-6; wall slip ∝ Re (order **0.996**); wake asymmetry; Oseen/PP = radius forms 1e-14; Morrison between Stokes and Oseen for 0.1–5 | analytic, symbolic, benchmark | R13: printed +∂p/∂x differs by 2∂p/∂x; wrong: 3/8 on diameter Re |
+| C14 (8.50)–(8.52) drag, settling, Millikan | CORE | `stokes_sphere_pressure`, `_surface_stresses`, `stokes_drag`, `stokes_drag_running`, `sphere_drag_quadrature`, `stokes_drag_coefficient`, `terminal_velocity`, `radius_from_terminal_velocity`, `settling_state`, `millikan_charge`, `synthetic_millikan` | V2, V1, V5 | D30 (★★★, with `core.curvilinear.vector_laplacian`) and D31 (★★★, with `strain_rate`) re-derived: 2πμaU + 4πμaU; Gauss–Legendre exact for n ≥ 1 (1e-12); running integrals' derivative = integrand (1e-7); σ_rθ by FD 1e-4 (one-sided); C_D parity with ch04 1e-15; drag = weight 1e-14; 10 µm droplet U_t = 1.21 cm/s, Re = 0.016, D = 4.10e-11 N; synthetic e error **5.1e-4** (CODATA) | symbolic, analytic, benchmark (`sphere_drag_quadrature`: analytic — Gauss–Legendre exact from n = 1, nothing to converge) | R12: printed +3μU/2a minimum rejected; slip-sphere 4πμaU rejected |
+| C15 far-field breakdown, Oseen (8.53) | CORE | `inertia_viscous_ratio`, `oseen_streamfunction`, `oseen_velocity`, `oseen_limit_sympy`, `oseen_linearisation_sympy`, drag laws | V7, V2, V1, V5 | log–log slope **0.995** (r/a 50–500, three θ); ∝ 1/ν exact, ∝ U 2e-5; loop 2: ratio/(Re_a r/a) → **½** on θ = 0, π/2, π (0.4981/0.4991 at r = 400a, O(a/r) approach, order 1.00; sympy limit exactly ½); D32 (asymptotics), D33 re-derived; Re → 0 limit 0 (sympy) and 1e-9 numerically; ψ = 0 on the axis; (6.83) by FD 1e-6; wall slip ∝ Re (order **0.996**); loop 2: coded ψ = (8.53) (1e-11) and (8.53) solves E⁴ψ − (U/ν)∂ₓE²ψ = 0 exactly (sympy; the opposite sign fails), wake downstream (\|ψ\| ratio 1.05–3.8 at θ < π/2 vs π − θ); Oseen/PP = radius forms 1e-14; Morrison between Stokes and Oseen for 0.1–5 | analytic, symbolic, benchmark (`inertia_viscous_ratio`: analytic; `oseen_streamfunction`: symbolic, analytic; `oseen_drag_coefficient`, `proudman_pearson_drag_coefficient`: analytic (form cross-check) — the V5 row checks the published *form* and a correlation bracket, no drag data are compared) | R13: printed +∂p/∂x differs by 2∂p/∂x; wrong: 3/8 on diameter Re; θ ↔ π − θ; ratio × ¼ |
 | NOTE figures N103–N107 | NOTE | 12 scripts | V1 smoke | all exit 0 | — | |
 
 C-depth NOTEs (N02, N11, N37, N64, N74–N76, N80, N94, N102) are named only and not coded; SKIP S01 not coded.
@@ -83,7 +107,7 @@ C-depth NOTEs (N02, N11, N37, N64, N74–N76, N80, N94, N102) are named only and
 | D28 | ★★★ | `test_stokes_stream_function_V2_derivation_D28` | steps 2–12 (identity for generic A, then (8.48)) |
 | D30 | ★★★ | `test_stokes_pressure_V2_derivation_D30` | steps 1–11 (g′ = 0 checked) |
 | D31 | ★★★ | `test_stokes_drag_V2_derivation_D31` | steps 2–13 and the running integral |
-| D32 | ★★ | `test_far_field_V2_derivation_D32` | steps 1–7 (see O3) |
+| D32 | ★★ | `test_far_field_V2_derivation_D32` + `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote` (sympy prefactor ½) | steps 1–7 (see O3) |
 | D33 | ★★ | `test_oseen_V2_limit_linearisation_and_D33` | steps 1–7 |
 The ★ rows of CORE items are checked numerically: D01 (O2), D02–D03 (engine), D05 (5 mm, 2 Pa/m, u_max = 1.5V), D09,
 D16 (via the stokes1 reduction), D20 (3.643, 3.64 cm, 21.9 cm, 2.772), D25 (0.0591, 0.56 mm, 1.6 mm, 3.5 mm/s).
@@ -93,7 +117,8 @@ D16 (via the stokes1 reduction), D20 (3.643, 3.64 cm, 21.9 cm, 2.772), D25 (0.05
 C.1 `core.laminar`: `channel_flow` → `test_channel_flow_V1_navier_stokes_residual_and_walls`, `…_parity_with_ch04…`,
 `…_V7_superposition…` · `channel_flow_rate` → `test_channel_flow_rate_V1_quadrature_and_printed_V_units` ·
 `channel_shear_stress` → `test_channel_shear_stress_V1_derivative_and_wall_values` · `channel_backflow_threshold`,
-`couette_poiseuille_state` → `test_channel_backflow_V1_threshold_by_bisection_and_state` · `pipe_poiseuille` →
+`couette_poiseuille_state` → `test_channel_backflow_V1_threshold_by_bisection_and_state`,
+`test_couette_poiseuille_state_V1_extrema_match_dense_grid` · `pipe_poiseuille` →
 `test_pipe_poiseuille_V1_parity_ns_residual_and_ch03` · `pipe_shear_stress`, `pipe_wall_stress` →
 `test_pipe_wall_stress_V4_control_volume_force_balance` · `pipe_flow_rate`, `pipe_friction_factor` →
 `test_pipe_flow_rate_V1_quadrature_umax_and_friction_factor` · `circular_couette` → `test_circular_couette_V1_walls_ode_vorticity`,
@@ -114,7 +139,7 @@ C.2 `core.lubrication`: `lubrication_scales`, `lubrication_term_magnitudes` → 
 `reynolds_pressure_1d` → `test_reynolds_pressure_1d_V1_exact_slider_and_V3_order_two` · `slider_bearing`,
 `slider_bearing_load` → `test_slider_bearing_V1_quadrature_load_and_numbers`, `…_V7_reversal_and_ends` ·
 `slider_optimum_taper` → `test_slider_optimum_taper_V5_san_andres` · `slider_bearing_state`, `slider_gap_velocity` →
-`test_slider_bearing_state_V1_explainer_numbers` · `hele_shaw_velocity`, `hele_shaw_potential` (+ `hele_shaw_mean_velocity`) →
+`test_slider_bearing_state_V1_explainer_numbers`, `test_slider_backflow_both_ends` · `hele_shaw_velocity`, `hele_shaw_potential` (+ `hele_shaw_mean_velocity`) →
 `test_hele_shaw_V1_velocity_potential_and_mean` · `thin_film_flux` (+ `thin_film_velocity`) →
 `test_thin_film_V1_profile_walls_and_flux` · `thin_film_spread` → `test_thin_film_spread_V4_volume_conserved`,
 `…_V5_huppert_shape_and_t_one_fifth` · `viscous_current_similarity`, `thin_film_state` →
@@ -130,8 +155,9 @@ C.3 `core.creeping`: `stokes_residual` → `test_stokes_residual_V1_sphere_field
 `proudman_pearson_drag_coefficient` → `test_drag_laws_V5_oseen_proudman_pearson_morrison` · `terminal_velocity`,
 `radius_from_terminal_velocity`, `settling_state` → `test_terminal_velocity_V1_force_balance_round_trip_and_warning` ·
 `millikan_charge` → `test_millikan_V5_synthetic_experiment_recovers_e` · `inertia_viscous_ratio` →
-`test_inertia_viscous_ratio_V7_linear_growth_in_r_and_Re` · `oseen_streamfunction`, `oseen_velocity` →
-`test_oseen_V1_velocity_axis_wake_and_no_slip_order` · `side_line_speed` → `test_stokes_sphere_V7_frames_and_fore_aft_symmetry`.
+`test_inertia_viscous_ratio_V7_linear_growth_in_r_and_Re`, `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote` ·
+`oseen_streamfunction`, `oseen_velocity` → `test_oseen_V1_velocity_axis_wake_and_no_slip_order`,
+`test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream` · `side_line_speed` → `test_stokes_sphere_V7_frames_and_fore_aft_symmetry`.
 C.4 `ch08`: `pipe_flow_regime` → `test_pipe_flow_regime_V1_definition_and_band_edges`, `…_V7_scale_invariance` ·
 `inertia_viscous_scales`, `diffusion_time` → `test_diffusion_time_V1_D01_numbers` · `momentum_diffusivity` →
 `test_momentum_diffusivity_V5_air_water_from_published_property_laws` · `wall_bc_residuals` →
@@ -234,7 +260,7 @@ Oseen evaluated in the −expm1 form (exact at Re = 0).
 ## Discrimination proofs (wrong variants planted in a scratch copy; the repository untouched)
 Method: a scratch copy of `fluidpy/`, `tools/`, `tests/test_ch08.py` (+ conftest, private JSON, `reference/ch01`, `ch04`,
 `ch08`); one wrong variant planted at a time by exact string replacement; `pytest -x -m "not slow"`; the first failing
-test recorded. **36/36 caught.**
+test recorded. **36/36 caught in loop 1; loop 2 adds rows 37–41 (run with `-k` on the new test): 41/41 caught.**
 
 | # | wrong variant | where | first test that fails |
 |---|---|---|---|
@@ -274,25 +300,35 @@ test recorded. **36/36 caught.**
 | 34 | air μ instead of ν | `ch08.momentum_diffusivity` | `test_momentum_diffusivity_V5_air_water_from_published_property_laws` |
 | 35 | θ-scheme without its explicit half | `core.diffusion.crank_nicolson_1d` | `test_crank_nicolson_V3_second_order_space_and_time` |
 | 36 | Stokes-layer envelope √(ω/ν) (missing 2) | `stokes_layer_envelope` | `test_stokes_second_V1_wall_envelope_phase_speed_and_D25` |
+| 37 | extremum at y* = h/2 + μU/(h dp/dx) (review M1, the pre-fix code) | `couette_poiseuille_state` | `test_couette_poiseuille_state_V1_extrema_match_dense_grid` |
+| 38 | Oseen ψ mirrored θ ↔ π − θ (upstream wake; review SF1) | `oseen_streamfunction` | `test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream` (and `test_oseen_V1_velocity_axis_wake_and_no_slip_order`) |
+| 39 | inertia/viscous ratio × ¼ (the loop-1 "≈ 1/8" prefactor) | `inertia_viscous_ratio` | `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote` |
+| 40 | recirculation checked at x = L only | `slider_bearing_state` | `test_slider_backflow_both_ends` |
+| 41 | recirculation threshold h > h_m instead of 1.5h_m | `slider_bearing_state` | `test_slider_backflow_both_ends` |
 
 The printed slips that live only in the sympy engines (R6 (8.13b), R7 (8.17a), R8's (1 − αx/L) integrands, R13 Oseen's
 sign, R17 the biharmonic) are asserted as failing variants directly inside the V2 tests (the engines return them as
 separate keys), and the independent re-derivations do not use the engines.
 
 ## Open items
-O1 (implementer, docstrings) — 83 docstrings still say "Validation (planned)" (29 in `core/laminar.py`, 19 in
-`core/lubrication.py`, 21 in `core/creeping.py`, 13 in `ch08_laminar_flow.py`, 1 in `core/diffusion.py`). Replace each
-with the test names of this report (as ch06/ch07 did). Not a physics defect; it keeps the evidence traceable.
+O1 — **closed (loop 2).** `grep "Validation (planned)" fluidpy/` returns 0; every ch08 docstring names its tests
+(`Validation — tests/test_ch08.py: …`). Labels now read as in the validation table: `thin_film_spread` "conserved,
+benchmark", `sphere_drag_quadrature` "analytic", `oseen_drag_coefficient` / `proudman_pearson_drag_coefficient`
+"analytic (form cross-check)", `similarity_ode_solve` "analytic (closed-form agreement, truncation-insensitive)".
 
 O2 (designer, Part F D01 check) — "The property functions give 15.1": `momentum_diffusivity("air")/("water")` at
 293.15 K gives **15.007** (15.0). The step-4 hand value (0.018 × 833 = 15) is fine; only the check line's 15.1 is off.
 
 O3 (designer, Part F D32) — step 3 sizes the inertia with u_r ∂u_θ/∂r; in (8.49) the θ-component of (u·∇)u has no
 O(U²a/r²) term (its leading term is (9/32)U²a² sin 2θ/r³), the O(U²a/r²) inertia is in the **radial** component:
-(u·∇u)_r ≈ (3U²a/16r²)(8cos²θ − 4sin²θ) against (ν∇²u)_r ≈ 3νUa cos θ/r³. The conclusion inertia/viscous ~ Re_a r/a
-stands (slope 0.995), but the prefactor is ≈ 1/8–1/10 at θ = π/3, so inertia equals friction at r ≈ 10–20 a/Re_a, not
-at r ≈ a/Re_a: the check line "Re_a = 0.01 → r ≈ 100a; droplet → r ≈ 125a = 1.25 mm" is an order-of-magnitude
-statement and should say so (our value at r = 100a, Re_a = 0.01 is 0.045). Suggest wording "u·∇u ~ U ∂u′/∂x" (the
+(u·∇u)_r ≈ (3U²a/16r²)(8cos²θ − 4sin²θ) = (3U²a/4r²)(2 − 3sin²θ). That θ-part of the finding stands.
+**Corrected in loop 2:** loop 1 compared this with the radial viscous component only and concluded "prefactor ≈ 1/8,
+crossover 10–20 a/Re_a" — wrong. The viscous term is a vector too: |ν∇²u| = |∇p|/ρ = (3νUa/2r³)(4cos²θ + sin²θ)^{1/2},
+so on the axis ratio = (1.5U²a/r²)/(3νUa/r³) = ½ Re_a (r/a), at θ = π/2 (0.75U²a/r²)/(1.5νUa/r³) = ½ Re_a (r/a) as
+well, and the crossover there is **r/a ≈ 2/Re_a** (smaller in between: the leading inertia vanishes near
+sin²θ = 2/3). Pinned by `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote` (0.4981 / 0.4991 at r = 400a, O(a/r)
+approach, sympy limit ½). The design's check line "Re_a = 0.01 → r ≈ 100a" is therefore low by a factor 2 on the axis
+(≈ 200a); still an order-of-magnitude statement and should be worded as one. Suggested wording "u·∇u ~ U ∂u′/∂x" (the
 stream advecting the Stokeslet), which is what Oseen keeps (N95).
 
 O4 (designer, consistency) — the engine-film ν: design §0 item 10 says ν = 10⁻⁴ m²/s with μ = 0.05 Pa s, Part A/B use
@@ -314,4 +350,19 @@ O7 (book value) — none outstanding: every printed number of the private file i
 the book rounds) or rejected as a documented slip (R8–R13). The §8.5 "0.06" is the 1-significant-figure rounding of
 0.0591.
 
-## Verdict: PASS (loop 1) — 97/97 ch08 tests pass (101 s; full suite 979 passed); all 15 CORE items have ≥ 2 independent levels including V1 or V2 (14 of them three or more, with V3, V4, V5 or V7; C05 has V1 + V2); every coded NOTE ≥ 1; all 25 ★★/★★★ derivations re-derived with sympy (no wrong intermediate line in the ★★★ rows; design-text notes O2–O4); every design Part C function and all 12 scripts exercised; 36/36 planted wrong variants caught; no tolerance loosened below a derived bound; open items are docstring text, design-text notes, a numerical-route order and runtime.
+O8 (implementer, docstrings, low) — the four loop-2 tests are not yet named in the docstrings they verify:
+`couette_poiseuille_state` (→ `test_couette_poiseuille_state_V1_extrema_match_dense_grid`), `oseen_streamfunction`
+(→ `test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream`; its "Checks" line could now say "V2 solves
+Oseen's equation"), `inertia_viscous_ratio` (→ `test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote`), and
+`slider_bearing_state`, whose docstring still says "test_slider_backflow_both_ends (to be added by the verifier …)" —
+it exists now. Text only.
+
+O9 (implementer / notebook / explainer E3, low) — `slider_bearing_state["inlet_backflow"]` now means "recirculation at
+the wide end" (x = L for α > 0, x = 0 for α < 0) and equals `backflow_any`; for α < 0 with U > 0 the wide end is the
+exit, so the key's name is misleading there. Existing callers that assume α > 1 only still get the right answer for
+α > 0. Any text that says "inlet backflow" should say "recirculation at the wide end". The docstring's η in
+"(u − U)/U = −(1 − η) + 3(1 − h_m/h)η(1 − η)" is measured from the floor, while `slider_gap_velocity`'s y = 0 is the
+moving pad side (u(0) = U in the ground frame): consistent physics, but the two descriptions put the pad on
+opposite walls — worth one clarifying phrase.
+
+## Verdict: PASS (loop 2) — 101/101 ch08 tests pass (169 s; full suite 983 passed in 660 s); all 15 CORE items have ≥ 2 independent levels including V1 or V2; every coded NOTE ≥ 1; all 25 ★★/★★★ derivations re-derived with sympy (no wrong intermediate line in the ★★★ rows; design-text notes O2–O4, O3 corrected: prefactor ½, crossover ≈ 2a/Re_a); review M1 (Couette–Poiseuille extremum sign), SF1 (Oseen wake direction) and the slider recirculation at either end are pinned by new tests; every design Part C function and all 12 scripts exercised; 41/41 planted wrong variants caught; no tolerance loosened below a derived bound; O1 closed; open items are docstring/naming text (O8, O9), design-text notes, a numerical-route order and runtime.

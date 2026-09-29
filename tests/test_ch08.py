@@ -275,6 +275,49 @@ def test_channel_backflow_V1_threshold_by_bisection_and_state():  # V1 (N09, D05
     assert sp_["u_max"] == pytest.approx(1.5 * sp_["V"], rel=1e-12) and sp_["y_umax"] == pytest.approx(h / 2)
 
 
+def test_couette_poiseuille_state_V1_extrema_match_dense_grid():  # V1 (N09, E1/IF1; review M1): y* = h/2 − μU/(h dp/dx)
+    # The explainer's u_max, y_umax, u_min, y_umin are checked against a brute-force max/min of channel_flow (8.5)
+    # sampled on a dense grid that includes both walls. Tolerances come from the grid, not from the formula:
+    #   value:    the grid can only miss an interior extremum; with u'' = (dp/dx)/μ constant, a grid point lies within
+    #             dy/2 of y*, so 0 ≤ u_extremum − u_grid ≤ |dp/dx|/(2μ)·(dy/2)²  (+ round-off);
+    #   location: y* lies within dy/2 of the grid arg-extremum (any of the tied arg-extrema, e.g. both walls).
+    h, mu = 0.01, 1e-3
+    n = 20001
+    yy = np.linspace(0.0, h, n)
+    dy = yy[1] - yy[0]
+    for U, g in ((0.01, 0.5), (0.01, -0.5), (0.01, 1.0), (0.01, -1.0), (0.0, 0.5), (0.0, -0.5)):
+        st = ch08.couette_poiseuille_state(h, U, g, mu)
+        u = np.asarray(ch08.channel_flow(yy, h, U, g, mu))
+        scale = max(abs(U), abs(g) * h ** 2 / (8 * mu))
+        gap = abs(g) / (2 * mu) * (dy / 2) ** 2 + 1e-14 * scale  # quadratic miss at worst half a cell + round-off
+        # values: the state's max is ≥ every grid value and exceeds the grid max by at most the quadratic miss
+        assert 0.0 <= st["u_max"] - u.max() + 1e-14 * scale <= gap + 1e-14 * scale, (U, g, st["u_max"], u.max())
+        assert 0.0 <= u.min() - st["u_min"] + 1e-14 * scale <= gap + 1e-14 * scale, (U, g, st["u_min"], u.min())
+        # the reported location must reproduce the reported value
+        assert float(ch08.channel_flow(st["y_umax"], h, U, g, mu)) == pytest.approx(st["u_max"], abs=1e-15 * scale)
+        assert float(ch08.channel_flow(st["y_umin"], h, U, g, mu)) == pytest.approx(st["u_min"], abs=1e-15 * scale)
+        # locations: within half a cell of (one of) the grid arg-extrema
+        imax = np.flatnonzero(u >= u.max() - 1e-14 * scale)
+        imin = np.flatnonzero(u <= u.min() + 1e-14 * scale)
+        assert np.min(np.abs(yy[imax] - st["y_umax"])) <= dy / 2 + 1e-15, (U, g, st["y_umax"], yy[imax])
+        assert np.min(np.abs(yy[imin] - st["y_umin"])) <= dy / 2 + 1e-15, (U, g, st["y_umin"], yy[imin])
+        # the interior extremum, when it exists, is at y* = h/2 − μU/(h dp/dx) (the corrected sign)
+        ys = h / 2 - mu * U / (h * g)
+        if 0.0 < ys < h:
+            key = "y_umax" if g < 0 else "y_umin"  # u'' = g/μ: a maximum for favourable dp/dx < 0
+            assert st[key] == pytest.approx(ys, rel=1e-12)
+    # worked case: U = 1 cm/s, dp/dx = −0.5 Pa/m ⇒ y* = h/2 − μU/(h dp/dx) = 5 mm + 2 mm = 7 mm (the old + sign gave 3 mm)
+    assert ch08.couette_poiseuille_state(h, 0.01, -0.5, mu)["y_umax"] == pytest.approx(0.007, rel=1e-12)
+    assert ch08.couette_poiseuille_state(h, 0.01, 0.5, mu)["y_umin"] == pytest.approx(0.003, rel=1e-12)
+    # backflow semantics: U = 0 is pure Poiseuille — one-signed, its sign is a direction, never backflow
+    for g in (-1.0, -0.5, 0.5, 1.0):
+        assert ch08.couette_poiseuille_state(h, 0.0, g, mu)["backflow"] is False
+    # U ≠ 0: unchanged threshold 2μU/h² (= 0.2 Pa/m here), mirrored for a plate moving in −x
+    for U, g, back in ((0.01, 0.19, False), (0.01, 0.21, True), (0.01, 0.5, True), (0.01, -0.5, False),
+                       (-0.01, -0.19, False), (-0.01, -0.21, True), (-0.01, -0.5, True), (-0.01, 0.5, False)):
+        assert ch08.couette_poiseuille_state(h, U, g, mu)["backflow"] is back, (U, g)
+
+
 def test_channel_flow_V7_superposition_and_mirror_symmetry():  # V7 (C02): linearity; Poiseuille symmetric about h/2
     h, mu = 0.01, 1e-3
     y = np.linspace(0, h, 41)
@@ -964,6 +1007,57 @@ def test_slider_bearing_state_V1_explainer_numbers():  # V1 (E3/IF4): peak locat
             assert q == pytest.approx(st["C1"], rel=1e-9)
     assert np.isnan(ch08.slider_gap_velocity(0.01, 1.0, h0, 0.3, L, U, mu))  # outside the gap
     assert ch08.slider_gap_velocity(0.01, 0.0, h0, 0.3, L, U, mu) == 0.0  # the floor
+
+
+def _pad_frame_reversal(h0, al, L, U, mu, nx=401, ny=801):
+    """Brute force, independent of slider_bearing_state: for each station x, does the pad-frame velocity
+    slider_gap_velocity(..., frame="pad") take the sign opposite to the bulk flux C₁ somewhere inside the gap?
+    Returns (x, reversed-speed per station [m/s], u at x = 0 [m/s])."""
+    x = np.linspace(0.0, L, nx)
+    eta = np.linspace(0.0, 1.0, ny)[1:-1]  # interior of the gap
+    X, E = np.meshgrid(x, eta, indexing="ij")
+    Y = E * h0 * (1.0 + al * X / L)
+    u = np.asarray(ch08.slider_gap_velocity(X, Y, h0, al, L, U, mu, frame="pad"))
+    bulk = np.sign(np.trapezoid(u, E, axis=1))[0]  # direction of the (constant-sign) pad-frame flux
+    rev = np.max(np.clip(-bulk * u, 0.0, None), axis=1)  # largest speed against the bulk flux at each station
+    return x, rev, u[0]
+
+
+def test_slider_backflow_both_ends():  # V1 (C07, E3/IF4): recirculation next to the pad iff h > 1.5 h_m, at either end
+    # Independent derivation (pad frame, pad at rest, floor at −U, flux C₁ = −U h_m/2, h_m = 2(1 + α)h₀/(2 + α)):
+    # (8.19) written from the pad side: u/U = −s + 3(1 − h_m/h) s(1 − s), s = (distance from the pad)/h,
+    # so u′(pad) has the reversed sign iff 3(1 − h_m/h) > 1 ⇔ h > 1.5 h_m (a parabola: at most one sign change).
+    # Widest gap: x = L for α > 0 (⇒ α > 1), x = 0 for α < 0 (⇒ α < −½): wide/narrow gap ratio > 2 at either end.
+    L, h0, U, mu = 0.05, 50e-6, 5.0, 0.05
+    tolu = 1e-9 * U  # a reversed speed must exceed round-off to count
+    for al, expect, x_wide in ((0.99, False, None), (1.01, True, L), (-0.49, False, None), (-0.51, True, 0.0),
+                               (0.5, False, None), (2.0, True, L), (-0.7, True, 0.0)):
+        for Us in (U, -U):  # independent of the sign of U (C₁ and the profile flip together)
+            st = ch08.slider_bearing_state(h0, al, L, Us, mu)
+            x, rev, _ = _pad_frame_reversal(h0, al, L, Us, mu)
+            grid_any = bool(np.any(rev > tolu))
+            assert grid_any is expect, (al, Us, rev.max())
+            assert st["backflow_any"] is expect and st["inlet_backflow"] is expect, (al, Us, st["backflow_any"])
+            if expect:
+                assert st["backflow_x"] == x_wide == x[np.argmax(rev)], (al, Us, st["backflow_x"])
+                # the stations that recirculate are exactly those with h > 1.5 h_m (to within one x-cell)
+                h_m = 2 * (1 + al) * h0 / (2 + al)
+                hx = h0 * (1 + al * x / L)
+                inside = hx > 1.5 * h_m
+                mism = np.flatnonzero((rev > tolu) != inside)
+                dx = x[1] - x[0]
+                x_edge = L * (1.5 * h_m / h0 - 1) / al  # where h = 1.5 h_m
+                assert np.all(np.abs(x[mism] - x_edge) <= dx), (al, Us, x[mism], x_edge)
+            else:
+                assert np.isnan(st["backflow_x"]), (al, Us, st["backflow_x"])
+    # the worked case: h₀ = 50 µm, α = −0.7, U = 5 m/s, μ = 0.05 Pa s — at x = 0 the pad-frame u spans ≈ −5 … +0.293
+    _, _, u0 = _pad_frame_reversal(h0, -0.7, L, U, mu)
+    s = 0.5 * (1 - 1 / (3 * (1 - 2 * 0.3 / 1.3)))  # analytic arg-max of −s + 3(1 − h_m/h)s(1 − s), h_m/h = 0.6/1.3
+    umax = U * (-s + 3 * (1 - 0.6 / 1.3) * s * (1 - s))
+    assert umax == pytest.approx(0.293, abs=5e-4)
+    assert u0.max() == pytest.approx(umax, rel=1e-5)  # grid of 799 interior points, quadratic miss ≲ 1e-6
+    assert -U < u0.min() < -0.99 * U  # floor side approaches −U
+    assert ch08.slider_bearing_state(h0, -0.7, L, U, mu)["backflow_any"] is True
     assert ch08.slider_gap_velocity(0.0, h0, h0, 0.3, L, U, mu) == pytest.approx(U)  # the pad
 
 
@@ -1380,7 +1474,8 @@ def test_temporal_bl_V1_wall_stress_and_cf():  # V1 (N60): τ_w = μ∂u/∂y(0)
         assert d["Cf"] == pytest.approx(d["tau_w"] / (0.5 * rho * U ** 2), rel=1e-14)
         assert d["Cf"] == pytest.approx(1.1284 / np.sqrt(d["Re_x"]), rel=1e-4)
         assert d["Cf_coefficient"] == pytest.approx(2 / np.sqrt(np.pi))
-    # the upper half is Stokes' first problem seen from the plate (Galilean shift): U − u = stokes_first(2U)
+    # the upper half is Stokes' first problem seen from the plate (Galilean shift): U − u(y) = stokes_first(y; U),
+    # i.e. U erfc(y/2√νt) with the same U (the jump across the sheet is 2U, but the half-profile deficit is U)
     y = np.linspace(0, 0.01, 21)
     assert maxrel(U - np.asarray(ch08.vortex_sheet_diffusion(y, 2.0, U, nu)[0]), ch08.stokes_first_problem(y, 2.0, U, nu)) < 1e-12
 
@@ -1885,11 +1980,44 @@ def test_inertia_viscous_ratio_V7_linear_growth_in_r_and_Re():  # V7 (C15, D32):
     # near the sphere inertia is weak for small Re_a, far away it wins (crossover r ~ a/Re_a)
     Re_a = 0.01
     assert ch08.inertia_viscous_ratio(2.0, 1.0, 1.0, 1.0, 1.0 / Re_a) < 0.1
-    # the O(1) prefactor is ≈ 0.05–0.13 (sympy D32: radial ratio = (Re_a r/a)(8cos²θ − 4sin²θ)/(16 cosθ)), so the
-    # crossover sits at r ≈ 10–20 a/Re_a: still ∝ 1/Re_a, which is the claim
+    # the O(1) prefactor: |u·∇u| / |ν∇²u| → ½ Re_a (r/a) on the axis and at θ = π/2 (pinned in
+    # test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote), so the crossover there sits at r ≈ 2a/Re_a
     ratio_far = ch08.inertia_viscous_ratio(1000.0, 1.0, 1.0, 1.0, 1.0 / Re_a) / (Re_a * 1000.0)
     assert 0.01 < ratio_far < 1.0
     assert ch08.inertia_viscous_ratio(5e4, 1.0, 1.0, 1.0, 1.0 / Re_a) > 1.0
+
+
+def test_inertia_viscous_ratio_V1_half_Re_a_r_asymptote():  # V1 + V2 (C15, D32; report O3 corrected): ratio → ½ Re_a r/a
+    # Analytic leading order on Stokes' field (8.49): on the axis |u·∇u| = (3/2)U²a/r², |ν∇²u| = |∇p|/ρ = 3νUa/r³
+    # ⇒ ratio = ½ (Ua/ν)(r/a); at θ = π/2 |u·∇u| = (3/4)U²a/r², |ν∇²u| = (3/2)νUa/r³ ⇒ again ½ Re_a r/a.
+    # The correction is O(a/r), so the deviation from ½ must halve when r doubles, and the Richardson extrapolant
+    # 2 f(2r) − f(r) must hit ½ to O(a²/r²).
+    U, a, nu = 1.0, 1.0, 1.0  # Re_a = Ua/ν = 1 (the ratio is exactly ∝ 1/ν, tested above)
+    rs = np.array([100.0, 200.0, 400.0, 800.0])
+    for th in (0.0, np.pi / 2, np.pi):
+        f = np.array([float(ch08.inertia_viscous_ratio(r, th, U, a, nu)) for r in rs]) / (U * a / nu * rs / a)
+        dev = np.abs(f - 0.5)
+        assert dev[2] < 2.5e-3  # r/a = 400: 0.4981 (axis), 0.4991 (θ = π/2)
+        assert abs(observed_order(rs[::-1] ** -1.0, dev[::-1]) - 1.0) < 0.05  # deviation ∝ a/r
+        rich = 2 * f[1:] - f[:-1]  # removes the O(a/r) term
+        # error budget of the extrapolant: O(a²/r²) truncation (≤ (a/r_min)²) + round-off of the nested central
+        # differences, relative eps·r/(h_rel²·a) per value (step h = h_rel·r, ∇²u ~ Ua/r³), ×3 for 2f(2r) − f(r)
+        tol = (a / rs[0]) ** 2 + 3 * np.finfo(float).eps * rs[-1] / (1e-4 ** 2 * a)  # = 1e-4 + 5.3e-5
+        assert np.max(np.abs(rich - 0.5)) < tol, (th, rich, tol)
+    # V2: the same limit by sympy on (8.49), independent of the finite differences
+    r, th_, ph = CL.coordinates("spherical")
+    a_, U_, nu_ = sp.symbols("a U nu", positive=True)
+    ur = U_ * sp.cos(th_) * (1 - 3 * a_ / (2 * r) + a_ ** 3 / (2 * r ** 3))
+    ut = -U_ * sp.sin(th_) * (1 - 3 * a_ / (4 * r) - a_ ** 3 / (4 * r ** 3))
+    adv = CL.advective_acceleration([ur, ut, 0], "spherical")
+    lap = CL.vector_laplacian([ur, ut, 0], "spherical")
+    for t0 in (0, sp.pi / 2):
+        A = [sp.limit((c * r ** 2 / (U_ ** 2 * a_)).subs(th_, t0), r, sp.oo) for c in adv[:2]]
+        V = [sp.limit((nu_ * c * r ** 3 / (nu_ * U_ * a_)).subs(th_, t0), r, sp.oo) for c in lap[:2]]
+        pref = sp.sqrt(sum(x ** 2 for x in A)) / sp.sqrt(sum(x ** 2 for x in V))  # ratio / (Re_a r/a) as r → ∞
+        assert sp.simplify(pref - sp.Rational(1, 2)) == 0, (t0, A, V)
+    # wrong variant (the earlier report's O3): a prefactor ≈ 1/8 (crossover 10–20 a/Re_a) is excluded
+    assert abs(float(ch08.inertia_viscous_ratio(400.0, 0.0, U, a, nu)) / 400.0 - 0.125) > 0.3
 
 
 def test_far_field_V2_derivation_D32():  # V2 derivation D32 ★★: u − U ~ Ua/r, ρu·∇u ~ ρU²a/r², μ∇²u ~ μUa/r³
@@ -1958,6 +2086,49 @@ def test_oseen_V1_velocity_axis_wake_and_no_slip_order():  # V1 (N97, N100): u =
     # no slip only to O(Re): the wall speed scales linearly with Re (R18)
     w = [np.max(np.hypot(*ch08.oseen_velocity(a, np.linspace(0.1, 3.0, 30), U, a, R_))) for R_ in (1e-3, 1e-2, 1e-1)]
     assert abs(observed_order([1e-3, 1e-2, 1e-1], w) - 1.0) < 0.05
+
+
+def test_oseen_V2_streamfunction_solves_oseen_equation_and_wake_downstream():  # V2 + V1 (N97, N100; review SF1)
+    # (1) The coded ψ (8.53) equals the book's closed form on a field (parity, so the sympy statements below are
+    #     statements about the coded function). (2) That closed form satisfies Oseen's stream-function equation
+    #     E⁴ψ − (U/ν) ∂ₓ(E²ψ) = 0 with ν = 2aU/Re and ∂ₓ = cosθ ∂_r − (sinθ/r) ∂_θ (stream in +x, θ from +x);
+    #     the opposite sign (an upstream wake) does not. (3) In the fluid frame the disturbance is larger downstream
+    #     (θ < π/2) than at the mirror angle π − θ.
+    r, th, a, U, Re = sp.symbols("r theta a U Re", positive=True)
+    psi = U * a ** 2 * ((r ** 2 / (2 * a ** 2) + a / (4 * r)) * sp.sin(th) ** 2
+                        - 3 / Re * (1 + sp.cos(th)) * (1 - sp.exp(-Re / 4 * r / a * (1 - sp.cos(th)))))  # Eq. (8.53)
+    # (1) parity of the coded (stable-form) ψ with the closed form, Re ∈ {0.3, 1, 3}
+    f = sp.lambdify((r, th, a, U, Re), psi, "numpy")
+    R, T = np.meshgrid(np.linspace(1.05, 12.0, 30), np.linspace(0.05, np.pi - 0.05, 31))
+    for Re_ in (0.3, 1.0, 3.0):
+        assert maxrel(ch08.oseen_streamfunction(R, T, 1.3, 0.7, Re_), f(R, T, 0.7, 1.3, Re_)) < 1e-11  # U=1.3, a=0.7
+    # (2) residual of the Oseen equation, exactly by sympy at a spread of points
+    E2 = lambda q: sp.diff(q, r, 2) + sp.sin(th) / r ** 2 * sp.diff(sp.diff(q, th) / sp.sin(th), th)  # noqa: E731
+    Dx = lambda q: sp.cos(th) * sp.diff(q, r) - sp.sin(th) / r * sp.diff(q, th)  # noqa: E731
+    nu = 2 * a * U / Re
+    z = E2(psi)
+    e4, dxz = E2(z), Dx(z)
+    pts = [(2.3, 0.7, 1, 1, 0.8), (5.1, 2.2, 1, 1, 1.7), (1.4, 0.2, 2, 0.5, 0.3), (8.0, 1.5, 1, 3, 2.5)]
+    for sgn, ok in ((+1, True), (-1, False)):
+        res = e4 - sgn * (U / nu) * dxz
+        for rv, tv, av, Uv, Rv in pts:
+            sub = {r: sp.Rational(str(rv)), th: sp.Rational(str(tv)), a: av, U: sp.Rational(str(Uv)), Re: sp.Rational(str(Rv))}
+            val = float(res.subs(sub).evalf(30))
+            scale = float(abs(e4.subs(sub).evalf(30))) + float(abs((U / nu * dxz).subs(sub).evalf(30)))
+            if ok:
+                assert abs(val) < 1e-20 * max(scale, 1.0) + 1e-25, (sgn, rv, tv, val, scale)
+            else:
+                assert abs(val) > 1e-3 * scale, (sgn, rv, tv, val, scale)
+    # (3) wake downstream: fluid-frame |ψ|(θ) > |ψ|(π − θ) for every θ in (0, π/2), several radii, Re = 1
+    th1 = np.linspace(0.1, 1.4, 14)
+    for rr in (1.5, 3.0, 8.0):
+        down = np.abs(np.asarray(ch08.oseen_streamfunction(rr, th1, 1.0, 1.0, 1.0, "fluid")))
+        up = np.abs(np.asarray(ch08.oseen_streamfunction(rr, np.pi - th1, 1.0, 1.0, 1.0, "fluid")))
+        assert np.all(down > 1.05 * up), (rr, down / up)
+    # the wake grows downstream along the axis side: the ratio increases with r at θ = 0.36
+    q = [float(abs(ch08.oseen_streamfunction(rr, 0.36, 1.0, 1.0, 1.0, "fluid"))
+               / abs(ch08.oseen_streamfunction(rr, np.pi - 0.36, 1.0, 1.0, 1.0, "fluid"))) for rr in (1.5, 3.0, 8.0)]
+    assert q[0] < q[1] < q[2]
 
 
 @needs_ref

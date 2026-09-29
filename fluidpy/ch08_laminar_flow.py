@@ -80,7 +80,10 @@ def pipe_flow_regime(U, d, nu: float = 1e-6):
     -------
     (Re, label) : Re [–] and the regime string (array of strings for array input).
 
-    Validation (planned): V1 definition, labels switch at 2000 and 3000. Label: analytic.
+    Validation — tests/test_ch08.py: test_pipe_flow_regime_V1_definition_and_band_edges,
+      test_pipe_flow_regime_V7_scale_invariance, test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V1 definition, labels switch at 2000 and 3000. Label: analytic.
     """
     Re = _F(U) * _F(d) / float(nu)
     lab = np.where(Re < 2000.0, "laminar", np.where(Re <= 3000.0, "transitional", "turbulent"))
@@ -111,7 +114,10 @@ def momentum_diffusivity(fluid: str = "air", T: float = 293.15, p: float = P_ATM
     -------
     nu : [m²/s].
 
-    Validation (planned): V5 via the ch01 correlations; ratio air/water at 293 K in [14, 17]. Label: benchmark.
+    Validation — tests/test_ch08.py: test_momentum_diffusivity_V5_air_water_from_published_property_laws,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_1_and_8_2_forms_and_numbers.
+    Checks: V5 via the ch01 correlations; ratio air/water at 293 K in [14, 17]. Label: benchmark.
     """
     if fluid == "air":
         return float(_ch01.sutherland_viscosity(T)) / (float(p) / (R_AIR * float(T)))
@@ -132,7 +138,9 @@ def wall_bc_residuals(u_wall, U_s, n, t=None):
     Book: §8.1, Eqs. (8.2)–(8.3). Parameters: u_wall fluid velocity at the wall (3,) [m/s]; U_s wall velocity (3,);
     n unit normal (3,); t optional unit tangent (3,) — if None the tangential residual is the magnitude of the whole
     tangential part of u − U_s. Returns (normal, tangential) [m/s] (both 0 when the conditions hold).
-    Validation (planned): V1 zero for u = U_s; separate parts for slip/through-flow cases. Label: analytic.
+    Validation — tests/test_ch08.py: test_wall_bc_residuals_V1_no_through_flow_and_no_slip,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 zero for u = U_s; separate parts for slip/through-flow cases. Label: analytic.
     """
     d = _F(u_wall) - _F(U_s)
     nn = _F(n) / np.linalg.norm(_F(n))
@@ -174,7 +182,10 @@ def parallel_flow_sympy(case: str = "channel") -> dict:
     circular Couette adds A, B, pressure; plus Q, V, tau, sigma, limits, a sub-dict ``residuals`` (each 0) and
     ``checks`` (booleans).
 
-    Validation (planned): V2 every residual is 0; wrong variant: keeping A ln R leaves u unbounded. Label: symbolic.
+    Validation — tests/test_ch08.py: test_channel_flow_V2_sympy_residual_and_derivation_engine,
+      test_pipe_poiseuille_V2_derivation_engine_and_D06, test_circular_couette_V2_engine_and_D08_derivation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 every residual is 0; wrong variant: keeping A ln R leaves u unbounded. Label: symbolic.
     """
     if case == "channel":
         x, y = sp.symbols("x y", real=True)
@@ -340,7 +351,11 @@ def _lubrication_nondim_sympy(printed_8_13b: bool = False) -> dict:
     expected_y (the (8.16a,b) sets); matches (booleans); limit_8_17a (dimensional, with ν), printed_8_17a;
     profile_8_18, profile_8_19 (consistent), profile_8_19_book.
 
-    Validation (planned): V2 coefficient sets {ε²Re_L, 1/Λ, ε², 1} and {ε⁴Re_L, 1/Λ, ε⁴, ε²}. Label: symbolic.
+    Validation — tests/test_ch08.py: (via lubrication_nondim_sympy)
+      test_lubrication_nondim_V2_coefficient_sets_and_printed_8_13b,
+      test_lubrication_scales_V1_definitions_and_term_magnitudes, test_lubrication_profile_V2_derivation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 coefficient sets {ε²Re_L, 1/Λ, ε², 1} and {ε⁴Re_L, 1/Λ, ε⁴, ε²}. Label: symbolic.
     """
     L, h, U, rho, mu, Pa = sp.symbols("L h U rho mu P_a", positive=True)
     eps, Re, Lam = sp.symbols("epsilon Re_L Lambda", positive=True)
@@ -417,7 +432,9 @@ def slider_bearing_sympy() -> dict:
     W_linear, W_exact), printed_final_satisfies_ode (False), printed_intermediate_satisfies_ends (False: the
     (1 − αx/L) integrands). Cached (fresh dict per call).
 
-    Validation (planned): V2 residuals 0; the two printed forms fail. Label: symbolic.
+    Validation — tests/test_ch08.py: test_slider_bearing_V2_engine_and_printed_slips,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 residuals 0; the two printed forms fail. Label: symbolic.
     """
     return dict(_slider_bearing_sympy())
 
@@ -485,7 +502,9 @@ def reynolds_equation_sympy() -> dict:
     dict: q (sympy), leibniz_residual (0), kinematic_cancellation (0: v(h) − U_h h_x + q_x), reynolds_residual (0: the
     p-form minus h_t + q_x), reynolds_equation (Eq), steady_q_constant (Eq ∂q/∂x = 0). Cached (fresh dict per call).
 
-    Validation (planned): V2 every residual 0. Label: symbolic.
+    Validation — tests/test_ch08.py: test_reynolds_equation_V2_derivation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 every residual 0. Label: symbolic.
     """
     return dict(_reynolds_equation_sympy())
 
@@ -544,7 +563,11 @@ def similarity_reduce_sympy(case: str = "stokes1") -> dict:
     (closed form), residual (0) — None where a key does not apply — plus per case reduced, solution, pde_residual
     (the dimensional solution in the PDE, 0), exponent_equations …
 
-    Validation (planned): V2 reduced ODEs equal (8.26) and the examples' ODEs; exponents; closed forms. Label: symbolic.
+    Validation — tests/test_ch08.py: test_stokes_first_V2_sympy_residual_and_wrong_variant,
+      test_similarity_reduce_V2_all_cases, test_similarity_example_8_4_V2_derivation,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V2 reduced ODEs equal (8.26) and the examples' ODEs; exponents; closed forms. Label: symbolic.
     """
     eta = sp.Symbol("eta", positive=True)
     y, r, xx = sp.symbols("y r x", positive=True)
@@ -653,7 +676,11 @@ def similarity_ode_solve(case: str = "stokes1", eta_max: float = 12.0, n: int = 
     (eta, F) : arrays (2001 points on [η₀, η_max]);  with ``full=True`` dict(eta, F, F_exact (1 − erf(η/2) or
     1 − e^{−η²/4}), max_err, eta_max, success).
 
-    Validation (planned): V3 max_err ≤ 1e-7, insensitive to η_max ∈ {10, 14}. Label: converged.
+    Validation — tests/test_ch08.py: test_similarity_ode_solve_V3_bvp_matches_closed_forms,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: max_err ≤ 1e-7 against the closed form 1 − erf(η/2) (or 1 − e^{−η²/4}), and the solution is insensitive
+    to the truncation η_max ∈ {10, 14}. No mesh-refinement order is measured. Label: analytic (closed-form agreement,
+    truncation-insensitive).
     """
     if case == "stokes1":
         e0, bc = 0.0, (1.0, 0.0)
@@ -696,7 +723,9 @@ def similarity_collapse_error(case: str = "stokes1", n: float = 0.0, m: float = 
     -------
     spread : max over ξ of (max − min across times) divided by the largest |rescaled profile| [–].
 
-    Validation (planned): V1 ≈ 0 (1e-12) at the right exponents, > 1e-2 away from them. Label: analytic.
+    Validation — tests/test_ch08.py: test_similarity_collapse_V1_right_exponents_only,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 ≈ 0 (1e-12) at the right exponents, > 1e-2 away from them. Label: analytic.
     """
     ts = np.asarray(times, dtype=float)
     t0 = ts[0]
@@ -725,7 +754,11 @@ def vorticity_content(t, U: float = 1.0, nu: float = 1e-6, return_error: bool = 
     """∫₀^∞ ω dy of Stokes' first problem by ``quad`` — equals +U for every t > 0 (the page prints −U, analysis §9 R10).
 
     Book: §8.4 (text after (8.30)): no vorticity is generated after t = 0. Parameters: t [s]; U [m/s]; nu [m²/s].
-    Returns the value [m/s] (with ``return_error=True``: (value, quad error estimate)). Validation (planned): V1 = U.
+    Returns the value [m/s] (with ``return_error=True``: (value, quad error estimate)).
+    Validation — tests/test_ch08.py: test_vorticity_content_V1_plus_U_and_vorticity_field,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_4_to_8_6_numbers_and_slips.
+    Checks: V1 = U.
     Label: analytic.
     """
     s = np.sqrt(float(nu) * float(t))
@@ -754,7 +787,9 @@ def stokes_second_sympy() -> dict:
     dict: ode (8.36), k_roots, k_book (±(1 + i)√(ω/2ν)), roots_match, bounded_root, f (8.37 with B = 0, A = U), u
     (8.38), residual (sum, 0) and residuals (ode, pde, wall, vs_book: 0).
 
-    Validation (planned): V2 residuals 0; wrong variant: the growing root is unbounded. Label: symbolic.
+    Validation — tests/test_ch08.py: test_stokes_second_V2_engine_and_D24_derivation,
+      test_stokes_second_V1_form_wikipedia, test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 residuals 0; wrong variant: the growing root is unbounded. Label: symbolic.
     """
     y, t, w, nu, U = sp.symbols("y t omega nu U", positive=True)
     f = sp.Function("f")
@@ -885,7 +920,9 @@ def synthetic_millikan(n_drops: int = 40, seed: int = 0, noise: float = 0.01, E:
     -------
     dict: q [C], e_est [C], n (the recovered integers; = n_est), a [m], n_true, U_fall, U_rise [m/s], rel_error, e_true.
 
-    Validation (planned): V5 e recovered within 1 % (seed 0, 40 drops, 1 % noise). Label: benchmark.
+    Validation — tests/test_ch08.py: test_millikan_V5_synthetic_experiment_recovers_e,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V5 e recovered within 1 % (seed 0, 40 drops, 1 % noise). Label: benchmark.
     """
     rng = np.random.default_rng(int(seed))
     a = rng.uniform(0.4e-6, 0.9e-6, int(n_drops))

@@ -61,7 +61,11 @@ def lubrication_scales(L, h, U, rho, mu, p_a: float = P_ATM) -> dict:
     -------
     dict of floats: eps, Re_L, eps2_Re_L, eps4_Re_L, Lambda, p_visc [Pa].
 
-    Validation (planned): V1 definitions; V6 the book's ε²Re_L for its oil example (private JSON). Label: analytic.
+    Validation — tests/test_ch08.py: test_lubrication_balance_V2_derivation_and_units,
+      test_lubrication_scales_V1_definitions_and_term_magnitudes,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V1 definitions; V6 the book's ε²Re_L for its oil example (private JSON). Label: analytic.
     """
     L, h, U, rho, mu = float(L), float(h), float(U), float(rho), float(mu)
     eps = h / L
@@ -88,7 +92,9 @@ def lubrication_term_magnitudes(L, h, U, rho, mu, p_scale: str = "viscous", p_a:
     y_inertia (ε⁴Re_L), y_pressure, y_diff_along (ε⁴), y_diff_across (ε²); the same four diffusion numbers also as
     x/y_diff_streamwise / _cross; plus eps, Re_L, Lambda.
 
-    Validation (planned): V2 equals ``ch08.lubrication_nondim_sympy`` coefficients. Label: analytic.
+    Validation — tests/test_ch08.py: test_lubrication_scales_V1_definitions_and_term_magnitudes,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 equals ``ch08.lubrication_nondim_sympy`` coefficients. Label: analytic.
     """
     s = lubrication_scales(L, h, U, rho, mu, p_a)
     eps, Re = s["eps"], s["Re_L"]
@@ -122,7 +128,10 @@ def lubrication_velocity(y, h, dpdx, U_h: float = 0.0, U_0: float = 0.0, mu: flo
     -------
     u : [m/s].
 
-    Validation (planned): V1 u(0) = U_0, u(h) = U_h; U_0 = 0 reduces to (8.5); wrong variant ``form="book"``.
+    Validation — tests/test_ch08.py: test_lubrication_velocity_V1_walls_flux_and_printed_form,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V1 u(0) = U_0, u(h) = U_h; U_0 = 0 reduces to (8.5); wrong variant ``form="book"``.
     Label: analytic.
     """
     y_, h_ = _F(y), _F(h)
@@ -150,7 +159,9 @@ def lubrication_flux(h, dpdx, U_h: float = 0.0, U_0: float = 0.0, mu: float = 1e
     -------
     q : [m²/s].
 
-    Validation (planned): V1 ``quad`` of :func:`lubrication_velocity`. Label: analytic.
+    Validation — tests/test_ch08.py: test_lubrication_velocity_V1_walls_flux_and_printed_form,
+      test_reynolds_equation_V2_derivation, test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 ``quad`` of :func:`lubrication_velocity`. Label: analytic.
     """
     h_ = _F(h)
     return _S(-h_ ** 3 * _F(dpdx) / (12.0 * float(mu)) + (float(U_0) + float(U_h)) * h_ / 2.0)
@@ -176,7 +187,9 @@ def reynolds_pressure_1d(x, h, U_0: float = 0.0, U_h: float = 0.0, mu: float = 1
     -------
     (p, q) : pressure at the nodes [Pa] and the constant flux per unit width [m²/s].
 
-    Validation (planned): V1 equals the exact slider p(x) to 1e-10 with a callable h; V3 order 2 with an array h.
+    Validation — tests/test_ch08.py: test_reynolds_pressure_1d_V1_exact_slider_and_V3_order_two,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 equals the exact slider p(x) to 1e-10 with a callable h; V3 order 2 with an array h.
     Label: analytic, converged.
     """
     x = _F(x)
@@ -218,7 +231,12 @@ def slider_bearing(x, h0, alpha, L, U, mu: float = 1e-3, p_e: float = 0.0, model
     -------
     p : [Pa].
 
-    Validation (planned): V2 sympy (ODE and p(0) = p(L) = p_e); V1 = :func:`reynolds_pressure_1d` with h callable (pad
+    Validation — tests/test_ch08.py: test_reynolds_pressure_1d_V1_exact_slider_and_V3_order_two,
+      test_slider_bearing_V1_quadrature_load_and_numbers, test_slider_bearing_V7_reversal_and_ends,
+      test_slider_bearing_state_V1_explainer_numbers,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V2 sympy (ODE and p(0) = p(L) = p_e); V1 = :func:`reynolds_pressure_1d` with h callable (pad
     frame); wrong variant "book". Label: symbolic, analytic.
     """
     s = _F(x) / float(L)
@@ -256,7 +274,12 @@ def slider_bearing_load(h0, alpha, L, U, mu: float = 1e-3, model: str = "exact")
     -------
     W : [N/m] (negative when αU < 0: the pad is sucked down).
 
-    Validation (planned): V1 ``quad`` of :func:`slider_bearing`; V2 series → linear; V5 San Andrés α_opt, W*.
+    Validation — tests/test_ch08.py: test_slider_bearing_V1_quadrature_load_and_numbers,
+      test_slider_bearing_V7_reversal_and_ends, test_slider_optimum_taper_V5_san_andres,
+      test_slider_bearing_state_V1_explainer_numbers,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V1 ``quad`` of :func:`slider_bearing`; V2 series → linear; V5 San Andrés α_opt, W*.
     Label: analytic, symbolic, benchmark.
     """
     a = float(alpha)
@@ -281,7 +304,9 @@ def slider_optimum_taper() -> dict:
     Book: §8.3, Example 8.1 stops at O(α); the optimum follows from :func:`slider_bearing_load` ("exact").
     Returns dict(alpha_opt, K_opt = 1 + α (inlet/exit gap ratio), W_star = W h₀²/(6μUL²) (San Andrés' normalisation),
     W_coefficient = W h₀²/(μUL²)). Method: ``scipy.optimize.minimize_scalar`` (bounded, xatol 1e-12).
-    Validation (planned): V5 K_opt ≈ 2.1889, W* ≈ 0.0267 (reference/ch08). Label: benchmark.
+    Validation — tests/test_ch08.py: test_slider_optimum_taper_V5_san_andres,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V5 K_opt ≈ 2.1889, W* ≈ 0.0267 (reference/ch08). Label: benchmark.
     """
     res = minimize_scalar(lambda a: -slider_bearing_load(1.0, a, 1.0, 1.0, 1.0, "exact"), bounds=(0.05, 10.0),
                           method="bounded", options={"xatol": 1e-12})
@@ -295,21 +320,35 @@ def slider_bearing_state(h0, alpha, L, U, mu: float = 1e-3, p_e: float = 0.0) ->
 
     Book: §8.3, Example 8.1: C₁ = ∫₀ʰ(u − U)dy = −(1 + α)Uh₀/(2 + α) (the flux in the pad frame), exact and linear
     pressure and load. The pressure peak is where dp/dx = 0, h* = −2C₁/U = 2(1 + α)h₀/(2 + α), i.e. x = L/(2 + α) (ours).
-    Inlet backflow (pad frame, at x = L): the Poiseuille part reverses the flow near the pad when α > 1 (ours; checked
-    on a y grid).
+    Recirculation next to the pad (ours, not the book's). In the pad frame the floor moves at −U, the pad is at rest
+    and the flux is C₁ = −U h_m/2 with h_m = h* the gap at the pressure peak. With η = y/h and (8.19),
+    (u − U)/U = −(1 − η) + 3(1 − h_m/h) η(1 − η), so near the pad (η → 1) u − U ≈ −U(3h_m/h − 2)(1 − η), while at
+    the floor u − U = −U (no reversal there; the profile is a parabola in η, so one sign change at most). The flow next to the pad opposes the bulk flux iff 3h_m/h − 2 < 0, i.e.
+    **h > 1.5 h_m**; the reversed velocity grows with h, so it is strongest where the gap is widest. With
+    h = h₀(1 + αx/L): for α > 0 the widest gap is h₀(1 + α) at x = L and the criterion is α > 1; for α < 0 it is h₀ at
+    x = 0 and the criterion is 1/(1 + α) > 2, i.e. α < −½. Both are "wide-to-narrow gap ratio > 2". Independent of
+    the sign of U (C₁ and the profile flip together). For αU < 0 (suction pad) the wide end is downstream.
+    Evaluated on a 399-point y grid at the wide end.
 
     Parameters
     ----------
-    h0 : [m];  alpha : [–];  L : [m];  U : [m/s];  mu : [Pa s];  p_e : [Pa].
+    h0 : [m];  alpha : [–] (> −1);  L : [m];  U : [m/s];  mu : [Pa s];  p_e : [Pa].
 
     Returns
     -------
     dict of floats: C1 [m²/s] (the pad-frame flux ∫₀ʰ(u − U)dy, constant; the ground-frame flux C₁ + Uh(x) varies with
     x), p_max [Pa] (p_e + peak), dp_max = p_max − p_e [Pa], x_pmax [m], h_pmax [m], W_exact, W_linear [N/m],
     err_linear = 100(W_linear/W_exact − 1) [%], p_max_atm = dp_max/P_ATM [–], p_visc = μUL/h₀² [Pa] (the viscous
-    pressure scale), inlet_backflow (bool; α > 1 for U > 0).
+    pressure scale), inlet_backflow (bool; recirculation at the wide end, wherever it is: α > 1 or α < −½, any
+    U ≠ 0), backflow_x [m] (station where recirculation is strongest = the wide end, L or 0; NaN if none),
+    backflow_any (bool; recirculation anywhere in the gap — equal to inlet_backflow, since the wide end is the worst).
 
-    Validation (planned): V1 against :func:`slider_bearing` (max over a fine grid) and :func:`slider_bearing_load`.
+    Validation — tests/test_ch08.py: test_slider_optimum_taper_V5_san_andres,
+      test_slider_bearing_state_V1_explainer_numbers, test_slider_backflow_both_ends (α at each threshold ± 0.01, against the sign
+      of :func:`slider_gap_velocity` (``frame="pad"``) on an x–y grid),
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V1 against :func:`slider_bearing` (max over a fine grid) and :func:`slider_bearing_load`.
     Label: analytic.
     """
     h0, a, L, U, mu = float(h0), float(alpha), float(L), float(U), float(mu)
@@ -318,14 +357,17 @@ def slider_bearing_state(h0, alpha, L, U, mu: float = 1e-3, p_e: float = 0.0) ->
     dpm = float(slider_bearing(x_star, h0, a, L, U, mu, 0.0, "exact"))
     We = float(slider_bearing_load(h0, a, L, U, mu, "exact"))
     Wl = float(slider_bearing_load(h0, a, L, U, mu, "linear"))
-    h_in = h0 * (1.0 + a)
-    dpdx_in = -12.0 * mu * C1 / h_in ** 3 - 6.0 * mu * U / h_in ** 2
-    yy = np.linspace(0.0, h_in, 401)[1:-1]
-    u_pad = _F(lubrication_velocity(yy, h_in, dpdx_in, 0.0, -U, mu))  # pad frame: floor −U, pad 0
-    back = bool(np.any(np.sign(u_pad) == -np.sign(C1)) and C1 != 0.0) if U != 0 else False
+    # Recirculation is strongest where the gap is widest (ours, see docstring): x = L for α > 0, x = 0 for α < 0.
+    x_wide = L if a > 0.0 else 0.0
+    h_wide = h0 * (1.0 + a * x_wide / L)
+    dpdx_w = -12.0 * mu * C1 / h_wide ** 3 - 6.0 * mu * U / h_wide ** 2  # Example 8.1
+    yy = np.linspace(0.0, h_wide, 401)[1:-1]
+    u_pad = _F(lubrication_velocity(yy, h_wide, dpdx_w, 0.0, -U, mu))  # (8.19) pad frame: floor −U, pad 0
+    back = bool(C1 != 0.0 and np.any(np.sign(u_pad) == -np.sign(C1))) if U != 0 else False
     return dict(C1=C1, p_max=float(p_e) + dpm, dp_max=dpm, x_pmax=x_star, h_pmax=h0 * (1.0 + a * x_star / L),
                 W_exact=We, W_linear=Wl, err_linear=100.0 * (Wl / We - 1.0) if We != 0 else np.nan,
-                p_max_atm=dpm / P_ATM, p_visc=mu * U * L / h0 ** 2, inlet_backflow=back)
+                p_max_atm=dpm / P_ATM, p_visc=mu * U * L / h0 ** 2, inlet_backflow=back,
+                backflow_x=x_wide if back else np.nan, backflow_any=back)
 
 
 def slider_gap_velocity(x, y, h0, alpha, L, U, mu: float = 1e-3, frame: str = "ground"):
@@ -344,7 +386,9 @@ def slider_gap_velocity(x, y, h0, alpha, L, U, mu: float = 1e-3, frame: str = "g
     -------
     u : [m/s].
 
-    Validation (planned): V1 ∫₀ʰ(u − U)dy = C₁ at every x (``quad``). Label: analytic.
+    Validation — tests/test_ch08.py: test_slider_bearing_state_V1_explainer_numbers,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 ∫₀ʰ(u − U)dy = C₁ at every x (``quad``). Label: analytic.
     """
     x_, y_ = np.broadcast_arrays(_F(x), _F(y))
     h0, a, L, U, mu = float(h0), float(alpha), float(L), float(U), float(mu)
@@ -376,7 +420,9 @@ def hele_shaw_velocity(z, h, grad_p, mu: float = 1e-3):
     -------
     (u, v) : [m/s].
 
-    Validation (planned): V1 u = v = 0 at z = 0, h; = ∂φ/∂x, ∂φ/∂y of :func:`hele_shaw_potential`. Label: analytic.
+    Validation — tests/test_ch08.py: test_hele_shaw_V1_velocity_potential_and_mean,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 u = v = 0 at z = 0, h; = ∂φ/∂x, ∂φ/∂y of :func:`hele_shaw_potential`. Label: analytic.
     """
     f = -_F(z) * (float(h) - _F(z)) / (2.0 * float(mu))
     return _S(f * _F(grad_p[0])), _S(f * _F(grad_p[1]))
@@ -386,7 +432,10 @@ def hele_shaw_potential(p, z, h, mu: float = 1e-3):
     """Velocity potential of Hele-Shaw flow in each plane z = const, φ = −z(h − z)p/(2μ).
 
     Book: §8.3, Example 8.2 (∇²p = 0 ⇒ ∇²φ = 0: the streamlines of 2-D ideal flow, (6.10), (6.12)).
-    Parameters: p [Pa]; z, h [m]; mu [Pa s]. Returns φ [m²/s]. Validation (planned): V2 ∇²φ = 0 for harmonic p.
+    Parameters: p [Pa]; z, h [m]; mu [Pa s]. Returns φ [m²/s].
+    Validation — tests/test_ch08.py: test_hele_shaw_V1_velocity_potential_and_mean,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V2 ∇²φ = 0 for harmonic p.
     Label: analytic, symbolic.
     """
     return _S(-_F(z) * (float(h) - _F(z)) / (2.0 * float(mu)) * _F(p))
@@ -418,7 +467,9 @@ def hele_shaw_cylinder(x, y, z, U_mean, a, h, mu: float = 1e-3) -> dict:
     velocity potential of that plane; φ̄ for z = None), u_mean, v_mean [m/s], psi_mean (gap-averaged stream function
     U(r − a²/r) sin θ) [m²/s].
 
-    Validation (planned): V1 gap average equals the ``core.potential`` ideal cylinder; V3 grid Laplace solve
+    Validation — tests/test_ch08.py: test_hele_shaw_cylinder_V1_equals_ideal_cylinder,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 gap average equals the ``core.potential`` ideal cylinder; V3 grid Laplace solve
     (:func:`hele_shaw_streamfunction_grid`). Label: analytic, converged.
     """
     avg = z is None
@@ -455,7 +506,9 @@ def hele_shaw_streamfunction_grid(n: int = 129, a: float = 1.0, U_mean: float = 
     -------
     dict: x, y (1-D) [m], psi, psi_exact (2-D, [j, i]) [m²/s], err_far (max |error| where r ≥ 2a) [m²/s], h [m].
 
-    Validation (planned): V3 err_far decreases under refinement (staircase: order between 1 and 2). Label: converged.
+    Validation — tests/test_ch08.py: test_hele_shaw_grid_V3_staircase_first_order,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V3 err_far decreases under refinement (staircase: order between 1 and 2). Label: converged.
     """
     from .laplace_solvers import solve_laplace
     xs = np.linspace(-box, box, int(n))
@@ -482,7 +535,10 @@ def thin_film_velocity(y, h, h_x, rho: float = 1000.0, g: float = G0, mu: float 
     """Velocity in a spreading viscous film: u ≅ −(ρg/2μ)(∂h/∂x) y(2h − y) (no slip at y = 0, no stress at y = h).
 
     Book: §8.3, Example 8.3 (hydrostatic p = ρg(h − y) in (8.18)). Parameters: y, h [m]; h_x = ∂h/∂x [–]; rho [kg/m³];
-    g [m/s²]; mu [Pa s]. Returns u [m/s]. Validation (planned): V1 BCs, du/dy(h) = 0. Label: analytic.
+    g [m/s²]; mu [Pa s]. Returns u [m/s].
+    Validation — tests/test_ch08.py: test_thin_film_V1_profile_walls_and_flux,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 BCs, du/dy(h) = 0. Label: analytic.
     """
     y_ = _F(y)
     return _S(-float(rho) * float(g) / (2.0 * float(mu)) * _F(h_x) * y_ * (2.0 * _F(h) - y_))  # Example 8.3
@@ -492,7 +548,11 @@ def thin_film_flux(h, h_x, rho: float = 1000.0, g: float = G0, mu: float = 1.0):
     """Volume flux per unit width in a gravity-spreading film, q = ∫₀ʰ u dy ≅ −(ρg/3μ) h³ ∂h/∂x.
 
     Book: §8.3, Example 8.3 (then ∂h/∂t = (ρg/3μ)∂(h³∂h/∂x)/∂x). Parameters: h [m]; h_x [–]; rho; g; mu.
-    Returns q [m²/s]. Validation (planned): V1 ``quad`` of :func:`thin_film_velocity`; wrong variant h³/(2μ).
+    Returns q [m²/s].
+    Validation — tests/test_ch08.py: test_thin_film_V1_profile_walls_and_flux,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable,
+      test_book_V6_section_8_3_lubrication_forms_and_numbers.
+    Checks: V1 ``quad`` of :func:`thin_film_velocity`; wrong variant h³/(2μ).
     Label: analytic.
     """
     return _S(-float(rho) * float(g) / (3.0 * float(mu)) * _F(h) ** 3 * _F(h_x))  # Example 8.3
@@ -528,8 +588,12 @@ def thin_film_spread(h0, x, t_out, rho: float = 1000.0, g: float = G0, mu: float
     dict: t (M,) [s], h (M, N) [m], volume (M,) [m²] (Σ h Δx, precursor included), x_front (M,) [m] (largest x with
     h ≥ front_level, linear interpolation), n_steps (int), newton_max (int), rejected (int: halved steps).
 
-    Validation (planned): V4 volume conserved (1e-12 relative); V3/V5 front → Huppert x_N ∝ t^{1/5}, shape
-    (:func:`viscous_current_similarity`). Label: conserved, converged.
+    Validation — tests/test_ch08.py: test_thin_film_spread_V4_volume_conserved,
+      test_thin_film_spread_V5_huppert_shape_and_t_one_fifth,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V4 volume conserved (1e-12 relative); V3/V5 front → Huppert x_N ∝ t^{1/5}, shape
+    (:func:`viscous_current_similarity`). No grid-refinement study is run, so no convergence claim.
+    Label: conserved, benchmark.
     """
     if cache is not None:
         import hashlib
@@ -660,7 +724,10 @@ def viscous_current_similarity(x, t, area, rho: float = 1000.0, g: float = G0, m
     -------
     h : thickness [m] (0 beyond the front);  with ``return_front=True``: (h, x_N [m]).
 
-    Validation (planned): V1 PDE residual and ∫₀^{x_N} h dx = A; V5 η_N; V3 :func:`thin_film_spread` converges to it.
+    Validation — tests/test_ch08.py: test_viscous_current_similarity_V1_pde_volume_front,
+      test_thin_film_spread_V5_huppert_shape_and_t_one_fifth,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 PDE residual and ∫₀^{x_N} h dx = A; V5 η_N; V3 :func:`thin_film_spread` converges to it.
     Label: analytic, benchmark.
     """
     beta = float(rho) * float(g) / (3.0 * float(mu))
@@ -680,7 +747,9 @@ def thin_film_state(t, area, rho: float = 1000.0, g: float = G0, mu: float = 1.0
     Book: §8.3 Example 8.3, §8.4 Example 8.7 (t^{1/5}). Parameters: t [s]; area half-area A [m²]; rho, g, mu.
     Returns dict of floats: x_N [m], h_centre [m], beta = ρg/3μ [1/(m s)], eta_N [–], effective_diffusivity = βh_c³
     [m²/s], front_speed = dx_N/dt = x_N/(5t) [m/s], aspect = h_centre/x_N [–].
-    Validation (planned): V1 against :func:`viscous_current_similarity`. Label: analytic.
+    Validation — tests/test_ch08.py: test_viscous_current_similarity_V1_pde_volume_front,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V1 against :func:`viscous_current_similarity`. Label: analytic.
     """
     h, xN = viscous_current_similarity(0.0, t, area, rho, g, mu, return_front=True)
     beta = float(rho) * float(g) / (3.0 * float(mu))

@@ -309,7 +309,10 @@ def crank_nicolson_1d(u0, y, dt: float, nsteps: int, D: float, bc_left, bc_right
     u : ndarray (N,) — the profile at t0 + nsteps·dt [units of u0];  or, with ``return_all=True``, (t, U): times [s],
     shape (M,), and profiles, shape (M, N), t[0] = t0 and t[-1] = t0 + nsteps·dt.
 
-    Validation (planned): V3 observed order 2 in space and time against (8.30) and (8.38); backward Euler order 1
+    Validation — tests/test_ch08.py: test_crank_nicolson_V3_second_order_space_and_time,
+      test_crank_nicolson_V3_impulsive_start_and_stability, test_stokes_second_V3_crank_nicolson_orders_and_transients,
+      test_part_c_V1_every_contract_function_exists_and_is_scalar_callable.
+    Checks: V3 observed order 2 in space and time against (8.30) and (8.38); backward Euler order 1
     (wrong variant); stable at Δt = 50× the FTCS limit. Label: converged.
     """
     u = np.array(u0, dtype=float)
