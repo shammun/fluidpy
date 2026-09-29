@@ -2658,7 +2658,7 @@ function naturalScales(vars, rep, minorRows, rowsLabels) {
    THE MACHINE — one memoised state: active variables → matrix → rank → repeating minor → groups → values
    --------------------------------------------------------------------------------------------------- */
 const SUBS = { '0': '₀' };
-const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '/': 'ᐟ' };
+const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '/': '⁄' };
 const plain = q => q.sym.b + (q.sym.sub ? (SUBS[q.sym.sub] || '_' + q.sym.sub) : '');
 const supTxt = x => String(x).split('').map(c => SUP[c] || c).join('');
 const PI_TXT = i => 'Π' + String(i + 1).split('').map(c => '₀₁₂₃₄₅₆₇₈₉'[+c]).join('');

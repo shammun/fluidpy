@@ -181,6 +181,32 @@ def test_publish_transform_page_and_ipynb():
     assert all(not cc.outputs for cc in colab.cells)
 
 
+def test_title_helpers_render_inline_tex():
+    """Explainer titles may carry $…$ TeX; the site, gallery, README and toolbars render it without KaTeX."""
+    from fluidpy.core.embed import title_html, title_text
+
+    assert title_text(r"Why does a honey drop spread like $t^{1/5}$?") == "Why does a honey drop spread like t^(1/5)?"
+    assert title_text(r"Where does $6\pi\mu a U$ come from?") == "Where does 6πμaU come from?"
+    assert title_text(r"Why is the velocity $u - iv$?") == "Why is the velocity u − iv?"
+    assert title_text(r"$-x^2 = e^{-y}$") == "−x^2 = e^(−y)"  # unary minus tight, relation spaced
+    assert title_text(r"$\delta = \sqrt{2\nu/\omega}$") == "δ = √(2ν/ω)"
+    h = title_html(r"spread like $t^{1/5}$ & more")
+    assert re.search(r"<i>t</i><sup[^>]*>1/5</sup>", h) and "&amp; more" in h and "$" not in h
+    assert "<i>π</i><i>μ</i><i>a</i><i>U</i>" in title_html(r"$6\pi\mu a U$")
+    assert title_html("no maths <b>") == "no maths &lt;b&gt;"  # plain titles are escaped, unchanged otherwise
+    assert title_html("a lone $ sign") == "a lone $ sign"  # unbalanced $ is shown literally
+    # every published explainer title renders without leftover TeX, braces or look-alike glyphs
+    from fluidpy.core.embed import viz_meta
+
+    for p in sorted((ROOT / "viz").glob("ch*/*.html")):
+        if p.name == "index.html":
+            continue
+        t = viz_meta(p)["title"]
+        text = title_text(t)
+        assert "\\" not in text and "{" not in text and "$" not in text, (p.name, text)
+        assert "ᐟ" not in t, (p.name, t)
+
+
 def test_check_public_rules(tmp_path):
     import sys
 

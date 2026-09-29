@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why does a honey drop spread like t¹ᐟ⁵?</title>
+<title>Why does a honey drop spread like t^(1/5)?</title>
 <meta name="viz:chapter" content="ch08">
 <meta name="viz:slug" content="viscous_gravity_current">
 <meta name="viz:order" content="4">
-<meta name="viz:title" content="Why does a honey drop spread like t¹ᐟ⁵?">
-<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as t¹ᐟ⁵.">
+<meta name="viz:title" content="Why does a honey drop spread like $t^{1/5}$?">
+<meta name="viz:summary" content="A thin viscous layer spreads under its own weight by a diffusion that chokes itself as it thins; every initial shape ends on one dome whose front moves as $t^{1/5}$.">
 <meta name="viz:concept" content="viscous gravity current; thin-film equation from mass conservation and the lubrication profile; flux proportional to h cubed times the slope; nonlinear diffusion; self-similar spreading with n = m = 1/5; Huppert dome and front constant">
 <meta name="viz:sections" content="8.3 8.4">
 <meta name="viz:equations" content="8.18 8.32a">
@@ -2522,7 +2522,21 @@ function lenUnit(L) {
 const fmtLen = v => { const U = lenUnit(v); return Viz.fmt(v * U.f, { sig: 3 }) + ' ' + U.u; };
 const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '.': '·' };
 const pow10 = k => '10' + String(k).split('').map(c => SUPD[c]).join('');
-const sup = str => String(str).split('').map(c => (c === '/' ? 'ᐟ' : c === 'm' ? 'ᵐ' : SUPD[c] || c)).join('');   // t + sup('1/5') = t¹ᐟ⁵
+/* Canvas text with real superscripts: parts = [[text], [exponent, 1], …]; the exponent is drawn at 70 % size, raised
+   0.35 em. Centred on (x, y) (alphabetic baseline); rotate: true draws it reading upwards (a y-axis title). */
+function supText(ctx, parts, x, y, o) {
+  o = o || {};
+  const size = o.size || 12, ss = Math.round(size * 0.7 * 10) / 10;
+  ctx.save();
+  const w = parts.map(p => { ctx.font = Viz.font(p[1] ? ss : size); return ctx.measureText(p[0]).width; });
+  const W = w.reduce((a, b) => a + b, 0);
+  ctx.translate(x, y);
+  if (o.rotate) { ctx.rotate(-Math.PI / 2); ctx.translate(0, 0.35 * size); }
+  ctx.fillStyle = o.color || Viz.color('text-soft'); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  let cx = -W / 2;
+  parts.forEach((p, i) => { ctx.font = Viz.font(p[1] ? ss : size); ctx.fillText(p[0], cx, p[1] ? -0.35 * size : 0); cx += w[i]; });
+  ctx.restore();
+}
 function expStr(v) {                                                        // round-off-sized numbers, never printed as 0
   const a = Math.abs(v);
   if (a === 0) return '0 (exact)';
@@ -2696,9 +2710,12 @@ function drawRescaled(v, s, app) {
   v.clear();
   const C = colors(), ctx = v.ctx, c = cur(s), col = c.col, m = Number(s.m), small = v.w < 420 || v.h < 150;
   const xmax = 1.12 * Math.max(col.ximax, m === 0.2 ? ETA_N : 0), ymax = 1.2 * Math.max(col.Hmax, m === 0.2 ? HC0 : 0, 1e-9);
-  const mt = m === 0.2 ? sup('1/5') : sup('1/2');
+  const mt = m === 0.2 ? '1/5' : '1/2';
   const P = v.plot({ xlim: [0, xmax], ylim: [0, ymax], pad: { l: small ? 38 : 48, r: 10, t: 10, b: small ? 28 : 34 } })
-    .axes({ xlabel: 'x / (x₀ τ' + mt + ')', ylabel: small ? '' : 'h τ' + mt + ' / x₀', zeroLines: false });
+    .axes({ xlabel: '', ylabel: '', zeroLines: false });
+  // axis titles with real superscripts (canvas text cannot use TeX)
+  supText(ctx, [['x / (x₀ τ'], [mt, 1], [')']], P.px.x + P.px.w / 2, v.h - 5, { color: C.soft });
+  if (!small) supText(ctx, [['h τ'], [mt, 1], [' / x₀']], 11, P.px.y + P.px.h / 2, { color: C.soft, rotate: true });
   P.clip(() => {
     const n = col.prof.length;
     col.prof.forEach((pr, i) => {
@@ -2719,10 +2736,10 @@ const SIMILAR = 0.02;                                                       // �
 function regime(s) { const c = cur(s); return c.dome > SIMILAR ? 'early' : 'similar'; }
 function readingText(s) {
   const c = cur(s);
-  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the t¹ᐟ⁵ line: it runs ahead of or behind the law while the start is being forgotten.';
+  if (c.dome > SIMILAR) return 'The layer still remembers its initial shape (' + pct(c.dome) + ' of its volume is out of place compared with the dome), so the front has not yet joined the slope-1/5 line of the law: it runs ahead of or behind the law while the start is being forgotten.';
   const catching = isFinite(c.slope) && Math.abs(c.slope - 0.2) > 0.01;
   return 'The initial shape is forgotten (only ' + pct(c.dome) + ' of the volume is out of place): the profile is Huppert\'s dome' +
-    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances as t' + sup(isFinite(c.slope) ? c.slope.toFixed(3) : '1/5')) +
+    (catching ? ', and the front slope ' + c.slope.toFixed(3) + ' is still catching up with 1/5 (the start shifted the clock)' : ' and the front advances with log–log slope ' + (isFinite(c.slope) ? c.slope.toFixed(3) : '1/5')) +
     ' — exponents forced by the thin-film equation and the conserved volume, not by the start.';
 }
 function interpretText(s) {
@@ -2738,7 +2755,7 @@ function interpretText(s) {
    APP
    --------------------------------------------------------------------------------------------------- */
 const app = Viz.app({
-  title: 'Why does a honey drop spread like t¹ᐟ⁵?',
+  title: 'Why does a honey drop spread like $t^{1/5}$?',
   subtitle: 'A viscous bead slumping under its own weight: the layer with its flux, the front on log–log axes and the profiles rescaled — one clock',
   autoplay: false,
   params: {
@@ -2778,7 +2795,7 @@ const app = Viz.app({
     views: [
       { id: 'layer', row: 0, title: s => { const c = cur(s); return '<b>The layer h(x, t)</b> · t = ' + Viz.fmtTime(c.t) + ' · <span class="c-blue">simulated</span>, <span class="c-accent">dome</span>, <span class="c-orange">flux q</span>, <span class="c-teal">front</span>, <span class="c-rose">probe</span>'; } },
       { id: 'front', row: 1, title: s => { const c = cur(s); return '<b>Front x_N(t)</b>, log–log · slope ' + (isFinite(c.slope) ? c.slope.toFixed(2) : '—') + (layoutIs('portrait') ? ' · collapse ' + pct(c.col.spread) : '') + ' · <span class="c-teal">simulated</span> <span class="c-accent">law</span> <span class="c-muted">diffusion</span>'; } },
-      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> h τᵐ vs x/τᵐ, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
+      { id: 'rescaled', row: 1, hidePortrait: true, title: s => '<b>Rescaled</b> $h\\,\\tau^m$ vs $x/\\tau^m$, m = ' + mStr(s) + ' · spread ' + pct(cur(s).col.spread) }
     ],
     draw(g, s) {
       const a = g.app;

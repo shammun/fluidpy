@@ -43,7 +43,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from fluidpy.core.embed import MARKER_RE, list_viz, parse_meta  # noqa: E402
+from fluidpy.core.embed import MARKER_RE, list_viz, parse_meta, title_html, title_text  # noqa: E402
 from fluidpy.core.project import colab_url, config, github_blob_url, pages_url, repo_url  # noqa: E402
 
 E = html.escape
@@ -135,11 +135,11 @@ def page_block(key: str, index: int, total: int) -> str:
     return f"""<section class="fluidpy-viz fp-viz" id="viz-{E(slug)}" data-viz="{E(key)}">
 <div class="fluidpy-viz-bar">
 <span class="fp-viz-label">&#127918; <span class="fp-long">Interactive </span>{index}/{total}</span>
-<span class="fp-viz-title">{E(m['title'])}</span>
+<span class="fp-viz-title">{title_html(m['title'])}</span>
 <a class="fp-viz-btn fp-viz-open" href="{src}" target="_blank" rel="noopener">Open alone &#8599;</a>
 <button type="button" class="fp-viz-btn fp-viz-fs">&#10530; Full screen</button>
 </div>
-<iframe src="{src}" title="{E(m['title'])}" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
+<iframe src="{src}" title="{E(title_text(m['title']))}" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
 </section>"""
 
 
@@ -148,7 +148,7 @@ def link_card(key: str) -> str:
     m = _viz_meta(key)
     url = pages_url(f"viz/{chapter}/{slug}.html", ROOT)
     return (f'<div style="border:1px solid #e3e6ee;border-radius:12px;padding:12px 14px;background:#f8f7ff">'
-            f'<b>&#127918; Interactive explainer: {E(m["title"])}</b><br>{E(m.get("summary", ""))}<br>'
+            f'<b>&#127918; Interactive explainer: {title_html(m["title"])}</b><br>{title_html(m.get("summary", ""))}<br>'
             f'<a href="{E(url)}" target="_blank" rel="noopener">Open it full-window &#8599;</a> '
             f'(re-run this cell to show it here)</div>')
 
@@ -318,7 +318,7 @@ def render_page(nb_page, *, row: dict, name: str, prev_row: dict | None, next_ro
 
     viz = list_viz(row["id"], ROOT)
     cards = "".join(f'<a class="fp-viz-card" href="#viz-{E(m["slug"])}"><span class="fp-num">&#127918; {i + 1}</span>'
-                    f'<b>{E(m["title"])}</b><span>{E(m.get("summary", ""))}</span></a>' for i, m in enumerate(viz))
+                    f'<b>{title_html(m["title"])}</b><span>{title_html(m.get("summary", ""))}</span></a>' for i, m in enumerate(viz))
     strip = (f'<div class="fp-viz-strip"><h2 id="fp-explainers">Interactive explainers in this chapter</h2>'
              f'<div class="fp-viz-cards">{cards}</div></div>') if viz else ""
     header = f"""

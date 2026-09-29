@@ -96,6 +96,112 @@ def parse_meta(text: str) -> dict[str, str]:
     return meta
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# titles with a little maths: "Where does $6\pi\mu a U$ come from?"
+# ---------------------------------------------------------------------------------------------------------------------
+# Explainer titles and summaries may carry inline TeX between $…$ (the explainer itself renders it with KaTeX). The
+# site index, the gallery, the README, the notebook toolbar and the page blocks have no maths renderer, so they use
+# these two helpers: ``title_html`` turns the small TeX subset used in titles into styled HTML (italic letters,
+# <sup>/<sub>, Greek letters, a real minus sign) and ``title_text`` gives a clean plain-text form (browser tabs,
+# iframe titles, Markdown). Anything outside the subset is shown literally, never dropped.
+_TEX_SYMBOLS = {
+    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ",
+    "eta": "η", "theta": "θ", "kappa": "κ", "lambda": "λ", "mu": "μ", "nu": "ν", "xi": "ξ", "pi": "π", "rho": "ρ",
+    "sigma": "σ", "tau": "τ", "phi": "φ", "varphi": "φ", "chi": "χ", "psi": "ψ", "omega": "ω",
+    "Gamma": "Γ", "Delta": "Δ", "Theta": "Θ", "Lambda": "Λ", "Pi": "Π", "Sigma": "Σ", "Phi": "Φ", "Psi": "Ψ",
+    "Omega": "Ω", "nabla": "∇", "partial": "∂", "infty": "∞", "cdot": "·", "times": "×", "approx": "≈",
+    "sim": "~", "le": "≤", "leq": "≤", "ge": "≥", "geq": "≥", "ne": "≠", "neq": "≠", "to": "→", "sqrt": "√",
+    "pm": "±", ",": " ", ";": " ", "!": "", " ": " ",
+}
+_MATH_FONT = "font-family:'KaTeX_Main','Cambria Math','Times New Roman',serif;font-size:1.08em;white-space:nowrap"
+_SCRIPT = re.compile(r"([\^_])(\{([^{}]*)\}|\\[A-Za-z]+|.)")
+
+
+def _group(x: str) -> str:
+    return x if len(x) <= 1 else f"({x})"
+
+
+def _tex_structures(tex: str) -> str:
+    """\\frac{a}{b} → a/b and \\sqrt{a} → √(a) (innermost first), then drop grouping braces not owned by ^ or _."""
+    for _ in range(4):
+        new = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", lambda m: f"{_group(m.group(1))}/{_group(m.group(2))}", tex)
+        new = re.sub(r"\\sqrt\{([^{}]*)\}", lambda m: f"√{_group(m.group(1))}", new)
+        if new == tex:
+            break
+        tex = new
+    return re.sub(r"(?<![\^_])\{([^{}]*)\}", r"\1", tex)
+
+
+_RELATIONS = "=≈<>≤≥≠~→×"
+_SIGNS = "−+±"
+
+
+def _tex_symbols(s: str, after_operand: bool = False) -> str:
+    """Replace \\command by its symbol; "-" by a real minus; drop TeX's ignored spaces; space binary operators.
+
+    Relations (=, ≈, …) are always spaced. A sign (−, +, ±) is spaced when it follows an operand (a − b) and left
+    tight when unary (−b); ``after_operand`` says whether the text just before ``s`` (e.g. a superscript) was one."""
+    s = re.sub(r"\\([A-Za-z]+|[,;! ])", lambda m: _TEX_SYMBOLS.get(m.group(1), m.group(0)), s)
+    s = s.replace("-", "−").replace(" ", "")
+    out, prev_operand = [], after_operand
+    for ch in s:
+        if ch in _RELATIONS or (ch in _SIGNS and prev_operand):
+            out.append(f" {ch} ")
+            prev_operand = False
+        else:
+            out.append(ch)
+            prev_operand = ch not in _SIGNS and ch not in "(["
+    return "".join(out)
+
+
+def _math_html(tex: str) -> str:
+    tex = _tex_structures(tex)
+    out: list[str] = []
+    pos = 0
+    for m in _SCRIPT.finditer(tex):
+        out.append(_letters_html(tex[pos:m.start()], after_operand=pos > 0))
+        body = m.group(3) if m.group(3) is not None else m.group(2)
+        tag = "sup" if m.group(1) == "^" else "sub"
+        gap = ' style="margin-left:.1em"' if tag == "sup" else ""  # italic correction: an italic base leans into it
+        out.append(f"<{tag}{gap}>{_letters_html(body)}</{tag}>")
+        pos = m.end()
+    out.append(_letters_html(tex[pos:], after_operand=pos > 0))
+    return f'<span class="fp-math" style="{_MATH_FONT}">{"".join(out)}</span>'
+
+
+def _letters_html(tex: str, after_operand: bool = False) -> str:
+    s = _tex_symbols(tex, after_operand)
+    parts = []
+    for ch in s:
+        e = html.escape(ch)
+        # italic for Latin and lower-case Greek letters (as KaTeX sets them), upright for digits, capitals Greek, signs
+        parts.append(f"<i>{e}</i>" if (ch.isascii() and ch.isalpha()) or ("α" <= ch <= "ω") else e)
+    return "".join(parts)
+
+
+def title_html(title: str) -> str:
+    """HTML for a title that may contain inline $…$ TeX (escaped text outside the maths)."""
+    pieces = re.split(r"(?<!\\)\$", title or "")
+    if len(pieces) % 2 == 0:  # unbalanced $: show it literally
+        return html.escape(title)
+    return "".join(_math_html(p) if i % 2 else html.escape(p) for i, p in enumerate(pieces))
+
+
+def title_text(title: str) -> str:
+    """Plain text for a title that may contain inline $…$ TeX: t^{1/5} → t^(1/5), 6\\pi\\mu a U → 6πμaU."""
+    pieces = re.split(r"(?<!\\)\$", title or "")
+    if len(pieces) % 2 == 0:
+        return title
+
+    def plain(tex: str) -> str:
+        tex = _tex_structures(tex)
+        tex = _SCRIPT.sub(lambda m: m.group(1) + (f"({m.group(3)})" if m.group(3) is not None and len(m.group(3)) > 1
+                                                   else (m.group(3) if m.group(3) is not None else m.group(2))), tex)
+        return _tex_symbols(tex)
+
+    return "".join(plain(p) if i % 2 else p for i, p in enumerate(pieces))
+
+
 def viz_meta(path: str | Path) -> dict[str, str]:
     """Metadata of one explainer file: chapter, slug, order, title, summary, concept, sections, equations, fluidpy."""
     path = Path(path)
@@ -202,11 +308,11 @@ def viz_html(chapter: str, slug: str, *, mode: str = "auto", height: int | None 
 <div class="fluidpy-viz" id="{uid}" data-viz="{key}" data-mode="{mode}" style="width:100%;margin:10px 0 18px">
 <div class="fluidpy-viz-bar" style="{_BAR}">
 <span style="font-weight:650">&#127918; Interactive explainer</span>
-<span class="fluidpy-viz-title" style="flex:1 1 auto;min-width:8em;color:#3c4257">{html.escape(title)}</span>
+<span class="fluidpy-viz-title" style="flex:1 1 auto;min-width:8em;color:#3c4257">{title_html(title)}</span>
 <button type="button" class="fluidpy-viz-fs" style="{_BTN}">&#10530; Full screen</button>
 <a class="fluidpy-viz-open" href="{html.escape(page)}" target="_blank" rel="noopener" style="{_BTN}">Open in new tab &#8599;</a>
 </div>
-<iframe class="fluidpy-viz-frame" title="{html.escape(title)}" {source} allow="fullscreen" allowfullscreen
+<iframe class="fluidpy-viz-frame" title="{html.escape(title_text(title))}" {source} allow="fullscreen" allowfullscreen
  style="width:100%;height:{h0}px;border:1px solid #e3e6ee;border-radius:0 0 12px 12px;display:block;background:#f5f6fb"></iframe>
 <script>
 (function () {{
@@ -255,5 +361,5 @@ def embedded_keys(text: str) -> list[str]:
     return [m.group("key") for m in MARKER_RE.finditer(text)]
 
 
-__all__ = ["show_viz", "viz_html", "viz_meta", "list_viz", "parse_meta", "embedded_keys", "in_colab",
+__all__ = ["show_viz", "viz_html", "viz_meta", "list_viz", "parse_meta", "title_html", "title_text", "embedded_keys", "in_colab",
            "BEGIN", "END", "MARKER_RE"]

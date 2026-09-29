@@ -19,7 +19,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from fluidpy.core.embed import list_viz  # noqa: E402
+from fluidpy.core.embed import list_viz, title_html, title_text  # noqa: E402
 from fluidpy.core.project import colab_url, config, pages_url, repo_url  # noqa: E402
 
 E = html.escape
@@ -66,7 +66,7 @@ def write_index(rows: list[dict]) -> Path:
     proj, book = cfg["project"], cfg["book"]
     cards = []
     for r in rows:
-        viz = "".join(f'<li><a href="viz/{r["id"]}/{E(m["slug"])}.html">{E(m["title"])}</a></li>' for m in r["viz"])
+        viz = "".join(f'<li><a href="viz/{r["id"]}/{E(m["slug"])}.html">{title_html(m["title"])}</a></li>' for m in r["viz"])
         if r["html"]:
             buttons = (f'<a class="fp-btn primary" href="notebooks/{r["name"]}.html">Read the chapter</a>'
                        + (f'<a class="fp-btn colab" href="{E(colab_url(r["name"] + "_colab", ROOT))}" target="_blank" rel="noopener">Open in Colab</a>' if r["colab"] else "")
@@ -126,8 +126,8 @@ def write_gallery(rows: list[dict]) -> Path:
             in_ch = f'<a class="fp-btn" href="../notebooks/{r["name"]}.html#viz-{E(m["slug"])}">In the chapter</a>' if r["html"] else ""
             cards.append(f"""<div class="fp-gal">
 <small>Ch. {r['number']} · explainer {i + 1} · §{E(m.get('sections', ''))}</small>
-<b>{E(m['title'])}</b>
-<p>{E(m.get('summary', ''))}</p>
+<b>{title_html(m['title'])}</b>
+<p>{title_html(m.get('summary', ''))}</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="{r['id']}/{E(m['slug'])}.html">Open full window</a>{in_ch}</div>
 </div>""")
         sections.append(f'<h2 id="{r["id"]}">Chapter {r["number"]} — {E(r["title"])}</h2>\n<div class="fp-gallery">{"".join(cards)}</div>')
@@ -156,7 +156,7 @@ def write_readme(rows: list[dict]) -> Path:
         view = f"[View]({pages_url('notebooks/' + r['name'] + '.html', ROOT)})" if r["html"] else "—"
         ipynb = f"[.ipynb](notebooks/{r['name']}.ipynb)" if r["ipynb"] else "—"
         colab = f"[Open]({colab_url(r['name'] + '_colab', ROOT)})" if r["colab"] else "—"
-        viz = ", ".join(f"[{m['title']}]({pages_url('viz/' + r['id'] + '/' + m['slug'] + '.html', ROOT)})" for m in r["viz"]) or "—"
+        viz = ", ".join(f"[{title_text(m['title'])}]({pages_url('viz/' + r['id'] + '/' + m['slug'] + '.html', ROOT)})" for m in r["viz"]) or "—"
         lines.append(f"| {label} | {view} | {ipynb} | {colab} | {viz} |")
     table = "\n".join(lines)
     readme = ROOT / "README.md"
