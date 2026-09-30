@@ -1,0 +1,16 @@
+# our discrete inf-sup constants on the unit square (scripts/ch10_tables.py): structured n x n squares cut along one diagonal, velocity Dirichlet on the whole boundary; pair 0 = P1-P1, 1 = P2-P1; beta = 0 when spurious pressure modes exist (beta_nonspurious = the smallest nonzero one)
+pair,n,h,beta,beta_nonspurious,n_spurious,n_u,n_p
+0,2,0.5,0,0.436436,6,2,9
+0,3,0.333333,0,0.17347,7,8,16
+0,4,0.25,0,0.100536,7,18,25
+0,6,0.166667,0,0.0841477,7,50,49
+0,8,0.125,0,0.0716717,7,98,81
+0,12,0.0833333,0,0.0522316,7,242,169
+0,16,0.0625,0,0.0404547,7,450,289
+1,2,0.5,0.36657,0.36657,0,18,9
+1,3,0.333333,0.369568,0.369568,0,50,16
+1,4,0.25,0.367675,0.367675,0,98,25
+1,6,0.166667,0.366647,0.366647,0,242,49
+1,8,0.125,0.366191,0.366191,0,450,81
+1,12,0.0833333,0.365765,0.365765,0,1058,169
+1,16,0.0625,0.365568,0.365568,0,1922,289

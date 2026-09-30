@@ -30,7 +30,7 @@
   color: var(--ce-text); text-decoration: none; transition: border-color .15s, transform .15s; }
 .fp-viz-card:hover { border-color: var(--ce-purple); transform: translateY(-1px); text-decoration: none; }
 .fp-viz-card b { display: block; font-size: 15px; line-height: 1.3; margin-bottom: 4px; }
-.fp-viz-card span { display: block; font-size: 13px; color: var(--ce-text-muted); line-height: 1.4; }
+.fp-viz-card > span { display: block; font-size: 13px; color: var(--ce-text-muted); line-height: 1.4; }
 .fp-viz-card .fp-num { display: inline-block; font-size: 12px; font-weight: 650; color: var(--ce-purple); margin-bottom: 2px; }
 
 /* ---------- full-window explainer block inside a chapter page ---------- */

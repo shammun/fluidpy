@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790769931">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790769931">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790804312">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790804312">
 </head>
 <body>
 <div class="ce-container">
@@ -387,6 +387,48 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>Why do tea leaves collect at the centre?</b>
 <p>A thin layer slows the swirl at the floor but not the pressure gradient set by the fast water above: the unbalanced pressure rho(u_e^2 - u^2)/R drives fluid inward, the seed of Ekman layers.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/teacup_secondary_flow.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-teacup_secondary_flow">In the chapter</a></div>
+</div></div>
+<h2 id="ch10">Chapter 10 — Computational Fluid Dynamics</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 10 · explainer 1 · §10.2</small>
+<b>What does &#x27;second-order accurate&#x27; really mean?</b>
+<p>Shrink h and watch a stencil&#x27;s error fall along a slope of 1 or 2 (the first Taylor term it fails to cancel) until round-off takes over; in FTCS mode the three truncation terms of the scheme appear as bars.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/fd_stencil_order.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-fd_stencil_order">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 2 · §10.2</small>
+<b>Why does β = 0.51 blow up when 0.50 does not?</b>
+<p>Every Fourier wave of a round-off error is multiplied by the same complex factor G(θ) each step; drag (α, β) across Noye&#x27;s region and watch G leave the unit circle and a 1e-10 kick grow into a zigzag.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/von_neumann_amplification.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-von_neumann_amplification">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 3 · §10.2 10.4</small>
+<b>Why must the time step shrink with the grid?</b>
+<p>Move the Courant number across 1 and watch the characteristic leave the stencil and the pulse explode; below 1, upwind smears and MacCormack ripples — diffusion versus dispersion on one clock.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/upwind_cfl_advection.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-upwind_cfl_advection">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 4 · §10.2 10.4</small>
+<b>Why does a centred scheme give negative temperatures?</b>
+<p>Slide the cell Péclet number across 2: the centred discrete solution <span class="fp-math" style="font-family:'KaTeX_Main','Cambria Math','Times New Roman',serif;font-size:1.08em;white-space:nowrap"><i>r</i><sup style="margin-left:.1em"><i>j</i></sup></span> flips sign as its root <span class="fp-math" style="font-family:'KaTeX_Main','Cambria Math','Times New Roman',serif;font-size:1.08em;white-space:nowrap"><i>r</i></span> turns negative, while upwind stays smooth by solving a more diffusive problem.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/cell_peclet_wiggles.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-cell_peclet_wiggles">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 5 · §10.3</small>
+<b>Where do finite-element matrices come from?</b>
+<p>Step through the elements: each adds a 2 x 2 block into the global mass and stiffness matrices; the assembled rows are centred FD stencils with a 1/6-2/3-1/6 mass, and the weighted hats sum to the FE solution.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/fem_hat_assembly.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-fem_hat_assembly">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 6 · §10.4</small>
+<b>What is the pressure doing in incompressible flow?</b>
+<p>Step through predictor, Poisson solve and correction on a small staggered grid: the divergence appears and vanishes to round-off; switch to the checkerboard to see why pressure lives at cell centres and velocity on faces.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/mac_projection_staggered.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-mac_projection_staggered">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 7 · §10.4 10.5 10.6</small>
+<b>How do I know my CFD answer is right?</b>
+<p>Run a MAC solver on 16² to 32² grids live and load cached finer and MacCormack runs: the eddy forms, the centreline approaches Ghia&#x27;s benchmark, and three grids give the observed order and a Richardson estimate.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/lid_driven_cavity.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-lid_driven_cavity">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 10 · explainer 8 · §10.4 10.5</small>
+<b>Why can&#x27;t velocity and pressure use the same elements?</b>
+<p>Switch between P1–P1 and P2–P1 and refine the mesh: count velocity and pressure unknowns, watch the Stokes-cavity pressure turn from noise to smooth, and follow the inf–sup constant.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/mixed_fe_lbb.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-mixed_fe_lbb">In the chapter</a></div>
 </div></div>
 </div>
 </body>

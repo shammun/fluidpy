@@ -1,0 +1,6 @@
+# primary-vortex centres of the lid-driven cavity (see SOURCES.md)
+source,method,Re,x,y
+Ghia1982,multigrid stream function-vorticity,100,0.6172,0.7344
+Ghia1982,multigrid stream function-vorticity,400,0.5547,0.6055
+Hou1995,lattice Boltzmann 256^2; lid U = 0.01,100,0.6196,0.7373
+Hou1995,lattice Boltzmann 256^2; lid U = 0.1,400,0.5608,0.6078

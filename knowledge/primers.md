@@ -4,9 +4,10 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a); a new chapter starts at the next free number (ch10: **P221**).
-Total so far: 221 (P01–P220 and P218a — an inserted id: the lesson review moved integration by parts before D06, and the
-later P218 now opens with a recap line pointing to it).
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254); a new chapter starts at the next free number
+(ch11: **P255**). Total so far: 255 (P01–P254 and P218a — an inserted id: the ch09 lesson review moved integration by parts
+before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
+review and sits before P237 in the notebook).
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -265,6 +266,42 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | `scipy.integrate.simpson` and `np.trapezoid` (P203) | ch09 · §9.2 · C02 | both integrate a sampled profile: trapezoid joins samples by lines (error ∝ Δy²), Simpson fits parabolas through triples (∝ Δy⁴); numpy 2 has no `np.trapz` |
 | monotone interpolation `PchipInterpolator` (P204) | ch09 · §9.2 · C02 | reads a height such as u/U = 0.99 from samples without overshoot (a cubic spline may wiggle), then `brentq` finds the crossing; also interpolates the tabulated closure l(λ), H(λ) |
 | shooting versus boundary-value solving (P208) | ch09 · §9.3 · C04 | shooting guesses the missing slope, integrates and adjusts with `brentq` on f′(η_max) − 1; `solve_bvp` treats the whole interval; Blasius shoots easily, near the Falkner–Skan fold the root is ill-conditioned (sensitivity ~e^{η²/4}), so shoot only for n ≥ −0.05 and use `solve_bvp` with continuation elsewhere |
+| **ch10 — maths and physics** (the term is the exact `nb.primer` title) | | |
+| big-O notation and the order of accuracy (P221) | ch10 · §10.2 · C01 | O(Δx²) = "at most a constant times Δx² for small Δx" — halving Δx divides it by 4; a stencil is p-th order when its error is O(Δx^p); unlike Ch. 2's orders of smallness (P68) the leftover is kept and measured, not dropped |
+| half-angle identities (P225) | ch10 · §10.2 · C04 | 1 − cos θ = 2 sin²(θ/2), sin θ = 2 sin(θ/2)cos(θ/2), so sin²θ = 4s(1 − s) with s = sin²(θ/2): a cosine running 1 → −1 becomes a square running 0 → 1 — the move behind \|G\|² (10.26) and Noye's region |
+| sign of a linear function on an interval (P226) | ch10 · §10.2 · C04 | a line a + bs is ≤ 0 on an interval iff it is ≤ 0 at both ends (a line cannot bulge); one "for all s" inequality becomes two readable ones (test the limit at an open end) |
+| domain of dependence and characteristics (P227) | ch10 · §10.2 · C05 | for T_t + uT_x = 0 the value at (x, t) came from x − uΔt one step earlier (characteristics, Ch. 7 P174); a scheme can only be right if its stencil contains that point — the CFL condition |
+| well-posed problem (P228) | ch10 · §10.2 · C05 | Hadamard: a solution exists, is unique and depends continuously on the data; the heat and advection equations with sensible BCs are, the backward heat equation is not; the Lax theorem assumes it |
+| Péclet number (global R and cell R_cell) (P229) | ch10 · §10.2 · C05 | advection over diffusion u ℓ/D: with ℓ = L the global R = uL/D (10.87) (the Reynolds number's twin for a scalar), with ℓ = Δx the cell number R_cell = uΔx/D (10.31) — how advective one grid cell is |
+| test functions and the spaces H¹, S and V (P230) | ch10 · §10.3 · C06 | a test function w weights the equation; a weak statement holds "for every w"; H¹ = functions with square-integrable slope (kinks yes, jumps no); trial space 𝒮 has the Dirichlet value built in, test space V vanishes there |
+| fundamental lemma of the calculus of variations (P231) | ch10 · §10.3 · C06 | if ∫f w dx = 0 for every smooth w vanishing at the ends, then f = 0 (choose w = f × a bump); "for all w" pins f down point by point |
+| bilinear form a(w, v) (P232) | ch10 · §10.3 · C07 | linear in each slot separately, so sums and constants come out like from an integral (10.50) → (10.52); here not symmetric (convection differentiates only v) |
+| arbitrary coefficients: every bracket is zero (P233) | ch10 · §10.3 · C07 | if Σc_AG_A = 0 for every choice of c_A, pick unit vectors: each G_A = 0 — one weak statement becomes n equations |
+| affine map to a parent element (P234) | ch10 · §10.3 · C08 | x(ξ) = (h/2)ξ + x_mid sends [−1, 1] onto [x_a, x_b]; dx = (h/2)dξ (substitution P106), dξ/dx = 2/h (chain rule P49); every element integral becomes one over [−1, 1] |
+| linear recurrence with constant coefficients (geometric trial) (P236) | ch10 · §10.4 · C09 | aT_{j+1} + bT_j + cT_{j−1} = 0 is the discrete twin of a constant-coefficient ODE (P44): T_j = r^j gives ar² + br + c = 0; the ends fix the two constants; a **negative root makes r^j flip sign each node** |
+| Lagrange multiplier (P239) | ch10 · §10.4 · C10 | an extra unknown times a constraint, adjusting itself until the constraint holds; its value measures how hard the constraint pushes — in incompressible flow the pressure is the multiplier of ∇·u = 0 |
+| the Taylor–Green vortex (an exact decaying Navier–Stokes solution) (P254) | ch10 · §10.4 · C10 | u = sin x cos y e^{−2t/Re}, v = −cos x sin y e^{−2t/Re}, p = ¼(cos 2x + cos 2y)e^{−4t/Re} in a 2π-periodic box: divergence-free, (u·∇)u balanced exactly by −∇p, pure viscous decay — the V1 test field of MAC and MacCormack (added by the lesson review: used before explained) |
+| conservation (flux) form U_t + E_x + F_y = 0 (P237) | ch10 · §10.4 · C10 | stack the conserved quantities U = (ρ, ρu, ρv); each law is "rate + divergence of a flux = 0" with E = (ρu, ρu² + p, ρuv), F = (ρv, ρuv, ρv² + p) (+ viscous terms); one scheme updates all components and a flux sum telescopes (conservation) |
+| predictor–corrector (Heun's second-order idea) (P238) | ch10 · §10.4 · C10 | predict with a cheap first-order step, re-evaluate the slope there, average: y* = yⁿ + Δt f(yⁿ), yⁿ⁺¹ = yⁿ + (Δt/2)[f(yⁿ) + f(y*)] — second order, like the Runge–Kutta family (P95) |
+| operator splitting and the commutator [A₁, A₂] (P241) | ch10 · §10.4 · C11 | step with A₁ alone, then A₂ alone: e^{−ΔtA₂}e^{−ΔtA₁} vs e^{−Δt(A₁+A₂)} differ by (Δt²/2)[A₁, A₂] per step for matrices — O(Δt²) per step, O(Δt) overall (Marchuk–Yanenko first order); Θ-scheme cancels it at Θ = 1 − 1/√2 |
+| Helmholtz–Hodge decomposition (P240) | ch10 · §10.4 · C11 | any smooth field = divergence-free part + gradient; the divergence gives ∇²φ = ∇·w (Poisson, P139), so one solve finds φ and u = w − ∇φ; the gradient part is curl-free (ch02) — the projection method in one line |
+| half-index notation and staggered array shapes (P242) | ch10 · §10.4 · C12 | u_{i+1/2, j} lives on the face between cells (i, j) and (i + 1, j); code has no half indices: p[ny, nx] (centres), u[ny, nx+1] (vertical faces incl. both walls), v[ny+1, nx]; `u[j, i]` = u_{i−1/2, j} (the `[j, i]` layout, P76) |
+| singular linear systems and the compatibility condition (P243) | ch10 · §10.4 · C12 | the pure-Neumann Poisson matrix sends a constant to zero: Ax = b is solvable only if Σb = 0 (net inflow zero) and then up to a constant — pin one value or ask for zero mean; `np.linalg.solve` refuses, `lstsq` gives the min-norm answer |
+| null space by SVD (count the tiny singular values) (P245) | ch10 · §10.4 · C12 | A = UΣVᵀ; columns of V with (numerically) zero singular values span the inputs A cannot see; `np.linalg.svd` + a tolerance counts them (checkerboard: collocated 4, staggered 1) |
+| saddle-point (KKT) matrix (P246) | ch10 · §10.4 · C13 | [[A, B], [Bᵀ, 0]]: every "minimise subject to a constraint" system (the multiplier is the second block); indefinite, zero diagonal block, invertible only if B has full column rank — no invisible multiplier pattern; `np.block` builds it, `eigvalsh` shows the sign mix |
+| generalised symmetric eigenproblem scipy.linalg.eigh(A, B) (P247) | ch10 · §10.4 · C13 | A x = λ B x for symmetric A, positive-definite B: eigenvalues of A measured in units of B (P80 was B = I); the discrete inf–sup constant β_h² = λ_min(BᵀA⁻¹B, M_p) over zero-mean pressures |
+| barycentric (area) coordinates on a triangle (P248) | ch10 · §10.4 · C13 | a point = weighted average of the corners with weights (ζ, ξ, η) ≥ 0 summing to 1 (ζ = 1 − ξ − η); each is 1 at its corner and 0 on the opposite side = the linear shapes (10.187); products like 4ξζ are the P2 mid-edge shapes (10.185) |
+| Jacobian determinant of a 2-D map (P249) | ch10 · §10.4 · C13 | (ξ, η) → (x, y) stretches dξdη into J dξdη with J = x_ξy_η − x_ηy_ξ — the 2-D dx = (h/2)dξ; a straight triangle has J = 2 × area, a curved (isoparametric) one varies inside |
+| verification versus validation (P253) | ch10 · §10.5 · C14 | verification = solving the equations right (bugs, grid and Δt errors; exact, manufactured and benchmark solutions such as Ghia's); validation = solving the right equations (experiments; Ch. 12) |
+| **ch10 — Python and numerics** | | |
+| floating-point round-off and machine epsilon (P222) | ch10 · §10.2 · C01 | double precision keeps ~16 digits, `np.finfo(float).eps` = 2.2e-16; a difference quotient's round-off ≈ ε\|f\|/h grows as h shrinks while truncation falls as h^p — the total error has a floor (near h ≈ ε^{1/2} for a first-order stencil, ε^{1/3} for a centred one); in float32 the forward floor is ≈ 1e-4 at h ≈ 3e-4, the centred ≈ 1e-5 at h ≈ 5e-3 |
+| ghost node for a Neumann boundary (P223) | ch10 · §10.2 · C02 | invent T_{N+1} so the centred difference at the end gives the slope: T_{N+1} = T_{N−1} + 2Δx q; the ordinary FTCS formula then runs at the last node and stays second order; q = 0 is an insulated end |
+| norms of an error array: rms, max, L1 (P224) | ch10 · §10.2 · C03 | one number for an error array: rms √mean(e²) (the book's (10.15)), max \|e\| (the worst point, honest near a jump or wiggle), mean \|e\|; for smooth errors all shrink at the same rate |
+| scatter-add assembly (np.add.at, COO duplicates) (P235) | ch10 · §10.3 · C08 | add small blocks into a big matrix where indices repeat: `np.add.at(K, (rows, cols), block)` adds every contribution (plain `+=` keeps the last); sparse: collect triples, `coo_matrix(...).tocsr()` sums duplicates |
+| scipy.sparse.diags, kron and a cached splu factorisation (P244) | ch10 · §10.4 · C12 | 1-D second difference = `sparse.diags([1, -2, 1], [-1, 0, 1])`; 2-D 5-point Laplacian = `kron(I_y, L_x) + kron(L_y, I_x)` (P161); the matrix never changes, so `lu = splu(A.tocsc())` once and `lu.solve(b)` per step |
+| GMRES in one line (P250) | ch10 · §10.4 · C13 | for big nonsymmetric systems (Newton steps), GMRES builds the best answer in span{b, Ab, A²b, …} and stops at a small residual; `scipy.sparse.linalg.gmres(A, b)` → (x, info), info = 0 converged |
+| reading reference data from a file and interpolating (np.interp) (P251) | ch10 · §10.5 · C14 | benchmark tables live in `reference/chNN/*.csv` with the citation in the header; read with `np.loadtxt`/`pandas.read_csv`, then interpolate **our** profile at **their** points (`np.interp(their_y, our_y, our_u)`, P182) so no benchmark value is invented |
+| caching expensive runs (np.savez and a parameter key) (P252) | ch10 · §10.5 · C14 | save a long run once (`np.savez` in `outputs/chNN/`, parameters in the file name or a hash) and `np.load` it next time; `functools.lru_cache` in memory; the notebook says whether a result was loaded or computed |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -442,3 +479,31 @@ C_D ≈ 8π/[Re(2.002 − ln Re)] (0.5 − γ_E + ln 8 = 2.002), the Goldstein s
 β = 2n/(n + 1), the axisymmetric form of continuity (1/R)∂(Ru_R)/∂R + ∂w/∂z = 0 in the teacup loop, "a bracket, not a number"
 for inlet-sensitive marched separation, printed-vs-correct boxes for slips (and ⚠️ traps for statements that only look like
 slips).
+
+Reminders written in ch10 instead of new primers (63 "(reminder)" entries in `metadata.fluidpy.primers`; the 🔁 "Tools from
+earlier chapters" cell lists them once and each block repeats what it needs; point here): first-order and multivariable
+Taylor (P26/P98), finite differences and FTCS for diffusion (P21/P22), orders of smallness (P68), `np.linalg.solve` (P57),
+exact rational weights (sympy `Rational`), power laws and log–log slopes / observed order (P13), diffusion spreading
+s² = s₀² + 2Dt, neighbour slicing (P77), `linspace`/`logspace` (P06), matplotlib and log axes (P01), f-strings (P04), dicts
+(P23), lambda (P29), `assert np.allclose` (P15), `slider_figure` (P17), `show_viz` (P18), partial derivative (P25), explicit
+stepping and its limit (ch01 C12), boundary conditions, Crank–Nicolson and `solve_banded` (P193), implicit stepping (P192),
+sympy `symbols`/`subs`/`series`/`removeO` (P40, P117), Fourier modes and FFT Poisson (P142), Euler's formula and complex numbers
+in numpy (P45, P153), complex conjugate, seeded generator (P10), live widgets (P47), first-order wave equation and
+characteristics (P174), separation of variables, `animate`/`show_animation` (P16), product rule (P38), integration by parts
+(P218a), FTC (P84), `np.trapezoid` (P203), `solve_ivp` (P31/P94), `scipy.sparse` and `spsolve` (P161), substitution (P106),
+chain rule (P49), Gauss–Legendre (P143), exponential trial for an ODE (P44), `np.expm1` (P107), ln and e⁻¹, e⁻², quadratic
+formula, tridiagonal (Thomas) solve, RK4 by hand (P95), Schwarz's theorem (swap ∂t and ∂x), product rule for a divergence,
+`expm` (P79), matrix multiplication (P63), Poisson equation (P139), `meshgrid` and `[j, i]` (P76), null space and rank (P58),
+5-point Laplacian and Jacobi/Gauss–Seidel/SOR (P160), eigenvalues (P80), `np.interp` (P182), contour/quiver/streamplot (P78),
+frames of reference (ch03), Newton's method (P152), `np.fft.rfft` for a dominant frequency, zero crossings with `np.sign`
+(P180).
+
+Glosses in ch10 (one sentence where used, no demo unless noted; several added by the lesson review): the Lamb wave (the
+fastest external acoustic–gravity mode of the atmosphere, ≈ 310–320 m/s — the atmospheric CFL speed), Ch. 8's θ-method
+(θ = 0, ½, 1) vs Glowinski's Θ-scheme, GLS = Galerkin/least-squares stabilisation, the numerical phase speed
+c_num/u = −arg G/(Cθ), Gibbs-like overshoot of second-order schemes at a jump, `np.linalg.lstsq` (min-norm answer of a
+singular system), `np.block` and `eigvalsh` (assembling and inspecting a saddle-point matrix), Euler's V − E + T = 1 for a
+disc and 0 with one hole (P2 node counts), `tripcolor`/`tricontourf`/`triplot` (plotting on a triangle mesh), `re.findall`
+(parsing a table header), Kovasznay flow (an exact steady NS solution used for FE orders), Hopf bifurcation (steady wake →
+periodic shedding; → Ch. 11), the Arakawa C-grid (the MAC staggering in ocean/atmosphere models), "reduced speed of sound"
+models, dynamics/physics splitting in GCMs, printed slips named "slip #1…#12" (not recap IDs), DEVIATION boxes.

@@ -447,6 +447,63 @@ wall-jet separation of variables with f^{1/2} · h₉₉ coefficient 7.3319, not
 positive effect (`magnus_sign`) · no attached bounded Falkner–Skan solution below the fold (R11) · turbulent jets are Ch. 12,
 not 13 · the wall-curvature sign (R17).
 
+**⚠️ ch10: one letter, many meanings — the notebook's choices (conventions table, cell 6).** The book reuses letters freely
+in §10.2–10.5; the notebook keeps the book's symbol where its equations are quoted and renames only where two meanings meet:
+
+| Book letter | Meanings in ch10 | What we write / code name |
+|---|---|---|
+| i | grid index **and** √−1 in (10.20)–(10.24) | upright $\mathrm i$ (`1j`) for √−1; grid index j in our own derivation lines |
+| α, β | FTCS numbers α = uΔt/(2Δx), β = DΔt/Δx² (10.11); Glowinski Θ-scheme weights (10.129)–(10.133); FE time weights (10.163) | FTCS `alpha`, `beta`; **Courant C = 2α** (`cfl_number`); α_Θ, β_Θ (`theta_split`); α_t, β_t (`alpha_t`, `beta_t`) |
+| θ | Fourier angle θ = kπΔx (10.26); Θ-scheme fraction; Ch. 8's θ-method in `crank_nicolson_1d`/`FEM1.solve_transport(theta=)` | θ = Fourier angle (rad per cell, `theta`); **Θ** = Glowinski's fraction (1 − 1/√2); the θ-method weight is named where used |
+| g | Dirichlet value T(0) = g (10.2); body force per unit mass **g** (10.79), (g_x, g_y) = the book's (f, g) (10.119)–(10.120) | `g=` Dirichlet value; `body=` force (g_x, g_y); Fourier amplitude ξ̂ⁿ (book gⁿ(k)) |
+| D | diffusivity (10.1); strain-rate tensor D[u] (10.136); cavity/block side | `D` [m²/s]; **D**[u] bold with brackets (write 2**D**[u], never "2D"); sides L (cavity), d (block, cylinder) |
+| M, K, S | mass matrix and Mach number; error constant (10.15) and stiffness matrix; trial space and Strouhal number | **M** and **Ma** (the book prints M in (10.151)–(10.155)); K_e and **K**; 𝒮 and St |
+| n | time level; number of cells/elements; shedding frequency in S = nd/U | superscript n; n cells/elements (n_el in element loads); f_s |
+| R | global Péclet uL/D (10.87); cell Péclet uΔx/D (10.31) | `R`, `R_cell` (`cell_peclet`) |
+| δ | layer thickness (10.89); Kronecker delta | δ; Kronecker always with two indices δ_AB |
+| F, G | FE load vector and y-flux of U_t + E_x + F_y = 0; amplification factor and weak-form residual row | the text says which **F**; G(θ) vs G_A |
+| p, p′ | pressure; "order p"; p′ = Newton correction (10.164) (ch04/ch07: perturbation pressure) | "observed order p" always next to its error; p′ named "Newton correction" |
+| c | sound speed (10.95), (10.99); coefficients c₁–c₅ (10.109); FE coefficients c_A (10.45) | `c` sound speed; `ns_coefficients()["c1"…]`; c_A in D11 only |
+| λ | eigenvalue (y′ = λy test, split system, β_h² = λ_min) | ch09's Thwaites λ and street eigenvalue, ch07 wavelength — say which |
+| R1…R12 | the analysis's printed slips | **"slip #1…#12" in the notebook** so they never read as recap IDs R01…R13 |
+
+**⚠️ ch10 Fourier convention.** The book writes a mode as e^{iπkx_i} (10.20), so k counts *half*-waves per unit length and
+θ = kπΔx (10.26); the zigzag 1, −1, 1, … is θ = π. Every `FD` function takes θ directly; `fourier_mode(x, k,
+convention="book" | "standard")` gives both (standard e^{ikx}, θ = kΔx).
+
+**⚠️ ch10 upwind side and CFL follow the sign of u (slip R11).** (10.29) T_i − T_{i−1} and (10.30) uΔt/Δx ≤ 1 assume u > 0;
+the code takes the upwind side from sign(u) and the condition |u|Δt/Δx ≤ 1 (`scheme="upwind_printed"` keeps the book's
+stencil and explodes for u < 0). `cfl_number(u, dt, dx)` is **signed**. With diffusion: upwind |C| + 2β ≤ 1, Lax–Wendroff /
+MacCormack C² + 2β ≤ 1. The book's "forward difference" after (10.93) is the **backward** (upwind) difference (slip R3);
+`steady_cd_fd(scheme="forward")` is the true downwind one (root 1/(1 − R_cell): wiggles only for R_cell > 1).
+
+**⚠️ ch10 truncation-error sign.** E sits on the left of (10.16): E = (exact solution put into the scheme's difference
+operator) − (the PDE) = "exact minus scheme" divided by Δt; (10.17) E = +(Δt/2)T_tt + u(Δx²/6)T_xxx − D(Δx²/12)T_xxxx. The
+forward stencil's leading error is **−**(Δx/2)T_xx (D01). Upwind's numerical diffusivity is +uΔx/2 (steady), +|u|Δx(1 − C)/2
+(unsteady; negative — anti-diffusion — for C > 1).
+
+**⚠️ ch10 three grids.** Node-based FD grid x_i = iΔx (FD; MCK with ρ, ρu, ρv collocated at nodes, walls on node lines,
+periodic grids do not repeat the end node); element meshes (FEM1: nodes x_0 … x_n, element e = [x_{e−1}, x_e], local a = 1, 2
+↔ global A = e − 1, e; FEM2: vertices first then edge mid-nodes, local 1–3 vertices, 4 = mid(1,2), 5 = mid(2,3), 6 = mid(3,1),
+unknown vector [u (N), v (N), p (V)]); staggered cell grid (MAC: `p[j, i]` at ((i + ½)Δx, (j + ½)Δy), `u[j, i]` at x = iΔx,
+`v[j, i]` at y = jΔy; the book's u_{i+1/2, j} ↔ `u[j, i+1]`, i.e. `u[j, i]` = u_{i−1/2, j}). Wall-face normal velocities are
+data, never corrected; tangential no-slip by ghost values u_g = 2U − u₀ (linear, default) or quadratic (DEVIATION: the book
+leaves it open).
+
+**⚠️ ch10 weak-continuity sign.** (10.159)/(10.162) carry a minus sign chosen so the pressure blocks are B and Bᵀ (a symmetric
+saddle point) — do not "fix" it. Slip R6: the second sum of (10.172) must be v_{A′} (`assemble_newton_system(printed_10_172=
+True)` gives a 1.7e55 Poiseuille error); R7: (10.186) prints v′ for the pressure expansion p′; R10: (10.166)'s star on
+β_t ∂v/∂t(t_n) is spurious (known data).
+
+**⚠️ ch10 non-dimensionalisations change inside the chapter.** §10.2–10.3 dimensional (u [m/s], D [m²/s]); §10.4 NS
+non-dimensional with Re (10.81) (lengths L, speed U, time L/U, pressure ρU²); MacCormack NS (10.103)–(10.109) dimensional (μ, c);
+the cavity algorithm non-dimensional with p = ρ/Ma², Re = ρ₀UL/μ; block lengths in block sides; FE cylinder in diameters d
+(t̄ = tU/d); force coefficients per span on ½ρU²d, torque on ½ρU²d². St with the **cyclic** frequency (as ch09).
+
+**⚠️ ch10 fitted vortex minimum.** ψ_min of the cavity is negative (clockwise primary eddy); `primary_vortex_centre` fits a
+parabola through the discrete minimum and its neighbours — the vertex value is f₁ − (f₂ − f₀)²/(8(f₂ − 2f₁ + f₀)) per direction (x and y corrections add),
+**always ≤ the grid minimum** (the code once added the correction with the wrong sign; review M1).
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -948,6 +1005,46 @@ not 13 · the wall-curvature sign (R17).
 | h₉₉ | jet half-width where u = 0.01u₀ | m | 7.3319[Cρν²x²/J]^{1/3} (page 5.6152 = 4 % point) | ch09 | `free_jet_halfwidth(x, J, rho, nu, level=0.01, printed=)` |
 | Ψ ⚠️, f∞, K₁ | wall-jet invariant ∫u(∫_y^∞u²dy′)dy (9.80); f(∞) of the wall jet; ∫f′(∫f′²)dη = 1/40 at f∞ = 1 | m⁵/s³, –, – | Ψ = C²νf∞⁴/40; f″(0) = f∞³/72; **ψ = stream function** | ch09 | `wall_jet_invariant(y, u)`, `wall_jet_K1()`, `wall_jet_integrals(f_inf)` |
 | u_e, u(z), R ⚠️ (teacup) | swirl speed above the bottom layer; swirl in the layer; radius | m/s, m/s, m | net inward force ρ(u_e² − u²)/R ≥ 0, zero in the core | ch09 → Ch. 13 | `secondary_flow_radial_force(u_inviscid, u_layer, R, rho)` |
+| **ch10 — computational fluid dynamics** | | | | | |
+| T, T_i^n | transported scalar (temperature, concentration) at node i and time level n (Fig. 10.1) | any (K, kg/m³) | node-based: T_i^n ≈ T(x_i, t_n), x_i = iΔx, t_n = nΔt | ch01 → | `T`, `T0` |
+| u (1-D), D ⚠️ | constant advection speed; diffusivity of (10.1) | m/s; m²/s | u may be negative (upwind side from sign(u)); D ≥ 0; **not** the strain-rate tensor **D**[u] | ch10 | `u`, `D` |
+| g ⚠️, q | Dirichlet value T(0, t) = g; Neumann slope ∂T/∂x(L, t) = q (10.2) | unit of T; unit of T per m | q = 0 insulated end (ghost node); g ≠ body force | ch10 | `g=`, `q=` |
+| Δx, Δt, h, n ⚠️ | grid spacing; time step; element length (FE); number of cells/elements | m; s; m; – | h also "the step" of a stencil test; superscript n = time level | ch01 → | `dx`, `dt`, `h`, `n`, `n_el` |
+| α ⚠️, β ⚠️ (FTCS) | FTCS numbers α = uΔt/(2Δx), β = DΔt/Δx² (10.11) | – | the ½ in α comes from the centred difference; β = ch01's r | ch10 | `alpha`, `beta`, `ftcs_coefficients` |
+| C | Courant number uΔt/Δx = 2α | – | signed in `cfl_number`; stability uses \|C\| | ch10 → Ch. 13, 15 | `C`, `cfl_number(u, dt, dx)` |
+| R ⚠️, R_cell | global Péclet uL/D (10.87); cell Péclet uΔx/D (10.31) | – | wiggles iff R_cell > 2 (centred); R < 0 puts the layer at x = 0; R = radius in ch08/ch09 | ch10 → Ch. 13 | `R`, `R_cell`, `cell_peclet(u, dx, D)` |
+| δ ⚠️ (layer) | convection–diffusion layer thickness, δ/L = O(1/R) (10.89) | m | T = e⁻¹ one δ from the wall; ≠ Kronecker δ_AB; ≠ ch09 similarity length | ch10 | `cd_layer_thickness(R, L, level)` |
+| E ⚠️ (truncation) | truncation error of a scheme (10.16)–(10.17) | unit of T per s | "exact minus scheme" over Δt; ≠ internal energy (ch01), ≠ x-flux **E** of (10.100) | ch10 | `truncation_error_sympy`, `truncation_terms` |
+| e, K_e, a, b ⚠️ | error array T − T_exact (10.14); constant and rates in ‖e‖ ≤ K_eΔx^aΔt^b (10.15) | unit of T; –; – | K_e ≠ stiffness **K**; a, b ≠ FE α_t, β_t | ch10 | `error_norm(num, exact, kind)` |
+| ξ, ξ̂ⁿ | round-off disturbance (10.18); its Fourier amplitude (book gⁿ(k)) | unit of T | obeys the same linear scheme (10.19) | ch10 | `propagate_error` |
+| k ⚠️, θ ⚠️ | Fourier wavenumber in the book's e^{iπkx} (half-waves per unit length); phase per cell θ = kπΔx | 1/m; rad | θ = π is the zigzag; `convention="standard"`: e^{ikx}, θ = kΔx; θ ≠ Θ-scheme fraction, ≠ ch09 momentum thickness | ch10 → Ch. 11 | `theta`, `fourier_mode(x, k, convention)` |
+| G ⚠️ | amplification factor per step g^{n+1}/gⁿ (10.23)–(10.24) | – (complex) | stable iff \|G\| ≤ 1 for every θ; ≠ G_A (weak-form row), ≠ ch02 velocity gradient G, ≠ ch08 `G=` = −dp/dx | ch10 → Ch. 11 | `amplification_factor(theta, alpha, beta, scheme)` |
+| c_num/u | numerical phase speed over the true one, −arg G/(Cθ) | – | < 1: short waves lag (dispersion) | ch10 | `phase_error(scheme, C, theta)` |
+| D_num | numerical diffusivity: steady upwind uΔx/2 = 0.5R_cell D (10.94); unsteady \|u\|Δx(1 − C)/2 | m²/s | negative for C > 1 (anti-diffusion) | ch10 → Ch. 12, 13 | `numerical_diffusivity(u, dx, D, scheme, C)` |
+| r | root of the discrete recurrence: centred (1 + R_cell/2)/(1 − R_cell/2), upwind 1 + R_cell, downwind 1/(1 − R_cell) | – | r < 0 ⇒ node-to-node alternation | ch10 | `discrete_root(R_cell, scheme)` |
+| w, 𝒮, V, H¹ | test function; trial space (Dirichlet built in, (10.32)); test space (w(0) = 0, (10.33)); finite-slope-energy space | – | essential BC in 𝒮, natural BC in the weak form | ch10 | `weak_residual(T_fn, w_fn, …)` |
+| a(w, v) | bilinear form (10.42) u∫v_xw dx + D∫v_xw_x dx | (unit of w)(unit of v)/s | not symmetric when u ≠ 0 | ch10 | `bilinear_form(w, v, x, u, D)` |
+| N_A, N₀, d_A, c_A | hat (shape) function of node A (10.59); extra function at the Dirichlet node; nodal unknowns T^h(x_A); test coefficients (10.45) | –; –; unit of T; – | N_A(x_B) = δ_AB; partition of unity | ch10 | `hat(x, x_nodes, A)`, `hat_basis`, `interpolate` |
+| **M**, **K**, **F** ⚠️ | FE mass, stiffness, load (10.55)–(10.58) | M_AB [m]; K_AB [m/s]; F_A [unit of T · m/s] (1-D, dimensionless hats) | **M** ≠ Ma; **F** ≠ y-flux; K not symmetric for u ≠ 0 | ch10 | `assemble_1d(...)` → M, K, F |
+| m^e, k^e, f^e, ξ (FE) ⚠️ | element blocks (10.74)–(10.77); parent coordinate ξ ∈ [−1, 1] (10.64) | – | m^e = (h/6)[[2,1],[1,2]]; local a = 1, 2 ↔ A = e − 1, e (R2); ξ ≠ disturbance ξ | ch10 | `element_matrices_linear(h, u, D)`, `connectivity(n_el)`, `map_to_parent` |
+| U, E, F (conservation form) ⚠️ | state (ρ, ρu, ρv) and x-, y-fluxes of U_t + E_x + F_y = 0 (10.100) | per unit volume | ≠ FE **F**; E ≠ truncation error | ch10 → Ch. 15 | `maccormack_step(U, flux_E, flux_F, …)`, `ns_fluxes` |
+| c ⚠️, Ma, p = c²ρ | sound speed; Mach number U/c; isothermal state (10.99) | m/s; –; Pa | non-dimensional p = ρ/Ma²; **book prints M** in (10.151)–(10.155); c₁–c₅ (10.109) are coefficients, not speeds | ch01 → | `c`, `Ma`, `pressure_isothermal(rho, c)` |
+| σ (MacCormack) ⚠️ | safety factor of the time-step rules (10.110), (10.155) | – | ours 0.8 (book value private); ≠ surface tension (ch07), ≠ D14 coefficient (ch09) | ch10 | `sigma=` |
+| Re_Δ | grid (mesh) Reynolds number in (10.110) | – | zero speeds left out (DEVIATION) | ch10 | inside `maccormack_dt` |
+| ρ′ | density perturbation ρ − 1 stored instead of ρ (practice, N90) | – (non-dim) | round-off control; ≠ ch04 perturbation | ch10 | `perturbation=True` |
+| A₁, A₂, [A₁, A₂] | split operators (10.112); commutator A₁A₂ − A₂A₁ | – | splitting error (Δt²/2)[A₁, A₂] per step | ch10 → Ch. 13 | `split_linear_system`, `marchuk_yanenko` |
+| Θ, α_Θ, β_Θ ⚠️ | Glowinski Θ-scheme fraction and weights (10.129)–(10.133) | – | α_Θ + β_Θ = 1, β_Θ = Θ/(1 − Θ); three substeps of length ΘΔt, (1 − 2Θ)Δt, ΘΔt; second order only at Θ = 1 − 1/√2 (the book prints five digits; we compute it) | ch10 | `theta_scheme_linear(..., theta_split=1 - 1/np.sqrt(2), alpha_split=None)` |
+| u*, u^{n+1/2}, p^{n+1} | predicted (divergent) velocity; projected pressure (10.116)–(10.118) | non-dim | ∇²p^{n+1} = ∇·u^{n+1/2}/Δt; correction −Δt∇p curl-free | ch10 → Ch. 11–13 | `predictor`, `solve_pressure`, `project` |
+| u_{i+1/2, j}, p_{i, j} | staggered face velocity; cell-centre pressure (Fig. 10.4) | non-dim | `u[j, i+1]` ↔ u_{i+1/2, j}; shapes p[ny, nx], u[ny, nx+1], v[ny+1, nx] | ch10 → Ch. 13 | `MacGrid`, `face_coordinates` |
+| ∇_d·, ∇²_d | discrete divergence (10.123) and discrete Laplacian of p (10.124) | 1/s; – | Poisson matrix singular (constant null vector); pin the mean | ch10 | `divergence`, `pressure_poisson_matrix(g, pin)` |
+| ψ ⚠️ (cavity), ψ_min | stream function of the computed field (corner-based); its minimum (primary eddy) | non-dim | ψ = 0 on the walls; u = ∂ψ/∂y; ψ_min < 0 for the clockwise eddy (lid in +x) | ch04 → | `streamfunction(u, v, g)`, `primary_vortex_centre(psi, g)` |
+| **A**, **B**, **M**_p, β_h ⚠️ | velocity block, divergence (pressure) block, pressure mass matrix of the saddle system (10.137); discrete inf–sup constant | – | β_h² = λ_min(**B**ᵀ**A**⁻¹**B**, **M**_p) on zero-mean pressures; P2–P1 ≈ 0.366; β_h ≠ FTCS β | ch10 → Ch. 11 | `infsup_constant(n, pair)` |
+| φ_a, ψ_b, ζ ⚠️ | P2 velocity shapes (10.185); P1 pressure shapes (10.187); barycentric ζ = 1 − ξ − η | – | ψ_b ≠ stream function; ζ ≠ vorticity/displacement | ch10 | `p2_shape(xi, eta)`, `p1_shape` |
+| J ⚠️ (FE) | Jacobian x_ξy_η − x_ηy_ξ (10.198) | – | = 2 × area for a straight triangle; ≠ ch09 jet momentum flux J | ch10 | `jacobian(xe, ye, xi, eta)` |
+| α_t, β_t | time-derivative weights (10.163): backward Euler (1, 0), trapezoidal (2, 1) | – | ≠ FTCS α, β; ≠ Θ-scheme | ch10 | `time_derivative(..., alpha_t, beta_t)`, `march_unsteady(alpha_t=2, beta_t=1)` |
+| u′, p′ ⚠️ (Newton) | Newton corrections (10.164) | non-dim | p′ ≠ ch04/ch07 perturbation pressure | ch10 | inside `newton_solve` |
+| St, f_s, τ̄ | Strouhal number f_s d/U = 1/τ̄ (non-dimensional period τ̄) | –; Hz; – | **cyclic** frequency (book n); confined (W = 5d) St 0.2054 is qualitative | ch09 → | `strouhal_from_period`, `dominant_frequency` |
+| p (order), r (ratio), f₀, GCI | observed order; refinement ratio; Richardson extrapolate; grid convergence index (F_s = 1.25) | – | p ≠ pressure; NaN when rᵖ − 1 = 0 | ch10 → all | `grid_convergence_index(f1, f2, f3, r)`, `richardson_three` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -961,3 +1058,4 @@ not 13 · the wall-curvature sign (R17).
 | ch07 | 2-D waves in the (x, z) plane, **z up**, x along propagation; still surface z = 0, flat bottom z = −H (H = ∞ deep); §7.7 origin at the mean free surface, interface at z = −H; §7.8 (x, y, z) with z up, K = (k, l, m); rays in (x, y) with α from the shore normal | still-water level; mean particle position (x₀, z₀) | p **gauge**; p′ = p + ρgz (§7.2) or p − p̄(z) (§7.8); ψ with u = ∂ψ/∂z; ω ≥ 0, direction in sgn k; c_g signed; clockwise orbits for +x waves; sheet γ = u_below − u_above | g = 9.81 (`G_BOOK`) in ch07 and `core.waves`; ρ = 1000; clean water σ = 0.07274 N/m, ρ = 998.2 in teaching numbers; energy per area (surface), per volume (internal) | dimensional SI throughout; complex amplitudes (Re dropped) from §7.7; the KdV solver is dimensional |
 | ch08 | channel: x along the plates, y across, walls y = 0 (fixed) and y = h (moving); pipe and circular Couette: cylindrical (R, φ, z), capital R; lubrication: x along, y across the gap h(x, t) (Hele-Shaw: z across, (x, y) in the plane); §8.4 y normal to the plate, η = y/√(νt); Ex. 8.6 plane polar (r, θ azimuth); §8.6 spherical (r, θ, φ) with θ from the downstream +x axis, body frame (sphere at rest) or fluid frame | fixed lower wall; pipe axis; slider inlet x = 0 with gap h₀; plate at y = 0; sphere centre | p absolute or gauge (only gradients matter) except lubrication p* = p/P_a (absolute atmospheric); dp/dx book sign (favourable < 0), `G` = −dp/dx alias; signed τ; power into the fluid −2πR₁σ_Rφu_φ; §8.6 p − p∞ | lubrication: L along, h = εL across, U, P_a (or μUL/h²); similarity: √(νt); Stokes layer δ_e = √(2ν/ω); low Re: pressure μU/L; Re per section (pipe diameter, Re_L, sphere diameter 2aU/ν, Re_a radius) | dimensional SI throughout; the scaled lubrication and low-Re equations live in the sympy engines (`lubrication_nondim_sympy`, `low_re_scaling_sympy`); g = G0 in `core.lubrication` and `core.creeping` |
 | ch09 | x along the wall from the leading edge (or stagnation point), y normal to it (2-D); jets: x along the jet, y across (free jet symmetric about y = 0, wall jet y = 0 the wall); body angles φ from the **forward** stagnation point; Kármán street rows at y = ±b/2 with spacing a (upper row −Γ in the picture, +Γ in D14 step 1 — an open explainer item); teacup cylindrical (R, z) with z up from the floor | leading edge x = 0 (Blasius δ → 0 there, (9.22)); Thwaites start x[0] with θ₀ (stagnation start: the finite limit); marching inlet x₀ > 0 with a supplied or local Falkner–Skan profile; jet slot x = 0 (virtual origin) | −(1/ρ)dp/dx = U_eU_e′; **dp/dx > 0 adverse**; u = ψ_y, v = −ψ_x; signed τ₀ (> 0 attached, 0 at separation); C_p = (p − p∞)/(½ρU²); C_D of (9.33) for one face; μu_yy(wall) = dp/dx | overall L, U (δ̄ = L Re^{−1/2}); similarity lengths √(νx/U), √(νx/U_e), (Cρν²x²/J)^{1/3}, ∝ x^{3/4}; cylinder/sphere Re on the diameter; St with the cyclic frequency | dimensional SI; similarity profiles and the Thwaites closure non-dimensional; scaled (9.7)–(9.8) in `bl_nondim_sympy`; ρ default 1.2 (air) in BL helpers, 1000 in the teacup; g only in `ball_swing_deflection` (9.81) |
+| ch10 | 1-D x ∈ [0, L] (FD, FEM1); 2-D (x, y) with the `[j, i]` layout, y up (cavity lid at y = 1 moving in +x; block and cylinder channels with the stream in +x); **three grids**: node-based (FD, MCK), element meshes (FEM1 [x_{e−1}, x_e]; FEM2 vertices then mid-edge nodes, Fig. 10.17 numbering), staggered C-grid (MAC: p centres, u x-faces, v y-faces); Fourier angle θ = kπΔx (book e^{iπkx_i}) | x = 0 Dirichlet end (g), x = L Neumann end (q); cavity corner (0, 0), walls on node lines (MCK) or cell faces (MAC); block/cylinder centred in the channel (ours: H = 4 block sides, 8 ahead, 20 behind; cylinder W = 5d) | CFL and upwind side with sign(u), \|u\|; truncation error E = "exact minus scheme"/Δt on the left of (10.16); weak continuity with a minus sign (B, Bᵀ symmetric); pressure pinned by its mean (defined up to a constant); ψ = 0 on the walls, ψ_min < 0 clockwise eddy; drag positive downstream | §10.2–10.3 dimensional (u m/s, D m²/s, L m); §10.4 NS non-dimensional (L, U, L/U, ρU², Re (10.81)); cavity p = ρ/Ma², Re = ρ₀UL/μ; block side and cylinder diameter d as lengths; force coefficients per span on ½ρU²d | §10.2–10.3 dimensional SI; §10.4–10.5 solvers non-dimensional (ρ = 1, c = 1/Ma, μ = 1/Re); our run parameters Ma 0.08 (cavity), 0.06 (block), σ = 0.8 (book values private) |

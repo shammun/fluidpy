@@ -12,7 +12,7 @@ PASS round 2, 145 parity rows, every page of every pager audited); ch04 E1 `cont
 round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script); ch05 E1
 `vortex_tubes_cannot_end`, E2 `vortex_pressure_funnel`, E3 `kelvin_material_loop`, E4 `baroclinic_torque`, E5
 `vorticity_stretching_tilting`, E6 `biot_savart_filament`, E7 `vorticity_equation_rotating`, E8 `point_vortex_lab`, E9
-`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). ch08 E1 `couette_poiseuille_backflow`, E2 `lubrication_scaling`, E3 `slider_bearing`, E4 `viscous_gravity_current`, E5 `stokes_first_problem`, E6 `similarity_exponents`, E7 `oscillating_plate`, E8 `stokes_sphere_flow`, E9 `stokes_drag_settling` (all PASS by round 3, 278 parity rows of which 207 JS ↔ fluidpy, 3 312 views, 26 derivations matched step by step against the notebook's `--dump`). ch09 E1 `bl_scaling_thicknesses`, E2 `blasius_similarity_collapse`, E3 `falkner_skan_family`, E4 `thwaites_marching`, E5 `cylinder_drag_crisis`, E6 `karman_street_stability`, E7 `free_jet_similarity`, E8 `wall_jet_invariant`, E9 `teacup_secondary_flow` (all PASS round 2 after a library fix, 248 selftest rows of which 178 JS ↔ fluidpy; 20 of 22 derivations match the final notebook — **D06 and D14 drifted after the lesson review**, see Failures). **Rule since ch03: 5–10 explainers per chapter, as
+`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). ch08 E1 `couette_poiseuille_backflow`, E2 `lubrication_scaling`, E3 `slider_bearing`, E4 `viscous_gravity_current`, E5 `stokes_first_problem`, E6 `similarity_exponents`, E7 `oscillating_plate`, E8 `stokes_sphere_flow`, E9 `stokes_drag_settling` (all PASS by round 3, 278 parity rows of which 207 JS ↔ fluidpy, 3 312 views, 26 derivations matched step by step against the notebook's `--dump`). ch09 E1 `bl_scaling_thicknesses`, E2 `blasius_similarity_collapse`, E3 `falkner_skan_family`, E4 `thwaites_marching`, E5 `cylinder_drag_crisis`, E6 `karman_street_stability`, E7 `free_jet_similarity`, E8 `wall_jet_invariant`, E9 `teacup_secondary_flow` (all PASS round 2 after a library fix, 248 selftest rows of which 178 JS ↔ fluidpy; 20 of 22 derivations match the final notebook — **D06 and D14 drifted after the lesson review**, see Failures). ch10 E1 `fd_stencil_order`, E2 `von_neumann_amplification`, E3 `upwind_cfl_advection`, E4 `cell_peclet_wiggles`, E5 `fem_hat_assembly`, E6 `mac_projection_staggered`, E7 `lid_driven_cavity`, E8 `mixed_fe_lbb` (all PASS round 2, 310 selftest rows of which 270 JS ↔ fluidpy, 20 derivations matched step for step against the notebook's `--dump`; no library change; heavy local numerics — dense/banded LU, lstsq, tridiagonal, generalised eigen — see ch10 candidates). **Rule since ch03: 5–10 explainers per chapter, as
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
@@ -192,6 +192,16 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **Wrong-exponent toggle** that makes the conserved integral visibly change (ρ∫u²dy falls when δ ∝ x^{1/2}); momentum check in the status at three stations; a **level slider exposing the printed half-width as the 4 % point** | ch09 E7 | "the exponents are forced by the invariant" is shown by breaking them; a book slip becomes something the reader verifies by dragging |
 | **Two invariant bars: one falls, one stays flat** — rose ρ∫u²dy drops 41 % downstream while the teal Ψ bar is flat to 4×10⁻⁷; printed-ODE toggle with hollow dots leaving the curves; gauge preset (C quartering with an unchanged dimensional profile) | ch09 E8 | reviewer's best "which quantity is conserved" picture; a redundant constant (gauge symmetry) is demonstrated, not asserted |
 | **Force bars that add with height**: orange pressure push constant in z, rose centrifugal shrinking toward the floor, teal net = orange − rose; river-bend mode with the same balance; live Ekman-preview scales | ch09 E9 | the teacup's cause is one subtraction the reader sees at every height; the seed of the Ch. 13 Ekman-layer explainer |
+| **Log–log error vs h on a transport that shrinks h** (tenfold every 0.8 s) with a rose round-off band, a ◆ best-h marker and a faint "so far" curve; **Taylor-term bars with exact fractions** (c₃ = 1/6, "cancels" labels) beside the measured error; a ×1/h zoom inset that keeps the stencil nodes visible below h = 10⁻² | ch10 E1 | "order p" becomes a slope the reader watches form, and the floor where round-off wins is part of the same curve |
+| **Mode that turns stencil bars into scheme truncation bars**: the three terms of (10.17) add to the measured one-step residual (0.0317 vs 0.0317 1/s); a β = 1/6 preset makes the diffusive Δx² term cancel | ch10 E1 | a modified equation is decomposed like a budget; a special value is a preset the reader can test |
+| **Complex-plane G(θ) + parameter-plane region drawn from the closed form *and* confirmed by a brute-force dot scan + a live 10⁻¹⁰ kick marched to a ×10⁶ cap with the predicted slope max\|G\|ⁿ dashed**; draggable (α, β) dot; classic-settings table; exact fluidpy reason strings pinned by parity rows | ch10 E2 | the causal chain point → curve leaves the unit circle → growth of one mode is on screen at once; the template for any growth factor (Ch. 11 dispersion relations, Ch. 13 model stability) |
+| **x–t stencil view with the characteristic's foot ◆ and its interpolation weights** (×1.05 / ×−0.0526 when CFL fails) beside three schemes on one ring and an end-of-run card; \|G\| and phase-speed panels with the pulse's main wave marked; a "u = −1, printed" mode for the book's sign slip | ch10 E3 | CFL is geometry (interpolation vs extrapolation), and "first order pays in amplitude, second in phase" is two panels on one clock |
+| **Discrete-root plot with a rose r < 0 band and a ± sign strip of rʲ** + a sweep transport that stops at the first wiggle (n = 19) + an inspector tracing T_j = (rʲ − 1)/(rⁿ − 1) + a dashed modified-equation ghost with its measured gap | ch10 E4 | "wiggles iff R_cell > 2" is read off a sign, not asserted; upwind "solves a different problem exactly" is a ghost on the dots |
+| **Assembly as a transport**: each element's 2 × 2 block lands in the global matrix, outlined in amber; scatter-add table with the current element lit; **matrix-cell inspector listing its contributions** ("K₂₂ = k⁽²⁾₂₂ + k⁽³⁾₁₁ = 1.5 + 0.5 = 2"); FE = FD (10⁻¹⁷) as status and invariant row; natural-end mode with the learned slope (0.667 on 4 elements) | ch10 E5 | a sum sign becomes a sequence of visible additions; "natural = approached" is a number the reader sees |
+| **An algorithm in slow motion on a transport** (u* → Poisson → push → uⁿ⁺¹) with cell-border divergence colours turning white; cell flux inspector with the wall face marked "wall" (never corrected); 3-cell pipe tiny example; SOR history vs direct and "divergence left = Δt × residual" invariant; **checkerboard mode with a row view and null-space bars** (collocated 4, staggered 1) | ch10 E6 | the projection deletes exactly the divergent part; the C-grid's reason to exist is a mode switch (template for Ch. 13 shallow water) |
+| **A real solver running live in the page** (MAC 16²–32², banded LU factorised once, advanced by a background pump between frames) + cached finer runs from a parity-checked table + benchmark points + a Richardson panel + a benchmark table with the current row lit; interpretation "128² is further from Ghia than 64² — the comparison measures Ghia" | ch10 E7 | verification is watched, not told; the reader sees convergence saturate at the benchmark's own accuracy |
+| **Counting that becomes an argument** (n_u vs n_p − 1; "at least 6 invisible patterns" at n = 2 = the 6 spurious modes found), an "invisible pattern" picture (max\|Bq\| = 4×10⁻¹⁶), β_h vs n with P1–P1's zeros on the floor; live dense FE ≤ 6 × 6 with a Cholesky + Jacobi generalised eigen-solver; one-element mode (six P2 shapes, 7-point rule) | ch10 E8 | an abstract inf–sup condition becomes a count and a curve that falls or stays flat |
+| **A browser pass that changes state with the Explain tab open and compares with a fresh page at the same state** (25 cases), plus a scan of every config string and live output for control characters and `.katex-error` nodes | ch10 viz review | catches stale Explain text (the ch09 R2-M1 class) and lost backslashes that `shot.py` cannot see |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -328,6 +338,20 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | A convention differing between a derivation and its picture (+Γ upper row in D14 step 1, −Γ in the view and code) | ch09 E6 (open) | one sign convention across derivation, picture, Explain and code; if the derivation must differ, say so on the step |
 | A curve drawn on another quantity's axis without its own scale (blue u(z) on the force axis) and unlabelled grey dashed curves | ch09 E9 (open) | every curve gets a legend word and a scale (top axis u/u_e) or is removed |
 | The rescaled collapse drawn as one function three times (the collapse assumed, not shown) | ch09 E2 (open) | plot each station's own u(y) samples divided by its own δ(x_k) |
+| **An explainer mirroring a fluidpy string went stale when fluidpy changed**: `stability_verdict` gained "\|C\| + 2b > 1" for upwind with diffusion; E2's JS `verdict()` still said "2β > 1, the zigzag grows" at α = β = 0.3 (2β = 0.6) and its Code-tab comment no longer matched the Python output; E3's copy was dead code with the same stale text | ch10 E2 (round-1 Must), E3 (Should) | mirror the full function (every scheme, β > 0), extend the pretty-printer, and **pin every reason string with an exact-text parity row** (`rtol: 0`) so the next change fails the audit |
+| **Explain template assumed signs**: `1-${t3(n.C)}(1-${t3(cs)}+${t3(sn)}\mathrm i)` printed "= 1 − 0.6(1 − −1 + 0i)" at θ = π, and round-off sin θ gave "−0 i" | ch10 E2 (Should, fixed in rounds 2–3) | sign-aware complex formatter (`ctex`), print the real number alone when \|Im\| < 1e-12 |
+| **A derivation line with `\quad(10.88)` was 17 px too wide in the tablet walkthrough mini-card** | ch10 E4 (round-1 Must) | two `aligned` rows with the number on the second |
+| **A bare equation number inside a template string** ("the parent triangle of (10.184)") — `tools/eq_refs.py` missed it because other `$…$` followed in the same string | ch10 E8 (round-1 Must) | write the map next to its number; eq_refs should scan template strings per sentence |
+| **State-dependent phone clip**: the audit reached the Equations tab with the β = 100 BTCS preset still set, so the (10.26)–(10.27) live lines were long ("1.59 × 10⁵ + 0 = …") and page 3 clipped the (10.28) card by 26 px — reproducible, but only after that preset | ch10 E2 (round-2 Must, fixed by the orchestrator) | shorten the card (one relation per line, live text on one line) or mark long live lines `optional`; **audit Equations/Explain at the extreme presets, not only the default**; shot should reset presets per tab or run a preset sweep |
+| **Intermittent phone clips under machine load**: a 1 px phone-land Explore "Right now" note (FAIL in one of two runs) and an 11 px phone clip of the (10.88) large-R card that appeared only during the loaded merge-gate run | ch10 E3, E4 (fixed by the orchestrator) | trim a clause / shorten the card and its live line and trim neighbours (leave margin); **run shot 3× in a row and once under load** before calling a clip real or fixed |
+| **Illegible picture on phones at the largest n** (16² staggered grid: 1–2 px face arrows, divergence borders a speckle) | ch10 E6 (Should, open) | cap n per layout (12 on portrait) or draw every other arrow — another case for `views[i].hideOn`/per-layout parameter limits |
+| **Three clocks disagreed on a phone while a live solver spun up** (transport 0.6 L/U, view title t 0.26, readout t 0.51) | ch10 E7 (Should, open) | status "computing … t = 0.26" whenever the picture lags the transport by more than a snapshot, or hold the transport until the run catches up |
+| **A quiz question not answerable in the UI** ("why is the central stencil exact for x² but not x³?" with only sin, eˣ, e^(−x²) offered) | ch10 E1 (Should, open) | add the function (a polynomial chip) or reword to an offered one |
+| **A legend missing a series** (MacCormack ◆ in the convergence panel and Explain §0) | ch10 E7 (Should, open) | every marker style in the view title's legend and in Explain §0 |
+| **`py:` parity rows cannot call ndarray methods** (`.min()`, `.sum()`) under shot.py's restricted builtins | ch10 builders | use `np.min(...)`, `np.add.reduce(...)`; tooling: expose them |
+| **Code-tab `{{placeholders}}` share one namespace across code blocks** (a name reused in two blocks shows the last value in both) | ch10 builders (library quirk) | unique placeholder names per block; library: per-block namespaces |
+| **Shell heredocs still mangle backslashes** (`\approx` lost in an explainer string written by a heredoc; `\to` → TAB + "o" in the notebook) | ch10 builders + notebook | Write/Edit only; scan every written file for bytes < 0x20 (the builder's `self_check_ctrl`); **viz_lint rule still missing** (five chapters) |
+| **Parallel builders collided in one shared scratchpad folder** | ch10 viz phase | each agent writes its own scratchpad subfolder |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -510,6 +534,102 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch10 candidates (listed, **not promoted**: the ch10 knowledge pass ran while the site-publisher was reading `viz/`)
+Found by the builders' notes and a script over the eight ch10 chapter scripts (the part after the inlined library); "files" =
+ch10 files defining the helper locally (earlier-chapter counts from the ch09 list where the helper was already known).
+Ranked by payoff for **Ch. 11 instability (eigenproblems, growth curves), Ch. 12 turbulence, Ch. 13 GFD (live shallow-water /
+C-grid models)** and by risk (pure additions first):
+
+| Rank | Helper | Found in (file · local name) | Files | Proposed library name | Recommendation |
+|---|---|---|---|---|---|
+| 1 | **dense and structured linear algebra** | E6 `luFactor`, `luSolve`, `pinnedLU`, `luSolveRefined`; E8 `luFactor`, `luSolve`, `solveLU`, `lstsqMinNorm`, `cholesky`, `lowerSolve`, `upperTSolve`, `jacobiEig`; E2 `implicitLU`, `luSolve`; E7 `bandLU`, `bandSolve`; E4 `gtsv`; E5 `thomas` | 6 (E2, E4, E5, E6, E7, E8) | `Viz.num.lu(A)` → {solve}, `Viz.num.lstsq(A, b)` (min-norm), `Viz.num.banded(A, kl, ku)` → {solve}, `Viz.num.thomas(a, b, c, d)` (alias `gtsv`), `Viz.num.cholesky`, `Viz.num.eigSym(A, B?)` (Jacobi; generalised via Cholesky) | **promote first, before Ch. 11** — every stability explainer needs eigenvalues and every live implicit/Poisson solve needs a factorisation; parity rows already exist in E2, E6, E7, E8 to move with them |
+| 2 | **log axes and the narrow-view gutter** (third chapter asking) | `logAxes` E1, `logPlot` E4, `drawLogPanel` E7 (+ ch09 E5 log–log C_D); `gutterPlot` E2, E3, E4, E5 (+ 22 earlier files) | 3 + 4 (26 files with `gutterPlot` overall) | `P.axes({xlog, ylog})` with decade ticks and minor ticks; engine y-title gutter below ~420 px | **promote** as one engine-plot pass (ch07 ranks 3/8, ch08 rank 6, ch09 rank 5, now ch10) |
+| 3 | **filled polygon in data coordinates** | `polyFill` E3, E4, E5 | 3 | `P.polygon(xs, ys, {fill, stroke, alpha})` (or `P.fill(poly)`) | promote with rank 2 (pure addition) |
+| 4 | **matrix view** (heat-coloured cells, highlighted block, cell pick) | E5 `drawMatrix`/`cellColor`/`matTitle` (assembly), E6 Poisson-matrix and stencil views | 2 | `Viz.matrix(v, M, {cellColor, highlight: [[r0, c0, r1, c1]], labels, onPick})` | promote — Ch. 11 (discretised operators), Ch. 13 (C-grid operators) will draw matrices again |
+| 5 | **linear colour fill of P1 triangles** | E8 `fillLinear` (+ `pColor`, `mix`, `rgbOf`) | 1 | `Viz.field.triFill(v, P, tris, values, cmap)` (barycentric / gradient fill) | promote when a second FE explainer appears (Ch. 14 low-Re bodies, Ch. 16) |
+| 6 | **Python-compatible numbers for Code `live` and parity** | `pyRound` E3 (round-half-even), `rint` E3; `pn` (Python literal) E2, E3, E4, E5, E6, E7, E8 (+ 18 earlier) | 1 / 7 (25 overall) | `Viz.num.pyRound(x, nd)`, `Viz.pyNum(v, sig)` | promote with the ch09 formatter pass (rank 4 there) |
+| 7 | **a time march with checkpoints** (scrub back without re-running from zero) | E3 `class Run` (`getRun`, `exactAt`); E7 `newRun`, `advance`, `stateAt`, `simulate` | 2 | `Viz.run(stepFn, state0, {dt, checkpointEvery, maxSteps})` → {at(t), advance(t)} | promote — every live PDE explainer (Ch. 11 saturation, Ch. 13 shallow water) scrubs a march |
+| 8 | **background pump for heavy live solvers** (advance a solve in slices between frames, status "computing …") | E7 `pump`, `want`, `ensure` (setTimeout slices) | 1 | `Viz.pump(task, {budgetMs, onProgress})` + an engine status hook | promote with rank 7; fixes E7's disagreeing clocks by design |
+| 9 | **derivation result page "key lines only"** (builders: the result page repeats the whole chain; long chains page 3–4× on phones) | E3 D18 (14 steps), E4 D16 (12), E5 D11 (13), E6 D20 (12) | — | `derivations[i].result.chain: 'key' \| 'all'` with `steps[k].key: true` | engine option (ch08 asked for a result-chain option too) |
+| 10 | **per-layout view hiding and empty-row collapse** | `hidePortrait` used in 7 of 8 files; builders: hiding the only view of a row left an empty row (scoped CSS to collapse it); E6 wants n capped on portrait | 7 (+ 19 earlier) | engine `views[i].hideOn: ['portrait', 'landscape', 'short']`, collapse rows with no visible view, `params[k].maxOn` | **promote** (ch09 rank 2; the most requested engine feature since ch03) |
+| 11 | **exact fractions** | E1 `class Fr`, `gcd`, `frPow` (+ ch01 E5 `Frac`) | 1 (+ 1) | `Viz.Frac` | promote — now two chapters (the ch01 rule "on second use") |
+| 12 | **complex formatting and arithmetic** | E2 `ctex`, `ctxt`, `imZero`, `sg` (+ ch09 E6 `cmul`/`cdiv`/`cadd`/`cexp`, ch06–ch07) | 1 (+ 4) | `Viz.cx` with `Viz.cx.tex(z)` (drops ±0 i) | promote before Ch. 11 (ch09 rank 11) |
+| 13 | **layout probes** | `phone()` and `lay()` in all 8 ch10 files (+ 16/14 earlier) | 8 | expose `g.app.layout` / density | **replace, don't promote** (ch09 rank 6) |
+
+**Recommendation for the next library pass (orchestrator, when nothing reads `viz/`)**: the ch09 rank 1 lint rule (tool)
+first; then ch10 ranks 1–3 (linear algebra, log axes + gutter, polygon) and 10 (`hideOn` + empty-row collapse) **before Ch. 11's
+explainers**; then ranks 6–8 (formatters, `Viz.run`, `Viz.pump`) and 12 (`Viz.cx`) before Ch. 13; rank 9 with the ch08 pager
+"now"-box slicing. After promotion: `tools/viz_inline.py --all`, then `tools/shot.py --chapter ch01 … ch10 --quick` and
+`tools/shot.py templates/viz_example.html --quick` must all PASS (serially).
+
+### ch10 open explainer items (Should, non-blocking; from `reports/ch10_viz.md` rounds 1–2)
+- `fd_stencil_order`: quiz Q2 (x² vs x³) not answerable with the offered functions — add a polynomial chip or reword; D01
+  step 6 *why* ends "…the third line of (10.6)" without the formula; orange stencil nodes vs amber time term too close in
+  FTCS mode.
+- `von_neumann_amplification`: Explain §3 for upwind could add the two-row table (C ≤ 1, C + 2β ≤ 1) with the failing edge
+  lit. (The "±0 i" at θ = π and the β = 100 Equations clip were fixed in the orchestrator's round-2 resolution.)
+- `upwind_cfl_advection`: a negative D_num at C > 1 (Code comment −2.632e-4 m²/s) needs "(negative: anti-diffusion, C > 1)".
+  (The 1 px phone-land "Right now" clip was fixed: note shortened, three clean runs.)
+- `cell_peclet_wiggles`: derivation header "EQS. (10.90)–(10.93)" is a bare range (the goal page could name the two schemes'
+  equations).
+- `fem_hat_assembly`: on phones the matrix hides its numbers for n ≥ 4, so tour step 4 ("click any matrix cell") relies on
+  the inspector — keep the row-of-node-A numbers in the title on every step.
+- `mac_projection_staggered`: 16² illegible on portrait phones — cap n at 12 there (storyboard said so); tour step 1 uses the
+  default shear field, not the 8² preset (note in the design).
+- `lid_driven_cavity`: MacCormack ◆ missing from the convergence legend and Explain §0; transport, view title and readout
+  clocks disagree on phones while a live grid spins up.
+- Backup B1 `operator_splitting_theta` not built.
+
+### ch10 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- `tools/viz_lint.py`: fail on any byte < 0x20 other than `\n` in an explainer and on `(?<!\\)\\(f|t|r|b|v)[a-z]` inside plain
+  JS strings (**five chapters now**; ch10 lost `\approx` via a heredoc).
+- `tools/eq_refs.py`: accept en-dash ranges on `ref:` badges ("Eqs. (10.90)–(10.93)" next to shown TeX) and scan template
+  strings sentence by sentence (it missed E8's bare "(10.184)").
+- `tests/test_machinery.py`: a slider-drag test (move a transport or parameter slider by keyboard with the Explain tab open,
+  assert the Explain HTML changed) — the ch10 reviewer did it by hand in 25 cases.
+- `tools/check_public.py`: `--untracked` to scan new files before they are added (the viz reviewer grepped untracked `viz/ch10/`
+  by hand), and **fail — not skip — on an invalid `tests/book_values_*.json`** (today an invalid file silently disables the
+  `_forbidden_public` scan).
+- `tools/shot.py`: give `py:` rows `np.min`/`np.max`/`np.add.reduce` and ndarray methods (or document the restriction); reset
+  presets before each tab audit or add a preset sweep (state-dependent clips); `--repeat 3` for flake detection under load.
+- `tools/nbkit.py`: move `build_ch10.py`'s `self_check_ctrl` (control characters) and `self_check_near` (bare equation numbers)
+  into nbkit for every builder; lint templated code comments ("# show the numbers computed above").
+- `tools/embed_check.py`: the Derivation-tab vs `--dump` diff after the lesson review (ch09 TODO; ch10 matched by hand).
+- Process: run the merge-gate pytest alone (≈ 10 min; > 1 h in parallel with notebook execution and shot audits); one
+  scratchpad subfolder per agent.
+
+### ch10 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch10) **pin every mirrored fluidpy string by an exact-text parity row** (`stability_verdict`
+  reasons went stale) · **audit tabs at the extreme presets** — clips can be state-dependent (β = 100 on the Equations tab) ·
+  intermittent 1–26 px phone clips under load: leave a line of slack and run shot 3× · `py:` rows: `np.min(x)`, not `x.min()` ·
+  Code-tab `{{placeholders}}` share one namespace across blocks — unique names · a live solver in the page needs a factorise-once
+  matrix and a background pump, and its status must say when the picture lags the transport · per-layout parameter caps (n ≤ 12
+  on portrait) · never write explainers through shell heredocs.
+- `math-to-python` §7: (ch10) **a table written by the same function is not a reference** — test fitted quantities against an
+  exact field (paraboloid) and must-hold inequalities (fitted min ≤ grid min), then regenerate every cached table and its
+  consumers · **series stop on the term envelope**, never on the actual term (a term vanishes where its sine does) · **every
+  explicit solver takes an explicit Δt rule, computes the full limit (all rates) and raises above it**; growth caps, never NaN ·
+  build 1-D operators link by link from real neighbours and test null vectors on 1-cell and 2-cell grids · evaluate floating-point
+  references by integer shifts · guard the degenerate case of every division (GCI p = 0) · scheme-dependent quantities take
+  required arguments (`numerical_diffusivity(C=)`); boundary-like defaults (`lid=1.0`) default to None.
+- `verify-implementation`: (ch10) observed orders only in the asymptotic range — state the grids (BTCS 1.80 → 1.98, upwind 0.76
+  → 0.947); a benchmark saturates at its own error (MAC 128² vs Ghia) — use self-convergence as the convergence evidence;
+  "benchmark" only inside the stated tolerance (MacCormack 64² 1.38 % is not); "converged" only with an asserted order
+  (removed from six functions); mutants in code reached only through cached heavy runs are invisible — keep one slow test that
+  recomputes a coarse cached run to 6 s.f.; derive stability regions in closed form and confirm by a brute-force scan.
+- `teaching-style` Lessons: (ch10) **pre-asymptotic honesty** (a failed convergence study taught as failed, p = 0.43) · a
+  **conventions table up front** for overloaded letters (i, α, β, θ, g, D, M, K, S, n, R, δ, F, G, p) and enforce it in every later
+  cell · name printed slips "#k" so they never read as recap IDs · **DEVIATION boxes** with both numbers computed · drawings
+  must draw what the reading note says · a named test case (Taylor–Green) gets a primer before first use · derive the discrete
+  solution, not only the continuous one (rʲ) · the ch10 derivation moves in `concept_map.md` (Taylor-cancel stencils, modified
+  equation via the PDE, one Fourier mode ⇒ G, s = sin²(θ/2) endpoint test, CFL as the characteristic's foot, test function +
+  parts, unit coefficient vectors, parent element + scatter-add, geometric trial rʲ, divergence of the correction ⇒ Poisson,
+  cell flux budget without a pressure BC, planted (−1)^{i+j}, three-grid Richardson).
+- `colab-notebook` / nbkit: (ch10) `self_check_ctrl` + `self_check_near` for every builder; templated code comments are a
+  review failure — the builder template should generate meaning + unit comments; notebook 72 s with eight explainers, four
+  animations, seven plotly figures and cached heavy runs (the < 5 min budget held because 128² and unsteady FE runs are
+  script-only).
 
 ### ch09 candidates (listed, **not promoted**: the ch09 knowledge pass ran while the site-publisher was reading `viz/`)
 Counts = explainer files (all 71, ch01–ch09) defining the helper locally outside the inlined library, counted by script
@@ -1041,6 +1161,28 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   currents.
 - **Ch. 14 aerodynamics (from ch09)**: E4 with a panel-method airfoil as the outer flow (laminar separation and stall), E1's
   displacement-thickness lift as the viscous–inviscid correction (N15), E5's form-drag model for bluff vs streamlined bodies.
+- **Ch. 10 CFD (done — what came of the plans above)**: ch08's "CN vs BE vs FTCS on one clock" became E2's von Neumann lab (G(θ)
+  plane + Noye region + live march; BTCS and CN as schemes) and E3's CFL ring; ch06's stencil stepping with honest order became
+  E1 (log–log error vs h with a round-off floor); ch08 E4's conservative march with the volume in the status reappeared as E6's
+  "max\|∇·u\| after projection" status and E7's live solver; ch09's `march_boundary_layer` explainer and the shooting-vs-BVP panel
+  were **not** built (C09/C14 took the slots). New: E4 discrete-root sign strip, E5 assembly as a transport with a matrix
+  inspector, E6 algorithm stages + checkerboard mode, E7 live solver + benchmark + Richardson, E8 counting → LBB. Backup B1
+  `operator_splitting_theta` not built.
+- **Ch. 11 instability (from ch10)**: E2's complex-plane G(θ) + parameter-plane region + live kick is the discrete twin of
+  every dispersion-relation explainer — reuse the three-view layout with σ(k) (growth rate) in place of \|G(θ)\|, the neutral
+  curve in the (k, Re) or (k, Ri) plane with a brute-force dot scan, and a kicked perturbation growing at the predicted rate;
+  E8's generalised eigen-solver (needs `Viz.num.eigSym`, rank 1) for small Orr–Sommerfeld/Rayleigh matrices; E7's live MAC
+  solver for the nonlinear saturation of a shear-layer (KH) or Rayleigh–Bénard instability; ch09 E6's spectrum view for the
+  eigenvalues.
+- **Ch. 12 turbulence (from ch10)**: E4's modified-equation ghost and D_num bars → numerical vs eddy viscosity (resolution of the
+  Kolmogorov scale); E7's verification panel → a turbulent channel compared with DNS profiles (validation, P253); E1's
+  log–log slope reading → energy spectra (−5/3).
+- **Ch. 13 GFD (from ch10)**: **E6's staggered grid is the Arakawa C-grid** — a shallow-water explainer with η at centres and
+  u, v on faces, Coriolis by four-point averaging, a geostrophic-adjustment transport and a Kelvin wave along a wall; E3's x–t
+  stencil with √(gH) as the speed (the gravity-wave CFL of a real model: 126 s at 25 km for the deep ocean); E4 → Ekman and
+  thermocline layers, upwind tracer advection's numerical diffusivity vs model κ; E7's pump for any live model run.
+- **Ch. 15 compressible (from ch10)**: E3's MacCormack/Lax–Wendroff ring → a shock tube (ripples behind the shock = the D18
+  dispersion), the x–t stencil with two characteristic families (u ± c), CFL on \|u\| + c.
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

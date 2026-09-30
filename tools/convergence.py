@@ -50,6 +50,16 @@ def richardson(coarse: float, fine: float, r: float = 2.0, p: float = 2.0) -> fl
     return float(fine + (fine - coarse) / (r ** p - 1.0))
 
 
+def grid_convergence_index(f1: float, f2: float, f3: float, r: float = 2.0, p: float | None = None, Fs: float = 1.25) -> dict:
+    """Observed order, Richardson extrapolate and Roache's GCI from three grids (f1 finest).
+
+    Thin wrapper so tests can call it from the tools; the tested implementation is
+    :func:`fluidpy.core.fd.grid_convergence_index` (ch10 D23)."""
+    from fluidpy.core.fd import grid_convergence_index as _gci
+
+    return _gci(f1, f2, f3, r=r, p=p, Fs=Fs)
+
+
 @dataclass
 class Study:
     h: list[float]

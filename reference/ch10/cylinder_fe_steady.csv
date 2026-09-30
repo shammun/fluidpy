@@ -1,0 +1,5 @@
+# our steady mixed P2-P1 FE cylinder in a channel (scripts/ch10_cylinder_fem.py): W = 5d, x in [-8d, 16d], sliding walls, medium mesh (V = 1384, T = 2572); confined: qualitative only against unbounded data
+Re,CD,newton_iterations
+1,33.4052,4
+10,4.76007,5
+40,2.30305,4
