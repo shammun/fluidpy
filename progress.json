@@ -248,9 +248,9 @@
       "title": "Boundary Layers and Related Topics",
       "slug": "boundary_layers",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -258,7 +258,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 148 rows, 85 eqs, 27 derivations, 15 printed slips noted",
+      "notes": "analyze: 148 rows, 85 eqs, 27 derivations, 15 printed slips noted; curate: A14/B118/C16, 22 D, 9 explainers + backup",
       "updated": "2026-09-29"
     },
     "ch10": {
