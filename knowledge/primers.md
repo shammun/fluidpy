@@ -4,7 +4,9 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199); a new chapter starts at the next free number (ch09: **P200**). Total so far: 199.
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a); a new chapter starts at the next free number (ch10: **P221**).
+Total so far: 221 (P01–P220 and P218a — an inserted id: the lesson review moved integration by parts before D06, and the
+later P218 now opens with a recap line pointing to it).
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -239,6 +241,30 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | implicit time stepping with Picard iteration (P192) | ch08 · §8.3 · C08 | backward Euler evaluates the right side at the new time (stable for any step: damping 1/(1 + 4λ) < 1 where explicit needs λ ≤ ½); with a solution-dependent diffusivity, guess it from the last iterate, solve, update, repeat; a precursor film h_min keeps D > 0 ahead of the front (`thin_film_spread` uses Newton, same fixed point) |
 | Crank–Nicolson with `scipy.linalg.solve_banded` (P193) | ch08 · §8.4 · C09 | average the diffusion term between old and new time: second order in time, stable for any step; each step is a tridiagonal system that `solve_banded((1, 1), ab, rhs)` solves in O(N) from the three diagonals stored as rows (`core.diffusion.crank_nicolson_1d`; two backward-Euler start-up steps tame the jump) |
 | `scipy.integrate.solve_bvp` (P196) | ch08 · §8.4 · C09 | an ODE with conditions at both ends (F(0) = 1, F(η_max) = 0 on a truncated domain), written as a first-order system with a mesh and a guess; knows nothing about erf yet lands on erfc(η/2) (3.7e-13) — the check that η_max is large enough |
+| **ch09 — maths and physics** (the term is the exact `nb.primer` title) | | |
+| six Reynolds numbers (which length?) (P200) | ch09 · §9.1 · C01 | Re is inertia over viscosity, but only with its length and speed: overall U∞L/ν (9.6), local Re_x = Ux/ν, plate Re_L, cylinder/sphere on the **diameter**, jet xu₀/ν and Re_h99, Falkner–Skan ax^{n+1}/ν; "Re ≫ 1" means nothing without the length |
+| parabolic, elliptic and marching in x (P201) | ch09 · §9.1 · C01 | elliptic problems (full Navier–Stokes) need conditions all round — downstream talks to upstream; parabolic ones have a time-like direction and a start (heat equation; (9.9) with x as time), so they are solved by marching from an inlet profile and information flows downstream only |
+| improper integral of a deficit (truncating the tail) (P202) | ch09 · §9.2 · C02 | ∫₀^∞(1 − u/U_e)dy converges because the deficit dies like a Gaussian or an exponential; integrate numerically to a y_max where it is negligible and add the tail (an exponential tail exactly) |
+| control volume with a streamline as a side (P205) | ch09 · §9.2 · C02 | no fluid crosses a streamline, so as a face of a control volume it carries no mass or momentum flux and only the ambient pressure: the roof of the box over a wall layer (D04's ρU²θ = ∫τ₀dx) |
+| chain rule when the similarity variable moves with x and y (P206) | ch09 · §9.3 · C03 | η = y/δ(x): ∂F/∂y = F′/δ, ∂F/∂x = −F′ηδ′/δ; a product δ(x)f(η) also needs the product rule in x — the step the book skips in every reduction (Blasius, Falkner–Skan, both jets) |
+| scaling symmetry of an ODE and the Töpfer trick (P207) | ch09 · §9.3 · C04 | if λf₁(λη) solves the ODE whenever f₁ does, solve once with f″(0) = 1, read f′(∞) = 2.085 instead of 1 and rescale by λ² = 1/2.085: a BVP becomes one IVP (Töpfer 1912); reused for the wall jet's free scale f∞ |
+| integration by parts (P218a) | ch09 · §9.3 · C04 (before D06) | the product rule (ab)′ = a′b + ab′ integrated: ∫a b′ = [ab] − ∫a′b moves a derivative to the other factor at the price of a boundary term; in D06 a = f, b = f′ − 1 and the wall term vanishes because f(0) = 0 (runnable `quad` demo, 0.38177 twice) |
+| continuation in a parameter and a fold (saddle-node) (P209) | ch09 · §9.4 · C05 | follow a family f(η; n) by small steps, each solution the next guess; a branch can turn back at a fold where two solutions merge and vanish — beyond it `solve_bvp` fails because nothing exists (Falkner–Skan n = −0.0904); parametrise by f″(0) to pass it |
+| first-order linear ODE and the integrating factor (P210) | ch09 · §9.6 · C07 | y′ + p(x)y = q(x): multiply by μ = e^{∫p} so the left side is (μy)′, then integrate; Thwaites' p = 6U_e′/U_e gives μ = U_e⁶ (sympy `dsolve` demo) |
+| integrals of powers of sine (∫sin⁵ by c = cos φ) (P211) | ch09 · §9.6 · C07 (D11) | sin⁵φ dφ = (1 − cos²φ)²sin φ dφ and c = cos φ turn it into a polynomial: ∫₀^φ sin⁵ = 8/15 − c + (2/3)c³ − c⁵/5 (the cylinder's Thwaites integral) |
+| inflection point (P212) | ch09 · §9.7 · C08 | where the second derivative changes sign — the curve stops bending one way; for a velocity profile u_yy = 0 with a sign change; profiles with one are the unstable ones of Ch. 11 (Rayleigh) |
+| a row of vortices: the cotangent sum (P213) | ch09 · §9.8 · C10 | a point vortex's conjugate velocity (Γ/2πi)/(z − z₀) summed over a row at z₀ + na, pairing +n with −n so it converges, is (Γ/2ia)cot(π(z − z₀)/a); companion lattice sums Σ1/(z − na)² = (π/a)²/sin²(πz/a) and the alternating one |
+| linear stability of a steady configuration (perturb, linearise, eigenvalues) (P214) | ch09 · §9.8 · C10 | displace slightly, keep terms linear in the displacement: ẋ = Mx; solutions grow like e^{λt}, so any eigenvalue with Re λ > 0 means unstable, all Re λ ≤ 0 stable/neutral (`np.linalg.eig`; extends ch03 P80 eigenvalues) — the method of Ch. 11 |
+| momentum flux and mass flux through a cross-section (P217) | ch09 · §9.10 · C12 | per unit span ṁ = ρ∫u dy [kg/(m s)] and J = ρ∫u²dy [N/m]; a jet in still fluid at constant pressure feels no force, so J cannot change, but ṁ can — fluid enters through the sides (entrainment) |
+| sech, arccosh and (tanh)′ = sech² (P215) | ch09 · §9.10 · C12 | sech x = 1/cosh x, a bell equal to 1 at 0 dying like 2e^{−\|x\|}; (tanh x)′ = sech²x = 1 − tanh²x; arccosh y = ln(y + √(y² − 1)) answers "where does sech² reach 1 %?" (extends the ch07 tanh primer) |
+| the total-derivative move (look for the derivative of a product) (P216) | ch09 · §9.10 · C12 | before integrating an ODE ask whether it already is a derivative: (ff′)′ = f′² + ff″, (3f′ + f²/2)′ = 3f″ + ff′ (product rule backwards, ch01 P38); integrating is then free |
+| integration by parts with a variable lower limit (P218) | ch09 · §9.10 · C13 | recap of P218a, then ∫₀^∞u G dy with G(y) = ∫_y^∞g dy′: G′ = −g, so ∫uG = [WG] + ∫Wg with W = ∫₀^y u; d/dx of a double integral with fixed limits only differentiates the integrand — the wall-jet invariant (9.80) |
+| partial fractions and sympy apart; inverting an implicit solution (P219) | ch09 · §9.10 · C13 | split 1/(1 − g³) into simple pieces that integrate (`sympy.apart`); when the integral gives η(g) but we want g(η), `brentq` finds g with η(g) − η = 0 for each η (the wall jet (9.83)) |
+| radial force balance in a swirl (and a thin layer) (P220) | ch09 · §9.11 · C14 | a parcel on a circle needs inward force ρu²/R; in the fast core the pressure gradient supplies it, ∂p/∂R = ρu_e²/R; across a thin layer ∂p/∂z ≈ 0 (the (9.10) argument), so slower fluid feels more push than it needs: net inward ρ(u_e² − u²)/R (1000 N/m³ at the floor for u_e = 0.2 m/s, R = 4 cm) |
+| **ch09 — Python and numerics** | | |
+| `scipy.integrate.simpson` and `np.trapezoid` (P203) | ch09 · §9.2 · C02 | both integrate a sampled profile: trapezoid joins samples by lines (error ∝ Δy²), Simpson fits parabolas through triples (∝ Δy⁴); numpy 2 has no `np.trapz` |
+| monotone interpolation `PchipInterpolator` (P204) | ch09 · §9.2 · C02 | reads a height such as u/U = 0.99 from samples without overshoot (a cubic spline may wiggle), then `brentq` finds the crossing; also interpolates the tabulated closure l(λ), H(λ) |
+| shooting versus boundary-value solving (P208) | ch09 · §9.3 · C04 | shooting guesses the missing slope, integrates and adjusts with `brentq` on f′(η_max) − 1; `solve_bvp` treats the whole interval; Blasius shoots easily, near the Falkner–Skan fold the root is ill-conditioned (sensitivity ~e^{η²/4}), so shoot only for n ≥ −0.05 and use `solve_bvp` with continuation elsewhere |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -394,3 +420,25 @@ backwards (ηF)′, complex trial Re{e^{iωt}f(y)} with √i = (1 + i)/√2, cur
 the Cartesian Laplacian, traction projection t_x = σ_rr cos θ − σ_rθ sin θ, line integral of a gradient to recover p,
 asymptotic size of a term far away, the series 1 − e^{−s} = s − s²/2 + …; `np.diag`/`np.r_` for a hand-made
 tridiagonal matrix; "the book skips this move; we add it" for inserted derivation steps.
+
+Reminders written in ch09 instead of new primers (47 names in the 🔁 "Tools from earlier chapters" cells at the top of each
+CORE block; point here): ν = μ/ρ and its diffusion time (P185), order-of-magnitude scaling and "~" (P130), orders of
+smallness (P68), two-length anisotropic scaling (P188), scaled variables and the chain rule (P133), chain rule (P49/P91),
+dominant balance (P198), partial derivative (P25), sympy `symbols`/`subs`/`diff`/`simplify` (P40), finite-difference residual
+with `np.gradient` (P22), power laws and log–log plots (P13), dicts (P23), matplotlib (P01), f-strings (P04), tuple unpacking
+(P14), lambda and functions as arguments (P29; plus the default-argument capture `lambda y_, U0_=U0_:` glossed where used),
+`assert np.allclose` (P15), definite integral (P27), trapezoid (P37), `brentq` (P108), animate/`show_animation` (P16),
+`slider_figure` (P17), `show_viz` (P18), product rule (P38), `solve_ivp` (P31/P94), `solve_bvp` (P196), RK4 by hand, erfc
+(P123/P195), exponent rules (P43), live widgets (P47), Leibniz and differentiation under the integral (P109), Leibniz with a
+moving limit (P189), FTC (P84), `cumulative_trapezoid` (P190), sign-change search with `np.sign` (P180), `np.interp` (P182),
+the dp/dx sign convention (ch08), Gauss–Legendre (P143), eigenvalues and eigenvectors (P80), complex conjugate and the
+complex plane in numpy, hyperbolic functions (P168), finite-difference Jacobian, the complex velocity of a point vortex
+(ch05/ch06), exponent matching (P197), the free scale f → λf(λη) (P207), centripetal acceleration (ch04), broadcasting
+`xs[None, :]` (P77).
+
+Glosses in ch09 (one sentence where used, no demo unless noted): von Mises variables (ψ as the cross-stream coordinate: v
+disappears and the grid follows streamlines), `CubicSpline` in a comment, Lamb's low-Re cylinder drag
+C_D ≈ 8π/[Re(2.002 − ln Re)] (0.5 − γ_E + ln 8 = 2.002), the Goldstein singularity at separation (named), Hartree's
+β = 2n/(n + 1), the axisymmetric form of continuity (1/R)∂(Ru_R)/∂R + ∂w/∂z = 0 in the teacup loop, "a bracket, not a number"
+for inlet-sensitive marched separation, printed-vs-correct boxes for slips (and ⚠️ traps for statements that only look like
+slips).

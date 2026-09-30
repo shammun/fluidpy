@@ -2344,7 +2344,10 @@ button, input, select { font: inherit; color: inherit; }
    karman_street_growth, karman_street_growth_closed, karman_street_positions). Units: Gamma = a = 1, so times are in
    a^2/Gamma, growth rates and eigenvalues in Gamma/a^2, speeds in Gamma/a. Upper row (y = +b/2) has circulation -Gamma
    (clockwise), lower row (y = -b/2, shifted by offset*a) has +Gamma, exactly as in the Python (the opposite overall sign
-   only reverses the direction of travel; the spectrum is symmetric under lambda -> -lambda).
+   only reverses the direction of travel; the spectrum is symmetric under lambda -> -lambda). D14 (notebook and the
+   Derivation tab) writes the street with +Gamma on the upper row; its step 1 says so and why nothing changes.
+   Names as in the notebook: the eigenvalue is lambda (growth rate Re lambda, frequency Im lambda); gamma and sigma are
+   D14's dimensionless coefficients 1/2 - sech^2(pi b/a) and sinh/cosh^2.
    LABEL: analytic (closed form) and converged (lattice sums truncated at +-2000; the k = 0 and k = pi/a sums are exact).
    The picture uses the LINEAR eigenmode (kick x20, capped) — qualitative beyond the linear regime.
    ===================================================================================================================== */
@@ -2365,7 +2368,7 @@ const ratio = () => Math.acosh(Math.SQRT2) / PI;
 /** ch09.karman_street_velocity: the street's own speed (Gamma/2a) tanh(pi b/a). */
 const speed = (a, b, G) => G / (2 * a) * Math.tanh(PI * b / a);
 const sech2 = x => 1 / (Math.cosh(x) * Math.cosh(x));
-/** gamma = 1/2 - sech^2(pi b/a), sigma = sinh/cosh^2 (D14 step 10; the alternating mode of the staggered street, Gamma = a = 1). */
+/** gamma = 1/2 - sech^2(pi b/a), sigma = sinh/cosh^2 (D14 step 11; the alternating mode of the staggered street, Gamma = a = 1). */
 const gammaOf = b => 0.5 - sech2(PI * b);
 const sigmaOf = b => Math.sinh(PI * b) / Math.pow(Math.cosh(PI * b), 2);
 /** ch09.karman_street_growth_closed: (pi/2)|1/2 - sech^2(pi b)| (units Gamma/a^2). */
@@ -2515,10 +2518,12 @@ function N(s) {
     dist: b - RATIO, stag, facing, key, amp: Math.exp(bd.growth * t), lam: bd.lam };
 }
 const _dots = new Map(), _locus = new Map();
-/** the numerically largest growth over 31 wavenumbers at 20 spacings (lattice sums cut at +-300) — the dots of the growth view */
+/** the numerically largest Re lambda over the same 61 wavenumbers as ch09.karman_street_growth, at 20 spacings (lattice sums
+    cut at +-300 instead of +-2000; exact at k = pi/a) — the dots of the growth view */
+const NK = 61, NDOT = 300;
 function growthDots(off) {
   const key = off.toFixed(2); if (_dots.has(key)) return _dots.get(key);
-  const out = []; for (let i = 0; i < 20; i++) { const b = 0.05 * (i + 1); out.push([b, growthMax(b, off, 300, 31)]); }
+  const out = []; for (let i = 0; i < 20; i++) { const b = 0.05 * (i + 1); out.push([b, growthMax(b, off, NDOT, NK)]); }
   _dots.set(key, out); return out;
 }
 /** all four eigenvalues of the alternating mode for 60 spacings — the cloud of the eigenvalue view */
@@ -2528,7 +2533,7 @@ function locus(off) {
   _locus.set(key, out); return out;
 }
 const _gm = new Map();
-function growthMaxCached(b, off) { const key = b.toFixed(4) + '|' + off.toFixed(2); if (!_gm.has(key)) { if (_gm.size > 60) _gm.clear(); _gm.set(key, growthMax(b, off, 2000, 61)); } return _gm.get(key); }
+function growthMaxCached(b, off) { const key = b.toFixed(4) + '|' + off.toFixed(2); if (!_gm.has(key)) { if (_gm.size > 60) _gm.clear(); _gm.set(key, growthMax(b, off, 2000, NK)); } return _gm.get(key); }
 const pn = (v, k = 4) => (v == null || !isFinite(v) ? 'None' : Math.abs(v) < 1e-300 ? '0' : Math.abs(v) < 1e-3 || Math.abs(v) >= 1e5 ? v.toExponential(k - 1).replace(/\.?0+e/, 'e') : String(Number(v.toPrecision(k))));
 const pyc = z => `${z.re >= 0 ? '+' : '-'}${Math.abs(z.re).toFixed(3)}${z.im >= 0 ? '+' : '-'}${Math.abs(z.im).toFixed(3)}j`.replace(/^\+/, '');
 
@@ -2604,7 +2609,7 @@ function drawStreet(g, s) {
   } else lab(ctx, `kick ×${EX}, y ×${(sy / sx).toFixed(1)}`, w - 4, h - 8, { color: MU, align: 'right', bg: false });
   if (g.app.holding) {
     const gr = Math.exp(n.gk * 12);
-    Viz.card(ctx, w / 2, h / 2, gr > 1.05 ? [`t = 12 a²/Γ: the kick grew ×${Viz.fmt(gr, { sig: 3 })}`, `σ = ${f3(n.gk)} Γ/a²`] : [`t = 12 a²/Γ: the kick stayed at ×${f3(gr)}`, 'a neutral street: it oscillates'], { color: gr > 1.05 ? OR : TE });
+    Viz.card(ctx, w / 2, h / 2, gr > 1.05 ? [`t = 12 a²/Γ: the kick grew ×${Viz.fmt(gr, { sig: 3 })}`, `Re λ = ${f3(n.gk)} Γ/a²`] : [`t = 12 a²/Γ: the kick stayed at ×${f3(gr)}`, 'a neutral street: it oscillates'], { color: gr > 1.05 ? OR : TE });
   }
 }
 function streetTitle(s) {
@@ -2619,7 +2624,7 @@ function drawGrowth(g, s) {
   if (v.w < 60 || v.h < 50) return;
   const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 150;
   const AC = Viz.color('accent'), OR = Viz.color('orange'), TE = Viz.color('teal'), MU = Viz.color('muted'), TX = Viz.color('text');
-  const short = v.h < 130, xl = short ? '' : small ? 'b/a' : 'row separation b/a', yl = short ? '' : 'growth [Γ/a²]';
+  const short = v.h < 130, xl = short ? '' : small ? 'b/a' : 'row separation b/a', yl = short ? '' : small ? 'Re λ [Γ/a²]' : 'growth Re λ [Γ/a²]';
   const P = gutterPlot(v, { xlim: [0, 1], ylim: [0, 0.9], pad: short ? { l: 30, r: 6, t: 4, b: 16 } : small ? { l: 40, r: 8, t: 6, b: 30 } : { l: 50, r: 10, t: 8, b: 34 }, xlabel: xl, ylabel: yl },
     () => ({ grid: false, xticks: short ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1], yticks: short ? [0, 0.4, 0.8] : [0, 0.2, 0.4, 0.6, 0.8], xlabel: xl, ylabel: yl }));
   PG = { P };
@@ -2637,12 +2642,12 @@ function drawGrowth(g, s) {
     lab(ctx, 'facing rows: π/4', P.X(0.98), P.Y(PI / 4) - 11, { color: MU, align: 'right' });
     lab(ctx, n.stag ? 'closed form (π/2)|½ − sech²|' : 'closed form, staggered', P.X(0.68), P.Y(0.42), { color: AC, weight: 700, align: 'center' });
     lab(ctx, `marginal ${f4(RATIO)}`, P.X(RATIO) - 8, P.Y(0.075), { color: TE, weight: 700, align: 'right' });
-    lab(ctx, `σ = ${f3(n.galt)}`, P.X(n.b) + (n.b > 0.75 ? -8 : 8), P.Y(Math.max(n.galt, 0.006)) - 12, { color: Viz.color('rose'), weight: 700, align: n.b > 0.75 ? 'right' : 'left' });
+    lab(ctx, `Re λ = ${f3(n.galt)}`, P.X(n.b) + (n.b > 0.75 ? -8 : 8), P.Y(Math.max(n.galt, 0.006)) - 12, { color: Viz.color('rose'), weight: 700, align: n.b > 0.75 ? 'right' : 'left' });
   }
 }
 function growthTitle(s) {
   const n = N(s), lam = n.lam;
-  if (phone()) return `<b>Growth</b> · σ = ${f3(n.gk)} · λ = ${f2(lam[0])} ± ${f2(Math.abs(lam[1]))}i`;
+  if (phone()) return `<b>Growth</b> · Re λ = ${f3(n.gk)} · λ =${f2(lam[0])} ± ${f2(Math.abs(lam[1]))}i`;
   return `<b>Growth</b> · <span class="c-accent">closed form</span> · <span class="c-orange">numerical max</span> · <span class="c-rose">you</span> · <span class="c-teal">marginal</span>`;
 }
 
@@ -2652,7 +2657,7 @@ function drawSpec(g, s) {
   if (v.w < 60 || v.h < 50) return;
   const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 150;
   const OR = Viz.color('orange'), BL = Viz.color('blue'), TE = Viz.color('teal'), MU = Viz.color('muted'), RO = Viz.color('rose');
-  const xl = small ? 'Re λ' : 'Re λ  [Γ/a²]', yl = 'Im λ';
+  const xl = small ? 'Re λ' : 'growth Re λ  [Γ/a²]', yl = small ? 'Im λ' : 'frequency Im λ [Γ/a²]';
   const P = gutterPlot(v, { xlim: [-1.1, 1.1], ylim: [-1.6, 1.6], pad: small ? { l: 40, r: 8, t: 6, b: 30 } : { l: 50, r: 10, t: 8, b: 34 }, xlabel: xl, ylabel: yl },
     () => ({ grid: false, xticks: [-1, -0.5, 0, 0.5, 1], yticks: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5], xlabel: xl, ylabel: yl }));
   P.clip(() => {
@@ -2674,26 +2679,26 @@ function specTitle(s) { return `<b>Eigenvalues λ</b> · <span class="c-orange">
 /* ---- status, inspector, notes --------------------------------------------------------------------------------------------------- */
 function statusOf(s) {
   const n = N(s), sm = phone(), e3 = Viz.fmt(n.galt, { sig: 3 });
-  if (n.key === 'facing') return { text: sm ? `⚠️ facing rows: σ = π/4` : `⚠️ non-staggered rows: σ = π/4 = 0.7854 Γ/a² at every b/a`, tone: 'bad' };
-  if (n.key === 'marginal') return { text: sm ? `⚖️ marginal: σ ≈ ${Viz.fmt(n.galt, { sig: 2 })}` : `⚖️ marginal: growth ${Viz.fmt(n.galt, { sig: 2 })} Γ/a² ≈ 0 (cosh(πb/a) = √2, b/a = ${f4(RATIO)})`, tone: 'good' };
+  if (n.key === 'facing') return { text: sm ? `⚠️ facing rows: Re λ = π/4` : `⚠️ non-staggered rows: Re λ = π/4 = 0.7854 Γ/a² at every b/a`, tone: 'bad' };
+  if (n.key === 'marginal') return { text: sm ? `⚖️ marginal: Re λ ≈ ${Viz.fmt(n.galt, { sig: 2 })}` : `⚖️ marginal: growth ${Viz.fmt(n.galt, { sig: 2 })} Γ/a² ≈ 0 (cosh(πb/a) = √2, b/a = ${f4(RATIO)})`, tone: 'good' };
   const verdict = Math.abs(n.kk - PI) > 1e-6 ? (n.gk > 1e-3 ? ` · this k grows at ${f3(n.gk)}` : ' · this k is neutral') : '';
   const e = n.galt > 1e-9 ? Viz.fmt(1 / n.galt, { sig: 2 }) : '∞';
-  if (sm) return { text: `⚠️ unstable: σ = ${e3}${verdict}`, tone: 'warn' };
-  return { text: `⚠️ unstable: growth σ = ${e3} Γ/a² (e-fold every ${e} a²/Γ), b/a = ${f3(n.b)}${n.key === 'shifted' ? `, stagger ${f2(n.off)}` : ''}${verdict}`, tone: 'warn' };
+  if (sm) return { text: `⚠️ unstable: Re λ = ${e3}${verdict}`, tone: 'warn' };
+  return { text: `⚠️ unstable: growth Re λ = ${e3} Γ/a² (e-fold every ${e} a²/Γ), b/a = ${f3(n.b)}${n.key === 'shifted' ? `, stagger ${f2(n.off)}` : ''}${verdict}`, tone: 'warn' };
 }
 function inspectHtml(s) {
   if (s.probe < 0) return null;
   const n = N(s), r = Math.floor(s.probe / 100), i = s.probe % 100, NCc = 9, kv = kickVec(n.bd, s.amp, s.seed, NCc);
   const z = modeDisp(kv, n.lam, n.bd.k, s.t, r, i), x0 = i + (r ? n.off : 0), y0 = (r ? -1 : 1) * n.b / 2, name = (r ? 'B' : 'A') + '_{' + i + '}';
-  return R`Vortex $${name}$ (${r ? 'lower row, $+\Gamma$' : 'upper row, $-\Gamma$'}): rest position $(${t3(x0)},\,${t3(y0)})\,a$; true kick at $t=${t3(s.t)}$: $(\Delta x,\Delta y)=(${t3(z[0])},\,${t3(z[1])})\,a$ (drawn ×${EX}, capped).` +
+  return R`Vortex $${name}$ (${r ? 'lower row, $+\\Gamma$' : 'upper row, $-\\Gamma$'}): rest position $(${t3(x0)},\,${t3(y0)})\,a$; true kick at $t=${t3(s.t)}$: $(\Delta x,\Delta y)=(${t3(z[0])},\,${t3(z[1])})\,a$ (drawn ×${EX}, capped).` +
     (n.stag ? R`<br>Speed induced by the other row: $\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}=\frac12\tanh(${t3(PI * n.b)})=\mathbf{${t4(n.Us)}}\ \Gamma/a$.` : R`<br>The street-speed formula is for the staggered street ($o=\tfrac12$).`);
 }
 function interpText(s) {
   const n = N(s);
   const b = { marginal: `At <b>cosh(πb/a) = √2</b> the staggered street neither grows nor decays the alternating wiggle: the four λ sit on the imaginary axis, at ±iπ/4 Γ/a². This is the shape nature shows behind cylinders (b/a ≈ 0.28). Real streets are also helped by viscous spreading of the cores, which this model omits.`,
-    tight: `The rows are too close (b/a = ${f3(n.b)} < ${f3(RATIO)}): the kick grows as e^(σt) with σ = ${f3(n.galt)} Γ/a². The vortices clump and the street tears; only one spacing survives.`,
-    loose: `The rows are too far apart (b/a = ${f3(n.b)} > ${f3(RATIO)}): the kick grows with σ = ${f3(n.galt)} Γ/a². Move b/a toward ${f3(RATIO)} and the growth falls to zero, then rises again on the other side (a V).`,
-    facing: `Rows facing each other are unstable at <b>every</b> spacing: σ = π/4 = 0.7854 Γ/a² whatever b/a. Stagger the rows (o = 0.5) to get the one stable spacing.`,
+    tight: `The rows are too close (b/a = ${f3(n.b)} < ${f3(RATIO)}): the kick grows as e^(t Re λ) with Re λ = ${f3(n.galt)} Γ/a². The vortices clump and the street tears; only one spacing survives.`,
+    loose: `The rows are too far apart (b/a = ${f3(n.b)} > ${f3(RATIO)}): the kick grows with Re λ = ${f3(n.galt)} Γ/a². Move b/a toward ${f3(RATIO)} and the growth falls to zero, then rises again on the other side (a V).`,
+    facing: `Rows facing each other are unstable at <b>every</b> spacing: Re λ = π/4 = 0.7854 Γ/a² whatever b/a. Stagger the rows (o = 0.5) to get the one stable spacing.`,
     shifted: `A stagger of ${f2(n.off)} lies between facing (0) and staggered (0.5) rows. The numerical eigenvalues show growth ${f3(n.galt)} Γ/a² at b/a = ${f3(n.b)}: only o = ½ has a spacing with zero growth.` }[n.key];
   const lowk = Math.abs(n.kk - PI) > 1e-6 ? ` Your wavenumber k a = ${f2(s.k)} π grows at ${f3(n.gk)} Γ/a², against ${f3(n.galt)} for the alternating mode: long-wavelength wiggles grow more slowly.` : '';
   return `<p>${b}${lowk}</p><p><i>Point vortices, inviscid, linear theory: it explains the shape of the street, not the onset near Re ≈ 40.</i></p>`;
@@ -2706,12 +2711,12 @@ function explainHtml(s) {
   const W = Viz.work, n = N(s), sm = phone(), b = n.b;
   let o = W.step(0, 'What the views show') + (sm
     ? W.say('<b>Street</b>: <b class="c-blue">blue</b> upper row, <b class="c-rose">rose</b> lower row, dashed = the perfect street. <b>Growth</b>: <b class="c-accent">closed form</b>, <b class="c-orange">dots</b> = numerical maximum, <b class="c-rose">rose dot</b> = you.') + W.hint('The eigenvalue view is hidden on phones (the top eigenvalue is in the Growth title); turn the phone sideways for the street and growth side by side.')
-    : W.say('<b>The double row</b>: two rows of point vortices, <b class="c-blue">blue</b> = upper row (circulation −Γ, clockwise), <b class="c-rose">rose</b> = lower row (+Γ); dashed circles = the perfect street, filled = the kicked one, <b class="c-teal">teal</b> arrow = the speed the street travels at. <b>Growth</b>: the fastest growth rate against b/a: <b class="c-accent">closed form</b> for the alternating mode, <b class="c-orange">orange dots</b> = numerical maximum over 31 wavenumbers, <b class="c-rose">rose dot</b> = your setting, <b class="c-teal">teal dot</b> = the marginal spacing. <b>Eigenvalues</b>: the four exponents λ of the linearised motion (grey = all b/a); a positive real part is growth.'));
-  o += W.step(1, 'The velocity of a row, and the street speed') +
+    : W.say('<b>The double row</b>: two rows of point vortices, <b class="c-blue">blue</b> = upper row (circulation −Γ, clockwise), <b class="c-rose">rose</b> = lower row (+Γ); dashed circles = the perfect street, filled = the kicked one, <b class="c-teal">teal</b> arrow = the speed the street travels at (D14 writes +Γ on top instead: flipping every sign only reverses the travel and turns λ into −λ). <b>Growth</b>: the growth rate Re λ against b/a: <b class="c-accent">closed form</b> for the alternating mode, <b class="c-orange">orange dots</b> = numerical maximum over ' + NK + ' wavenumbers (as in §6), <b class="c-rose">rose dot</b> = your setting, <b class="c-teal">teal dot</b> = the marginal spacing. <b>Eigenvalues</b>: the four exponents λ of the linearised motion (grey = all b/a); growth rate Re λ, frequency Im λ.'));
+  o += W.step(1, 'The velocity of a row, and the street speed (D14 steps 3–4)') +
     W.say(R`One vortex has $w=u-iv=\frac{\Gamma}{2\pi i}\frac{1}{z-z_0}$. A row of spacing $a$ sums to $\sum_n\frac{1}{z-na}=\frac{\pi}{a}\cot\frac{\pi z}{a}$, so $w=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}$ (ours, Γ = a = 1 below).`) +
     W.line(R`$U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}=\tfrac12\tanh(\pi\times${t3(b)})=\tfrac12\tanh(${t3(PI * b)})$`, f4(n.Us) + ' Γ/a', 'the other row pushes each vortex the same way at the same speed, so the pattern moves rigidly') +
     W.box(R`$U_s=\mathbf{${t4(n.Us)}}\ \Gamma/a$${n.stag ? '' : ' (this formula is for the staggered street; yours is shifted)'}`);
-  o += W.step(2, 'The lattice sums of the alternating disturbance') +
+  o += W.step(2, 'The lattice sums of the alternating disturbance (D14 steps 6–9)') +
     W.say(R`Displace every vortex by $d(-1)^n$ (neighbours move oppositely). The other row then acts through two lattice sums with $\zeta=-o+ib$: $P=\frac{\pi^2}{\sin^2\pi\zeta}$ and $Q=\frac{\pi^2\cos\pi\zeta}{\sin^2\pi\zeta}$.`) +
     W.line(R`$\zeta=-o+ib=${t3(-n.off)}+${t3(b)}\,i$`, '', 'the offset o shifts the lower row along; b lifts it apart') +
     W.line(R`$P=\frac{\pi^2}{\sin^2\pi\zeta}$`, ctxt(n.P), n.stag ? 'for o = ½ this is π² sech²(πb): real' : 'complex for a general stagger') +
@@ -2719,82 +2724,109 @@ function explainHtml(s) {
     W.box(R`$P=\mathbf{${ctex(n.P)}},\ \ Q=\mathbf{${ctex(n.Q)}}$; a vortex's own row adds $\frac{\pi^2}{3}=3.290$ and $-\frac{\pi^2}{6}=-1.645$`);
   if (n.stag) {
     const a = t3(n.aH), sg = t3(n.aS);
-    o += W.step(3, 'The linear system') +
+    o += W.step(3, 'The linear system (D14 steps 10–12)') +
+      W.say(R`Conjugating the sums (D14 step 10), $\bar P=\frac{\pi^2}{\cosh^2\pi b}$, $\bar Q=-\frac{i\pi^2\sinh\pi b}{\cosh^2\pi b}$, leaves two dimensionless coefficients:`) +
       W.line(R`$\gamma=\tfrac12-\mathrm{sech}^2(\pi b)=\tfrac12-\frac{1}{${t3(n.ch)}^{2}}$`, f4(n.gam), 'γ measures how far the street is from the marginal spacing (γ = 0 there)') +
-      W.line(R`$\sigma=\frac{\sinh\pi b}{\cosh^2\pi b}=\frac{${t3(n.sh)}}{${t3(n.ch)}^{2}}$`, f4(n.sig), 'σ sets the oscillation') +
+      W.line(R`$\sigma=\frac{\sinh\pi b}{\cosh^2\pi b}=\frac{${t3(n.sh)}}{${t3(n.ch)}^{2}}$`, f4(n.sig), 'σ couples the rows and sets the oscillation (a coefficient, not a growth rate)') +
       W.box(R`$\begin{aligned}\dot x_A&=${sgn(-n.aH)}\,y_A${sgn(-n.aS)}\,x_B\\ \dot y_A&=${sgn(-n.aH)}\,x_A${sgn(n.aS)}\,y_B\\ \dot x_B&=${sgn(n.aS)}\,x_A${sgn(n.aH)}\,y_B\\ \dot y_B&=${sgn(-n.aS)}\,y_A${sgn(n.aH)}\,x_B\end{aligned}$`) +
       W.say(R`This is $\frac{\pi}{2}\begin{pmatrix}0&-\gamma&-\sigma&0\\-\gamma&0&0&\sigma\\\sigma&0&0&\gamma\\0&-\sigma&\gamma&0\end{pmatrix}$ with your γ and σ (Γ = a = 1).`);
-    o += W.step(4, 'The four eigenvalues') +
+    o += W.step(4, 'The four eigenvalues (D14 steps 13–14)') +
       W.line(R`$\lambda=\frac{\pi}{2}(\pm\gamma\pm i\sigma)=\pm${t3(n.aH)}\pm${t3(n.aS)}\,i$`, '', 'factorised polynomial: ((μ−γ)²+σ²)((μ+γ)²+σ²), μ = λ/(π/2)') +
       W.line(R`$\big[(\mu-${t3(n.gam)})^2+${t3(n.sig * n.sig)}\big]\big[(\mu+${t3(n.gam)})^2+${t3(n.sig * n.sig)}\big]=0$`, '', 'two conjugate pairs, one pair with Re μ = +γ and one with −γ') +
       W.line('numerical 4 × 4 (lattice sums)', n.ba.ev.map(e => ctxt([e.re, e.im], 3)).join(', '), 'the same four numbers, from the general code: an independent check') +
-      W.box(R`growth $\sigma_{\max}=\frac{\pi}{2}|\gamma|=\frac{\pi}{2}\times${t3(Math.abs(n.gam))}=\mathbf{${t4(n.gc)}}\ \Gamma/a^2$`);
+      W.box(R`growth $\max\mathrm{Re}\,\lambda=\frac{\pi}{2}|\gamma|=\frac{\pi}{2}\times${t3(Math.abs(n.gam))}=\mathbf{${t4(n.gc)}}\ \Gamma/a^2$`);
   } else {
     o += W.step(3, 'The linear system') +
       W.say(R`Only the staggered street ($o=\tfrac12$) reduces to two numbers γ and σ. Your offset $o=${t3(n.off)}$ uses the same 4 × 4 matrix built from the general $P$ and $Q$ above.`) +
-      W.hint(n.facing ? R`For facing rows ($o=0$) the characteristic polynomial is $(\mu^2-\tfrac14)^2$ for $\mu=\lambda/(\pi/2)$: independent of $b$ (D14, last step).` : 'Set the stagger to 0.5 to see γ and σ.');
+      W.hint(n.facing ? R`For facing rows ($o=0$) the characteristic polynomial is $(\mu^2-\tfrac14)^2$ for $\mu=\lambda/(\pi/2)$: independent of $b$ (D14 step 16).`: 'Set the stagger to 0.5 to see γ and σ.');
     o += W.step(4, 'The four eigenvalues') +
       W.line('numerical 4 × 4 (lattice sums)', n.ba.ev.map(e => ctxt([e.re, e.im], 3)).join(', '), 'eigenvalues of the alternating mode, units Γ/a²') +
-      W.box(R`growth $\sigma_{\max}=\mathbf{${t4(n.galt)}}\ \Gamma/a^2$${n.facing ? R`, which is $\pi/4=0.7854$ for every $b/a$` : ''}`);
+      W.box(R`growth $\max\mathrm{Re}\,\lambda=\mathbf{${t4(n.galt)}}\ \Gamma/a^2$${n.facing ? R`, which is $\pi/4=0.7854$ for every $b/a$` : ''}`);
   }
   const gm = growthMaxCached(b, n.off);
-  o += W.step(5, 'The marginal spacing') +
+  o += W.step(5, 'The marginal spacing (D14 step 15)') +
     W.line(R`$\gamma=0\iff\cosh^2\frac{\pi b}{a}=2\iff\frac{b}{a}=\frac{\cosh^{-1}\sqrt2}{\pi}=\frac{${t4(Math.acosh(Math.SQRT2))}}{\pi}$`, f4(RATIO), 'closed form; there σ = ½ and λ = ±iπ/4: pure oscillation, no growth') +
     W.line(R`$\cosh(\pi b)=${t4(n.ch)}$ against $\sqrt2=1.4142$`, n.stag ? `${f4(n.ch - Math.SQRT2)} apart` : '', 'the staggered street is neutral only when these two agree') +
     W.box(R`your $b/a-${t4(RATIO)}=\mathbf{${t3(n.dist)}}$${n.stag ? (Math.abs(n.dist) < 0.004 ? ' — marginal' : n.dist < 0 ? ' — too tight' : ' — too loose') : ''}`);
   o += W.step(6, 'Other disturbances') +
     W.line(R`$ka/\pi=${t3(s.k)}$ (wavelength $2\pi/k=${t3(2 / s.k)}\,a$)`, '', 'k a = π is the alternating wiggle; smaller values are longer waves along the street') +
     W.line('largest Re λ at your k', f4(n.gk) + ' Γ/a²', 'lattice sums cut at ±2000 (exact at k = π/a)') +
-    W.line('largest over 61 wavenumbers', f4(gm) + ' Γ/a²', 'the alternating mode k = π/a is the fastest for every b/a tried') +
+    W.line('largest over ' + NK + ' wavenumbers', f4(gm) + ' Γ/a²', 'the same ' + NK + ' wavenumbers as the orange dots (sums cut at ±2000 here, ±300 for the dots); k = π/a is the fastest for every b/a tried') +
     W.hint(R`Rows facing each other ($o=0$): every $b/a$ grows at $\pi/4=0.7854\ \Gamma/a^2$.`);
-  o += W.step(7, 'At the current time') + W.line('clock $t$', Viz.live('t')) + W.line(R`kick grown $e^{\sigma t}$`, Viz.live('amp')) +
+  o += W.step(7, 'At the current time') + W.line('clock $t$', Viz.live('t')) + W.line(R`kick grown $e^{t\,\mathrm{Re}\,\lambda}$`, Viz.live('amp')) +
     W.hint('The kick is drawn ×20 and capped at 0.3 a; the growth factor is exact linear theory.');
   o += W.step(8, 'Where you are: the growth table (closed form, alternating mode)') +
     W.say(TAB_ROWS.map((x, i) => { const cur = i === TAB_ROWS.reduce((bi, y, q) => (Math.abs(y - b) < Math.abs(TAB_ROWS[bi] - b) ? q : bi), 0); const txt = `b/a = ${f4(x)}: ${f3(growthClosed(x))}`; return cur ? `<b>${txt} ← you</b>` : txt; }).join(' · ') + ' (Γ/a²)');
   o += W.step(9, 'Reading the current setting') + W.interpret(interpText(s).replace(/<\/?p>/g, ' '), 'Reading the current setting');
   return o;
 }
-function explainLive(s) { const n = N(s); return { t: `${f3(s.t)} a²/Γ`, amp: `${Viz.fmt(n.amp, { sig: 3 })} (σ t = ${f3(n.gk * s.t)})` }; }
+function explainLive(s) { const n = N(s); return { t: `${f3(s.t)} a²/Γ`, amp: `${Viz.fmt(n.amp, { sig: 3 })} (t Re λ = ${f3(n.gk * s.t)})` }; }
 
 /* ---- Derivation D14 ------------------------------------------------------------------------------------------------------------------------ */
 const BASE = { b: 0.2, off: 0.5, k: 1, amp: 0.005, seed: 0, t: 6, probe: -1 };
 const MARG = Object.assign({}, BASE, { b: 0.2805 });
 const dv = (s) => N(s);
 const DERIV = [
-  { id: 'D14', title: 'Why only one spacing of the street is stable', short: 'D14 street', ref: 'Kármán (1912), ours', view: 'street', set: Object.assign({}, MARG),
-    goal: 'Explain why only one spacing of a staggered double row of point vortices does not grow: b/a = 0.2805.',
-    start: { tex: R`w=u-iv=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0}`, plain: 'The velocity of a point vortex (Ch. 5 and 6). The book only states Kármán’s result 0.28; here we derive it as the closed form of the linear stability.' },
-    plan: ['Sum the two rows and find the street’s own speed.', 'Perturb every vortex and linearise.', 'Take the alternating disturbance and reduce to a 4 × 4 matrix.', 'Read its eigenvalues.'],
-    uses: ['cotangent sum of a row (primer)', 'linear stability (primer)', 'eigenvalues', 'complex conjugate', 'hyperbolic functions', 'sympy check'],
+  { id: 'D14', title: 'Kármán street stability: why only one spacing is stable', short: 'D14 street', ref: 'Kármán (1912), ours', view: 'street', set: Object.assign({}, MARG),
+    goal: 'Explain why only one spacing of a staggered double row of point vortices does not grow.',
+    start: { tex: R`w=u-iv=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0}`, plain: 'The velocity of a point vortex (Ch. 5; Ch. 6 complex potential). The book only states Kármán’s result 0.28; we derive it (we call it the closed form of the linear stability).' },
+    plan: ['Sum the rows.', 'Find the street’s own speed.', 'Perturb and linearise.', 'Take the alternating disturbance and reduce to a 4 × 4 matrix.', 'Read its eigenvalues.'],
+    uses: ['a row of vortices: the cotangent sum (primer P213)', 'linear stability (primer P214)', 'eigenvalues (ch02 P80)', 'complex conjugate (ch02 P81)', 'hyperbolic functions (ch07 P168)', 'sympy (ch01 P40)'],
     steps: [
-      { did: 'Set up the street', tex: R`z_A=na+\tfrac{ib}{2}\ (\Gamma),\qquad z_B=(n+\tfrac12)a-\tfrac{ib}{2}\ (-\Gamma)`, why: 'Two rows of counter-rotating point vortices, spacing a, separation b, the lower row shifted by half a spacing (the staggered street). The opposite overall sign only reverses the direction of travel.', plain: 'Two staggered rows.', set: { off: 0.5, k: 1, t: 0, seed: 0 } },
-      { did: 'Recall one vortex', tex: R`w=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0},\qquad \frac{dz}{dt}=\bar w`, why: 'The conjugate velocity of a point vortex (Ch. 5, 6); each vortex is carried by the local velocity of all the others.', plain: 'Each vortex moves with the flow the others make.' },
-      { did: 'Sum a whole row', tex: R`w_{\rm row}=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}`, why: 'The sum Σ 1/(z − na) equals (π/a)cot(πz/a); pairing +n with −n makes it converge (primer).', plain: 'An infinite row gives a cotangent.' },
-      { did: 'Find the street’s own speed', tex: R`U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}`, why: 'Vortex A feels only row B (its own row cancels by symmetry). With ζ = −a/2 + ib, cot(−π/2 + iπb/a) = −i tanh(πb/a): the velocity is real and equal for A and B.', plain: 'The pattern moves as a whole.',
+      { did: 'Set up the street', tex: R`z_A=na+\tfrac{ib}{2}\ (\Gamma),\qquad z_B=(n+\tfrac12)a-\tfrac{ib}{2}\ (-\Gamma)`,
+        why: 'Two rows of counter-rotating vortices, spacing a, separation b, the lower row shifted by a/2 (the staggered street); the facing rows are checked in step 16.', plain: 'Two staggered rows.',
+        set: { off: 0.5, k: 1, t: 0, seed: 0 },
+        watch: 'Sign convention: the picture (like fluidpy) puts −Γ on the blue upper row, the wake of a flow to the right. Flipping every circulation only reverses the travel and turns each λ into −λ; the four λ come in ± pairs, so the growth is the same.' },
+      { did: 'Recall one vortex', tex: R`w=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0},\qquad\frac{dz}{dt}=\bar w`,
+        why: 'The conjugate velocity of a point vortex (Ch. 5, Ch. 6); the vortex is carried by the local velocity of all the others.', plain: 'Each vortex moves with the flow the others make.' },
+      { did: 'Sum a whole row', tex: R`w_{row}=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}`,
+        why: 'Σₙ 1/(z − na) = (π/a)cot(πz/a): pairing +n with −n makes the sum converge (primer P213).', plain: 'An infinite row gives a cotangent.' },
+      { did: 'Find the street’s own speed', tex: R`U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}`,
+        why: 'Vortex A feels only row B (its own row cancels by symmetry): w = −(Γ/2ia)cot(πζ/a) with ζ = z_A − z_B = −a/2 + ib, and cot(−π/2 + iπb/a) = −i tanh(πb/a); w is real and the same for A and B, so the street translates rigidly.',
+        plain: 'The pattern moves as a whole.',
         live: s => { const n = dv(s); return R`U_s=\tfrac12\tanh(${t3(PI * n.b)})=${t4(n.Us)}\ \Gamma/a`; }, highlight: ['readout:Us'] },
-      { did: 'Perturb and linearise', tex: R`\dot\delta_i=\sum_{j,n}\frac{\Gamma_j}{2\pi i}\,\frac{\bar\delta_i-\bar\delta_{j,n}}{\overline{(z_i-z_{j,n})}^{\,2}}`, why: 'Displace each vortex z → z + δ, differentiate w_i = Σ(Γ_j/2πi)/(z_i − z_j) to first order, and use dδ/dt = conj(dw).', plain: 'A linear equation for the displacements.' },
-      { did: 'Take the alternating disturbance', tex: R`\delta_{A,n}=d_A(-1)^n,\qquad \delta_{B,n}=d_B(-1)^n`, why: 'The wavenumber π/a is the most dangerous one (a scan of all k confirms it for every b/a tried); it reduces the infinite system to two complex unknowns.', plain: 'Neighbours move in opposite directions.',
+      { did: 'Perturb and linearise', tex: R`\dot\delta_i=\sum_{j,n}\frac{\Gamma_j}{2\pi i}\,\frac{\bar\delta_i-\bar\delta_{j,n}}{\overline{(z_i-z_{j,n})}^{\,2}}`,
+        why: 'Displace each vortex z → z + δ; differentiate w_i = Σ(Γ_j/2πi)/(z_i − z_j) to first order: dw = −Σ(Γ_j/2πi)(δ_i − δ_j)/(z_i − z_j)², and dδ/dt = conj(dw).', plain: 'A linear equation for the displacements.' },
+      { did: 'Take the alternating disturbance', tex: R`\delta_{A,n}=d_A(-1)^n,\qquad\delta_{B,n}=d_B(-1)^n`,
+        why: 'The wavenumber π/a is the most dangerous one (the k-scan in the notebook confirms it for every b/a tried); it reduces the infinite system to two complex unknowns.', plain: 'Neighbours move in opposite directions.',
         set: { k: 1, t: 4, amp: 0.01 }, watch: 'adjacent vortices move in opposite directions' },
-      { did: 'Reduce the sums to lattice sums', tex: R`P_{ij}=\sum_n\frac{1}{(\zeta_{ij}-na)^2},\qquad Q_{ij}=\sum_n\frac{(-1)^n}{(\zeta_{ij}-na)^2}`, why: 'Step 6 in step 5 gives d_i-dot = Σ_j(Γ_j/2πi)(d̄_i P̄_ij − d̄_j Q̄_ij). Closed forms: P = π²/(a² sin²(πζ/a)), Q = π² cos/(a² sin²); own row (n ≠ 0): π²/3a² and −π²/6a².', plain: 'The infinite sums have closed forms.',
+      { did: 'Reduce the sums to lattice sums', tex: R`P_{ij}=\sum_n\frac{1}{(\zeta_{ij}-na)^2},\qquad Q_{ij}=\sum_n\frac{(-1)^n}{(\zeta_{ij}-na)^2}`,
+        why: R`Step 6 in step 5 gives $\dot d_i=\sum_j\frac{\Gamma_j}{2\pi i}\big(\bar d_i\bar P_{ij}-\bar d_j\bar Q_{ij}\big)$; P = π²/(a² sin²(πζ/a)), Q = π² cos/(a² sin²) (P213); for i = j (n ≠ 0): π²/3a² and −π²/6a².`,
+        plain: 'Closed forms.',
         live: s => { const n = dv(s); return R`P=${ctex(n.P)},\ \ Q=${ctex(n.Q)}`; } },
-      { did: 'Write the two equations', tex: R`\begin{aligned}\dot d_A&=\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_A-\bar P\bar d_A+\bar Q\bar d_B\Big]\\ \dot d_B&=-\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_B-\bar P\bar d_B+\bar Q\bar d_A\Big]\end{aligned}`, why: 'Own row: P_ii − Q_ii = π²/2a²; the other row has the opposite circulation; P and Q are the same for A→B and B→A because sin² and cos are even.', plain: 'Two coupled equations.' },
-      { did: 'Evaluate at the staggered offset', tex: R`\sin\frac{\pi\zeta}{a}=-\cosh\frac{\pi b}{a},\qquad \cos\frac{\pi\zeta}{a}=i\sinh\frac{\pi b}{a}`, why: 'ζ = −a/2 + ib: sin(−π/2 + iπb/a) = −cos(iπb/a) = −cosh and cos(−π/2 + iπb/a) = sin(iπb/a) = i sinh. So P is real and Q imaginary.', plain: 'The lattice sums in hyperbolic functions.',
+      { did: 'Write the two equations', tex: R`\begin{aligned}\dot d_A&=\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_A-\bar P\bar d_A+\bar Q\bar d_B\Big];\\ \dot d_B&=-\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_B-\bar P\bar d_B+\bar Q\bar d_A\Big]\end{aligned}`,
+        why: 'Own row: P_ii − Q_ii = π²/2a²; the other row has the opposite circulation; P_BA = P_AB and Q_BA = Q_AB because sin² and cos are even.', plain: 'Two coupled equations.' },
+      { did: 'Evaluate at the staggered offset', tex: R`\sin\frac{\pi\zeta}{a}=-\cosh\frac{\pi b}{a},\ \ \cos\frac{\pi\zeta}{a}=i\sinh\frac{\pi b}{a}`,
+        why: 'ζ = −a/2 + ib: sin(−π/2 + iπb/a) = −cos(iπb/a) = −cosh and cos(−π/2 + iπb/a) = sin(iπb/a) = i sinh. Hence P = π²/(a²cosh²) is real and Q = iπ² sinh/(a²cosh²) imaginary.',
+        plain: 'The lattice sums in hyperbolic functions.',
         live: s => { const n = dv(s); return R`\sin\pi\zeta=-\cosh(\pi\times${t3(n.b)})=${t4(-n.ch)}`; } },
-      { did: 'Insert and simplify', tex: R`\begin{aligned}\dot d_A&=-\frac{i\pi}{2}\big[\gamma\bar d_A-i\sigma\bar d_B\big]\\ \dot d_B&=\frac{i\pi}{2}\big[\gamma\bar d_B-i\sigma\bar d_A\big]\end{aligned}`, why: 'With Γ = a = 1: Γ/2πi = −i/2π. γ = ½ − sech²(πb) and σ = sinh(πb)/cosh²(πb) collect the coefficients; units Γ/a² are restored at the end.', plain: 'Two numbers, γ and σ, control everything.' },
-      { did: 'Split into real and imaginary parts', tex: R`\dot{\mathbf x}=\frac{\pi}{2}\begin{pmatrix}0&-\gamma&-\sigma&0\\-\gamma&0&0&\sigma\\\sigma&0&0&\gamma\\0&-\sigma&\gamma&0\end{pmatrix}\mathbf x`, why: 'Write d = x + iy, d̄ = x − iy and collect real and imaginary parts of step 10, with x = (x_A, y_A, x_B, y_B). A real linear system: its eigenvalues decide stability (primer).', plain: 'A 4 × 4 matrix.',
+      { did: 'Conjugate the lattice sums', tex: R`\begin{aligned}\bar P&=\frac{\pi^2}{a^2\cosh^2(\pi b/a)},\\ \bar Q&=-\frac{i\pi^2\sinh(\pi b/a)}{a^2\cosh^2(\pi b/a)}\end{aligned}`,
+        why: 'Step 9 made P real and Q purely imaginary, so complex conjugation leaves P unchanged and flips the sign of Q; these barred sums are the ones that stand in the two equations of step 8, and we need them before we can simplify those equations.',
+        plain: 'The two sums, ready to insert.',
+        live: s => { const n = dv(s); return n.stag ? R`\bar P=${t4(n.P[0])},\ \ \bar Q=${ctex(cconj(n.Q))}` : R`\bar P=${ctex(cconj(n.P))},\ \ \bar Q=${ctex(cconj(n.Q))}\ (o\ne\tfrac12)`; } },
+      { did: 'Insert and simplify', tex: R`\begin{aligned}\dot d_A&=-\frac{i\pi}{2}\big[\gamma\bar d_A-i\sigma\bar d_B\big],\\ \dot d_B&=\frac{i\pi}{2}\big[\gamma\bar d_B-i\sigma\bar d_A\big]\end{aligned}`,
+        why: 'With Γ = a = 1: Γ/2πi = −i/2π; γ = ½ − sech²(πb) and σ = sinh(πb)/cosh²(πb) collect the coefficients (units Γ/a² restored at the end).', plain: 'Two numbers γ, σ control everything.',
         live: s => { const n = dv(s); return R`\gamma=${t4(n.gam)},\ \ \sigma=${t4(n.sig)}`; }, highlight: ['readout:gam', 'readout:sig'] },
-      { did: 'Factorise the characteristic polynomial', tex: R`\det(M-\mu I)=\big[(\mu-\gamma)^2+\sigma^2\big]\big[(\mu+\gamma)^2+\sigma^2\big]`, why: 'Direct expansion of the determinant (checked with sympy): two conjugate quadratics. The ODE eigenvalues are λ = (πΓ/2a²)μ.', plain: 'μ = ±γ ± iσ.', watch: 'the quartic splits into two conjugate pairs',
+      { did: 'Split into real and imaginary parts', tex: R`\begin{aligned}\dot{\mathbf x}&=\frac{\pi}{2}\begin{pmatrix}0&-\gamma&-\sigma&0\\-\gamma&0&0&\sigma\\\sigma&0&0&\gamma\\0&-\sigma&\gamma&0\end{pmatrix}\mathbf x,\\ \mathbf x&=(x_A,y_A,x_B,y_B)\end{aligned}`,
+        why: 'd = x + iy, d̄ = x − iy: collect real and imaginary parts of step 11. A real linear system: its eigenvalues decide stability (P214).', plain: 'A 4 × 4 matrix.',
+        live: s => { const n = dv(s); return R`\gamma=${t4(n.gam)},\ \ \sigma=${t4(n.sig)}`; }, highlight: ['readout:gam', 'readout:sig'] },
+      { did: 'Factorise the characteristic polynomial', tex: R`\det(M-\mu I)=\big[(\mu-\gamma)^2+\sigma^2\big]\big[(\mu+\gamma)^2+\sigma^2\big]`,
+        why: 'Direct expansion of the determinant (sympy check): two conjugate quadratics; the ODE eigenvalues are λ = (πΓ/2a²)μ.', plain: 'μ = ±γ ± iσ.', watch: 'the quartic splits into two conjugate pairs',
         live: s => { const n = dv(s); return R`\mu=\pm${t3(Math.abs(n.gam))}\pm${t3(n.sig)}\,i`; } },
-      { did: 'Read the growth rate', tex: R`\mathrm{Re}\,\lambda=\frac{\pi\Gamma}{2a^2}\Big|\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big|`, why: 'The real part of μ = ±γ ± iσ is ±γ; growth is the positive one, |γ|.', plain: 'It grows unless γ = 0.',
-        live: s => { const n = dv(s); return R`\tfrac{\pi}{2}\times|${t3(n.gam)}|=${t4(n.gc)}\ \Gamma/a^2`; }, highlight: ['readout:gk'] },
-      { did: 'Find the marginal spacing', tex: R`\begin{aligned}\gamma=0&\iff\cosh\frac{\pi b}{a}=\sqrt2\\ \frac{b}{a}&=\frac{\cosh^{-1}\sqrt2}{\pi}=0.2805\end{aligned}`, why: 'γ = ½ − 1/cosh² vanishes when cosh² = 2; there σ = ½, so λ = ±i(π/4)Γ/a²: pure oscillation.', plain: 'One neutral spacing.',
+      { did: 'Read the growth rate', tex: R`\mathrm{Re}\,\lambda=\frac{\pi\Gamma}{2a^2}\Big\lvert\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big\rvert`,
+        why: 'The real part of μ = ±γ ± iσ is ±γ; growth is the positive one, |γ|.', plain: 'It grows unless γ = 0.',
+        live: s => { const n = dv(s); return R`\mathrm{Re}\,\lambda=\tfrac{\pi}{2}\times|${t3(n.gam)}|=${t4(n.gc)}\ \Gamma/a^2`; }, highlight: ['readout:gk'] },
+      { did: 'Find the marginal spacing', tex: R`\begin{aligned}\gamma=0&\ \Leftrightarrow\ \cosh\frac{\pi b}{a}=\sqrt2\\ &\ \Leftrightarrow\ \frac{b}{a}=\frac1\pi\cosh^{-1}\sqrt2=0.2805\end{aligned}`,
+        why: 'γ = ½ − 1/cosh² vanishes when cosh² = 2; there σ = ½, so λ = ±i(π/4)Γ/a²: pure oscillation.', plain: 'One neutral spacing.',
         set: { b: 0.2805, off: 0.5, t: 8 } },
-      { did: 'Check the facing rows', tex: R`\begin{aligned}\det(M-\mu I)&=\Big(\mu^2-\frac14\Big)^2\\ \Rightarrow\ \mathrm{Re}\,\lambda&=\frac{\pi\Gamma}{4a^2}\end{aligned}`, why: 'Repeat steps 7–12 with ζ = ib: P = −π²/(a² sinh²), Q = −π² cosh/(a² sinh²) (real). For μ = λ/(π/2) the polynomial no longer depends on b; in λ it is (λ² − π²/16)².', plain: 'Facing rows never settle.',
-        set: { off: 0, b: 0.28, t: 6 }, watch: 'growth π/4 at every b/a' }
+      { did: 'Check the facing rows', tex: R`\begin{aligned}&\det(M-\mu I)=\big(\mu^2-\tfrac14\big)^2\\ &\Rightarrow\ \mathrm{Re}\,\lambda=\tfrac{\pi\Gamma}{4a^2}\\ &\text{in}\ \lambda=\tfrac{\pi}{2}\mu:\ (\lambda^2-\pi^2/16)^2\\ &\text{eigenvalues}\ \pm\pi/4\ \text{either way}\end{aligned}`,
+        why: 'Repeat steps 7–13 with ζ = ib: P = −π²/(a² sinh²), Q = −π² cosh/(a² sinh²) (real); the polynomial no longer depends on b (sympy check): unstable at every spacing.', plain: 'Facing rows never settle.',
+        set: { off: 0, b: 0.28, t: 6 }, watch: 'μ is the eigenvalue of M/(π/2), as in steps 12–15; growth Re λ = π/4 at every b/a' }
     ],
-    result: { tex: R`\begin{aligned}\sigma&=\frac{\pi\Gamma}{2a^2}\Big|\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big|\\ \sigma=0&\iff\frac{b}{a}=0.2805\end{aligned}`, plain: 'The staggered street is neutral at one spacing only; facing rows grow at π/4 Γ/a² for every b. The shape of the street is fixed.', set: { off: 0.5, b: 0.2805, t: 8 } },
-    interpret: s => { const n = dv(s); return `At b/a = ${f3(n.b)} (stagger ${f2(n.off)}) the largest growth rate is ${f4(n.galt)} Γ/a²; the marginal spacing is ${f4(RATIO)}.`; },
-    check: 'Units 1/s (Γ/a²). Γ = a = 1: b/a = 0.1, 0.2, 0.25, 0.3, 0.5 give 0.6400, 0.2982, 0.1099, 0.0663, 0.5359, equal to the numerical maximum over k of the full linearisation. At 0.2805 the eigenvalues are ±0.7854i; U_s = 0.3536 Γ/a. sympy: the factorisation of the matrix built from the lattice sums, γ = 0 solved, and facing rows repeated (selftest rows).' }
+    result: { tex: R`\begin{aligned}\text{growth}\ \mathrm{Re}\,\lambda&=\frac{\pi\Gamma}{2a^2}\Big\lvert\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big\rvert\\ \text{zero only at}\ \frac ba&=\frac1\pi\cosh^{-1}\sqrt2=0.2805\\ \text{facing rows grow at}&\ \frac{\pi}{4}\frac{\Gamma}{a^2}\ \text{for every}\ b\end{aligned}`,
+      plain: 'The street’s shape is fixed. Nature’s streets have b/a ≈ 0.28; viscosity and finite cores are not in the model, so it explains the shape, not the onset at Re ≈ 40.', set: { off: 0.5, b: 0.2805, t: 8 } },
+    interpret: s => { const n = dv(s); return `At b/a = ${f3(n.b)} (stagger ${f2(n.off)}) the largest growth rate is Re λ = ${f4(n.galt)} Γ/a²; the marginal spacing is ${f4(RATIO)}.`; },
+    check: 'Units 1/s ✓ (Γ/a²). Γ = a = 1: b/a = 0.1 → 0.6400, 0.2 → 0.2982, 0.25 → 0.1099, 0.3 → 0.0663, 0.5 → 0.5359 (all equal to the numerical maximum over k of the full linearisation, 1e-6). At 0.2805 the eigenvalues are ±0.7854 i. Street speed at the stable spacing: tanh(arccosh √2) = 1/√2, U_s = 0.3536 Γ/a. Here the selftest rows check the closed form, the spectrum and the maximum over k against fluidpy.' }
 ];
 
 /* ---- code, walkthrough, equations, quiz ----------------------------------------------------------------------------------------------------------- */
@@ -2814,9 +2846,9 @@ const TOUR = [
   { title: 'Two rows of vortices', text: 'Behind a bluff body, vortices of opposite spin peel off alternately into a staggered double row. Is its shape arbitrary? Press ▶ with b/a = 0.28 and watch a small kick.', set: Object.assign({}, MARG, { t: 0 }), play: true },
   { title: 'A row moves a vortex', text: 'Each row pushes every vortex of the other row along. Summing an infinite row gives a cotangent, and the street travels at $U_s=\\frac{\\Gamma}{2a}\\tanh\\frac{\\pi b}{a}$.', set: Object.assign({}, MARG), derive: { id: 'D14', step: 4 }, readouts: ['Us'] },
   { title: 'Kick it', text: 'Now b/a = 0.15. Press Kick: the wiggle grows exponentially and the street tears. Neighbouring vortices move in opposite directions.', set: Object.assign({}, BASE, { b: 0.15, t: 0 }), play: true, controls: ['kick', 'b'] },
-  { title: 'Linearise', text: 'For small displacements the motion is linear: a 4 × 4 matrix with entries $\\gamma=\\frac12-\\mathrm{sech}^2\\frac{\\pi b}{a}$ and $\\sigma=\\frac{\\sinh(\\pi b/a)}{\\cosh^2(\\pi b/a)}$.', set: Object.assign({}, BASE, { b: 0.15 }), derive: { id: 'D14', step: 11 }, readouts: ['gam', 'sig'] },
-  { title: 'Eigenvalues', text: 'The growth is $\\frac{\\pi}{2}|\\gamma|$: zero exactly when $\\cosh\\frac{\\pi b}{a}=\\sqrt2$. Watch the eigenvalue dots reach the imaginary axis at b/a = 0.2805.', set: Object.assign({}, MARG), eq: 'marg', derive: { id: 'D14', step: 14 }, readouts: ['gk'] },
-  { title: 'Facing rows', text: 'Put the rows face to face (stagger 0): the growth is π/4 at every b/a. Only the staggered street has a stable spacing.', set: Object.assign({}, BASE, { off: 0, b: 0.28 }), derive: { id: 'D14', step: 15 } },
+  { title: 'Linearise', text: 'For small displacements the motion is linear: a 4 × 4 matrix with entries $\\gamma=\\frac12-\\mathrm{sech}^2\\frac{\\pi b}{a}$ and $\\sigma=\\frac{\\sinh(\\pi b/a)}{\\cosh^2(\\pi b/a)}$.', set: Object.assign({}, BASE, { b: 0.15 }), derive: { id: 'D14', step: 12 }, readouts: ['gam', 'sig'] },
+  { title: 'Eigenvalues', text: 'The growth rate is $\\mathrm{Re}\\,\\lambda=\\frac{\\pi}{2}|\\gamma|$: zero exactly when $\\cosh\\frac{\\pi b}{a}=\\sqrt2$. Watch the eigenvalue dots reach the imaginary axis at b/a = 0.2805.', set: Object.assign({}, MARG), eq: 'marg', derive: { id: 'D14', step: 15 }, readouts: ['gk'] },
+  { title: 'Facing rows', text: 'Put the rows face to face (stagger 0): the growth is π/4 at every b/a. Only the staggered street has a stable spacing.', set: Object.assign({}, BASE, { off: 0, b: 0.28 }), derive: { id: 'D14', step: 16 } },
   { title: 'Your turn', text: 'Find the two spacings where the growth is 0.2 Γ/a². Predict them from the V around 0.2805, then drag b/a and check with the readout.', set: Object.assign({}, BASE, { b: 0.2 }), controls: ['b'], readouts: ['gk', 'dist'] }
 ];
 const EQS = [
@@ -2824,15 +2856,15 @@ const EQS = [
     symbols: [['\\Gamma', 'circulation of each vortex', 'm²/s'], ['a', 'spacing along a row', 'm'], ['z_0', 'position of one vortex of the row', 'm']], note: 'The sum of 1/(z − na) over all n converges in ±n pairs.' },
   { id: 'speed', title: 'Street speed', ref: 'D14 step 4', tex: R`U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}`, live: s => { const n = N(s); return R`U_s=\tfrac12\tanh(${t3(PI * n.b)})=${t4(n.Us)}\ \Gamma/a`; },
     symbols: [['b', 'distance between the rows', 'm']], note: 'With Γ = a = 1; 0.3536 Γ/a at the stable spacing.' },
-  { id: 'growth', title: 'Growth rate (alternating)', ref: 'D14 step 13', tex: R`\begin{aligned}\sigma&=\frac{\pi\Gamma}{2a^2}\,|\gamma|\\ \gamma&=\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\end{aligned}`, live: s => { const n = N(s); return R`\sigma=\tfrac{\pi}{2}|${t3(n.gam)}|=${t3(n.gc)}\,\Gamma/a^2`; },
-    symbols: [[R`\sigma`, 'growth rate', 'Γ/a²'], ['b/a', 'row separation over spacing', '–']], note: 'Staggered street (offset ½), disturbance wavenumber π/a; the numerical maximum over all k agrees.' },
-  { id: 'marg', title: 'Marginal spacing', ref: 'D14 step 14', tex: R`\begin{aligned}\cosh\frac{\pi b}{a}&=\sqrt2\\ \frac{b}{a}&=\frac{\cosh^{-1}\sqrt2}{\pi}=0.2805\end{aligned}`, live: s => { const n = N(s); return R`\cosh(\pi\times${t3(n.b)})=${t4(n.ch)}\ \text{vs}\ \sqrt2=1.4142`; },
+  { id: 'growth', title: 'Growth rate (alternating)', ref: 'D14 step 14', tex: R`\begin{aligned}\mathrm{Re}\,\lambda&=\tfrac{\pi\Gamma}{2a^2}|\gamma|\\ \gamma&=\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\end{aligned}`, live: s => { const n = N(s); return R`\tfrac{\pi}{2}|${t3(n.gam)}|=${t3(n.gc)}\,\Gamma/a^2`; },
+    symbols: [[R`\mathrm{Re}\,\lambda`, 'growth rate (real part of the eigenvalue λ)', 'Γ/a²'], [R`\gamma`, 'D14 coefficient ½ − sech²(πb/a)', '–'], ['b/a', 'row separation over spacing', '–']], note: 'Staggered street (offset ½), disturbance wavenumber π/a; the numerical maximum over all k agrees.' },
+  { id: 'marg', title: 'Marginal spacing', ref: 'D14 step 15', tex: R`\begin{aligned}\cosh\frac{\pi b}{a}&=\sqrt2\\ \frac{b}{a}&=\frac{\cosh^{-1}\sqrt2}{\pi}=0.2805\end{aligned}`, live: s => { const n = N(s); return R`\cosh(\pi\times${t3(n.b)})=${t4(n.ch)}\ \text{vs}\ \sqrt2=1.4142`; },
     note: 'The only spacing where the staggered street neither grows nor decays the wiggle; there λ = ±iπ/4 Γ/a².' },
   { id: 'st', title: 'Strouhal number', ref: 'Eq. (4.102)', tex: R`St=\frac{\Omega d}{U_\infty}\approx0.2`, live: s => R`f=St\,\frac{U}{d}\ \ (\text{cylinder of diameter }d)`,
     symbols: [[R`\Omega`, 'shedding frequency (the book’s Ω is in Hz)', 'Hz'], ['d', 'cylinder diameter', 'm'], [R`U_\infty`, 'free-stream speed', 'm/s']], note: 'The street is shed at this beat; its shape (b/a) is the subject of this page.' }
 ];
 const QUIZ = [
-  { q: 'At b/a = 0.2 (staggered) is the street stable? What is the growth rate?', a: 'No: σ = (π/2)|½ − sech²(0.2π)| = 0.298 Γ/a². The kick grows by e^(0.298 t).', set: Object.assign({}, BASE, { b: 0.2, t: 0 }) },
+  { q: 'At b/a = 0.2 (staggered) is the street stable? What is the growth rate?', a: 'No: Re λ = (π/2)|½ − sech²(0.2π)| = 0.298 Γ/a². The kick grows by e^(0.298 t).', set: Object.assign({}, BASE, { b: 0.2, t: 0 }) },
   { q: 'Find the two spacings with growth 0.1099 Γ/a².', a: 'b/a = 0.25 and 0.313: the growth curve is a V with its zero at 0.2805 (a little steeper on the tight side).', set: Object.assign({}, BASE, { b: 0.25 }) },
   { q: 'What happens to the growth when the rows face each other (stagger 0)?', a: 'It is π/4 = 0.785 Γ/a² at every b/a: unstable everywhere, so only a staggered street can settle.', set: Object.assign({}, BASE, { off: 0, b: 0.28 }) },
   { q: 'Slide the wavenumber ka/π from 1 down to 0.3 at b/a = 0.2. Does the wiggle grow faster or slower?', a: 'Slower: the alternating mode ka = π is the fastest-growing disturbance; long waves along the street grow more slowly.', set: Object.assign({}, BASE, { b: 0.2, k: 0.3 }) }
@@ -2886,7 +2918,7 @@ const app = Viz.app({
   readouts: [
     { id: 'gam', label: 'γ = ½ − sech²(πb/a)', value: s => N(s).gam },
     { id: 'sig', label: 'σ = sinh/cosh²', value: s => N(s).sig },
-    { id: 'gk', label: 'Growth at your k', unit: 'Γ/a²', value: s => N(s).gk },
+    { id: 'gk', label: 'Re λ at your k', unit: 'Γ/a²', value: s => N(s).gk },
     { id: 'Us', label: 'Street speed U_s', unit: 'Γ/a', value: s => (N(s).stag ? N(s).Us : null) },
     { id: 'dist', label: 'Distance from 0.2805', value: s => N(s).dist }
   ],

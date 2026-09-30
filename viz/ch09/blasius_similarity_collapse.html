@@ -2723,7 +2723,22 @@ function explainLive(s) {
   return { x: `${f3(s.x)} m (stations ${xlab(s).join(', ')} m)`, Rex: Viz.fmt(n.Rex, { sig: 3 }), d99: mm(n.d99[2]), tau0: `${f3(n.tau0)} Pa` };
 }
 
-/* ---- derivations (design Part F: D05 13 steps, D06 10 steps) ---------------------------------------------------------- */
+/* ---- derivations (the notebook's steps: D05 13 steps, D06 14 steps) ---------------------------------------------------- */
+/** I_theta(eta) = ∫_0^eta f'(1 - f') d eta' (Simpson, 400 panels): the momentum integral cut off at eta (D06 steps 8–10). */
+function Ith(eta) {
+  const n = 400, h = eta / n; let sm = 0;
+  for (let i = 0; i <= n; i++) { const g = fpv(i * h, 1), w = i === 0 || i === n ? 1 : i % 2 ? 4 : 2; sm += w * g * (1 - g); }
+  return sm * h / 3;
+}
+/** D06 step 9 with numbers: f''(0) = ½I_θ(η) − ½f(1 − f') + f''(η) at the probe η. */
+function cutTerms(eta) {
+  const f = fpv(eta, 0), fp = fpv(eta, 1), fpp = fpv(eta, 2), a = 0.5 * Ith(eta), b = 0.5 * f * (1 - fp);
+  return { a, b, c: fpp, sum: a - b + fpp };
+}
+function cutLine(eta) {
+  const T = cutTerms(eta);
+  return `\\begin{aligned}f''(0)&=\\tfrac12I_\\theta-\\tfrac12f(1-f')+f''\\big|_{\\eta=${t3(eta)}}\\\\&=${t4(T.a)}-${t4(T.b)}+${t4(T.c)}\\\\&=${t4(T.sum)}\\end{aligned}`;
+}
 const E918 = 'u\\frac{\\partial u}{\\partial x}+v\\frac{\\partial u}{\\partial y}=\\nu\\frac{\\partial^2u}{\\partial y^2}';
 const E919 = '\\psi=U\\,\\delta(x)\\,f(\\eta),\\quad\\eta=\\frac{y}{\\delta(x)}';
 const E926 = '\\delta(x)=\\sqrt{\\nu x/U}';
@@ -2779,33 +2794,47 @@ const DERIV = [
     uses: ['scaling symmetry (Töpfer)', 'shooting versus boundary-value solving', 'solve_ivp and brentq', 'integration by parts'],
     steps: [
       { did: 'Find the scaling symmetry', tex: '\\begin{aligned}f_\\lambda(\\eta)&=\\lambda f_1(\\lambda\\eta)\\ \\Rightarrow\\\\f_\\lambda\'\'\'+\\tfrac12f_\\lambda f_\\lambda\'\'&=\\lambda^4\\big(f_1\'\'\'+\\tfrac12f_1f_1\'\'\\big)\\end{aligned}',
-        why: 'Each term has total weight λ⁴: f‴ brings λ⁴, and f f″ brings λ · λ³. So λf₁(λη) solves the equation whenever f₁ does.', plain: 'A stretched solution is a solution.' },
+        why: `Each term is a product of total weight λ⁴: f‴ brings λ⁴, f f″ brings λ·λ³; so λf₁(λη) solves $${E927}$ (9.27) whenever f₁ does.`, plain: 'A stretched solution is a solution.' },
       { did: 'Integrate with a guessed slope', tex: `f_1(0)=f_1'(0)=0,\\ f_1''(0)=1\\ \\Rightarrow\\ f_1'(\\infty)=${t4(TOP.Y[1][TOP.n])}`,
         why: 'With all three initial values known this is an initial-value problem (solve_ivp); read the far value from the solution.', plain: 'The guess gives the wrong far speed.',
         set: { guess: 0.5 }, watch: `a large guess overshoots: with f″(0) = 0.5 the rose curve levels off at ${f3(guessRun(0.5, 12).fEnd)}, not 1.` },
-      { did: 'Rescale to satisfy the far condition', tex: `\\begin{aligned}\\lambda^2f_1'(\\infty)&=1\\Rightarrow\\lambda=${t4(TC.lam)}\\\\f''(0)&=\\lambda^3=${t4(TC.fpp0)}\\end{aligned}`,
-        why: 'f_λ′(∞) = λ²f₁′(∞); choose λ to make it 1. Then f_λ″(0) = λ³ f₁″(0).', plain: 'One number, 0.3321.',
+      { did: 'Rescale to satisfy f′(∞) = 1', tex: `\\begin{aligned}\\lambda^2f_1'(\\infty)&=1\\Rightarrow\\lambda=${t4(TC.lam)}\\\\f''(0)&=\\lambda^3=${t4(TC.fpp0)}\\end{aligned}`,
+        why: 'f_λ′(∞) = λ²f₁′(∞); choose λ to make it 1, as $f\'(\\infty)=1$ (9.29) demands; f_λ″(0) = λ³f₁″(0).', plain: 'One number, 0.3321.',
         live: s => `f''(0)=\\lambda^3=${t4(TC.lam)}^3=${t4(TC.fpp0)}`, set: { guess: 0.33206 }, watch: 'the rose dashed shooting curve now lies on the grey band.' },
       { did: 'Read the 99 % point', tex: `f'(\\eta_{99})=0.99\\ \\Rightarrow\\ \\eta_{99}=${t4(TC.eta99)}`,
-        why: 'Root of a monotone function (brentq); δ₉₉ = η₉₉√(νx/U). The book prints 4.93 read from a figure; the root is 0.4 % smaller.', plain: 'The layer edge sits at η = 4.91.', watch: 'the grey dashed line at η₉₉ = 4.910.' },
+        why: 'Root of a monotone function (brentq); δ₉₉ = η₉₉√(νx/U). The book prints $\\delta_{99}=4.93\\sqrt{\\nu x/U}$, read from a figure; the root of $f\'=0.99$ is 4.910, 0.4 % smaller.', plain: 'The edge sits at η = 4.91.', watch: 'the grey dashed line at η₉₉ = 4.910.' },
       { did: 'Displacement thickness', tex: `\\frac{\\delta^*}{\\delta}=\\int_0^\\infty(1-f')\\,d\\eta=\\lim_{\\eta\\to\\infty}(\\eta-f)=${t4(TC.ds)}`,
-        why: 'With y = δη the integral in η follows; since f′ = df/dη, ∫(1 − f′)dη = η − f.', plain: 'Read it off the tail of f.', watch: 'the amber area between f′ and 1 equals the amber line at η = 1.721.' },
-      { did: 'Momentum thickness', tex: `\\frac\\theta\\delta=\\int_0^\\infty f'(1-f')\\,d\\eta=2f''(0)=${t4(TC.theta)}`,
-        why: 'Integrate (9.27) once and by parts: f″(0) = ½I_θ(η) − ½f(1 − f′) + f″(η) at any η. As η → ∞ the last two terms vanish (Gaussian decay).', plain: 'θ is twice the wall slope.' },
-      { did: 'Wall shear', tex: '\\begin{aligned}\\tau_0&=\\mu\\frac U\\delta f\'\'(0)\\\\&=0.332\\,\\frac{\\rho U^2}{\\sqrt{Re_x}}\\ \\ (9.31)\\end{aligned}',
-        why: 'u = Uf′(η) and ∂η/∂y = 1/δ; then μU/δ = ρU²/√Re_x because ν = μ/ρ and δ = √(νx/U).', plain: 'Wall stress falls like x^(−1/2).',
+        why: 'With y = δη, $\\delta^*=\\int_0^\\infty(1-u/U_e)\\,dy$ (9.16) is an integral in η; since f′ = df/dη, ∫(1 − f′)dη = η − f.', plain: 'Read it off the tail of f.', watch: 'the amber area between f′ and 1 equals the amber line at η = 1.721.' },
+      { did: 'Write the product f f″ with the velocity deficit', tex: 'f\\,f\'\'=f\\,(f\'-1)\'',
+        why: `The derivative of the constant 1 is zero, so $(f'-1)'=f''$. We make this move because the momentum thickness $\\theta/\\delta=\\int_0^\\infty f'(1-f')\\,d\\eta$ contains the deficit $1-f'$, and we want $${E927}$ (9.27) to produce it.`,
+        plain: 'The same term, rewritten so that the deficit 1 − f′ appears inside a derivative.' },
+      { did: 'Integrate f‴ + ½ff″ = 0 from the wall to a finite η', tex: 'f\'\'(\\eta)-f\'\'(0)=-\\frac12\\int_0^\\eta f\\,(f\'-1)\'\\,d\\eta\'',
+        why: `Integrate $${E927}$ (9.27) term by term from 0 to η: the first term is an exact derivative, so the fundamental theorem of calculus gives $f''(\\eta)-f''(0)$; the second term uses step 6. We stop at a finite η so that every integral is finite.`,
+        plain: 'The change of the wall-normal shear across the layer equals minus half of an integral of f times the deficit\'s slope.' },
+      { did: 'Integrate by parts', tex: '\\begin{aligned}&\\int_0^\\eta f\\,(f\'-1)\'\\,d\\eta\'\\\\&=\\Big[f\\,(f\'-1)\\Big]_0^\\eta-\\int_0^\\eta f\'(f\'-1)\\,d\\eta\'\\\\&=-f(\\eta)\\big(1-f\'(\\eta)\\big)+I_\\theta(\\eta)\\end{aligned}',
+        why: 'Integration by parts (primer P218a in the notebook, just before this derivation) with the factors $f$ and $(f\'-1)\'$; the boundary term at the wall vanishes because $f(0)=0$. We write $I_\\theta(\\eta)=\\int_0^\\eta f\'(1-f\')\\,d\\eta\'$ for the momentum-thickness integral cut off at η.',
+        plain: 'The awkward integral becomes the momentum-thickness integral plus a boundary term at η.' },
+      { did: 'Solve for the wall shear f″(0)', tex: 'f\'\'(0)=\\tfrac12I_\\theta(\\eta)-\\tfrac12f(\\eta)\\big(1-f\'(\\eta)\\big)+f\'\'(\\eta)',
+        why: 'Substitute step 8 into step 7 and move $f\'\'(0)$ to the left and everything else to the right. This holds exactly at every finite η, because no approximation has been made yet.',
+        plain: 'The wall slope equals half the cut-off momentum integral plus two terms that live at the cut-off η.',
+        set: { pe: 2 }, live: s => cutLine(s.pe), watch: 'at the probe height the three terms are all sizeable, yet they add up to 0.3321.' },
+      { did: 'Let η → ∞', tex: `\\frac\\theta\\delta=\\int_0^\\infty f'(1-f')\\,d\\eta=2f''(0)=${t4(TC.theta)}`,
+        why: 'As $\\eta\\to\\infty$, $1-f\'$ and $f\'\'$ decay like a Gaussian, $e^{-\\eta^2/4}$, while $f$ only grows like η, so $f(1-f\')\\to0$ and $f\'\'(\\eta)\\to0$; $I_\\theta(\\eta)\\to\\theta/\\delta$. Hence $f\'\'(0)=\\frac12\\,\\theta/\\delta$.',
+        plain: 'θ is twice the wall slope.', set: { pe: 7 }, live: s => cutLine(s.pe), watch: 'far out (probe η = 7) the last two terms have died away: only ½I_θ is left.' },
+      { did: 'Wall shear', tex: '\\begin{aligned}\\tau_0&=\\mu\\Big(\\frac{\\partial u}{\\partial y}\\Big)_0=\\mu\\frac U\\delta f\'\'(0)\\\\&=0.332\\,\\frac{\\rho U^2}{\\sqrt{Re_x}}\\ \\ (9.31)\\end{aligned}',
+        why: 'u = Uf′(η), ∂η/∂y = 1/δ, and μU/δ = ρU²/√Re_x since ν = μ/ρ and δ = √(νx/U).', plain: 'Wall stress falls like x^(−1/2).',
         live: s => { const n = N(s); return `\\begin{aligned}\\tau_0&=${t3(n.mu)}\\times\\frac{${t3(s.U)}}{${t3(n.dl[2])}}\\times${t4(TC.fpp0)}\\\\&=${t3(n.tau0)}\\ \\text{Pa}\\end{aligned}`; } },
       { did: 'Skin friction', tex: 'C_f=\\frac{\\tau_0}{\\frac12\\rho U^2}=\\frac{2f\'\'(0)}{\\sqrt{Re_x}}=\\frac{0.664}{\\sqrt{Re_x}}\\quad(9.32)',
-        why: 'Divide $\\tau_0=0.332\\rho U^2/\\sqrt{Re_x}$ (9.31) by the dynamic pressure ½ρU². The number 2f″(0) is the same as θ/δ.', plain: 'C_f √Re_x = θ/δ.' },
+        why: 'Divide $\\tau_0=0.332\\rho U^2/\\sqrt{Re_x}$ (9.31) by the dynamic pressure ½ρU²; 2f″(0) is the same number as θ/δ.', plain: 'C_f √Re_x = θ/δ.' },
       { did: 'Total friction on one side', tex: 'F_D=\\int_0^L\\tau_0\\,dx=\\frac{0.664\\,\\rho U^2L}{\\sqrt{Re_L}}',
-        why: '∫₀ᴸ x^(−1/2) dx = 2√L, so the leading-edge singularity costs nothing: the mean is twice the end value.', plain: 'Drag grows like U^(3/2).',
+        why: '∫₀ᴸ x^(−1/2) dx = 2√L, so the integrable singularity at the leading edge costs nothing: the mean is twice the end value.', plain: 'Drag ∝ U^(3/2).',
         live: s => { const n = N(s); return `\\begin{aligned}F_D&=2\\tau_0L\\\\&=2\\times${t3(n.tau0)}\\times${t3(s.x)}\\\\&=${t3(n.fd)}\\ \\text{N/m}\\end{aligned}`; }, watch: 'the shaded area under τ₀(x) is F_D.' },
       { did: 'Drag coefficient', tex: 'C_D=\\frac{F_D}{\\frac12\\rho U^2L}=\\frac{1.328}{\\sqrt{Re_L}}\\quad(9.33)',
-        why: 'Divide by the dynamic pressure and the plate length; it equals 2C_f(L). This is one side of the plate only.', plain: 'A two-sided plate has twice this.' }
+        why: 'Divide by the dynamic pressure and the plate length; it equals 2C_f(L). One side of the plate only.', plain: 'A two-sided plate has twice this.' }
     ],
     result: { tex: `\\begin{aligned}&f''(0)=${t4(TC.fpp0)},\\ \\eta_{99}=${t4(TC.eta99)}\\\\&\\delta^*=${t4(TC.ds)},\\ \\theta=${t4(TC.theta)}\\ (\\times\\sqrt{\\nu x/U})\\\\&C_f=0.664/\\sqrt{Re_x},\\ C_D=1.328/\\sqrt{Re_L}\\end{aligned}`, plain: 'One curve gives all of them.', set: { guess: 0.33206 } },
     interpret: s => { const n = N(s); return `With your U and x: τ₀ = ${f3(n.tau0)} Pa, δ₉₉ = ${mm(n.d99[2])}, F_D = ${f3(n.fd * 1000)} mN/m per metre of width, one side.`; },
-    check: 'θ = 2f″(0) exactly ($0.66411=2\\times0.33206$). Air, U = 1 m/s, L = 1 m: τ₀ = 1.543×10⁻³ Pa, F_D = 3.09×10⁻³ N/m, and $C_D=1.328/\\sqrt{Re_L}=5.14\\times10^{-3}$ (9.33). The Töpfer route and solve_bvp agree to 1e-9; F_D ∝ U^(3/2).' }
+    check: 'θ = 2f″(0) exactly ($0.66411=2\\times0.33206$). Air, U = 1 m/s, L = 1 m: τ₀(1 m) = 1.543×10⁻³ Pa, F_D = 3.09×10⁻³ N/m, $C_D=1.328/\\sqrt{Re_L}=5.14\\times10^{-3}$ (9.33); solve_bvp and the Töpfer IVP agree to 1e-9; F_D ∝ U^(3/2).' }
 ];
 
 /* ---- code, walkthrough, equations, quiz --------------------------------------------------------------------------- */
@@ -2850,7 +2879,7 @@ const TOUR = [
   { title: 'Shoot', text: 'The wall slope $f\'\'(0)$ is unknown. Try 0.30 and 0.36: the rose curve never reaches 1, or overshoots. Then press “converged”.',
     set: Object.assign({}, BASE, { mode: 'rescaled', guess: 0.30 }), play: false, controls: ['guess'] },
   { title: 'One number', text: `$f''(0)=${t4(TC.fpp0)}$ gives $\\delta^*=${t4(TC.ds)}\\sqrt{\\nu x/U}$, $\\theta=2f''(0)$ and the wall stress $\\tau_0$ (9.31). Read them on the right.`,
-    set: Object.assign({}, BASE, { mode: 'rescaled', guess: 0.33206 }), play: false, readouts: ['fpp0', 'tau0'], derive: { id: 'D06', step: 7 } },
+    set: Object.assign({}, BASE, { mode: 'rescaled', guess: 0.33206 }), play: false, readouts: ['fpp0', 'tau0'], derive: { id: 'D06', step: 11 } },
   { title: 'Truncation', text: 'Set the domain end to $\\eta_{max}=3.5$: forcing $f\'=1$ this early makes the fitted wall slope wrong. $\\eta_{max}\\ge8$ is safe.',
     set: Object.assign({}, BASE, { mode: 'rescaled', etaMax: 3.5, guess: 0.33206 }), play: false, controls: ['etaMax'], notes: true },
   { title: 'Your turn', text: 'Predict the wall stress at x = 0.2 m for water at 5 m/s, then press “thin water layer” and check the readout.',
@@ -2913,6 +2942,8 @@ function selftestRows() {
     { name: 'invariant: shoot guess 0.30 falls short', js: shootStatus(0.30, 12).f1 < 1 ? 1 : 0, expect: 1 },
     { name: 'invariant: shoot guess 0.36 overshoots', js: shootStatus(0.36, 12).f1 > 1 ? 1 : 0, expect: 1 },
     { name: 'invariant: converged guess is ok', js: shootStatus(0.33206, 12).kind === 'ok' ? 1 : 0, expect: 1 },
+    { name: 'invariant: D06 step 9 at eta = 2 gives f\'\'(0)', js: cutTerms(2).sum, expect: TC.fpp0, rtol: 1e-6 },
+    { name: 'invariant: D06 step 10, I_theta(7) ~ theta/delta (tail 4e-5)', js: 2 * cutTerms(7).a, expect: TC.theta, rtol: 1e-4 },
     { name: 'invariant: f\'(inf) = 2.0854 s^(2/3)', js: shootStatus(0.30, 16).f1 / (TOP.Y[1][TOP.n] * Math.pow(0.30, 2 / 3)), expect: 1, rtol: 1e-6 },
     { name: 'invariant: theta = 2 f\'\'(0)', js: TC.theta / (2 * TC.fpp0), expect: 1, rtol: 1e-8 },
     { name: 'invariant: f\'\'\' + f f\'\'/2 = 0 at eta = 2', js: ode, expect: 0, atol: 1e-7 },

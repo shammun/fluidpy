@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790673915">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790673915">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790769931">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790769931">
 </head>
 <body>
 <div class="ce-container">
@@ -340,6 +340,53 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>Where does <span class="fp-math" style="font-family:'KaTeX_Main','Cambria Math','Times New Roman',serif;font-size:1.08em;white-space:nowrap">6<i>π</i><i>μ</i><i>a</i><i>U</i></span> come from?</b>
 <p>Sweep round a creeping sphere: the pressure and friction tractions add to one uniform push, collecting 2πμaU and 4πμaU; then change the particle size and watch the fall speed grow as a² until Re is no longer small.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch08/stokes_drag_settling.html">Open full window</a><a class="fp-btn" href="../notebooks/ch08_laminar_flow.html#viz-stokes_drag_settling">In the chapter</a></div>
+</div></div>
+<h2 id="ch09">Chapter 9 — Boundary Layers and Related Topics</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 9 · explainer 1 · §9.1, 9.2</small>
+<b>How thin is a boundary layer, and what is its thickness?</b>
+<p>Slide U, nu and x to watch a layer grow like sqrt(nu x/U) = x Re^(-1/2), then switch the profile shape: delta99, delta* and theta are three integrals of one profile and change by different ratios.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/bl_scaling_thicknesses.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-bl_scaling_thicknesses">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 2 · §9.3</small>
+<b>Why does one curve describe the whole plate?</b>
+<p>Profiles at different distances are one curve stretched in y: rescale by sqrt(nu x/U) and they collapse onto f&#x27;(eta), whose wall slope 0.332 fixes the shear, drag and momentum loss.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/blasius_similarity_collapse.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-blasius_similarity_collapse">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 3 · §9.4, 9.7</small>
+<b>How can favourable and adverse gradients be one family?</b>
+<p>One dial n: a fuller profile and more wall shear for n &gt; 0, Blasius at n = 0, an inflection for n &lt; 0, and zero wall shear at n = -0.0904, where the viscous curvature at the wall equals the pressure gradient.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/falkner_skan_family.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-falkner_skan_family">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 4 · §9.5 9.6 9.7</small>
+<b>Can one integral predict separation?</b>
+<p>Choose a body&#x27;s outer speed: theta^2 follows from the integral of U_e^5 dx, lambda = (theta^2/nu) dU_e/dx gives wall shear and shape, and separation is lambda crossing its threshold - one integral, no PDE.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/thwaites_marching.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-thwaites_marching">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 5 · §9.7, 9.8, 9.9</small>
+<b>Why does drag fall when the flow gets faster?</b>
+<p>A log-scale Re moves a schematic flow, the separation angle, C_p and C_D together: a laminar layer lets go near 82 degrees, a turbulent one holds on to 125 degrees, the wake narrows and the drag collapses (illustrative model).</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/cylinder_drag_crisis.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-cylinder_drag_crisis">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 6 · §9.8</small>
+<b>Why is the vortex street&#x27;s shape fixed at b/a = 0.28?</b>
+<p>A staggered double row of point vortices grows a wiggle at every spacing except cosh(pi b/a) = sqrt 2; drag b/a and the stagger to watch the growth rate and the four eigenvalues.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/karman_street_stability.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-karman_street_stability">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 7 · §9.10</small>
+<b>Where does a jet&#x27;s extra mass come from?</b>
+<p>Constant momentum flux J forces u0 ~ x^(-1/3) and delta ~ x^(2/3); the sech^2 profile keeps the integral of u^2 fixed while the mass flux grows as the jet entrains ambient fluid.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/free_jet_similarity.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-free_jet_similarity">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 8 · §9.10</small>
+<b>In a wall jet the wall eats momentum — what is conserved?</b>
+<p>A wall removes ordinary momentum flux, but the flux of exterior momentum flux survives: it fixes x u0^2 = const, delta ~ x^(3/4) and a free scale f_inf that does not change the flow.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/wall_jet_invariant.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-wall_jet_invariant">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 9 · explainer 9 · §9.11</small>
+<b>Why do tea leaves collect at the centre?</b>
+<p>A thin layer slows the swirl at the floor but not the pressure gradient set by the fast water above: the unbalanced pressure rho(u_e^2 - u^2)/R drives fluid inward, the seed of Ekman layers.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch09/teacup_secondary_flow.html">Open full window</a><a class="fp-btn" href="../notebooks/ch09_boundary_layers.html#viz-teacup_secondary_flow">In the chapter</a></div>
 </div></div>
 </div>
 </body>

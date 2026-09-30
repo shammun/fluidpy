@@ -394,6 +394,59 @@ the converted arguments (a factor-2 variant is caught).
 gives the station and `backflow_any` equals it. Criterion: wide/narrow gap ratio > 2 (h > 1.5h_m, h_m = 2(1 + α)h₀/(2 + α)).
 In `slider_gap_velocity` y = 0 is the moving pad side; the state docstring's η runs from the floor.
 
+**⚠️ λ twice inside ch09.** In §9.6 (C07) λ = (θ²/ν)dU_e/dx is the **Holstein–Bohlen/Thwaites parameter** (dimensionless;
+λ < 0 adverse; separation at −0.090 with the book's table, −0.068148 with our exact Falkner–Skan closure). In §9.8 (C10, D14)
+λ is the **eigenvalue** of the linearised Kármán street, λ = (πΓ/2a²)(±γ ± iσ) [1/s], growth rate Re λ (the notebook uses λ
+after lesson round 3; the code docstring of `karman_street_spectrum` still calls it σ). λ was the wavelength in ch07, the
+second viscosity coefficient in ch04 and a trial exponent (e^{λt}, R^λ) in ch01/ch08; Töpfer's scale factor in D06 and the
+wall-jet gauge f → λf(λη) (D21) are a third and fourth λ. Say which λ in every sentence.
+
+**⚠️ γ and σ in D14 are dimensionless street coefficients, not a growth rate.** γ = ½ − sech²(πb/a) (zero at the marginal
+spacing; −0.307 at b/a = 0.15) and σ = sinh(πb/a)/cosh²(πb/a); the growth rate is (πΓ/2a²)|γ| (0.48 Γ/a² at b/a = 0.15).
+Reading notes once wrote "growth rate γ = 0.48" (lesson round 2, fixed). γ is also ch05's sheet strength, ch01's c_p/c_v and
+ch08's ansatz variable; σ is ch07's surface tension and ch03's core radius.
+
+**⚠️ η and δ in ch09 depend on the flow.** Blasius η = y/δ(x), δ = √(νx/U) (9.26) — identical to ch08's y/√(νt) with t = x/U
+(factor 1), while ch08's figures plot y/(2√(νt)) (factor 2); Falkner–Skan δ = √(νx/U_e(x)) (9.34) (η ∝ x^{(n−1)/2}y); free jet
+δ = (Cρν²x²/J)^{1/3} ∝ x^{2/3} with η ∈ (−∞, ∞) (9.59)–(9.64); wall jet δ ∝ x^{3/4} (9.82). The book's Fig. 9.7 axis is
+½√(n + 1)η (E3 offers both). δ is the **similarity length, not δ₉₉** (δ₉₉ = 4.910δ for Blasius); δ̄ (§9.1) is only an
+order of magnitude; δ* is the displacement thickness (the star also marks scaled variables in (9.6)–(9.8)).
+
+**⚠️ The Falkner–Skan exponent is the book's n, the code's `m`.** `falkner_skan(m)`, `falkner_skan_state(m)`,
+`falkner_skan_separation()["m_sep"]` = −0.090429; β = 2m/(m + 1) (Hartree; the literature's tables, Belden et al.) =
+−0.198838 at separation. Thwaites' "m = −λ" (Fig. 9.8 axis) is not used in code. ch08's n and m are the similarity exponents.
+
+**⚠️ Angles on bodies from the FORWARD stagnation point in ch09.** `phi_deg` (separation 82°, 125°, Thwaites 103.1°) is
+measured from the upstream stagnation point, as the book does in §9.7–§9.9 and Exercise 9.21; ch06 measured θ from +x
+(downstream: C_p = 1 − 4 sin²θ is the same function either way), ch08's sphere θ from the downstream axis. In D13 the outward
+normal's x-component is n_x = −cos φ.
+
+**⚠️ Sign of the wall curvature under an adverse gradient (R17).** (9.9) at the wall (u = v = 0) gives
+μ(∂²u/∂y²)_wall = dp/dx: **positive** for an adverse gradient (dp/dx > 0, Falkner–Skan n < 0: f‴(0) = −n > 0), negative for a
+favourable one. The book's sentence says "< 0 for n < 0" — a slip; `wall_curvature` follows (9.9). The (9.8) sign was also
+coded negated once (review Must-fix 1): ∂p*/∂y* = −(1/Re)(u*v*_x* + v*v*_y*) + (1/Re²)v*_x*x* + (1/Re)v*_y*y*
+(`bl_dpdy_scaled`), pinned by a manufactured-field sign test.
+
+**⚠️ One side or two (R5, a trap, not a slip).** (9.33) C_D = 1.328/√Re_L and F_D are per unit width for **one** face, as the
+book says; a plate wetted on both faces has twice the drag (`blasius_drag(..., sides=1)`, `plate_drag_coefficient(sides=)`).
+
+**⚠️ Strouhal number with the cyclic frequency.** St = fd/U ≈ 0.2 with f in Hz (the book's Ω in (4.102) is the cyclic
+frequency); with the angular 2πf the same street would give 1.26. `shedding_frequency(U, d, St)` returns both f and
+`omega_rad`.
+
+**⚠️ Two separation criteria in Thwaites' method.** `LAMBDA_SEP_BOOK` = −0.09 (Table 9.1: l(−0.09) = 0) and `LAMBDA_SEP_FS` =
+−0.0681483 (computed lazily from the Falkner–Skan fold; l = 0 of our exact closure). `thwaites(closure="falkner_skan")` defaults
+to the second, `closure="white"` to the first; `example_9_2()["criteria"]` lists the book's first (x/L = 0.158, then 0.126).
+Always show both, the book's first.
+
+**⚠️ Printed ch09 forms coded corrected (analysis §9), printed forms kept as options a test must fail.** (9.7) with ∂x*², ∂y*²
+(`bl_nondim_sympy(printed_9_7=True)`) · η₉₉ = 4.910, not 4.93 (`blasius_delta99(printed=True)`) · wall-jet ODE
+**4**f‴ + ff″ + 2f′² = 0 (`wall_jet_ode_solve(printed=True)` / `coeff=1.0`, `similarity_reduce_sympy("wall_jet", printed=True)`) ·
+wall-jet separation of variables with f^{1/2} · h₉₉ coefficient 7.3319, not 5.6152 (the 4 % point;
+`free_jet_halfwidth(printed=True)`) · (9.56) with the kinematic stress τ/ρ · Ψ of (9.85) in m⁵/s³ · Magnus "Re > Re_cr" for the
+positive effect (`magnus_sign`) · no attached bounded Falkner–Skan solution below the fold (R11) · turbulent jets are Ch. 12,
+not 13 · the wall-curvature sign (R17).
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -859,6 +912,42 @@ In `slider_gap_velocity` y = 0 is the moving pad side; the state docstring's η 
 | U_t, ρ′ | terminal (settling) velocity 2(ρ′ − ρ)ga²/(9μ); particle density | m/s; kg/m³ | g = G0 = 9.80665 in `core.creeping`; warns when Re is not small | ch08 → Ch. 13 | `terminal_velocity(a, rho_p, rho, mu, g)`, `radius_from_terminal_velocity` |
 | E ⚠️ (field), n ⚠️, e | electric field; number of electron charges on the drop; elementary charge | V/m; –; C | ne = 6πμa(U_up + U_t)/E; **E = constant of Ex. 8.7, energy (ch07), E² operator** | ch08 | `millikan_charge`, `synthetic_millikan(seed=0)`, `E_CHARGE` |
 | Re_a r/a | far-field inertia/viscous ratio of the Stokes solution → ½Re_a r/a (axis and θ = π/2) | – | crossover r ≈ 2a/Re_a; the book's "r/a ~ 1/Re" is an order of magnitude | ch08 | `inertia_viscous_ratio(r, theta, U, a, nu)` |
+| **ch09 — boundary layers, bluff bodies, jets** | | | | | |
+| x, y ⚠️ (layer) | distance along the wall from the leading edge (or stagnation point); distance normal to the wall | m | u = ∂ψ/∂y, v = −∂ψ/∂x; jets: x along the jet, y across (free jet symmetric about y = 0) | ch09 → | `x`, `y` |
+| U, U∞, U_e(x) ⚠️ | free-stream speed; speed at the edge of the layer (outer inviscid flow at the wall) | m/s | U_e = axⁿ (wedge), U₁/(1 + x/L) (diffuser), 2U sin φ (cylinder); dU_e/dx < 0 decelerating | ch09 → | `U`, `Ue`, `outer_flow(kind)` → `OuterFlow` |
+| dp/dx ⚠️ (layer) | pressure gradient imposed by the outer flow, −(1/ρ)dp/dx = U_e dU_e/dx (9.11) | Pa/m | **> 0 adverse**, < 0 favourable (ch08 book sign) | ch08 → | `OuterFlow.dpdx(x, rho)`, `wall_curvature(dpdx, mu)` |
+| Re, Re_x, Re_L ⚠️ | overall U∞L/ν (9.6); local U_e x/ν; plate UL/ν | – | six Re in ch09 (P200); cylinder/sphere on the **diameter**; jet Re_x = xu₀/ν; FS Re_x = ax^{n+1}/ν | ch01 → | `Re`, `Re_x`, `Re_L` |
+| δ̄ | order-of-magnitude thickness L Re^{−1/2} (9.4) | m | a scale, not a measured thickness | ch09 | `boundary_layer_scales(...)["delta"]` |
+| x*, y*, u*, v*, p* ⚠️ | scaled variables (9.6): x/L, y Re^{1/2}/L, u/U, v Re^{1/2}/U, (p − p∞)/ρU² | – | the star is **not** δ*'s star; ε = Re^{−1/2} plays ch08's ε = h/L | ch08 → | `to_bl_variables`, `from_bl_variables` |
+| δ₉₉ ⚠️ | height where u = 0.99U_e | m | Blasius 4.910√(νx/U) (page 4.93); **ch08 δ₉₉ = 3.643√(νt) is a diffusion thickness** | ch08 → | `delta_level(y, u, Ue, level=0.99)`, `blasius_delta99(printed=)` |
+| δ* ⚠️ | displacement thickness ∫(1 − u/U_e)dy (9.16) | m | lift of the outer streamlines; v∞ = U dδ*/dx; Blasius 1.7208√(νx/U) | ch09 → Ch. 12, 14 | `displacement_thickness(tail=)`, `blasius_delta_star` |
+| θ ⚠️ (thickness) | momentum thickness ∫(u/U_e)(1 − u/U_e)dy (9.17) | m | a **length** here, an angle everywhere else; Blasius 0.6641√(νx/U) = 2f″(0)δ; θ₀ in (9.50) = initial θ | ch09 → Ch. 12, 14 | `momentum_thickness`, `blasius_theta`, `thwaites(...)["theta"]` |
+| H | shape factor δ*/θ | – | Blasius 2.591, Hiemenz 2.216; H(λ) from the closure | ch09 → Ch. 12 | `thicknesses(...)["H"]`, `thwaites_H(lam, closure)` |
+| τ₀, C_f, F_D, C_D ⚠️ | wall shear μ(∂u/∂y)₀; skin friction τ₀/(½ρU²); drag per width on one face; drag coefficient F_D/(½ρU²L) | Pa, –, N/m, – | C_f = 0.664/√Re_x, C_D = 1.328/√Re_L **one side** (`sides=1`); τ₀ ∝ x^{−1/2} integrable | ch08 → | `blasius_wall_shear`, `blasius_skin_friction`, `blasius_drag(sides=)`, `blasius_drag_coefficient(sides=)` |
+| ψ, f(η) ⚠️ (similarity) | stream function ψ = Uδ(x)f(η) (9.19) (Blasius), √(νxU_e)f (9.34) (FS), u₀δf (9.59) (free jet), [νCx^{1/2}]^{1/2}f (9.82) (wall jet); f′ = u/U_e | m²/s; – | f(0) = f′(0) = 0 at a wall (9.28); jets f(0) = 0 on the axis (free) | ch04 → | `blasius_profile`, `falkner_skan`, `free_jet_profile`, `wall_jet_profile` |
+| η ⚠️ (ch09) | y/δ(x) with the flow's own δ (see the trap) | – | Blasius y√(U/νx) = ch08's y/√(νt) with t = x/U | ch08 → | `eta` |
+| f″(0) | dimensionless wall shear of a similarity profile | – | Blasius 0.3320573; Hiemenz 1.232588; 0 at the FS fold; wall jet f∞³/72 | ch09 | `blasius_constants()["fpp0"]`, `falkner_skan(m)["fpp0"]` |
+| n ⚠️ (FS), m (code), β | Falkner–Skan exponent in U_e = axⁿ; code name; Hartree β = 2m/(m + 1) | – | n > 0 favourable, n < 0 adverse; fold n = −0.090429 (β = −0.198838); **ch08 n, m = similarity exponents** | ch09 → Ch. 11 | `falkner_skan(m, branch=)`, `falkner_skan_separation()` |
+| a ⚠️ (wedge) | coefficient of U_e = axⁿ | m^{1−n}/s | **a = radius (pipe, sphere), row spacing (Kármán) elsewhere** | ch09 | `falkner_skan_fields(x, y, m, a, nu)` |
+| I_δ, I_θ | ∫(1 − f′)dη, ∫f′(1 − f′)dη on a similarity profile | – | δ* = I_δδ, θ = I_θδ; H = I_δ/I_θ | ch09 | `falkner_skan_state(m)["I_delta"]`, `["I_theta"]` |
+| λ ⚠️ (Thwaites) | Holstein–Bohlen parameter (θ²/ν)dU_e/dx (9.44) | – | λ < 0 adverse; stagnation 0.075 (Thwaites) / 0.0855 (exact); separation −0.090 (book) / −0.068148 (exact FS); **λ = eigenvalue in C10** (trap) | ch09 | `holstein_bohlen(theta, Ue_x, nu)`, `LAMBDA_SEP_BOOK`, `LAMBDA_SEP_FS` |
+| l(λ), L(λ) ⚠️ | shear correlation τ₀θ/(μU_e) (9.45); L = 2l − 2(2 + H)λ (9.48) ≈ 0.45 − 6λ (9.49) | – | **capital L = body length elsewhere; l ≠ 1**; exact FS closure vs `"white"` fit | ch09 | `thwaites_l(lam, closure)`, `thwaites_L`, `thwaites_closure_table` |
+| u_yy,wall | wall curvature (dp/dx)/μ | 1/(m s) | sign = sign of dp/dx (R17); inflection when > 0 | ch09 → Ch. 11 | `wall_curvature(dpdx, mu)`, `profile_inflection(y, u)` |
+| x_sep, φ_sep ⚠️ | separation station (τ₀ = 0 or λ = criterion); separation angle from the **forward** stagnation point | m; deg | `phi_deg` in every BB function; 82° laminar, 125° turbulent (rounded) | ch09 → Ch. 14 | `separation_point(x, tau0)`, `thwaites_cylinder_separation(lam_sep)` |
+| w, σ ⚠️ (marching) | von Mises unknown w = u² at fixed ψ; mapped coordinate ψ = ψ_max σ² | m²/s², – | **σ = surface tension, core radius, D14 coefficient elsewhere** | ch09 | `march_boundary_layer(..., ny, order)` |
+| C_p, C_b | pressure coefficient (p − p∞)/(½ρU²); base (wake) pressure coefficient | – | ideal cylinder 1 − 4 sin²φ; C_b ≈ −1.2 (subcritical), −0.6 (supercritical), illustrative | ch06 → | `cp_ideal_cylinder`, `separated_cp(phi_deg, phi_sep_deg, cp_base)` |
+| C_D,p | pressure (form) drag coefficient ½∮C_p cos φ dφ per unit span on the diameter | – | model sin φ_s(1 − (4/3)sin²φ_s − C_b); 0.884 (82°, −1.2), 0.578 (125°, −0.6) | ch09 → Ch. 14 | `pressure_drag_from_cp`, `separated_pressure_drag` |
+| d, St, f ⚠️ (shedding) | cylinder diameter; Strouhal fd/U; shedding frequency | m, –, Hz | St ≈ 0.2 with the **cyclic** f (trap); `omega_rad` = 2πf; **f = Coriolis parameter, friction factor, similarity profile elsewhere** | ch04 → | `shedding_frequency(U, d, St)`, `strouhal_of_re` |
+| a, b, Γ ⚠️ (street) | streamwise vortex spacing, distance between the rows, circulation magnitude | m, m, m²/s | stable b/a = arccosh(√2)/π = 0.28055; street speed (Γ/2a)tanh(πb/a); `offset` 0.5 staggered, 0 facing | ch05 → | `karman_street_ratio`, `karman_street_velocity(a, b, Gamma)`, `karman_street_spectrum(b_over_a, offset, k)` |
+| γ, σ ⚠️ (D14) | ½ − sech²(πb/a); sinh(πb/a)/cosh²(πb/a) | – | eigenvalues (πΓ/2a²)(±γ ± iσ); see the trap | ch09 | `karman_street_growth_closed`, `ch09.karman_street_sympy` |
+| λ ⚠️ (street eigenvalue) | eigenvalue of the linearised street, growth Re λ | 1/s | 0.48 Γ/a² at b/a = 0.15; π/4 for facing rows; code docstring calls it σ | ch09 → Ch. 11 | `karman_street_spectrum`, `karman_street_growth` |
+| J ⚠️ | momentum flux per unit span ρ∫u²dy (9.58) | N/m | conserved in the free jet; ∝ x^{−1/4} in the wall jet | ch09 → Ch. 12 | `jet_momentum_flux(y, u, rho)`, `free_jet(x, y, J, rho, nu)` |
+| u₀(x) ⚠️ | centreline speed (free jet, ∝ x^{−1/3}); velocity **scale** Cx^{−1/2} (wall jet, not the peak: peak ≈ 0.079 of it at f∞ = 1) | m/s | u₀ = (J²/(C²ρ²νx))^{1/3} (9.62) | ch09 | `free_jet_centreline`, `wall_jet(...)` |
+| C ⚠️ (jets) | free jet ∫f′²dη = 4√6/3 (9.72) (`C_fj`); wall jet dimensional u₀ = Cx^{−1/2} | –; m^{3/2}/s | **C also Blasius proportionality, integration constants**; wall-jet C and f∞ are one physical constant (gauge f → λf(λη)) | ch09 | `free_jet_constants()["C"]`, `wall_jet_constants(rho, nu, Psi=, mdot=, x=)` |
+| ṁ | mass flux per unit span ρ∫u dy | kg/(m s) | free jet (36Jρ²νx)^{1/3} ∝ x^{1/3} (9.73); wall jet ∝ x^{1/4} (9.84) — entrainment | ch09 → Ch. 12, 13 | `free_jet_mass_flux`, `wall_jet_mass_flux` |
+| h₉₉ | jet half-width where u = 0.01u₀ | m | 7.3319[Cρν²x²/J]^{1/3} (page 5.6152 = 4 % point) | ch09 | `free_jet_halfwidth(x, J, rho, nu, level=0.01, printed=)` |
+| Ψ ⚠️, f∞, K₁ | wall-jet invariant ∫u(∫_y^∞u²dy′)dy (9.80); f(∞) of the wall jet; ∫f′(∫f′²)dη = 1/40 at f∞ = 1 | m⁵/s³, –, – | Ψ = C²νf∞⁴/40; f″(0) = f∞³/72; **ψ = stream function** | ch09 | `wall_jet_invariant(y, u)`, `wall_jet_K1()`, `wall_jet_integrals(f_inf)` |
+| u_e, u(z), R ⚠️ (teacup) | swirl speed above the bottom layer; swirl in the layer; radius | m/s, m/s, m | net inward force ρ(u_e² − u²)/R ≥ 0, zero in the core | ch09 → Ch. 13 | `secondary_flow_radial_force(u_inviscid, u_layer, R, rho)` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -871,3 +960,4 @@ In `slider_gap_velocity` y = 0 is the moving pad side; the state docstring's η 
 | ch06 | 2-D flows in (x, y) with θ from +x (downstream); complex z = x + iy, ζ the Zhukhovsky circle plane; §6.8 cylindrical (R, φ, z) with **z horizontal along the stream**, spherical (r, θ from +z); §6.9 ξ = x − x_s; Laplace grids `mask[j, i]` with x on the last axis | bodies centred at the origin; half-body source at 0 (stagnation at −m/2πU); p∞ far upstream; ideal-flow p measured from hydrostatic; Example 6.1 wall at x = 0 with the vortex at (h, 0) at t = 0 | Γ counterclockwise in code, **clockwise** in (6.36)–(6.40), (6.52), (6.61)–(6.62), (6.68), Ex. 6.1 (`Gamma_cw=`); D, L on the body, (6.54) F on the fluid; ccw contour, outward n; 2-D dipole from sink to source; (6.82) = r × App. B | none fixed (U, a or the body length set the scale in each function; C_p is the only non-dimensional output used throughout) | dimensional SI throughout; ρ default 1.2 (2-D forces) or 1000 (Ex. 6.1, §6.9) — pass it explicitly |
 | ch07 | 2-D waves in the (x, z) plane, **z up**, x along propagation; still surface z = 0, flat bottom z = −H (H = ∞ deep); §7.7 origin at the mean free surface, interface at z = −H; §7.8 (x, y, z) with z up, K = (k, l, m); rays in (x, y) with α from the shore normal | still-water level; mean particle position (x₀, z₀) | p **gauge**; p′ = p + ρgz (§7.2) or p − p̄(z) (§7.8); ψ with u = ∂ψ/∂z; ω ≥ 0, direction in sgn k; c_g signed; clockwise orbits for +x waves; sheet γ = u_below − u_above | g = 9.81 (`G_BOOK`) in ch07 and `core.waves`; ρ = 1000; clean water σ = 0.07274 N/m, ρ = 998.2 in teaching numbers; energy per area (surface), per volume (internal) | dimensional SI throughout; complex amplitudes (Re dropped) from §7.7; the KdV solver is dimensional |
 | ch08 | channel: x along the plates, y across, walls y = 0 (fixed) and y = h (moving); pipe and circular Couette: cylindrical (R, φ, z), capital R; lubrication: x along, y across the gap h(x, t) (Hele-Shaw: z across, (x, y) in the plane); §8.4 y normal to the plate, η = y/√(νt); Ex. 8.6 plane polar (r, θ azimuth); §8.6 spherical (r, θ, φ) with θ from the downstream +x axis, body frame (sphere at rest) or fluid frame | fixed lower wall; pipe axis; slider inlet x = 0 with gap h₀; plate at y = 0; sphere centre | p absolute or gauge (only gradients matter) except lubrication p* = p/P_a (absolute atmospheric); dp/dx book sign (favourable < 0), `G` = −dp/dx alias; signed τ; power into the fluid −2πR₁σ_Rφu_φ; §8.6 p − p∞ | lubrication: L along, h = εL across, U, P_a (or μUL/h²); similarity: √(νt); Stokes layer δ_e = √(2ν/ω); low Re: pressure μU/L; Re per section (pipe diameter, Re_L, sphere diameter 2aU/ν, Re_a radius) | dimensional SI throughout; the scaled lubrication and low-Re equations live in the sympy engines (`lubrication_nondim_sympy`, `low_re_scaling_sympy`); g = G0 in `core.lubrication` and `core.creeping` |
+| ch09 | x along the wall from the leading edge (or stagnation point), y normal to it (2-D); jets: x along the jet, y across (free jet symmetric about y = 0, wall jet y = 0 the wall); body angles φ from the **forward** stagnation point; Kármán street rows at y = ±b/2 with spacing a (upper row −Γ in the picture, +Γ in D14 step 1 — an open explainer item); teacup cylindrical (R, z) with z up from the floor | leading edge x = 0 (Blasius δ → 0 there, (9.22)); Thwaites start x[0] with θ₀ (stagnation start: the finite limit); marching inlet x₀ > 0 with a supplied or local Falkner–Skan profile; jet slot x = 0 (virtual origin) | −(1/ρ)dp/dx = U_eU_e′; **dp/dx > 0 adverse**; u = ψ_y, v = −ψ_x; signed τ₀ (> 0 attached, 0 at separation); C_p = (p − p∞)/(½ρU²); C_D of (9.33) for one face; μu_yy(wall) = dp/dx | overall L, U (δ̄ = L Re^{−1/2}); similarity lengths √(νx/U), √(νx/U_e), (Cρν²x²/J)^{1/3}, ∝ x^{3/4}; cylinder/sphere Re on the diameter; St with the cyclic frequency | dimensional SI; similarity profiles and the Thwaites closure non-dimensional; scaled (9.7)–(9.8) in `bl_nondim_sympy`; ρ default 1.2 (air) in BL helpers, 1000 in the teacup; g only in `ball_swing_deflection` (9.81) |
