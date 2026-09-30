@@ -247,8 +247,8 @@
     "ch09": {
       "title": "Boundary Layers and Related Topics",
       "slug": "boundary_layers",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -258,8 +258,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 148 rows, 85 eqs, 27 derivations, 15 printed slips noted",
+      "updated": "2026-09-29"
     },
     "ch10": {
       "title": "Computational Fluid Dynamics",
