@@ -354,12 +354,13 @@ def pressure_drag_from_cp(phi_deg, cp=None, n: int = 200, breakpoints=()) -> flo
     return float(np.trapezoid(c * np.cos(ph), ph))
 
 
-def separated_pressure_drag(phi_sep_deg: float = 82.0, cp_base: float | None = None, n: int = 64) -> float:
+def separated_pressure_drag(phi_sep_deg: float = 82.0, cp_base: float | None = -1.2, n: int = 64) -> float:
     """Pressure drag coefficient of the separated-flow model :func:`separated_cp`, by Gauss–Legendre; closed form
     C_D,p = sin φₛ (1 − (4/3) sin²φₛ − C_b).
 
     Book: §9.7 (form drag from a low, nearly uniform wake pressure).  φₛ → 180° with C_b → 1 gives the ideal flow, C_D → 0
-    (d'Alembert).  Our model: QUALITATIVE.  Parameters: phi_sep_deg [deg]; cp_base [–] (``None`` → the crude rule C_b = ideal value at φₛ); n GL points.
+    (d'Alembert).  Our model: QUALITATIVE.  Parameters: phi_sep_deg [deg]; cp_base [–] wake (base) pressure coefficient, default −1.2 (ILLUSTRATIVE: a typical
+    measured subcritical magnitude, not derived; ``None`` → the crude rule C_b = ideal value at φₛ, which gives an unphysical 2.59 at 82°); n GL points.
     Returns C_D,pressure [–] (no skin friction) — expect (82°, −1.2) → 0.8838, (125°, −0.6) → 0.5778, (90°, ideal C_b = −3) → 2.667.
     NOTE: at a FIXED base pressure the drag is not monotone in φₛ (C_b = −1.2: D(82°) = 0.884, D(90°) = 0.867, D(125°) = 1.07); a later separation
     lowers the drag only through the accompanying rise of the base pressure (e.g. (125°, −0.6) → 0.578).
@@ -425,7 +426,8 @@ def cylinder_state(Re, rough: bool = False, Re_cr: float = 3e5) -> dict:
 
 def drag_crisis_pair(Re_cr: float = 3e5) -> dict:
     """The model before/after the drag crisis: dict(subcritical, supercritical, ratio) each with phi_sep_deg, cp_base, cd_model (ratio = supercritical/subcritical).
-    Book: §9.8 (separation 82° → 125°, C_D falls by a factor ≈ 3–4).  Model values are OURS (qualitative, illustrative)."""
+    Book: §9.8 (separation 82° → 125°, C_D falls sharply, "a factor ≈ 3–4" in the measured drag).  Model values are OURS (qualitative, illustrative): the
+    pressure-only model gives a WEAKER drop (ratio ≈ 0.65), because it has no skin friction or wake-width physics."""
     sub = dict(_SUBCRITICAL, cd_model=_separated_drag_closed(**_SUBCRITICAL))
     sup = dict(_SUPERCRITICAL, cd_model=_separated_drag_closed(**_SUPERCRITICAL))
     return dict(subcritical=sub, supercritical=sup, ratio=sup["cd_model"] / sub["cd_model"], Re_cr=Re_cr)
@@ -463,17 +465,22 @@ def ball_swing_deflection(F_over_W: float, distance: float, U: float, g: float =
 def magnus_sign(Re_slow, Re_fast, Re_cr: float = 3e5) -> str:
     """Sign of the Magnus effect of a spinning ball from which side is past the drag crisis — a truth table (qualitative).
 
-    Convention: ``Re_fast`` is the local Reynolds number of the side whose surface moves WITH the relative flow (higher relative speed), ``Re_slow`` of the side
-    that moves against it (Re_slow ≤ Re_fast).  Ideal flow (ch06, L = ρUΓ) pushes the ball toward the high-speed side ("+").  Book: §9.9 — if only the fast side is past
-    the crisis (Re_slow < Re_cr ≤ Re_fast) its separation is delayed, the wake turns the other way and the force reverses: NEGATIVE Magnus effect; if both
-    sides are on the same side of Re_cr the ordinary POSITIVE effect results.  (The book's sentence prints 'Re < Re_cr' twice — slip R10; the second is Re > Re_cr.)
-    Returns "+", "−" (Unicode minus) or "none" (Re_slow == Re_fast: no spin; also returned when the convention Re_slow ≤ Re_fast is
-    violated, where the question has no meaning).  Label: qualitative."""
+    Convention (book §9.9): the Reynolds number of each side is built on the fluid velocity RELATIVE TO THE SURFACE.  ``Re_fast`` belongs to the side with the
+    LARGER relative velocity — the side whose surface moves AGAINST the oncoming flow (clockwise spin: the lower side in the book's figure) — and ``Re_slow`` to
+    the side whose surface moves with the flow (Re_slow ≤ Re_fast).  Book: if only the larger-relative-speed side is past the crisis (Re_slow < Re_cr ≤ Re_fast) its
+    separation is delayed, giving lower pressure on that side and a force opposite to the ideal-flow Magnus force: NEGATIVE Magnus effect.  If both sides are past
+    the crisis (Re_cr ≤ Re_slow) the separation point moves upstream with Re on the faster side, its pressure is higher, and the ordinary POSITIVE effect results.
+    (The book's sentence prints 'Re < Re_cr' twice — slip R10; the second is Re > Re_cr.)  Both sides below Re_cr is NOT discussed by the book (both layers
+    laminar) and the answer is not asserted here.
+    Returns "+", "−" (Unicode minus) or "none" (undetermined: Re_slow == Re_fast, i.e. no spin; the convention Re_slow ≤ Re_fast violated; or both sides
+    subcritical, which the book does not treat).  Label: qualitative."""
     if Re_slow >= Re_fast:
         return "none"
     if Re_slow < Re_cr <= Re_fast:
         return "−"
-    return "+"
+    if Re_slow >= Re_cr:
+        return "+"
+    return "none"  # both subcritical: not supported by the book's argument
 
 
 __all__ = [n for n in dir() if not n.startswith("_") and n not in ("annotations", "warnings", "eig", "expm")]

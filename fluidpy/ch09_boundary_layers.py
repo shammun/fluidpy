@@ -15,10 +15,13 @@ Where the physics lives (every public name is re-exported, so ``ch09.<name>`` re
 Printed slips (analysis §9) coded corrected, printed forms kept as named options that a test must fail:
 R1 (9.7) missing squares (``bl_nondim_sympy(printed_9_7=True)``); R2 (9.30) 4.93 vs 4.910 (``blasius_delta99(printed=True)``);
 R3 wall-jet ODE coefficient 1 vs 4 (``similarity_reduce_sympy("wall_jet", printed=True)``, ``wall_jet_ode_solve(printed=True)``);
-R4 wall-jet separation of variables (``wall_jet_sympy``); R5 one side of the plate (``sides=``); R6 (9.76) 5.6152 vs 7.3319
+R4 wall-jet separation of variables (``wall_jet_sympy``); R6 (9.76) 5.6152 vs 7.3319
 (``free_jet_halfwidth(printed=True)``); R7 (9.56) kinematic stress; R10 the Magnus sentence (``magnus_sign``); R11 reverse flow
-(``falkner_skan(branch="reversed")``); R14 "Chapter 13" should be 12.  Book-quoted numbers live only in git-ignored ``tests/book_values_ch09.json``.
+(``falkner_skan(branch="reversed")``: no attached bounded solution below the fold); R14 "Chapter 13" should be 12; R17 the sign of u_yy at the wall
+for adverse gradients.  Traps/notes (not printed slips): R5 (9.33) is for ONE side of the plate, as the book says (``sides=``).
+Book-quoted numbers live only in git-ignored ``tests/book_values_ch09.json``.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -34,6 +37,12 @@ from .core.creeping import oseen_drag_coefficient, stokes_drag_coefficient  # no
 from .core.laminar import diffusion_thickness, similarity_variable, stokes_first_problem, temporal_bl_wall_stress  # noqa: F401  (√(νt) bridge)
 from .core.similarity import pressure_coefficient, reynolds_number, sphere_drag_coefficient, strouhal_number  # noqa: F401
 from .core.similarity_reduce import similarity_collapse_error, similarity_ode_solve, similarity_reduce_sympy  # noqa: F401
+
+
+def __getattr__(name):  # lazy: LAMBDA_SEP_FS is computed from the Falkner–Skan fold on first access (see core.boundary_layer)
+    if name == "LAMBDA_SEP_FS":
+        return BL._lambda_sep_fs()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _z(e) -> bool:
@@ -366,11 +375,13 @@ def example_9_2(theta0: float = 0.0, nu: float = 1e-5, U1: float = 1.0, L: float
     """Example 9.2 — Thwaites' method in a diffuser A(x) = A₁(1 + x/L), U_e = U₁/(1 + x/L).
 
     Book: §9.6, Eq. (9.50), Example 9.2: λ(x/L) = −(0.45/4)[(1 + x/L)⁴ − 1] − (θ₀²U₁/(νL))(1 + x/L)⁴; separation is predicted where λ reaches the criterion:
-    (1 + x/L)⁴ = 1.8 for θ₀ = 0 and λ_sep = −0.09 (x/L = 1.8^{1/4} − 1 = 0.15829), and 1.6053 for the exact-Falkner–Skan value λ_sep = −0.0681 (x/L = 0.12563).
+    (1 + x/L)⁴ = 1.8 for θ₀ = 0 and the BOOK's criterion λ_sep = −0.09 (x/L = 1.8^{1/4} − 1 = 0.15829); the exact-Falkner–Skan zero-shear value
+    λ_sep = −0.068148 (:data:`LAMBDA_SEP_FS`, computed) gives (1 + x/L)⁴ = 1.6058 (x/L = 0.1257).  BOTH criteria are reported, the book's first.
     Parameters: theta0 [m] initial momentum thickness at x = 0; nu [m²/s]; U1 [m/s]; L [m]; closure for the numerical run.
-    Returns dict(lam [callable: ξ = x/L → λ, closed form], x_sep_over_L [λ_sep = −0.09], x_sep_over_L_fs [λ_sep = −0.0681] (closed forms; None if λ is already below
-    the criterion at ξ = 0), theta0 [m] used, xi, lam_numeric [array, numerical Thwaites on ξ ∈ [0, 0.5]], lam_closed_form [array], max_err, x_sep_numeric [ξ, first crossing
-    of the closure's criterion in the numerical run], table (ξ, λ at 0.05…0.2)).
+    Returns dict(lam [callable: ξ = x/L → λ, closed form], x_sep_over_L [book criterion λ_sep = −0.09], x_sep_over_L_fs [λ_sep = −0.068148] (closed forms; None if λ is already
+    below the criterion at ξ = 0), criteria [list of dicts(name, lam_sep, x_sep_over_L), the book's −0.090 first], theta0 [m] used, xi, lam_numeric [array, numerical Thwaites
+    on ξ ∈ [0, 0.5]], lam_closed_form [array], max_err, x_sep_numeric [ξ, first crossing of the CLOSURE's criterion in the numerical run], x_sep_numeric_book [ξ, first
+    crossing of λ = −0.09 in the numerical run], table (ξ, λ at 0.05…0.2)).
     Validation: V1 λ to 1e-12; x_sep = 1.8^{1/4} − 1.  Label: analytic."""
     kappa = theta0 ** 2 * U1 / (nu * L)
     lam_fn = lambda xi: -(0.45 / 4.0) * ((1.0 + np.asarray(xi, float)) ** 4 - 1.0) - kappa * (1.0 + np.asarray(xi, float)) ** 4  # noqa: E731
@@ -384,9 +395,20 @@ def example_9_2(theta0: float = 0.0, nu: float = 1e-5, U1: float = 1.0, L: float
     r = BL.thwaites(xi * L, of, nu, theta0=theta0, closure=closure, stop_at_separation=False)
     lam_cf = lam_fn(xi)
     tab = np.array([0.05, 0.10, 0.15, 0.20])
-    return dict(lam=lam_fn, x_sep_over_L=xsep(LAMBDA_SEP_BOOK), x_sep_over_L_fs=xsep(LAMBDA_SEP_FS), theta0=float(theta0),
+    lam_fs = BL._lambda_sep_fs()
+    below = np.where(r["lam"] <= LAMBDA_SEP_BOOK)[0]
+    if below.size == 0:
+        xnb = None
+    elif below[0] == 0:
+        xnb = float(xi[0])
+    else:
+        i = below[0]
+        xnb = float(xi[i - 1] + (LAMBDA_SEP_BOOK - r["lam"][i - 1]) * (xi[i] - xi[i - 1]) / (r["lam"][i] - r["lam"][i - 1]))
+    criteria = [dict(name="book (Table 9.1 zero shear)", lam_sep=LAMBDA_SEP_BOOK, x_sep_over_L=xsep(LAMBDA_SEP_BOOK)),
+                dict(name="exact Falkner–Skan zero shear", lam_sep=lam_fs, x_sep_over_L=xsep(lam_fs))]
+    return dict(lam=lam_fn, x_sep_over_L=xsep(LAMBDA_SEP_BOOK), x_sep_over_L_fs=xsep(lam_fs), criteria=criteria, theta0=float(theta0),
                 xi=xi, lam_numeric=r["lam"], lam_closed_form=lam_cf, max_err=float(np.max(np.abs(r["lam"] - lam_cf))),
-                x_sep_numeric=None if r["x_sep"] is None else r["x_sep"] / L, table=(tab, lam_fn(tab)))
+                x_sep_numeric=None if r["x_sep"] is None else r["x_sep"] / L, x_sep_numeric_book=xnb, table=(tab, lam_fn(tab)))
 
 
 # ======================================================================================================================
@@ -436,12 +458,16 @@ def book_slips() -> list[dict]:
              printed_value=4.93, correct_value=c["eta99"]),
         dict(id="R3", where="wall-jet ODE below Eq. (9.82)", printed="f‴ + ff″ + 2f′² = 0", correct="4f‴ + ff″ + 2f′² = 0", printed_value=1, correct_value=4),
         dict(id="R4", where="wall-jet separation of variables", printed="∫df/(f_∞^{3/2}f − f²)", correct="∫df/(f_∞^{3/2}f^{1/2} − f²)", printed_value=None, correct_value=None),
-        dict(id="R5", where="Eq. (9.33)", printed="C_D = 1.33/√Re_L (looks like the plate)", correct="one side of the plate only (two faces: double)", printed_value=None, correct_value=None),
+        dict(id="R5", where="Eq. (9.33)", printed="TRAP/NOTE, not a printed slip: the book says 'one side of the plate'", correct="C_D = 1.328/√Re_L is per wetted face (two faces: double; ``sides=``)",
+             printed_value=None, correct_value=None, kind="trap"),
         dict(id="R6", where="Eq. (9.76)", printed="h₉₉ = 5.6152[…]^{1/3}", correct="h₉₉ = 7.3319[…]^{1/3} (sech² = 0.01)", printed_value=JET.H99_PRINTED,
              correct_value=float(JET.free_jet_at_level(0.01)["coeff"])),
         dict(id="R7", where="Eq. (9.56)", printed="∂τ/∂y without 1/ρ", correct="kinematic stress ν∂u/∂y", printed_value=None, correct_value=None),
         dict(id="R10", where="§9.9 Magnus sentence", printed="'Re < Re_cr' twice", correct="second is Re > Re_cr", printed_value=None, correct_value=None),
-        dict(id="R11", where="§9.4", printed="reverse-flow solutions for n < −0.0904", correct="none below; a second branch for −0.0904 < n < 0", printed_value=None, correct_value=None),
+        dict(id="R11", where="§9.4", printed="solutions with reverse flow for n < −0.0904", correct="no attached bounded (0 ≤ f′ ≤ 1) solution below the fold n = −0.0904; a second (reversed) branch exists for −0.0904 < n < 0",
+             printed_value=None, correct_value=None),
+        dict(id="R17", where="§9.7 (adverse gradient, n < 0)", printed="(d²u/dy²)_wall < 0 for the adverse Falkner–Skan case", correct="(9.9) at the wall gives u_yy = (dp/dx)/μ > 0 for an adverse gradient (dp/dx > 0)",
+             printed_value=None, correct_value=None),
         dict(id="R14", where="§9.10", printed="turbulent jets: see Chapter 13", correct="Chapter 12", printed_value=13, correct_value=12),
     ]
 

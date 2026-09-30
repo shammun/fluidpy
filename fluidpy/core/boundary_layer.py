@@ -9,8 +9,8 @@ by nature, and use ``np.trapezoid`` (numpy 2).
 
 Printed slips coded corrected (with the printed form available as a named option): R1 (9.7) squares
 (``ch09.bl_nondim_sympy(printed_9_7=True)``); R2 (9.30) η₉₉ = 4.93 vs the root 4.910 (``blasius_delta99(printed=True)``);
-R5 (9.33) one side of the plate (``sides=``); R11 reverse-flow solutions live on the second branch only
-(``falkner_skan(branch="reversed")``).
+R11 there is no attached bounded (0 ≤ f′ ≤ 1) solution below the fold; reverse-flow members live on the second branch
+(``falkner_skan(branch="reversed")``).  Trap/note (NOT a printed slip): (9.33) is for ONE side of the plate, as the book says (``sides=``).
 
 Numerics: Blasius is solved by Töpfer scaling (one initial-value problem, exact to solver tolerance) AND by
 ``solve_bvp``; Falkner–Skan by ``solve_bvp`` with continuation in m; the fold at m = −0.0904 is crossed by
@@ -217,6 +217,16 @@ def bl_x_momentum_residual(x, y, u, v, dpdx, nu, rho: float = 1.2, dudx=None):
     return u * ux + v * uy + dpdx / rho - nu * uyy  # Eq. (9.9)
 
 
+def bl_dpdy_scaled(u, v, v_x, v_y, v_xx, v_yy, Re):
+    """∂p*/∂y* of the scaled y-momentum equation (9.8), solved for the pressure gradient [non-dimensional, in the stretched variables of Eq. (9.6)].
+
+    Book: §9.1, Eq. (9.8): (1/Re)(u*v*_x* + v*v*_y*) = −∂p*/∂y* + (1/Re²)v*_x*x* + (1/Re)v*_y*y*, hence
+    ∂p*/∂y* = −(1/Re)(u*v*_x* + v*v*_y*) + (1/Re²)v*_x*x* + (1/Re)v*_y*y*.
+    Parameters (all in the starred variables of Eq. (9.6), non-dimensional): u, v velocities; v_x, v_y first derivatives of v; v_xx, v_yy second derivatives; Re = UL/ν [–].
+    Returns ∂p*/∂y* [–].  Validation: V1 sign and magnitude on manufactured fields.  Label: analytic."""
+    return -(_F(u) * _F(v_x) + _F(v) * _F(v_y)) / Re + _F(v_xx) / Re ** 2 + _F(v_yy) / Re  # Eq. (9.8)
+
+
 def _bl_pressure_ratio(Re: float, n_x: int, n_y: int, y_max: float = 12.0):
     """(max|p*_y*|, max|advective term|, ∫p*_y* dy* at the last station) on the Blasius field, all in units of ρU² per L (see bl_pressure_variation)."""
     bl = _blasius()
@@ -238,7 +248,7 @@ def _bl_pressure_ratio(Re: float, n_x: int, n_y: int, y_max: float = 12.0):
         vyy = (fpp + eta * fppp) / (2.0 * xs ** 1.5)
         v_x = (vfun(xs + h) - vfun(xs - h)) / (2 * h)
         v_xx = (vfun(xs + h) - 2 * vfun(xs) + vfun(xs - h)) / h ** 2
-        dpdy = (u * v_x + v * vy) / Re - v_xx / Re ** 2 - vyy / Re  # Eq. (9.8)
+        dpdy = bl_dpdy_scaled(u, v, v_x, vy, v_xx, vyy, Re)  # Eq. (9.8) solved for p*_y*
         adv = u * (-eta / (2 * xs)) * fpp + v * fpp / np.sqrt(xs)  # u*u*_x* + v*u*_y* (the terms p*_x* balances in (9.7))
         dmax = max(dmax, float(np.max(np.abs(dpdy))))
         amax = max(amax, float(np.max(np.abs(adv))))
@@ -250,7 +260,7 @@ def bl_pressure_variation(Re, n_x: int = 41, n_y: int = 121) -> dict:
     """How much the pressure really changes across a Blasius layer — the O(1/Re) content of Eq. (9.8) ⇒ (9.10).
 
     Book: §9.1, Eqs. (9.8), (9.10).  Evaluates the right-hand side of the scaled y-momentum equation (9.8),
-    ∂p*/∂y* = (1/Re)(u*v*_x* + v*v*_y*) − (1/Re²)v*_x*x* − (1/Re)v*_y*y*, on the Blasius similarity fields at ``n_x`` stations x* ∈ [0.25, 1]
+    ∂p*/∂y* = −(1/Re)(u*v*_x* + v*v*_y*) + (1/Re²)v*_x*x* + (1/Re)v*_y*y*  [(9.8) reads (1/Re)(u*v*_x* + v*v*_y*) = −p*_y* + (1/Re²)v*_x*x* + (1/Re)v*_y*y*], on the Blasius similarity fields at ``n_x`` stations x* ∈ [0.25, 1]
     (x* = x/L, y* = y Re^{1/2}/L, y* ∈ [0, 12] on ``n_y`` points) and compares it with the size of the streamwise terms that ∂p*/∂x* balances in (9.7).
     Parameters: Re = UL/ν [–] ≫ 1; n_x, n_y grid sizes (numerical choices of ours; the answer is insensitive to them).
     Returns dict(Re, ratio [–] = max|∂p*/∂y*| / max|u*u*_x* + v*u*_y*|, dpdy_max [–], adv_max [–], delta_p [–, pressure change across
@@ -285,7 +295,9 @@ def displacement_thickness(y, u, Ue, tail: bool = True) -> float:
 
     Book: §9.2, Eq. (9.16), ∫(U_e − u)dy = U_e δ*: the height by which the outer streamlines are pushed away.
     Parameters: y [m] increasing from 0; u [m/s] on y; Ue [m/s] edge speed; tail: add an exponential-tail estimate beyond y[-1]
-    (the deficit is assumed to decay like exp(−y/l) with l from the last two points).
+    (the deficit is assumed to decay like exp(−y/l) with l from the last two points).  Caveat: the Blasius deficit decays like a Gaussian,
+    exp(−η²/4), faster than an exponential, so the tail estimate slightly OVER-estimates the missing integral there (the effect is small when
+    y[-1] is well past δ₉₉); pass ``tail=False`` to integrate only the sampled range.
     Method: composite Simpson (scipy.integrate.simpson) on the sampled deficit.
     Validation: V1 exact on u/U = 1 − e^{−y/a} (δ* = a) and the sine profile.  Label: analytic.
     """
@@ -299,7 +311,8 @@ def momentum_thickness(y, u, Ue, tail: bool = True) -> float:
     """Momentum thickness θ = ∫₀^∞ (u/U_e)(1 − u/U_e) dy  [m].
 
     Book: §9.2, Eq. (9.17) (ρU_e²θ is the momentum-flux deficit; an angle everywhere else in the book).
-    Parameters/method as :func:`displacement_thickness`.  Validation: V1 exact (a/2 on 1 − e^{−y/a}).  Label: analytic.
+    Parameters/method as :func:`displacement_thickness` (including its ``tail=True`` caveat: the exponential-tail estimate over-estimates the
+    tail of a Gaussian-decaying Blasius deficit slightly).  Validation: V1 exact (a/2 on 1 − e^{−y/a}).  Label: analytic.
     """
     y, u = _F(y), _F(u)
     r = u / Ue
@@ -428,7 +441,7 @@ def blasius_constants() -> dict:
     Returns dict(fpp0, eta99, delta_star, theta, H, v_inf, tau_coeff (= f″(0)), cf_coeff (= 2f″(0), Eq. (9.32)),
     cd_coeff (= 4f″(0), Eq. (9.33))), all non-dimensional, scaled by √(νx/U) or √Re_x as stated.
     Validation: V2 residual of (9.27); V3 Töpfer vs solve_bvp (1e-9); V5 f″(0) = 0.332057336215 (Howarth 1938 / Wikipedia
-    "Blasius boundary layer"); V7 θ = 2f″(0).  Label: symbolic, converged, benchmark.
+    "Blasius boundary layer"); V7 θ = 2f″(0).  Label: symbolic, converged (Töpfer vs solve_bvp asserted), benchmark.
     """
     return dict(_blasius_const_cache())
 
@@ -448,7 +461,7 @@ def blasius_fields(x, y, U: float = 1.0, nu: float = 1e-6) -> dict:
     Parameters: x [m] > 0 and y [m] ≥ 0 (broadcast against each other, e.g. a meshgrid); U [m/s]; nu [m²/s].
     Returns dict(u, v, psi, eta, delta, tau0_over_rho) — u, v [m/s], ψ [m²/s], η [–], δ [m], τ₀/ρ [m²/s²] = ν U f″(0)/δ.
     Assumptions: laminar, zero pressure gradient, x ≫ ν/U (leading-edge region not resolved).
-    Validation: V4/V1 continuity and (9.18) residual O(h²); ∫τ₀dx = ρU²θ; V3 similarity collapse.  Label: analytic, converged.
+    Validation: V4/V1 continuity and (9.18) residual O(h²); ∫τ₀dx = ρU²θ; V3 similarity collapse.  Label: analytic (no convergence order asserted).
     """
     x, y = np.broadcast_arrays(_F(x), _F(y))
     if np.any(x <= 0):
@@ -500,14 +513,14 @@ def blasius_skin_friction(Re_x):
 def blasius_drag(L, U: float, rho: float, nu: float, sides: int = 1):
     """Drag per unit width F_D = ∫₀ᴸ τ₀ dx = 2f″(0) ρU²L/√Re_L = 0.664ρU²L/√Re_L  [N/m] (∝ U^{3/2}), by ``quad`` of Eq. (9.31).
 
-    Book: §9.3 (unnumbered, before Eq. (9.33)).  ``sides``: number of wetted faces — the book's value is ONE side (slip R5); a plate
+    Book: §9.3 (unnumbered, before Eq. (9.33)).  ``sides``: number of wetted faces — the book says ONE side of the plate (trap/note R5, not a printed slip); a plate
     wetted on both faces has twice the drag.  Label: analytic (quad vs closed form)."""
     val, err = quad(lambda s: float(blasius_wall_shear(s, U, rho, nu)), 0.0, float(L), epsabs=0, epsrel=1e-12, limit=200)
     return sides * val  # ∫ τ0 dx, integrable x^{-1/2} singularity
 
 
 def blasius_drag_coefficient(Re_L, sides: int = 1):
-    """C_D = F_D/(½ρU²L) = 4f″(0)/√Re_L = 1.328/√Re_L per wetted face  [–] (one side; slip R5).  Book: §9.3, Eq. (9.33)."""
+    """C_D = F_D/(½ρU²L) = 4f″(0)/√Re_L = 1.328/√Re_L per wetted face  [–] (one side, as the book says; trap/note R5).  Book: §9.3, Eq. (9.33)."""
     return _S(sides * 4.0 * _blasius().fpp0 / np.sqrt(_F(Re_L)))  # Eq. (9.33)
 
 
@@ -661,19 +674,19 @@ def falkner_skan(m: float, eta_max: float | None = None, method: str = "bvp", to
 
     Book: §9.4, Eq. (9.36) with f(0) = f′(0) = 0 (9.28), f′(∞) = 1 (9.29); m = 0 is the Blasius equation (9.27); m = 1 is the
     stagnation (Hiemenz) flow; f′(η) = u/U_e, η = y/δ(x), δ = √(νx/U_e) (9.34).
-    Parameters: m [–] exponent (pressure gradient −dp/dx = m a² x^{2m−1}, Eq. (9.35)); eta_max [–] truncation of ∞ (default None → 12 for m = 0, 10 otherwise; the answer is
-    insensitive to it, tested for 8, 12, 16); method "bvp" (solve_bvp with continuation in m; default), "toepfer" (m = 0 only,
+    Parameters: m [–] exponent (pressure gradient −dp/dx = m a² x^{2m−1}, Eq. (9.35)); eta_max [–] truncation of ∞ (default None → 12 for m = 0, 16 for m ≤ −0.05 where the layer is thick (m = −0.09: f″(0) = 0.018909 at 10 vs 0.018872 at 16/30),
+    10 otherwise; the answer is insensitive to it, tested for 8, 12, 16); method "bvp" (solve_bvp with continuation in m; default), "toepfer" (m = 0 only,
     scaling of an initial-value problem) or "shoot" (brentq on f″(0), m ≥ −0.05 only); tol [–] solver tolerance; branch
     "attached" (default; exists for m > −0.09043) or "reversed" (Stewartson's second branch, −0.0904 < m < 0, f″(0) < 0; the
-    book's remark that reverse-flow solutions exist below −0.0904 is a slip, R11); n number of output points.
+    book's remark that reverse-flow solutions exist below −0.0904 is not supported: no attached bounded (0 ≤ f′ ≤ 1) solution exists below the fold, R11); n number of output points.
     Returns dict(eta, f, fp, fpp, fppp, fpp0, m, success, method, eta_max) — f‴ from the ODE itself; all non-dimensional.
     DEVIATION: the book gives no method; the BVP/Töpfer/shooting choices and continuation are ours (math-to-python §2).
-    Validation: V2 sympy residual of (9.36); V3 bvp vs Töpfer 1e-9 and truncation; V5 f″(0)(0) = 0.332057336, separation
-    m_sep = −0.09043; V7 f‴(0) = −m.  Label: symbolic, converged, benchmark.
+    Validation: V2 sympy residual of (9.36); V3 bvp vs Töpfer 1e-9 and truncation; V5 f″(0) = 0.332057336 at m = 0, separation
+    m_sep = −0.09043; V7 f‴(0) = −m.  Label: symbolic, converged (truncation insensitivity tested), benchmark.
     """
     m = float(m)
-    if eta_max is None:  # default truncation: 12 for Blasius (Gaussian tail: f″(0) to 7e-12), 10 otherwise
-        eta_max = 12.0 if m == 0.0 else 10.0
+    if eta_max is None:  # default truncation: 12 for Blasius (Gaussian tail: f″(0) to 7e-12), 16 near the fold (m ≤ −0.05), 10 otherwise
+        eta_max = 12.0 if m == 0.0 else (16.0 if m <= -0.05 else 10.0)
     eta = np.linspace(0.0, float(eta_max), int(n))
     success = True
     if branch == "reversed":
@@ -844,12 +857,15 @@ def falkner_skan_thickness(x, m: float, a: float, nu: float):
     return _S(np.sqrt(nu * _F(x) ** (1.0 - m) / a))
 
 
-def falkner_skan_fields(x, y, m: float, a: float, nu: float, eta_max: float = 10.0) -> dict:
+def falkner_skan_fields(x, y, m: float, a: float, nu: float, eta_max: float | None = None) -> dict:
     """Falkner–Skan velocity field for U_e = a xᵐ.
 
     Book: §9.4, Eq. (9.34): ψ = √(νxU_e) f(η), η = y√(a/ν) x^{(m−1)/2}; u = ψ_y = U_e f′; v = −ψ_x = −√(νa) x^{(m−1)/2}[((m+1)/2) f + ((m−1)/2) ηf′].
-    x [m] > 0, y [m] (broadcast); a [m^{1−m}/s]; nu [m²/s].  Returns dict(u, v, psi, eta, delta, Ue).  Label: analytic/converged."""
+    x [m] > 0, y [m] (broadcast); a [m^{1−m}/s]; nu [m²/s]; eta_max [–] truncation (None → 12 for m = 0, 16 for m ≤ −0.05, 10 otherwise, as :func:`falkner_skan`).
+    Returns dict(u, v, psi, eta, delta, Ue).  Label: analytic (formulas), converged (truncation insensitivity tested)."""
     x, y = np.broadcast_arrays(_F(x), _F(y))
+    if eta_max is None:
+        eta_max = 16.0 if float(m) <= -0.05 else 10.0
     ev = _fs_evaluator(float(m), float(eta_max))
     eta = y * np.sqrt(a / nu) * x ** ((m - 1.0) / 2.0)  # Eq. (9.34)
     f, fp, _ = ev(eta)
@@ -880,7 +896,7 @@ def falkner_skan_table(m_grid=None, n_eta: int = 161, eta_max: float = 8.0, fast
     Returns dict(m, eta, fp[m, η], fpp[m, η], f[m, η], fpp0, I_delta, I_theta, H, lam, l, inflection_eta (nan where none),
     fpp0_reversed (second branch f″(0) < 0, nan outside −0.0904 < m ≲ −0.008: the BVP continuation of the second branch stops there, where its reversed region becomes very thick)) as float arrays.
     Attached branch only for the profiles.  Precomputed tables are OURS, not the book's.  Validation: rows agree with :func:`falkner_skan_state`
-    (identical numbers); f″(0) = 0.33206 at m = 0; V1 momentum integral closes.  Label: converged.
+    (identical numbers); f″(0) = 0.33206 at m = 0; V1 momentum integral closes.  Label: analytic (identities); own numbers, no convergence order asserted.
     """
     ms = _fs_default_grid() if m_grid is None else np.asarray(m_grid, float)
     if fast:
@@ -965,8 +981,8 @@ def karman_pohlhausen(Ue, x, nu, profile: str = "cubic", theta0: float = 0.0, Z0
     (0 → start from the local flat-plate/similarity balance at x[0], i.e. a layer that began at the leading edge); Z0 initial δ² [m²]
     (overrides theta0; θ₀ maps to δ₀ = θ₀/c_θ(0)); rho [kg/m³].  Returns dict(x, delta, theta, delta_star, tau0, lam) in SI.
     DEVIATION: shape integrals are computed by sympy, not typed; the initial value is our flat-plate estimate.
-    Validation: cubic profile on a flat plate: θ/√(νx/U) within 6 % of Blasius; Label: converged (against Blasius), qualitative
-    for the accuracy claim.
+    Validation: cubic profile on a flat plate: θ/√(νx/U) within 6 % of Blasius (the ODE integration is converged; the assumed profile is not).
+    Label: approximate (6 % vs Blasius).
     """
     global _KP
     if _KP is None:
@@ -1023,9 +1039,17 @@ def holstein_bohlen(theta, Ue_x, nu):
     return _S(_F(theta) ** 2 / nu * _F(Ue_x))  # Eq. (9.44)
 
 
-LAMBDA_SEP_FS = -0.0681
-"""λ at which the exact-Falkner–Skan shear l(λ) vanishes (the fold of the attached branch; computed −0.06811, rounded to 4 s.f.).
-Default separation criterion of :func:`thwaites` for ``closure="falkner_skan"``; the book's rounded criterion is :data:`LAMBDA_SEP_BOOK`."""
+def _lambda_sep_fs() -> float:
+    """λ = m I_θ² at the fold of the attached Falkner–Skan branch (l = 0): −0.068148, COMPUTED from :func:`_fs_fold_state` (never typed)."""
+    return float(_fs_fold_state()["lam"])
+
+
+def __getattr__(name):  # lazy module constant: LAMBDA_SEP_FS is computed on first access (the fold continuation costs ~2 s)
+    """``LAMBDA_SEP_FS`` — λ at which the exact-Falkner–Skan shear l(λ) vanishes (fold of the attached branch), computed = −0.068148.
+    Default separation criterion of :func:`thwaites` for ``closure="falkner_skan"``; the book's rounded criterion is :data:`LAMBDA_SEP_BOOK`."""
+    if name == "LAMBDA_SEP_FS":
+        return _lambda_sep_fs()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @functools.lru_cache(maxsize=1)
@@ -1071,7 +1095,7 @@ def thwaites_closure_table(n_points: int = 60, fast: bool = False) -> dict:
     Book: §9.6, Table 9.1 (private) and Eqs. (9.45), (9.46), (9.48); λ = m I_θ², l = f″(0)I_θ, H = I_δ/I_θ, L = 2l − 2(2 + H)λ for m from the fold
     (−0.0904, where l = 0) to 50.
     DEVIATION: Thwaites' l, H are an empirical cross-family fit valid for λ ∈ [−0.09, 0.25]; the exact Falkner–Skan values cover only
-    λ ∈ [−0.0681, 0.1065] (computed) and give l = 0 at λ = −0.0681 instead of −0.09 — both separation criteria are reported by
+    λ ∈ [−0.06815, 0.1065] (computed) and give l = 0 at λ = −0.06815 instead of −0.09 — both separation criteria are reported by
     :func:`thwaites`.  ``n_points``: number of family members (60; 24 when ``fast``).
     Accuracy: the members are solved with tolerance 1e-8, so the node values agree with :func:`falkner_skan_state` to ≈ 2e-8 (not 1e-9).
     Returns dict(m, lam, l, H, L) arrays sorted by λ.  Label: converged (own numbers; not asserted equal to the book)."""
@@ -1087,10 +1111,11 @@ def _white_l(lam):
 def thwaites_l(lam, closure: str = "falkner_skan"):
     """Shear correlation l(λ) with τ₀ = μ(U_e/θ)l(λ).  Book: §9.6, Eq. (9.45), Table 9.1.
 
-    closure "falkner_skan": PCHIP through :func:`thwaites_closure_table` (exact for those flows); below the fold (λ < −0.0681) l = 0 (no attached
+    closure "falkner_skan": PCHIP through :func:`thwaites_closure_table` (exact for those flows); below the fold (λ < −0.06815) l = 0 (no attached
     solution — τ₀ and the separation flag agree) and above the table the shape of the "white" law scaled to match.
-    closure "white": l ≈ (λ + 0.09)^0.62 (ANSYS lesson handout, secondary source; l(0) = 0.2247 vs Table 9.1 0.220; zero at −0.09, the book's criterion).
-    Scalar-callable; returns [–].  Label: benchmark (form), converged (own table)."""
+    closure "white": l ≈ (λ + 0.09)^0.62 (White's fit as quoted in an ANSYS lesson handout — a secondary source, not a benchmark; l(0) = 0.2247 vs Table 9.1 0.220;
+    zero at −0.09, the book's criterion).
+    Scalar-callable; returns [–].  Label: secondary-sourced fit ("white"); own table, no convergence order asserted ("falkner_skan")."""
     lam = _F(lam)
     if closure == "white":
         return _S(_white_l(lam))
@@ -1138,7 +1163,7 @@ def thwaites(x, Ue, nu: float, theta0: float = 0.0, closure: str = "falkner_skan
     """Thwaites' method: θ from the closed form of Eq. (9.50), then λ, H, τ₀, δ*, C_f and the separation point.
 
     Book: §9.6, Eqs. (9.44)–(9.50): θ²U_e⁶/ν = 0.45∫₀ˣU_e⁵dx′ + θ₀²U₀⁶/ν (9.50); λ = (θ²/ν)dU_e/dx (9.44); τ₀ = μ(U_e/θ)l(λ) (9.45);
-    δ*/θ = H(λ) (9.46).  Separation is predicted where λ falls to ``lam_sep``: ``None`` → −0.0681 for the exact Falkner–Skan closure (where
+    δ*/θ = H(λ) (9.46).  Separation is predicted where λ falls to ``lam_sep``: ``None`` → −0.06815 for the exact Falkner–Skan closure (where
     its l = 0, so τ₀ and the flag agree) and −0.09 for ``closure="white"`` (the book's criterion, Table 9.1: l(−0.09) = 0).
     Parameters: x [m] increasing from the start point x[0] (θ = θ₀ there; x[0] = 0 with U_e(0) = 0 is a stagnation point with the
     finite limit θ² = 0.45ν/(6 U_e′(0)), λ(0) = 0.075); Ue OuterFlow / callable / array [m/s]; nu [m²/s]; theta0 [m]; closure "falkner_skan"
@@ -1153,7 +1178,7 @@ def thwaites(x, Ue, nu: float, theta0: float = 0.0, closure: str = "falkner_skan
     """
     x = _F(x)
     if lam_sep is None:
-        lam_sep = LAMBDA_SEP_BOOK if closure == "white" else LAMBDA_SEP_FS
+        lam_sep = LAMBDA_SEP_BOOK if closure == "white" else _lambda_sep_fs()
     of = _as_outer(Ue, x)
     U = _F(of.Ue(x))
     dU = _F(of.dUe(x))
@@ -1209,7 +1234,7 @@ def thwaites_named(kind: str, x, nu: float, theta0: float = 0.0, closure: str = 
     For "wedge" (U_e = axⁿ) the march starts at x·1e-6 with the exact power-law value θ² = 0.45νx₀^{1−n}/(a(5n+1)) (the θ² ∝ x^{1−n} solution of (9.49));
     ``theta0`` [m] is the value of θ at x = 0 for the other kinds.
     Returns dict(theta [m], delta_star [m], tau0 [Pa when rho is in kg/m³], cf [–], lam [–], H [–], l [–], x_sep [m or None]) at x; x_sep = first crossing of
-    the closure's separation λ (−0.0681 for "falkner_skan", −0.09 for "white") anywhere on [0, x].
+    the closure's separation λ (−0.06815 for "falkner_skan", −0.09 for "white") anywhere on [0, x].
     Validation: flat plate θ = √(0.45νx/U) exactly; diffuser λ closed form; cylinder λ = closed form of :func:`thwaites_cylinder_closed_form`.
     Label: analytic.
     """
@@ -1282,7 +1307,7 @@ def thwaites_cylinder_separation(lam_sep: float = LAMBDA_SEP_BOOK) -> float:
     """Separation angle φ_sep [deg from the forward stagnation point] where Thwaites' λ on the ideal cylinder flow falls to ``lam_sep``.
 
     Book: §9.6 Eq. (9.50) with U_e = 2U sin φ (Exercise 9.21 named only).  Root of :func:`thwaites_cylinder_closed_form` (λ decreases monotonically from 0
-    at 90° to −∞ at 180°) by ``brentq``; independent of U, a, ν.  ``lam_sep`` [–]: −0.09 (the book's criterion) gives 103.1°, −0.0681
+    at 90° to −∞ at 180°) by ``brentq``; independent of U, a, ν.  ``lam_sep`` [–]: −0.09 (the book's criterion) gives 103.1°, −0.06815
     (exact Falkner–Skan zero shear, :data:`LAMBDA_SEP_FS`) gives 100.9°.  These are Thwaites' predictions with the ideal-flow U_e; the measured
     subcritical separation angle is ≈ 82° (rounded experimental value, see core.bluff_body), so the method is only a rough guide on a bluff body.
     Label: analytic."""
@@ -1490,7 +1515,8 @@ def plate_drag_coefficient(Re_L, regime: str = "laminar", Re_tr: float = 5e5, si
     Schlichting's refit is c = 0.0725, a 2 % difference — form confirmed by a web search snippet of Schlichting's law, coefficients not re-read
     in a primary source: status "form benchmark, coefficient unverified").  "mixed": laminar up to Re_tr, then C_turb(Re_L) − (Re_tr/Re_L)[C_turb(Re_tr) − C_lam(Re_tr)]
     (turbulent layer starts at Re_tr with the laminar momentum deficit; = 0.074Re^{−1/5} − 1742/Re for Re_tr = 5×10⁵).
-    Parameters: Re_L [–]; regime; Re_tr [–] (book value 5×10⁵, rounded); sides wetted faces.  Label: analytic (laminar), benchmark (turbulent form)."""
+    Parameters: Re_L [–]; regime; Re_tr [–] (book value 5×10⁵, rounded); sides wetted faces.
+    Label: analytic (laminar); turbulent: form benchmark, coefficient secondary-sourced."""
     R = _F(Re_L)
     lam = 4.0 * _blasius().fpp0 / np.sqrt(R)
     tur = turbulent_coeff * R ** -0.2

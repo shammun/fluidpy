@@ -182,6 +182,19 @@ def test_bl_pressure_V7_variation_across_layer_scales_as_inverse_Re():  # V7 (C0
     assert abs(BL.bl_pressure_variation(1e5)["delta_p"]) < 1e-3  # the pressure change across the layer, in units of ρU²
 
 
+def test_bl_pressure_V1_eq_9_8_sign_on_manufactured_field():  # V1 (C01/N10): (9.8) read from the page: (1/Re)(u v_x + v v_y) = −p_y + v_xx/Re² + v_yy/Re
+    Re = 50.0
+    xs, ys = 0.7, 1.3
+    # v = x y, u = 1: v_x = y, v_y = x, v_xx = v_yy = 0  ⇒  p_y = −(u v_x + v v_y)/Re = −(y + x²y)/Re  (NEGATIVE)
+    got = float(BL.bl_dpdy_scaled(1.0, xs * ys, ys, xs, 0.0, 0.0, Re))
+    assert got == pytest.approx(-(ys + xs ** 2 * ys) / Re, rel=1e-14) and got < 0.0
+    # viscous terms enter with the OPPOSITE sign to the inertia: v = y², u = v_x = 0 ⇒ p_y = +v_yy/Re = +2/Re
+    assert float(BL.bl_dpdy_scaled(0.0, ys ** 2, 0.0, 2 * ys, 0.0, 2.0, Re)) == pytest.approx(-(ys ** 2) * 2 * ys / Re + 2.0 / Re, rel=1e-14)
+    assert float(BL.bl_dpdy_scaled(0.0, 0.0, 0.0, 0.0, 3.0, 0.0, Re)) == pytest.approx(3.0 / Re ** 2, rel=1e-14)  # v_xx enters as +1/Re²
+    # physical sign on the Blasius layer: streamlines are concave down (y ∝ √x), centre of curvature below ⇒ pressure INCREASES away from the wall
+    # at leading order, so the pressure change across the layer is POSITIVE (a flipped sign gives the opposite)
+    assert BL.bl_pressure_variation(1e4)["delta_p"] > 0.0
+
 def test_outer_flow_V1_eq_9_11_and_9_35_and_cylinder_parity():  # V1 (C01/N11): −(1/ρ)dp/dx = U_e U_e′; (9.35); cylinder U_e = 2U sin φ
     rho = 1.2
     x = np.linspace(0.1, 2.0, 40)
@@ -835,7 +848,9 @@ def test_thwaites_V1_diffuser_lambda_closed_form_and_separation_point_example_9_
     assert np.max(np.abs(e["lam"](xi) - lam_exact)) < 1e-14 and e["max_err"] < 1e-11
     assert e["x_sep_over_L"] == pytest.approx(1.8 ** 0.25 - 1.0, rel=1e-14)  # (1 + x/L)⁴ = 1.8 for λ_sep = −0.09
     assert e["x_sep_over_L"] == pytest.approx(0.15829, abs=5e-6)
-    assert e["x_sep_over_L_fs"] == pytest.approx(((0.45 / 4 + 0.0681) / (0.45 / 4)) ** 0.25 - 1.0, rel=1e-12)
+    assert e["x_sep_over_L_fs"] == pytest.approx(((0.45 / 4 - BL.LAMBDA_SEP_FS) / (0.45 / 4)) ** 0.25 - 1.0, rel=1e-12)  # criterion computed from the fold (−0.068148)
+    assert e["criteria"][0]["lam_sep"] == -0.09 and e["criteria"][0]["x_sep_over_L"] == e["x_sep_over_L"]  # book criterion first
+    assert e["x_sep_numeric_book"] == pytest.approx(e["x_sep_over_L"], abs=2e-4)
     # numerical crossing agrees with the closed form (linear interpolation on a 2001-point grid)
     assert e["x_sep_numeric"] == pytest.approx(e["x_sep_over_L_fs"], abs=2e-4)
     # separation (white closure, the book's criterion λ = −0.09) at exactly the closed-form point
@@ -984,7 +999,7 @@ def test_thwaites_cylinder_V1_closed_form_versus_quadrature_and_separation_angle
     assert float(BL.thwaites_cylinder_closed_form(np.deg2rad(0.5))) == pytest.approx(0.075, abs=2e-4)
     # separation angles: −0.09 ⇒ 103.11°, −0.0681 (exact FS zero shear) ⇒ 100.89°
     assert BL.thwaites_cylinder_separation(-0.09) == pytest.approx(103.11, abs=0.01)
-    assert BL.thwaites_cylinder_separation(BL.LAMBDA_SEP_FS) == pytest.approx(100.89, abs=0.01)
+    assert BL.thwaites_cylinder_separation(BL.LAMBDA_SEP_FS) == pytest.approx(100.90, abs=0.005)
     # independent numerical route: the full Thwaites run on the cylinder
     full = BL.thwaites_cylinder(closure="white", n=1200)
     assert full["phi_sep_deg"] == pytest.approx(103.11, abs=0.2)
@@ -1190,8 +1205,9 @@ def test_separated_drag_V1_closed_form_quadrature_and_sympy_integral():  # V1+V2
     # the design's expect row: (82°, −1.2) = 0.8840, (125°, −0.6) = 0.5778, (90°, ideal C_b = −3) = 2.667; crude default at 82° = 2.59
     assert BB.separated_pressure_drag(82.0, -1.2) == pytest.approx(0.8840, abs=3e-4)
     assert BB.separated_pressure_drag(125.0, -0.6) == pytest.approx(0.5778, abs=1e-4)
-    assert BB.separated_pressure_drag(90.0) == pytest.approx(8.0 / 3.0, abs=1e-12)
-    assert BB.separated_pressure_drag(82.0) == pytest.approx(2.59, abs=5e-3)
+    assert BB.separated_pressure_drag(90.0, None) == pytest.approx(8.0 / 3.0, abs=1e-12)
+    assert BB.separated_pressure_drag(82.0, None) == pytest.approx(2.59, abs=5e-3)
+    assert BB.separated_pressure_drag(82.0) == pytest.approx(BB.separated_pressure_drag(82.0, -1.2), abs=1e-14)  # default base pressure is the illustrative -1.2
     # sampled routes: a callable with breakpoints, and samples on 0…180° and 0…360°
     ph = np.linspace(0, 180, 721)
     cp = BB.separated_cp(ph, 82.0, cp_base=-1.2)
@@ -1218,10 +1234,10 @@ def test_separated_drag_V7_dalembert_and_monotonicity_in_the_wake_pressure():  #
     assert abs(BB.pressure_drag_from_cp(lambda p: 1 - 4 * np.sin(p) ** 2, n=64)) < 1e-14  # one-sided form too
     assert float(BB.cp_ideal_cylinder(0.0)) == 1.0 and float(BB.cp_ideal_cylinder(90.0)) == pytest.approx(-3.0)  # stagnation +1, shoulder −3
     # crude default (C_b = ideal value at φ_s): D = (8/3) sin³φ_s → 0 as φ_s → 180° (the ideal limit)
-    d = [BB.separated_pressure_drag(p) for p in (120.0, 150.0, 170.0, 179.0)]
+    d = [BB.separated_pressure_drag(p, None) for p in (120.0, 150.0, 170.0, 179.0)]
     assert np.all(np.diff(d) < 0) and d[-1] < 1e-4
     for p in (120.0, 170.0):
-        assert BB.separated_pressure_drag(p) == pytest.approx(8.0 / 3.0 * np.sin(np.deg2rad(p)) ** 3, rel=1e-12)
+        assert BB.separated_pressure_drag(p, None) == pytest.approx(8.0 / 3.0 * np.sin(np.deg2rad(p)) ** 3, rel=1e-12)
     # at fixed φ_s the drag falls linearly as the base pressure rises: dD/dC_b = −sin φ_s
     for p in (82.0, 125.0):
         d1, d2 = BB.separated_pressure_drag(p, -1.2), BB.separated_pressure_drag(p, -0.6)
@@ -1305,7 +1321,8 @@ def test_ball_dynamics_V1_swing_kinematics_and_R10_magnus_truth_table():  # V1+V
     # truth table (the book's sentence prints "Re < Re_cr" twice — R10): negative only when just the fast side is past the crisis
     Rcr = 3e5
     assert BB.magnus_sign(1e5, 5e5, Rcr) == "−"  # slow side subcritical, fast side supercritical: NEGATIVE
-    assert BB.magnus_sign(1e5, 2e5, Rcr) == "+" and BB.magnus_sign(4e5, 5e5, Rcr) == "+"  # both on the same side: ordinary POSITIVE (the corrected second inequality)
+    assert BB.magnus_sign(4e5, 5e5, Rcr) == "+"  # both supercritical: ordinary POSITIVE (the corrected second inequality)
+    assert BB.magnus_sign(1e5, 2e5, Rcr) == "none"  # both subcritical: the book does not treat it — undetermined, not "+"
     assert BB.magnus_sign(1e5, 1e5, Rcr) == "none" and BB.magnus_sign(5e5, 1e5, Rcr) == "none"
     assert BB.magnus_sign(1e5, Rcr, Rcr) == "−"  # Re_fast = Re_cr counts as past the crisis (Re_slow < Re_cr ≤ Re_fast)
 
@@ -2492,7 +2509,8 @@ def test_sympy_engines_V2_thwaites_jets_cylinder_and_derive_all():  # V2 (C06/C0
 
 def test_book_slips_V1_table_is_consistent_with_the_planted_variants():  # V1 (Part C 4.9): every printed/correct pair is reproduced by the code's discriminating option
     tab = {r["id"]: r for r in ch09.book_slips()}
-    assert set(tab) == {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R10", "R11", "R14"}
+    assert set(tab) == {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R10", "R11", "R14", "R17"}
+    assert tab["R5"]["kind"] == "trap"  # the book itself says "one side of the plate": a trap/note, not a printed slip
     assert tab["R2"]["printed_value"] == 4.93 and tab["R2"]["correct_value"] == pytest.approx(BL.blasius_constants()["eta99"], rel=1e-14)
     assert tab["R3"]["printed_value"] == 1 and tab["R3"]["correct_value"] == 4
     assert tab["R6"]["printed_value"] == pytest.approx(5.6152, abs=1e-4) and tab["R6"]["correct_value"] == pytest.approx(7.3319, abs=1e-4)
@@ -2796,3 +2814,9 @@ def test_drawings_V1_ch09_drawings_imports_and_every_helper_returns_a_figure(): 
 
 def test_falkner_skan_V5_default_eta_max_blasius_within_1e_10_of_toepfer():  # V5/V3 (C04): default truncation is now 12 for m = 0
     assert abs(BL.falkner_skan(0.0)["fpp0"] / BL.blasius_constants()["fpp0"] - 1) < 1e-10
+
+
+def test_falkner_skan_default_truncation_near_the_fold():  # V3: default eta_max = 16 for m <= -0.05 (10 leaves 0.018909 vs 0.018872 at m = -0.09)
+    d = BL.falkner_skan(-0.09)
+    assert d["eta_max"] == 16.0 and d["fpp0"] == pytest.approx(BL.falkner_skan(-0.09, eta_max=30.0)["fpp0"], abs=2e-6)
+    assert BL.falkner_skan(0.3)["eta_max"] == 10.0

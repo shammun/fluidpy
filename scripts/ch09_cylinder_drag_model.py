@@ -18,7 +18,7 @@ def main() -> int:
     out = setup(args)
     import matplotlib.pyplot as plt
 
-    print(f"d'Alembert limit: separation at 179.999 deg -> C_D = {ch09.separated_pressure_drag(179.999):.2e}")
+    print(f"d'Alembert limit: separation at 179.999 deg -> C_D = {ch09.separated_pressure_drag(179.999, None):.2e}")
     for ps, cb in ((82.0, -1.2), (125.0, -0.6)):
         print(f"  phi_sep = {ps:>5.0f} deg, base C_p = {cb:+.1f}: pressure drag {ch09.separated_pressure_drag(ps, cb):.3f} (closed form {ch09.BB._separated_drag_closed(ps, cb):.3f})")
     ps = np.linspace(40, 179, 120)
