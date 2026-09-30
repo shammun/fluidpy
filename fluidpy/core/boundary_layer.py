@@ -569,16 +569,19 @@ def _fs_solution(m: float, eta_max: float, tol: float = 1e-10):
         _fs_solution(0.0, eta_max, tol)
         cands = [(abs(m), 0.0)]
     m_c = min(cands)[1]
-    # waypoints keep every continuation hop small (a wide hop makes Newton fail and forces deep bisection)
+    # waypoints keep every continuation hop small (a wide hop makes Newton fail and forces deep bisection).  Hops are wide (0.5·max(1, |m|)) beyond
+    # m = 0.5 (whatever the sign of the target) and 0.5 / 0.03 for a positive / non-positive target near Blasius.  The step rule depends only on
+    # the position of the hop, so the sub-solves below never generate waypoints of their own (no recursion, whatever the cache holds).
+    def _step(cur):
+        if cur > 0.5:
+            return max(0.5, 0.5 * cur)
+        return 0.5 if m > 0 else 0.03
+
     way = []
     cur = m_c
-    while abs(m - cur) > max(0.5, 0.5 * abs(cur)) if m > 0 else abs(m - cur) > 0.03:
-        cur = cur + np.sign(m - cur) * (max(0.5, 0.5 * abs(cur)) if m > 0 else 0.03)
+    while abs(m - cur) > _step(cur):
+        cur = cur + np.sign(m - cur) * _step(cur)
         way.append(round(float(cur), 12))
-    for w_ in way:
-        if (round(w_, 12), float(eta_max), float(tol)) not in _FS_CACHE:
-            _fs_solution(w_, eta_max, tol)
-
     def go(m_from, m_to, depth=0):
         s0 = _FS_CACHE[(round(m_from, 12), float(eta_max), float(tol))]
         guess = (s0.x, s0.y)
@@ -593,9 +596,14 @@ def _fs_solution(m: float, eta_max: float, tol: float = 1e-10):
         go(m_from, mid, depth + 1)
         return go(mid, m_to, depth + 1)
 
-    m_c = min([(abs(k[0] - m), k[0]) for k in _FS_CACHE if k[1] == float(eta_max) and k[2] == float(tol) and k[0] != round(float(m), 12)])[1]
-    sol = go(m_c, float(m))
-    return sol
+    prev = m_c  # chain the hops iteratively: each starts from the previous solution (a failed hop stores the failure under ``key`` and stops)
+    for w_ in way:
+        if (round(w_, 12), float(eta_max), float(tol)) not in _FS_CACHE:
+            go(prev, w_)
+            if key in _FS_CACHE:
+                return _FS_CACHE[key]
+        prev = w_
+    return go(prev, float(m))
 
 
 def _fs_evaluator(m: float, eta_max: float, tol: float = 1e-10):
@@ -647,13 +655,13 @@ def _fs_track_s(s_values, eta_max: float = 10.0, tol: float = 1e-9):
     return out
 
 
-def falkner_skan(m: float, eta_max: float = 10.0, method: str = "bvp", tol: float = 1e-10, branch: str = "attached",
+def falkner_skan(m: float, eta_max: float | None = None, method: str = "bvp", tol: float = 1e-10, branch: str = "attached",
                  n: int = 400) -> dict:
     """Falkner–Skan similarity solution f‴ + ((m+1)/2) f f″ − m f′² + m = 0 for U_e = a x^m (m is the book's n).
 
     Book: §9.4, Eq. (9.36) with f(0) = f′(0) = 0 (9.28), f′(∞) = 1 (9.29); m = 0 is the Blasius equation (9.27); m = 1 is the
     stagnation (Hiemenz) flow; f′(η) = u/U_e, η = y/δ(x), δ = √(νx/U_e) (9.34).
-    Parameters: m [–] exponent (pressure gradient −dp/dx = m a² x^{2m−1}, Eq. (9.35)); eta_max [–] truncation of ∞ (the answer is
+    Parameters: m [–] exponent (pressure gradient −dp/dx = m a² x^{2m−1}, Eq. (9.35)); eta_max [–] truncation of ∞ (default None → 12 for m = 0, 10 otherwise; the answer is
     insensitive to it, tested for 8, 12, 16); method "bvp" (solve_bvp with continuation in m; default), "toepfer" (m = 0 only,
     scaling of an initial-value problem) or "shoot" (brentq on f″(0), m ≥ −0.05 only); tol [–] solver tolerance; branch
     "attached" (default; exists for m > −0.09043) or "reversed" (Stewartson's second branch, −0.0904 < m < 0, f″(0) < 0; the
@@ -664,6 +672,8 @@ def falkner_skan(m: float, eta_max: float = 10.0, method: str = "bvp", tol: floa
     m_sep = −0.09043; V7 f‴(0) = −m.  Label: symbolic, converged, benchmark.
     """
     m = float(m)
+    if eta_max is None:  # default truncation: 12 for Blasius (Gaussian tail: f″(0) to 7e-12), 10 otherwise
+        eta_max = 12.0 if m == 0.0 else 10.0
     eta = np.linspace(0.0, float(eta_max), int(n))
     success = True
     if branch == "reversed":
@@ -690,7 +700,7 @@ def falkner_skan(m: float, eta_max: float = 10.0, method: str = "bvp", tol: floa
         if m <= _FOLD:
             return dict(eta=eta, f=np.full_like(eta, np.nan), fp=np.full_like(eta, np.nan), fpp=np.full_like(eta, np.nan),
                         fppp=np.full_like(eta, np.nan), fpp0=float("nan"), m=m, success=False, method="bvp", eta_max=eta_max)
-        sol = _fs_solution(m, float(eta_max), tol) if m != 0.0 else _fs_solution(0.0, float(eta_max), tol)
+        sol = _fs_solution(m, float(eta_max), tol)
         success = bool(sol.success)
         Y = sol.sol(eta)
         f, fp, fpp = Y
@@ -701,13 +711,23 @@ def falkner_skan(m: float, eta_max: float = 10.0, method: str = "bvp", tol: floa
 
 
 def _fs_shoot(m: float, eta_max: float) -> float:
-    """f″(0) by brentq on f′(η_max) − 1 (events stop the runaway of wrong guesses)."""
+    """f″(0) by brentq on f′(η_max) − 1.
+
+    Wrong guesses either overshoot (f′ climbs through 1.6: event, returns +0.6) or, for m > 0, undershoot (f″ turns negative
+    before f′ reaches 1: event, returns f′ − 1 < 0 there, i.e. the peak height minus one).  The two events keep every integration
+    finite (the overshoot has a finite-η blow-up for m > 0).
+    """
     def g(s):
         def ev(e, Y):
             return Y[1] - 1.6
         ev.terminal = True
+
+        def ev2(e, Y):
+            return Y[2] if m > 0 else 1.0
+        ev2.terminal = True
+        ev2.direction = -1
         sol = solve_ivp(lambda e, Y: [Y[1], Y[2], -(m + 1.0) / 2.0 * Y[0] * Y[2] + m * Y[1] ** 2 - m], (0, eta_max), [0, 0, s],
-                        method="DOP853", rtol=1e-12, atol=1e-14, events=ev)
+                        method="DOP853", rtol=1e-12, atol=1e-14, events=[ev, ev2])
         if sol.t_events[0].size:
             return 0.6
         return sol.y[1, -1] - 1.0
@@ -800,7 +820,7 @@ def falkner_skan_state(m: float, eta_max: float | None = None, tol: float = 1e-1
     """
     m = float(m)
     if eta_max is None:
-        eta_max = 16.0 if m < -0.05 else 10.0
+        eta_max = 16.0 if m <= -0.05 else 10.0
     d = falkner_skan(m, eta_max, tol=tol, n=4001)
     if not d["success"]:
         raise RuntimeError(f"no attached solution for m = {m}")
@@ -1053,6 +1073,7 @@ def thwaites_closure_table(n_points: int = 60, fast: bool = False) -> dict:
     DEVIATION: Thwaites' l, H are an empirical cross-family fit valid for λ ∈ [−0.09, 0.25]; the exact Falkner–Skan values cover only
     λ ∈ [−0.0681, 0.1065] (computed) and give l = 0 at λ = −0.0681 instead of −0.09 — both separation criteria are reported by
     :func:`thwaites`.  ``n_points``: number of family members (60; 24 when ``fast``).
+    Accuracy: the members are solved with tolerance 1e-8, so the node values agree with :func:`falkner_skan_state` to ≈ 2e-8 (not 1e-9).
     Returns dict(m, lam, l, H, L) arrays sorted by λ.  Label: converged (own numbers; not asserted equal to the book)."""
     r = _closure_table(24 if fast else int(n_points))  # fast: 24 members instead of 60
     lam, l, H = r[:, 0], r[:, 1], r[:, 2]
@@ -1140,7 +1161,9 @@ def thwaites(x, Ue, nu: float, theta0: float = 0.0, closure: str = "falkner_skan
     U0 = U[0]
     with np.errstate(divide="ignore", invalid="ignore"):
         th2 = (0.45 * nu * I + theta0 ** 2 * U0 ** 6) / U ** 6  # Eq. (9.50)
-    small = U < 1e-9 * max(U.max(), 1e-300)
+    # the analytic stagnation limit is needed only where (9.50) is 0/0 (U_e(x) underflows or is exactly 0); a small but non-zero U_e
+    # (e.g. x0 = 1e-6 x on a power law U_e ∝ xⁿ, n ≥ 1.5, with the correct power-law theta0) is evaluated directly
+    small = (U < 1e-9 * max(U.max(), 1e-300)) & (~np.isfinite(th2) | (U <= 0.0))
     if small.any():
         if theta0 != 0.0:
             raise ValueError("a stagnation start needs theta0 = 0")
@@ -1327,7 +1350,7 @@ def march_boundary_layer(Ue, x_grid, nu: float, u_inlet=None, ny: int = 400, y_m
     the coefficient √w, tridiagonal solve; τ₀ = μ w_ψ/2 at the wall from the exact two-term extrapolation.  Marching stops when τ₀ ≤ 0
     (separation; the Goldstein singularity follows).
     Parameters: Ue OuterFlow/callable; x_grid [m] increasing, x_grid[0] > 0 (start); nu [m²/s]; u_inlet None (local Falkner–Skan
-    profile with m = x U_e′/U_e at x_grid[0]) | callable u(y) | (y, u) arrays [m, m/s]; ny nodes in σ; y_max_factor: ψ_max =
+    profile with m = x U_e′/U_e at x_grid[0]; ValueError if m is below the fold −0.0904) | callable u(y) | (y, u) arrays [m, m/s]; ny nodes in σ; y_max_factor: ψ_max =
     factor·√(νU_max x_end) [m²/s]; picard iterations per step; rho [kg/m³]; fast: ny ≤ 150 (notebook FAST mode); order 2 (BDF2, default) or 1
     (backward Euler) time-like discretisation in x.
     Returns dict(x, psi [m²/s], sigma, y [m] (n_x×ny), u, v [m/s] (n_x×ny), tau0 [Pa], separated, x_sep).
@@ -1348,9 +1371,14 @@ def march_boundary_layer(Ue, x_grid, nu: float, u_inlet=None, ny: int = 400, y_m
     if u_inlet is None:
         m0 = x[0] * float(of.dUe(x[0])) / Ue0
         eta = np.linspace(0, 12, 4001)
+        if not (m0 > _FOLD):
+            raise ValueError(f"march_boundary_layer: the local exponent m0 = x U_e′/U_e = {m0:.4g} at x_grid[0] is at or below the Falkner–Skan "
+                             f"separation value {_FOLD}, so no attached similarity inlet profile exists; pass u_inlet (a callable u(y) or (y, u) arrays, "
+                             "e.g. the Blasius profile) or start where the layer is attached.")
         d = falkner_skan(m0, 12.0, n=4001)
         f, fp = d["f"], d["fp"]
-        w = Ue0 ** 2 * np.interp(psi / np.sqrt(nu * x[0] * Ue0), f, fp) ** 2
+        # w = u² is interpolated against f (both ∝ η² at the wall, so the interpolant is smooth; interpolating f′ against f would be a √f cusp)
+        w = Ue0 ** 2 * np.interp(psi / np.sqrt(nu * x[0] * Ue0), f, fp ** 2)
     else:
         if callable(u_inlet):
             yy = np.linspace(0, 12 * np.sqrt(nu * x[0] / Ue0), 4001)
@@ -1362,6 +1390,11 @@ def march_boundary_layer(Ue, x_grid, nu: float, u_inlet=None, ny: int = 400, y_m
     w[0] = 0.0
     w[-1] = Ue0 ** 2
     coef0 = nu / (4.0 * psi_max ** 2)
+    # DEVIATION: series-consistent wall-region operator.  Near the wall w = Aσ² + Bσ³ + Cσ⁴ … with B ∝ dp/dx ≠ 0; the central stencil of
+    # L[w] = w_σσ − w_σ/σ is exact on σ² but returns 3jh − h/j instead of 3jh on σ³ at node j (1/3 too small at j = 1).  Multiplying L by
+    # a_j = 1/(1 − 1/(3j²)) makes it exact on σ² AND σ³ at every node (a_j → 1 + O(h²/σ²)), which restores second order in Δσ for τ₀.
+    jj = np.arange(1, N, dtype=float)
+    a_j = 1.0 / (1.0 - 1.0 / (3.0 * jj ** 2))
     W, TAU, XS = [w.copy()], [], []
 
     def wall_shear(wv):
@@ -1387,11 +1420,11 @@ def march_boundary_layer(Ue, x_grid, nu: float, u_inlet=None, ny: int = 400, y_m
             w_old = (1.0 + om) * W[-1] - om ** 2 / (1.0 + om) * W[-2]
         else:  # backward Euler
             a0, w_old = 1.0, wn
-        kap_o = coef0 * np.sqrt(np.maximum(wn[1:-1], 0.0)) / sj ** 2
+        kap_o = a_j * coef0 * np.sqrt(np.maximum(wn[1:-1], 0.0)) / sj ** 2
         Lw_o = (wn[2:] - 2 * wn[1:-1] + wn[:-2]) / hs ** 2 - (wn[2:] - wn[:-2]) / (2 * hs * sj)
         explicit = (1.0 - th_) * (2.0 * Uo * dUo + kap_o * Lw_o)
         for _ in range(picard):
-            kap = coef0 * np.sqrt(np.maximum(wit[1:-1], 0.0)) / sj ** 2
+            kap = a_j * coef0 * np.sqrt(np.maximum(wit[1:-1], 0.0)) / sj ** 2
             lower = -h * th_ * kap * (1.0 / hs ** 2 + 1.0 / (2.0 * hs * sj))
             diag = a0 + h * th_ * kap * 2.0 / hs ** 2
             upper = -h * th_ * kap * (1.0 / hs ** 2 - 1.0 / (2.0 * hs * sj))

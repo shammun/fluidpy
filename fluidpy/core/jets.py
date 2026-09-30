@@ -107,7 +107,7 @@ def free_jet_ode_solve(eta_max: float = 12.0, n: int = 400, coeff: float = 3.0, 
     Parameters: eta_max [–] truncation of ∞; n initial mesh points; coeff [–] the coefficient of f‴ (3 for the jet; the closed form applies only to 3);
     tol solver tolerance; fast: coarser mesh; bc "robin" (default) applies the far-field condition f″ + (f/coeff)f′ = 0 at η_max (the
     linearisation of the equation for f′ → 0, whose solution decays like e^{−f_∞η/coeff}: an error of order f′² instead of f′) or "dirichlet"
-    (f′(η_max) = 0, the book's condition (9.66); the far field decays only like e^{−2η/√6}, so this leaves ≈ 2e-4 at η_max = 12).
+    (f′(η_max) = 0, the book's condition (9.66); the far field decays only like e^{−2η/√6}, so this leaves ≈ 2.4e-3 at η_max = 12 (measured)).
     Returns dict(eta, f, fp, max_err [–] vs √6 tanh(η/√6) and sech² (only meaningful for coeff = 3), eta_max, success).
     Validation: V3 max_err ≲ 1e-8 with the Robin condition at η_max = 12.  Label: converged.
     """
@@ -252,18 +252,21 @@ def wall_jet_first_integral_residual(f, fp, fpp):
     return _S(4.0 * f * fpp - 2.0 * fp ** 2 + f ** 2 * fp)
 
 
-def wall_jet_ode_solve(fpp0: float = 1.0, eta_max: float = 40.0, coeff: float = 4.0, n: int = 2001, printed: bool = False) -> dict:
+def wall_jet_ode_solve(fpp0: float = 1.0, eta_max: float | None = None, coeff: float = 4.0, n: int = 2001, printed: bool = False) -> dict:
     """Integrate coeff·f‴ + ff″ + 2f′² = 0 (coeff = 4, correct, slip R3) from f(0) = f′(0) = 0, f″(0) = fpp0 with ``solve_ivp`` (DOP853, rtol 1e-12), and
     compare with the closed form (9.83) evaluated at the resulting f_∞.
 
     Book: §9.10 below Eq. (9.82) (the book prints f‴ + ff″ + 2f′² = 0; ``coeff=1.0`` (or ``printed=True``) integrates that coefficient — a named wrong
     variant, whose solution does NOT satisfy (9.83)), (9.77)–(9.78).  Derived: f_∞³ = 72 f″(0) (from f′ ≈ f^{1/2}f_∞^{3/2}/6 near the wall) and the
     scaling f_∞ ∝ f″(0)^{1/3}.
-    Parameters: fpp0 [–] f″(0) (free scale); eta_max [–] truncation of ∞; coeff [–] the coefficient of f‴; n output points; printed [bool] shorthand for coeff = 1.
+    Parameters: fpp0 [–] f″(0) (free scale); eta_max [–] truncation of ∞ (default ``None``: the far field decays like e^{−f_∞η/4} with
+    f_∞ = (72 f″(0))^{1/3}, so η_max = max(40, 120/f_∞) — 30 e-folds, f_∞ read from f[−1] to 1e-12; for f″(0) = 1/72 this is 120); coeff [–] the coefficient of f‴; n output points; printed [bool] shorthand for coeff = 1.
     Returns dict(eta, f, fp, fpp, f_inf, err_vs_9_83 [–], fpp0_over_finf_cubed [–] (= 1/72 for the correct ODE), first_integral_residual_max).
     Validation: V2/V3/V7.  Label: converged, symbolic.
     """
     k = 1.0 if printed else float(coeff)
+    if eta_max is None:
+        eta_max = max(40.0, 120.0 / (72.0 * abs(float(fpp0))) ** (1.0 / 3.0)) if fpp0 != 0 else 40.0
     rhs = lambda e, Y: [Y[1], Y[2], -(Y[0] * Y[2] + 2.0 * Y[1] ** 2) / k]  # noqa: E731
     eta = np.linspace(0.0, eta_max, int(n))
     sol = solve_ivp(rhs, (0.0, eta_max), [0.0, 0.0, float(fpp0)], method="DOP853", rtol=1e-12, atol=1e-14, t_eval=eta)

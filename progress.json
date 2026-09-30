@@ -251,14 +251,14 @@
       "curate": "pass",
       "design": "pass",
       "implement": "pass",
-      "verify": "running",
+      "verify": "pass",
       "review": "todo",
       "viz": "todo",
       "notebook": "todo",
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 148 rows, 85 eqs, 27 derivations, 15 printed slips noted; curate: A14/B118/C16, 22 D, 9 explainers + backup; design: 14 CORE blocks, 22 D, Part C aligned; implement: 4 modules, 23 scripts exit 0",
+      "notes": "analyze: 148 rows, 85 eqs, 27 derivations, 15 printed slips noted; curate: A14/B118/C16, 22 D, 9 explainers + backup; design: 14 CORE blocks, 22 D, Part C aligned; implement: 4 modules, 23 scripts exit 0; verify PASS after 1 fix loop, 134 ch09 tests (V1 37, V2 34, V3 17, V4 9, V5 16, V6 5, V7 24), 22/22 derivations sympy-checked, 25 mutants killed",
       "updated": "2026-09-29"
     },
     "ch10": {

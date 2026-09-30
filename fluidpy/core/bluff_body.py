@@ -358,9 +358,11 @@ def separated_pressure_drag(phi_sep_deg: float = 82.0, cp_base: float | None = N
     """Pressure drag coefficient of the separated-flow model :func:`separated_cp`, by Gauss–Legendre; closed form
     C_D,p = sin φₛ (1 − (4/3) sin²φₛ − C_b).
 
-    Book: §9.7 (form drag from a low, nearly uniform wake pressure; later separation ⇒ smaller drag).  φₛ → 180° with C_b → 1 gives the ideal flow, C_D → 0
+    Book: §9.7 (form drag from a low, nearly uniform wake pressure).  φₛ → 180° with C_b → 1 gives the ideal flow, C_D → 0
     (d'Alembert).  Our model: QUALITATIVE.  Parameters: phi_sep_deg [deg]; cp_base [–] (``None`` → the crude rule C_b = ideal value at φₛ); n GL points.
-    Returns C_D,pressure [–] (no skin friction) — expect (82°, −1.2) → 0.8840, (125°, −0.6) → 0.5778, (90°, ideal C_b = −3) → 2.667.
+    Returns C_D,pressure [–] (no skin friction) — expect (82°, −1.2) → 0.8838, (125°, −0.6) → 0.5778, (90°, ideal C_b = −3) → 2.667.
+    NOTE: at a FIXED base pressure the drag is not monotone in φₛ (C_b = −1.2: D(82°) = 0.884, D(90°) = 0.867, D(125°) = 1.07); a later separation
+    lowers the drag only through the accompanying rise of the base pressure (e.g. (125°, −0.6) → 0.578).
     Label: qualitative; analytic (closed-form parity, d'Alembert limit)."""
     ps = np.deg2rad(phi_sep_deg)
     cpb = 1.0 - 4.0 * np.sin(ps) ** 2 if cp_base is None else float(cp_base)
@@ -387,6 +389,7 @@ def drag_crisis_state(Re, rough: bool = False, Re_cr: float = 3e5) -> dict:
     band by a smoothstep in log₂(Re/Re_cr); base pressures C_b = −1.2 (subcritical) and −0.6 (supercritical) — typical magnitudes chosen to show the crisis, not derived;
     C_D,p from :func:`separated_pressure_drag`'s closed form.  ``rough``: the transition is tripped at Re_cr/3 (no blending band: 125° for Re ≥ Re_cr/3).
     Parameters: Re [–]; rough [bool]; Re_cr [–] smooth-cylinder critical Reynolds number.
+    NOTE (sphere): the sphere's critical Reynolds number is used as an argument (default 3e5, the design contract value); the book's text says ≈ 5×10⁵ (G9) — pass ``Re_cr=5e5`` to follow it.
     Returns dict(label [ASCII, :func:`cylinder_flow_regime` with the same critical band], phi_sep_deg [deg], St (None here: see :func:`cylinder_state`), cb [–],
     cd_model [–, pressure part], blend [0 = subcritical … 1 = supercritical], qualitative = True).  Label: qualitative."""
     R = float(Re)
@@ -428,12 +431,12 @@ def drag_crisis_pair(Re_cr: float = 3e5) -> dict:
     return dict(subcritical=sub, supercritical=sup, ratio=sup["cd_model"] / sub["cd_model"], Re_cr=Re_cr)
 
 
-_CD_ANCHORS = np.array([[1.0, 10.0], [10.0, 2.8], [40.0, 1.6], [1e3, 1.0], [1e4, 1.1], [2e5, 1.2], [3e5, 1.15], [4e5, 0.6], [6e5, 0.35],
+_CD_ANCHORS = np.array([[1.0, 8.0 * np.pi / 2.002], [10.0, 2.8], [40.0, 1.6], [1e3, 1.0], [1e4, 1.1], [2e5, 1.2], [3e5, 1.15], [4e5, 0.6], [6e5, 0.35],
                         [2e6, 0.5], [1e7, 0.7]])
 
 
 def cylinder_cd_schematic(Re):
-    """SCHEMATIC C_D(Re) of a smooth cylinder (log–log interpolation through rounded anchor points; below Re = 1 Lamb's asymptote 8π/[Re(2.002 − ln Re)]).
+    """SCHEMATIC C_D(Re) of a smooth cylinder (log–log interpolation through rounded anchor points; below Re = 1 Lamb's asymptote 8π/[Re(2.002 − ln Re)]; the Re = 1 anchor is Lamb's value 8π/2.002 = 12.55, so the curve is continuous).
 
     Book: Fig. 9.21 (the book's data are private and no dataset was fetched — analysis §8).  QUALITATIVE: shows ≈60 at Re = 0.1, ≈1 in the middle,
     a dip near the critical Reynolds number and a slow recovery; do not use for numbers.  Re [–]; returns C_D [–].  Label: qualitative."""
