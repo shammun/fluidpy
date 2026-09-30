@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why can a thin film ignore inertia?</title>
-<meta name="viz:chapter" content="ch08">
-<meta name="viz:slug" content="lubrication_scaling">
-<meta name="viz:order" content="2">
-<meta name="viz:title" content="Why can a thin film ignore inertia?">
-<meta name="viz:summary" content="Scale the gap equations with two lengths and every term becomes a bar: inertia is weighed by the reduced Reynolds number, the pressure and the cross-gap friction stay, and across the gap only the pressure is left.">
-<meta name="viz:concept" content="Thin-gap scaling: with one length along the passage and one across it, inertia carries the factor eps^2 Re_L, so a thin film is viscous even when Re_L is large, and the pressure is uniform across the gap">
-<meta name="viz:sections" content="8.3">
-<meta name="viz:equations" content="8.13 8.14 8.15 8.16 8.17">
-<meta name="viz:fluidpy" content="ch08_laminar_flow.lubrication_scales ch08_laminar_flow.lubrication_term_magnitudes">
-<meta name="viz:derivations" content="D10 D11">
+<title>Why is the vortex street's shape fixed at b/a = 0.28?</title>
+<meta name="viz:chapter" content="ch09">
+<meta name="viz:slug" content="karman_street_stability">
+<meta name="viz:order" content="6">
+<meta name="viz:title" content="Why is the vortex street's shape fixed at b/a = 0.28?">
+<meta name="viz:summary" content="A staggered double row of point vortices grows a wiggle at every spacing except cosh(pi b/a) = sqrt 2; drag b/a and the stagger to watch the growth rate and the four eigenvalues.">
+<meta name="viz:concept" content="Karman street stability: point-vortex double row, alternating disturbance, marginal spacing b/a = 0.2805 (C10, N78, N80)">
+<meta name="viz:sections" content="9.8">
+<meta name="viz:equations" content="(4.102)">
+<meta name="viz:fluidpy" content="ch09.karman_street_ratio ch09.karman_street_growth ch09.karman_street_growth_closed ch09.karman_street_spectrum ch09.karman_street_velocity ch09.karman_street_positions">
+<meta name="viz:derivations" content="D14">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -474,18 +474,14 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-/* chapter CSS — lubrication_scaling. Colours (one meaning each, in text, bars and the gap picture): inertia teal;
-   pressure orange; viscous friction rose (across the gap solid, along the gap light rose); velocity blue (profiles
-   and v arrows); tracers grey-blue; the moving wall rose; references and the "dropped" band grey.
-   Row 1: the gap; row 2: the x-momentum bars | the y-momentum bars (the y bars are hidden on portrait phones). */
-.c-amber { color: var(--viz-amber); font-weight: 650; }
-.c-muted { color: var(--viz-muted); font-weight: 650; }
-.viz-stage-top .viz-presets { flex-wrap: wrap; }
-.viz-pager-label { white-space: nowrap; min-width: 52px; }
-.viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
-.viz-app[data-layout="landscape"] .viz-view[data-view="ybars"] { display: none !important; }
-.viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
-@media (max-height: 720px) { .viz-app[data-layout="portrait"] .viz-presets { display: none !important; } }
+  /* colours: upper row and clockwise blue, lower row rose, growth orange, closed form accent, marginal and street speed teal, facing rows muted. Row 1: street | growth; row 2: eigenvalues (desktop only). */
+  .viz-pager-label { white-space: nowrap; min-width: 52px; }
+  .viz-stage-top .viz-presets { flex-wrap: wrap; }
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row:first-child { flex-direction: column; }
+  .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+  .viz-app[data-layout="portrait"]:is([data-tab="explain"], [data-tab="equations"], [data-tab="code"], [data-tab="check"]) .viz-presets { display: none !important; }
 </style>
 </head>
 <body>
@@ -2343,626 +2339,595 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.lubrication (re-exported by fluidpy.ch08_laminar_flow), SI units:
-     scalesRaw(L, h, U, rho, mu, pa)        ↔ ch08.lubrication_scales(L, h, U, rho, mu, p_a)
-         eps = h/L, Re_L = ρUL/μ, eps2_Re_L = ε²Re_L, eps4_Re_L = ε⁴Re_L, Lambda = μUL/(P_a h²), p_visc = μUL/h²
-         (§8.3, Eq. (8.14) scalings and the coefficients of (8.16a,b))
-     termsRaw(L, h, U, rho, mu, pscale, pa) ↔ ch08.lubrication_term_magnitudes(L, h, U, rho, mu, p_scale, p_a)
-         x: inertia ε²Re_L · pressure P h²/(μUL) (= 1/Λ with P = P_a, 1 with P = μUL/h²) · along ε² · across 1
-         y: inertia ε⁴Re_L · pressure (same) · along ε⁴ · across ε²
-   The reader's controls are h, L, U, ν and ρ; μ = ρν (so the engine-film preset uses ν = 0.05/870 exactly, i.e.
-   μ = 0.05 Pa s, ρ = 870 kg/m³ — verification O4).
-   The gap picture is drawn in the starred variables of (8.14): a gently tapered passage H(x*) = 1.25 − 0.5x*
-   (in units of the mean gap h) with the lower wall sliding at U and the upper wall at rest; the local lubrication
-   profile u* = (1 − η) − (3 − 6q/H)η(1 − η), η = y* ÷ H, carries the same flux q = H₁H₂/(H₁ + H₂) at every station.
-   Drawing only — the numbers on screen all come from scalesRaw/termsRaw.
-   --------------------------------------------------------------------------------------------------- */
-const P_ATM = 101325.0;
-function scalesRaw(L, h, U, rho, mu, pa) {
-  pa = pa === undefined ? P_ATM : pa;
-  const eps = h / L, Re = rho * U * L / mu;
-  return { eps, Re_L: Re, eps2_Re_L: eps ** 2 * Re, eps4_Re_L: eps ** 4 * Re,
-    Lambda: mu * U * L / (pa * h ** 2), p_visc: mu * U * L / h ** 2 };
-}
-function termsRaw(L, h, U, rho, mu, pscale, pa) {
-  pa = pa === undefined ? P_ATM : pa;
-  const S = scalesRaw(L, h, U, rho, mu, pa), eps = S.eps, Re = S.Re_L;
-  const P = { atmospheric: pa, atm: pa, viscous: S.p_visc, dynamic: rho * U ** 2 }[pscale];
-  const cp = P / S.p_visc;
-  return { x_inertia: eps ** 2 * Re, x_pressure: cp, x_diff_along: eps ** 2, x_diff_across: 1.0,
-    y_inertia: eps ** 4 * Re, y_pressure: cp, y_diff_along: eps ** 4, y_diff_across: eps ** 2,
-    eps, Re_L: Re, Lambda: S.Lambda };
-}
-const muOf = s => s.rho * s.nu;
-const SC = s => scalesRaw(s.L, s.h, s.U, s.rho, muOf(s));
-const TM = s => termsRaw(s.L, s.h, s.U, s.rho, muOf(s), s.pscale || 'viscous');
+/* =====================================================================================================================
+   PHYSICS — mirrors fluidpy.core.bluff_body (ch09.karman_street_ratio, karman_street_velocity, karman_street_spectrum,
+   karman_street_growth, karman_street_growth_closed, karman_street_positions). Units: Gamma = a = 1, so times are in
+   a^2/Gamma, growth rates and eigenvalues in Gamma/a^2, speeds in Gamma/a. Upper row (y = +b/2) has circulation -Gamma
+   (clockwise), lower row (y = -b/2, shifted by offset*a) has +Gamma, exactly as in the Python (the opposite overall sign
+   only reverses the direction of travel; the spectrum is symmetric under lambda -> -lambda).
+   LABEL: analytic (closed form) and converged (lattice sums truncated at +-2000; the k = 0 and k = pi/a sums are exact).
+   The picture uses the LINEAR eigenmode (kick x20, capped) — qualitative beyond the linear regime.
+   ===================================================================================================================== */
+const PI = Math.PI, R = String.raw;
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 
-// the cases (presets and the "Right now" table); every number printed about them is computed from scalesRaw
-const ENG = { h: 5e-5, L: 0.05, U: 5, nu: 0.05 / 870, rho: 870 };
-const HELE = { h: 1e-3, L: 0.1, U: 0.01, nu: 1e-3, rho: 1260 };
-const KNEE = { h: 1e-6, L: 0.01, U: 0.1, nu: 1e-5, rho: 1000 };
-const THICK = { h: 2e-3, L: 0.01, U: 1, nu: 1e-6, rho: 1000 };
-const CASES = [['engine film (oil)', ENG], ['Hele-Shaw cell (glycerine)', HELE], ['knee joint (rough)', KNEE], ['thick gap (water)', THICK]];
-function verdict(s) {
-  const S = SC(s);
-  if (S.eps2_Re_L > 1) return 'inertia';
-  if (S.eps > 0.1) return 'thick';
-  if (S.eps2_Re_L > 0.01 || S.eps > 0.05) return 'marginal';
-  return 'valid';
+/* ---- tiny complex arithmetic: z = [re, im] ------------------------------------------------------------------------ */
+const cadd = (a, b) => [a[0] + b[0], a[1] + b[1]], csub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const cmul = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+const cdiv = (a, b) => { const d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; };
+const cconj = a => [a[0], -a[1]], csc = (a, k) => [a[0] * k, a[1] * k], cabs = a => Math.hypot(a[0], a[1]);
+const csin = z => [Math.sin(z[0]) * Math.cosh(z[1]), Math.cos(z[0]) * Math.sinh(z[1])];
+const ccos = z => [Math.cos(z[0]) * Math.cosh(z[1]), -Math.sin(z[0]) * Math.sinh(z[1])];
+const cexp = z => { const e = Math.exp(z[0]); return [e * Math.cos(z[1]), e * Math.sin(z[1])]; };
+
+/** ch09.karman_street_ratio: the stable spacing b/a = arccosh(sqrt 2)/pi = 0.28055 (cosh(pi b/a) = sqrt 2). */
+const ratio = () => Math.acosh(Math.SQRT2) / PI;
+/** ch09.karman_street_velocity: the street's own speed (Gamma/2a) tanh(pi b/a). */
+const speed = (a, b, G) => G / (2 * a) * Math.tanh(PI * b / a);
+const sech2 = x => 1 / (Math.cosh(x) * Math.cosh(x));
+/** gamma = 1/2 - sech^2(pi b/a), sigma = sinh/cosh^2 (D14 step 10; the alternating mode of the staggered street, Gamma = a = 1). */
+const gammaOf = b => 0.5 - sech2(PI * b);
+const sigmaOf = b => Math.sinh(PI * b) / Math.pow(Math.cosh(PI * b), 2);
+/** ch09.karman_street_growth_closed: (pi/2)|1/2 - sech^2(pi b)| (units Gamma/a^2). */
+const growthClosed = b => PI / 2 * Math.abs(gammaOf(b));
+
+/** Lattice sums T(dz; +k) and T(dz; -k) = sum_m e^{+-ikm}/(dz - m)^2 (a = 1). Exact for k = 0 and k = pi; else direct sum |m| <= N. */
+function latticePair(dz, th, N) {
+  if (Math.abs(th) < 1e-12) { const s = csin(csc(dz, PI)); const T = cdiv([PI * PI, 0], cmul(s, s)); return [T, T]; }
+  if (Math.abs(Math.abs(th) - PI) < 1e-12) { const z = csc(dz, PI), s = csin(z), c = ccos(z); const T = cdiv(csc(c, PI * PI), cmul(s, s)); return [T, T]; }
+  let ar = 0, ai = 0, br = 0, bi = 0; const yi = dz[1];
+  for (let m = -N; m <= N; m++) {
+    const xr = dz[0] - m, d2r = xr * xr - yi * yi, d2i = 2 * xr * yi, den = d2r * d2r + d2i * d2i, wr = d2r / den, wi = -d2i / den;
+    const c = Math.cos(th * m), s = Math.sin(th * m);
+    ar += c * wr - s * wi; ai += c * wi + s * wr; br += c * wr + s * wi; bi += c * wi - s * wr;
+  }
+  return [[ar, ai], [br, bi]];
+}
+/** Same-row sum sum_{m != 0} e^{ikm}/m^2 = 2 (pi^2/6 - pi th/2 + th^2/4), th = |k| mod 2 pi (exact). */
+function sameRow(k) { const th = ((Math.abs(k) % (2 * PI)) + 2 * PI) % (2 * PI); return 2 * (PI * PI / 6 - PI * th / 2 + th * th / 4); }
+
+/** The 4x4 complex matrix of the linearised double row for Bloch wavenumber k (a = 1) — mirrors _street_bloch_matrix. State (P1, Q1, P2, Q2). */
+function blochMatrix(b, off, k, Gam, N) {
+  Gam = Gam === undefined ? 1 : Gam; N = N || 2000;
+  const z0 = [[0, 0.5 * b], [off, -0.5 * b]], G = [-Gam, Gam], E0 = sameRow(0), Ek = sameRow(k), c = [0, -1 / (2 * PI)];
+  const M = [0, 1, 2, 3].map(() => [[0, 0], [0, 0], [0, 0], [0, 0]]);
+  for (let r = 0; r < 2; r++) {
+    const s = 1 - r, dz = csub(z0[r], z0[s]), pr = latticePair(dz, k, N), Tk = pr[0], Tmk = pr[1], T0 = latticePair(dz, 0, N)[0];
+    const Ck = cconj(Tmk), C0 = cconj(T0), same = csc(c, G[r] * (E0 - Ek)), cGs = csc(c, G[s]);
+    M[2 * r][2 * r + 1] = cadd(same, cmul(cGs, C0));
+    M[2 * r][2 * s + 1] = csc(cmul(cGs, Ck), -1);
+    M[2 * r + 1][2 * r] = csc(cadd(same, cmul(cGs, T0)), -1);
+    M[2 * r + 1][2 * s] = cmul(cGs, Tk);
+  }
+  return M;
+}
+const zeros4 = () => [0, 1, 2, 3].map(() => [[0, 0], [0, 0], [0, 0], [0, 0]]);
+function matmul(A, B) {
+  const C = zeros4();
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = [0, 0]; for (let l = 0; l < 4; l++) s = cadd(s, cmul(A[i][l], B[l][j])); C[i][j] = s; }
+  return C;
+}
+/** Eigenvalues of a complex 4x4: Faddeev-LeVerrier characteristic polynomial, then Durand-Kerner; sorted by (real, imag) like ch09._sort_ev. */
+function eig4(A) {
+  const n = 4, c = new Array(n + 1); c[n] = [1, 0]; let Mp = zeros4();
+  for (let k = 1; k <= n; k++) {
+    const Mk = matmul(A, Mp); for (let i = 0; i < n; i++) Mk[i][i] = cadd(Mk[i][i], c[n - k + 1]);
+    const AM = matmul(A, Mk); let tr = [0, 0]; for (let i = 0; i < n; i++) tr = cadd(tr, AM[i][i]);
+    c[n - k] = csc(tr, -1 / k); Mp = Mk;
+  }
+  let rad = 0; for (let j = 0; j < n; j++) rad = Math.max(rad, Math.pow(cabs(c[j]), 1 / (n - j)));
+  rad = 1 + rad; let z = [0, 1, 2, 3].map(j => { let p = [1, 0]; for (let q = 0; q < j; q++) p = cmul(p, [0.4, 0.9]); return csc(p, rad * 0.6); });
+  const horner = x => { let p = [1, 0]; for (let j = n - 1; j >= 0; j--) p = cadd(cmul(p, x), c[j]); return p; };
+  for (let it = 0; it < 600; it++) {
+    let md = 0;
+    for (let i = 0; i < n; i++) {
+      let den = [1, 0]; for (let j = 0; j < n; j++) if (j !== i) den = cmul(den, csub(z[i], z[j]));
+      if (cabs(den) < 1e-300) den = [1e-300, 0];
+      const d = cdiv(horner(z[i]), den); z[i] = csub(z[i], d); md = Math.max(md, cabs(d));
+    }
+    if (md < 1e-15) break;
+  }
+  z.sort((p, q) => (p[0] !== q[0] ? p[0] - q[0] : p[1] - q[1]));
+  return z.map(e => ({ re: e[0], im: e[1] }));
+}
+/** ch09.karman_street_spectrum: the four eigenvalues [Gamma/a^2] for perturbation wavenumber k (default pi/a). */
+function spectrum(b, off, k, N) { return eig4(blochMatrix(b, off, k === undefined ? PI : k, 1, N || 2000)); }
+/** ch09.karman_street_growth: k given -> max Re at that k; k = null -> max over nk wavenumbers in (0, pi] (Python: 61, N = 2000). */
+function growthMax(b, off, N, nk, k) {
+  N = N || 2000; nk = nk || 61;
+  if (k !== undefined && k !== null) return Math.max.apply(null, spectrum(b, off, k, N).map(e => e.re));
+  let best = -Infinity;
+  for (let i = 0; i < nk; i++) { const kk = PI / nk + i * (PI - PI / nk) / (nk - 1); best = Math.max(best, Math.max.apply(null, spectrum(b, off, kk, N).map(e => e.re))); }
+  return best;
+}
+/** Solve the complex 4x4 system B y = x by Gaussian elimination with partial pivoting. */
+function csolve(B, x) {
+  const n = 4, A = B.map((row, i) => row.map(e => e.slice()).concat([x[i].slice()]));
+  for (let i = 0; i < n; i++) {
+    let p = i; for (let r = i + 1; r < n; r++) if (cabs(A[r][i]) > cabs(A[p][i])) p = r;
+    const t = A[i]; A[i] = A[p]; A[p] = t;
+    if (cabs(A[i][i]) < 1e-300) A[i][i] = [1e-300, 0];
+    for (let r = i + 1; r < n; r++) { const f = cdiv(A[r][i], A[i][i]); for (let cc = i; cc <= n; cc++) A[r][cc] = csub(A[r][cc], cmul(f, A[i][cc])); }
+  }
+  const y = new Array(n);
+  for (let i = n - 1; i >= 0; i--) { let s = A[i][n]; for (let cc = i + 1; cc < n; cc++) s = csub(s, cmul(A[i][cc], y[cc])); y[i] = cdiv(s, A[i][i]); }
+  return y;
+}
+/** Eigenvector of M for eigenvalue lam by inverse iteration (robust for repeated eigenvalues). */
+function eigvec(M, lam) {
+  const sh = [lam[0] + 1e-9 * (1 + cabs(lam)), lam[1] + 3e-10], B = M.map((row, i) => row.map((e, j) => (i === j ? csub(e, sh) : e)));
+  let x = [[1, 0], [0.5, 0.3], [0.7, -0.2], [0.4, 0.9]];
+  for (let it = 0; it < 4; it++) { const y = csolve(B, x); const nm = Math.hypot.apply(null, y.map(cabs)); x = y.map(e => csc(e, 1 / nm)); }
+  return x;
+}
+/** Everything the picture needs for one (b, off, k): the matrix, its eigenvalues, the most unstable mode and its eigenvector (cached). */
+const _cache = new Map();
+function bundle(b, off, k) {
+  const key = b.toFixed(5) + '|' + off.toFixed(3) + '|' + k.toFixed(5);
+  if (_cache.has(key)) return _cache.get(key);
+  const M = blochMatrix(b, off, k, 1, 2000), ev = eig4(M);
+  let top = ev[0]; ev.forEach(e => { if (e.re > top.re + 1e-9 || (Math.abs(e.re - top.re) <= 1e-9 && e.im > top.im)) top = e; });
+  const lam = [top.re, top.im], v = eigvec(M, lam), out = { M, ev, lam, v, growth: top.re, b, off, k };
+  if (_cache.size > 40) _cache.clear();
+  _cache.set(key, out); return out;
+}
+/** Bloch-mode displacement of vortex n of row r (0 upper, 1 lower): zeta = P e^{ikn} + conj(Q) e^{-ikn}, (P, Q)(t) = e^{lam t}(P0, Q0). Returns [dx, dy] in units of a. */
+function modeDisp(kv, lam, k, t, r, n) {
+  const e = cexp(csc(lam, t)), P = cmul(kv[2 * r], e), Q = cconj(cmul(kv[2 * r + 1], e));
+  const z = cadd(cmul(P, cexp([0, k * n])), cmul(Q, cexp([0, -k * n])));
+  return z;
+}
+/** Initial mode: eigenvector scaled so the largest initial displacement of the first ncell vortices is amp (units of a), phase from the kick seed. */
+function kickVec(bd, amp, seed, ncell) {
+  ncell = ncell || 12;
+  const ph = seed ? 2.399963 * seed : 0, mk = (p) => bd.v.map(e => cmul(e, [Math.cos(p), Math.sin(p)]));
+  const amp0 = kv => { let m = 0; for (let r = 0; r < 2; r++) for (let n = 0; n < ncell; n++) m = Math.max(m, cabs(modeDisp(kv, bd.lam, bd.k, 0, r, n))); return m; };
+  let kv = mk(ph); if (amp0(kv) < 0.05 * Math.max.apply(null, kv.map(cabs))) kv = mk(ph + PI / 2);
+  const m = amp0(kv) || 1; return kv.map(e => csc(e, amp / m));
+}
+/** Complex RK4 of dv/dt = M v (a check of the eigenmode). */
+function rk4Complex(M, v0, T, h) {
+  const f = v => M.map(row => { let s = [0, 0]; for (let j = 0; j < 4; j++) s = cadd(s, cmul(row[j], v[j])); return s; });
+  const ax = (v, k, w) => v.map((e, i) => cadd(e, csc(k[i], w)));
+  let v = v0.map(e => e.slice()); const n = Math.round(T / h);
+  for (let i = 0; i < n; i++) { const k1 = f(v), k2 = f(ax(v, k1, h / 2)), k3 = f(ax(v, k2, h / 2)), k4 = f(ax(v, k3, h)); v = v.map((e, j) => cadd(e, csc(cadd(cadd(k1[j], csc(k2[j], 2)), cadd(csc(k3[j], 2), k4[j])), h / 6))); }
+  return v;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   small helpers (local; promotion candidates listed in the report)
-   --------------------------------------------------------------------------------------------------- */
-const f3 = v => Viz.fmt(v, { sig: 3 });
-const t3 = v => Viz.tnum(v, 3);
-const t4 = v => Viz.tnum(v, 4);
-const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
-const pow10 = e => '10' + String(e).split('').map(c => SUPD[c]).join('');
-function lenU(m) { const a = Math.abs(m); return a < 1e-3 ? [1e-6, 'µm'] : a < 1e-2 ? [1e-3, 'mm'] : a < 1 ? [1e-2, 'cm'] : [1, 'm']; }
-const fmtLen = m => { const [k, u] = lenU(m); return f3(m / k) + ' ' + u; };
-const texLen = m => { const [k, u] = lenU(m); return t3(m / k) + '\\ \\text{' + (u === 'µm' ? '}\\mu\\text{m' : u) + '}'; };
-function fmtSpd(v) { const a = Math.abs(v); return a < 1e-2 ? f3(v * 1e3) + ' mm/s' : a < 1 ? f3(v * 1e2) + ' cm/s' : f3(v) + ' m/s'; }
-const fmtNu = v => f3(v) + ' m²/s';
-function fmtPa(p) { const a = Math.abs(p); return a < 1e3 ? f3(p) + ' Pa' : a < 1e6 ? f3(p / 1e3) + ' kPa' : f3(p / 1e6) + ' MPa'; }
-const lay = () => { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; };
+/* ---- the explainer's state -> every number the views, readouts and panels show ------------------------------------- */
+const f2 = v => Viz.fmt(v, { sig: 2 }), f3 = v => Viz.fmt(v, { sig: 3 }), f4 = v => Viz.fmt(v, { sig: 4 });
+const t3 = v => Viz.tnum(v, 3), t4 = v => Viz.tnum(v, 4);
+const ctex = (z, sg) => `${Viz.tnum(z[0], sg || 3)}${z[1] < 0 ? '-' : '+'}${Viz.tnum(Math.abs(z[1]), sg || 3)}\\,i`;
+const ctxt = (z, sg) => `${Viz.fmt(z[0], { sig: sg || 3 })}${z[1] < 0 ? '−' : '+'}${Viz.fmt(Math.abs(z[1]), { sig: sg || 3 })}i`;
+function lay() { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; }
 const phone = () => lay() !== 'wide';
-const wideWin = () => (document.documentElement.clientWidth || window.innerWidth) >= 1200;
-const mod = (x, m) => ((x % m) + m) % m;
-function niceBelow(x) {   // largest 1, 2 or 5 × 10ⁿ not above x (≥ 1)
-  if (!(x > 1)) return 1;
-  const e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e);
-  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * Math.pow(10, e);
+const RATIO = ratio();
+const EX = 20, CAP = 0.3;                                       // the kick is drawn x20 and soft-capped at 0.3 a
+
+function N(s) {
+  const b = s.b, off = s.off, kk = s.k * PI, t = s.t;
+  const bd = bundle(b, off, kk), ba = Math.abs(kk - PI) < 1e-9 ? bd : bundle(b, off, PI);
+  const ch = Math.cosh(PI * b), sh = Math.sinh(PI * b), gam = gammaOf(b), sig = sigmaOf(b), zeta = [-off, b];
+  const P = latticePair(zeta, 0, 0)[0], Q = latticePair(zeta, PI, 0)[0];
+  const stag = Math.abs(off - 0.5) < 1e-9, facing = off < 0.02;
+  let key = facing ? 'facing' : !stag ? 'shifted' : Math.abs(b - RATIO) < 0.004 ? 'marginal' : b < RATIO ? 'tight' : 'loose';
+  return { b, off, kk, t, bd, ba, ch, sh, gam, sig, aH: PI / 2 * gam, aS: PI / 2 * sig, gc: growthClosed(b), galt: ba.growth, gk: bd.growth, Us: speed(1, b, 1), P, Q, zeta,
+    dist: b - RATIO, stag, facing, key, amp: Math.exp(bd.growth * t), lam: bd.lam };
+}
+const _dots = new Map(), _locus = new Map();
+/** the numerically largest growth over 31 wavenumbers at 20 spacings (lattice sums cut at +-300) — the dots of the growth view */
+function growthDots(off) {
+  const key = off.toFixed(2); if (_dots.has(key)) return _dots.get(key);
+  const out = []; for (let i = 0; i < 20; i++) { const b = 0.05 * (i + 1); out.push([b, growthMax(b, off, 300, 31)]); }
+  _dots.set(key, out); return out;
+}
+/** all four eigenvalues of the alternating mode for 60 spacings — the cloud of the eigenvalue view */
+function locus(off) {
+  const key = off.toFixed(2); if (_locus.has(key)) return _locus.get(key);
+  const out = []; for (let i = 0; i <= 60; i++) { const b = 0.05 + 0.95 * i / 60; spectrum(b, off, PI).forEach(e => out.push([e.re, e.im])); }
+  _locus.set(key, out); return out;
+}
+const _gm = new Map();
+function growthMaxCached(b, off) { const key = b.toFixed(4) + '|' + off.toFixed(2); if (!_gm.has(key)) { if (_gm.size > 60) _gm.clear(); _gm.set(key, growthMax(b, off, 2000, 61)); } return _gm.get(key); }
+const pn = (v, k = 4) => (v == null || !isFinite(v) ? 'None' : Math.abs(v) < 1e-300 ? '0' : Math.abs(v) < 1e-3 || Math.abs(v) >= 1e5 ? v.toExponential(k - 1).replace(/\.?0+e/, 'e') : String(Number(v.toPrecision(k))));
+const pyc = z => `${z.re >= 0 ? '+' : '-'}${Math.abs(z.re).toFixed(3)}${z.im >= 0 ? '+' : '-'}${Math.abs(z.im).toFixed(3)}j`.replace(/^\+/, '');
+
+/* ---- drawing helpers --------------------------------------------------------------------------------------------------- */
+function lab(ctx, str, x, y, o) { Viz.text(ctx, str, x, y, Object.assign({ size: 12, bg: true, pad: 2 }, o)); }
+function gutterPlot(v, opt, axFn) {
+  const narrowV = v.w < 420, yl = opt.ylabel;
+  const o = Object.assign({}, opt, narrowV ? { rect: { x: 18, y: 0, w: v.w - 18, h: v.h }, ylabel: '' } : {});
+  const P = v.plot(o);
+  P.axes(Object.assign({}, axFn ? axFn(P) : {}, narrowV ? { ylabel: '' } : {}));
+  if (narrowV && yl) { const c = v.ctx; c.save(); c.font = Viz.font(12, 500); c.fillStyle = Viz.color('text-soft'); c.translate(9, P.px.y + P.px.h / 2); c.rotate(-PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore(); }
+  return P;
 }
 function arrowPx(ctx, x0, y0, x1, y1, color, width, head) {
-  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 1.5) return;
-  const hd = Math.min(head || 7, 0.6 * L), ang = Math.atan2(y1 - y0, x1 - x0);
-  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - 0.7 * hd * Math.cos(ang), y1 - 0.7 * hd * Math.sin(ang)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.45), y1 - hd * Math.sin(ang - 0.45));
-  ctx.lineTo(x1 - hd * Math.cos(ang + 0.45), y1 - hd * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill(); ctx.restore();
+  width = width || 2; head = head || 7; const Ln = Math.hypot(x1 - x0, y1 - y0); if (Ln < 1) return;
+  const ang = Math.atan2(y1 - y0, x1 - x0), hd = Math.min(head, Ln * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - hd * 0.7 * Math.cos(ang), y1 - hd * 0.7 * Math.sin(ang)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.42), y1 - hd * Math.sin(ang - 0.42)); ctx.lineTo(x1 - hd * Math.cos(ang + 0.42), y1 - hd * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
-const COL = {
-  inertia: () => Viz.color('teal'), pressure: () => Viz.color('orange'), across: () => Viz.color('rose'),
-  along: () => Viz.alpha(Viz.color('rose'), 0.5), vel: () => Viz.color('blue'), muted: () => Viz.color('muted'), ink: () => Viz.color('text')
-};
+function capDisp(z) { const dx = z[0] * EX, dy = z[1] * EX, m = Math.hypot(dx, dy); if (m < 1e-12) return [0, 0, 0]; const f = CAP * Math.tanh(m / CAP) / m; return [dx * f, dy * f, m / CAP]; }
 
-/* ---------------------------------------------------------------------------------------------------
-   THE GAP PICTURE in starred variables (precomputed once: it does not depend on the controls — that is what
-   scaling buys; only the labels and the stated exaggeration change)
-   --------------------------------------------------------------------------------------------------- */
-const HA = 1.25, HB = 0.75, QF = HA * HB / (HA + HB);
-const Hx = X => HA + (HB - HA) * X;
-const cX = X => 3 - 6 * QF / Hx(X);
-const uStar = (X, eta) => (1 - eta) - cX(X) * eta * (1 - eta);
-const psiStar = (X, eta) => Hx(X) * (eta - eta * eta / 2 - cX(X) * (eta * eta / 2 - eta ** 3 / 3));
-function etaOnStream(X, psi0) {   // ψ* grows monotonically from 0 (moving wall) to q (fixed wall)
-  let a = 0, b = 1;
-  for (let i = 0; i < 50; i++) { const m = 0.5 * (a + b); if (psiStar(X, m) < psi0) a = m; else b = m; }
-  return 0.5 * (a + b);
-}
-function vStar(X, Y) {   // v* = −∂ψ*/∂x* at fixed y* (continuity, (8.15))
-  const d = 1e-4, pe = X2 => psiStar(X2, Math.min(1, Y / Hx(X2)));
-  return -(pe(X + d) - pe(X - d)) / (2 * d);
-}
-const STREAMS = (() => {
-  const NS = 9, NX = 161, out = [];
-  for (let k = 0; k < NS; k++) {
-    const psi0 = QF * (k + 0.5) / NS, X = [], Y = [], tau = [0];
-    for (let j = 0; j < NX; j++) { const x = j / (NX - 1), e = etaOnStream(x, psi0); X.push(x); Y.push(e * Hx(x)); }
-    for (let j = 1; j < NX; j++) {
-      const u0 = uStar(X[j - 1], Y[j - 1] / Hx(X[j - 1])), u1 = uStar(X[j], Y[j] / Hx(X[j]));
-      tau.push(tau[j - 1] + (X[j] - X[j - 1]) * 0.5 * (1 / u0 + 1 / u1));
-    }
-    out.push({ psi0, X, Y, tau, T: tau[NX - 1] });
+/* ---- view 1: the double row --------------------------------------------------------------------------------------------- */
+let PST = null, PG = null;
+function drawStreet(g, s) {
+  const v = g.view('street'); v.clear(); PST = null;
+  if (v.w < 60 || v.h < 50) return;
+  const n = N(s), ctx = v.ctx, w = v.w, h = v.h, small = w < 330 || h < 170, NC = w < 420 ? 6 : 9;
+  const BL = Viz.color('blue'), RO = Viz.color('rose'), OR = Viz.color('orange'), TE = Viz.color('teal'), TX = Viz.color('text'), MU = Viz.color('muted'), AM = Viz.color('amber');
+  const padL = small ? 6 : 30, padR = 8, padT = 4, padB = small ? 4 : 18, sx = (w - padL - padR) / NC, sy = (h - padT - padB) / 2 / 0.8;
+  const X = x => padL + (x + 0.5) * sx, Y = y => padT + sy * 0.8 - y * sy;
+  const kv = kickVec(n.bd, s.amp, s.seed, NC), rv = clamp(Math.min(sx, sy) * 0.13, 5, 9);
+  // ghost street (undisturbed) and the row lines
+  ctx.save(); ctx.strokeStyle = Viz.alpha(MU, 0.5); ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  [1, -1].forEach(sg => { ctx.beginPath(); ctx.moveTo(X(-0.5), Y(sg * n.b / 2)); ctx.lineTo(X(NC - 0.5), Y(sg * n.b / 2)); ctx.stroke(); });
+  ctx.setLineDash([]);
+  const rest = [], pos = [[], []];
+  for (let r = 0; r < 2; r++) for (let i = 0; i < NC; i++) {
+    const x0 = i + (r ? n.off : 0), y0 = (r ? -1 : 1) * n.b / 2, d = capDisp(modeDisp(kv, n.lam, n.bd.k, s.t, r, i));
+    ctx.beginPath(); ctx.arc(X(x0), Y(y0), 3, 0, 2 * PI); ctx.strokeStyle = Viz.alpha(MU, 0.8); ctx.stroke();
+    pos[r].push({ r, i, x: x0 + d[0], y: y0 + d[1], big: d[2], x0, y0 });
   }
-  return out;
-})();
-function onStreamAt(S, tt) {
-  const ti = mod(tt, S.T); let j = 1;
-  while (j < S.tau.length - 1 && S.tau[j] < ti) j++;
-  const f = (ti - S.tau[j - 1]) / Math.max(1e-12, S.tau[j] - S.tau[j - 1]);
-  return [S.X[j - 1] + f * (S.X[j] - S.X[j - 1]), S.Y[j - 1] + f * (S.Y[j] - S.Y[j - 1])];
-}
-
-function drawGap(v, s) {
-  v.clear();
-  const ctx = v.ctx, small = v.w < 460 || v.h < 170, tiny = v.h < 110;
-  const [kx, ux] = lenU(s.L), [ky, uy] = lenU(s.h);
-  const Lx = s.L / kx, hy = s.h / ky, ymax = 1.42 * hy;
-  const P = v.plot({ xlim: [-0.03 * Lx, 1.03 * Lx], ylim: [-0.12 * hy, ymax], pad: { l: small ? 40 : 52, r: small ? 12 : 16, t: 6, b: small ? 26 : 32 } })
-    .axes({ xlabel: 'x [' + ux + '] along the gap', ylabel: small ? '' : 'y [' + uy + ']', grid: false, zeroLines: false,
-      yticks: tiny ? [0] : [0, Number((hy).toPrecision(3))] });
-  const X = x => P.X(x * Lx), Y = y => P.Y(y * hy);                       // starred → pixels
-  const blue = COL.vel(), rose = COL.across(), ink = COL.ink(), muted = COL.muted(), soft = Viz.color('text-soft');
-  const t = s.t || 0;
-  // fluid
-  ctx.save(); ctx.beginPath(); ctx.moveTo(X(0), Y(0));
-  for (let i = 0; i <= 60; i++) { const x = i / 60; ctx.lineTo(X(x), Y(Hx(x))); }
-  ctx.lineTo(X(1), Y(0)); ctx.closePath(); ctx.fillStyle = Viz.alpha(blue, 0.09); ctx.fill(); ctx.restore();
-  // streamlines (faint) and tracers
-  P.clip(() => {
-    STREAMS.forEach(S => P.line(S.X.map(x => x * Lx), S.Y.map(y => y * hy), { color: Viz.alpha(blue, 0.22), width: 1 }));
-    const per = small ? 4 : 6;
-    STREAMS.forEach((S, k) => { for (let i = 0; i < per; i++) {
-      const [x, y] = onStreamAt(S, t + (i + 0.37 * k) * S.T / per);
-      P.dot(x * Lx, y * hy, small ? 2.4 : 3, { color: Viz.alpha('#475569', 0.85) });
-    } });
-  });
-  // walls: upper (fixed, hatched) and lower (sliding at U, moving dashes)
-  ctx.save(); ctx.strokeStyle = ink; ctx.lineWidth = 2.5; ctx.beginPath();
-  for (let i = 0; i <= 60; i++) { const x = i / 60; if (i) ctx.lineTo(X(x), Y(Hx(x))); else ctx.moveTo(X(x), Y(Hx(x))); }
-  ctx.stroke(); ctx.lineWidth = 1; ctx.strokeStyle = Viz.alpha(ink, 0.45);
-  for (let i = 0; i <= 40; i++) { const x = i / 40, yy = Y(Hx(x)); ctx.beginPath(); ctx.moveTo(X(x), yy); ctx.lineTo(X(x) + 6, yy - 7); ctx.stroke(); }
   ctx.restore();
-  ctx.save(); ctx.strokeStyle = rose; ctx.lineWidth = 3; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -mod(t * P.px.w * 0.5, 17);
-  ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(1), Y(0)); ctx.stroke(); ctx.restore();
-  // velocity profiles at three stations (blue) and the cross-gap velocity v (blue, dashed)
-  const Lp = Math.min(0.13 * P.px.w, 90), stations = small ? [0.25, 0.75] : [0.18, 0.5, 0.82];
-  const ex = (P.px.h / (1.54 * s.h)) / (P.px.w / (1.06 * s.L));             // vertical px per m ÷ horizontal px per m
-  let vmax = 0; stations.forEach(xs => { const vv = Math.abs(vStar(xs, 0.5 * Hx(xs))); if (vv > vmax) vmax = vv; });
-  // v drawn in the same exaggeration as the heights is a few pixels long; magnify it by a stated 1-2-5 factor
-  const vTrue = SC(s).eps * ex * Lp * vmax, vMag = vTrue >= 12 ? 1 : niceBelow(Math.min(22, 0.18 * P.px.h) / Math.max(vTrue, 1e-9));
-  stations.forEach(xs => {
-    const H = Hx(xs), x0 = X(xs);
-    ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.35); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x0, Y(H)); ctx.stroke(); ctx.restore();
-    const n = 24; ctx.save(); ctx.strokeStyle = blue; ctx.lineWidth = 2; ctx.beginPath();
-    for (let i = 0; i <= n; i++) { const e = i / n, xp = x0 + Lp * uStar(xs, e), yp = Y(e * H); if (i) ctx.lineTo(xp, yp); else ctx.moveTo(xp, yp); }
-    ctx.stroke(); ctx.restore();
-    if (!tiny) [0.2, 0.45, 0.7].forEach(e => arrowPx(ctx, x0, Y(e * H), x0 + Lp * uStar(xs, e), Y(e * H), Viz.alpha(blue, 0.8), 1.4, 6));
-    const yv = 0.5 * H, vv = vStar(xs, yv) * SC(s).eps * ex * Lp * vMag;
-    arrowPx(ctx, x0 - 10, Y(yv), x0 - 10, Y(yv) - vv, blue, 2.4, 7);
-  });
-  // labels
-  const S = SC(s);
-  arrowPx(ctx, X(0.36), Y(-0.06), X(0.36) + Math.min(60, 0.12 * P.px.w), Y(-0.06), rose, 2.6, 8);
-  if (!tiny) {
-    Viz.text(ctx, 'U = ' + fmtSpd(s.U), X(0.36) + Math.min(60, 0.12 * P.px.w) + 6, Y(-0.06), { size: 12, color: rose, bg: true, weight: 650 });
-    const exLab = small ? 'heights ×' + f3(ex) : 'heights ×' + f3(ex) + (vMag > 1 ? ' · v arrows ×' + f3(vMag) + ' more' : '');
-    if (P.px.w >= 330) Viz.text(ctx, 'L = ' + fmtLen(s.L) + ' · h = ' + fmtLen(s.h), P.px.x + 6, P.px.y + 10, { size: 12, color: ink, bg: true, weight: 650 });
-    Viz.text(ctx, exLab, P.px.x + P.px.w - 4, P.px.y + (P.px.w >= 330 ? 10 : 10), { size: 12, align: 'right', color: soft, bg: true });
-    if (!small) {
-      Viz.text(ctx, 'v ~ εU = ' + fmtSpd(S.eps * s.U) + ' ↕', X(stations[0]) - 16, Y(0.5 * Hx(stations[0])) - 18, { size: 12, align: 'right', color: blue, bg: true });
-      Viz.text(ctx, 'u ~ U', X(stations[1]) + Lp + 6, Y(0.3 * Hx(stations[1])), { size: 12, color: blue, bg: true });
-    }
-  }
-}
-
-/* ---------------------------------------------------------------------------------------------------
-   THE TERM BARS on a log axis (coefficients of (8.16a) or (8.16b); every starred derivative is O(1))
-   --------------------------------------------------------------------------------------------------- */
-const XITEMS = [['x_inertia', 'inertia', 'ε²Re_L', 'inertia'], ['x_pressure', 'pressure', '1/Λ', 'pressure'], ['x_diff_along', 'friction along', 'ε²', 'along'], ['x_diff_across', 'friction across', '1', 'across']];
-const YITEMS = [['y_inertia', 'inertia', 'ε⁴Re_L', 'inertia'], ['y_pressure', 'pressure', '1/Λ', 'pressure'], ['y_diff_along', 'friction along', 'ε⁴', 'along'], ['y_diff_across', 'friction across', 'ε²', 'across']];
-const LOGMIN = -16, LOGMAX = 4;
-const barGeo = {};
-function pressLab(s) { return (s.pscale || 'viscous') === 'atm' ? '1/Λ' : '1 (μUL/h²)'; }
-function drawBars(v, s, which) {
-  v.clear();
-  const ctx = v.ctx, W = v.w, Hh = v.h;
-  if (W < 60 || Hh < 50) return;
-  const T = TM(s), items = which === 'x' ? XITEMS : YITEMS, ink = COL.ink(), soft = Viz.color('text-soft'), muted = COL.muted();
-  const narrowV = W < 330, lw = narrowV ? 62 : Math.min(150, 0.34 * W), x0 = lw + 8, x1 = W - 12, axisH = 24;
-  const head = (x1 - x0) > 240 && Hh > 150, top = head ? 20 : 4;
-  const rh = Math.min(50, (Hh - axisH - top - 4) / 4), XL = lg => x0 + (Math.max(LOGMIN, Math.min(LOGMAX, lg)) - LOGMIN) / (LOGMAX - LOGMIN) * (x1 - x0);
-  const vals = items.map(it => T[it[0]]);
-  const atm = (s.pscale || 'viscous') === 'atm';
-  // the real size of each term = coefficient × typical size of its starred derivative (p* ~ Λ when P = P_a)
-  const real = items.map((it, i) => (it[3] === 'pressure' && atm && which === 'x') ? 1 : vals[i]);
-  const ref = which === 'x' ? 1 : Math.max(...real);
-  // dropped band (≤ 1 % of the largest term) and the yardstick line
-  const yB = top + 4 * rh;
-  ctx.save(); ctx.fillStyle = Viz.alpha(muted, 0.14); ctx.fillRect(x0, top, XL(Math.log10(0.01 * ref)) - x0, yB - top); ctx.restore();
-  ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.6); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(XL(Math.log10(ref)), top); ctx.lineTo(XL(Math.log10(ref)), yB); ctx.stroke(); ctx.restore();
-  // axis: decades
-  ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.5); ctx.beginPath(); ctx.moveTo(x0, yB + 1); ctx.lineTo(x1, yB + 1); ctx.stroke(); ctx.restore();
-  const stepD = (x1 - x0) > 360 ? 2 : 4;
-  for (let e = LOGMIN; e <= LOGMAX; e += stepD) {
-    const xx = XL(e);
-    ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.5); ctx.beginPath(); ctx.moveTo(xx, yB + 1); ctx.lineTo(xx, yB + 5); ctx.stroke(); ctx.restore();
-    Viz.text(ctx, e === 0 ? '1' : pow10(e), xx, yB + 14, { size: 12, align: 'center', color: soft });
-  }
-  if (head) {
-    const xb = XL(Math.log10(0.01 * ref));
-    Viz.text(ctx, xb - x0 > 240 ? (which === 'x' ? '◂ dropped: under 1 % of friction' : '◂ dropped: under 1 % of the largest') : '◂ dropped', xb - 4, 9, { size: 12, align: 'right', color: soft });
-  }
-  barGeo[which] = { top, rh, items };
-  items.forEach((it, i) => {
-    const y = top + i * rh, val = vals[i], col = COL[it[3]](), foc = s.focus === it[0];
-    const kept = real[i] >= 0.01 * ref;
-    if (foc) { ctx.save(); ctx.fillStyle = Viz.alpha(Viz.color('amber'), 0.18); ctx.fillRect(0, y + 1, W, rh - 2); ctx.restore(); }
-    const lg = Math.log10(val), xe = XL(lg), bh = Math.max(6, Math.min(26, rh - 12));
-    ctx.save(); ctx.fillStyle = Viz.alpha(col, kept ? 0.9 : 0.4); ctx.fillRect(x0, y + (rh - bh) / 2, Math.max(2, xe - x0), bh);
-    if (foc) { ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.strokeRect(x0, y + (rh - bh) / 2, Math.max(2, xe - x0), bh); }
+  // the wave outline through each row
+  [0, 1].forEach(r => { ctx.save(); ctx.strokeStyle = Viz.alpha(r ? RO : BL, 0.45); ctx.lineWidth = 1.6; ctx.beginPath(); pos[r].forEach((p, j) => { if (j) ctx.lineTo(X(p.x), Y(p.y)); else ctx.moveTo(X(p.x), Y(p.y)); }); ctx.stroke(); ctx.restore(); });
+  // the jet between the rows (street speed)
+  if (n.stag) { const L = Math.max(14, n.Us * 2 * sx * 1.3), x1 = X(NC * 0.68); arrowPx(ctx, x1, Y(0), x1 - L, Y(0), Viz.alpha(TE, 0.9), 2.2, 8); }
+  // the vortices, with the sense of rotation (upper row clockwise, lower row counter-clockwise)
+  PST = { items: [] };
+  const ph = s.t * 2.2;
+  [0, 1].forEach(r => pos[r].forEach(p => {
+    const col = r ? RO : BL, px = X(p.x), py = Y(p.y), sel = s.probe === r * 100 + p.i;
+    ctx.save(); ctx.fillStyle = Viz.alpha(col, 0.2); ctx.strokeStyle = p.big > 0.85 ? AM : col; ctx.lineWidth = sel ? 3.2 : 2;
+    ctx.beginPath(); ctx.arc(px, py, rv, 0, 2 * PI); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath();
+    const a0 = r ? -ph : ph, a1 = r ? a0 - 3.9 : a0 + 3.9; ctx.arc(px, py, rv * 0.55, a0, a1, !!r); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(px + rv * 0.55 * Math.cos(a1), py + rv * 0.55 * Math.sin(a1), 2.2, 0, 2 * PI); ctx.fill();
+    if (sel) { ctx.strokeStyle = AM; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, rv + 4, 0, 2 * PI); ctx.stroke(); }
     ctx.restore();
-    if (lg < LOGMIN) Viz.text(ctx, '◂', x0 + 2, y + rh / 2, { size: 12, color: ink });
-    // the pressure term with P = P_a: the coefficient 1/Λ is not its size — p* ~ Λ, so the term is ~1 (dashed)
-    if (it[3] === 'pressure' && atm && which === 'x' && Math.abs(lg) > 0.05) {
-      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]);
-      ctx.strokeRect(Math.min(xe, XL(0)), y + (rh - bh) / 2, Math.abs(XL(0) - xe), bh); ctx.restore();
-    }
-    const sym = it[3] === 'pressure' ? (atm ? '1/Λ' : '1') : it[2];
-    const lab = narrowV ? sym : it[1] + '  ' + sym;
-    Viz.text(ctx, lab, 4, y + rh / 2, { size: 12, color: it[3] === 'along' ? Viz.color('rose') : col, weight: kept ? 700 : 500, maxWidth: lw });
-    const vt = (lg < LOGMIN ? '< ' + pow10(LOGMIN) + ' (' + f3(val) + ')' : f3(val)) + (kept ? '' : ' ✗');
-    const right = xe + 90 > x1;
-    Viz.text(ctx, vt, right ? Math.max(x0 + 40, xe - 4) : xe + 4, y + rh / 2, { size: 12, align: right ? 'right' : 'left', color: ink, bg: true, weight: kept ? 700 : 500 });
-  });
-}
-function barsTitle(s, which) {
-  const T = TM(s), S = SC(s);
-  if (which === 'x') {
-    if (phone() && s.focus && s.focus[0] === 'y') return `<b>y-momentum</b> · ∂p*/∂y* ~ ε² = ${f3(S.eps ** 2)}`;
-    return phone() ? `<b>x-momentum</b> · <b class="c-teal">inertia ${f3(T.x_inertia)}</b> vs <b class="c-rose">friction 1</b> · y: ∂p/∂y ≈ 0`
-      : `<b>x-momentum</b> · <b class="c-teal">inertia</b> ${f3(T.x_inertia)} vs <b class="c-rose">friction</b> 1`;
+    PST.items.push({ r, i: p.i, px, py });
+  }));
+  // dimensions: b (left) and a (top)
+  if (!small) {
+    ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 1.2;
+    const xb = X(-0.5) - 12; ctx.beginPath(); ctx.moveTo(xb, Y(n.b / 2)); ctx.lineTo(xb, Y(-n.b / 2)); ctx.stroke();
+    [1, -1].forEach(sg => { ctx.beginPath(); ctx.moveTo(xb - 4, Y(sg * n.b / 2)); ctx.lineTo(xb + 4, Y(sg * n.b / 2)); ctx.stroke(); });
+    ctx.restore(); lab(ctx, 'b', xb - 9, Y(0), { color: TX, weight: 700, align: 'center' });
+    const ya = Y(n.b / 2) - rv - 9; ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(X(1), ya); ctx.lineTo(X(2), ya); ctx.moveTo(X(1), ya - 4); ctx.lineTo(X(1), ya + 4); ctx.moveTo(X(2), ya - 4); ctx.lineTo(X(2), ya + 4); ctx.stroke(); ctx.restore();
+    lab(ctx, 'a', (X(1) + X(2)) / 2, ya - 8, { color: TX, weight: 700, align: 'center' });
+    const cmp = w < 560;
+    lab(ctx, cmp ? `kick ×${EX}, y ×${(sy / sx).toFixed(1)}` : `kick ×${EX} (capped) · vertical stretch ×${(sy / sx).toFixed(1)}`, w - 6, h - 8, { color: MU, align: 'right', bg: false });
+    if (n.stag) lab(ctx, cmp ? `← U_s = ${f3(n.Us)} Γ/a` : `← street moves at U_s = ${f3(n.Us)} Γ/a`, padL + 4, h - 8, { color: TE, align: 'left', weight: 650, bg: false });
+  } else lab(ctx, `kick ×${EX}, y ×${(sy / sx).toFixed(1)}`, w - 4, h - 8, { color: MU, align: 'right', bg: false });
+  if (g.app.holding) {
+    const gr = Math.exp(n.gk * 12);
+    Viz.card(ctx, w / 2, h / 2, gr > 1.05 ? [`t = 12 a²/Γ: the kick grew ×${Viz.fmt(gr, { sig: 3 })}`, `σ = ${f3(n.gk)} Γ/a²`] : [`t = 12 a²/Γ: the kick stayed at ×${f3(gr)}`, 'a neutral street: it oscillates'], { color: gr > 1.05 ? OR : TE });
   }
-  return `<b>y-momentum</b> · ∂p*/∂y* ~ ε² = ${f3(S.eps ** 2)}`;
+}
+function streetTitle(s) {
+  const n = N(s);
+  if (phone()) return `<b>Street</b> · b/a = ${f3(n.b)} · <span class="c-orange">kick ×${f3(n.amp)}</span>`;
+  return `<b>The double row</b> · <span class="c-blue">−Γ</span> · <span class="c-rose">+Γ</span> · <span class="c-orange">kick ×${f3(n.amp)}</span>`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   TeX of the book's equations (shown next to every number that cites them)
-   --------------------------------------------------------------------------------------------------- */
-const EQ = {
-  e62: '\\frac{\\partial u}{\\partial x}+\\frac{\\partial v}{\\partial y}=0',
-  e13a: '\\begin{aligned}&\\frac{\\partial u}{\\partial t}+u\\frac{\\partial u}{\\partial x}+v\\frac{\\partial u}{\\partial y}\\\\ &=-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\frac\\mu\\rho\\Big(\\frac{\\partial^2u}{\\partial x^2}+\\frac{\\partial^2u}{\\partial y^2}\\Big)\\end{aligned}',
-  e13b: '\\begin{aligned}&\\frac{\\partial v}{\\partial t}+u\\frac{\\partial v}{\\partial x}+v\\frac{\\partial v}{\\partial y}\\\\ &=-\\frac1\\rho\\frac{\\partial p}{\\partial y}+\\frac\\mu\\rho\\Big(\\frac{\\partial^2v}{\\partial x^2}+\\frac{\\partial^2v}{\\partial y^2}\\Big)\\end{aligned}',
-  e14: '\\begin{aligned}&x^*=\\frac xL,\\ \\ y^*=\\frac y{\\varepsilon L},\\ \\ t^*=\\frac{Ut}L,\\\\ &u^*=\\frac uU,\\ \\ v^*=\\frac v{\\varepsilon U},\\ \\ p^*=\\frac p{P_a}\\end{aligned}',
-  e14s: 'y^*=y/\\varepsilon L,\\ v^*=v/\\varepsilon U',
-  e15: '\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\partial v^*}{\\partial y^*}=0',
-  e15s: '\\tfrac{\\partial u^*}{\\partial x^*}+\\tfrac{\\partial v^*}{\\partial y^*}=0',
-  e16a: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L\\Big(\\frac{\\partial u^*}{\\partial t^*}\\\\ &\\quad+u^*\\frac{\\partial u^*}{\\partial x^*}+v^*\\frac{\\partial u^*}{\\partial y^*}\\Big)\\\\ &=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-  e16b: '\\begin{aligned}&\\varepsilon^4\\mathrm{Re}_L\\Big(\\frac{\\partial v^*}{\\partial t^*}\\\\ &\\quad+u^*\\frac{\\partial v^*}{\\partial x^*}+v^*\\frac{\\partial v^*}{\\partial y^*}\\Big)\\\\ &=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}\\\\ &\\quad+\\varepsilon^4\\frac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\frac{\\partial^2v^*}{\\partial y^{*2}}\\end{aligned}',
-  e16ac: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L\\frac{Du^*}{Dt^*}=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-  e16as: '\\varepsilon^2\\mathrm{Re}_L\\tfrac{Du^*}{Dt^*}=-\\tfrac1\\Lambda\\tfrac{\\partial p^*}{\\partial x^*}+\\varepsilon^2\\tfrac{\\partial^2u^*}{\\partial x^{*2}}+\\tfrac{\\partial^2u^*}{\\partial y^{*2}}',
-  e16bs: '\\varepsilon^4\\mathrm{Re}_L\\tfrac{Dv^*}{Dt^*}=-\\tfrac1\\Lambda\\tfrac{\\partial p^*}{\\partial y^*}+\\varepsilon^4\\tfrac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\tfrac{\\partial^2v^*}{\\partial y^{*2}}',
-  e17a: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\nu\\frac{\\partial^2u}{\\partial y^2}',
-  e17b: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial y}',
-  e17as: '0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial x}+\\nu\\tfrac{\\partial^2u}{\\partial y^2}',
-  e17bs: '0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial y}'
-};
-const $ = t => '$' + t + '$';
-const colI = (cls, html) => `<b class="${cls}">${html}</b>`;
+/* ---- view 2: growth rate against b/a ----------------------------------------------------------------------------------------- */
+function drawGrowth(g, s) {
+  const v = g.view('growth'); v.clear(); PG = null;
+  if (v.w < 60 || v.h < 50) return;
+  const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 150;
+  const AC = Viz.color('accent'), OR = Viz.color('orange'), TE = Viz.color('teal'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const short = v.h < 130, xl = short ? '' : small ? 'b/a' : 'row separation b/a', yl = short ? '' : 'growth [Γ/a²]';
+  const P = gutterPlot(v, { xlim: [0, 1], ylim: [0, 0.9], pad: short ? { l: 30, r: 6, t: 4, b: 16 } : small ? { l: 40, r: 8, t: 6, b: 30 } : { l: 50, r: 10, t: 8, b: 34 }, xlabel: xl, ylabel: yl },
+    () => ({ grid: false, xticks: short ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1], yticks: short ? [0, 0.4, 0.8] : [0, 0.2, 0.4, 0.6, 0.8], xlabel: xl, ylabel: yl }));
+  PG = { P };
+  const xs = Viz.num.linspace(0.005, 1, 200);
+  P.clip(() => {
+    P.line([0, 1], [PI / 4, PI / 4], { color: MU, width: 1.6, dash: [6, 5] });
+    P.line(xs, xs.map(growthClosed), { color: AC, width: 3 });
+    growthDots(n.off).forEach(d => P.dot(d[0], d[1], 3.6, { color: OR, stroke: '#fff', strokeWidth: 1 }));
+    P.line([n.b, n.b], [0, 0.9], { color: TX, width: 1, dash: [2, 4], alpha: 0.5 });
+    P.dot(RATIO, 0, 6, { color: TE, stroke: '#fff', strokeWidth: 2 });
+    P.dot(n.b, Math.max(n.galt, 0.006), 6.5, { color: Viz.color('rose'), stroke: '#fff', strokeWidth: 2 });
+    if (Math.abs(n.kk - PI) > 1e-6) P.dot(n.b, Math.max(n.gk, 0.006), 5, { color: OR, stroke: '#fff', strokeWidth: 2 });
+  });
+  if (!small) {
+    lab(ctx, 'facing rows: π/4', P.X(0.98), P.Y(PI / 4) - 11, { color: MU, align: 'right' });
+    lab(ctx, n.stag ? 'closed form (π/2)|½ − sech²|' : 'closed form, staggered', P.X(0.68), P.Y(0.42), { color: AC, weight: 700, align: 'center' });
+    lab(ctx, `marginal ${f4(RATIO)}`, P.X(RATIO) - 8, P.Y(0.075), { color: TE, weight: 700, align: 'right' });
+    lab(ctx, `σ = ${f3(n.galt)}`, P.X(n.b) + (n.b > 0.75 ? -8 : 8), P.Y(Math.max(n.galt, 0.006)) - 12, { color: Viz.color('rose'), weight: 700, align: n.b > 0.75 ? 'right' : 'left' });
+  }
+}
+function growthTitle(s) {
+  const n = N(s), lam = n.lam;
+  if (phone()) return `<b>Growth</b> · σ = ${f3(n.gk)} · λ = ${f2(lam[0])} ± ${f2(Math.abs(lam[1]))}i`;
+  return `<b>Growth</b> · <span class="c-accent">closed form</span> · <span class="c-orange">numerical max</span> · <span class="c-rose">you</span> · <span class="c-teal">marginal</span>`;
+}
 
-// numbers quoted in the walkthrough and the quiz — computed, never typed
-const E0 = scalesRaw(ENG.L, ENG.h, ENG.U, ENG.rho, ENG.rho * ENG.nu), TK = scalesRaw(THICK.L, THICK.h, THICK.U, THICK.rho, THICK.rho * THICK.nu);
-const hCrit = ENG.h / Math.sqrt(E0.eps2_Re_L);   // ε²Re_L ∝ h² at fixed L, U, ν: the gap where it reaches 1
+/* ---- view 3: the four eigenvalues ------------------------------------------------------------------------------------------- */
+function drawSpec(g, s) {
+  const v = g.view('spec'); v.clear();
+  if (v.w < 60 || v.h < 50) return;
+  const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 150;
+  const OR = Viz.color('orange'), BL = Viz.color('blue'), TE = Viz.color('teal'), MU = Viz.color('muted'), RO = Viz.color('rose');
+  const xl = small ? 'Re λ' : 'Re λ  [Γ/a²]', yl = 'Im λ';
+  const P = gutterPlot(v, { xlim: [-1.1, 1.1], ylim: [-1.6, 1.6], pad: small ? { l: 40, r: 8, t: 6, b: 30 } : { l: 50, r: 10, t: 8, b: 34 }, xlabel: xl, ylabel: yl },
+    () => ({ grid: false, xticks: [-1, -0.5, 0, 0.5, 1], yticks: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5], xlabel: xl, ylabel: yl }));
+  P.clip(() => {
+    ctx.save(); ctx.fillStyle = Viz.alpha(OR, 0.07); ctx.fillRect(P.X(0), P.px.y, P.px.x + P.px.w - P.X(0), P.px.h); ctx.restore();
+    P.line([0, 0], [-1.6, 1.6], { color: RO, width: 1.6, dash: [5, 4] });
+    locus(n.off).forEach(p => P.dot(p[0], p[1], 2, { color: MU, alpha: 0.6 }));
+    P.dot(0, PI / 4, 5.5, { color: TE, stroke: '#fff', strokeWidth: 2 }); P.dot(0, -PI / 4, 5.5, { color: TE, stroke: '#fff', strokeWidth: 2 });
+    n.bd.ev.forEach(e => P.dot(e.re, e.im, 7, { color: e.re > 1e-6 ? OR : e.re < -1e-6 ? BL : TE, stroke: '#fff', strokeWidth: 2 }));
+  });
+  if (!small) {
+    lab(ctx, 'grows →', P.X(1.05), P.Y(-1.45), { color: OR, weight: 700, align: 'right' });
+    lab(ctx, '← decays', P.X(-1.05), P.Y(-1.45), { color: BL, weight: 700, align: 'left' });
+    lab(ctx, 'neutral: Re λ = 0', P.X(0) + 6, P.Y(1.45), { color: RO, align: 'left' });
+    lab(ctx, `k a = ${f3(s.k)} π`, P.X(-1.05), P.Y(1.45), { color: MU, align: 'left' });
+  }
+}
+function specTitle(s) { return `<b>Eigenvalues λ</b> · <span class="c-orange">growing</span> · <span class="c-blue">decaying</span> · grey = all b/a · <span class="c-teal">marginal ±iπ/4</span>`; }
 
-/* ---------------------------------------------------------------------------------------------------
-   inspector: the coefficient of the clicked term, worked out with the reader's numbers
-   --------------------------------------------------------------------------------------------------- */
+/* ---- status, inspector, notes --------------------------------------------------------------------------------------------------- */
+function statusOf(s) {
+  const n = N(s), sm = phone(), e3 = Viz.fmt(n.galt, { sig: 3 });
+  if (n.key === 'facing') return { text: sm ? `⚠️ facing rows: σ = π/4` : `⚠️ non-staggered rows: σ = π/4 = 0.7854 Γ/a² at every b/a`, tone: 'bad' };
+  if (n.key === 'marginal') return { text: sm ? `⚖️ marginal: σ ≈ ${Viz.fmt(n.galt, { sig: 2 })}` : `⚖️ marginal: growth ${Viz.fmt(n.galt, { sig: 2 })} Γ/a² ≈ 0 (cosh(πb/a) = √2, b/a = ${f4(RATIO)})`, tone: 'good' };
+  const verdict = Math.abs(n.kk - PI) > 1e-6 ? (n.gk > 1e-3 ? ` · this k grows at ${f3(n.gk)}` : ' · this k is neutral') : '';
+  const e = n.galt > 1e-9 ? Viz.fmt(1 / n.galt, { sig: 2 }) : '∞';
+  if (sm) return { text: `⚠️ unstable: σ = ${e3}${verdict}`, tone: 'warn' };
+  return { text: `⚠️ unstable: growth σ = ${e3} Γ/a² (e-fold every ${e} a²/Γ), b/a = ${f3(n.b)}${n.key === 'shifted' ? `, stagger ${f2(n.off)}` : ''}${verdict}`, tone: 'warn' };
+}
 function inspectHtml(s) {
-  if (!s.focus) return null;
-  const S = SC(s), T = TM(s), mu = muOf(s), atm = (s.pscale || 'viscous') === 'atm';
-  const e = t4(S.eps), R = t4(S.Re_L), yard = s.focus[0] === 'x' ? 'the cross-gap friction (1)' : 'the pressure coefficient';
-  const tail = (v) => `$=\\mathbf{${t3(v)}}$ — ${f3(s.focus[0] === 'x' ? v : v / T.y_pressure)} × ${yard}.`;
-  const pres = atm
-    ? `$\\begin{aligned}\\tfrac1\\Lambda&=\\tfrac{P_ah^2}{\\mu UL}\\\\ &=\\tfrac{101325\\times(${t3(s.h)})^2}{${t3(mu)}\\times${t3(s.U)}\\times${t3(s.L)}}\\end{aligned}$ ` + tail(T.x_pressure) + ' The real term is ~1: with $P_a$ the scaled pressure $p^*$ is of size $\\Lambda$ = ' + f3(S.Lambda) + ', not 1 (dashed bar).'
-    : `with $P=\\mu UL/h^2$ = ${fmtPa(S.p_visc)} the coefficient $Ph^2/(\\mu UL)$ is exactly 1 ` + tail(T.x_pressure);
-  const map = {
-    x_inertia: `$\\begin{aligned}\\varepsilon^2\\mathrm{Re}_L&=\\big(\\tfrac hL\\big)^2\\tfrac{UL}{\\nu}\\\\ &=(${e})^2\\times${R}\\end{aligned}$ ` + tail(T.x_inertia),
-    x_pressure: pres, y_pressure: pres.replace(tail(T.x_pressure), tail(T.y_pressure)),
-    x_diff_along: `$\\varepsilon^2=(${e})^2$ ` + tail(T.x_diff_along),
-    x_diff_across: '$1$ by construction: we divided the whole equation by the cross-gap friction\'s own scale $\\mu U/(\\rho\\varepsilon^2L^2)$ ' + tail(1),
-    y_inertia: `$\\begin{aligned}\\varepsilon^4\\mathrm{Re}_L&=(${e})^4\\times${R}\\end{aligned}$ ` + tail(T.y_inertia),
-    y_diff_along: `$\\varepsilon^4=(${e})^4$ ` + tail(T.y_diff_along),
-    y_diff_across: `$\\varepsilon^2=(${e})^2$ ` + tail(T.y_diff_across)
-  };
-  const name = (XITEMS.concat(YITEMS).find(it => it[0] === s.focus) || [0, ''])[1];
-  return `<b>${s.focus[0]}-momentum, ${name}:</b> ` + (map[s.focus] || '');
+  if (s.probe < 0) return null;
+  const n = N(s), r = Math.floor(s.probe / 100), i = s.probe % 100, NCc = 9, kv = kickVec(n.bd, s.amp, s.seed, NCc);
+  const z = modeDisp(kv, n.lam, n.bd.k, s.t, r, i), x0 = i + (r ? n.off : 0), y0 = (r ? -1 : 1) * n.b / 2, name = (r ? 'B' : 'A') + '_{' + i + '}';
+  return R`Vortex $${name}$ (${r ? 'lower row, $+\Gamma$' : 'upper row, $-\Gamma$'}): rest position $(${t3(x0)},\,${t3(y0)})\,a$; true kick at $t=${t3(s.t)}$: $(\Delta x,\Delta y)=(${t3(z[0])},\,${t3(z[1])})\,a$ (drawn ×${EX}, capped).` +
+    (n.stag ? R`<br>Speed induced by the other row: $\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}=\frac12\tanh(${t3(PI * n.b)})=\mathbf{${t4(n.Us)}}\ \Gamma/a$.` : R`<br>The street-speed formula is for the staggered street ($o=\tfrac12$).`);
+}
+function interpText(s) {
+  const n = N(s);
+  const b = { marginal: `At <b>cosh(πb/a) = √2</b> the staggered street neither grows nor decays the alternating wiggle: the four λ sit on the imaginary axis, at ±iπ/4 Γ/a². This is the shape nature shows behind cylinders (b/a ≈ 0.28). Real streets are also helped by viscous spreading of the cores, which this model omits.`,
+    tight: `The rows are too close (b/a = ${f3(n.b)} < ${f3(RATIO)}): the kick grows as e^(σt) with σ = ${f3(n.galt)} Γ/a². The vortices clump and the street tears; only one spacing survives.`,
+    loose: `The rows are too far apart (b/a = ${f3(n.b)} > ${f3(RATIO)}): the kick grows with σ = ${f3(n.galt)} Γ/a². Move b/a toward ${f3(RATIO)} and the growth falls to zero, then rises again on the other side (a V).`,
+    facing: `Rows facing each other are unstable at <b>every</b> spacing: σ = π/4 = 0.7854 Γ/a² whatever b/a. Stagger the rows (o = 0.5) to get the one stable spacing.`,
+    shifted: `A stagger of ${f2(n.off)} lies between facing (0) and staggered (0.5) rows. The numerical eigenvalues show growth ${f3(n.galt)} Γ/a² at b/a = ${f3(n.b)}: only o = ½ has a spacing with zero growth.` }[n.key];
+  const lowk = Math.abs(n.kk - PI) > 1e-6 ? ` Your wavenumber k a = ${f2(s.k)} π grows at ${f3(n.gk)} Γ/a², against ${f3(n.galt)} for the alternating mode: long-wavelength wiggles grow more slowly.` : '';
+  return `<p>${b}${lowk}</p><p><i>Point vortices, inviscid, linear theory: it explains the shape of the street, not the onset near Re ≈ 40.</i></p>`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
-const app = Viz.app({
-  title: 'Why can a thin film ignore inertia?',
-  subtitle: 'A gap much longer than it is high: scale each direction with its own length and every term of the momentum equations becomes a bar — the gap, the x-bars and the y-bars on one state',
-  autoplay: true,
-  params: {
-    h: { label: 'Gap $h$', min: 1e-6, max: 5e-3, value: ENG.h, log: true, unit: 'm', fmt: fmtLen, help: 'the film thickness' },
-    L: { label: 'Length $L$', min: 1e-3, max: 1, value: ENG.L, log: true, unit: 'm', fmt: fmtLen, help: 'the length of the passage' },
-    U: { label: 'Speed $U$', min: 1e-3, max: 30, value: ENG.U, log: true, unit: 'm/s', fmt: fmtSpd, help: 'the sliding speed' },
-    nu: { label: 'Viscosity $\\nu$', min: 1e-6, max: 1e-2, value: ENG.nu, log: true, unit: 'm²/s', fmt: fmtNu, help: 'kinematic viscosity (water 10⁻⁶, oil ~10⁻⁴)' },
-    rho: { label: 'Density $\\rho$', min: 800, max: 1300, step: 10, value: ENG.rho, unit: 'kg/m³', optional: true, fmt: v => v.toFixed(0) + ' kg/m³', help: 'only the pressure scale μ = ρν needs it' },
-    t: { label: 'time $t^*=Ut/L$', min: 0, max: 20, step: 'any', value: 0, optional: true, fmt: v => v.toFixed(2) }
-  },
-  modes: { param: 'pscale', label: 'Pressure scale', options: [['viscous', 'p by μUL/h²'], ['atm', 'p by Pₐ (book)']] },
-  transport: { param: 't', min: 0, max: 20, rate: 0.6, end: 'loop', label: 'time $t^*=Ut/L$' },
-  presets: [
-    { label: 'engine film', set: Object.assign({ focus: null }, ENG), title: 'oil film 50 µm × 5 cm at 5 m/s' },
-    { label: 'Hele-Shaw', set: Object.assign({ focus: null }, HELE), title: 'glycerine between two plates 1 mm apart' },
-    { label: 'knee (rough)', set: Object.assign({ focus: null }, KNEE), title: 'order of magnitude only' },
-    { label: 'thick gap ✗', set: Object.assign({ focus: null }, THICK), title: 'water, 2 mm × 1 cm at 1 m/s: lubrication fails' }
-  ],
-  status: s => {
-    const S = SC(s), k = verdict(s), ph = phone(), e = f3(S.eps), r = f3(S.eps2_Re_L);
-    if (k === 'valid') return { tone: 'good', text: ph ? `✅ thin film: ε²Re_L = ${r} ≪ 1` : `✅ lubrication valid: ε²Re_L = ${r} ≪ 1 and ε = ${e} ≪ 1` + (wideWin() ? ` (Re_L = ${f3(S.Re_L)} alone would mislead)` : '') };
-    if (k === 'marginal') return { tone: 'warn', text: ph ? `⚠️ marginal: ε²Re_L = ${r}, ε = ${e}` : `⚠️ marginal: ε²Re_L = ${r}, ε = ${e} — inertia is a few per cent of friction` };
-    if (k === 'thick') return { tone: 'bad', text: ph ? `❌ not thin: ε = ${e}` : `❌ not thin: ε = ${e} — the gap is not much thinner than it is long` };
-    return { tone: 'bad', text: ph ? `❌ inertia matters: ε²Re_L = ${r} > 1` : `❌ inertia matters: ε²Re_L = ${r} > 1 (ε = ${e}, Re_L = ${f3(S.Re_L)})` };
-  },
-  readouts: [
-    { id: 'eps', label: 'Thinness $\\varepsilon=h/L$', value: s => SC(s).eps, fmt: f3 },
-    { id: 'ReL', label: 'Reynolds $\\mathrm{Re}_L$', value: s => SC(s).Re_L, fmt: f3 },
-    { id: 'e2', label: 'Inertia $\\varepsilon^2\\mathrm{Re}_L$', value: s => SC(s).eps2_Re_L, fmt: f3 },
-    { id: 'Lam', label: 'Bearing no. $\\Lambda$', value: s => SC(s).Lambda, fmt: f3 },
-    { id: 'pv', optional: true, label: 'Pressure $\\mu UL/h^2$', value: s => SC(s).p_visc, fmt: v => fmtPa(v) + ' (' + f3(v / P_ATM) + ' atm)' },
-    { id: 'v', label: 'Cross speed $v\\sim\\varepsilon U$', value: s => SC(s).eps * s.U, fmt: fmtSpd }
-  ],
-  terms: { title: 'x-momentum: coefficient of each term', unit: '', items: [
-    { id: 'x_inertia', label: 'inertia $\\varepsilon^2\\mathrm{Re}_L$', color: Viz.color('teal'), value: s => TM(s).x_inertia },
-    { id: 'x_pressure', label: 'pressure $Ph^2/\\mu UL$', color: Viz.color('orange'), value: s => TM(s).x_pressure },
-    { id: 'x_diff_along', label: 'friction along $\\varepsilon^2$', color: Viz.alpha(Viz.color('rose'), 0.55), value: s => TM(s).x_diff_along },
-    { id: 'x_diff_across', label: 'friction across $1$', color: Viz.color('rose'), value: s => TM(s).x_diff_across }
-  ], total: { label: 'dropped: inertia + along', value: s => { const T = TM(s); return T.x_inertia + T.x_diff_along; } } },
-  stage: {
-    rows: [1, 1.15],
-    views: [
-      { id: 'gap', row: 0, flex: 1, title: s => phone() ? `<b>The gap</b> h = ${fmtLen(s.h)}, L = ${fmtLen(s.L)} · <b class="c-blue">u, v</b>`
-        : `<b>The gap</b> (heights stretched) · <b class="c-blue">velocity profiles u(y) and cross-gap v</b> · grey dots: fluid · <b class="c-rose">wall sliding at U</b>` },
-      { id: 'xbars', row: 1, flex: 1, title: s => barsTitle(s, 'x') },
-      { id: 'ybars', row: 1, flex: 1, hidePortrait: true, title: s => barsTitle(s, 'y') }
+/* ---- Explain: "Explanation & interpretation" ---------------------------------------------------------------------------------------------- */
+const sgn = v => (v < 0 ? '-' : '+') + t3(Math.abs(v));
+const TAB_ROWS = [0.1, 0.2, RATIO, 0.35, 0.5, 1.0];
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), sm = phone(), b = n.b;
+  let o = W.step(0, 'What the views show') + (sm
+    ? W.say('<b>Street</b>: <b class="c-blue">blue</b> upper row, <b class="c-rose">rose</b> lower row, dashed = the perfect street. <b>Growth</b>: <b class="c-accent">closed form</b>, <b class="c-orange">dots</b> = numerical maximum, <b class="c-rose">rose dot</b> = you.') + W.hint('The eigenvalue view is hidden on phones (the top eigenvalue is in the Growth title); turn the phone sideways for the street and growth side by side.')
+    : W.say('<b>The double row</b>: two rows of point vortices, <b class="c-blue">blue</b> = upper row (circulation −Γ, clockwise), <b class="c-rose">rose</b> = lower row (+Γ); dashed circles = the perfect street, filled = the kicked one, <b class="c-teal">teal</b> arrow = the speed the street travels at. <b>Growth</b>: the fastest growth rate against b/a: <b class="c-accent">closed form</b> for the alternating mode, <b class="c-orange">orange dots</b> = numerical maximum over 31 wavenumbers, <b class="c-rose">rose dot</b> = your setting, <b class="c-teal">teal dot</b> = the marginal spacing. <b>Eigenvalues</b>: the four exponents λ of the linearised motion (grey = all b/a); a positive real part is growth.'));
+  o += W.step(1, 'The velocity of a row, and the street speed') +
+    W.say(R`One vortex has $w=u-iv=\frac{\Gamma}{2\pi i}\frac{1}{z-z_0}$. A row of spacing $a$ sums to $\sum_n\frac{1}{z-na}=\frac{\pi}{a}\cot\frac{\pi z}{a}$, so $w=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}$ (ours, Γ = a = 1 below).`) +
+    W.line(R`$U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}=\tfrac12\tanh(\pi\times${t3(b)})=\tfrac12\tanh(${t3(PI * b)})$`, f4(n.Us) + ' Γ/a', 'the other row pushes each vortex the same way at the same speed, so the pattern moves rigidly') +
+    W.box(R`$U_s=\mathbf{${t4(n.Us)}}\ \Gamma/a$${n.stag ? '' : ' (this formula is for the staggered street; yours is shifted)'}`);
+  o += W.step(2, 'The lattice sums of the alternating disturbance') +
+    W.say(R`Displace every vortex by $d(-1)^n$ (neighbours move oppositely). The other row then acts through two lattice sums with $\zeta=-o+ib$: $P=\frac{\pi^2}{\sin^2\pi\zeta}$ and $Q=\frac{\pi^2\cos\pi\zeta}{\sin^2\pi\zeta}$.`) +
+    W.line(R`$\zeta=-o+ib=${t3(-n.off)}+${t3(b)}\,i$`, '', 'the offset o shifts the lower row along; b lifts it apart') +
+    W.line(R`$P=\frac{\pi^2}{\sin^2\pi\zeta}$`, ctxt(n.P), n.stag ? 'for o = ½ this is π² sech²(πb): real' : 'complex for a general stagger') +
+    W.line(R`$Q=\frac{\pi^2\cos\pi\zeta}{\sin^2\pi\zeta}$`, ctxt(n.Q), n.stag ? 'for o = ½ this is iπ² sinh(πb)/cosh²(πb): imaginary' : 'complex for a general stagger') +
+    W.box(R`$P=\mathbf{${ctex(n.P)}},\ \ Q=\mathbf{${ctex(n.Q)}}$; a vortex's own row adds $\frac{\pi^2}{3}=3.290$ and $-\frac{\pi^2}{6}=-1.645$`);
+  if (n.stag) {
+    const a = t3(n.aH), sg = t3(n.aS);
+    o += W.step(3, 'The linear system') +
+      W.line(R`$\gamma=\tfrac12-\mathrm{sech}^2(\pi b)=\tfrac12-\frac{1}{${t3(n.ch)}^{2}}$`, f4(n.gam), 'γ measures how far the street is from the marginal spacing (γ = 0 there)') +
+      W.line(R`$\sigma=\frac{\sinh\pi b}{\cosh^2\pi b}=\frac{${t3(n.sh)}}{${t3(n.ch)}^{2}}$`, f4(n.sig), 'σ sets the oscillation') +
+      W.box(R`$\begin{aligned}\dot x_A&=${sgn(-n.aH)}\,y_A${sgn(-n.aS)}\,x_B\\ \dot y_A&=${sgn(-n.aH)}\,x_A${sgn(n.aS)}\,y_B\\ \dot x_B&=${sgn(n.aS)}\,x_A${sgn(n.aH)}\,y_B\\ \dot y_B&=${sgn(-n.aS)}\,y_A${sgn(n.aH)}\,x_B\end{aligned}$`) +
+      W.say(R`This is $\frac{\pi}{2}\begin{pmatrix}0&-\gamma&-\sigma&0\\-\gamma&0&0&\sigma\\\sigma&0&0&\gamma\\0&-\sigma&\gamma&0\end{pmatrix}$ with your γ and σ (Γ = a = 1).`);
+    o += W.step(4, 'The four eigenvalues') +
+      W.line(R`$\lambda=\frac{\pi}{2}(\pm\gamma\pm i\sigma)=\pm${t3(n.aH)}\pm${t3(n.aS)}\,i$`, '', 'factorised polynomial: ((μ−γ)²+σ²)((μ+γ)²+σ²), μ = λ/(π/2)') +
+      W.line(R`$\big[(\mu-${t3(n.gam)})^2+${t3(n.sig * n.sig)}\big]\big[(\mu+${t3(n.gam)})^2+${t3(n.sig * n.sig)}\big]=0$`, '', 'two conjugate pairs, one pair with Re μ = +γ and one with −γ') +
+      W.line('numerical 4 × 4 (lattice sums)', n.ba.ev.map(e => ctxt([e.re, e.im], 3)).join(', '), 'the same four numbers, from the general code: an independent check') +
+      W.box(R`growth $\sigma_{\max}=\frac{\pi}{2}|\gamma|=\frac{\pi}{2}\times${t3(Math.abs(n.gam))}=\mathbf{${t4(n.gc)}}\ \Gamma/a^2$`);
+  } else {
+    o += W.step(3, 'The linear system') +
+      W.say(R`Only the staggered street ($o=\tfrac12$) reduces to two numbers γ and σ. Your offset $o=${t3(n.off)}$ uses the same 4 × 4 matrix built from the general $P$ and $Q$ above.`) +
+      W.hint(n.facing ? R`For facing rows ($o=0$) the characteristic polynomial is $(\mu^2-\tfrac14)^2$ for $\mu=\lambda/(\pi/2)$: independent of $b$ (D14, last step).` : 'Set the stagger to 0.5 to see γ and σ.');
+    o += W.step(4, 'The four eigenvalues') +
+      W.line('numerical 4 × 4 (lattice sums)', n.ba.ev.map(e => ctxt([e.re, e.im], 3)).join(', '), 'eigenvalues of the alternating mode, units Γ/a²') +
+      W.box(R`growth $\sigma_{\max}=\mathbf{${t4(n.galt)}}\ \Gamma/a^2$${n.facing ? R`, which is $\pi/4=0.7854$ for every $b/a$` : ''}`);
+  }
+  const gm = growthMaxCached(b, n.off);
+  o += W.step(5, 'The marginal spacing') +
+    W.line(R`$\gamma=0\iff\cosh^2\frac{\pi b}{a}=2\iff\frac{b}{a}=\frac{\cosh^{-1}\sqrt2}{\pi}=\frac{${t4(Math.acosh(Math.SQRT2))}}{\pi}$`, f4(RATIO), 'closed form; there σ = ½ and λ = ±iπ/4: pure oscillation, no growth') +
+    W.line(R`$\cosh(\pi b)=${t4(n.ch)}$ against $\sqrt2=1.4142$`, n.stag ? `${f4(n.ch - Math.SQRT2)} apart` : '', 'the staggered street is neutral only when these two agree') +
+    W.box(R`your $b/a-${t4(RATIO)}=\mathbf{${t3(n.dist)}}$${n.stag ? (Math.abs(n.dist) < 0.004 ? ' — marginal' : n.dist < 0 ? ' — too tight' : ' — too loose') : ''}`);
+  o += W.step(6, 'Other disturbances') +
+    W.line(R`$ka/\pi=${t3(s.k)}$ (wavelength $2\pi/k=${t3(2 / s.k)}\,a$)`, '', 'k a = π is the alternating wiggle; smaller values are longer waves along the street') +
+    W.line('largest Re λ at your k', f4(n.gk) + ' Γ/a²', 'lattice sums cut at ±2000 (exact at k = π/a)') +
+    W.line('largest over 61 wavenumbers', f4(gm) + ' Γ/a²', 'the alternating mode k = π/a is the fastest for every b/a tried') +
+    W.hint(R`Rows facing each other ($o=0$): every $b/a$ grows at $\pi/4=0.7854\ \Gamma/a^2$.`);
+  o += W.step(7, 'At the current time') + W.line('clock $t$', Viz.live('t')) + W.line(R`kick grown $e^{\sigma t}$`, Viz.live('amp')) +
+    W.hint('The kick is drawn ×20 and capped at 0.3 a; the growth factor is exact linear theory.');
+  o += W.step(8, 'Where you are: the growth table (closed form, alternating mode)') +
+    W.say(TAB_ROWS.map((x, i) => { const cur = i === TAB_ROWS.reduce((bi, y, q) => (Math.abs(y - b) < Math.abs(TAB_ROWS[bi] - b) ? q : bi), 0); const txt = `b/a = ${f4(x)}: ${f3(growthClosed(x))}`; return cur ? `<b>${txt} ← you</b>` : txt; }).join(' · ') + ' (Γ/a²)');
+  o += W.step(9, 'Reading the current setting') + W.interpret(interpText(s).replace(/<\/?p>/g, ' '), 'Reading the current setting');
+  return o;
+}
+function explainLive(s) { const n = N(s); return { t: `${f3(s.t)} a²/Γ`, amp: `${Viz.fmt(n.amp, { sig: 3 })} (σ t = ${f3(n.gk * s.t)})` }; }
+
+/* ---- Derivation D14 ------------------------------------------------------------------------------------------------------------------------ */
+const BASE = { b: 0.2, off: 0.5, k: 1, amp: 0.005, seed: 0, t: 6, probe: -1 };
+const MARG = Object.assign({}, BASE, { b: 0.2805 });
+const dv = (s) => N(s);
+const DERIV = [
+  { id: 'D14', title: 'Why only one spacing of the street is stable', short: 'D14 street', ref: 'Kármán (1912), ours', view: 'street', set: Object.assign({}, MARG),
+    goal: 'Explain why only one spacing of a staggered double row of point vortices does not grow: b/a = 0.2805.',
+    start: { tex: R`w=u-iv=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0}`, plain: 'The velocity of a point vortex (Ch. 5 and 6). The book only states Kármán’s result 0.28; here we derive it as the closed form of the linear stability.' },
+    plan: ['Sum the two rows and find the street’s own speed.', 'Perturb every vortex and linearise.', 'Take the alternating disturbance and reduce to a 4 × 4 matrix.', 'Read its eigenvalues.'],
+    uses: ['cotangent sum of a row (primer)', 'linear stability (primer)', 'eigenvalues', 'complex conjugate', 'hyperbolic functions', 'sympy check'],
+    steps: [
+      { did: 'Set up the street', tex: R`z_A=na+\tfrac{ib}{2}\ (\Gamma),\qquad z_B=(n+\tfrac12)a-\tfrac{ib}{2}\ (-\Gamma)`, why: 'Two rows of counter-rotating point vortices, spacing a, separation b, the lower row shifted by half a spacing (the staggered street). The opposite overall sign only reverses the direction of travel.', plain: 'Two staggered rows.', set: { off: 0.5, k: 1, t: 0, seed: 0 } },
+      { did: 'Recall one vortex', tex: R`w=\frac{\Gamma}{2\pi i}\,\frac{1}{z-z_0},\qquad \frac{dz}{dt}=\bar w`, why: 'The conjugate velocity of a point vortex (Ch. 5, 6); each vortex is carried by the local velocity of all the others.', plain: 'Each vortex moves with the flow the others make.' },
+      { did: 'Sum a whole row', tex: R`w_{\rm row}=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}`, why: 'The sum Σ 1/(z − na) equals (π/a)cot(πz/a); pairing +n with −n makes it converge (primer).', plain: 'An infinite row gives a cotangent.' },
+      { did: 'Find the street’s own speed', tex: R`U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}`, why: 'Vortex A feels only row B (its own row cancels by symmetry). With ζ = −a/2 + ib, cot(−π/2 + iπb/a) = −i tanh(πb/a): the velocity is real and equal for A and B.', plain: 'The pattern moves as a whole.',
+        live: s => { const n = dv(s); return R`U_s=\tfrac12\tanh(${t3(PI * n.b)})=${t4(n.Us)}\ \Gamma/a`; }, highlight: ['readout:Us'] },
+      { did: 'Perturb and linearise', tex: R`\dot\delta_i=\sum_{j,n}\frac{\Gamma_j}{2\pi i}\,\frac{\bar\delta_i-\bar\delta_{j,n}}{\overline{(z_i-z_{j,n})}^{\,2}}`, why: 'Displace each vortex z → z + δ, differentiate w_i = Σ(Γ_j/2πi)/(z_i − z_j) to first order, and use dδ/dt = conj(dw).', plain: 'A linear equation for the displacements.' },
+      { did: 'Take the alternating disturbance', tex: R`\delta_{A,n}=d_A(-1)^n,\qquad \delta_{B,n}=d_B(-1)^n`, why: 'The wavenumber π/a is the most dangerous one (a scan of all k confirms it for every b/a tried); it reduces the infinite system to two complex unknowns.', plain: 'Neighbours move in opposite directions.',
+        set: { k: 1, t: 4, amp: 0.01 }, watch: 'adjacent vortices move in opposite directions' },
+      { did: 'Reduce the sums to lattice sums', tex: R`P_{ij}=\sum_n\frac{1}{(\zeta_{ij}-na)^2},\qquad Q_{ij}=\sum_n\frac{(-1)^n}{(\zeta_{ij}-na)^2}`, why: 'Step 6 in step 5 gives d_i-dot = Σ_j(Γ_j/2πi)(d̄_i P̄_ij − d̄_j Q̄_ij). Closed forms: P = π²/(a² sin²(πζ/a)), Q = π² cos/(a² sin²); own row (n ≠ 0): π²/3a² and −π²/6a².', plain: 'The infinite sums have closed forms.',
+        live: s => { const n = dv(s); return R`P=${ctex(n.P)},\ \ Q=${ctex(n.Q)}`; } },
+      { did: 'Write the two equations', tex: R`\begin{aligned}\dot d_A&=\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_A-\bar P\bar d_A+\bar Q\bar d_B\Big]\\ \dot d_B&=-\frac{\Gamma}{2\pi i}\Big[\frac{\pi^2}{2a^2}\bar d_B-\bar P\bar d_B+\bar Q\bar d_A\Big]\end{aligned}`, why: 'Own row: P_ii − Q_ii = π²/2a²; the other row has the opposite circulation; P and Q are the same for A→B and B→A because sin² and cos are even.', plain: 'Two coupled equations.' },
+      { did: 'Evaluate at the staggered offset', tex: R`\sin\frac{\pi\zeta}{a}=-\cosh\frac{\pi b}{a},\qquad \cos\frac{\pi\zeta}{a}=i\sinh\frac{\pi b}{a}`, why: 'ζ = −a/2 + ib: sin(−π/2 + iπb/a) = −cos(iπb/a) = −cosh and cos(−π/2 + iπb/a) = sin(iπb/a) = i sinh. So P is real and Q imaginary.', plain: 'The lattice sums in hyperbolic functions.',
+        live: s => { const n = dv(s); return R`\sin\pi\zeta=-\cosh(\pi\times${t3(n.b)})=${t4(-n.ch)}`; } },
+      { did: 'Insert and simplify', tex: R`\begin{aligned}\dot d_A&=-\frac{i\pi}{2}\big[\gamma\bar d_A-i\sigma\bar d_B\big]\\ \dot d_B&=\frac{i\pi}{2}\big[\gamma\bar d_B-i\sigma\bar d_A\big]\end{aligned}`, why: 'With Γ = a = 1: Γ/2πi = −i/2π. γ = ½ − sech²(πb) and σ = sinh(πb)/cosh²(πb) collect the coefficients; units Γ/a² are restored at the end.', plain: 'Two numbers, γ and σ, control everything.' },
+      { did: 'Split into real and imaginary parts', tex: R`\dot{\mathbf x}=\frac{\pi}{2}\begin{pmatrix}0&-\gamma&-\sigma&0\\-\gamma&0&0&\sigma\\\sigma&0&0&\gamma\\0&-\sigma&\gamma&0\end{pmatrix}\mathbf x`, why: 'Write d = x + iy, d̄ = x − iy and collect real and imaginary parts of step 10, with x = (x_A, y_A, x_B, y_B). A real linear system: its eigenvalues decide stability (primer).', plain: 'A 4 × 4 matrix.',
+        live: s => { const n = dv(s); return R`\gamma=${t4(n.gam)},\ \ \sigma=${t4(n.sig)}`; }, highlight: ['readout:gam', 'readout:sig'] },
+      { did: 'Factorise the characteristic polynomial', tex: R`\det(M-\mu I)=\big[(\mu-\gamma)^2+\sigma^2\big]\big[(\mu+\gamma)^2+\sigma^2\big]`, why: 'Direct expansion of the determinant (checked with sympy): two conjugate quadratics. The ODE eigenvalues are λ = (πΓ/2a²)μ.', plain: 'μ = ±γ ± iσ.', watch: 'the quartic splits into two conjugate pairs',
+        live: s => { const n = dv(s); return R`\mu=\pm${t3(Math.abs(n.gam))}\pm${t3(n.sig)}\,i`; } },
+      { did: 'Read the growth rate', tex: R`\mathrm{Re}\,\lambda=\frac{\pi\Gamma}{2a^2}\Big|\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big|`, why: 'The real part of μ = ±γ ± iσ is ±γ; growth is the positive one, |γ|.', plain: 'It grows unless γ = 0.',
+        live: s => { const n = dv(s); return R`\tfrac{\pi}{2}\times|${t3(n.gam)}|=${t4(n.gc)}\ \Gamma/a^2`; }, highlight: ['readout:gk'] },
+      { did: 'Find the marginal spacing', tex: R`\begin{aligned}\gamma=0&\iff\cosh\frac{\pi b}{a}=\sqrt2\\ \frac{b}{a}&=\frac{\cosh^{-1}\sqrt2}{\pi}=0.2805\end{aligned}`, why: 'γ = ½ − 1/cosh² vanishes when cosh² = 2; there σ = ½, so λ = ±i(π/4)Γ/a²: pure oscillation.', plain: 'One neutral spacing.',
+        set: { b: 0.2805, off: 0.5, t: 8 } },
+      { did: 'Check the facing rows', tex: R`\begin{aligned}\det(M-\mu I)&=\Big(\mu^2-\frac14\Big)^2\\ \Rightarrow\ \mathrm{Re}\,\lambda&=\frac{\pi\Gamma}{4a^2}\end{aligned}`, why: 'Repeat steps 7–12 with ζ = ib: P = −π²/(a² sinh²), Q = −π² cosh/(a² sinh²) (real). For μ = λ/(π/2) the polynomial no longer depends on b; in λ it is (λ² − π²/16)².', plain: 'Facing rows never settle.',
+        set: { off: 0, b: 0.28, t: 6 }, watch: 'growth π/4 at every b/a' }
     ],
-    draw(g, s) {
-      drawGap(g.view('gap'), s);
-      const vy = g.view('ybars'), yHidden = !(vy.w > 40 && vy.h > 40);
-      drawBars(g.view('xbars'), s, yHidden && s.focus && s.focus[0] === 'y' ? 'y' : 'x');
-      if (!yHidden) drawBars(vy, s, 'y'); else vy.clear();
-    },
+    result: { tex: R`\begin{aligned}\sigma&=\frac{\pi\Gamma}{2a^2}\Big|\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\Big|\\ \sigma=0&\iff\frac{b}{a}=0.2805\end{aligned}`, plain: 'The staggered street is neutral at one spacing only; facing rows grow at π/4 Γ/a² for every b. The shape of the street is fixed.', set: { off: 0.5, b: 0.2805, t: 8 } },
+    interpret: s => { const n = dv(s); return `At b/a = ${f3(n.b)} (stagger ${f2(n.off)}) the largest growth rate is ${f4(n.galt)} Γ/a²; the marginal spacing is ${f4(RATIO)}.`; },
+    check: 'Units 1/s (Γ/a²). Γ = a = 1: b/a = 0.1, 0.2, 0.25, 0.3, 0.5 give 0.6400, 0.2982, 0.1099, 0.0663, 0.5359, equal to the numerical maximum over k of the full linearisation. At 0.2805 the eigenvalues are ±0.7854i; U_s = 0.3536 Γ/a. sympy: the factorisation of the matrix built from the lattice sums, γ = 0 solved, and facing rows repeated (selftest rows).' }
+];
+
+/* ---- code, walkthrough, equations, quiz ----------------------------------------------------------------------------------------------------------- */
+const CODE = [
+  { id: 'main', title: 'The street’s stability in fluidpy', ref: 'Kármán (1912), ours',
+    src: `b, off = {{b}}, {{off}}            # b/a and the stagger (0.5)
+print(ch09.karman_street_ratio())   # arccosh(sqrt 2)/pi = 0.2805
+ev = ch09.karman_street_spectrum(b, off, k={{k}})  # 4 eigenvalues
+print(ev)                           # {{ev}}
+g = ch09.karman_street_growth(b, off)   # max over k = {{gmax}}
+print(g, ch09.karman_street_growth_closed(b))   # closed: {{gc}}
+print(ch09.karman_street_velocity(1.0, b, 1.0)) # U_s = {{Us}}`,
+    live: s => { const n = N(s); return { b: pn(n.b, 4), off: pn(n.off, 3), k: pn(n.kk, 5), ev: '[' + n.bd.ev.map(pyc).join(', ') + ']', gmax: pn(growthMaxCached(n.b, n.off), 4), gc: pn(n.gc, 4), Us: pn(n.Us, 4) }; },
+    note: 'Γ = a = 1: growth rates in Γ/a², speeds in Γ/a. karman_street_positions(t, b) gives the kicked street of the picture.' }
+];
+const TOUR = [
+  { title: 'Two rows of vortices', text: 'Behind a bluff body, vortices of opposite spin peel off alternately into a staggered double row. Is its shape arbitrary? Press ▶ with b/a = 0.28 and watch a small kick.', set: Object.assign({}, MARG, { t: 0 }), play: true },
+  { title: 'A row moves a vortex', text: 'Each row pushes every vortex of the other row along. Summing an infinite row gives a cotangent, and the street travels at $U_s=\\frac{\\Gamma}{2a}\\tanh\\frac{\\pi b}{a}$.', set: Object.assign({}, MARG), derive: { id: 'D14', step: 4 }, readouts: ['Us'] },
+  { title: 'Kick it', text: 'Now b/a = 0.15. Press Kick: the wiggle grows exponentially and the street tears. Neighbouring vortices move in opposite directions.', set: Object.assign({}, BASE, { b: 0.15, t: 0 }), play: true, controls: ['kick', 'b'] },
+  { title: 'Linearise', text: 'For small displacements the motion is linear: a 4 × 4 matrix with entries $\\gamma=\\frac12-\\mathrm{sech}^2\\frac{\\pi b}{a}$ and $\\sigma=\\frac{\\sinh(\\pi b/a)}{\\cosh^2(\\pi b/a)}$.', set: Object.assign({}, BASE, { b: 0.15 }), derive: { id: 'D14', step: 11 }, readouts: ['gam', 'sig'] },
+  { title: 'Eigenvalues', text: 'The growth is $\\frac{\\pi}{2}|\\gamma|$: zero exactly when $\\cosh\\frac{\\pi b}{a}=\\sqrt2$. Watch the eigenvalue dots reach the imaginary axis at b/a = 0.2805.', set: Object.assign({}, MARG), eq: 'marg', derive: { id: 'D14', step: 14 }, readouts: ['gk'] },
+  { title: 'Facing rows', text: 'Put the rows face to face (stagger 0): the growth is π/4 at every b/a. Only the staggered street has a stable spacing.', set: Object.assign({}, BASE, { off: 0, b: 0.28 }), derive: { id: 'D14', step: 15 } },
+  { title: 'Your turn', text: 'Find the two spacings where the growth is 0.2 Γ/a². Predict them from the V around 0.2805, then drag b/a and check with the readout.', set: Object.assign({}, BASE, { b: 0.2 }), controls: ['b'], readouts: ['gk', 'dist'] }
+];
+const EQS = [
+  { id: 'row', title: 'Velocity of a row of vortices (ours)', ref: 'Ch. 5 sum', tex: R`w=u-iv=\frac{\Gamma}{2ia}\cot\frac{\pi(z-z_0)}{a}`, live: s => { const n = N(s); return R`\text{at }\zeta=${ctex(n.zeta)}:\ \frac{1}{2i}\cot(\pi\zeta)`; },
+    symbols: [['\\Gamma', 'circulation of each vortex', 'm²/s'], ['a', 'spacing along a row', 'm'], ['z_0', 'position of one vortex of the row', 'm']], note: 'The sum of 1/(z − na) over all n converges in ±n pairs.' },
+  { id: 'speed', title: 'Street speed', ref: 'D14 step 4', tex: R`U_s=\frac{\Gamma}{2a}\tanh\frac{\pi b}{a}`, live: s => { const n = N(s); return R`U_s=\tfrac12\tanh(${t3(PI * n.b)})=${t4(n.Us)}\ \Gamma/a`; },
+    symbols: [['b', 'distance between the rows', 'm']], note: 'With Γ = a = 1; 0.3536 Γ/a at the stable spacing.' },
+  { id: 'growth', title: 'Growth rate (alternating)', ref: 'D14 step 13', tex: R`\begin{aligned}\sigma&=\frac{\pi\Gamma}{2a^2}\,|\gamma|\\ \gamma&=\tfrac12-\mathrm{sech}^2\frac{\pi b}{a}\end{aligned}`, live: s => { const n = N(s); return R`\sigma=\tfrac{\pi}{2}|${t3(n.gam)}|=${t3(n.gc)}\,\Gamma/a^2`; },
+    symbols: [[R`\sigma`, 'growth rate', 'Γ/a²'], ['b/a', 'row separation over spacing', '–']], note: 'Staggered street (offset ½), disturbance wavenumber π/a; the numerical maximum over all k agrees.' },
+  { id: 'marg', title: 'Marginal spacing', ref: 'D14 step 14', tex: R`\begin{aligned}\cosh\frac{\pi b}{a}&=\sqrt2\\ \frac{b}{a}&=\frac{\cosh^{-1}\sqrt2}{\pi}=0.2805\end{aligned}`, live: s => { const n = N(s); return R`\cosh(\pi\times${t3(n.b)})=${t4(n.ch)}\ \text{vs}\ \sqrt2=1.4142`; },
+    note: 'The only spacing where the staggered street neither grows nor decays the wiggle; there λ = ±iπ/4 Γ/a².' },
+  { id: 'st', title: 'Strouhal number', ref: 'Eq. (4.102)', tex: R`St=\frac{\Omega d}{U_\infty}\approx0.2`, live: s => R`f=St\,\frac{U}{d}\ \ (\text{cylinder of diameter }d)`,
+    symbols: [[R`\Omega`, 'shedding frequency (the book’s Ω is in Hz)', 'Hz'], ['d', 'cylinder diameter', 'm'], [R`U_\infty`, 'free-stream speed', 'm/s']], note: 'The street is shed at this beat; its shape (b/a) is the subject of this page.' }
+];
+const QUIZ = [
+  { q: 'At b/a = 0.2 (staggered) is the street stable? What is the growth rate?', a: 'No: σ = (π/2)|½ − sech²(0.2π)| = 0.298 Γ/a². The kick grows by e^(0.298 t).', set: Object.assign({}, BASE, { b: 0.2, t: 0 }) },
+  { q: 'Find the two spacings with growth 0.1099 Γ/a².', a: 'b/a = 0.25 and 0.313: the growth curve is a V with its zero at 0.2805 (a little steeper on the tight side).', set: Object.assign({}, BASE, { b: 0.25 }) },
+  { q: 'What happens to the growth when the rows face each other (stagger 0)?', a: 'It is π/4 = 0.785 Γ/a² at every b/a: unstable everywhere, so only a staggered street can settle.', set: Object.assign({}, BASE, { off: 0, b: 0.28 }) },
+  { q: 'Slide the wavenumber ka/π from 1 down to 0.3 at b/a = 0.2. Does the wiggle grow faster or slower?', a: 'Slower: the alternating mode ka = π is the fastest-growing disturbance; long waves along the street grow more slowly.', set: Object.assign({}, BASE, { b: 0.2, k: 0.3 }) }
+];
+
+/* ---- selftest: parity with fluidpy (py) and invariants (expect) ---------------------------------------------------------------------------------- */
+function selftestRows() {
+  const bd = bundle(0.2, 0.5, PI), kv = kickVec(bd, 0.005, 0, 4), v6 = rk4Complex(bd.M, kv, 6, 0.01), e6 = cexp(csc(bd.lam, 6));
+  const err = Math.max.apply(null, v6.map((z, i) => cabs(csub(z, cmul(kv[i], e6)))));
+  const sp = spectrum(0.5, 0.5, PI), sk = spectrum(0.3, 0.5, 1.0);
+  return [
+    { name: 'ratio arccosh(sqrt 2)/pi', js: ratio(), py: 'ch09.karman_street_ratio()', rtol: 1e-14 },
+    { name: 'growth closed 0.2', js: growthClosed(0.2), py: 'ch09.karman_street_growth_closed(0.2)', rtol: 1e-12 },
+    { name: 'growth closed 0.5', js: growthClosed(0.5), py: 'ch09.karman_street_growth_closed(0.5)', rtol: 1e-12 },
+    { name: 'growth numerical max over k, 0.2', js: growthMax(0.2, 0.5), py: 'ch09.karman_street_growth(0.2)', rtol: 1e-5 },
+    { name: 'growth non-staggered, 0.28', js: growthMax(0.28, 0), py: 'ch09.karman_street_growth(0.28, offset=0.0)', rtol: 1e-5 },
+    { name: 'spectrum re[0], b/a = 0.5', js: sp[0].re, py: 'ch09.karman_street_spectrum(0.5).real[0]', rtol: 1e-8 },
+    { name: 'spectrum im[3]^2, b/a = 0.5', js: sp[3].im ** 2, py: 'ch09.karman_street_spectrum(0.5).imag[3] ** 2', rtol: 1e-8 },
+    { name: 'spectrum at k = 1 rad, b/a = 0.3, im[3]^2', js: sk[3].im ** 2, py: 'ch09.karman_street_spectrum(0.3, 0.5, 1.0).imag[3] ** 2', rtol: 1e-6 },
+    { name: 'street speed 0.2805', js: speed(1, 0.2805, 1), py: 'ch09.karman_street_velocity(1.0, 0.2805, 1.0)', rtol: 1e-12 },
+    { name: 'marginal spacing: growth 0', js: growthClosed(0.28054992616959), expect: 0, atol: 1e-9 },
+    { name: 'cosh(pi b/a) = sqrt 2 at the ratio', js: Math.cosh(PI * ratio()), expect: Math.SQRT2, rtol: 1e-13 },
+    { name: 'eigenmode = RK4 of dv/dt = M v (t = 6)', js: err, expect: 0, atol: 1e-8 },
+    { name: 'facing rows: growth pi/4', js: growthMax(0.4, 0, 300, 5), expect: PI / 4, atol: 1e-6 }
+  ];
+}
+
+/* ---- the app ---------------------------------------------------------------------------------------------------------------------------- */
+const app = Viz.app({
+  title: 'Why is the vortex street’s shape fixed at b/a ≈ 0.28?',
+  subtitle: 'A staggered double row of point vortices grows a wiggle at every spacing except cosh(πb/a) = √2; drag b/a and the stagger to watch the growth rate and the four eigenvalues',
+  autoplay: false,
+  params: {
+    b: { label: 'Row separation ratio $b/a$', min: 0.05, max: 1, step: 0.005, value: 0.2, help: 'b = distance between the rows, a = spacing along a row; the stable value is 0.2805' },
+    off: { label: 'Stagger offset $o$ (0 facing, ½ staggered)', min: 0, max: 0.5, step: 0.01, value: 0.5, help: 'shift of the lower row in units of a' },
+    k: { label: 'Perturbation wavenumber $ka/\\pi$', min: 0.05, max: 1, step: 0.01, value: 1, optional: true, help: '1 = alternating wiggle, the most dangerous' },
+    kick: { type: 'button', label: 'Kick the street', primary: true, action: a => { a.set({ seed: (a.state.seed || 0) + 1, t: 0 }); a.play(true); } },
+    amp: { label: 'Kick size', min: 0.001, max: 0.02, step: 0.001, value: 0.005, unit: 'a', optional: true, help: 'initial displacement, drawn ×20' },
+    seed: { label: 'Kick shape', min: 0, max: 9999, step: 1, value: 0, optional: true },
+    probe: { label: 'Probe vortex', min: -1, max: 200, step: 1, value: -1, optional: true },
+    t: { label: 'Time $t$', min: 0, max: 12, step: 0.01, value: 6, unit: 'a²/Γ', optional: true }
+  },
+  transport: { param: 't', min: 0, max: 12, rate: 1, end: 'hold', hold: 1.5, unit: 'a²/Γ' },
+  presets: [
+    { label: 'stable 0.2805', set: { b: 0.2805, off: 0.5 }, title: 'cosh(πb/a) = √2: marginal' },
+    { label: 'too tight 0.15', set: { b: 0.15, off: 0.5 }, title: 'rows too close: the kick grows' },
+    { label: 'too loose 0.5', set: { b: 0.5, off: 0.5 }, title: 'rows too far: the kick grows' },
+    { label: 'non-staggered', set: { off: 0, b: 0.28 }, title: 'facing rows grow at π/4 for every b/a' }
+  ],
+  status: s => statusOf(s),
+  readouts: [
+    { id: 'gam', label: 'γ = ½ − sech²(πb/a)', value: s => N(s).gam },
+    { id: 'sig', label: 'σ = sinh/cosh²', value: s => N(s).sig },
+    { id: 'gk', label: 'Growth at your k', unit: 'Γ/a²', value: s => N(s).gk },
+    { id: 'Us', label: 'Street speed U_s', unit: 'Γ/a', value: s => (N(s).stag ? N(s).Us : null) },
+    { id: 'dist', label: 'Distance from 0.2805', value: s => N(s).dist }
+  ],
+  stage: {
+    rows: [1.15, 1],
+    views: [
+      { id: 'street', row: 0, flex: 1.4, title: s => streetTitle(s) },
+      { id: 'growth', row: 0, flex: 1, title: s => growthTitle(s) },
+      { id: 'spec', row: 1, flex: 1, hidePortrait: true, title: s => specTitle(s) }
+    ],
+    draw(g, s) { drawStreet(g, s); drawGrowth(g, s); drawSpec(g, s); },
     onPointer(g, ev, s) {
-      if (ev.type !== 'pointerdown' || (ev.viewId !== 'xbars' && ev.viewId !== 'ybars')) return false;
-      const pv = ev.vizView || g.view(ev.viewId), vy = g.view('ybars');
-      const which = ev.viewId === 'ybars' ? 'y' : ((!(vy.w > 40 && vy.h > 40)) && s.focus && s.focus[0] === 'y' ? 'y' : 'x');
-      const G = barGeo[which]; if (!G) return false;
-      const i = Math.floor((pv.pointer.y - G.top) / G.rh);
-      if (i < 0 || i > 3) { g.app.set('focus', null); return true; }
-      const id = G.items[i][0]; g.app.set('focus', s.focus === id ? null : id);
-      return true;
+      if (ev.type !== 'pointerdown') return false;
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      const Xp = v.pointer.x, Yp = v.pointer.y;
+      if (ev.viewId === 'street' && PST) {
+        let best = null, bd = 18; PST.items.forEach(it => { const d = Math.hypot(it.px - Xp, it.py - Yp); if (d < bd) { bd = d; best = it; } });
+        if (best) { g.app.set({ probe: best.r * 100 + best.i }); return true; }
+        return false;
+      }
+      if (ev.viewId === 'growth' && PG && PG.P.inside(Xp, Yp)) { g.app.set({ b: clamp(Math.round(PG.P.ix(Xp) * 200) / 200, 0.05, 1) }); return true; }
+      return false;
     }
   },
   inspect: s => inspectHtml(s),
-  inspectHint: 'Click a bar (or a term in the list) to see its coefficient worked out with your numbers.',
-  notes: s => {
-    const rows = CASES.map(([n, c]) => { const S = scalesRaw(c.L, c.h, c.U, c.rho, c.rho * c.nu); return [n, f3(S.eps), f3(S.Re_L), f3(S.eps2_Re_L)]; });
-    const S = SC(s);
-    let cur = 0, bd = Infinity;
-    CASES.forEach(([n, c], i) => { const C = scalesRaw(c.L, c.h, c.U, c.rho, c.rho * c.nu); const d = (Math.log10(S.eps / C.eps)) ** 2 + (Math.log10(S.eps2_Re_L / C.eps2_Re_L)) ** 2; if (d < bd) { bd = d; cur = i; } });
-    const k = verdict(s);
-    const p = k === 'valid' ? `<p><b>Right now:</b> inertia is ${f3(100 * S.eps2_Re_L)} % of the cross-gap friction — a thin, viscous film although Re_L = ${f3(S.Re_L)}.</p>`
-      : k === 'marginal' ? `<p><b>Right now:</b> inertia is ${f3(100 * S.eps2_Re_L)} % of friction — lubrication theory is a first guess here.</p>`
-        : `<p><b>Right now:</b> ${k === 'thick' ? 'the gap is not thin (ε = ' + f3(S.eps) + ')' : 'inertia beats friction (ε²Re_L = ' + f3(S.eps2_Re_L) + ')'} — the full equations are needed.</p>`;
-    return p + Viz.work.table(['case', 'ε', 'Re_L', 'ε²Re_L'], rows, cur);
-  },
+  inspectHint: 'Click a vortex in the street to see its position, its kick and the speed the other row gives it; click the growth view to set b/a.',
+  notes: s => interpText(s),
   explore: {
-    intro: 'Drag the gap, length, speed and viscosity; the bars move on a log scale. Click a bar to see its arithmetic; the chips above the picture switch the pressure scale.',
-    controls: ['h', 'L', 'U', 'nu', 'rho'],
-    readouts: ['eps', 'ReL', 'e2', 'pv'],
-    callouts: [{ kind: 'try', html: 'Predict, then check: double $U$. The teal inertia bar moves right by a factor 2 ($\\varepsilon^2\\mathrm{Re}_L\\propto U$); nothing else moves.' }]
+    intro: 'Press ▶ to let the kick grow, drag b/a across 0.2805, and stagger or face the rows. Click a vortex or the growth curve.',
+    controls: ['b', 'off', 'k', 'kick', 'amp'],
+    readouts: ['gam', 'sig', 'gk', 'Us', 'dist'],
+    callouts: [{ kind: 'try', html: 'Press <b>stable 0.2805</b> and ▶: the wiggle only oscillates. Now press <b>too tight 0.15</b> and ▶: it grows to a tear. Then drag <b>stagger</b> to 0 — the growth is π/4 whatever b/a.' },
+      { kind: 'warn', html: 'Point vortices, no viscosity, linear theory: the displacement is drawn ×20 and capped. The model gives the street’s <b>shape</b>, not the onset of shedding near Re ≈ 40.' }]
   },
-  explain: {
-    html: s => {
-      const S = SC(s), T = TM(s), W = Viz.work, mu = muOf(s), k = verdict(s), atm = (s.pscale || 'viscous') === 'atm';
-      let o = W.step(0, 'What the views show') +
-        W.say(`<b>The gap</b> is drawn with its heights stretched; ${colI('c-blue', 'blue')} curves are the velocity profiles, the short ${colI('c-blue', 'blue')} vertical arrows the small cross-gap velocity $v\\sim\\varepsilon U$. <b>The bars</b> are the coefficients of each term of the scaled momentum equations on a log scale: ${colI('c-teal', 'teal')} inertia, ${colI('c-orange', 'orange')} pressure, ${colI('c-rose', 'rose')} friction; grey band = dropped (under 1 % of the largest term), dashed line = the largest term.`) +
-        W.hint('On phones the y-momentum bars are hidden; §5 carries their numbers, and clicking a y term in the Derivation tab shows them in place of the x bars.');
-      o += W.step(1, 'Two length scales') +
-        W.line(`$\\varepsilon=h/L=${t3(s.h)}/${t3(s.L)}$`, f3(S.eps), 'the fineness ratio: how thin the gap is') +
-        W.line(`$\\mathrm{Re}_L=UL/\\nu=${t3(s.U)}\\times${t3(s.L)}/${t3(s.nu)}$`, f3(S.Re_L), 'the Reynolds number built on the long length') +
-        W.line(`$v\\sim\\varepsilon U=${t3(S.eps)}\\times${t3(s.U)}$`, fmtSpd(S.eps * s.U), `continuity ${$(EQ.e62)} (6.2): $U/L$ must match $v/h$`);
-      o += W.step(2, 'Inertia\u2019s real weight') +
-        W.line(`$\\varepsilon^2\\mathrm{Re}_L=(${t3(S.eps)})^2\\times${t3(S.Re_L)}$`, '', '') +
-        W.box(`$\\varepsilon^2\\mathrm{Re}_L=\\mathbf{${t3(S.eps2_Re_L)}}$`) +
-        W.say(`Why $\\varepsilon^2$: the x-equation was divided by the cross-gap friction's scale $\\mu U/(\\rho\\varepsilon^2L^2)$ so that friction has coefficient 1; inertia's scale $U^2/L$ then becomes $\\varepsilon^2\\mathrm{Re}_L$ (Derivation D10, step 9).`);
-      o += W.step(3, 'The pressure scale') +
-        W.line(`$\\mu=\\rho\\nu=${t3(s.rho)}\\times${t3(s.nu)}$`, f3(mu) + ' Pa s', 'dynamic viscosity') +
-        W.line(`$\\mu UL/h^2=${t3(mu)}\\times${t3(s.U)}\\times${t3(s.L)}/(${t3(s.h)})^2$`, fmtPa(S.p_visc) + ' = ' + f3(S.p_visc / P_ATM) + ' atm', 'the pressure a viscous film builds') +
-        W.box(`$\\Lambda=\\dfrac{\\mu UL}{P_ah^2}=\\mathbf{${t3(S.Lambda)}}$`) +
-        W.say(atm ? `You chose the book's $P_a$: the pressure coefficient is $1/\\Lambda$ = ${f3(T.x_pressure)}. That does not make pressure small — $p^*=p/P_a$ is then of size $\\Lambda$, so the term is ~1 (the dashed orange bar).`
-          : `You chose the natural scale $P=\\mu UL/h^2$: the pressure coefficient is exactly ${f3(T.x_pressure)}, and $p^*$ is of order one. The book's $P_a$ gives $1/\\Lambda$ = ${f3(1 / S.Lambda)} instead — same physics, rescaled $p^*$.`);
-      const bold = (v, kept) => kept ? '<b>' + f3(v) + '</b>' : f3(v) + ' ✗';
-      o += W.step(4, 'The x-balance, term by term') +
-        W.say(`Coefficients of ${$(EQ.e16as)} (8.16a); kept ones in bold:`) +
-        W.table(['term', 'coefficient', 'value'], [
-          ['inertia', '$\\varepsilon^2\\mathrm{Re}_L$', bold(T.x_inertia, T.x_inertia >= 0.01)],
-          ['pressure', atm ? '$1/\\Lambda$' : '$1$', bold(T.x_pressure, true)],
-          ['friction along', '$\\varepsilon^2$', bold(T.x_diff_along, T.x_diff_along >= 0.01)],
-          ['friction across', '$1$', bold(1, true)]], -1);
-      o += W.step(5, 'The y-balance') +
-        W.say(`In ${$(EQ.e16bs)} (8.16b) inertia is ${f3(T.y_inertia)}, friction ${f3(T.y_diff_along)} and ${f3(T.y_diff_across)}; only pressure (${f3(T.y_pressure)}) has no power of ε.`) +
-        W.box(`$\\dfrac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)=\\mathbf{${t3(S.eps ** 2)}}$`) +
-        W.say(`So the pressure is the same across the film: ${$(EQ.e17bs)} (8.17b).`);
-      o += W.step(6, 'At the current time') +
-        W.line('$t^*=Ut/L$', Viz.live('ts'), 'the transport clock, in scaled time') +
-        W.line('$t=t^*L/U$', Viz.live('t'), 'the real time for the tracers to get there') +
-        W.line('wall travel $Ut$', Viz.live('d'), 'the sliding wall has moved this far');
-      const txt = k === 'valid'
-        ? `Inertia is ε²Re_L = ${f3(S.eps2_Re_L)} of the cross-gap friction: the flow is a local balance of pressure gradient and friction, ${$(EQ.e17as)} (8.17a), even though Re_L = ${f3(S.Re_L)} alone looks ${S.Re_L > 100 ? 'large' : 'modest'}. Thinness wins: the cross-gap friction grows like 1/ε², inertia does not.`
-        : k === 'marginal' ? `Inertia is ${f3(100 * S.eps2_Re_L)} % of friction (ε = ${f3(S.eps)}): the lubrication profile is a first guess; corrections of order ε²Re_L matter for precise bearings.`
-          : k === 'thick' ? `The gap is not thin (ε = ${f3(S.eps)}): the along-gap friction ε² = ${f3(S.eps ** 2)} and the pressure change across the gap are no longer negligible — solve the full Navier–Stokes equations.`
-            : `ε²Re_L = ${f3(S.eps2_Re_L)} > 1: inertia beats friction, the flow can separate and recirculate, and ${$(EQ.e17as)} (8.17a) is wrong here — the full Navier–Stokes equations are needed.`;
-      return o + W.interpret(txt, 'Reading the current setting');
-    },
-    live: s => { const t = s.t || 0; return { ts: t.toFixed(2), t: Viz.fmtTime(t * s.L / s.U), d: fmtLen(t * s.L) }; }
-  },
-  derivations: [
-    { id: 'D10', title: 'The scaled gap equations', short: 'ε²Re_L', ref: 'Eqs. (8.15), (8.16)', view: 'xbars',
-      goal: 'Rewrite the gap equations in variables of order one, so that the size of every term sits in its coefficient.',
-      start: { tex: EQ.e13a, plain: `x-momentum (8.13a), with continuity ${$(EQ.e62)} (6.2), its y-twin (8.13b) $\\tfrac{Dv}{Dt}=-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial y}+\\nu\\nabla^2v$, and the scalings ${$(EQ.e14s)}$,\\dots$ (8.14).` },
-      plan: ['Turn the scalings into substitutions and derivative rules.', 'Scale continuity.', 'Scale x-momentum and divide by the cross-gap friction\u2019s coefficient.', 'Scale y-momentum and choose the factor that keeps the same 1/Λ.'],
-      uses: ['anisotropic scaling: one length along, one across', 'the chain rule for scaled variables', 'bookkeeping of powers of ε'],
-      set: Object.assign({ pscale: 'atm', focus: null }, ENG),
-      steps: [
-        { did: 'Invert the scalings', tex: '\\begin{aligned}&x=Lx^*,\\ y=\\varepsilon Ly^*,\\ t=\\tfrac LUt^*\\\\ &u=Uu^*,\\ v=\\varepsilon Uv^*,\\ p=P_ap^*\\end{aligned}',
-          why: 'We will substitute these into the equations; each starred variable is of order one by design.',
-          plain: 'Dimensional quantity = scale × order-one variable.', set: { focus: null } },
-        { did: 'Write the derivative rules', tex: '\\frac{\\partial}{\\partial x}=\\frac1L\\frac{\\partial}{\\partial x^*},\\ \\frac{\\partial}{\\partial y}=\\frac{1}{\\varepsilon L}\\frac{\\partial}{\\partial y^*},\\ \\frac{\\partial}{\\partial t}=\\frac UL\\frac{\\partial}{\\partial t^*}',
-          why: 'Chain rule for scaled variables: ∂x*/∂x = 1/L, ∂y*/∂y = 1/(εL), ∂t*/∂t = U/L.',
-          plain: 'Derivatives across the gap are 1/ε times larger.', live: s => '\\tfrac1{\\varepsilon}=' + t3(1 / SC(s).eps) },
-        { did: 'Scale continuity', tex: '\\frac UL\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\varepsilon U}{\\varepsilon L}\\frac{\\partial v^*}{\\partial y^*}=0',
-          why: 'Substitute u = Uu*, v = εUv* and the rules of step 2 into the continuity equation.',
-          plain: 'Both terms carry U/L.' },
-        { did: 'Divide by U/L', tex: '\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\partial v^*}{\\partial y^*}=0\\quad(8.15)',
-          why: 'The ε cancels because v was scaled with εU — chosen exactly so that continuity balances (with v ~ U the u-term would drop).',
-          plain: 'Mass is conserved with no approximation — and v is ε times smaller than u.', watch: 'In the gap picture the blue v arrows are tiny next to the profiles.',
-          live: s => 'v\\sim\\varepsilon U=' + t3(SC(s).eps * s.U) + '\\ \\text{m/s}' },
-        { did: 'Scale the x-inertia terms', tex: '\\frac{Du}{Dt}=\\frac{U^2}{L}\\Big(\\frac{\\partial u^*}{\\partial t^*}+u^*\\frac{\\partial u^*}{\\partial x^*}+v^*\\frac{\\partial u^*}{\\partial y^*}\\Big)',
-          why: 'Each term: (U/L)U, U(U/L), (εU)(U/εL) — all U²/L.',
-          plain: 'Inertia is of size U²/L.', set: { focus: 'x_inertia' } },
-        { did: 'Scale the x-pressure term', tex: '-\\frac1\\rho\\frac{\\partial p}{\\partial x}=-\\frac{P_a}{\\rho L}\\frac{\\partial p^*}{\\partial x^*}',
-          why: 'p = Pₐp* and ∂/∂x = (1/L)∂/∂x*.',
-          plain: 'Pressure term of size Pₐ/(ρL).', set: { focus: 'x_pressure' } },
-        { did: 'Scale the two x-viscous terms', tex: '\\begin{aligned}&\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial x^2}=\\frac{\\mu U}{\\rho L^2}\\frac{\\partial^2u^*}{\\partial x^{*2}}\\\\ &\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial y^2}=\\frac{\\mu U}{\\rho\\varepsilon^2L^2}\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-          why: 'Two derivatives along the gap bring 1/L², two across bring 1/(εL)².',
-          plain: 'Friction across the gap is 1/ε² larger.', set: { focus: 'x_diff_across' } },
-        { did: 'Multiply by ρε²L²/(μU)', tex: '\\times\\frac{\\rho\\varepsilon^2L^2}{\\mu U}',
-          why: 'This makes the cross-gap friction — the term we expect to dominate — have coefficient 1, so every other coefficient reads directly as a relative size.',
-          plain: 'Measure everything against cross-gap friction.', set: { focus: 'x_diff_across' }, watch: 'The rose bar sits on the dashed line at 1: it is the yardstick.' },
-        { did: 'Read the inertia coefficient', tex: '\\frac{U^2}{L}\\cdot\\frac{\\rho\\varepsilon^2L^2}{\\mu U}=\\varepsilon^2\\frac{\\rho UL}{\\mu}=\\varepsilon^2\\mathrm{Re}_L',
-          why: 'Simplify the product; Re_L = ρUL/μ uses the passage length.',
-          plain: 'Inertia is weighed by ε²Re_L.', set: { focus: 'x_inertia' },
-          live: s => { const S = SC(s); return '\\varepsilon^2\\mathrm{Re}_L=(' + t3(S.eps) + ')^2\\times' + t3(S.Re_L) + '=' + t3(S.eps2_Re_L); },
-          watch: 'The teal bar lands deep in the grey band.' },
-        { did: 'Read the other x-coefficients', tex: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L(\\ldots)=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\quad(8.16a)\\end{aligned}',
-          why: 'Pressure: (Pₐ/ρL)(ρε²L²/μU) = Pₐh²/(μUL) = 1/Λ; along-gap friction: ε²; across: 1.',
-          plain: 'The scaled x-momentum equation.', set: { focus: 'x_pressure' },
-          live: s => '\\tfrac1\\Lambda=' + t3(1 / SC(s).Lambda) + ',\\ \\varepsilon^2=' + t3(SC(s).eps ** 2) },
-        { did: 'Scale the y-inertia terms', tex: '\\frac{Dv}{Dt}=\\frac{\\varepsilon U^2}{L}\\Big(\\frac{\\partial v^*}{\\partial t^*}+u^*\\frac{\\partial v^*}{\\partial x^*}+v^*\\frac{\\partial v^*}{\\partial y^*}\\Big)',
-          why: 'Each term now carries one factor εU from v: (U/L)εU, U(εU/L), (εU)(εU/εL).',
-          plain: 'Vertical inertia is ε times smaller.', set: { focus: 'y_inertia' } },
-        { did: 'Scale the y-pressure and friction', tex: '\\begin{aligned}&-\\frac{P_a}{\\rho\\varepsilon L}\\frac{\\partial p^*}{\\partial y^*},\\ \\ \\frac{\\mu\\varepsilon U}{\\rho L^2}\\frac{\\partial^2v^*}{\\partial x^{*2}},\\\\ &\\frac{\\mu U}{\\rho\\varepsilon L^2}\\frac{\\partial^2v^*}{\\partial y^{*2}}\\end{aligned}',
-          why: 'Use ∂/∂y = (1/εL)∂/∂y* on the pressure — the y-equation needs ∂p/∂y; the book’s printed y-equation has ∂p/∂x, which would give a different set.',
-          plain: 'Pressure across the gap is large.', set: { focus: 'y_pressure' }, watch: 'The printed ∂p/∂x would not give this bar set.' },
-        { did: 'Multiply by ρε³L²/(μU)', tex: '\\times\\frac{\\rho\\varepsilon^3L^2}{\\mu U}',
-          why: 'We choose the factor that gives the pressure term the same coefficient 1/Λ as in the x-equation: (Pₐ/ρεL)(ρε³L²/μU) = ε²LPₐ/(μU) = 1/Λ.',
-          plain: 'Compare against the same pressure yardstick.', set: { focus: 'y_pressure' } },
-        { did: 'Read the y-coefficients', tex: '\\begin{aligned}&\\varepsilon^4\\mathrm{Re}_L(\\ldots)=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}\\\\ &\\quad+\\varepsilon^4\\frac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\frac{\\partial^2v^*}{\\partial y^{*2}}\\quad(8.16b)\\end{aligned}',
-          why: 'Inertia (εU²/L)(ρε³L²/μU) = ε⁴Re_L; friction ε⁴ and ε² likewise.',
-          plain: 'Only pressure lacks a power of ε.', set: { focus: 'y_diff_across' },
-          live: s => { const T = TM(s); return '\\varepsilon^4\\mathrm{Re}_L=' + t3(T.y_inertia) + ',\\ \\varepsilon^2=' + t3(T.y_diff_across); } }
-      ],
-      result: { tex: EQ.e16ac, plain: `With ${$(EQ.e15s)} (8.15) and the y-twin ${$(EQ.e16bs)} (8.16b): in a thin gap inertia carries ε²Re_L and every y-term except pressure carries ε² or less.`, set: { focus: null } },
-      interpret: s => { const S = SC(s); return `With your numbers: ε = ${f3(S.eps)}, Re_L = ${f3(S.Re_L)}, so inertia weighs ε²Re_L = ${f3(S.eps2_Re_L)} against a cross-gap friction of 1. "Large Re" is not the test in a thin gap — ε²Re_L is. The same bookkeeping becomes the boundary-layer approximation in Ch. 9.`; },
-      check: 'Every coefficient is dimensionless. The notebook\u2019s sympy check (lubrication_nondim_sympy) returns the sets {ε²Re_L, 1/Λ, ε², 1} and {ε⁴Re_L, 1/Λ, ε⁴, ε²}; with the printed ∂p/∂x in the y-equation the y-set does not match. The selftest rows compare these coefficients with fluidpy.' },
-
-    { id: 'D11', title: 'The lubrication balance', short: 'drop & restore ν', ref: 'Eqs. (8.17a), (8.17b)', view: 'xbars',
-      goal: 'Drop the small terms of the scaled equations and return to dimensional form — restoring the ν that the printed $0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial x}+\\tfrac{\\partial^2u}{\\partial y^2}$ (8.17a) omits.',
-      start: { tex: EQ.e16ac, plain: `The scaled x-momentum equation (8.16a) shown above ($D/Dt^*$ = the three inertia terms) and its y-twin ${$(EQ.e16bs)} (8.16b) from D10.` },
-      plan: ['State the orders.', 'Drop the small terms in each equation.', 'Undo the scaling.'],
-      uses: ['orders of smallness', 'the scalings and derivative rules of D10'],
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG),
-      steps: [
-        { did: 'State the orders', tex: '\\varepsilon\\ll1,\\ \\ \\varepsilon^2\\mathrm{Re}_L\\ll1,\\ \\ \\Lambda=O(1)',
-          why: 'All starred derivatives are O(1) by construction; only the coefficients decide sizes. Λ = O(1) needs a suitable pressure scale (μUL/h² makes it exactly 1).',
-          plain: 'A thin gap and a small reduced Reynolds number.' },
-        { did: 'Drop the x-inertia', tex: '0=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}+O(\\varepsilon^2\\mathrm{Re}_L)',
-          why: 'The left side of the scaled x-equation is ε²Re_L × O(1).',
-          plain: 'Acceleration is negligible — even its unsteady part.', set: Object.assign({ focus: 'x_inertia' }, ENG),
-          live: s => '\\varepsilon^2\\mathrm{Re}_L=' + t3(SC(s).eps2_Re_L) },
-        { did: 'Drop the along-gap friction', tex: '0\\cong-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}+\\frac{\\partial^2u^*}{\\partial y^{*2}}',
-          why: 'ε²∂²u*/∂x*² is ε² times an order-one derivative, so it is as small as the inertia we just dropped.',
-          plain: 'Friction acts across the gap only.', set: { focus: 'x_diff_along' }, live: s => '\\varepsilon^2=' + t3(SC(s).eps ** 2) },
-        { did: 'Reduce the y-equation', tex: '\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)\\ \\Rightarrow\\ 0\\cong-\\frac{\\partial p^*}{\\partial y^*}',
-          why: 'In the scaled y-equation every term except the pressure carries ε² or smaller.',
-          plain: 'Pressure is the same across the gap to relative order ε².', set: { focus: 'y_pressure' } },
-        { did: 'Undo the x-scaling', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial y^2}',
-          why: 'Multiply by μU/(ρε²L²) (the inverse of D10 step 8) and use p = Pₐp*, ∂/∂y = (1/εL)∂/∂y*.',
-          plain: 'Back in dimensions.', set: { focus: null } },
-        { did: 'Write μ/ρ as ν', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\nu\\frac{\\partial^2u}{\\partial y^2}\\quad(8.17a)',
-          why: 'ν = μ/ρ. The book prints this without the ν, which fails the units (m/s² against 1/(m s)).',
-          plain: 'Pressure gradient = cross-gap friction.', watch: 'Units: ν∂²u/∂y² is m/s², like (1/ρ)∂p/∂x.',
-          live: s => { const S = SC(s); return '\\tfrac{\\partial p}{\\partial x}\\sim\\tfrac{\\mu U}{h^2}=' + t3(S.p_visc / s.L) + '\\ \\text{Pa/m}'; } },
-        { did: 'Undo the y-scaling', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial y}\\quad(8.17b)',
-          why: 'Multiply the reduced y-equation by Pₐ/(ρεL).',
-          plain: 'The pressure does not change across the gap.' }
-      ],
-      result: { tex: '\\begin{aligned}&' + EQ.e17a + '\\\\ &' + EQ.e17b + '\\end{aligned}', plain: 'The lubrication approximation $' + EQ.e17as + '$ (8.17a), $' + EQ.e17bs + '$ (8.17b): a local Poiseuille balance with the pressure uniform across the gap.', set: { focus: null } },
-      interpret: s => { const S = SC(s); return `With your numbers inertia is ${f3(S.eps2_Re_L)} of friction and the pressure varies across the gap by a relative ${f3(S.eps ** 2)}. The pressure scale μUL/h² = ${fmtPa(S.p_visc)} (${f3(S.p_visc / P_ATM)} atm); the bearing number with Pₐ is Λ = ${f3(S.Lambda)} — rescaling p changes nothing in the ordering.`; },
-      check: 'Units of the along-gap balance: both terms m/s². Time still appears as a parameter (no ∂/∂t term, yet h and p may vary slowly). Traps: dropping inertia needs ε²Re_L ≪ 1, not Re_L ≪ 1; ∂p*/∂y* is O(ε²), not exactly 0; re-dimensionalising restores ν.' }
-  ],
-  code: [
-    { id: 'main', title: 'The scales in Python', ref: 'Eqs. (8.14), (8.16)',
-      src: `
-from fluidpy import ch08_laminar_flow as ch08
-L, h, U, rho, mu = {{L}}, {{h}}, {{U}}, {{rho}}, {{mu}}   # SI
-s = ch08.lubrication_scales(L, h, U, rho, mu)
-print(s["eps"], s["Re_L"])       # eps = {{eps}}, Re_L = {{ReL}}
-print(s["eps2_Re_L"])            # inertia weight: {{e2}}
-print(s["Lambda"], s["p_visc"])  # Λ = {{Lam}}, μUL/h² = {{pv}} Pa
-t = ch08.lubrication_term_magnitudes(L, h, U, rho, mu,
-                                     p_scale="{{ps}}")
-print(t["x_inertia"], t["x_pressure"])  # {{xi}}, {{xp}}
-print(t["y_diff_across"], t["y_pressure"])  # {{yd}}, {{yp}}`,
-      live: s => { const S = SC(s), T = TM(s), F = v => Viz.fmt(v, { sig: 4 }).replace('−', '-');
-        return { L: F(s.L), h: F(s.h), U: F(s.U), rho: F(s.rho), mu: F(muOf(s)), eps: F(S.eps), ReL: F(S.Re_L), e2: F(S.eps2_Re_L), Lam: F(S.Lambda), pv: F(S.p_visc),
-          ps: s.pscale || 'viscous', xi: F(T.x_inertia), xp: F(T.x_pressure), yd: F(T.y_diff_across), yp: F(T.y_pressure) }; } }
-  ],
-  tour: [
-    { title: 'A paradox', text: `An engine\u2019s oil film has $\\mathrm{Re}_L$ ≈ ${f3(E0.Re_L)}, yet engineers treat it as purely viscous. <b>Why is inertia ignored?</b>`,
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true },
-    { title: 'Two rulers', text: 'Along the gap things change over $L$, across it over $h=\\varepsilon L$. Continuity then forces the cross-gap speed down to $v\\sim\\varepsilon U$ — the small blue arrows.',
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true, derive: { id: 'D10', step: 4 } },
-    { title: 'Weigh the terms', text: `Scale so that friction across the gap is 1: inertia gets the coefficient $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(E0.eps2_Re_L)} — the teal bar, deep in the grey “dropped” band.`,
-      set: Object.assign({ pscale: 'viscous', focus: 'x_inertia' }, ENG), play: false, terms: true, derive: { id: 'D10', step: 9 } },
-    { title: 'Across the gap', text: 'In the y-equation every term but pressure carries $\\varepsilon^2$ or less, so the pressure cannot change across the film:',
-      set: Object.assign({ pscale: 'viscous', focus: 'y_pressure' }, ENG), play: false, eq: 'l2' },
-    { title: 'Break it', text: `The “thick gap”: water, $\\varepsilon$ = ${f3(TK.eps)}, $\\mathrm{Re}_L$ = ${f3(TK.Re_L)}, so $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(TK.eps2_Re_L)}. Inertia now beats friction — lubrication theory fails.`,
-      set: Object.assign({ pscale: 'viscous', focus: 'x_inertia' }, THICK), play: false, readouts: ['e2', 'eps'], code: { id: 'main', lines: [4, 5] } },
-    { title: 'Your turn', text: 'Back to the engine film. Predict the gap $h$ at which $\\varepsilon^2\\mathrm{Re}_L$ reaches 1 (it grows like $h^2$), then drag $h$ and watch the status.',
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true, controls: ['h', 'U'] }
-  ],
-  equations: [
-    { id: 'c62', title: 'Continuity in the gap', ref: 'Eq. (6.2)', tex: EQ.e62, symbols: [['u,\\ v', 'velocity along and across the gap', 'm/s']] },
-    { id: 'm13a', title: 'x-momentum in the gap', ref: 'Eq. (8.13a)', tex: EQ.e13a,
-      symbols: [['p', 'pressure', 'Pa'], ['\\rho', 'density', 'kg/m³'], ['\\mu', 'dynamic viscosity', 'Pa s']] },
-    { id: 'm13b', title: 'y-momentum in the gap', ref: 'Eq. (8.13b)', tex: EQ.e13b, note: 'printed with ∂p/∂x — a slip; the y-equation needs ∂p/∂y' },
-    { id: 's14', title: 'The thin-gap scalings', ref: 'Eq. (8.14)', tex: EQ.e14,
-      live: s => '\\varepsilon=h/L=' + t3(SC(s).eps),
-      symbols: [['L', 'passage length', 'm'], ['h=\\varepsilon L', 'gap', 'm'], ['U', 'speed scale', 'm/s'], ['P_a', 'atmospheric pressure, 101325', 'Pa']] },
-    { id: 'c15', title: 'Scaled continuity', ref: 'Eq. (8.15)', tex: EQ.e15, note: 'no small coefficient: mass is conserved exactly' },
-    { id: 'x16a', title: 'Scaled x-momentum', ref: 'Eq. (8.16a)', tex: EQ.e16a,
-      live: s => { const T = TM(s); return '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L=' + t3(T.x_inertia) + '\\\\ &\\tfrac1\\Lambda=' + t3(1 / T.Lambda) + ',\\ \\varepsilon^2=' + t3(T.x_diff_along) + '\\end{aligned}'; },
-      symbols: [['\\mathrm{Re}_L=\\rho UL/\\mu', 'Reynolds number on L', '–'], ['\\Lambda=\\mu UL/P_ah^2', 'bearing number', '–']] },
-    { id: 'y16b', title: 'Scaled y-momentum', ref: 'Eq. (8.16b)', tex: EQ.e16b,
-      live: s => { const T = TM(s); return '\\varepsilon^4\\mathrm{Re}_L=' + t3(T.y_inertia) + ',\\ \\varepsilon^2=' + t3(T.y_diff_across); } },
-    { id: 'l1', title: 'Lubrication balance along the gap', ref: 'Eq. (8.17a)', tex: EQ.e17a, note: 'printed without the ν — the units need it',
-      live: s => '\\varepsilon^2\\mathrm{Re}_L=' + t3(SC(s).eps2_Re_L) + '\\ll1', symbols: [['\\nu=\\mu/\\rho', 'kinematic viscosity', 'm²/s']] },
-    { id: 'l2', title: 'Pressure uniform across the gap', ref: 'Eq. (8.17b)', tex: EQ.e17b,
-      live: s => '\\tfrac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)=' + t3(SC(s).eps ** 2) }
-  ],
-  check: [
-    { q: 'Double $U$. By what factor does the teal inertia bar grow?', a: 'By 2: $\\varepsilon^2\\mathrm{Re}_L=\\varepsilon^2UL/\\nu\\propto U$. Nothing else in the x-bars moves (with the natural pressure scale).', set: Object.assign({ pscale: 'viscous', focus: null }, ENG, { U: 2 * ENG.U }) },
-    { q: 'Halve $h$ at fixed $L$, $U$, $\\nu$. What happens to $\\varepsilon^2\\mathrm{Re}_L$ and to the pressure scale $\\mu UL/h^2$?',
-      a: `$\\varepsilon^2\\mathrm{Re}_L$ falls 4× (${f3(E0.eps2_Re_L)} → ${f3(E0.eps2_Re_L / 4)}); $\\mu UL/h^2$ grows 4× (${fmtPa(E0.p_visc)} → ${fmtPa(4 * E0.p_visc)}): thinner films are more viscous-dominated and build higher pressures.`, set: Object.assign({ pscale: 'viscous', focus: null }, ENG, { h: ENG.h / 2 }) },
-    { q: `With the book\u2019s pressure scale $P_a$ the engine film has $\\Lambda$ ≈ ${f3(E0.Lambda)}, far from 1. Why is that not a problem?`,
-      a: 'Λ only rescales $p^*$: with $P_a$, $p^*$ is of size Λ and the pressure term is still ~1 (the dashed orange bar). Choosing the natural scale $\\mu UL/h^2$ makes the coefficient exactly 1 without changing which terms are small.', set: Object.assign({ pscale: 'atm', focus: 'x_pressure' }, ENG) },
-    { q: 'Which smallness condition decides whether inertia can be dropped: $\\mathrm{Re}_L\\ll1$ or $\\varepsilon^2\\mathrm{Re}_L\\ll1$?',
-      a: `$\\varepsilon^2\\mathrm{Re}_L\\ll1$ (with $\\varepsilon\\ll1$). The engine film has Re_L ≈ ${f3(E0.Re_L)} but $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(E0.eps2_Re_L)}; it stays lubrication-like until $h$ ≈ ${fmtLen(hCrit)}.` }
-  ],
-  selftest: () => {
-    const R = (L, h, U, rho, mu) => scalesRaw(L, h, U, rho, mu), Tm = (L, h, U, rho, mu, ps) => termsRaw(L, h, U, rho, mu, ps);
-    const e = ENG, mE = e.rho * e.nu;
-    return [
-      { name: 'eps2ReL engine', js: R(0.05, 5e-5, 5, 870, 0.05).eps2_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'Lambda engine', js: R(0.05, 5e-5, 5, 870, 0.05).Lambda, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["Lambda"]', rtol: 1e-12 },
-      { name: 'Re_L engine', js: R(0.05, 5e-5, 5, 870, 0.05).Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["Re_L"]', rtol: 1e-12 },
-      { name: 'p_visc engine', js: R(0.05, 5e-5, 5, 870, 0.05).p_visc, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["p_visc"]', rtol: 1e-12 },
-      { name: 'eps4ReL engine', js: R(0.05, 5e-5, 5, 870, 0.05).eps4_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps4_Re_L"]', rtol: 1e-12 },
-      { name: 'eps2ReL engine preset (mu = rho nu)', js: R(e.L, e.h, e.U, e.rho, mE).eps2_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'y diff atm', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').y_diff_across, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05, p_scale="atm")["y_diff_across"]', rtol: 1e-12 },
-      { name: 'x pressure atm', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').x_pressure, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05, p_scale="atm")["x_pressure"]', rtol: 1e-12 },
-      { name: 'y inertia viscous', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').y_inertia, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05)["y_inertia"]', rtol: 1e-12 },
-      { name: 'x pressure viscous', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').x_pressure, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05)["x_pressure"]', rtol: 1e-12 },
-      { name: 'eps2ReL Hele-Shaw', js: R(0.1, 1e-3, 0.01, 1260, 1.26).eps2_Re_L, py: 'ch08.lubrication_scales(0.1, 1e-3, 0.01, 1260.0, 1.26)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'eps2ReL thick gap', js: R(0.01, 2e-3, 1, 1000, 1e-3).eps2_Re_L, py: 'ch08.lubrication_scales(0.01, 2e-3, 1.0, 1000.0, 1e-3)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'Lambda knee', js: R(0.01, 1e-6, 0.1, 1000, 1e-2).Lambda, py: 'ch08.lubrication_scales(0.01, 1e-6, 0.1, 1000.0, 1e-2)["Lambda"]', rtol: 1e-12 },
-      { name: 'y pressure atm thick', js: Tm(0.01, 2e-3, 1, 1000, 1e-3, 'atm').y_pressure, py: 'ch08.lubrication_term_magnitudes(0.01, 2e-3, 1.0, 1000.0, 1e-3, p_scale="atm")["y_pressure"]', rtol: 1e-12 },
-      { name: 'natural Lambda = 1', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').x_pressure, expect: 1, rtol: 1e-12 },
-      { name: 'atm pressure coefficient x Lambda = 1', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').x_pressure * R(0.05, 5e-5, 5, 870, 0.05).Lambda, expect: 1, rtol: 1e-12 },
-      { name: 'engine eps2ReL = 4.35e-3 (O4)', js: R(0.05, 5e-5, 5, 870, 0.05).eps2_Re_L, expect: 4.35e-3, rtol: 1e-12 },
-      { name: 'gap tracers: flux q conserved along the passage', js: psiStar(0.3, 1) - psiStar(0.9, 1), expect: 0, atol: 1e-14 },
-      { name: 'gap profile: u* = 0 on the fixed wall', js: uStar(0.4, 1), expect: 0, atol: 1e-15 }
-    ];
-  }
+  explain: { html: s => explainHtml(s), live: s => explainLive(s) },
+  derivations: DERIV,
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
 });
 </script>
 </body>

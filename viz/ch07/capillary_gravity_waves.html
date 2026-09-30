@@ -1996,9 +1996,11 @@ button, input, select { font: inherit; color: inherit; }
       if (!changed.length) return app;
       if (tr && !app._fromLoop && changed.indexOf(tr.param) >= 0) { app.holding = false; holdLeft = 0; }
       changed.forEach(function (k) { if (isFn(cfg.onChange)) { try { cfg.onChange(app.state, k, app); } catch (e) { reportError(e); } } });
-      var onlyTime = tr && changed.length === 1 && changed[0] === tr.param;
       updateReadouts();
-      if (!app._fromLoop) updateDynamic(true, !onlyTime);
+      /* A user-driven change always rebuilds the Explain text, even when only the transport parameter moved: that
+         parameter is often physical (x, n, Re), not a clock, and the loop's 110 ms rebuild only runs while playing.
+         updateCalc skips the DOM work when the HTML is unchanged. */
+      if (!app._fromLoop) updateDynamic(true, true);
       queueLive(); if (!app._fromLoop) app.draw(); saveHash();
       return app;
     };

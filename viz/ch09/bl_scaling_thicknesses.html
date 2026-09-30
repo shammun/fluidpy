@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Why can a thin film ignore inertia?</title>
-<meta name="viz:chapter" content="ch08">
-<meta name="viz:slug" content="lubrication_scaling">
-<meta name="viz:order" content="2">
-<meta name="viz:title" content="Why can a thin film ignore inertia?">
-<meta name="viz:summary" content="Scale the gap equations with two lengths and every term becomes a bar: inertia is weighed by the reduced Reynolds number, the pressure and the cross-gap friction stay, and across the gap only the pressure is left.">
-<meta name="viz:concept" content="Thin-gap scaling: with one length along the passage and one across it, inertia carries the factor eps^2 Re_L, so a thin film is viscous even when Re_L is large, and the pressure is uniform across the gap">
-<meta name="viz:sections" content="8.3">
-<meta name="viz:equations" content="8.13 8.14 8.15 8.16 8.17">
-<meta name="viz:fluidpy" content="ch08_laminar_flow.lubrication_scales ch08_laminar_flow.lubrication_term_magnitudes">
-<meta name="viz:derivations" content="D10 D11">
+<title>How thin is a boundary layer, and what is its thickness?</title>
+<meta name="viz:chapter" content="ch09">
+<meta name="viz:slug" content="bl_scaling_thicknesses">
+<meta name="viz:order" content="1">
+<meta name="viz:title" content="How thin is a boundary layer, and what is its thickness?">
+<meta name="viz:summary" content="Slide U, nu and x to watch a layer grow like sqrt(nu x/U) = x Re^(-1/2), then switch the profile shape: delta99, delta* and theta are three integrals of one profile and change by different ratios.">
+<meta name="viz:concept" content="Boundary-layer thickness from the advection-viscosity balance, delta/L ~ Re^(-1/2) (C01), and the three thicknesses delta99, displacement delta* and momentum theta as integrals of the profile (C02)">
+<meta name="viz:sections" content="9.1, 9.2">
+<meta name="viz:equations" content="(9.4), (9.6), (9.9), (9.10), (9.11), (9.16), (9.17), (9.30)">
+<meta name="viz:fluidpy" content="ch09.boundary_layer_scales ch09.thicknesses ch09.blasius_fields ch09.blasius_constants ch09.profile_shape ch09.blasius_delta99 ch09.blasius_delta_star ch09.blasius_theta ch09.blasius_wall_shear">
+<meta name="viz:derivations" content="D01 D03 D04">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -473,19 +473,23 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* VIZ_BASE_CSS:END */
 </style>
-<style>
-/* chapter CSS — lubrication_scaling. Colours (one meaning each, in text, bars and the gap picture): inertia teal;
-   pressure orange; viscous friction rose (across the gap solid, along the gap light rose); velocity blue (profiles
-   and v arrows); tracers grey-blue; the moving wall rose; references and the "dropped" band grey.
-   Row 1: the gap; row 2: the x-momentum bars | the y-momentum bars (the y bars are hidden on portrait phones). */
+<style data-chapter>
+/* chapter CSS — bl_scaling_thicknesses. Colours (one meaning each, in text, curves and titles): velocity profile u/U blue;
+   outer / ideal flow and streamlines teal; displacement thickness delta* amber; momentum thickness theta orange;
+   delta99 muted (dashed); the plate grey hatch. Row 1: plate | profile (side by side everywhere); row 2: growth
+   (log-log, desktop and tablets only; its numbers are in the titles and readouts). */
 .c-amber { color: var(--viz-amber); font-weight: 650; }
 .c-muted { color: var(--viz-muted); font-weight: 650; }
-.viz-stage-top .viz-presets { flex-wrap: wrap; }
 .viz-pager-label { white-space: nowrap; min-width: 52px; }
-.viz-app[data-layout="landscape"] .viz-views { flex-direction: row; }
-.viz-app[data-layout="landscape"] .viz-view[data-view="ybars"] { display: none !important; }
+.viz-stage-top .viz-presets { flex-wrap: wrap; }
+.viz-seg { flex-wrap: wrap; }
+.viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
 .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
-@media (max-height: 720px) { .viz-app[data-layout="portrait"] .viz-presets { display: none !important; } }
+.viz-app[data-layout="portrait"]:is([data-tab="explain"], [data-tab="equations"], [data-tab="code"], [data-tab="check"]) .viz-presets { display: none !important; }
+</style>
+<style>
+  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
 </style>
 </head>
 <body>
@@ -2343,627 +2347,695 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.core.lubrication (re-exported by fluidpy.ch08_laminar_flow), SI units:
-     scalesRaw(L, h, U, rho, mu, pa)        ↔ ch08.lubrication_scales(L, h, U, rho, mu, p_a)
-         eps = h/L, Re_L = ρUL/μ, eps2_Re_L = ε²Re_L, eps4_Re_L = ε⁴Re_L, Lambda = μUL/(P_a h²), p_visc = μUL/h²
-         (§8.3, Eq. (8.14) scalings and the coefficients of (8.16a,b))
-     termsRaw(L, h, U, rho, mu, pscale, pa) ↔ ch08.lubrication_term_magnitudes(L, h, U, rho, mu, p_scale, p_a)
-         x: inertia ε²Re_L · pressure P h²/(μUL) (= 1/Λ with P = P_a, 1 with P = μUL/h²) · along ε² · across 1
-         y: inertia ε⁴Re_L · pressure (same) · along ε⁴ · across ε²
-   The reader's controls are h, L, U, ν and ρ; μ = ρν (so the engine-film preset uses ν = 0.05/870 exactly, i.e.
-   μ = 0.05 Pa s, ρ = 870 kg/m³ — verification O4).
-   The gap picture is drawn in the starred variables of (8.14): a gently tapered passage H(x*) = 1.25 − 0.5x*
-   (in units of the mean gap h) with the lower wall sliding at U and the upper wall at rest; the local lubrication
-   profile u* = (1 − η) − (3 − 6q/H)η(1 − η), η = y* ÷ H, carries the same flux q = H₁H₂/(H₁ + H₂) at every station.
-   Drawing only — the numbers on screen all come from scalesRaw/termsRaw.
-   --------------------------------------------------------------------------------------------------- */
-const P_ATM = 101325.0;
-function scalesRaw(L, h, U, rho, mu, pa) {
-  pa = pa === undefined ? P_ATM : pa;
-  const eps = h / L, Re = rho * U * L / mu;
-  return { eps, Re_L: Re, eps2_Re_L: eps ** 2 * Re, eps4_Re_L: eps ** 4 * Re,
-    Lambda: mu * U * L / (pa * h ** 2), p_visc: mu * U * L / h ** 2 };
-}
-function termsRaw(L, h, U, rho, mu, pscale, pa) {
-  pa = pa === undefined ? P_ATM : pa;
-  const S = scalesRaw(L, h, U, rho, mu, pa), eps = S.eps, Re = S.Re_L;
-  const P = { atmospheric: pa, atm: pa, viscous: S.p_visc, dynamic: rho * U ** 2 }[pscale];
-  const cp = P / S.p_visc;
-  return { x_inertia: eps ** 2 * Re, x_pressure: cp, x_diff_along: eps ** 2, x_diff_across: 1.0,
-    y_inertia: eps ** 4 * Re, y_pressure: cp, y_diff_along: eps ** 4, y_diff_across: eps ** 2,
-    eps, Re_L: Re, Lambda: S.Lambda };
-}
-const muOf = s => s.rho * s.nu;
-const SC = s => scalesRaw(s.L, s.h, s.U, s.rho, muOf(s));
-const TM = s => termsRaw(s.L, s.h, s.U, s.rho, muOf(s), s.pscale || 'viscous');
+/* =====================================================================================================================
+   PHYSICS — mirrors fluidpy.core.boundary_layer (re-exported by fluidpy.ch09_boundary_layers), §9.1–§9.2.
+   Same symbols, SI units. x runs along the plate from the leading edge, y is the height above it.
+     scales(U, L, nu, rho)     (9.4)  Re = UL/nu, delta/L = Re^(-1/2), v ~ U Re^(-1/2), tau0 ~ mu U/delta   (ch09.boundary_layer_scales)
+     blasius()                 Töpfer RK4 of f''' + f f''/2 = 0 (h = 0.005), rescaled by lambda = f'(inf)^(-1/2); constants
+                               f''(0), eta99, delta*, theta, H, v_inf (ch09.blasius_constants), u/U = f'(eta) (ch09.blasius_fields)
+     shape(name)               closed-form model profiles, each scaled to the Blasius delta99 (ch09.profile_shape)
+     thick(y, u, Ue)           (9.16), (9.17): composite Simpson + exponential tail, delta99 by PCHIP root (ch09.thicknesses)
+     bl99, blstar, bltheta     coefficient x sqrt(nu x/U) (ch09.blasius_delta99, blasius_delta_star, blasius_theta)
+   Ours (for the picture): real streamlines psi = U sqrt(nu x/U) Psi(eta), Psi(eta) = integral of u/U, lifted by delta* above.
+   ===================================================================================================================== */
+const PI = Math.PI, R = String.raw;
+const FLU = { air: { nu: 1.5e-5, rho: 1.2 }, water: { nu: 1.0e-6, rho: 1000 }, oil: { nu: 1.0e-4, rho: 900 } };
+const P_POW = 7;
 
-// the cases (presets and the "Right now" table); every number printed about them is computed from scalesRaw
-const ENG = { h: 5e-5, L: 0.05, U: 5, nu: 0.05 / 870, rho: 870 };
-const HELE = { h: 1e-3, L: 0.1, U: 0.01, nu: 1e-3, rho: 1260 };
-const KNEE = { h: 1e-6, L: 0.01, U: 0.1, nu: 1e-5, rho: 1000 };
-const THICK = { h: 2e-3, L: 0.01, U: 1, nu: 1e-6, rho: 1000 };
-const CASES = [['engine film (oil)', ENG], ['Hele-Shaw cell (glycerine)', HELE], ['knee joint (rough)', KNEE], ['thick gap (water)', THICK]];
-function verdict(s) {
-  const S = SC(s);
-  if (S.eps2_Re_L > 1) return 'inertia';
-  if (S.eps > 0.1) return 'thick';
-  if (S.eps2_Re_L > 0.01 || S.eps > 0.05) return 'marginal';
-  return 'valid';
+/** ch09.boundary_layer_scales(U, L, nu, rho): order-of-magnitude sizes, (9.4). */
+function scales(U, L, nu, rho = 1.2) {
+  const Re = U * L / nu, delta = Math.sqrt(nu * L / U);
+  return { Re, delta_over_L: delta / L, delta, v_scale: delta * U / L, adv: U * U / L, visc: nu * U / (delta * delta), visc_x: nu * U / (L * L),
+    tau0_scale: rho * nu * U / delta, cf_estimate: 2 / Math.sqrt(Re) };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   small helpers (local; promotion candidates listed in the report)
-   --------------------------------------------------------------------------------------------------- */
+/* ---- Blasius by Töpfer scaling (ch09.blasius_constants / blasius_fields) --------------------------------------------- */
+let BLS = null;
+const HX = 0.005, XI = 16, NX = 3200;
+function blasius() {
+  if (BLS) return BLS;
+  const F = new Float64Array(NX + 1), G = new Float64Array(NX + 1), K = new Float64Array(NX + 1);
+  let f = 0, g = 0, k = 1;
+  const d = (a, b, c) => [b, c, -0.5 * a * c];
+  for (let i = 0; i <= NX; i++) {
+    F[i] = f; G[i] = g; K[i] = k;
+    if (i === NX) break;
+    const k1 = d(f, g, k), k2 = d(f + HX / 2 * k1[0], g + HX / 2 * k1[1], k + HX / 2 * k1[2]);
+    const k3 = d(f + HX / 2 * k2[0], g + HX / 2 * k2[1], k + HX / 2 * k2[2]), k4 = d(f + HX * k3[0], g + HX * k3[1], k + HX * k3[2]);
+    f += HX / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]); g += HX / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]); k += HX / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+  }
+  const a = Math.pow(G[NX], -0.5), etaEnd = XI / a, dstar = (XI - a * a * F[NX]) / a;
+  let sInt = 0;                                          // theta = a ∫ F'(1 − a² F') dξ  (composite Simpson, 3200 intervals)
+  const q = i => G[i] * (1 - a * a * G[i]);
+  for (let i = 0; i < NX; i += 2) sInt += HX / 3 * (q(i) + 4 * q(i + 1) + q(i + 2));
+  const B = { F, G, K, a, etaEnd, delta_star: dstar, fpp0: a * a * a, theta: a * sInt };
+  BLS = B;
+  const herm = (Y, Yd, xi) => {                          // cubic Hermite of Y(ξ) with derivative Yd on the RK4 grid
+    const i = Math.min(Math.floor(xi / HX), NX - 1), t = xi / HX - i, t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * Y[i] + (t3 - 2 * t2 + t) * HX * Yd[i] + (-2 * t3 + 3 * t2) * Y[i + 1] + (t3 - t2) * HX * Yd[i + 1];
+  };
+  B.fp = eta => { const xi = a * eta; return xi >= XI ? 1 : a * a * herm(G, K, Math.max(xi, 0)); };
+  B.f = eta => { const xi = a * eta; return xi >= XI ? eta - dstar : a * herm(F, G, Math.max(xi, 0)); };
+  let lo = 0, hi = etaEnd;                               // eta99: the root of f' = 0.99
+  for (let i = 0; i < 200; i++) { const m = 0.5 * (lo + hi); if (B.fp(m) < 0.99) lo = m; else hi = m; }
+  B.eta99 = 0.5 * (lo + hi); B.H = B.delta_star / B.theta; B.v_inf = 0.5 * B.delta_star;
+  return B;
+}
+const bl99 = (x, U, nu) => blasius().eta99 * Math.sqrt(nu * x / U);        // (9.30) with η99 = 4.910
+const blstar = (x, U, nu) => blasius().delta_star * Math.sqrt(nu * x / U);
+const bltheta = (x, U, nu) => blasius().theta * Math.sqrt(nu * x / U);
+const tau0B = (x, U, rho, nu) => rho * U * U * blasius().fpp0 / Math.sqrt(U * x / nu);   // (9.31)
+
+/* ---- model profiles, each scaled so that delta99 equals the Blasius one (ch09.profile_shape) ----------------------------- */
+const SHAPES = [['blasius', 'Blasius'], ['linear', 'linear'], ['sine', 'sine'], ['cubic', 'cubic'], ['exponential', 'expon.'], ['power', 'p = 7']];
+const SHAPE_NAME = { blasius: 'Blasius', linear: 'linear', sine: 'sine', cubic: 'cubic', exponential: 'exponential', power: 'power-law p = 7' };
+const SHC = {};
+/** {D, r(eta), Psi(eta), ds, th}: u/U = r(eta), Psi = integral of r, ds and th = delta* and theta in units of sqrt(nu x/U), closed forms as in profile_shape. */
+function shape(name) {
+  if (SHC[name]) return SHC[name];
+  const B = blasius(), E = B.eta99, p = P_POW, min = Math.min;
+  let o;
+  if (name === 'blasius') o = { D: 1, r: e => B.fp(e), Psi: e => B.f(e), ds: B.delta_star, th: B.theta };
+  else if (name === 'linear') { const D = E / 0.99; o = { D, r: e => e >= D ? 1 : e / D, Psi: e => e >= D ? e - D / 2 : e * e / (2 * D), ds: D / 2, th: D / 6 }; }
+  else if (name === 'sine') {
+    const D = E / (2 / PI * Math.asin(0.99));
+    o = { D, r: e => e >= D ? 1 : Math.sin(PI * e / (2 * D)), Psi: e => e >= D ? e - D + 2 * D / PI : 2 * D / PI * (1 - Math.cos(PI * e / (2 * D))), ds: D * (1 - 2 / PI), th: D * (2 / PI - 0.5) };
+  } else if (name === 'cubic') {
+    let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = 0.5 * (lo + hi); if (1.5 * m - 0.5 * m * m * m < 0.99) lo = m; else hi = m; }
+    const D = E / (0.5 * (lo + hi));
+    o = { D, r: e => { const t = min(e / D, 1); return 1.5 * t - 0.5 * t * t * t; }, Psi: e => { const t = min(e / D, 1); return e >= D ? e - D + 0.625 * D : D * (0.75 * t * t - t * t * t * t / 8); }, ds: 3 * D / 8, th: 39 * D / 280 };
+  } else if (name === 'exponential') { const D = E / Math.log(100); o = { D, r: e => 1 - Math.exp(-e / D), Psi: e => e - D * (1 - Math.exp(-e / D)), ds: D, th: D / 2 }; }
+  else {
+    const D = E / Math.pow(0.99, p);
+    o = { D, r: e => Math.pow(min(e / D, 1), 1 / p), Psi: e => e >= D ? e - D + p * D / (p + 1) : D * p / (p + 1) * Math.pow(e / D, (p + 1) / p), ds: D / (p + 1), th: p * D / ((p + 1) * (p + 2)) };
+  }
+  o.name = name; o.k99 = E; o.H = o.ds / o.th;
+  SHC[name] = o;
+  return o;
+}
+
+/* ---- thicknesses of a sampled profile (ch09.thicknesses): Simpson + exponential tail + PCHIP root --------------------- */
+function simpsonXY(x, f) {        // scipy.integrate.simpson for an odd number of points (general spacing formula)
+  let s = 0;
+  for (let i = 0; i + 2 < x.length; i += 2) {
+    const h0 = x[i + 1] - x[i], h1 = x[i + 2] - x[i + 1], hs = h0 + h1;
+    s += hs / 6 * (f[i] * (2 - h1 / h0) + f[i + 1] * hs * hs / (h0 * h1) + f[i + 2] * (2 - h0 / h1));
+  }
+  return s;
+}
+function deficitTail(y, d) {      // ch09._deficit_tail
+  const n = y.length;
+  if (d[n - 1] <= 1e-14 || n < 2 || d[n - 2] <= d[n - 1]) return 0;
+  return d[n - 1] * (y[n - 1] - y[n - 2]) / Math.log(d[n - 2] / d[n - 1]);
+}
+function pchipSlopes(x, y) {      // scipy PchipInterpolator derivatives (Fritsch–Butland)
+  const n = x.length, hk = [], mk = [], d = new Array(n).fill(0);
+  for (let i = 0; i < n - 1; i++) { hk.push(x[i + 1] - x[i]); mk.push((y[i + 1] - y[i]) / hk[i]); }
+  const sg = v => (v > 0) - (v < 0);
+  for (let i = 1; i < n - 1; i++) {
+    if (sg(mk[i]) !== sg(mk[i - 1]) || mk[i] === 0 || mk[i - 1] === 0) d[i] = 0;
+    else { const w1 = 2 * hk[i] + hk[i - 1], w2 = hk[i] + 2 * hk[i - 1]; d[i] = (w1 + w2) / (w1 / mk[i - 1] + w2 / mk[i]); }
+  }
+  const edge = (h0, h1, m0, m1) => { let e = ((2 * h0 + h1) * m0 - h0 * m1) / (h0 + h1); if (sg(e) !== sg(m0)) e = 0; else if (sg(m0) !== sg(m1) && Math.abs(e) > 3 * Math.abs(m0)) e = 3 * m0; return e; };
+  d[0] = edge(hk[0], hk[1], mk[0], mk[1]); d[n - 1] = edge(hk[n - 2], hk[n - 3], mk[n - 2], mk[n - 3]);
+  return d;
+}
+function deltaLevel(y, u, Ue, level = 0.99) {
+  const r = u.map(v => v / Ue);
+  if (Math.max.apply(null, r) < level) return NaN;
+  const w = r.map(v => v - level), d = pchipSlopes(y, w);
+  let i = 0; while (i < r.length && r[i] < level) i++;
+  const k = Math.max(i - 1, 0), h = y[k + 1] - y[k];
+  const P = s => { const t = (s - y[k]) / h, t2 = t * t, t3 = t2 * t; return (2 * t3 - 3 * t2 + 1) * w[k] + (t3 - 2 * t2 + t) * h * d[k] + (-2 * t3 + 3 * t2) * w[k + 1] + (t3 - t2) * h * d[k + 1]; };
+  let lo = y[k], hi = y[k + 1];
+  for (let j = 0; j < 200; j++) { const m = 0.5 * (lo + hi); if (P(m) < 0) lo = m; else hi = m; }
+  return 0.5 * (lo + hi);
+}
+/** ch09.thicknesses(y, u, Ue): {delta99, delta_star, theta, H}. y needs an odd number of points (even number of intervals). */
+function thick(y, u, Ue, level = 0.99) {
+  const d = u.map(v => 1 - v / Ue), g = u.map(v => (v / Ue) * (1 - v / Ue));
+  const ds = simpsonXY(y, d) + deficitTail(y, d), th = simpsonXY(y, g) + deficitTail(y, g);
+  return { delta99: deltaLevel(y, u, Ue, level), delta_star: ds, theta: th, H: ds / th };
+}
+/** The drawn curve as samples in η (uniform grid with the kink at η = D on a node) — for the Simpson cross-check. */
+function gridOf(name) {
+  const sh = shape(name), top = name === 'blasius' ? 12 : name === 'exponential' ? 40 : 2 * sh.D, n = 400;
+  const y = Array.from({ length: n + 1 }, (_, i) => top * i / n);
+  return { y, u: y.map(sh.r) };
+}
+
+/* ---- the explainer's state → every number the views, readouts and panels show ---------------------------------------- */
+/** Length with a unit: [factor to the unit, unit] for a size `top` in metres. */
+function uLen(top) { return top < 1e-3 ? { k: 1e6, u: 'µm' } : top < 0.2 ? { k: 1e3, u: 'mm' } : { k: 1, u: 'm' }; }
+function N(s) {
+  const fl = FLU[s.fluid], U = s.U, nu = fl.nu, rho = fl.rho, x = s.x, B = blasius(), sh = shape(s.shape);
+  const sc = scales(U, x, nu, rho), s0 = Math.sqrt(nu * x / U), E = B.eta99;
+  const Xw = 1.1 * Math.max(+s.xr, x), s0w = Math.sqrt(nu * Xw / U), yTop = 1.35 * E * s0w;
+  const eta = s.probe;
+  return { fl, U, nu, rho, x, sc, Re: sc.Re, s0, sh, E, k99: E, ks: sh.ds, kt: sh.th, H: sh.H, d99: E * s0, ds: sh.ds * s0, th: sh.th * s0,
+    Xw, s0w, yTop, eta, yp: eta * s0, rp: sh.r(eta), up: U * sh.r(eta), vinf: 0.5 * U * sh.ds * s0 / x, slope: 0.5 * sh.ds * s0 / x,
+    tau0crude: sc.tau0_scale, tau0: tau0B(x, U, rho, nu), Fd: rho * U * U * sh.th * s0 };
+}
+
+/* ---- formatting --------------------------------------------------------------------------------------------------- */
 const f3 = v => Viz.fmt(v, { sig: 3 });
+const f4 = v => Viz.fmt(v, { sig: 4 });
 const t3 = v => Viz.tnum(v, 3);
 const t4 = v => Viz.tnum(v, 4);
-const SUPD = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
-const pow10 = e => '10' + String(e).split('').map(c => SUPD[c]).join('');
-function lenU(m) { const a = Math.abs(m); return a < 1e-3 ? [1e-6, 'µm'] : a < 1e-2 ? [1e-3, 'mm'] : a < 1 ? [1e-2, 'cm'] : [1, 'm']; }
-const fmtLen = m => { const [k, u] = lenU(m); return f3(m / k) + ' ' + u; };
-const texLen = m => { const [k, u] = lenU(m); return t3(m / k) + '\\ \\text{' + (u === 'µm' ? '}\\mu\\text{m' : u) + '}'; };
-function fmtSpd(v) { const a = Math.abs(v); return a < 1e-2 ? f3(v * 1e3) + ' mm/s' : a < 1 ? f3(v * 1e2) + ' cm/s' : f3(v) + ' m/s'; }
-const fmtNu = v => f3(v) + ' m²/s';
-function fmtPa(p) { const a = Math.abs(p); return a < 1e3 ? f3(p) + ' Pa' : a < 1e6 ? f3(p / 1e3) + ' kPa' : f3(p / 1e6) + ' MPa'; }
-const lay = () => { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; };
+function fL(m) { const a = Math.abs(m); if (!isFinite(m)) return '—'; if (a < 1e-3) return f3(m * 1e6) + ' µm'; if (a < 1) return f3(m * 1e3) + ' mm'; return f3(m) + ' m'; }
+function tL(m) { const a = Math.abs(m); if (a < 1e-3) return t3(m * 1e6) + R`\ \mu\text{m}`; if (a < 1) return t3(m * 1e3) + R`\ \text{mm}`; return t3(m) + R`\ \text{m}`; }
+function lenLabel(l) { const m = Math.pow(10, l); return m < 1e-3 ? f3(m * 1e6) + ' µm' : m < 1e-2 ? f3(m * 1e3) + ' mm' : m < 1 ? f3(m * 100) + ' cm' : f3(m) + ' m'; }
+function lay() { const r = document.querySelector('.viz-app'); return r ? r.getAttribute('data-layout') : 'wide'; }
 const phone = () => lay() !== 'wide';
-const wideWin = () => (document.documentElement.clientWidth || window.innerWidth) >= 1200;
-const mod = (x, m) => ((x % m) + m) % m;
-function niceBelow(x) {   // largest 1, 2 or 5 × 10ⁿ not above x (≥ 1)
-  if (!(x > 1)) return 1;
-  const e = Math.floor(Math.log10(x)), m = x / Math.pow(10, e);
-  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * Math.pow(10, e);
-}
-function arrowPx(ctx, x0, y0, x1, y1, color, width, head) {
-  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 1.5) return;
-  const hd = Math.min(head || 7, 0.6 * L), ang = Math.atan2(y1 - y0, x1 - x0);
-  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - 0.7 * hd * Math.cos(ang), y1 - 0.7 * hd * Math.sin(ang)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.45), y1 - hd * Math.sin(ang - 0.45));
-  ctx.lineTo(x1 - hd * Math.cos(ang + 0.45), y1 - hd * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill(); ctx.restore();
-}
-const COL = {
-  inertia: () => Viz.color('teal'), pressure: () => Viz.color('orange'), across: () => Viz.color('rose'),
-  along: () => Viz.alpha(Viz.color('rose'), 0.5), vel: () => Viz.color('blue'), muted: () => Viz.color('muted'), ink: () => Viz.color('text')
-};
+const FL_NAME = { air: 'air', water: 'water', oil: 'light oil' };
 
-/* ---------------------------------------------------------------------------------------------------
-   THE GAP PICTURE in starred variables (precomputed once: it does not depend on the controls — that is what
-   scaling buys; only the labels and the stated exaggeration change)
-   --------------------------------------------------------------------------------------------------- */
-const HA = 1.25, HB = 0.75, QF = HA * HB / (HA + HB);
-const Hx = X => HA + (HB - HA) * X;
-const cX = X => 3 - 6 * QF / Hx(X);
-const uStar = (X, eta) => (1 - eta) - cX(X) * eta * (1 - eta);
-const psiStar = (X, eta) => Hx(X) * (eta - eta * eta / 2 - cX(X) * (eta * eta / 2 - eta ** 3 / 3));
-function etaOnStream(X, psi0) {   // ψ* grows monotonically from 0 (moving wall) to q (fixed wall)
-  let a = 0, b = 1;
-  for (let i = 0; i < 50; i++) { const m = 0.5 * (a + b); if (psiStar(X, m) < psi0) a = m; else b = m; }
-  return 0.5 * (a + b);
+/* ---- pixel helpers ------------------------------------------------------------------------------------------------ */
+function arrowPx(ctx, x0, y0, x1, y1, color, width = 2, head = 7) {
+  const Ln = Math.hypot(x1 - x0, y1 - y0); if (Ln < 1) return;
+  const ang = Math.atan2(y1 - y0, x1 - x0), hd = Math.min(head, Ln * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - hd * 0.7 * Math.cos(ang), y1 - hd * 0.7 * Math.sin(ang)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.42), y1 - hd * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - hd * Math.cos(ang + 0.42), y1 - hd * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill(); ctx.restore();
 }
-function vStar(X, Y) {   // v* = −∂ψ*/∂x* at fixed y* (continuity, (8.15))
-  const d = 1e-4, pe = X2 => psiStar(X2, Math.min(1, Y / Hx(X2)));
-  return -(pe(X + d) - pe(X - d)) / (2 * d);
+/** Plot with the rotated y title in its own 18 px strip on views narrower than 420 px (ch01/ch05 lesson). */
+function gutterPlot(v, opt, axFn) {
+  const narrowV = v.w < 420, yl = opt.ylabel;
+  const o = Object.assign({}, opt, narrowV ? { rect: { x: 18, y: 0, w: v.w - 18, h: v.h }, ylabel: '' } : {});
+  const P = v.plot(o);
+  P.axes(Object.assign({}, axFn ? axFn(P) : {}, narrowV ? { ylabel: '' } : {}));
+  if (narrowV && yl) { const c = v.ctx; c.save(); c.font = Viz.font(12, 500); c.fillStyle = Viz.color('text-soft'); c.translate(9, P.px.y + P.px.h / 2); c.rotate(-PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore(); }
+  return P;
 }
-const STREAMS = (() => {
-  const NS = 9, NX = 161, out = [];
-  for (let k = 0; k < NS; k++) {
-    const psi0 = QF * (k + 0.5) / NS, X = [], Y = [], tau = [0];
-    for (let j = 0; j < NX; j++) { const x = j / (NX - 1), e = etaOnStream(x, psi0); X.push(x); Y.push(e * Hx(x)); }
-    for (let j = 1; j < NX; j++) {
-      const u0 = uStar(X[j - 1], Y[j - 1] / Hx(X[j - 1])), u1 = uStar(X[j], Y[j] / Hx(X[j]));
-      tau.push(tau[j - 1] + (X[j] - X[j - 1]) * 0.5 * (1 / u0 + 1 / u1));
-    }
-    out.push({ psi0, X, Y, tau, T: tau[NX - 1] });
-  }
-  return out;
-})();
-function onStreamAt(S, tt) {
-  const ti = mod(tt, S.T); let j = 1;
-  while (j < S.tau.length - 1 && S.tau[j] < ti) j++;
-  const f = (ti - S.tau[j - 1]) / Math.max(1e-12, S.tau[j] - S.tau[j - 1]);
-  return [S.X[j - 1] + f * (S.X[j] - S.X[j - 1]), S.Y[j - 1] + f * (S.Y[j] - S.Y[j - 1])];
+function lab(ctx, str, x, y, o) { Viz.text(ctx, str, x, y, Object.assign({ size: 12, bg: true, pad: 2 }, o)); }
+function hatch(ctx, x, y, w, h, color) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.fillStyle = Viz.alpha(color, 0.16); ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = Viz.alpha(color, 0.55); ctx.lineWidth = 1; ctx.beginPath();
+  for (let X = x - h; X < x + w; X += 8) { ctx.moveTo(X, y + h); ctx.lineTo(X + h, y); }
+  ctx.stroke(); ctx.restore();
+}
+function ticks0(top, n) { return Viz.num.niceTicks(0, top, n).filter(t => t >= 0 && t <= top * 1.001); }
+/** Fill between two curves x = xa(y) and x = xb(y) for the same heights ys (world coordinates). */
+function fillX(P, ys, xa, xb, color, alpha) {
+  const c = P.ctx; c.save(); c.fillStyle = Viz.alpha(color, alpha); c.beginPath();
+  ys.forEach((y, i) => { const X = P.X(xa[i]), Y = P.Y(y); if (i) c.lineTo(X, Y); else c.moveTo(X, Y); });
+  for (let i = ys.length - 1; i >= 0; i--) c.lineTo(P.X(xb[i]), P.Y(ys[i]));
+  c.closePath(); c.fill(); c.restore();
 }
 
-function drawGap(v, s) {
-  v.clear();
-  const ctx = v.ctx, small = v.w < 460 || v.h < 170, tiny = v.h < 110;
-  const [kx, ux] = lenU(s.L), [ky, uy] = lenU(s.h);
-  const Lx = s.L / kx, hy = s.h / ky, ymax = 1.42 * hy;
-  const P = v.plot({ xlim: [-0.03 * Lx, 1.03 * Lx], ylim: [-0.12 * hy, ymax], pad: { l: small ? 40 : 52, r: small ? 12 : 16, t: 6, b: small ? 26 : 32 } })
-    .axes({ xlabel: 'x [' + ux + '] along the gap', ylabel: small ? '' : 'y [' + uy + ']', grid: false, zeroLines: false,
-      yticks: tiny ? [0] : [0, Number((hy).toPrecision(3))] });
-  const X = x => P.X(x * Lx), Y = y => P.Y(y * hy);                       // starred → pixels
-  const blue = COL.vel(), rose = COL.across(), ink = COL.ink(), muted = COL.muted(), soft = Viz.color('text-soft');
-  const t = s.t || 0;
-  // fluid
-  ctx.save(); ctx.beginPath(); ctx.moveTo(X(0), Y(0));
-  for (let i = 0; i <= 60; i++) { const x = i / 60; ctx.lineTo(X(x), Y(Hx(x))); }
-  ctx.lineTo(X(1), Y(0)); ctx.closePath(); ctx.fillStyle = Viz.alpha(blue, 0.09); ctx.fill(); ctx.restore();
-  // streamlines (faint) and tracers
+/* ---- view 1: the plate ----------------------------------------------------------------------------------------------- */
+let PLP = null, SLC = { key: '' };
+/** Real streamline height above a plate point x for the stream function value ψ = U h: solve s0 Ψ(η) = h, y = η s0. */
+function streamY(h, x, n) {
+  if (x <= 0) return h;
+  const s0 = Math.sqrt(n.nu * x / n.U), tgt = h / s0, Ps = n.sh.Psi;
+  let lo = tgt, hi = tgt + n.ks + 1e-6;
+  for (let i = 0; i < 45; i++) { const m = 0.5 * (lo + hi); if (Ps(m) < tgt) lo = m; else hi = m; }
+  return 0.5 * (lo + hi) * s0;
+}
+function streamlines(s, n) {
+  const key = [s.fluid, s.U, s.shape, n.Xw].join('|');
+  if (SLC.key === key) return SLC;
+  const xs = Viz.num.linspace(0, n.Xw, 61), lines = [];
+  for (let j = 1; j <= 5; j++) { const h = j * n.yTop / 6; lines.push({ h, ys: xs.map(x => streamY(h, x, n)) }); }
+  SLC = { key, xs, lines };
+  return SLC;
+}
+function drawPlate(g, s) {
+  const v = g.view('plate'); v.clear(); PLP = null;
+  if (v.w < 60 || v.h < 50) return;
+  const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 170, ux = uLen(n.Xw), uy = uLen(n.yTop);
+  const BL = Viz.color('blue'), TE = Viz.color('teal'), AM = Viz.color('amber'), OR = Viz.color('orange'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const yt = n.yTop * uy.k;
+  const P = gutterPlot(v, { xlim: [0, n.Xw * ux.k], ylim: [-0.1 * yt, yt], pad: small ? { l: 40, r: 6, t: 6, b: 30 } : { l: 48, r: 10, t: 8, b: 34 }, xlabel: `x [${ux.u}]`, ylabel: `y [${uy.u}]` },
+    () => ({ grid: false, zeroLines: false, xticks: ticks0(n.Xw * ux.k, small ? 3 : 5), yticks: ticks0(yt, small ? 3 : 4), xlabel: `x [${ux.u}]` }));
+  PLP = { P, ux: ux.k };
+  const X = m => m * ux.k, Y = m => m * uy.k;
+  const xsM = Viz.num.linspace(0, n.Xw, 90), sq = x => Math.sqrt(n.nu * x / n.U);
+  const c99 = xsM.map(x => Y(n.E * sq(x))), cs = xsM.map(x => Y(n.sh.ds * sq(x)));
+  const sl = streamlines(s, n), xa = xsM.filter(x => x <= n.x);
   P.clip(() => {
-    STREAMS.forEach(S => P.line(S.X.map(x => x * Lx), S.Y.map(y => y * hy), { color: Viz.alpha(blue, 0.22), width: 1 }));
-    const per = small ? 4 : 6;
-    STREAMS.forEach((S, k) => { for (let i = 0; i < per; i++) {
-      const [x, y] = onStreamAt(S, t + (i + 0.37 * k) * S.T / per);
-      P.dot(x * Lx, y * hy, small ? 2.4 : 3, { color: Viz.alpha('#475569', 0.85) });
-    } });
+    P.fillBetween(xsM.map(X), 0, c99, { color: BL, alpha: 0.07 });
+    sl.lines.forEach(L => { P.line(sl.xs.map(X), sl.xs.map(() => Y(L.h)), { color: TE, width: 1.2, dash: [6, 5], alpha: 0.55 }); P.line(sl.xs.map(X), L.ys.map(Y), { color: TE, width: 2 }); });
+    P.line(xsM.map(X), c99, { color: MU, width: 1.5, dash: [7, 5], alpha: 0.55 });
+    P.line(xa.map(X), xa.map(x => Y(n.E * sq(x))), { color: MU, width: 2.4, dash: [7, 5] });
+    P.line(xsM.map(X), cs, { color: AM, width: 1.5, alpha: 0.45 });
+    P.line(xa.map(X), xa.map(x => Y(n.sh.ds * sq(x))), { color: AM, width: 3 });
+    // the station: line and profile arrows (length ∝ u/U)
+    const xS = P.X(X(n.x)); ctx.save(); ctx.strokeStyle = Viz.alpha(TX, 0.5); ctx.setLineDash([2, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(xS, P.Y(0)); ctx.lineTo(xS, P.px.y); ctx.stroke(); ctx.restore();
+    const Lmax = Math.min(0.2 * P.px.w, 110), ymaxA = Math.min(yt, 1.3 * Y(n.d99)), pixH = P.Y(0) - P.Y(ymaxA);
+    const NA = Math.max(2, Math.min(8, Math.floor(pixH / 10)));
+    const ysP = Viz.num.linspace(0, ymaxA, 60), rP = ysP.map(y => n.sh.r(y / uy.k / n.s0));
+    ctx.save(); ctx.strokeStyle = BL; ctx.lineWidth = 2.4; ctx.beginPath(); ysP.forEach((y, i) => { const Xp = xS + Lmax * rP[i], Yp = P.Y(y); if (i) ctx.lineTo(Xp, Yp); else ctx.moveTo(Xp, Yp); }); ctx.stroke(); ctx.restore();
+    for (let i = 0; i < NA; i++) { const y = (i + 0.5) / NA * ymaxA, r = n.sh.r(y / uy.k / n.s0); arrowPx(ctx, xS, P.Y(y), xS + Lmax * r, P.Y(y), BL, small ? 1.4 : 1.8, small ? 5 : 6); }
   });
-  // walls: upper (fixed, hatched) and lower (sliding at U, moving dashes)
-  ctx.save(); ctx.strokeStyle = ink; ctx.lineWidth = 2.5; ctx.beginPath();
-  for (let i = 0; i <= 60; i++) { const x = i / 60; if (i) ctx.lineTo(X(x), Y(Hx(x))); else ctx.moveTo(X(x), Y(Hx(x))); }
-  ctx.stroke(); ctx.lineWidth = 1; ctx.strokeStyle = Viz.alpha(ink, 0.45);
-  for (let i = 0; i <= 40; i++) { const x = i / 40, yy = Y(Hx(x)); ctx.beginPath(); ctx.moveTo(X(x), yy); ctx.lineTo(X(x) + 6, yy - 7); ctx.stroke(); }
+  // the plate
+  const yb = P.Y(0), ye = P.px.y + P.px.h;
+  hatch(ctx, P.px.x, yb, P.px.w, ye - yb, MU);
+  ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.px.x, yb); ctx.lineTo(P.px.x + P.px.w, yb); ctx.stroke(); ctx.restore();
+  // vertical exaggeration: pixels per metre in y over pixels per metre in x
+  const ex = (P.px.h / (P.ylim[1] - P.ylim[0]) * uy.k) / (P.px.w / (P.xlim[1] - P.xlim[0]) * ux.k);
+  if (!small && ye - yb >= 14) lab(ctx, `plate · vertical exaggeration ×${ex >= 10 ? Math.round(ex) : f3(ex)}`, P.px.x + P.px.w - 4, (yb + ye) / 2, { color: TX, align: 'right' });
+  else if (ye - yb >= 12) lab(ctx, `vertical ×${ex >= 10 ? Math.round(ex) : f3(ex)}`, P.px.x + P.px.w - 4, (yb + ye) / 2, { color: TX, align: 'right' });
+  const xS = P.X(X(n.x));
+  if (!small) {
+    const yl = P.Y(Y(n.d99));
+    if (yl > P.px.y + 10) lab(ctx, `δ₉₉ = ${fL(n.d99)}`, Math.min(xS + 8, P.px.x + P.px.w - 4), yl - 10, { color: MU, weight: 700, align: xS + 90 > P.px.x + P.px.w ? 'right' : 'left' });
+  }
+}
+function plateTitle(s) {
+  const n = N(s);
+  if (phone()) return `<b>Plate</b> · Re_x ${f3(n.Re)} · <span class="c-muted">δ₉₉ ${fL(n.d99)}</span>`;
+  return `<b>The plate</b> · Re_x = ${f3(n.Re)} · <span class="c-muted">δ₉₉ ${fL(n.d99)}</span> · <span class="c-amber">δ*/δ₉₉ ${f3(n.ds / n.d99)}</span> · <span class="c-teal">streamlines</span>`;
+}
+
+/* ---- view 2: u/U at the station -------------------------------------------------------------------------------------- */
+let PRP = null;
+function drawProfile(g, s) {
+  const v = g.view('profile'); v.clear(); PRP = null;
+  if (v.w < 50 || v.h < 40) return;
+  const n = N(s), ctx = v.ctx, small = v.w < 330 || v.h < 170, scaled = s.mode === 'scaled', sh = n.sh, sB = shape('blasius');
+  const BL = Viz.color('blue'), AM = Viz.color('amber'), OR = Viz.color('orange'), MU = Viz.color('muted');
+  const yView = 1.7 * n.d99, uy = uLen(yView), top = scaled ? 8 : yView * uy.k;
+  const toAx = y => scaled ? y / n.s0 : y * uy.k, fromAx = a => scaled ? a * n.s0 : a / uy.k;
+  const P = gutterPlot(v, { xlim: [0, 1.08], ylim: [0, top], pad: small ? { l: 40, r: 6, t: 6, b: 30 } : { l: 50, r: 12, t: 8, b: 34 }, xlabel: 'u/U', ylabel: scaled ? 'η = y/√(νx/U)' : `y [${uy.u}]` },
+    () => ({ xticks: [0, 0.5, 1], yticks: ticks0(top, small ? 3 : 5), xlabel: 'u/U' }));
+  PRP = { P, fromAx };
+  const as = Viz.num.linspace(0, top, 240), et = as.map(a => fromAx(a) / n.s0), rs = et.map(sh.r), gs = rs.map(r => r * (1 - r));
+  const emph = s.emph || 'all', aD = emph === 'loss' ? 0.12 : emph === 'deficit' ? 0.6 : 0.4, aL = emph === 'deficit' ? 0.12 : emph === 'loss' ? 0.65 : 0.4;
+  P.clip(() => {
+    fillX(P, as, rs, rs.map(() => 1), AM, aD);
+    fillX(P, as, gs.map(() => 0), gs, OR, aL);
+    P.line(gs, as, { color: OR, width: 1.6 });
+    P.line([1, 1], [0, top], { color: MU, width: 1, dash: [2, 4] });
+    if (n.sh.name !== 'blasius') P.line(et.map(sB.r), as, { color: MU, width: 1.8, dash: [7, 5] });
+    P.line(rs, as, { color: BL, width: 3 });
+    // heights of the three thicknesses as horizontal ticks
+    [[n.d99, MU, [7, 5]], [n.ds, AM, [7, 5]], [n.th, OR, [7, 5]]].forEach(([h, c, d]) => { const a = toAx(h); if (a <= top) P.line([0, 1.08], [a, a], { color: c, width: 1.6, dash: d }); });
+    const ap = toAx(n.yp); if (ap <= top) P.dot(n.rp, ap, 5, { color: OR, stroke: '#fff', strokeWidth: 2 });
+  });
+  if (!small && v.w >= 300) {
+    const items = [[toAx(n.d99), scaled ? `δ₉₉ = ${f3(n.k99)}` : `δ₉₉ = ${fL(n.d99)}`, MU], [toAx(n.ds), scaled ? `δ* = ${f3(n.ks)}` : `δ* = ${fL(n.ds)}`, AM], [toAx(n.th), scaled ? `θ = ${f3(n.kt)}` : `θ = ${fL(n.th)}`, OR]]
+      .filter(t => t[0] <= top).sort((a, b) => P.Y(a[0]) - P.Y(b[0]));
+    items.forEach(([a, txt, c]) => { const isTh = c === OR; lab(ctx, txt, isTh ? P.X(0.03) : P.X(1.07), P.Y(a) - 10, { color: c, weight: 700, align: isTh ? 'left' : 'right' }); });
+    if (n.sh.name !== 'blasius') lab(ctx, 'Blasius (ghost)', P.X(0.5), P.px.y + P.px.h - 12, { color: MU, align: 'left' });
+  }
+}
+function profileTitle(s) {
+  const n = N(s), scaled = s.mode === 'scaled';
+  if (phone()) return `<b>${scaled ? 'u/U vs η' : 'u/U'}</b> · <span class="c-amber">δ* ${scaled ? f3(n.ks) : fL(n.ds)}</span> · <span class="c-orange">θ ${scaled ? f3(n.kt) : fL(n.th)}</span>`;
+  return `<b>u/U at the station</b> · <span class="c-blue">${SHAPE_NAME[s.shape]}</span> · <span class="c-amber">area 1 − u/U = δ*</span> · <span class="c-orange">area (u/U)(1 − u/U) = θ</span>${scaled ? ' · <span class="c-accent">in units of √(νx/U)</span>' : ''}`;
+}
+
+/* ---- view 3: the three thicknesses against x, log–log ------------------------------------------------------------------- */
+function drawGrowth(g, s) {
+  const v = g.view('growth'); v.clear();
+  if (v.w < 60 || v.h < 40) return;
+  const n = N(s), ctx = v.ctx, shortV = v.h < 130;
+  const AM = Viz.color('amber'), OR = Viz.color('orange'), MU = Viz.color('muted'), TX = Viz.color('text'), GR = Viz.color('grid');
+  const sq = x => Math.sqrt(n.nu * x / n.U), L2 = Math.log10(2);
+  const ylo = Math.log10(n.th / n.s0 * sq(0.01)) - 0.25, yhi = Math.log10(n.E * sq(2)) + 0.6;
+  const P = v.plot({ xlim: [-2, L2], ylim: [ylo, yhi], pad: { l: 56, r: 12, t: 8, b: shortV ? 20 : 34 } });
+  P.axes({ grid: false, xticks: [], yticks: [], xlabel: '', ylabel: '' });
+  ctx.save(); ctx.font = Viz.font(12); ctx.fillStyle = Viz.color('axis'); ctx.strokeStyle = GR; ctx.lineWidth = 1;
+  [[-2, '1 cm'], [-1, '10 cm'], [0, '1 m']].forEach(([l, t]) => { const Xp = Math.round(P.X(l)) + 0.5; ctx.beginPath(); ctx.moveTo(Xp, P.px.y); ctx.lineTo(Xp, P.px.y + P.px.h); ctx.stroke(); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(t, P.X(l), P.px.y + P.px.h + 4); });
+  for (let l = Math.ceil(ylo); l <= Math.floor(yhi); l++) { const Yp = Math.round(P.Y(l)) + 0.5; ctx.beginPath(); ctx.moveTo(P.px.x, Yp); ctx.lineTo(P.px.x + P.px.w, Yp); ctx.stroke(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(lenLabel(l), P.px.x - 5, P.Y(l)); }
+  if (!shortV) { ctx.fillStyle = Viz.color('text-soft'); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('station x (log scale) · thickness (log scale)', P.px.x + P.px.w / 2, v.h - 1); }
   ctx.restore();
-  ctx.save(); ctx.strokeStyle = rose; ctx.lineWidth = 3; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -mod(t * P.px.w * 0.5, 17);
-  ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(1), Y(0)); ctx.stroke(); ctx.restore();
-  // velocity profiles at three stations (blue) and the cross-gap velocity v (blue, dashed)
-  const Lp = Math.min(0.13 * P.px.w, 90), stations = small ? [0.25, 0.75] : [0.18, 0.5, 0.82];
-  const ex = (P.px.h / (1.54 * s.h)) / (P.px.w / (1.06 * s.L));             // vertical px per m ÷ horizontal px per m
-  let vmax = 0; stations.forEach(xs => { const vv = Math.abs(vStar(xs, 0.5 * Hx(xs))); if (vv > vmax) vmax = vv; });
-  // v drawn in the same exaggeration as the heights is a few pixels long; magnify it by a stated 1-2-5 factor
-  const vTrue = SC(s).eps * ex * Lp * vmax, vMag = vTrue >= 12 ? 1 : niceBelow(Math.min(22, 0.18 * P.px.h) / Math.max(vTrue, 1e-9));
-  stations.forEach(xs => {
-    const H = Hx(xs), x0 = X(xs);
-    ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.35); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x0, Y(0)); ctx.lineTo(x0, Y(H)); ctx.stroke(); ctx.restore();
-    const n = 24; ctx.save(); ctx.strokeStyle = blue; ctx.lineWidth = 2; ctx.beginPath();
-    for (let i = 0; i <= n; i++) { const e = i / n, xp = x0 + Lp * uStar(xs, e), yp = Y(e * H); if (i) ctx.lineTo(xp, yp); else ctx.moveTo(xp, yp); }
-    ctx.stroke(); ctx.restore();
-    if (!tiny) [0.2, 0.45, 0.7].forEach(e => arrowPx(ctx, x0, Y(e * H), x0 + Lp * uStar(xs, e), Y(e * H), Viz.alpha(blue, 0.8), 1.4, 6));
-    const yv = 0.5 * H, vv = vStar(xs, yv) * SC(s).eps * ex * Lp * vMag;
-    arrowPx(ctx, x0 - 10, Y(yv), x0 - 10, Y(yv) - vv, blue, 2.4, 7);
+  const lx = Math.log10(n.x), Q = [[n.E, MU, 'δ₉₉'], [n.sh.ds, AM, 'δ*'], [n.sh.th, OR, 'θ']];
+  P.clip(() => {
+    Q.forEach(([k, c]) => {
+      const yy = x => Math.log10(k * sq(x));
+      P.line([-2, L2], [yy(0.01), yy(2)], { color: c, width: 1.6, alpha: 0.4 });
+      P.line([-2, lx], [yy(0.01), yy(n.x)], { color: c, width: 3.2 });
+      P.dot(lx, yy(n.x), 5.5, { color: c, stroke: '#fff', strokeWidth: 2 });
+    });
+    P.line([lx, lx], [ylo, yhi], { color: TX, width: 1, dash: [2, 4], alpha: 0.6 });
   });
-  // labels
-  const S = SC(s);
-  arrowPx(ctx, X(0.36), Y(-0.06), X(0.36) + Math.min(60, 0.12 * P.px.w), Y(-0.06), rose, 2.6, 8);
-  if (!tiny) {
-    Viz.text(ctx, 'U = ' + fmtSpd(s.U), X(0.36) + Math.min(60, 0.12 * P.px.w) + 6, Y(-0.06), { size: 12, color: rose, bg: true, weight: 650 });
-    const exLab = small ? 'heights ×' + f3(ex) : 'heights ×' + f3(ex) + (vMag > 1 ? ' · v arrows ×' + f3(vMag) + ' more' : '');
-    if (P.px.w >= 330) Viz.text(ctx, 'L = ' + fmtLen(s.L) + ' · h = ' + fmtLen(s.h), P.px.x + 6, P.px.y + 10, { size: 12, color: ink, bg: true, weight: 650 });
-    Viz.text(ctx, exLab, P.px.x + P.px.w - 4, P.px.y + (P.px.w >= 330 ? 10 : 10), { size: 12, align: 'right', color: soft, bg: true });
-    if (!small) {
-      Viz.text(ctx, 'v ~ εU = ' + fmtSpd(S.eps * s.U) + ' ↕', X(stations[0]) - 16, Y(0.5 * Hx(stations[0])) - 18, { size: 12, align: 'right', color: blue, bg: true });
-      Viz.text(ctx, 'u ~ U', X(stations[1]) + Lp + 6, Y(0.3 * Hx(stations[1])), { size: 12, color: blue, bg: true });
-    }
+  if (!shortV && v.w >= 300) {
+    Q.forEach(([k, c, t]) => lab(ctx, t, P.X(L2) - 6, P.Y(Math.log10(k * sq(2))) + (c === OR ? 12 : -12), { color: c, weight: 700, align: 'right' }));
+    const xa = -1.5, xb = -0.9, ya = Math.log10(n.E * sq(Math.pow(10, xa))) + 0.32;                // slope-½ triangle
+    P.line([xa, xb, xb, xa], [ya, ya, ya + 0.3, ya], { color: TX, width: 1.3 }); lab(ctx, 'slope ½', P.X(xb) + 6, P.Y(ya + 0.15), { color: TX, align: 'left' });
   }
 }
-
-/* ---------------------------------------------------------------------------------------------------
-   THE TERM BARS on a log axis (coefficients of (8.16a) or (8.16b); every starred derivative is O(1))
-   --------------------------------------------------------------------------------------------------- */
-const XITEMS = [['x_inertia', 'inertia', 'ε²Re_L', 'inertia'], ['x_pressure', 'pressure', '1/Λ', 'pressure'], ['x_diff_along', 'friction along', 'ε²', 'along'], ['x_diff_across', 'friction across', '1', 'across']];
-const YITEMS = [['y_inertia', 'inertia', 'ε⁴Re_L', 'inertia'], ['y_pressure', 'pressure', '1/Λ', 'pressure'], ['y_diff_along', 'friction along', 'ε⁴', 'along'], ['y_diff_across', 'friction across', 'ε²', 'across']];
-const LOGMIN = -16, LOGMAX = 4;
-const barGeo = {};
-function pressLab(s) { return (s.pscale || 'viscous') === 'atm' ? '1/Λ' : '1 (μUL/h²)'; }
-function drawBars(v, s, which) {
-  v.clear();
-  const ctx = v.ctx, W = v.w, Hh = v.h;
-  if (W < 60 || Hh < 50) return;
-  const T = TM(s), items = which === 'x' ? XITEMS : YITEMS, ink = COL.ink(), soft = Viz.color('text-soft'), muted = COL.muted();
-  const narrowV = W < 330, lw = narrowV ? 62 : Math.min(150, 0.34 * W), x0 = lw + 8, x1 = W - 12, axisH = 24;
-  const head = (x1 - x0) > 240 && Hh > 150, top = head ? 20 : 4;
-  const rh = Math.min(50, (Hh - axisH - top - 4) / 4), XL = lg => x0 + (Math.max(LOGMIN, Math.min(LOGMAX, lg)) - LOGMIN) / (LOGMAX - LOGMIN) * (x1 - x0);
-  const vals = items.map(it => T[it[0]]);
-  const atm = (s.pscale || 'viscous') === 'atm';
-  // the real size of each term = coefficient × typical size of its starred derivative (p* ~ Λ when P = P_a)
-  const real = items.map((it, i) => (it[3] === 'pressure' && atm && which === 'x') ? 1 : vals[i]);
-  const ref = which === 'x' ? 1 : Math.max(...real);
-  // dropped band (≤ 1 % of the largest term) and the yardstick line
-  const yB = top + 4 * rh;
-  ctx.save(); ctx.fillStyle = Viz.alpha(muted, 0.14); ctx.fillRect(x0, top, XL(Math.log10(0.01 * ref)) - x0, yB - top); ctx.restore();
-  ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.6); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(XL(Math.log10(ref)), top); ctx.lineTo(XL(Math.log10(ref)), yB); ctx.stroke(); ctx.restore();
-  // axis: decades
-  ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.5); ctx.beginPath(); ctx.moveTo(x0, yB + 1); ctx.lineTo(x1, yB + 1); ctx.stroke(); ctx.restore();
-  const stepD = (x1 - x0) > 360 ? 2 : 4;
-  for (let e = LOGMIN; e <= LOGMAX; e += stepD) {
-    const xx = XL(e);
-    ctx.save(); ctx.strokeStyle = Viz.alpha(ink, 0.5); ctx.beginPath(); ctx.moveTo(xx, yB + 1); ctx.lineTo(xx, yB + 5); ctx.stroke(); ctx.restore();
-    Viz.text(ctx, e === 0 ? '1' : pow10(e), xx, yB + 14, { size: 12, align: 'center', color: soft });
-  }
-  if (head) {
-    const xb = XL(Math.log10(0.01 * ref));
-    Viz.text(ctx, xb - x0 > 240 ? (which === 'x' ? '◂ dropped: under 1 % of friction' : '◂ dropped: under 1 % of the largest') : '◂ dropped', xb - 4, 9, { size: 12, align: 'right', color: soft });
-  }
-  barGeo[which] = { top, rh, items };
-  items.forEach((it, i) => {
-    const y = top + i * rh, val = vals[i], col = COL[it[3]](), foc = s.focus === it[0];
-    const kept = real[i] >= 0.01 * ref;
-    if (foc) { ctx.save(); ctx.fillStyle = Viz.alpha(Viz.color('amber'), 0.18); ctx.fillRect(0, y + 1, W, rh - 2); ctx.restore(); }
-    const lg = Math.log10(val), xe = XL(lg), bh = Math.max(6, Math.min(26, rh - 12));
-    ctx.save(); ctx.fillStyle = Viz.alpha(col, kept ? 0.9 : 0.4); ctx.fillRect(x0, y + (rh - bh) / 2, Math.max(2, xe - x0), bh);
-    if (foc) { ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.strokeRect(x0, y + (rh - bh) / 2, Math.max(2, xe - x0), bh); }
-    ctx.restore();
-    if (lg < LOGMIN) Viz.text(ctx, '◂', x0 + 2, y + rh / 2, { size: 12, color: ink });
-    // the pressure term with P = P_a: the coefficient 1/Λ is not its size — p* ~ Λ, so the term is ~1 (dashed)
-    if (it[3] === 'pressure' && atm && which === 'x' && Math.abs(lg) > 0.05) {
-      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]);
-      ctx.strokeRect(Math.min(xe, XL(0)), y + (rh - bh) / 2, Math.abs(XL(0) - xe), bh); ctx.restore();
-    }
-    const sym = it[3] === 'pressure' ? (atm ? '1/Λ' : '1') : it[2];
-    const lab = narrowV ? sym : it[1] + '  ' + sym;
-    Viz.text(ctx, lab, 4, y + rh / 2, { size: 12, color: it[3] === 'along' ? Viz.color('rose') : col, weight: kept ? 700 : 500, maxWidth: lw });
-    const vt = (lg < LOGMIN ? '< ' + pow10(LOGMIN) + ' (' + f3(val) + ')' : f3(val)) + (kept ? '' : ' ✗');
-    const right = xe + 90 > x1;
-    Viz.text(ctx, vt, right ? Math.max(x0 + 40, xe - 4) : xe + 4, y + rh / 2, { size: 12, align: right ? 'right' : 'left', color: ink, bg: true, weight: kept ? 700 : 500 });
-  });
-}
-function barsTitle(s, which) {
-  const T = TM(s), S = SC(s);
-  if (which === 'x') {
-    if (phone() && s.focus && s.focus[0] === 'y') return `<b>y-momentum</b> · ∂p*/∂y* ~ ε² = ${f3(S.eps ** 2)}`;
-    return phone() ? `<b>x-momentum</b> · <b class="c-teal">inertia ${f3(T.x_inertia)}</b> vs <b class="c-rose">friction 1</b> · y: ∂p/∂y ≈ 0`
-      : `<b>x-momentum</b> · <b class="c-teal">inertia</b> ${f3(T.x_inertia)} vs <b class="c-rose">friction</b> 1`;
-  }
-  return `<b>y-momentum</b> · ∂p*/∂y* ~ ε² = ${f3(S.eps ** 2)}`;
+function growthTitle(s) {
+  const n = N(s);
+  return `<b>δ₉₉, δ*, θ against x</b> · parallel lines of slope ½ · <span class="c-muted">${f3(n.k99)}</span> : <span class="c-amber">${f3(n.ks)}</span> : <span class="c-orange">${f3(n.kt)}</span> × √(νx/U)`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   TeX of the book's equations (shown next to every number that cites them)
-   --------------------------------------------------------------------------------------------------- */
-const EQ = {
-  e62: '\\frac{\\partial u}{\\partial x}+\\frac{\\partial v}{\\partial y}=0',
-  e13a: '\\begin{aligned}&\\frac{\\partial u}{\\partial t}+u\\frac{\\partial u}{\\partial x}+v\\frac{\\partial u}{\\partial y}\\\\ &=-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\frac\\mu\\rho\\Big(\\frac{\\partial^2u}{\\partial x^2}+\\frac{\\partial^2u}{\\partial y^2}\\Big)\\end{aligned}',
-  e13b: '\\begin{aligned}&\\frac{\\partial v}{\\partial t}+u\\frac{\\partial v}{\\partial x}+v\\frac{\\partial v}{\\partial y}\\\\ &=-\\frac1\\rho\\frac{\\partial p}{\\partial y}+\\frac\\mu\\rho\\Big(\\frac{\\partial^2v}{\\partial x^2}+\\frac{\\partial^2v}{\\partial y^2}\\Big)\\end{aligned}',
-  e14: '\\begin{aligned}&x^*=\\frac xL,\\ \\ y^*=\\frac y{\\varepsilon L},\\ \\ t^*=\\frac{Ut}L,\\\\ &u^*=\\frac uU,\\ \\ v^*=\\frac v{\\varepsilon U},\\ \\ p^*=\\frac p{P_a}\\end{aligned}',
-  e14s: 'y^*=y/\\varepsilon L,\\ v^*=v/\\varepsilon U',
-  e15: '\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\partial v^*}{\\partial y^*}=0',
-  e15s: '\\tfrac{\\partial u^*}{\\partial x^*}+\\tfrac{\\partial v^*}{\\partial y^*}=0',
-  e16a: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L\\Big(\\frac{\\partial u^*}{\\partial t^*}\\\\ &\\quad+u^*\\frac{\\partial u^*}{\\partial x^*}+v^*\\frac{\\partial u^*}{\\partial y^*}\\Big)\\\\ &=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-  e16b: '\\begin{aligned}&\\varepsilon^4\\mathrm{Re}_L\\Big(\\frac{\\partial v^*}{\\partial t^*}\\\\ &\\quad+u^*\\frac{\\partial v^*}{\\partial x^*}+v^*\\frac{\\partial v^*}{\\partial y^*}\\Big)\\\\ &=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}\\\\ &\\quad+\\varepsilon^4\\frac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\frac{\\partial^2v^*}{\\partial y^{*2}}\\end{aligned}',
-  e16ac: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L\\frac{Du^*}{Dt^*}=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-  e16as: '\\varepsilon^2\\mathrm{Re}_L\\tfrac{Du^*}{Dt^*}=-\\tfrac1\\Lambda\\tfrac{\\partial p^*}{\\partial x^*}+\\varepsilon^2\\tfrac{\\partial^2u^*}{\\partial x^{*2}}+\\tfrac{\\partial^2u^*}{\\partial y^{*2}}',
-  e16bs: '\\varepsilon^4\\mathrm{Re}_L\\tfrac{Dv^*}{Dt^*}=-\\tfrac1\\Lambda\\tfrac{\\partial p^*}{\\partial y^*}+\\varepsilon^4\\tfrac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\tfrac{\\partial^2v^*}{\\partial y^{*2}}',
-  e17a: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\nu\\frac{\\partial^2u}{\\partial y^2}',
-  e17b: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial y}',
-  e17as: '0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial x}+\\nu\\tfrac{\\partial^2u}{\\partial y^2}',
-  e17bs: '0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial y}'
-};
-const $ = t => '$' + t + '$';
-const colI = (cls, html) => `<b class="${cls}">${html}</b>`;
-
-// numbers quoted in the walkthrough and the quiz — computed, never typed
-const E0 = scalesRaw(ENG.L, ENG.h, ENG.U, ENG.rho, ENG.rho * ENG.nu), TK = scalesRaw(THICK.L, THICK.h, THICK.U, THICK.rho, THICK.rho * THICK.nu);
-const hCrit = ENG.h / Math.sqrt(E0.eps2_Re_L);   // ε²Re_L ∝ h² at fixed L, U, ν: the gap where it reaches 1
-
-/* ---------------------------------------------------------------------------------------------------
-   inspector: the coefficient of the clicked term, worked out with the reader's numbers
-   --------------------------------------------------------------------------------------------------- */
+/* ---- status, inspector, notes --------------------------------------------------------------------------------------------- */
+function statusOf(s) {
+  const n = N(s), sm = phone(), r = n.d99 / n.x;
+  if (n.Re < 100) return { text: sm ? `⚠️ not thin · Re ${f3(n.Re)} · δ/x ${f3(r)}` : `⚠️ layer not thin: Re_x = ${f3(n.Re)}, δ₉₉/x = ${f3(r)} — the layer equations need Re_x ≫ 1`, tone: 'warn' };
+  if (n.Re >= 5e5) return { text: sm ? `🌀 Re ${f3(n.Re)} · expect transition` : `🌀 Re_x = ${f3(n.Re)} ≥ 5×10⁵: expect transition — this laminar layer is only the start (Chs. 11–12)`, tone: 'bad' };
+  return { text: sm ? `🟢 thin · Re ${f3(n.Re)} · δ/x ${f3(r)}` : `🟢 thin attached layer: Re_x = ${f3(n.Re)}, δ₉₉/x = ${f3(r)}`, tone: 'good' };
+}
 function inspectHtml(s) {
-  if (!s.focus) return null;
-  const S = SC(s), T = TM(s), mu = muOf(s), atm = (s.pscale || 'viscous') === 'atm';
-  const e = t4(S.eps), R = t4(S.Re_L), yard = s.focus[0] === 'x' ? 'the cross-gap friction (1)' : 'the pressure coefficient';
-  const tail = (v) => `$=\\mathbf{${t3(v)}}$ — ${f3(s.focus[0] === 'x' ? v : v / T.y_pressure)} × ${yard}.`;
-  const pres = atm
-    ? `$\\begin{aligned}\\tfrac1\\Lambda&=\\tfrac{P_ah^2}{\\mu UL}\\\\ &=\\tfrac{101325\\times(${t3(s.h)})^2}{${t3(mu)}\\times${t3(s.U)}\\times${t3(s.L)}}\\end{aligned}$ ` + tail(T.x_pressure) + ' The real term is ~1: with $P_a$ the scaled pressure $p^*$ is of size $\\Lambda$ = ' + f3(S.Lambda) + ', not 1 (dashed bar).'
-    : `with $P=\\mu UL/h^2$ = ${fmtPa(S.p_visc)} the coefficient $Ph^2/(\\mu UL)$ is exactly 1 ` + tail(T.x_pressure);
-  const map = {
-    x_inertia: `$\\begin{aligned}\\varepsilon^2\\mathrm{Re}_L&=\\big(\\tfrac hL\\big)^2\\tfrac{UL}{\\nu}\\\\ &=(${e})^2\\times${R}\\end{aligned}$ ` + tail(T.x_inertia),
-    x_pressure: pres, y_pressure: pres.replace(tail(T.x_pressure), tail(T.y_pressure)),
-    x_diff_along: `$\\varepsilon^2=(${e})^2$ ` + tail(T.x_diff_along),
-    x_diff_across: '$1$ by construction: we divided the whole equation by the cross-gap friction\'s own scale $\\mu U/(\\rho\\varepsilon^2L^2)$ ' + tail(1),
-    y_inertia: `$\\begin{aligned}\\varepsilon^4\\mathrm{Re}_L&=(${e})^4\\times${R}\\end{aligned}$ ` + tail(T.y_inertia),
-    y_diff_along: `$\\varepsilon^4=(${e})^4$ ` + tail(T.y_diff_along),
-    y_diff_across: `$\\varepsilon^2=(${e})^2$ ` + tail(T.y_diff_across)
-  };
-  const name = (XITEMS.concat(YITEMS).find(it => it[0] === s.focus) || [0, ''])[1];
-  return `<b>${s.focus[0]}-momentum, ${name}:</b> ` + (map[s.focus] || '');
+  const n = N(s);
+  const head = R`Probe $\eta=\frac{y}{\sqrt{\nu x/U}}=\frac{${tL(n.yp)}}{${tL(n.s0)}}=\mathbf{${t3(n.eta)}}$<br>`;
+  const prof = s.shape === 'blasius' ? R`$u=U f'(\eta)=${t3(n.U)}\times${t4(n.rp)}=\mathbf{${t4(n.up)}}$ m/s` : R`$u=U\,r(\eta)=${t3(n.U)}\times${t4(n.rp)}=\mathbf{${t4(n.up)}}$ m/s (${SHAPE_NAME[s.shape]} profile)`;
+  return head + prof + R`<br>at height $y=${tL(n.yp)}$ above the plate, $x=${t3(n.x)}$ m.`;
+}
+function interpText(s) {
+  const n = N(s), r = n.d99 / n.x;
+  let t;
+  if (n.Re < 100) t = `Re_x = ${f3(n.Re)}: the layer is ${f3(r)} times as thick as the distance from the leading edge, so it is not thin at all. The layer approximations of Ch. 9 need Re_x ≫ 1; here the full Navier–Stokes equations are needed.`;
+  else if (n.Re >= 5e5) t = `Re_x = ${f3(n.Re)} is past the rule-of-thumb 5×10⁵ (an argument in fluidpy, not a law): a real layer would turn turbulent here. The laminar numbers are the start of the story, not all of it.`;
+  else t = `The layer is a sliver: δ₉₉/x = ${f3(r)}. It is thin <i>because</i> Re_x = ${f3(n.Re)} is large. Moving x by 4 only doubles δ; all three thicknesses grow like √x, so their ratios never change for a given profile.`;
+  const sp = { blasius: 'Blasius: H = 2.59, the value for a real laminar layer.', linear: 'Linear: H = 3, δ* is half of δ₉₉ — a profile that is too slow near the wall.', sine: 'Sine: H = 2.66, close to Blasius.', cubic: 'Cubic: H = 2.69, close to Blasius.', exponential: 'Exponential: H = 2, δ* = a and θ = a/2.', power: 'Power law p = 7 (like a turbulent layer): H = 1.29 — a full profile has δ* and θ far smaller than δ₉₉.' }[s.shape];
+  return `<p>${t}</p><p>${sp}</p>`;
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
-const app = Viz.app({
-  title: 'Why can a thin film ignore inertia?',
-  subtitle: 'A gap much longer than it is high: scale each direction with its own length and every term of the momentum equations becomes a bar — the gap, the x-bars and the y-bars on one state',
-  autoplay: true,
-  params: {
-    h: { label: 'Gap $h$', min: 1e-6, max: 5e-3, value: ENG.h, log: true, unit: 'm', fmt: fmtLen, help: 'the film thickness' },
-    L: { label: 'Length $L$', min: 1e-3, max: 1, value: ENG.L, log: true, unit: 'm', fmt: fmtLen, help: 'the length of the passage' },
-    U: { label: 'Speed $U$', min: 1e-3, max: 30, value: ENG.U, log: true, unit: 'm/s', fmt: fmtSpd, help: 'the sliding speed' },
-    nu: { label: 'Viscosity $\\nu$', min: 1e-6, max: 1e-2, value: ENG.nu, log: true, unit: 'm²/s', fmt: fmtNu, help: 'kinematic viscosity (water 10⁻⁶, oil ~10⁻⁴)' },
-    rho: { label: 'Density $\\rho$', min: 800, max: 1300, step: 10, value: ENG.rho, unit: 'kg/m³', optional: true, fmt: v => v.toFixed(0) + ' kg/m³', help: 'only the pressure scale μ = ρν needs it' },
-    t: { label: 'time $t^*=Ut/L$', min: 0, max: 20, step: 'any', value: 0, optional: true, fmt: v => v.toFixed(2) }
-  },
-  modes: { param: 'pscale', label: 'Pressure scale', options: [['viscous', 'p by μUL/h²'], ['atm', 'p by Pₐ (book)']] },
-  transport: { param: 't', min: 0, max: 20, rate: 0.6, end: 'loop', label: 'time $t^*=Ut/L$' },
-  presets: [
-    { label: 'engine film', set: Object.assign({ focus: null }, ENG), title: 'oil film 50 µm × 5 cm at 5 m/s' },
-    { label: 'Hele-Shaw', set: Object.assign({ focus: null }, HELE), title: 'glycerine between two plates 1 mm apart' },
-    { label: 'knee (rough)', set: Object.assign({ focus: null }, KNEE), title: 'order of magnitude only' },
-    { label: 'thick gap ✗', set: Object.assign({ focus: null }, THICK), title: 'water, 2 mm × 1 cm at 1 m/s: lubrication fails' }
-  ],
-  status: s => {
-    const S = SC(s), k = verdict(s), ph = phone(), e = f3(S.eps), r = f3(S.eps2_Re_L);
-    if (k === 'valid') return { tone: 'good', text: ph ? `✅ thin film: ε²Re_L = ${r} ≪ 1` : `✅ lubrication valid: ε²Re_L = ${r} ≪ 1 and ε = ${e} ≪ 1` + (wideWin() ? ` (Re_L = ${f3(S.Re_L)} alone would mislead)` : '') };
-    if (k === 'marginal') return { tone: 'warn', text: ph ? `⚠️ marginal: ε²Re_L = ${r}, ε = ${e}` : `⚠️ marginal: ε²Re_L = ${r}, ε = ${e} — inertia is a few per cent of friction` };
-    if (k === 'thick') return { tone: 'bad', text: ph ? `❌ not thin: ε = ${e}` : `❌ not thin: ε = ${e} — the gap is not much thinner than it is long` };
-    return { tone: 'bad', text: ph ? `❌ inertia matters: ε²Re_L = ${r} > 1` : `❌ inertia matters: ε²Re_L = ${r} > 1 (ε = ${e}, Re_L = ${f3(S.Re_L)})` };
-  },
-  readouts: [
-    { id: 'eps', label: 'Thinness $\\varepsilon=h/L$', value: s => SC(s).eps, fmt: f3 },
-    { id: 'ReL', label: 'Reynolds $\\mathrm{Re}_L$', value: s => SC(s).Re_L, fmt: f3 },
-    { id: 'e2', label: 'Inertia $\\varepsilon^2\\mathrm{Re}_L$', value: s => SC(s).eps2_Re_L, fmt: f3 },
-    { id: 'Lam', label: 'Bearing no. $\\Lambda$', value: s => SC(s).Lambda, fmt: f3 },
-    { id: 'pv', optional: true, label: 'Pressure $\\mu UL/h^2$', value: s => SC(s).p_visc, fmt: v => fmtPa(v) + ' (' + f3(v / P_ATM) + ' atm)' },
-    { id: 'v', label: 'Cross speed $v\\sim\\varepsilon U$', value: s => SC(s).eps * s.U, fmt: fmtSpd }
-  ],
-  terms: { title: 'x-momentum: coefficient of each term', unit: '', items: [
-    { id: 'x_inertia', label: 'inertia $\\varepsilon^2\\mathrm{Re}_L$', color: Viz.color('teal'), value: s => TM(s).x_inertia },
-    { id: 'x_pressure', label: 'pressure $Ph^2/\\mu UL$', color: Viz.color('orange'), value: s => TM(s).x_pressure },
-    { id: 'x_diff_along', label: 'friction along $\\varepsilon^2$', color: Viz.alpha(Viz.color('rose'), 0.55), value: s => TM(s).x_diff_along },
-    { id: 'x_diff_across', label: 'friction across $1$', color: Viz.color('rose'), value: s => TM(s).x_diff_across }
-  ], total: { label: 'dropped: inertia + along', value: s => { const T = TM(s); return T.x_inertia + T.x_diff_along; } } },
-  stage: {
-    rows: [1, 1.15],
-    views: [
-      { id: 'gap', row: 0, flex: 1, title: s => phone() ? `<b>The gap</b> h = ${fmtLen(s.h)}, L = ${fmtLen(s.L)} · <b class="c-blue">u, v</b>`
-        : `<b>The gap</b> (heights stretched) · <b class="c-blue">velocity profiles u(y) and cross-gap v</b> · grey dots: fluid · <b class="c-rose">wall sliding at U</b>` },
-      { id: 'xbars', row: 1, flex: 1, title: s => barsTitle(s, 'x') },
-      { id: 'ybars', row: 1, flex: 1, hidePortrait: true, title: s => barsTitle(s, 'y') }
+/* ---- Explain: "Explanation & interpretation" ---------------------------------------------------------------------------- */
+function numericCheck(name) {           // Simpson of the drawn curve against the closed form (smooth shapes only)
+  if (name === 'power') return null;
+  const g = gridOf(name), t = thick(g.y, g.u, 1), sh = shape(name);
+  return { ds: t.delta_star, th: t.theta, d99: t.delta99, dsC: sh.ds, thC: sh.th };
+}
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), sm = phone(), sh = n.sh;
+  let o = W.step(0, 'What the views show') + (sm
+    ? W.say('<b>Plate</b>: <b class="c-blue">blue</b> arrows are the profile at your station, <b class="c-teal">teal</b> streamlines, <b class="c-amber">amber</b> the height δ*. <b>u/U</b>: the profile with the <b class="c-amber">amber</b> area (δ*) and the <b class="c-orange">orange</b> area (θ).')
+    : W.say('<b>The plate</b>: the <b class="c-blue">blue</b> arrows are the velocity profile at your station; the <b class="c-muted">grey</b> dashed curve is δ₉₉ (where u reaches 99 % of U); the <b class="c-amber">amber</b> curve is δ*, the height by which the layer lifts the outer streamlines (<b class="c-teal">teal</b> dashed = ideal, solid = real). <b>u/U</b>: the profile (blue); the <b class="c-amber">amber</b> area is the missing speed 1 − u/U, whose size is δ*; the <b class="c-orange">orange</b> area is (u/U)(1 − u/U), whose size is θ. <b>Growth</b>: the three thicknesses on log axes, parallel lines of slope ½.')) +
+    W.hint('The growth view is hidden on phones; its numbers are in §2 and §6. Turn the phone sideways for the plate and the profile side by side.');
+  o += W.step(1, 'How big is the layer?') +
+    W.line(R`$Re_x=\frac{Ux}{\nu}=\frac{${t3(n.U)}\times${t3(n.x)}}{${t3(n.nu)}}$`, f3(n.Re), 'the Reynolds number built on the distance from the leading edge') +
+    W.line(R`$\frac{\bar\delta}{x}\sim Re_x^{-1/2}=\frac{1}{\sqrt{${t3(n.Re)}}}$`, f3(n.sc.delta_over_L), R`advection $U^2/x$ balances viscosity $\nu U/\bar\delta^2$: this is $\bar\delta/L\sim Re^{-1/2}$ (9.4)`) +
+    W.line(R`$\bar\delta=\sqrt{\nu x/U}=\sqrt{\frac{${t3(n.nu)}\times${t3(n.x)}}{${t3(n.U)}}}$`, fL(n.sc.delta), 'the size of the layer, to within a factor of order one') +
+    W.line(R`$v\sim U\,Re_x^{-1/2}$`, f3(n.sc.v_scale * 1e3) + ' mm/s', R`continuity: the cross-flow is small, $v\sim\bar\delta U/x$`) +
+    W.line(R`$\frac{\nu U/x^2}{\nu U/\bar\delta^2}=\frac{1}{Re_x}$`, f3(1 / n.Re), R`the dropped streamwise diffusion against the kept cross-stream diffusion, as in $\frac{1}{Re}u^*_{x^*x^*}$ of (9.7)`) +
+    W.box(R`$\bar\delta\approx\mathbf{${tL(n.sc.delta)}}$ thick at $x=${t3(n.x)}$ m: $\bar\delta/x=\mathbf{${t3(n.sc.delta_over_L)}}$`);
+  const chk = numericCheck(s.shape);
+  o += W.step(2, `Three thicknesses of the ${SHAPE_NAME[s.shape]} profile`) +
+    W.line(R`$\sqrt{\nu x/U}=\sqrt{\frac{${t3(n.nu)}\times${t3(n.x)}}{${t3(n.U)}}}$`, fL(n.s0), 'the length every thickness is measured in') +
+    W.line(R`$\delta_{99}=\eta_{99}\sqrt{\nu x/U}=${t4(n.k99)}\times${tL(n.s0)}$`, fL(n.d99), R`where $u/U$ first reaches 0.99; every shape here is scaled to the same $\eta_{99}$`) +
+    W.line(R`$\delta^*=\int_0^\infty\Big(1-\frac{u}{U_e}\Big)dy=${t4(n.ks)}\times${tL(n.s0)}$`, fL(n.ds), R`the amber area: $\delta^*=\int_0^\infty(1-u/U_e)dy$ (9.16)`) +
+    W.line(R`$\theta=\int_0^\infty\frac{u}{U_e}\Big(1-\frac{u}{U_e}\Big)dy=${t4(n.kt)}\times${tL(n.s0)}$`, fL(n.th), R`the orange area: $\theta=\int_0^\infty\frac{u}{U_e}(1-\frac{u}{U_e})dy$ (9.17)`) +
+    W.line(R`$H=\frac{\delta^*}{\theta}=\frac{${t4(n.ks)}}{${t4(n.kt)}}$`, f3(n.H), 'the shape factor: a full profile has a small $H$') +
+    W.box(R`$\delta_{99}=\mathbf{${tL(n.d99)}}$, $\ \delta^*=\mathbf{${tL(n.ds)}}$, $\ \theta=\mathbf{${tL(n.th)}}$, $\ H=\mathbf{${t3(n.H)}}$`) +
+    (s.shape === 'blasius' ? W.say('For the Blasius profile the coefficients are 4.910, 1.721 and 0.6641 (computed by the Töpfer method, then integrated).') : W.say('The coefficients of this shape come from the closed-form integrals of its curve; Blasius, with 4.910, 1.721 and 0.6641, is the reference.')) +
+    (chk ? W.line('Simpson sum of the drawn curve', `δ* ${f4(chk.ds)}, θ ${f4(chk.th)}`, `against the closed forms ${f4(chk.dsC)} and ${f4(chk.thC)}: the integrals are what the curve says`) : W.say(R`The power-law curve has an infinite slope at the wall, so a Simpson sum converges slowly there; its closed forms $\delta^*=\delta/(p+1)$ and $\theta=p\delta/((p+1)(p+2))$ are used.`)) +
+    W.table(['profile', 'δ₉₉', 'δ*', 'θ', 'H'], SHAPES.map(([k]) => { const q = shape(k); return [SHAPE_NAME[k], f4(q.k99), f4(q.ds), f4(q.th), f3(q.H)]; }), SHAPES.findIndex(a => a[0] === s.shape)) +
+    W.hint('Coefficients are in units of √(νx/U): same δ₉₉, different δ* and θ.');
+  o += W.step(3, 'Where the outer streamlines go') +
+    W.line(R`$\frac{d\delta^*}{dx}=\frac{\delta^*}{2x}=\frac{${tL(n.ds)}}{2\times${t3(n.x)}\ \text{m}}$`, f3(n.slope), R`the layer thickens like $\sqrt x$, so its slope is $\delta^*/2x$`) +
+    W.line(R`$v_\infty=U\,\frac{d\delta^*}{dx}=${t3(n.U)}\times${t3(n.slope)}$`, f3(n.vinf * 1e3) + ' mm/s', 'continuity: the slowed fluid in the layer pushes the outer flow outward (D03)') +
+    W.box(R`the outer streamlines rise with slope $\mathbf{${t3(n.slope)}}$; at $x=${t3(n.x)}$ m they are lifted by $\delta^*=\mathbf{${tL(n.ds)}}$`) +
+    (s.shape === 'blasius' ? W.line(R`$v_\infty=0.8604\,U/\sqrt{Re_x}=0.8604\times${t3(n.U)}/\sqrt{${t3(n.Re)}}$`, f3(0.8604 * n.U / Math.sqrt(n.Re) * 1e3) + ' mm/s', R`the same number: $\delta^*/2$ is $0.8604$ in units of $\sqrt{\nu x/U}$`) : W.hint('For a shape other than Blasius the layer is only sketched: the lift uses your δ*, the flow field of a real layer would differ.'));
+  o += W.step(4, 'A crude wall stress against Blasius') +
+    W.line(R`$\tau_0\sim\frac{\mu U}{\bar\delta}=\frac{${t3(n.rho * n.nu)}\times${t3(n.U)}}{${tL(n.sc.delta)}}$`, f3(n.tau0crude) + ' Pa', R`with $\mu=\rho\nu$ (scale estimate, order of magnitude only)`) +
+    W.line(R`$\tau_0=0.332\,\frac{\rho U^2}{\sqrt{Re_x}}=0.332\times\frac{${t3(n.rho)}\times${t3(n.U)}^2}{\sqrt{${t3(n.Re)}}}$`, f3(n.tau0) + ' Pa', R`the Blasius wall stress, $\tau_0=0.332\rho U^2/\sqrt{Re_x}$ (9.31)`) +
+    W.box(R`crude / Blasius $=\mathbf{${t3(n.tau0crude / n.tau0)}}\approx3$: the estimate gets the $Re$ dependence right and the factor wrong`);
+  o += W.step(5, 'The momentum the wall removes') +
+    W.line(R`$\rho U^2\theta=${t3(n.rho)}\times${t3(n.U)}^2\times${tL(n.th)}$`, f3(n.Fd) + ' N/m', R`momentum defect per unit width, $\theta=\int_0^\infty\frac uU(1-\frac uU)dy$ (9.17)`) +
+    (s.shape === 'blasius' ? W.line(R`$\int_0^x\tau_0\,dx=2\,tau_0\,x=2\times${t3(n.tau0)}\times${t3(n.x)}$`, f3(2 * n.tau0 * n.x) + ' N/m', 'the wall friction added up along the plate: the same number (D04)') : W.hint('Only for the real (Blasius) profile does ρU²θ equal the friction ∫τ₀dx; switch to Blasius to see the two agree.')) +
+    W.box(R`one side of the plate up to $x$ feels a drag of $\mathbf{${t3(n.Fd)}}$ N per metre of width`);
+  o += W.step(6, 'At the current station') +
+    W.line('station x', Viz.live('x')) + W.line('δ₉₉, δ*, θ', Viz.live('th3')) + W.line('in units of √(νx/U)', Viz.live('kk'));
+  o += W.step(7, 'Reading the current setting') + W.interpret(interpText(s).replace(/<\/?p>/g, ' '), 'Reading the current setting');
+  return o;
+}
+function explainLive(s) {
+  const n = N(s);
+  return { x: `${f3(n.x)} m, Re_x = ${f3(n.Re)}`, th3: `${fL(n.d99)}, ${fL(n.ds)}, ${fL(n.th)}`, kk: `${f3(n.k99)}, ${f3(n.ks)}, ${f3(n.kt)}` };
+}
+
+/* ---- derivations (design Part F: D01 14 steps, D03 6, D04 9) --------------------------------------------------------------- */
+const E99 = R`u\,u_x+v\,u_y=-\frac1\rho\frac{dp}{dx}+\nu\,u_{yy}`;
+const E97 = R`u^*u^*_{x^*}+v^*u^*_{y^*}=-p^*_{x^*}+\frac1{Re}u^*_{x^*x^*}+u^*_{y^*y^*}`;
+const E916 = R`\delta^*=\int_0^\infty\Big(1-\frac u{U_e}\Big)dy`;
+const E917 = R`\theta=\int_0^\infty\frac u{U_e}\Big(1-\frac u{U_e}\Big)dy`;
+const BASE = { fluid: 'air', U: 1, x: 1, shape: 'blasius', mode: 'raw', xr: '2', probe: 2, emph: 'all' };
+const DERIV = [
+  { id: 'D01', title: 'How thick the layer is and which terms survive', short: 'D01 scaling', ref: 'Eqs. (9.4), (9.7), (9.8), (9.9), (9.10)', view: 'plate',
+    set: Object.assign({}, BASE),
+    goal: 'Show how thick a boundary layer is and which terms of the Navier–Stokes equations survive inside it when Re is large.',
+    start: { tex: R`\begin{aligned}u u_x+v u_y&=-\tfrac1\rho p_x+\nu(u_{xx}+u_{yy})\\ u_x+v_y&=0\\ u v_x+v v_y&=-\tfrac1\rho p_y+\nu(v_{xx}+v_{yy})\end{aligned}`,
+      plain: R`The x-momentum equation $u u_x+v u_y=-\frac1\rho p_x+\nu\nabla^2u$ (9.1), continuity $u_x+v_y=0$ (6.2) and the y-momentum equation (the book never writes it; we do): steady plane flow along a thin layer.` },
+    plan: ['Size the terms to find the thickness.', 'Introduce variables in which everything is of order one.', 'Substitute into all three equations and divide by the biggest term.', 'Drop what vanishes as Re → ∞.'],
+    uses: ['order-of-magnitude scaling', 'two length scales (Ch. 8)', 'chain rule', 'dominant balance'],
+    steps: [
+      { did: 'Size the derivatives', tex: R`\partial_x\sim\frac1L,\ \ \partial_y\sim\frac1{\bar\delta},\ \ u\sim U\quad(9.5)`,
+        why: R`The flow changes over the body length $L$ along the surface but over the thin layer $\bar\delta$ across it; we write the sizes down so the terms can be compared.`, plain: 'Across the layer things change far faster than along it.' },
+      { did: 'Size v from continuity', tex: R`\frac UL\sim\frac v{\bar\delta}\ \Rightarrow\ v\sim\frac{\bar\delta}L\,U\ll U`,
+        why: R`Continuity $u_x+v_y=0$ (6.2) makes the two terms equal in size, which fixes $v$ once $\bar\delta$ is known.`, plain: 'The cross-stream velocity is much smaller than the streamwise one.' },
+      { did: 'Balance advection against viscosity', tex: R`\frac{U^2}L\sim\frac{\nu U}{\bar\delta^2}\ \Rightarrow\ \frac{\bar\delta}L\sim Re^{-1/2}\quad(9.4)`,
+        why: R`Dominant balance: a layer exists where viscosity competes with advection, $u u_x\sim U^2/L$ (9.2) against $\nu u_{yy}\sim\nu U/\bar\delta^2$ (9.3).`, plain: 'At high Reynolds number the layer is thin.',
+        live: s => { const n = N(s); return R`\frac{\bar\delta}{L}\sim\frac1{\sqrt{Re}}=\frac1{\sqrt{${t3(n.Re)}}}=${t3(n.sc.delta_over_L)}`; }, watch: 'the whole dashed δ₉₉ curve is this balance evaluated at every x.' },
+      { did: 'Introduce stretched variables', tex: R`\begin{aligned}x^*&=\frac xL,\ y^*=\frac{\sqrt{Re}\,y}L,\ u^*=\frac uU\\ v^*&=\frac{\sqrt{Re}\,v}U,\ p^*=\frac{p-p_\infty}{\rho U^2}\end{aligned}\quad(9.6)`,
+        why: R`Steps 1 to 3 make every starred quantity of order one. The pressure is scaled by $\rho U^2$ because it must balance the advective size $U^2/L$.`, plain: 'Each variable is measured in its natural unit.' },
+      { did: 'Convert the derivatives', tex: R`\partial_x=\tfrac1L\partial_{x^*},\ \ \partial_y=\tfrac{\sqrt{Re}}L\partial_{y^*},\ \ \partial_{yy}=\tfrac{Re}{L^2}\partial_{y^*y^*}`,
+        why: R`Chain rule: since $x^*=x/L$ and $y^*=y\sqrt{Re}/L$, each derivative gains the factor of its own variable.`, plain: 'y-derivatives are magnified by √Re, second ones by Re.' },
+      { did: 'Substitute into continuity', tex: R`\frac UL\Big(\frac{\partial u^*}{\partial x^*}+\frac{\partial v^*}{\partial y^*}\Big)=0`,
+        why: R`Here $u_x=\frac UL u^*_{x^*}$ and $v_y=\frac U{\sqrt{Re}}\frac{\sqrt{Re}}Lv^*_{y^*}=\frac UL v^*_{y^*}$: the same factor, so no coefficient appears.`, plain: 'Continuity keeps its form, which is why $v$ was scaled by $Re^{-1/2}$.' },
+      { did: 'x-momentum: inertia and pressure', tex: R`\frac{U^2}L\big(u^*u^*_{x^*}+v^*u^*_{y^*}\big)=-\frac{U^2}Lp^*_{x^*}+\cdots`,
+        why: R`The product $vu_y=\frac U{\sqrt{Re}}\frac{U\sqrt{Re}}L v^*u^*_{y^*}$ and $-\frac1\rho p_x=-\frac{U^2}Lp^*_{x^*}$ all have the size $U^2/L$.`, plain: 'Three terms of one size.' },
+      { did: 'x-momentum: the viscous terms', tex: R`\nu u_{xx}+\nu u_{yy}=\frac{\nu U}{L^2}u^*_{x^*x^*}+\frac{\nu U\,Re}{L^2}u^*_{y^*y^*}`,
+        why: R`Use the chain-rule factors of step 5: the y-derivative carries an extra $Re$ because $y$ was stretched by $\sqrt{Re}$.`, plain: 'y-diffusion is Re times stronger than x-diffusion.' },
+      { did: 'Divide by U²/L and use ν = UL/Re', tex: E97 + R`\quad(9.7)`,
+        why: R`Because $\frac{\nu U}{L^2}\big/\frac{U^2}L=\frac1{Re}$ and $\frac{\nu U Re}{L^2}\big/\frac{U^2}L=1$. The book prints the denominators without squares; dimensionally they need them.`, plain: 'Only the x-diffusion term carries 1/Re.',
+        live: s => { const n = N(s); return R`\frac1{Re}=\frac1{${t3(n.Re)}}=${t3(1 / n.Re)}`; }, watch: 'that coefficient is tiny for every station on the plate except right at the leading edge.' },
+      { did: 'y-momentum: inertia', tex: R`u v_x+v v_y=\frac{U^2}{L\sqrt{Re}}\big(u^*v^*_{x^*}+v^*v^*_{y^*}\big)`,
+        why: R`Each product has size $U^2/(L\sqrt{Re})$ since $v_x=\frac U{\sqrt{Re}L}v^*_{x^*}$, $v_y=\frac ULv^*_{y^*}$, $u=Uu^*$ and $v=Uv^*/\sqrt{Re}$.`, plain: 'Inertia in y is √Re weaker than in x.' },
+      { did: 'y-momentum: pressure and viscous terms', tex: R`\begin{aligned}-\tfrac1\rho p_y&=-\tfrac{U^2\sqrt{Re}}{L}p^*_{y^*}\\ \nu v_{xx}&=\tfrac{U^2}{L\,Re^{3/2}}v^*_{x^*x^*}\\ \nu v_{yy}&=\tfrac{U^2}{L\sqrt{Re}}v^*_{y^*y^*}\end{aligned}`,
+        why: R`Now $p_y=\rho U^2\frac{\sqrt{Re}}Lp^*_{y^*}$ and $\nu=UL/Re$ turns the viscous terms into powers of $Re$.`, plain: 'The pressure term is the largest.' },
+      { did: 'Divide by U²√Re/L', tex: R`\begin{aligned}\tfrac1{Re}\big(u^*v^*_{x^*}+v^*v^*_{y^*}\big)&=-p^*_{y^*}\\ &\quad+\tfrac1{Re^2}v^*_{x^*x^*}+\tfrac1{Re}v^*_{y^*y^*}\end{aligned}\quad(9.8)`,
+        why: R`Dividing by the largest term gives it coefficient 1 and every other term its power of $1/Re$.`, plain: 'The pressure derivative stands alone at order one.' },
+      { did: 'Let Re → ∞ in the y-equation', tex: R`\frac{\partial p^*}{\partial y^*}=0\ \Rightarrow\ \frac{\partial p}{\partial y}=0\quad(9.10)`,
+        why: R`Every other term of the y-equation has a coefficient that vanishes as $Re\to\infty$, while its starred factors stay of order one (the assumption of step 4).`, plain: 'The pressure does not change across the layer.', watch: 'pressure is uniform across the layer: the vertical line at your station has one pressure.' },
+      { did: 'Let Re → ∞ in the x-equation, restore units', tex: R`\begin{aligned}` + E99 + R`\end{aligned}\quad(9.9)`,
+        why: R`Drop the $1/Re$ streamwise diffusion; the surviving $u^*_{y^*y^*}$ becomes $\nu u_{yy}$, and $p$ depends on $x$ only by step 13.`, plain: 'Streamwise diffusion is gone, cross-stream diffusion stays.' }
     ],
-    draw(g, s) {
-      drawGap(g.view('gap'), s);
-      const vy = g.view('ybars'), yHidden = !(vy.w > 40 && vy.h > 40);
-      drawBars(g.view('xbars'), s, yHidden && s.focus && s.focus[0] === 'y' ? 'y' : 'x');
-      if (!yHidden) drawBars(vy, s, 'y'); else vy.clear();
-    },
+    result: { tex: R`\begin{aligned}&\bar\delta/L\sim Re^{-1/2}\quad(9.4)\\ &` + E99 + R`\quad(9.9)\\ &\partial p/\partial y=0\quad(9.10)\end{aligned}`, plain: 'Thin, with cross-stream friction and a pressure the outer flow imposes.' },
+    interpret: s => { const n = N(s); return `With your numbers Re_x = ${f3(n.Re)}: the layer is ${f3(n.sc.delta_over_L)} of x thick; the dropped x-diffusion term is ${f3(n.Re)} times smaller than the kept y-diffusion term (ratio 1/Re_x = ${f3(1 / n.Re)}).`; },
+    check: R`Units: νU/δ̄² = (m²/s)(m/s)/m² = m/s² = U²/L. Air, U = 1 m/s, x = 1 m: Re = 6.67×10⁴, δ̄/x = 3.87×10⁻³, dropped/kept = 1.5×10⁻⁵. The printed form of $\frac1{Re}u^*_{x^*x^*}$ in (9.7), without the squares, fails the dimension check.` },
+  { id: 'D03', title: 'Displacement thickness', short: 'D03 δ*', ref: 'Eq. (9.16)', view: 'profile',
+    set: Object.assign({}, BASE),
+    goal: 'Define one number that says how far a boundary layer pushes the outer flow away from the wall.',
+    start: { tex: R`\dot m_{real}=\rho\int_0^h u\,dy\ \ \text{versus}\ \ \dot m_{ideal}=\rho U_e h`, plain: 'The mass flux through a vertical line from the wall to a height h above the layer, and the same flux without a layer: the layer carries less.' },
+    plan: ['Compute the missing mass flux.', 'Replace the layer by a stagnant slab with the same deficit.', 'Read off the thickness.', 'See what it does to the streamlines.'],
+    uses: ['improper integral of a deficit', 'definite integral', 'the continuity equation'],
+    steps: [
+      { did: 'Write the real mass flux', tex: R`\dot m_{real}=\rho\int_0^h u\,dy`, why: R`Definition of the mass flux per unit span through a vertical line of height $h$ above the layer; the wall is at $y=0$.`, plain: 'What actually flows.' },
+      { did: 'Subtract it from the ideal flux', tex: R`\begin{aligned}&\rho\int_0^hU_e\,dy-\rho\int_0^hu\,dy\\ &=\rho\int_0^h(U_e-u)\,dy\end{aligned}`, why: R`Without a layer the flux would be $\rho U_e h$; the difference is the mass the layer cannot carry, which the outer flow must divert.`, plain: 'The missing mass flux.' },
+      { did: 'Model the deficit as a stagnant slab', tex: R`\int_0^h(U_e-u)\,dy\equiv U_e\,\delta^*`, why: R`Define $\delta^*$ as the thickness of fluid at rest that removes the same flux from a stream at $U_e$; the outer flow cannot tell them apart.`, plain: 'An equivalent layer of thickness δ*.',
+        set: { emph: 'deficit' }, watch: 'the amber area is the missing speed 1 − u/U; its width-times-height is δ*.' },
+      { did: 'Solve for δ*', tex: R`\delta^*=\int_0^h\Big(1-\frac u{U_e}\Big)dy`, why: R`$U_e$ does not depend on $y$ (outer flow), so divide by it and bring it under the integral.`, plain: 'δ* is the area of the deficit 1 − u/U_e.' },
+      { did: 'Let h → ∞', tex: E916 + R`\quad(9.16)`, why: R`Above the layer $u=U_e$, so the integrand is zero there (a Gaussian tail for Blasius): enlarging $h$ adds nothing and the integral converges.`, plain: 'The integral converges.',
+        live: s => { const n = N(s); return R`\delta^*=${t4(n.ks)}\times${tL(n.s0)}=${tL(n.ds)}`; } },
+      { did: 'Read the lift of the outer streamlines', tex: R`v(h)=U\frac{d\delta^*}{dx}\quad(U_e=U)`, why: R`Continuity: $-v(h)=\int_0^hu_x\,dy=\frac d{dx}\int_0^hu\,dy=\frac d{dx}[U(h-\delta^*)]=-U\delta^{*\prime}$ at fixed $h$.`, plain: 'The layer acts like a body of thickness δ*: streamlines above it rise with slope δ*′.',
+        live: s => { const n = N(s); return R`v_\infty=U\frac{d\delta^*}{dx}=${t3(n.U)}\times${t3(n.slope)}=${t3(n.vinf * 1e3)}\ \text{mm/s}`; }, watch: 'the solid teal streamlines sit above the dashed ideal ones by exactly the amber height.' }
+    ],
+    result: { tex: E916 + R`,\quad v_\infty=U\,\frac{d\delta^*}{dx}\ (U_e=U)`, plain: 'The layer slowness displaces the outer flow by δ*.', set: { emph: 'all' } },
+    interpret: s => { const n = N(s); return `Your layer displaces the outer flow by δ* = ${fL(n.ds)} at x = ${f3(n.x)} m (${f3(n.ds / n.d99)} of δ₉₉), and pushes it outward at v∞ = ${f3(n.vinf * 1e3)} mm/s.`; },
+    check: 'Units m. For u/U = 1 − e^{−y/a}: δ* = a exactly. Blasius: δ* = 1.7208√(νx/U); v∞ = U dδ*/dx = 0.8604 U/√Re_x.' },
+  { id: 'D04', title: 'Momentum thickness and drag', short: 'D04 θ', ref: 'Eq. (9.17)', view: 'profile',
+    set: Object.assign({}, BASE),
+    goal: 'Show that θ measures the momentum the wall has removed, so a plate’s drag is ρU²θ.',
+    start: { tex: R`0\le y\le h(x),\ \text{roof: the streamline through }(0,h_0)`, plain: 'A control volume over the plate: wall below, inflow at x = 0, outflow at x, a streamline as roof. The book leaves this to an exercise; we do it.' },
+    plan: ['Mass balance fixes the roof.', 'Momentum balance.', 'Combine the two integrals and recognise θ.'],
+    uses: ['control volume with a streamline side', 'control-volume momentum balance (Ch. 4)', 'improper integral of a deficit'],
+    steps: [
+      { did: 'Draw the control volume', tex: R`0\le y\le h(x),\ \ \psi_{roof}=Uh_0`, why: R`A streamline carries no mass or momentum flux and has the ambient pressure on it, so it is a free side of the box.`, plain: 'A box whose roof moves with the fluid.' },
+      { did: 'Balance the mass', tex: R`\rho\int_0^hu\,dy=\rho\,U\,h_0`, why: R`Steady flow, nothing through the wall or the roof: what enters at $x=0$ (speed $U$ over height $h_0$) leaves at $x$.`, plain: 'The roof rises as the layer slows the flow.' },
+      { did: 'Write the net momentum outflow', tex: R`\rho\int_0^hu^2\,dy-\rho\,U^2h_0`, why: R`Momentum leaves through the outlet and enters through the inlet; the roof carries none because it is a streamline.`, plain: 'Momentum out minus momentum in.' },
+      { did: 'Write the force on the fluid', tex: R`F_x=-\int_0^x\tau_0\,dx'`, why: R`Uniform pressure exerts no net force on a closed surface ($dp/dx=0$ and $\partial p/\partial y=0$ (9.10)); the wall pulls the fluid back with the stress $\tau_0$.`, plain: 'Friction is the only force.' },
+      { did: 'Apply the momentum theorem', tex: R`\rho\int_0^hu^2dy-\rho U^2h_0=-\int_0^x\tau_0\,dx'`, why: R`Steady control-volume momentum balance: net outflow of momentum equals net force.`, plain: 'The fluid loses the momentum the wall takes.' },
+      { did: 'Eliminate h₀ with step 2', tex: R`\rho U^2h_0=\rho U\int_0^hu\,dy`, why: R`Multiply the mass balance by $U$ so that the inlet flux uses the same integral as the outlet.`, plain: 'Both fluxes in terms of u(y).' },
+      { did: 'Combine the integrals', tex: R`\int_0^x\tau_0\,dx'=\rho\int_0^hu\,(U-u)\,dy`, why: R`Move terms across: $\rho U\int u-\rho\int u^2=\rho\int u(U-u)$ over the same range.`, plain: 'The deficit weighted by u.' },
+      { did: 'Let the roof rise above the layer', tex: R`\begin{aligned}\int_0^x\tau_0\,dx'&=\rho U^2\\ &\times\int_0^\infty\tfrac uU\Big(1-\tfrac uU\Big)dy\end{aligned}`, why: R`Above the layer $u=U$, so $u(U-u)=0$ and the upper limit may be infinity; factor out $U^2$.`, plain: 'Only the layer contributes.',
+        set: { emph: 'loss' }, watch: 'the orange area (u/U)(1 − u/U) is the integrand; its width-times-height is θ.' },
+      { did: 'Name the integral', tex: R`\int_0^x\tau_0\,dx'=\rho U^2\,\theta(x)\quad(9.17)`, why: R`The dimensionless integral is $\theta=\int_0^\infty\frac u{U_e}(1-\frac u{U_e})dy$ (9.17): a length, not an angle.`, plain: 'The wall friction summed along the plate equals the momentum defect ρU²θ.',
+        live: s => { const n = N(s); return R`\rho U^2\theta=${t3(n.Fd)}\ \text{N/m}`; } }
+    ],
+    result: { tex: R`\rho U^2\theta(x)=\int_0^x\tau_0\,dx'`, plain: 'θ is the wall friction, integrated, expressed as a thickness.', set: { emph: 'all' } },
+    interpret: s => { const n = N(s); return `With your numbers ρU²θ = ${f3(n.Fd)} N per metre of width over the first ${f3(n.x)} m` + (s.shape === 'blasius' ? `, equal to 2τ₀x = ${f3(2 * n.tau0 * n.x)} N/m.` : '; switch to Blasius to see it equal the friction integral.'); },
+    check: 'Units: ρU²θ = N/m = ∫τ₀dx. Blasius, air, x = 1 m: ρU²θ = 1.2 × 1 × 2.572×10⁻³ = 3.09×10⁻³ N/m and 2τ₀(1)·1 = 2 × 1.543×10⁻³ = 3.09×10⁻³ N/m.' }
+];
+
+/* ---- code, walkthrough, equations, quiz --------------------------------------------------------------------------- */
+const pn = (v, k = 4) => (Math.abs(v) < 1e-300 ? '0' : Math.abs(v) < 1e-3 ? v.toExponential(k - 1).replace(/\.?0+e/, 'e') : String(Number(v.toPrecision(k))));
+const CODE = [
+  { id: 'main', title: 'Thickness of a Blasius layer in fluidpy', ref: 'Eqs. (9.4), (9.16), (9.17)',
+    src: `U, nu, x = {{U}}, {{nu}}, {{x}}  # m/s, m^2/s, m
+sc = ch09.boundary_layer_scales(U, x, nu)   # Re = {{Re}}, delta/L = {{dl}}
+y = np.linspace(0, 8*sc["delta"], 801)      # heights [m]
+u = ch09.blasius_fields(x, y, U, nu)["u"]   # Blasius u(y) [m/s]
+th = ch09.thicknesses(y, u, U)              # three integrals of u
+print(th["delta99"], th["delta_star"])      # {{d99}} m, {{dstar}} m
+print(th["theta"], th["H"])                 # {{theta}} m, H = {{H}}`,
+    live: s => { const n = N(s), B = blasius(); return { U: pn(n.U, 3), nu: pn(n.nu, 3), x: pn(n.x, 3), Re: pn(n.Re, 3), dl: pn(n.sc.delta_over_L, 3), d99: pn(B.eta99 * n.s0), dstar: pn(B.delta_star * n.s0), theta: pn(B.theta * n.s0), H: pn(B.H) }; },
+    note: 'This block always uses the Blasius profile; the next block gives the closed forms for the shape you chose.' },
+  { id: 'shape', title: 'Your profile shape in closed form', ref: 'Eqs. (9.16), (9.17)',
+    src: `s = (nu*x/U)**0.5      # sqrt(nu x/U) = {{s}} m
+D = {{D}}              # scale so delta99 = 4.910 s
+ps = ch09.profile_shape("{{name}}", y, D*s{{extra}})
+print(ps["delta99"], ps["delta_star"])   # {{d99}} m, {{ds}} m
+print(ps["theta"], ps["H"])              # {{th}} m, H = {{H}}`,
+    live: s => { const n = N(s); return { s: pn(n.s0), D: pn(n.sh.D, 5), name: s.shape, extra: s.shape === 'power' ? ', p=7.0' : '', d99: pn(n.d99), ds: pn(n.ds), th: pn(n.th), H: pn(n.H) }; },
+    note: 'For Blasius D = 1 and the scale is √(νx/U) itself.' }
+];
+const N0 = N(BASE);
+const TOUR = [
+  { title: 'How thin?', text: 'Blow air over a board. Where does the wall’s influence end? Press ▶ and watch the layer grow along the plate.',
+    set: Object.assign({}, BASE, { x: 0.05 }), play: true },
+  { title: 'Balance decides', text: 'Advection $U^2/x$ against viscosity $\\nu U/\\bar\\delta^2$ gives $\\bar\\delta/L\\sim Re^{-1/2}$ (9.4). Slide U: doubling it thins the layer by √2.',
+    set: Object.assign({}, BASE), play: false, controls: ['U'], derive: { id: 'D01', step: 3 } },
+  { title: 'Which thickness?', text: 'The profile fades smoothly. δ₉₉ is the 99 % height, δ* the amber area, θ the orange area. Click the profile to probe it.',
+    set: Object.assign({}, BASE), play: false, inspect: true },
+  { title: 'δ* lifts the flow', text: 'Real streamlines rise by δ* above the ideal ones: the layer acts like a slightly thicker body, $\\delta^*=\\int_0^\\infty(1-u/U_e)dy$ (9.16).',
+    set: Object.assign({}, BASE, { emph: 'deficit' }), play: false, derive: { id: 'D03', step: 6 }, eq: 'dstar' },
+  { title: 'Shape matters', text: 'Switch to “linear”: δ₉₉ stays the same but δ* and θ change by different ratios; H = 3.',
+    set: Object.assign({}, BASE, { shape: 'linear' }), play: false, controls: ['shape'], readouts: ['H'] },
+  { title: 'In Python', text: 'ch09.thicknesses integrates any sampled profile. Compare its printed δ₉₉, δ* and θ with the readouts.',
+    set: Object.assign({}, BASE), play: false, code: { id: 'main', lines: [5, 7] } },
+  { title: 'Your turn', text: 'Predict H for the exponential profile, then check. Then press “layer not thin”.',
+    set: Object.assign({}, BASE), play: false, controls: ['shape', 'x'] }
+];
+const EQS = [
+  { id: 'bl', title: 'Layer thickness', ref: 'Eq. (9.4)', tex: R`\frac{\bar\delta}{L}\sim Re^{-1/2}`, live: s => { const n = N(s); return R`\frac{\bar\delta}{x}=\frac1{\sqrt{${t3(n.Re)}}}=${t3(n.sc.delta_over_L)}`; },
+    symbols: [[R`\bar\delta`, 'layer thickness (scale)', 'm'], ['L', 'length along the surface (here x)', 'm'], ['Re', 'UL/ν', '–']] },
+  { id: 'scal', title: 'Scaled variables', ref: 'Eq. (9.6)', tex: R`\begin{aligned}x^*&=\tfrac xL,\ y^*=\tfrac{\sqrt{Re}\,y}L,\ u^*=\tfrac uU\\ v^*&=\tfrac{\sqrt{Re}\,v}U,\ p^*=\tfrac{p-p_\infty}{\rho U^2}\end{aligned}`,
+    live: s => { const n = N(s); return R`y^*=\frac{\sqrt{${t3(n.Re)}}\times${tL(n.d99)}}{${t3(n.x)}\ \text{m}}=${t3(Math.sqrt(n.Re) * n.d99 / n.x)}\ \text{at }y=\delta_{99}`; }, note: 'Every starred quantity is of order one inside the layer.' },
+  { id: 'layer', title: 'The layer equations', ref: 'Eqs. (9.9), (9.10)', tex: R`\begin{aligned}` + E99 + R`\\ \frac{\partial p}{\partial y}&=0\end{aligned}`, note: 'Re ≫ 1: streamwise diffusion dropped, pressure uniform across the layer.' },
+  { id: 'match', title: 'Outer matching', ref: 'Eq. (9.11)', tex: R`-\frac1\rho\frac{dp}{dx}=U_e\frac{dU_e}{dx}`, note: 'For a flat plate U_e = U is constant, so dp/dx = 0.' },
+  { id: 'dstar', title: 'Displacement thickness', ref: 'Eq. (9.16)', tex: E916, live: s => { const n = N(s); return R`\delta^*=${t4(n.ks)}\sqrt{\nu x/U}=${tL(n.ds)}`; },
+    symbols: [[R`\delta^*`, 'displacement thickness', 'm'], ['U_e', 'speed at the edge of the layer', 'm/s']] },
+  { id: 'theta', title: 'Momentum thickness', ref: 'Eq. (9.17)', tex: E917, live: s => { const n = N(s); return R`\theta=${t4(n.kt)}\sqrt{\nu x/U}=${tL(n.th)}`; },
+    symbols: [[R`\theta`, 'momentum thickness (a length here)', 'm']] },
+  { id: 'd99', title: 'Blasius δ₉₉', ref: 'Eq. (9.30)', tex: R`\delta_{99}=4.91\sqrt{\nu x/U}`, live: s => { const n = N(s); return R`\delta_{99}=${t4(n.k99)}\times${tL(n.s0)}=${tL(n.d99)}`; },
+    note: 'The book prints 4.93; the root of f′ = 0.99 is 4.910.' }
+];
+const QUIZ = [
+  { q: 'Quadruple x at fixed U and ν: what happens to δ₉₉ and to δ₉₉/x?', a: 'δ₉₉ doubles (√4); δ₉₉/x halves, because Re_x is four times larger. Slide x from 0.25 m to 1 m and watch the readouts.', set: Object.assign({}, BASE, { x: 0.25 }) },
+  { q: 'Switch the shape to exponential and read H.', a: 'H = 2.0: for u/U = 1 − e^{−y/a}, δ* = a and θ = a/2.', set: Object.assign({}, BASE, { shape: 'exponential' }) },
+  { q: 'Water instead of air at the same U and x: how does δ change?', a: `Thinner by √15 ≈ ${f3(Math.sqrt(15))}: water’s ν is 15 times smaller and δ ∝ √ν.`, set: Object.assign({}, BASE, { fluid: 'water' }) },
+  { q: 'Where is the layer not thin?', a: 'At Re_x below about 100: near the leading edge, or for slow viscous fluids. Press “layer not thin”: δ₉₉ is 1.55 times x.', set: { fluid: 'oil', U: 0.1, x: 0.01, xr: '0.02', shape: 'blasius' } }
+];
+
+/* ---- selftest: parity with fluidpy (py) and invariants (expect) -------------------------------------------------- */
+function selftestRows() {
+  const S0 = { U: 1, x: 1, nu: 1.5e-5 }, sc0 = scales(1, 1, 1.5e-5, 1.2), B = blasius();
+  const coarse = name => { const sh = shape(name), y = Array.from({ length: 41 }, (_, i) => 0.25 * i), top = name === 'sine' ? 2 * sh.D : 10; const yy = name === 'sine' ? Array.from({ length: 41 }, (_, i) => top * i / 40) : y; return { y: yy, u: yy.map(sh.r) }; };
+  const cb = coarse('blasius'), cs = coarse('sine'), tb = thick(cb.y, cb.u, 1), ts = thick(cs.y, cs.u, 1);
+  const pyT = (c, key) => `ch09.thicknesses(${JSON.stringify(c.y)}, ${JSON.stringify(c.u)}, 1.0)["${key}"]`;
+  const pyS = (name, key, D) => `ch09.profile_shape("${name}", [0.0, 1.0], ${D})["${key}"]`;
+  const num = name => { const g = gridOf(name); return thick(g.y, g.u, 1); }, sl = shape('linear'), ss = shape('sine'), sc = shape('cubic'), se = shape('exponential');
+  return [
+    { name: 'Re', js: sc0.Re, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5)["Re"]', rtol: 1e-12 },
+    { name: 'delta scale', js: sc0.delta, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5)["delta"]', rtol: 1e-12 },
+    { name: 'delta/L', js: sc0.delta_over_L, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5)["delta_over_L"]', rtol: 1e-12 },
+    { name: 'v scale', js: sc0.v_scale, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5)["v_scale"]', rtol: 1e-12 },
+    { name: 'tau0 scale (air)', js: sc0.tau0_scale, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5, 1.2)["tau0_scale"]', rtol: 1e-12 },
+    { name: 'streamwise viscous term', js: sc0.visc_x, py: 'ch09.boundary_layer_scales(1.0, 1.0, 1.5e-5)["visc_x"]', rtol: 1e-12 },
+    { name: 'delta99 Blasius', js: bl99(1, 1, 1.5e-5), py: 'ch09.blasius_delta99(1.0, 1.0, 1.5e-5)', rtol: 1e-7 },
+    { name: 'delta* Blasius', js: blstar(1, 1, 1.5e-5), py: 'ch09.blasius_delta_star(1.0, 1.0, 1.5e-5)', rtol: 1e-7 },
+    { name: 'theta Blasius', js: bltheta(1, 1, 1.5e-5), py: 'ch09.blasius_theta(1.0, 1.0, 1.5e-5)', rtol: 1e-7 },
+    { name: 'delta99 Blasius, water 0.3 m', js: bl99(0.3, 2, 1e-6), py: 'ch09.blasius_delta99(0.3, 2.0, 1e-6)', rtol: 1e-7 },
+    { name: 'f\'\'(0)', js: B.fpp0, py: 'ch09.blasius_constants()["fpp0"]', rtol: 1e-8 },
+    { name: 'eta99', js: B.eta99, py: 'ch09.blasius_constants()["eta99"]', rtol: 1e-7 },
+    { name: 'delta*/sqrt(nu x/U)', js: B.delta_star, py: 'ch09.blasius_constants()["delta_star"]', rtol: 1e-8 },
+    { name: 'theta/sqrt(nu x/U)', js: B.theta, py: 'ch09.blasius_constants()["theta"]', rtol: 1e-8 },
+    { name: 'v_inf coefficient', js: 0.5 * B.delta_star, py: 'ch09.blasius_constants()["v_inf"]', rtol: 1e-8 },
+    { name: 'u/U at eta = 2', js: B.fp(2) * 1, py: 'ch09.blasius_fields(0.5, 0.005477225575, 1.0, 1.5e-5)["u"]', rtol: 1e-7 },
+    { name: 'u at eta = 5 (water, 0.3 m, 2 m/s)', js: 2 * B.fp(5), py: `ch09.blasius_fields(0.3, ${5 * Math.sqrt(1e-6 * 0.3 / 2)}, 2.0, 1e-6)["u"]`, rtol: 1e-7 },
+    { name: 'wall stress tau0', js: tau0B(1, 1, 1.2, 1.5e-5), py: 'ch09.blasius_wall_shear(1.0, 1.0, 1.2, 1.5e-5)', rtol: 1e-8 },
+    { name: 'thicknesses: delta* of a sampled Blasius profile', js: tb.delta_star, py: pyT(cb, 'delta_star'), rtol: 1e-9 },
+    { name: 'thicknesses: theta of a sampled Blasius profile', js: tb.theta, py: pyT(cb, 'theta'), rtol: 1e-9 },
+    { name: 'thicknesses: delta99 (PCHIP root)', js: tb.delta99, py: pyT(cb, 'delta99'), rtol: 1e-9 },
+    { name: 'thicknesses: H of a sampled sine profile', js: ts.H, py: pyT(cs, 'H'), rtol: 1e-9 },
+    { name: 'thicknesses: delta99 of the sine profile', js: ts.delta99, py: pyT(cs, 'delta99'), rtol: 1e-9 },
+    { name: 'profile_shape linear delta*', js: sl.ds, py: pyS('linear', 'delta_star', sl.D), rtol: 1e-12 },
+    { name: 'profile_shape sine theta', js: ss.th, py: pyS('sine', 'theta', ss.D), rtol: 1e-12 },
+    { name: 'profile_shape cubic delta*', js: sc.ds, py: pyS('cubic', 'delta_star', sc.D), rtol: 1e-12 },
+    { name: 'profile_shape exponential theta', js: se.th, py: pyS('exponential', 'theta', se.D), rtol: 1e-12 },
+    { name: 'H sine', js: ss.H, py: 'ch09.profile_shape("sine", [0.0, 1.0], 1.0)["H"]', rtol: 1e-12 },
+    { name: 'H power p=7', js: shape('power').H, py: 'ch09.profile_shape("power", [0.0, 1.0], 1.0, p=7.0)["H"]', rtol: 1e-12 },
+    { name: 'H linear', js: sl.H, py: 'ch09.profile_shape("linear", [0.0, 1.0], 1.0)["H"]', rtol: 1e-12 },
+    { name: 'scale: advection equals viscous term', js: sc0.adv / sc0.visc, expect: 1, rtol: 1e-12 },
+    { name: 'scale: dropped/kept diffusion = 1/Re', js: sc0.visc_x / sc0.visc * sc0.Re, expect: 1, rtol: 1e-12 },
+    { name: 'invariant: f\'(eta99) = 0.99', js: B.fp(B.eta99), expect: 0.99, rtol: 1e-12 },
+    { name: 'invariant: theta = 2 f\'\'(0)', js: B.theta / (2 * B.fpp0), expect: 1, rtol: 1e-8 },
+    { name: 'invariant: rho U^2 theta = integral of tau0 dx (D04)', js: 1.2 * bltheta(1, 1, 1.5e-5) / (2 * tau0B(1, 1, 1.2, 1.5e-5)), expect: 1, rtol: 1e-8 },
+    { name: 'invariant: crude tau0 / Blasius tau0 = 1/f\'\'(0)', js: sc0.tau0_scale / tau0B(1, 1, 1.2, 1.5e-5) * B.fpp0, expect: 1, rtol: 1e-8 },
+    { name: 'invariant: lim (eta - Psi) = delta* (Blasius)', js: 30 - B.f(30), expect: B.delta_star, rtol: 1e-10 },
+    { name: 'invariant: Simpson delta* of the drawn linear curve', js: num('linear').delta_star / sl.ds, expect: 1, rtol: 1e-7 },
+    { name: 'invariant: Simpson theta of the drawn sine curve', js: num('sine').theta / ss.th, expect: 1, rtol: 1e-6 },
+    { name: 'invariant: Simpson delta* of the drawn cubic curve', js: num('cubic').delta_star / sc.ds, expect: 1, rtol: 1e-6 },
+    { name: 'invariant: Simpson theta of the drawn exponential curve', js: num('exponential').theta / se.th, expect: 1, rtol: 1e-5 },
+    { name: 'invariant: Simpson theta of the drawn Blasius curve', js: num('blasius').theta / B.theta, expect: 1, rtol: 1e-6 },
+    { name: 'invariant: every shape has delta99 = 4.910 (PCHIP)', js: num('cubic').delta99 / B.eta99, expect: 1, rtol: 1e-5 },
+    { name: 'invariant: exponential H = 2', js: se.H, expect: 2, rtol: 1e-12 },
+    { name: 'invariant: linear H = 3', js: sl.H, expect: 3, rtol: 1e-12 }
+  ];
+}
+
+/* ---- the app ------------------------------------------------------------------------------------------------------ */
+const CFG = {
+  title: 'How thin is a boundary layer, and what is its thickness?',
+  subtitle: 'Slide U, ν and x: the layer grows like √(νx/U); δ₉₉, δ* and θ are three integrals of one profile',
+  autoplay: false,
+  params: {
+    U: { label: 'Free-stream speed $U$', min: 0.1, max: 50, log: true, value: 1, fmt: v => Viz.fmt(v, { sig: 3, unit: 'm/s' }), help: 'smaller ν or bigger U thins the layer as √(ν/U)' },
+    fluid: { type: 'select', label: 'Fluid', options: [['air', 'air'], ['water', 'water'], ['oil', 'oil']], value: 'air', display: 'chips', help: 'ν = 1.5×10⁻⁵, 1.0×10⁻⁶, 1.0×10⁻⁴ m²/s' },
+    x: { label: 'Station $x$', min: 0.01, max: 2, step: 0.01, value: 1, unit: 'm', help: 'distance from the leading edge' },
+    shape: { type: 'select', label: 'Profile shape', options: SHAPES, value: 'blasius', display: 'chips', help: 'each shape has the same δ₉₉ as Blasius' },
+    probe: { label: 'Probe height $\\eta$', min: 0, max: 8, step: 0.01, value: 2, optional: true, help: 'η = y/√(νx/U); or click the profile' },
+    xr: { type: 'select', label: 'Plate window', options: [['2', '2 m'], ['0.2', '0.2 m'], ['0.02', '2 cm']], value: '2', display: 'chips', optional: true, help: 'zoom the plate view toward the leading edge' },
+    emph: { type: 'select', label: 'Emphasise', options: [['all', 'both'], ['deficit', 'δ* area'], ['loss', 'θ area']], value: 'all', display: 'chips', optional: true }
+  },
+  modes: { param: 'mode', label: 'Profile axis', options: [['raw', 'raw y'], ['scaled', 'scaled η']], value: 'raw' },
+  transport: { param: 'x', min: 0.01, max: 2, rate: 0.2, end: 'loop', unit: 'm' },
+  presets: [
+    { label: 'air 1 m/s at 1 m', set: { fluid: 'air', U: 1, x: 1, shape: 'blasius', xr: '2' }, title: 'Re_x = 6.7×10⁴' },
+    { label: 'water 1 m/s at 1 m', set: { fluid: 'water', U: 1, x: 1, shape: 'blasius', xr: '2' }, title: 'ν 15 times smaller: a layer √15 times thinner' },
+    { label: 'layer not thin (Re = 10)', set: { fluid: 'oil', U: 0.1, x: 0.01, shape: 'blasius', xr: '0.02' }, title: 'slow viscous oil near the leading edge' },
+    { label: 'fast plate (Re ≈ 10⁶)', set: { fluid: 'air', U: 15, x: 1, shape: 'blasius', xr: '2' }, title: 'past the transition rule of thumb' },
+    { label: 'turbulent-like profile', set: { shape: 'power' }, title: 'power law p = 7: a full profile' }
+  ],
+  status: s => statusOf(s),
+  readouts: [
+    { id: 'Re', label: 'Re_x', value: s => N(s).Re, fmt: v => Viz.fmt(v, { sig: 3 }) },
+    { id: 'd99', label: 'δ₉₉', value: s => N(s).d99, fmt: v => fL(v) },
+    { id: 'ds', label: 'δ*', value: s => N(s).ds, fmt: v => fL(v) },
+    { id: 'th', label: 'θ', value: s => N(s).th, fmt: v => fL(v) },
+    { id: 'H', label: 'H = δ*/θ', value: s => N(s).H }
+  ],
+  stage: {
+    rows: [1.15, 1],
+    views: [
+      { id: 'plate', row: 0, flex: 1.4, title: s => plateTitle(s) },
+      { id: 'profile', row: 0, flex: 1, title: s => profileTitle(s) },
+      { id: 'growth', row: 1, flex: 1, hidePortrait: true, title: s => growthTitle(s) }
+    ],
+    draw(g, s) { drawPlate(g, s); drawProfile(g, s); drawGrowth(g, s); },
     onPointer(g, ev, s) {
-      if (ev.type !== 'pointerdown' || (ev.viewId !== 'xbars' && ev.viewId !== 'ybars')) return false;
-      const pv = ev.vizView || g.view(ev.viewId), vy = g.view('ybars');
-      const which = ev.viewId === 'ybars' ? 'y' : ((!(vy.w > 40 && vy.h > 40)) && s.focus && s.focus[0] === 'y' ? 'y' : 'x');
-      const G = barGeo[which]; if (!G) return false;
-      const i = Math.floor((pv.pointer.y - G.top) / G.rh);
-      if (i < 0 || i > 3) { g.app.set('focus', null); return true; }
-      const id = G.items[i][0]; g.app.set('focus', s.focus === id ? null : id);
-      return true;
+      if (ev.type !== 'pointerdown') return false;
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      const Xp = v.pointer.x, Yp = v.pointer.y, n = N(s);
+      if (ev.viewId === 'profile' && PRP && PRP.P.inside(Xp, Yp)) { g.app.set({ probe: Math.max(0, Math.min(8, Number((PRP.fromAx(PRP.P.iy(Yp)) / n.s0).toFixed(2)))) }); return true; }
+      if (ev.viewId === 'plate' && PLP && PLP.P.inside(Xp, Yp)) { g.app.set({ x: Math.max(0.01, Math.min(2, Number((PLP.P.ix(Xp) / PLP.ux).toFixed(2)))) }); return true; }
+      return false;
     }
   },
   inspect: s => inspectHtml(s),
-  inspectHint: 'Click a bar (or a term in the list) to see its coefficient worked out with your numbers.',
-  notes: s => {
-    const rows = CASES.map(([n, c]) => { const S = scalesRaw(c.L, c.h, c.U, c.rho, c.rho * c.nu); return [n, f3(S.eps), f3(S.Re_L), f3(S.eps2_Re_L)]; });
-    const S = SC(s);
-    let cur = 0, bd = Infinity;
-    CASES.forEach(([n, c], i) => { const C = scalesRaw(c.L, c.h, c.U, c.rho, c.rho * c.nu); const d = (Math.log10(S.eps / C.eps)) ** 2 + (Math.log10(S.eps2_Re_L / C.eps2_Re_L)) ** 2; if (d < bd) { bd = d; cur = i; } });
-    const k = verdict(s);
-    const p = k === 'valid' ? `<p><b>Right now:</b> inertia is ${f3(100 * S.eps2_Re_L)} % of the cross-gap friction — a thin, viscous film although Re_L = ${f3(S.Re_L)}.</p>`
-      : k === 'marginal' ? `<p><b>Right now:</b> inertia is ${f3(100 * S.eps2_Re_L)} % of friction — lubrication theory is a first guess here.</p>`
-        : `<p><b>Right now:</b> ${k === 'thick' ? 'the gap is not thin (ε = ' + f3(S.eps) + ')' : 'inertia beats friction (ε²Re_L = ' + f3(S.eps2_Re_L) + ')'} — the full equations are needed.</p>`;
-    return p + Viz.work.table(['case', 'ε', 'Re_L', 'ε²Re_L'], rows, cur);
-  },
+  inspectHint: 'Click the profile to move the probe (its arithmetic appears here); click the plate to move the station.',
+  notes: s => interpText(s),
   explore: {
-    intro: 'Drag the gap, length, speed and viscosity; the bars move on a log scale. Click a bar to see its arithmetic; the chips above the picture switch the pressure scale.',
-    controls: ['h', 'L', 'U', 'nu', 'rho'],
-    readouts: ['eps', 'ReL', 'e2', 'pv'],
-    callouts: [{ kind: 'try', html: 'Predict, then check: double $U$. The teal inertia bar moves right by a factor 2 ($\\varepsilon^2\\mathrm{Re}_L\\propto U$); nothing else moves.' }]
+    intro: 'Press ▶ to sweep the station down the plate, switch the profile axis, and change the fluid, the speed or the profile shape.',
+    controls: ['U', 'fluid', 'x', 'shape', 'probe', 'xr', 'emph'],
+    readouts: ['Re', 'd99', 'ds', 'th', 'H'],
+    callouts: [{ kind: 'try', html: 'Choose <b>scaled η</b> and slide <b>x</b>: the profile does not move — only the units of y change. Then switch the shape and watch δ* and θ change while δ₉₉ stays put.' }]
   },
-  explain: {
-    html: s => {
-      const S = SC(s), T = TM(s), W = Viz.work, mu = muOf(s), k = verdict(s), atm = (s.pscale || 'viscous') === 'atm';
-      let o = W.step(0, 'What the views show') +
-        W.say(`<b>The gap</b> is drawn with its heights stretched; ${colI('c-blue', 'blue')} curves are the velocity profiles, the short ${colI('c-blue', 'blue')} vertical arrows the small cross-gap velocity $v\\sim\\varepsilon U$. <b>The bars</b> are the coefficients of each term of the scaled momentum equations on a log scale: ${colI('c-teal', 'teal')} inertia, ${colI('c-orange', 'orange')} pressure, ${colI('c-rose', 'rose')} friction; grey band = dropped (under 1 % of the largest term), dashed line = the largest term.`) +
-        W.hint('On phones the y-momentum bars are hidden; §5 carries their numbers, and clicking a y term in the Derivation tab shows them in place of the x bars.');
-      o += W.step(1, 'Two length scales') +
-        W.line(`$\\varepsilon=h/L=${t3(s.h)}/${t3(s.L)}$`, f3(S.eps), 'the fineness ratio: how thin the gap is') +
-        W.line(`$\\mathrm{Re}_L=UL/\\nu=${t3(s.U)}\\times${t3(s.L)}/${t3(s.nu)}$`, f3(S.Re_L), 'the Reynolds number built on the long length') +
-        W.line(`$v\\sim\\varepsilon U=${t3(S.eps)}\\times${t3(s.U)}$`, fmtSpd(S.eps * s.U), `continuity ${$(EQ.e62)} (6.2): $U/L$ must match $v/h$`);
-      o += W.step(2, 'Inertia\u2019s real weight') +
-        W.line(`$\\varepsilon^2\\mathrm{Re}_L=(${t3(S.eps)})^2\\times${t3(S.Re_L)}$`, '', '') +
-        W.box(`$\\varepsilon^2\\mathrm{Re}_L=\\mathbf{${t3(S.eps2_Re_L)}}$`) +
-        W.say(`Why $\\varepsilon^2$: the x-equation was divided by the cross-gap friction's scale $\\mu U/(\\rho\\varepsilon^2L^2)$ so that friction has coefficient 1; inertia's scale $U^2/L$ then becomes $\\varepsilon^2\\mathrm{Re}_L$ (Derivation D10, step 9).`);
-      o += W.step(3, 'The pressure scale') +
-        W.line(`$\\mu=\\rho\\nu=${t3(s.rho)}\\times${t3(s.nu)}$`, f3(mu) + ' Pa s', 'dynamic viscosity') +
-        W.line(`$\\mu UL/h^2=${t3(mu)}\\times${t3(s.U)}\\times${t3(s.L)}/(${t3(s.h)})^2$`, fmtPa(S.p_visc) + ' = ' + f3(S.p_visc / P_ATM) + ' atm', 'the pressure a viscous film builds') +
-        W.box(`$\\Lambda=\\dfrac{\\mu UL}{P_ah^2}=\\mathbf{${t3(S.Lambda)}}$`) +
-        W.say(atm ? `You chose the book's $P_a$: the pressure coefficient is $1/\\Lambda$ = ${f3(T.x_pressure)}. That does not make pressure small — $p^*=p/P_a$ is then of size $\\Lambda$, so the term is ~1 (the dashed orange bar).`
-          : `You chose the natural scale $P=\\mu UL/h^2$: the pressure coefficient is exactly ${f3(T.x_pressure)}, and $p^*$ is of order one. The book's $P_a$ gives $1/\\Lambda$ = ${f3(1 / S.Lambda)} instead — same physics, rescaled $p^*$.`);
-      const bold = (v, kept) => kept ? '<b>' + f3(v) + '</b>' : f3(v) + ' ✗';
-      o += W.step(4, 'The x-balance, term by term') +
-        W.say(`Coefficients of ${$(EQ.e16as)} (8.16a); kept ones in bold:`) +
-        W.table(['term', 'coefficient', 'value'], [
-          ['inertia', '$\\varepsilon^2\\mathrm{Re}_L$', bold(T.x_inertia, T.x_inertia >= 0.01)],
-          ['pressure', atm ? '$1/\\Lambda$' : '$1$', bold(T.x_pressure, true)],
-          ['friction along', '$\\varepsilon^2$', bold(T.x_diff_along, T.x_diff_along >= 0.01)],
-          ['friction across', '$1$', bold(1, true)]], -1);
-      o += W.step(5, 'The y-balance') +
-        W.say(`In ${$(EQ.e16bs)} (8.16b) inertia is ${f3(T.y_inertia)}, friction ${f3(T.y_diff_along)} and ${f3(T.y_diff_across)}; only pressure (${f3(T.y_pressure)}) has no power of ε.`) +
-        W.box(`$\\dfrac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)=\\mathbf{${t3(S.eps ** 2)}}$`) +
-        W.say(`So the pressure is the same across the film: ${$(EQ.e17bs)} (8.17b).`);
-      o += W.step(6, 'At the current time') +
-        W.line('$t^*=Ut/L$', Viz.live('ts'), 'the transport clock, in scaled time') +
-        W.line('$t=t^*L/U$', Viz.live('t'), 'the real time for the tracers to get there') +
-        W.line('wall travel $Ut$', Viz.live('d'), 'the sliding wall has moved this far');
-      const txt = k === 'valid'
-        ? `Inertia is ε²Re_L = ${f3(S.eps2_Re_L)} of the cross-gap friction: the flow is a local balance of pressure gradient and friction, ${$(EQ.e17as)} (8.17a), even though Re_L = ${f3(S.Re_L)} alone looks ${S.Re_L > 100 ? 'large' : 'modest'}. Thinness wins: the cross-gap friction grows like 1/ε², inertia does not.`
-        : k === 'marginal' ? `Inertia is ${f3(100 * S.eps2_Re_L)} % of friction (ε = ${f3(S.eps)}): the lubrication profile is a first guess; corrections of order ε²Re_L matter for precise bearings.`
-          : k === 'thick' ? `The gap is not thin (ε = ${f3(S.eps)}): the along-gap friction ε² = ${f3(S.eps ** 2)} and the pressure change across the gap are no longer negligible — solve the full Navier–Stokes equations.`
-            : `ε²Re_L = ${f3(S.eps2_Re_L)} > 1: inertia beats friction, the flow can separate and recirculate, and ${$(EQ.e17as)} (8.17a) is wrong here — the full Navier–Stokes equations are needed.`;
-      return o + W.interpret(txt, 'Reading the current setting');
-    },
-    live: s => { const t = s.t || 0; return { ts: t.toFixed(2), t: Viz.fmtTime(t * s.L / s.U), d: fmtLen(t * s.L) }; }
-  },
-  derivations: [
-    { id: 'D10', title: 'The scaled gap equations', short: 'ε²Re_L', ref: 'Eqs. (8.15), (8.16)', view: 'xbars',
-      goal: 'Rewrite the gap equations in variables of order one, so that the size of every term sits in its coefficient.',
-      start: { tex: EQ.e13a, plain: `x-momentum (8.13a), with continuity ${$(EQ.e62)} (6.2), its y-twin (8.13b) $\\tfrac{Dv}{Dt}=-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial y}+\\nu\\nabla^2v$, and the scalings ${$(EQ.e14s)}$,\\dots$ (8.14).` },
-      plan: ['Turn the scalings into substitutions and derivative rules.', 'Scale continuity.', 'Scale x-momentum and divide by the cross-gap friction\u2019s coefficient.', 'Scale y-momentum and choose the factor that keeps the same 1/Λ.'],
-      uses: ['anisotropic scaling: one length along, one across', 'the chain rule for scaled variables', 'bookkeeping of powers of ε'],
-      set: Object.assign({ pscale: 'atm', focus: null }, ENG),
-      steps: [
-        { did: 'Invert the scalings', tex: '\\begin{aligned}&x=Lx^*,\\ y=\\varepsilon Ly^*,\\ t=\\tfrac LUt^*\\\\ &u=Uu^*,\\ v=\\varepsilon Uv^*,\\ p=P_ap^*\\end{aligned}',
-          why: 'We will substitute these into the equations; each starred variable is of order one by design.',
-          plain: 'Dimensional quantity = scale × order-one variable.', set: { focus: null } },
-        { did: 'Write the derivative rules', tex: '\\frac{\\partial}{\\partial x}=\\frac1L\\frac{\\partial}{\\partial x^*},\\ \\frac{\\partial}{\\partial y}=\\frac{1}{\\varepsilon L}\\frac{\\partial}{\\partial y^*},\\ \\frac{\\partial}{\\partial t}=\\frac UL\\frac{\\partial}{\\partial t^*}',
-          why: 'Chain rule for scaled variables: ∂x*/∂x = 1/L, ∂y*/∂y = 1/(εL), ∂t*/∂t = U/L.',
-          plain: 'Derivatives across the gap are 1/ε times larger.', live: s => '\\tfrac1{\\varepsilon}=' + t3(1 / SC(s).eps) },
-        { did: 'Scale continuity', tex: '\\frac UL\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\varepsilon U}{\\varepsilon L}\\frac{\\partial v^*}{\\partial y^*}=0',
-          why: 'Substitute u = Uu*, v = εUv* and the rules of step 2 into the continuity equation.',
-          plain: 'Both terms carry U/L.' },
-        { did: 'Divide by U/L', tex: '\\frac{\\partial u^*}{\\partial x^*}+\\frac{\\partial v^*}{\\partial y^*}=0\\quad(8.15)',
-          why: 'The ε cancels because v was scaled with εU — chosen exactly so that continuity balances (with v ~ U the u-term would drop).',
-          plain: 'Mass is conserved with no approximation — and v is ε times smaller than u.', watch: 'In the gap picture the blue v arrows are tiny next to the profiles.',
-          live: s => 'v\\sim\\varepsilon U=' + t3(SC(s).eps * s.U) + '\\ \\text{m/s}' },
-        { did: 'Scale the x-inertia terms', tex: '\\frac{Du}{Dt}=\\frac{U^2}{L}\\Big(\\frac{\\partial u^*}{\\partial t^*}+u^*\\frac{\\partial u^*}{\\partial x^*}+v^*\\frac{\\partial u^*}{\\partial y^*}\\Big)',
-          why: 'Each term: (U/L)U, U(U/L), (εU)(U/εL) — all U²/L.',
-          plain: 'Inertia is of size U²/L.', set: { focus: 'x_inertia' } },
-        { did: 'Scale the x-pressure term', tex: '-\\frac1\\rho\\frac{\\partial p}{\\partial x}=-\\frac{P_a}{\\rho L}\\frac{\\partial p^*}{\\partial x^*}',
-          why: 'p = Pₐp* and ∂/∂x = (1/L)∂/∂x*.',
-          plain: 'Pressure term of size Pₐ/(ρL).', set: { focus: 'x_pressure' } },
-        { did: 'Scale the two x-viscous terms', tex: '\\begin{aligned}&\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial x^2}=\\frac{\\mu U}{\\rho L^2}\\frac{\\partial^2u^*}{\\partial x^{*2}}\\\\ &\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial y^2}=\\frac{\\mu U}{\\rho\\varepsilon^2L^2}\\frac{\\partial^2u^*}{\\partial y^{*2}}\\end{aligned}',
-          why: 'Two derivatives along the gap bring 1/L², two across bring 1/(εL)².',
-          plain: 'Friction across the gap is 1/ε² larger.', set: { focus: 'x_diff_across' } },
-        { did: 'Multiply by ρε²L²/(μU)', tex: '\\times\\frac{\\rho\\varepsilon^2L^2}{\\mu U}',
-          why: 'This makes the cross-gap friction — the term we expect to dominate — have coefficient 1, so every other coefficient reads directly as a relative size.',
-          plain: 'Measure everything against cross-gap friction.', set: { focus: 'x_diff_across' }, watch: 'The rose bar sits on the dashed line at 1: it is the yardstick.' },
-        { did: 'Read the inertia coefficient', tex: '\\frac{U^2}{L}\\cdot\\frac{\\rho\\varepsilon^2L^2}{\\mu U}=\\varepsilon^2\\frac{\\rho UL}{\\mu}=\\varepsilon^2\\mathrm{Re}_L',
-          why: 'Simplify the product; Re_L = ρUL/μ uses the passage length.',
-          plain: 'Inertia is weighed by ε²Re_L.', set: { focus: 'x_inertia' },
-          live: s => { const S = SC(s); return '\\varepsilon^2\\mathrm{Re}_L=(' + t3(S.eps) + ')^2\\times' + t3(S.Re_L) + '=' + t3(S.eps2_Re_L); },
-          watch: 'The teal bar lands deep in the grey band.' },
-        { did: 'Read the other x-coefficients', tex: '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L(\\ldots)=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}\\\\ &\\quad+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}\\quad(8.16a)\\end{aligned}',
-          why: 'Pressure: (Pₐ/ρL)(ρε²L²/μU) = Pₐh²/(μUL) = 1/Λ; along-gap friction: ε²; across: 1.',
-          plain: 'The scaled x-momentum equation.', set: { focus: 'x_pressure' },
-          live: s => '\\tfrac1\\Lambda=' + t3(1 / SC(s).Lambda) + ',\\ \\varepsilon^2=' + t3(SC(s).eps ** 2) },
-        { did: 'Scale the y-inertia terms', tex: '\\frac{Dv}{Dt}=\\frac{\\varepsilon U^2}{L}\\Big(\\frac{\\partial v^*}{\\partial t^*}+u^*\\frac{\\partial v^*}{\\partial x^*}+v^*\\frac{\\partial v^*}{\\partial y^*}\\Big)',
-          why: 'Each term now carries one factor εU from v: (U/L)εU, U(εU/L), (εU)(εU/εL).',
-          plain: 'Vertical inertia is ε times smaller.', set: { focus: 'y_inertia' } },
-        { did: 'Scale the y-pressure and friction', tex: '\\begin{aligned}&-\\frac{P_a}{\\rho\\varepsilon L}\\frac{\\partial p^*}{\\partial y^*},\\ \\ \\frac{\\mu\\varepsilon U}{\\rho L^2}\\frac{\\partial^2v^*}{\\partial x^{*2}},\\\\ &\\frac{\\mu U}{\\rho\\varepsilon L^2}\\frac{\\partial^2v^*}{\\partial y^{*2}}\\end{aligned}',
-          why: 'Use ∂/∂y = (1/εL)∂/∂y* on the pressure — the y-equation needs ∂p/∂y; the book’s printed y-equation has ∂p/∂x, which would give a different set.',
-          plain: 'Pressure across the gap is large.', set: { focus: 'y_pressure' }, watch: 'The printed ∂p/∂x would not give this bar set.' },
-        { did: 'Multiply by ρε³L²/(μU)', tex: '\\times\\frac{\\rho\\varepsilon^3L^2}{\\mu U}',
-          why: 'We choose the factor that gives the pressure term the same coefficient 1/Λ as in the x-equation: (Pₐ/ρεL)(ρε³L²/μU) = ε²LPₐ/(μU) = 1/Λ.',
-          plain: 'Compare against the same pressure yardstick.', set: { focus: 'y_pressure' } },
-        { did: 'Read the y-coefficients', tex: '\\begin{aligned}&\\varepsilon^4\\mathrm{Re}_L(\\ldots)=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}\\\\ &\\quad+\\varepsilon^4\\frac{\\partial^2v^*}{\\partial x^{*2}}+\\varepsilon^2\\frac{\\partial^2v^*}{\\partial y^{*2}}\\quad(8.16b)\\end{aligned}',
-          why: 'Inertia (εU²/L)(ρε³L²/μU) = ε⁴Re_L; friction ε⁴ and ε² likewise.',
-          plain: 'Only pressure lacks a power of ε.', set: { focus: 'y_diff_across' },
-          live: s => { const T = TM(s); return '\\varepsilon^4\\mathrm{Re}_L=' + t3(T.y_inertia) + ',\\ \\varepsilon^2=' + t3(T.y_diff_across); } }
-      ],
-      result: { tex: EQ.e16ac, plain: `With ${$(EQ.e15s)} (8.15) and the y-twin ${$(EQ.e16bs)} (8.16b): in a thin gap inertia carries ε²Re_L and every y-term except pressure carries ε² or less.`, set: { focus: null } },
-      interpret: s => { const S = SC(s); return `With your numbers: ε = ${f3(S.eps)}, Re_L = ${f3(S.Re_L)}, so inertia weighs ε²Re_L = ${f3(S.eps2_Re_L)} against a cross-gap friction of 1. "Large Re" is not the test in a thin gap — ε²Re_L is. The same bookkeeping becomes the boundary-layer approximation in Ch. 9.`; },
-      check: 'Every coefficient is dimensionless. The notebook\u2019s sympy check (lubrication_nondim_sympy) returns the sets {ε²Re_L, 1/Λ, ε², 1} and {ε⁴Re_L, 1/Λ, ε⁴, ε²}; with the printed ∂p/∂x in the y-equation the y-set does not match. The selftest rows compare these coefficients with fluidpy.' },
-
-    { id: 'D11', title: 'The lubrication balance', short: 'drop & restore ν', ref: 'Eqs. (8.17a), (8.17b)', view: 'xbars',
-      goal: 'Drop the small terms of the scaled equations and return to dimensional form — restoring the ν that the printed $0\\cong-\\tfrac1\\rho\\tfrac{\\partial p}{\\partial x}+\\tfrac{\\partial^2u}{\\partial y^2}$ (8.17a) omits.',
-      start: { tex: EQ.e16ac, plain: `The scaled x-momentum equation (8.16a) shown above ($D/Dt^*$ = the three inertia terms) and its y-twin ${$(EQ.e16bs)} (8.16b) from D10.` },
-      plan: ['State the orders.', 'Drop the small terms in each equation.', 'Undo the scaling.'],
-      uses: ['orders of smallness', 'the scalings and derivative rules of D10'],
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG),
-      steps: [
-        { did: 'State the orders', tex: '\\varepsilon\\ll1,\\ \\ \\varepsilon^2\\mathrm{Re}_L\\ll1,\\ \\ \\Lambda=O(1)',
-          why: 'All starred derivatives are O(1) by construction; only the coefficients decide sizes. Λ = O(1) needs a suitable pressure scale (μUL/h² makes it exactly 1).',
-          plain: 'A thin gap and a small reduced Reynolds number.' },
-        { did: 'Drop the x-inertia', tex: '0=-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}+\\varepsilon^2\\frac{\\partial^2u^*}{\\partial x^{*2}}+\\frac{\\partial^2u^*}{\\partial y^{*2}}+O(\\varepsilon^2\\mathrm{Re}_L)',
-          why: 'The left side of the scaled x-equation is ε²Re_L × O(1).',
-          plain: 'Acceleration is negligible — even its unsteady part.', set: Object.assign({ focus: 'x_inertia' }, ENG),
-          live: s => '\\varepsilon^2\\mathrm{Re}_L=' + t3(SC(s).eps2_Re_L) },
-        { did: 'Drop the along-gap friction', tex: '0\\cong-\\frac1\\Lambda\\frac{\\partial p^*}{\\partial x^*}+\\frac{\\partial^2u^*}{\\partial y^{*2}}',
-          why: 'ε²∂²u*/∂x*² is ε² times an order-one derivative, so it is as small as the inertia we just dropped.',
-          plain: 'Friction acts across the gap only.', set: { focus: 'x_diff_along' }, live: s => '\\varepsilon^2=' + t3(SC(s).eps ** 2) },
-        { did: 'Reduce the y-equation', tex: '\\frac1\\Lambda\\frac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)\\ \\Rightarrow\\ 0\\cong-\\frac{\\partial p^*}{\\partial y^*}',
-          why: 'In the scaled y-equation every term except the pressure carries ε² or smaller.',
-          plain: 'Pressure is the same across the gap to relative order ε².', set: { focus: 'y_pressure' } },
-        { did: 'Undo the x-scaling', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\frac\\mu\\rho\\frac{\\partial^2u}{\\partial y^2}',
-          why: 'Multiply by μU/(ρε²L²) (the inverse of D10 step 8) and use p = Pₐp*, ∂/∂y = (1/εL)∂/∂y*.',
-          plain: 'Back in dimensions.', set: { focus: null } },
-        { did: 'Write μ/ρ as ν', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial x}+\\nu\\frac{\\partial^2u}{\\partial y^2}\\quad(8.17a)',
-          why: 'ν = μ/ρ. The book prints this without the ν, which fails the units (m/s² against 1/(m s)).',
-          plain: 'Pressure gradient = cross-gap friction.', watch: 'Units: ν∂²u/∂y² is m/s², like (1/ρ)∂p/∂x.',
-          live: s => { const S = SC(s); return '\\tfrac{\\partial p}{\\partial x}\\sim\\tfrac{\\mu U}{h^2}=' + t3(S.p_visc / s.L) + '\\ \\text{Pa/m}'; } },
-        { did: 'Undo the y-scaling', tex: '0\\cong-\\frac1\\rho\\frac{\\partial p}{\\partial y}\\quad(8.17b)',
-          why: 'Multiply the reduced y-equation by Pₐ/(ρεL).',
-          plain: 'The pressure does not change across the gap.' }
-      ],
-      result: { tex: '\\begin{aligned}&' + EQ.e17a + '\\\\ &' + EQ.e17b + '\\end{aligned}', plain: 'The lubrication approximation $' + EQ.e17as + '$ (8.17a), $' + EQ.e17bs + '$ (8.17b): a local Poiseuille balance with the pressure uniform across the gap.', set: { focus: null } },
-      interpret: s => { const S = SC(s); return `With your numbers inertia is ${f3(S.eps2_Re_L)} of friction and the pressure varies across the gap by a relative ${f3(S.eps ** 2)}. The pressure scale μUL/h² = ${fmtPa(S.p_visc)} (${f3(S.p_visc / P_ATM)} atm); the bearing number with Pₐ is Λ = ${f3(S.Lambda)} — rescaling p changes nothing in the ordering.`; },
-      check: 'Units of the along-gap balance: both terms m/s². Time still appears as a parameter (no ∂/∂t term, yet h and p may vary slowly). Traps: dropping inertia needs ε²Re_L ≪ 1, not Re_L ≪ 1; ∂p*/∂y* is O(ε²), not exactly 0; re-dimensionalising restores ν.' }
-  ],
-  code: [
-    { id: 'main', title: 'The scales in Python', ref: 'Eqs. (8.14), (8.16)',
-      src: `
-from fluidpy import ch08_laminar_flow as ch08
-L, h, U, rho, mu = {{L}}, {{h}}, {{U}}, {{rho}}, {{mu}}   # SI
-s = ch08.lubrication_scales(L, h, U, rho, mu)
-print(s["eps"], s["Re_L"])       # eps = {{eps}}, Re_L = {{ReL}}
-print(s["eps2_Re_L"])            # inertia weight: {{e2}}
-print(s["Lambda"], s["p_visc"])  # Λ = {{Lam}}, μUL/h² = {{pv}} Pa
-t = ch08.lubrication_term_magnitudes(L, h, U, rho, mu,
-                                     p_scale="{{ps}}")
-print(t["x_inertia"], t["x_pressure"])  # {{xi}}, {{xp}}
-print(t["y_diff_across"], t["y_pressure"])  # {{yd}}, {{yp}}`,
-      live: s => { const S = SC(s), T = TM(s), F = v => Viz.fmt(v, { sig: 4 }).replace('−', '-');
-        return { L: F(s.L), h: F(s.h), U: F(s.U), rho: F(s.rho), mu: F(muOf(s)), eps: F(S.eps), ReL: F(S.Re_L), e2: F(S.eps2_Re_L), Lam: F(S.Lambda), pv: F(S.p_visc),
-          ps: s.pscale || 'viscous', xi: F(T.x_inertia), xp: F(T.x_pressure), yd: F(T.y_diff_across), yp: F(T.y_pressure) }; } }
-  ],
-  tour: [
-    { title: 'A paradox', text: `An engine\u2019s oil film has $\\mathrm{Re}_L$ ≈ ${f3(E0.Re_L)}, yet engineers treat it as purely viscous. <b>Why is inertia ignored?</b>`,
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true },
-    { title: 'Two rulers', text: 'Along the gap things change over $L$, across it over $h=\\varepsilon L$. Continuity then forces the cross-gap speed down to $v\\sim\\varepsilon U$ — the small blue arrows.',
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true, derive: { id: 'D10', step: 4 } },
-    { title: 'Weigh the terms', text: `Scale so that friction across the gap is 1: inertia gets the coefficient $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(E0.eps2_Re_L)} — the teal bar, deep in the grey “dropped” band.`,
-      set: Object.assign({ pscale: 'viscous', focus: 'x_inertia' }, ENG), play: false, terms: true, derive: { id: 'D10', step: 9 } },
-    { title: 'Across the gap', text: 'In the y-equation every term but pressure carries $\\varepsilon^2$ or less, so the pressure cannot change across the film:',
-      set: Object.assign({ pscale: 'viscous', focus: 'y_pressure' }, ENG), play: false, eq: 'l2' },
-    { title: 'Break it', text: `The “thick gap”: water, $\\varepsilon$ = ${f3(TK.eps)}, $\\mathrm{Re}_L$ = ${f3(TK.Re_L)}, so $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(TK.eps2_Re_L)}. Inertia now beats friction — lubrication theory fails.`,
-      set: Object.assign({ pscale: 'viscous', focus: 'x_inertia' }, THICK), play: false, readouts: ['e2', 'eps'], code: { id: 'main', lines: [4, 5] } },
-    { title: 'Your turn', text: 'Back to the engine film. Predict the gap $h$ at which $\\varepsilon^2\\mathrm{Re}_L$ reaches 1 (it grows like $h^2$), then drag $h$ and watch the status.',
-      set: Object.assign({ pscale: 'viscous', focus: null }, ENG), play: true, controls: ['h', 'U'] }
-  ],
-  equations: [
-    { id: 'c62', title: 'Continuity in the gap', ref: 'Eq. (6.2)', tex: EQ.e62, symbols: [['u,\\ v', 'velocity along and across the gap', 'm/s']] },
-    { id: 'm13a', title: 'x-momentum in the gap', ref: 'Eq. (8.13a)', tex: EQ.e13a,
-      symbols: [['p', 'pressure', 'Pa'], ['\\rho', 'density', 'kg/m³'], ['\\mu', 'dynamic viscosity', 'Pa s']] },
-    { id: 'm13b', title: 'y-momentum in the gap', ref: 'Eq. (8.13b)', tex: EQ.e13b, note: 'printed with ∂p/∂x — a slip; the y-equation needs ∂p/∂y' },
-    { id: 's14', title: 'The thin-gap scalings', ref: 'Eq. (8.14)', tex: EQ.e14,
-      live: s => '\\varepsilon=h/L=' + t3(SC(s).eps),
-      symbols: [['L', 'passage length', 'm'], ['h=\\varepsilon L', 'gap', 'm'], ['U', 'speed scale', 'm/s'], ['P_a', 'atmospheric pressure, 101325', 'Pa']] },
-    { id: 'c15', title: 'Scaled continuity', ref: 'Eq. (8.15)', tex: EQ.e15, note: 'no small coefficient: mass is conserved exactly' },
-    { id: 'x16a', title: 'Scaled x-momentum', ref: 'Eq. (8.16a)', tex: EQ.e16a,
-      live: s => { const T = TM(s); return '\\begin{aligned}&\\varepsilon^2\\mathrm{Re}_L=' + t3(T.x_inertia) + '\\\\ &\\tfrac1\\Lambda=' + t3(1 / T.Lambda) + ',\\ \\varepsilon^2=' + t3(T.x_diff_along) + '\\end{aligned}'; },
-      symbols: [['\\mathrm{Re}_L=\\rho UL/\\mu', 'Reynolds number on L', '–'], ['\\Lambda=\\mu UL/P_ah^2', 'bearing number', '–']] },
-    { id: 'y16b', title: 'Scaled y-momentum', ref: 'Eq. (8.16b)', tex: EQ.e16b,
-      live: s => { const T = TM(s); return '\\varepsilon^4\\mathrm{Re}_L=' + t3(T.y_inertia) + ',\\ \\varepsilon^2=' + t3(T.y_diff_across); } },
-    { id: 'l1', title: 'Lubrication balance along the gap', ref: 'Eq. (8.17a)', tex: EQ.e17a, note: 'printed without the ν — the units need it',
-      live: s => '\\varepsilon^2\\mathrm{Re}_L=' + t3(SC(s).eps2_Re_L) + '\\ll1', symbols: [['\\nu=\\mu/\\rho', 'kinematic viscosity', 'm²/s']] },
-    { id: 'l2', title: 'Pressure uniform across the gap', ref: 'Eq. (8.17b)', tex: EQ.e17b,
-      live: s => '\\tfrac{\\partial p^*}{\\partial y^*}=O(\\varepsilon^2)=' + t3(SC(s).eps ** 2) }
-  ],
-  check: [
-    { q: 'Double $U$. By what factor does the teal inertia bar grow?', a: 'By 2: $\\varepsilon^2\\mathrm{Re}_L=\\varepsilon^2UL/\\nu\\propto U$. Nothing else in the x-bars moves (with the natural pressure scale).', set: Object.assign({ pscale: 'viscous', focus: null }, ENG, { U: 2 * ENG.U }) },
-    { q: 'Halve $h$ at fixed $L$, $U$, $\\nu$. What happens to $\\varepsilon^2\\mathrm{Re}_L$ and to the pressure scale $\\mu UL/h^2$?',
-      a: `$\\varepsilon^2\\mathrm{Re}_L$ falls 4× (${f3(E0.eps2_Re_L)} → ${f3(E0.eps2_Re_L / 4)}); $\\mu UL/h^2$ grows 4× (${fmtPa(E0.p_visc)} → ${fmtPa(4 * E0.p_visc)}): thinner films are more viscous-dominated and build higher pressures.`, set: Object.assign({ pscale: 'viscous', focus: null }, ENG, { h: ENG.h / 2 }) },
-    { q: `With the book\u2019s pressure scale $P_a$ the engine film has $\\Lambda$ ≈ ${f3(E0.Lambda)}, far from 1. Why is that not a problem?`,
-      a: 'Λ only rescales $p^*$: with $P_a$, $p^*$ is of size Λ and the pressure term is still ~1 (the dashed orange bar). Choosing the natural scale $\\mu UL/h^2$ makes the coefficient exactly 1 without changing which terms are small.', set: Object.assign({ pscale: 'atm', focus: 'x_pressure' }, ENG) },
-    { q: 'Which smallness condition decides whether inertia can be dropped: $\\mathrm{Re}_L\\ll1$ or $\\varepsilon^2\\mathrm{Re}_L\\ll1$?',
-      a: `$\\varepsilon^2\\mathrm{Re}_L\\ll1$ (with $\\varepsilon\\ll1$). The engine film has Re_L ≈ ${f3(E0.Re_L)} but $\\varepsilon^2\\mathrm{Re}_L$ = ${f3(E0.eps2_Re_L)}; it stays lubrication-like until $h$ ≈ ${fmtLen(hCrit)}.` }
-  ],
-  selftest: () => {
-    const R = (L, h, U, rho, mu) => scalesRaw(L, h, U, rho, mu), Tm = (L, h, U, rho, mu, ps) => termsRaw(L, h, U, rho, mu, ps);
-    const e = ENG, mE = e.rho * e.nu;
-    return [
-      { name: 'eps2ReL engine', js: R(0.05, 5e-5, 5, 870, 0.05).eps2_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'Lambda engine', js: R(0.05, 5e-5, 5, 870, 0.05).Lambda, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["Lambda"]', rtol: 1e-12 },
-      { name: 'Re_L engine', js: R(0.05, 5e-5, 5, 870, 0.05).Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["Re_L"]', rtol: 1e-12 },
-      { name: 'p_visc engine', js: R(0.05, 5e-5, 5, 870, 0.05).p_visc, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["p_visc"]', rtol: 1e-12 },
-      { name: 'eps4ReL engine', js: R(0.05, 5e-5, 5, 870, 0.05).eps4_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps4_Re_L"]', rtol: 1e-12 },
-      { name: 'eps2ReL engine preset (mu = rho nu)', js: R(e.L, e.h, e.U, e.rho, mE).eps2_Re_L, py: 'ch08.lubrication_scales(0.05, 5e-5, 5.0, 870.0, 0.05)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'y diff atm', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').y_diff_across, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05, p_scale="atm")["y_diff_across"]', rtol: 1e-12 },
-      { name: 'x pressure atm', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').x_pressure, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05, p_scale="atm")["x_pressure"]', rtol: 1e-12 },
-      { name: 'y inertia viscous', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').y_inertia, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05)["y_inertia"]', rtol: 1e-12 },
-      { name: 'x pressure viscous', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').x_pressure, py: 'ch08.lubrication_term_magnitudes(0.05, 5e-5, 5.0, 870.0, 0.05)["x_pressure"]', rtol: 1e-12 },
-      { name: 'eps2ReL Hele-Shaw', js: R(0.1, 1e-3, 0.01, 1260, 1.26).eps2_Re_L, py: 'ch08.lubrication_scales(0.1, 1e-3, 0.01, 1260.0, 1.26)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'eps2ReL thick gap', js: R(0.01, 2e-3, 1, 1000, 1e-3).eps2_Re_L, py: 'ch08.lubrication_scales(0.01, 2e-3, 1.0, 1000.0, 1e-3)["eps2_Re_L"]', rtol: 1e-12 },
-      { name: 'Lambda knee', js: R(0.01, 1e-6, 0.1, 1000, 1e-2).Lambda, py: 'ch08.lubrication_scales(0.01, 1e-6, 0.1, 1000.0, 1e-2)["Lambda"]', rtol: 1e-12 },
-      { name: 'y pressure atm thick', js: Tm(0.01, 2e-3, 1, 1000, 1e-3, 'atm').y_pressure, py: 'ch08.lubrication_term_magnitudes(0.01, 2e-3, 1.0, 1000.0, 1e-3, p_scale="atm")["y_pressure"]', rtol: 1e-12 },
-      { name: 'natural Lambda = 1', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'viscous').x_pressure, expect: 1, rtol: 1e-12 },
-      { name: 'atm pressure coefficient x Lambda = 1', js: Tm(0.05, 5e-5, 5, 870, 0.05, 'atm').x_pressure * R(0.05, 5e-5, 5, 870, 0.05).Lambda, expect: 1, rtol: 1e-12 },
-      { name: 'engine eps2ReL = 4.35e-3 (O4)', js: R(0.05, 5e-5, 5, 870, 0.05).eps2_Re_L, expect: 4.35e-3, rtol: 1e-12 },
-      { name: 'gap tracers: flux q conserved along the passage', js: psiStar(0.3, 1) - psiStar(0.9, 1), expect: 0, atol: 1e-14 },
-      { name: 'gap profile: u* = 0 on the fixed wall', js: uStar(0.4, 1), expect: 0, atol: 1e-15 }
-    ];
-  }
-});
+  explain: { html: s => explainHtml(s), live: s => explainLive(s) },
+  derivations: DERIV,
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
+};
+const app = Viz.app(CFG);
 </script>
 </body>
 </html>
