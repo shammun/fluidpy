@@ -300,8 +300,8 @@
   "ch11": {
    "title": "Instability",
    "slug": "instability",
-   "analyze": "todo",
-   "curate": "todo",
+   "analyze": "pass",
+   "curate": "running",
    "design": "todo",
    "implement": "todo",
    "verify": "todo",
@@ -311,8 +311,8 @@
    "knowledge": "todo",
    "publish": "todo",
    "explainers": [],
-   "notes": "",
-   "updated": null
+   "notes": "analyze: 170 rows (NEW 145, SEEN 24), 96/96 eqs (19 in grouped labels), CODE 99/DEMO 16/SKIP 55, 37 derivations (16/15/6 by star), 42 impl rows (new core/stability.py Chebyshev OS/Rayleigh/TG), 12 slips S1-S12 (S1 determinant B->C, S3 spurious 3, S4 dp/dx->dp/dz, S11 (U-c)^2, S12 continuity 1/R), benchmarks Ra_c 1707.7618/K 3.1163, free-free 657.511, rigid-free 1100.650, Re_c 5772.222 (Orszag digits reproduced), Blasius 519.2, Lorenz r_H 24.737; 37 _forbidden_public strings in private json",
+   "updated": "2026-09-30"
   },
   "ch12": {
    "title": "Turbulence",
