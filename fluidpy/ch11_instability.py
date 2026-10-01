@@ -67,6 +67,12 @@ def _F(x):
     return np.asarray(x, dtype=float)
 
 
+def _FC(x):
+    """As _F for real input; complex input stays complex (profiles evaluated on the complex path of rayleigh_eigs_contour)."""
+    a = np.asarray(x)
+    return a if np.iscomplexobj(a) else a.astype(float)
+
+
 def _S(x):
     return as_scalar_if_0d(x)
 
@@ -132,7 +138,9 @@ def potential_well_demo(shape: str, x0: float, v0: float = 0.0, damping: float =
     Parameters: shape ∈ {"bowl", "cap", "plane", "dimple"}; x0, v0 [–]; damping γ ≥ 0 [–]; t_end; n output times; x_escape
     (terminal event at |x| = x_escape — never NaN).
     Returns dict(t, x, v, V (callable), escaped).  Example: dimple x0 = 0.3 stays (|x| < 1), x0 = 1.2 escapes.
-    Validation: V4 energy ½v² + V non-increasing for γ ≥ 0.  Label: converged (solve_ivp rtol 1e-10).
+    Validation: V4 energy ½v² + V non-increasing for γ ≥ 0 (and the γ = 0 bowl returns to its start after one period);
+    no step-size / tolerance convergence study is run.  Label: conserved (an illustration of ours — the potentials and the
+    damping are not the book's; solve_ivp rtol 1e-10).
     """
     if shape not in _WELLS:
         raise ValueError(f"shape must be one of {sorted(_WELLS)}")
@@ -242,13 +250,19 @@ def kh_critical_k(U1: float, U2: float, rho1: float, rho2: float, g: float = G0)
     """Wavenumber above which the stratified vortex sheet is unstable (no surface tension, deep layers).
 
     Book: §11.3, p. 480: unstable iff g(ρ₂² − ρ₁²) < kρ₁ρ₂(U₂ − U₁)², so k_c = g(ρ₂² − ρ₁²)/(ρ₁ρ₂(U₂ − U₁)²) [1/m].
-    Returns k_c; inf for U₁ = U₂ with ρ₂ > ρ₁; 0.0 when ρ₁ ≥ ρ₂ (every k unstable).  Example: air over water, ΔU = 5 m/s →
-    327 m⁻¹ (λ_c = 1.92 cm).  Validation: V1 c_i = 0 at k_c, > 0 just above.  Label: analytic.
+    Returns k_c; inf for U₁ = U₂ with ρ₂ ≥ ρ₁ (no shear: no k is unstable); 0.0 when ρ₁ > ρ₂ (Rayleigh–Taylor) or when
+    ρ₁ = ρ₂ with U₁ ≠ U₂ (the vortex sheet (11.20)) — every k unstable.
+    Degenerate input: a uniform fluid at rest relative to itself (U₁ = U₂ and ρ₁ = ρ₂) has c = U for every k — neutral, no
+    interface at all — so k_c = inf (nothing is unstable), not 0.
+    Example: air over water, ΔU = 5 m/s → 327 m⁻¹ (λ_c = 1.92 cm).  Validation: V1 c_i = 0 at k_c, > 0 just above.
+    Label: analytic.
     """
     num = g * (rho2 ** 2 - rho1 ** 2)
+    dU2 = (U2 - U1) ** 2
+    if num == 0 and dU2 == 0:
+        return math.inf  # uniform fluid, no shear: the discriminant of (11.18) is 0 at every k (neutral)
     if num <= 0:
         return 0.0
-    dU2 = (U2 - U1) ** 2
     if dU2 == 0:
         return math.inf
     return num / (rho1 * rho2 * dU2)
@@ -292,11 +306,17 @@ def kh_unstable_band(dU: float, rho1: float, rho2: float, g: float = G0, surface
     Book: §11.3 / Ex. 11.1: negative discriminant ⇔ σ_s k² − Sk + g(ρ₂ − ρ₁) < 0, S = ρ₁ρ₂ΔU²/(ρ₁ + ρ₂); roots
     k = [S ∓ √(S² − 4σ_s g(ρ₂ − ρ₁))]/(2σ_s).  Without σ_s: (k_c, inf).
     Returns (k1, k2) [1/m]; (nan, nan) when no wavenumber is unstable.  Example: air/water, ΔU = 8 m/s → [149.2, 887.4] m⁻¹;
-    ΔU = 5: empty.  Label: analytic.
+    ΔU = 5: empty.
+    Degenerate inputs: ΔU = 0 with ρ₁ = ρ₂ (a uniform fluid, neutral at every k) → (nan, nan), with or without σ_s;
+    ρ₁ > ρ₂ (top-heavy) with σ_s > 0 → (0, k₂): the lower root of the quadratic is negative and is clipped to 0
+    (ΔU = 0: k₂ = √(g(ρ₁ − ρ₂)/σ_s) = 2π/:func:`rayleigh_taylor_cutoff`, the Rayleigh–Taylor cut-off).
+    Label: analytic.
     """
     drho = rho2 - rho1
     S = rho1 * rho2 * dU ** 2 / (rho1 + rho2)
     if surface_tension <= 0:
+        if drho == 0 and S == 0:
+            return float("nan"), float("nan")  # uniform fluid, no shear: neutral at every k
         if drho <= 0:
             return 0.0, math.inf
         return (g * drho / S, math.inf) if S > 0 else (float("nan"), float("nan"))
@@ -304,7 +324,7 @@ def kh_unstable_band(dU: float, rho1: float, rho2: float, g: float = G0, surface
     if disc <= 0:
         return float("nan"), float("nan")
     r = math.sqrt(disc)
-    return (S - r) / (2.0 * surface_tension), (S + r) / (2.0 * surface_tension)
+    return max((S - r) / (2.0 * surface_tension), 0.0), (S + r) / (2.0 * surface_tension)
 
 
 def vortex_sheet_c(U1: float, U2: float):
@@ -693,6 +713,11 @@ def _benard_growth_solve(K, Ra, Pr, bc, N):
     return constrained_eig(A, B, C, elim, sort="real")
 
 
+def _benard_confirm_ladder(N: int) -> tuple:
+    """Resolutions tried, in order, to confirm a leading Bénard eigenvalue that the 1.5N solve did not confirm."""
+    return int(math.ceil(1.25 * N)), int(math.ceil(0.75 * N)), int(math.ceil(0.6 * N))
+
+
 def benard_growth_rate(K: float, Ra: float, Pr: float, bc: Sequence[str] = ("rigid", "rigid"), N: int = 40,
                        all: bool = False, return_complex: bool = False, filter: bool = True):
     """Growth rate σ (units κ/d²) of the leading Bénard normal mode at wavenumber K (or all, sorted by Re σ).
@@ -703,19 +728,55 @@ def benard_growth_rate(K: float, Ra: float, Pr: float, bc: Sequence[str] = ("rig
     Boundary unknowns are eliminated (no spurious boundary eigenvalues) and, with ``filter`` (default), only σ that reappear
     in a solve at ⌈1.5N⌉ within 1e-6·max(1, |σ|) are kept (design note: naïve row replacement gives spurious huge σ at N ≥ 32).
     Parameters: K, Ra, Pr; bc; N; all (return all, sorted); return_complex; filter.  Returns float (leading real σ) or ndarray.
-    Raises ValueError if no eigenvalue survives the N-filter (N too small to resolve any mode, e.g. N = 8) — raise N or
-    pass ``filter=False``.
-    Validation: V1 free–free = :func:`benard_free_free_sigma` (1e-8); all |σ_i| < 1e-10 for Ra > 0; σ₁ = 0 at
-    :func:`benard_marginal_Ra`; V3.  Label: converged.
+    Ra < 0 (heated from above, stably stratified): exchange of stabilities no longer holds — the damped modes can be complex
+    pairs (decaying internal-wave oscillations).  The default then returns **Re σ of the least-damped mode and drops Im σ**
+    (``all=True`` likewise returns real parts); pass ``return_complex=True`` to see it.  Measured, rigid–rigid, K = 3:
+    Ra = −2000, Pr = 1 → −28.6456 + 26.9938i (default: −28.6456); Ra = −5000, Pr = 0.7 → −23.3965 ∓ 37.8442i; but
+    Ra = −2000, Pr = 7 → −44.9839 (real: the least-damped mode is still a real one).  The sign of Im σ of a pair is arbitrary.
+    The leading mode is never replaced by a lower one: if the largest-Re σ of the N solve is not confirmed at ⌈1.5N⌉ it is
+    re-tested at ⌈1.25N⌉, ⌈0.75N⌉, ⌈0.6N⌉ (same tolerance; the round-off of the Chebyshev D⁴ grows steeply with N, so the
+    finer solve can be the less accurate one — rigid–free, K = 1.84, Ra = 1.6 Ra(K), Pr = 7.14: 7.1195004794 exact,
+    7.1195004809 at N = 40, 7.1195096 at N = 60), and if it is still unconfirmed a ValueError is raised.  (Before this
+    check the default returned the *second* eigenvalue there, −39.61, and at 11 of 2000 points of a (K, Ra/Ra(K), Pr) scan.)
+    Raises ValueError if no eigenvalue survives the N-filter (N too small to resolve any mode, e.g. N = 8), or if the
+    leading eigenvalue does not while a lower one does (measured once in 1080 wide-range points: rigid–rigid K = 5,
+    Ra = 5e4, Pr = 100, where round-off is 1.3e-6 of σ = 605.29) — change N or pass ``filter=False`` (the unfiltered leading
+    eigenvalue).  ``all=True`` with nothing confirmed returns an empty array.  Use N ≈ 24 – 48: accuracy is ≤ 1e-7 there and
+    degrades above (rigid–free, N = 96: 5e-6 relative, shared by neighbouring N and so not detectable by the filter).
+    Validation: V1 free–free = :func:`benard_free_free_sigma` (1e-8); V1 (independent route) roots of the 6 × 6 determinant
+    of the exponential solutions, rigid–rigid and rigid–free (≤ 5e-8 on 61 points); all |σ_i| < 1e-10 for Ra > 0; σ₁ = 0 at
+    :func:`benard_marginal_Ra` and sign σ₁ = sign(Ra − Ra(K)) on 2000 points; V3.  Label: converged.
     """
     if K <= 0 or Pr <= 0:
         raise ValueError("K > 0 and Pr > 0 required")
     w = _benard_growth_solve(K, Ra, Pr, bc, N)
-    if filter:
-        w = w[converged_mask(w, _benard_growth_solve(K, Ra, Pr, bc, int(math.ceil(1.5 * N))), 1e-6)]
+    if filter and len(w):
+        M = int(math.ceil(1.5 * N))
+        mask = converged_mask(w, _benard_growth_solve(K, Ra, Pr, bc, M), 1e-6)
+        tried = [M]
+        if not mask[0]:
+            # The leading candidate w[0] (largest Re σ) is not confirmed at 1.5N.  It must never be skipped silently in
+            # favour of a lower mode: confirm it (and its complex partner / near neighbours above the first confirmed
+            # mode) at other resolutions — the round-off of the Chebyshev D⁴ grows steeply with N, so the finer solve can
+            # be the less accurate one — or raise.
+            n_top = int(np.argmax(mask)) if mask.any() else len(w)
+            for M2 in _benard_confirm_ladder(N):
+                if M2 in tried or M2 < 6:
+                    continue
+                tried.append(M2)
+                mask[:n_top] |= converged_mask(w[:n_top], _benard_growth_solve(K, Ra, Pr, bc, M2), 1e-6)
+                if mask[0]:
+                    break
+        if not mask[0] and (mask.any() or not all):
+            what = ("no eigenvalue" if not mask.any() else
+                    f"the leading eigenvalue σ = {complex(w[0]):.9g} (a lower mode at {complex(w[int(np.argmax(mask))]):.9g} "
+                    "does, and is not returned in its place)")
+            raise ValueError(f"benard_growth_rate: {what} of the N = {N} solve does not reappear within 1e-6·max(1, |σ|) at "
+                             f"N = {tried} (resolution too low — or too high: round-off — for the N-convergence filter) — "
+                             "change N or pass filter=False")
+        w = w[mask]
     if len(w) == 0 and not all:
-        raise ValueError(f"benard_growth_rate: no eigenvalue of the N = {N} solve reappears at N = {int(math.ceil(1.5 * N))} "
-                         "(resolution too low for the N-convergence filter) — increase N or pass filter=False")
+        raise ValueError(f"benard_growth_rate: the N = {N} solve has no finite eigenvalue (filter={filter}) — increase N")
     if all:
         return w if return_complex else np.real(w)
     return complex(w[0]) if return_complex else float(np.real(w[0]))
@@ -778,8 +839,13 @@ def benard_marginal_Ra_det(K: float, mode: str = "even", Ra_max: float = 2e4, n_
 
     Book: §11.4, p. 489 (nonzero (A, B, C) ⇔ det = 0).  Scan Ra geometrically from max(1.02K⁴, 50) (q₀ real; the degenerate
     end Ra → K⁴ has spurious sign changes) to Ra_max (raised automatically to 20K⁴ if smaller), first sign change, brentq.
-    Returns Ra.  Raises ValueError if K ≤ 0 or if Im det does not change sign below the upper end of the scan (the odd mode
-    at K ≲ 1.5 has its root above the default: pass ``Ra_max`` ≥ 1e5) — never a silent NaN.
+    Returns Ra.  Raises ValueError if K ≤ 0 or if Im det does not change sign below the upper end of the scan — never a
+    silent NaN.  Reach of the default ``Ra_max = 2e4`` (measured, K = 0.3 … 9 in steps of 0.1): the **even** root is found
+    for K ≥ 0.6 (K = 0.5: root 21 009.8; K = 0.3: 56 991.6); the **odd** root only for K ≥ 4.0 (K = 3.9: 20 061.1; K = 3:
+    26 146.6; K = 2: 47 005.6; K = 1.2: 115 710.9; K = 1: 163 127.6; K = 0.5: 629 152.8).  Below those K pass ``Ra_max``
+    above the root; the error message computes it for you from the Chebyshev route (:func:`benard_marginal_Ra`) and names
+    a sufficient ``Ra_max`` (1.2 × that value; checked to work at each K listed).  The scan is not widened automatically:
+    a call that needs a larger bracket says so.
     Validation: V1 equals :func:`benard_marginal_Ra` to 1e-8 at K = 2, 3.1163, 5.
     Label: analytic.
     """
@@ -793,8 +859,17 @@ def benard_marginal_Ra_det(K: float, mode: str = "even", Ra_max: float = 2e4, n_
     for j in range(len(grid) - 1):
         if np.isfinite(v[j]) and np.isfinite(v[j + 1]) and v[j] * v[j + 1] < 0:
             return float(brentq(f, grid[j], grid[j + 1], xtol=1e-10, rtol=1e-14))
+    reach = "K ≥ 0.6" if mode == "even" else "K ≥ 4.0"
+    try:  # per-mode hint: where the independent Chebyshev route puts the root
+        est = float(benard_marginal_Ra(K, mode=mode))
+        hint = (f"the Chebyshev route puts the {mode} root at Ra ≈ {est:.6g}: pass Ra_max ≥ {1.2 * est:.3g}"
+                if np.isfinite(est) and est > hi else
+                f"the Chebyshev route gives Ra ≈ {est:.6g}, inside the scan — try a larger n_scan")
+    except Exception:  # the hint must never mask the real error
+        hint = "pass Ra_max above the root"
     raise ValueError(f"benard_marginal_Ra_det: no sign change of Im det for K = {K:g}, mode = {mode!r} in "
-                     f"Ra ∈ [{lo:.4g}, {hi:.4g}] — raise Ra_max (the odd mode at small K needs Ra_max ≥ 1e5)")
+                     f"Ra ∈ [{lo:.4g}, {hi:.4g}] — raise Ra_max (the default 2e4 reaches the {mode} mode only for "
+                     f"{reach}; {hint})")
 
 
 def benard_free_free_Ra(K, n: int = 1):
@@ -827,11 +902,16 @@ def benard_free_free_mode(z, n: int = 1, printed: bool = False):
 
 
 def benard_free_free_sigma(K, Ra: float, Pr: float, n: int = 1):
-    """The two real growth rates (σ₊ ≥ σ₋, units κ/d²) of the free–free Bénard mode n.
+    """The two growth rates (units κ/d²) of the free–free Bénard mode n — real (σ₊ ≥ σ₋) for Ra ≥ 0.
 
     Book: §11.4, (11.36)–(11.37) with W = sin nπ(z + ½) (our D12): a² = n²π² + K²,
     (σ + a²)(σ/Pr + a²)a² = RaK²  ⇔  σ² + a²(1 + Pr)σ + Pr a⁴ − Pr Ra K²/a² = 0; real for Ra > 0; σ₊ = 0 at (11.44).
-    Returns (sigma_plus, sigma_minus).  Example: K = π/√2, Ra = 2000, Pr = 1 → 11.0155, −40.6243.  Label: analytic.
+    Returns (sigma_plus, sigma_minus): two floats when the discriminant a⁴(1 − Pr)² + 4 Pr Ra K²/a² is ≥ 0 (always for
+    Ra ≥ 0), otherwise a **complex-conjugate pair** (σ₊ carries Im > 0): for Ra < −a⁶(1 − Pr)²/(4 Pr K²) the stably
+    stratified layer answers with a damped oscillation (Re σ = −a²(1 + Pr)/2 < 0).  At K = π/√2, n = 1 that threshold is
+    Ra = −845.4 (Pr = 7), −21.13 (Pr = 0.7) and 0 (Pr = 1).
+    Examples: K = π/√2, Ra = 2000, Pr = 1 → 11.0155, −40.6243; K = 2.2, Ra = −2000, Pr = 7 → −58.8384 ± 51.5671i;
+    K = 2.2, Ra = −50, Pr = 7 → −16.0343, −101.6425 (still real).  Label: analytic.
     """
     a2 = n ** 2 * math.pi ** 2 + K ** 2
     b = a2 * (1.0 + Pr)
@@ -1045,8 +1125,8 @@ def salt_finger_unstable(dTdz, dSdz, d: float, alpha: float = 2e-4, beta_S: floa
     larger; statically stable when α dT̄/dz − β dS/dz > 0 (ρ̄ decreases upward).
     Parameters: dTdz [K/m]; dSdz [(g/kg)/m]; d [m]; alpha; beta_S; nu, kappa, kappa_s [m²/s]; g.
     Returns dict(unstable, lhs, margin (lhs − 27π⁴/4), density_stable, R_rho (= αT̄_z/(βS̄_z)), Ra (§11.5), Rs).
-    Example (ours): dT/dz = 0.01, dS/dz = 0.002, d = 5 cm → lhs ≈ 61 254, density_stable, R_ρ = 1.316; thinnest
-    finger-unstable layer ≈ 1.61 cm.  Validation: V1 sign flips at (11.46); V7 κ_s = κ → single-component threshold.
+    Example (ours): dT/dz = 0.01, dS/dz = 0.002, d = 5 cm → lhs = 61 233.19 with the default g = G0 = 9.80665 (61 254.11
+    with g = 9.81), density_stable, R_ρ = 1.316; thinnest finger-unstable layer ≈ 1.61 cm.  Validation: V1 sign flips at (11.46); V7 κ_s = κ → single-component threshold.
     Label: analytic.
     """
     lhs = g * d ** 4 / nu * (beta_S / kappa_s * dSdz - alpha / kappa * dTdz)  # Eq. (11.46) left side
@@ -1079,21 +1159,53 @@ def double_diffusive_sigma(K2: float, Ra: float, Rs: float, Pr: float, tau: floa
 def salt_finger_regime(dTdz, dSdz, d: float, alpha: float = 2e-4, beta_S: float = 7.6e-4, nu: float = 1e-6,
                        kappa: float = 1.4e-7, kappa_s: float = 1.5e-9, g: float = G0, Pr: float = 7.0,
                        K2: float | None = None) -> dict:
-    """Classify a column: "overturning" (density-unstable), "fingers", "diffusive" or "stable".
+    """Classify a column: "overturning" (top-heavy *and* unstable), "fingers", "diffusive" or "stable".
 
     Book: §11.5, Fig. 11.13 ((a) hot salty over cold fresh → fingers, real σ; (b) cold fresh over hot salty → growing
-    oscillations, complex σ).  Classifier (ours): density-unstable ⇒ "overturning"; else the leading root of
-    :func:`double_diffusive_sigma` at K² (default π²/2): Re σ > 0 and real ⇒ "fingers", complex ⇒ "diffusive", else "stable".
-    Returns dict(regime, R_rho, margin ((11.46) lhs − 27π⁴/4), sigma_max (complex), density_stable, text).  Label: analytic.
+    oscillations, complex σ) and p. 494: with T̂ = κ_sŝ/κ the set (11.45) is the Bénard set (11.39) with Ra → Rs − Ra, so
+    the free–free layer is unstable only when (gd⁴/ν)[(β/κ_s)dS/dz − (α/κ)dT̄/dz] > 27π⁴/4 (11.46, printed "657").
+    Classifier (ours), s = leading root of :func:`double_diffusive_sigma` at K² (default π²/2, the critical K² of (11.46)):
+    * top-heavy or neutral (α dT̄/dz − β dS/dz ≤ 0): "overturning" only if the layer is actually unstable — margin
+      (11.46) > 0 or Re s > 0; otherwise "stable" (viscosity and diffusion damp the top-heavy layer, exactly as a Bénard
+      layer below its critical Rayleigh number).  Example (d = 5 cm, dS/dz = 0, defaults): −0.00751 < dT̄/dz ≤ 0 K/m is
+      stable (Rs − Ra = 437.8 at −0.005, σ = −0.159), −0.0076 overturns (665.5, σ = +0.156).  (11.46) only locates
+      the marginal state σ = 0 (where a real root changes sign); it is not a criterion for "no growth": a top-heavy layer
+      with salt stabilising (dS/dz < 0) can have margin < 0 and still a growing root, labelled "overturning".  With
+      margin < 0 the cubic is positive at σ = 0, so it has 0 or 2 positive real roots, and the growing root is either
+      (i) one of a complex pair, e.g. (−0.015, −0.001) → σ = 3.296 ± 8.889i — the text says oscillatory; or (ii) real,
+      once the pair has merged on the real axis, e.g. (−0.03, −0.0016) → margin −47 718, roots +16.890, +7.322, −142.8 —
+      the text says monotonic overturning (a real root grows although σ = 0 of (11.46) is not crossed).  "Real" means
+      |Im s| ≤ 1e-9·max(1, |s|) for the leading root s.
+      "stable" therefore means: (11.46) not met *and* no growing root at this K² (other K² are not scanned).
+    * bottom-heavy: Re s > 0 and s real ⇒ "fingers"; Re s > 0 and s complex ⇒ "diffusive"; else "stable".
+    Returns dict(regime, R_rho, margin ((11.46) lhs − 27π⁴/4), sigma_max (complex, units κ/d²), density_stable, text).
+    Validation: V7 four regimes; V1 the top-heavy label flips where margin (11.46) changes sign.  Label: analytic.
     """
     K2 = math.pi ** 2 / 2.0 if K2 is None else K2
     sf = salt_finger_unstable(dTdz, dSdz, d, alpha, beta_S, nu, kappa, kappa_s, g)
     s = complex(double_diffusive_sigma(K2, sf["Ra"], sf["Rs"], Pr, kappa_s / kappa)[0])
+    grows = s.real > 1e-12
+    is_real = abs(s.imag) <= 1e-9 * max(1.0, abs(s))
     if not sf["density_stable"]:
-        regime, text = "overturning", "density increases upward: ordinary convective overturning"
-    elif s.real > 1e-12 and abs(s.imag) <= 1e-9 * max(1.0, abs(s)):
+        if sf["margin"] > 0 or grows:  # Eq. (11.46): unstable only for Rs − Ra > 27π⁴/4 (or a growing mode at this K²)
+            how = f"σ = {s.real:.4g} (real)" if is_real else f"σ = {s.real:.4g} ± {abs(s.imag):.4g}i"
+            regime = "overturning"
+            if sf["margin"] > 0:
+                text = (f"density increases upward and Rs − Ra = {sf['lhs']:.4g} > 27π⁴/4 = 657.5: ordinary convective "
+                        f"overturning, {how}")
+            elif is_real:  # (11.46) not met, yet a real root grows: the complex pair has merged on the real axis
+                text = (f"density increases upward; Rs − Ra = {sf['lhs']:.4g} < 27π⁴/4 = 657.5 (the marginal state σ = 0 "
+                        f"of (11.46) is not crossed) yet a real root grows: monotonic overturning, {how}")
+            else:  # no steady mode grows ((11.46) not met), but an oscillatory one does
+                text = (f"density increases upward; Rs − Ra = {sf['lhs']:.4g} < 27π⁴/4 = 657.5 (no steady mode grows) but "
+                        f"an oscillatory mode does: overturning by growing oscillations, {how}")
+        else:
+            regime = "stable"
+            text = (f"density does not decrease upward, but Rs − Ra = {sf['lhs']:.4g} < 27π⁴/4 = 657.5: viscosity and "
+                    f"diffusion win, no overturning (Re σ = {s.real:.4g})")
+    elif grows and is_real:
         regime, text = "fingers", f"statically stable but finger-unstable: σ = {s.real:.4g} (real)"
-    elif s.real > 1e-12:
+    elif grows:
         regime, text = "diffusive", f"statically stable, oscillatory growth: σ = {s.real:.4g} ± {abs(s.imag):.4g}i"
     else:
         regime, text = "stable", "no growing free–free mode at this wavenumber"
@@ -1467,12 +1579,21 @@ def stratified_shear_sympy(printed: bool = False) -> dict:
 
 
 def gradient_richardson(z, U=None, N2=None, dUdz=None):
-    """Gradient Richardson number Ri(z) = N²/(dU/dz)² (inf where dU/dz = 0).
+    """Gradient Richardson number Ri(z) = N²/(dU/dz)²; where dU/dz = 0 it carries the sign of N².
 
-    Book: §11.7, Eq. (11.66); N² = −(g/ρ₀)dρ̄/dz (7.128).  Parameters: z [m]; U, N2 (callables or arrays) [m/s, 1/s²]; dUdz
+    Book: §11.7, Eq. (11.66); N² = −(g/ρ₀)dρ̄/dz (7.127).  Parameters: z [m]; U, N2 (callables or arrays) [m/s, 1/s²]; dUdz
     (callable/array; default central difference for callables, ``np.gradient(edge_order=2)`` for arrays).
-    Returns Ri.  Validation: V1 U = tanh z, N² = J sech²z → Ri = J cosh²z.  Label: analytic.
+    Returns Ri [–].  At a shear-free level (dU/dz = 0) the limit of N²/(dU/dz)² is taken: +inf for N² > 0, −inf for N² < 0
+    (statically unstable — never "Ri > ¼"), nan for N² = 0 (0/0: undefined; :func:`miles_howard_stable` does not count it as
+    satisfying (11.67)).
+    Validation: V1 U = tanh z, N² = J sech²z → Ri = J cosh²z; V7 the three dU/dz = 0 limits.  Label: analytic.
     """
+    _, N2v, Up = _richardson_inputs(z, U, N2, dUdz)
+    return _S(_richardson_ratio(N2v, Up))
+
+
+def _richardson_inputs(z, U, N2, dUdz):
+    """(z, N², dU/dz) as float arrays (shared by the two Richardson functions; not broadcast against each other)."""
     z = _F(z)
     if N2 is None:
         raise ValueError("N2 is required")
@@ -1486,23 +1607,50 @@ def gradient_richardson(z, U=None, N2=None, dUdz=None):
         Up = np.gradient(_F(U), z, edge_order=2)
     else:
         raise ValueError("give U or dUdz")
+    return z, N2v, Up
+
+
+def _richardson_ratio(N2v, Up):
     with np.errstate(divide="ignore", invalid="ignore"):
-        Ri = np.where(Up == 0, np.inf, N2v / Up ** 2)  # Eq. (11.66)
-    return _S(Ri)
+        # Eq. (11.66); at dU/dz = 0: sign(N²)·inf (np.sign(0)·inf = nan — the undefined 0/0 case)
+        return np.where(Up == 0, np.sign(N2v) * np.inf, N2v / Up ** 2)
 
 
 def miles_howard_stable(z, U=None, N2=None, dUdz=None) -> dict:
     """Miles–Howard: Ri > ¼ everywhere ⇒ linearly stable (Ri < ¼ somewhere is only *necessary* for instability).
 
-    Book: §11.7, Eqs. (11.65)–(11.67).  Parameters as :func:`gradient_richardson`.
-    Returns dict(guaranteed_stable, Ri_min, z_min, text).  Label: analytic.
+    Book: §11.7, Eqs. (11.65)–(11.67): c_i = 0 is forced when N² > ¼(dU/dz)² everywhere, i.e. Ri ≡ N²/(dU/dz)² > ¼.
+    The verdict tests the book's inequality N² > ¼(dU/dz)² pointwise (the form before the division), so a shear-free level
+    is judged by the sign of N²: N² > 0 passes (Ri = +inf), N² < 0 fails (Ri = −inf, convectively unstable), and
+    N² = 0 = dU/dz fails too (0 > 0 is false; Ri is nan there).
+    Parameters as :func:`gradient_richardson`.
+    Returns dict(guaranteed_stable, Ri_min (smallest defined Ri; nan if Ri is undefined everywhere), z_min (its level, or
+    the first level where the inequality fails if every defined Ri exceeds ¼), text).  Label: analytic.
     """
-    Ri = np.atleast_1d(gradient_richardson(z, U, N2, dUdz))
-    j = int(np.argmin(Ri))
-    ok = bool(Ri[j] > 0.25)  # Eq. (11.67)
-    text = (f"Ri > 1/4 everywhere (Ri_min = {Ri[j]:.4g}): stable by Miles–Howard" if ok else
-            f"Ri_min = {Ri[j]:.4g} < 1/4 at z = {np.atleast_1d(_F(z))[j]:.4g}: instability allowed, not guaranteed")
-    return dict(guaranteed_stable=ok, Ri_min=float(Ri[j]), z_min=float(np.atleast_1d(_F(z))[j]), text=text)
+    zz, N2v, Up = (np.atleast_1d(a) for a in _richardson_inputs(z, U, N2, dUdz))
+    Ri = _richardson_ratio(N2v, Up)
+    if zz.shape != Ri.shape:  # constant N² and dU/dz given as numbers with an array z (or the reverse)
+        zz, N2v, Up, Ri = np.broadcast_arrays(zz, N2v, Up, Ri)
+    holds = N2v > 0.25 * Up ** 2  # Eq. (11.67) before dividing by (dU/dz)²: N² > ¼(dU/dz)²
+    ok = bool(np.all(holds))
+    defined = ~np.isnan(Ri)
+    j = int(np.argmin(np.where(defined, Ri, np.inf))) if defined.any() else int(np.argmin(holds))
+    if not ok and holds[j]:  # every defined Ri exceeds ¼: the failure is an undefined (N² = 0 = dU/dz) level
+        j = int(np.argmin(holds))
+    Ri_min, z_min = float(Ri[j]), float(zz[j])
+    if ok:
+        text = f"Ri > 1/4 everywhere (Ri_min = {Ri_min:.4g}): stable by Miles–Howard"
+    elif math.isnan(Ri_min):
+        text = (f"N² = 0 and dU/dz = 0 at z = {z_min:.4g}: Ri is undefined there and N² > (1/4)(dU/dz)² does not hold — "
+                "stability not guaranteed")
+    elif Ri_min < 0:
+        text = (f"Ri_min = {Ri_min:.4g} < 0 at z = {z_min:.4g} (N² < 0: statically unstable there) — not Ri > 1/4, "
+                "stability not guaranteed")
+    elif Ri_min == 0.25:
+        text = f"Ri_min = 0.25 at z = {z_min:.4g}: not > 1/4, instability allowed, not guaranteed"
+    else:
+        text = f"Ri_min = {Ri_min:.4g} < 1/4 at z = {z_min:.4g}: instability allowed, not guaranteed"
+    return dict(guaranteed_stable=ok, Ri_min=Ri_min, z_min=z_min, text=text)
 
 
 def richardson_profiles(kind: str = "tanh", J: float = 0.1, R: float = 1.0) -> dict:
@@ -1575,7 +1723,7 @@ def tg_growth(k: float, J: float, R: float = 1.0, N: int = 100, map_scale: float
     if y_max is None:
         y_max = decay_box(k)  # box scales with 1/k: the mode decays like e^{−k|z|}
     if map_scale is None:
-        map_scale = decay_map_scale(k)  # nodes follow the wave: s = 0.025/k within [0.05, 0.5] (critical-layer resolution)
+        map_scale = decay_map_scale(k)  # nodes follow the wave: s = 0.025/k within [0.035, 0.5] (critical-layer resolution)
     pr = richardson_profiles("tanh", J, R)
     c = taylor_goldstein_eigs(k, pr["U"], pr["Upp"], pr["N2"], domain=(-1, 1), N=N, bc="decay", map_scale=map_scale,
                               y_max=y_max)
@@ -1921,6 +2069,9 @@ def piecewise_neutral_kh() -> float:
 # ======================================================================================================================
 def _sech2(y):
     # clip: cosh² overflows past |y| ≈ 355 (boxes of decay_box(k) for k < 0.034); sech²(350) ~ 1e-304 either way
+    if np.iscomplexobj(y):  # complex path (rayleigh_eigs_contour): clip the real part only
+        y = np.asarray(y)
+        return 1.0 / np.cosh(np.clip(y.real, -350.0, 350.0) + 1j * y.imag) ** 2
     return 1.0 / np.cosh(np.clip(y, -350.0, 350.0)) ** 2
 
 
@@ -1991,15 +2142,18 @@ def parallel_profile(name: str, **p) -> dict:
     (default π/2); "wall_vorticity_max" sinh(βy)/sinh β (β = 2; inflection with the vorticity maximum at the walls, Fig. 11.21d);
     "shear_layer_walls" tanh(y/δ)/tanh(1/δ) (δ = 0.3; Fig. 11.21f).
     Overrides: y_max, map_scale, b, beta, delta, m, parity.
-    Returns dict(U, Up, Upp, domain, bc, y_max, map_scale, parity, label, length, velocity).  Label: analytic (Blasius/FS:
-    converged).
+    Returns dict(U, Up, Upp, domain, bc, y_max, map_scale, parity, label, length, velocity, fixed_box).  ``y_max`` of an
+    unbounded or semi-infinite profile is the *smallest* box (30 tanh, 40 Bickley, 20 Blasius, 25 Falkner–Skan); the
+    Orr–Sommerfeld wrappers enlarge it to :func:`decay_box`(k) for long waves (see :func:`os_box_numerics`) unless
+    ``y_max`` was passed here explicitly (then ``fixed_box`` is True and the box is exactly that).  Label: analytic
+    (Blasius/FS: converged).
     """
     name = _PROFILE_ALIASES.get(name, name)
     if name == "poiseuille":
-        d = dict(U=lambda y: 1.0 - _F(y) ** 2, Up=lambda y: -2.0 * _F(y), Upp=lambda y: -2.0 + 0.0 * _F(y), domain=(-1.0, 1.0),
+        d = dict(U=lambda y: 1.0 - _FC(y) ** 2, Up=lambda y: -2.0 * _FC(y), Upp=lambda y: -2.0 + 0.0 * _FC(y), domain=(-1.0, 1.0),
                  bc="wall", label="plane Poiseuille U = 1 − y²", length="half-width", velocity="centreline speed")
     elif name == "couette":
-        d = dict(U=lambda y: _F(y), Up=lambda y: 1.0 + 0.0 * _F(y), Upp=lambda y: 0.0 * _F(y), domain=(-1.0, 1.0), bc="wall",
+        d = dict(U=lambda y: _FC(y), Up=lambda y: 1.0 + 0.0 * _FC(y), Upp=lambda y: 0.0 * _FC(y), domain=(-1.0, 1.0), bc="wall",
                  label="plane Couette U = y", length="half-gap", velocity="wall speed")
     elif name == "tanh":
         d = dict(U=np.tanh, Up=_sech2, Upp=lambda y: -2.0 * np.tanh(y) * _sech2(y), domain=(-1.0, 1.0), bc="decay",
@@ -2009,7 +2163,7 @@ def parallel_profile(name: str, **p) -> dict:
                  domain=(-1.0, 1.0), bc="decay", y_max=40.0, map_scale=1.0, label="Bickley jet U = sech² y", length="L",
                  velocity="centreline speed")
     elif name == "blasius":
-        b = blasius_base(p.get("y_max", 20.0))
+        b = blasius_base(20.0 if p.get("y_max") is None else p["y_max"])
         d = dict(U=b["U"], Up=b["Up"], Upp=b["Upp"], domain=(0.0, 1.0), bc="semi_infinite", y_max=b["y_max"],
                  label="Blasius boundary layer (δ* units)", length="δ*", velocity="U∞", delta_star_eta=b["delta_star_eta"])
     elif name == "falkner_skan":
@@ -2023,22 +2177,23 @@ def parallel_profile(name: str, **p) -> dict:
                  length="1", velocity="1", b=b)
     elif name == "wall_vorticity_max":
         be = float(p.get("beta", 2.0))
-        d = dict(U=lambda y: np.sinh(be * _F(y)) / math.sinh(be), Up=lambda y: be * np.cosh(be * _F(y)) / math.sinh(be),
-                 Upp=lambda y: be ** 2 * np.sinh(be * _F(y)) / math.sinh(be), domain=(-1.0, 1.0), bc="wall",
+        d = dict(U=lambda y: np.sinh(be * _FC(y)) / math.sinh(be), Up=lambda y: be * np.cosh(be * _FC(y)) / math.sinh(be),
+                 Upp=lambda y: be ** 2 * np.sinh(be * _FC(y)) / math.sinh(be), domain=(-1.0, 1.0), bc="wall",
                  label=f"U = sinh({be:g}y)/sinh {be:g}", length="half-width", velocity="wall speed")
     elif name == "shear_layer_walls":
         de = float(p.get("delta", 0.3))
         t1 = math.tanh(1.0 / de)
-        d = dict(U=lambda y: np.tanh(_F(y) / de) / t1, Up=lambda y: _sech2(_F(y) / de) / (de * t1),
-                 Upp=lambda y: -2.0 * np.tanh(_F(y) / de) * _sech2(_F(y) / de) / (de ** 2 * t1), domain=(-1.0, 1.0),
+        d = dict(U=lambda y: np.tanh(_FC(y) / de) / t1, Up=lambda y: _sech2(_FC(y) / de) / (de * t1),
+                 Upp=lambda y: -2.0 * np.tanh(_FC(y) / de) * _sech2(_FC(y) / de) / (de ** 2 * t1), domain=(-1.0, 1.0),
                  bc="wall", label=f"U = tanh(y/{de:g})/tanh(1/{de:g})", length="half-width", velocity="wall speed")
     else:
         raise ValueError(f"unknown profile {name!r}")
     out = dict(y_max=None, map_scale=None, parity=p.get("parity"), name=name)
     out.update(d)
     for key in ("y_max", "map_scale"):
-        if key in p:
+        if p.get(key) is not None:
             out[key] = p[key]
+    out["fixed_box"] = p.get("y_max") is not None  # an explicit box is honoured exactly (no wavelength scaling)
     return out
 
 
@@ -2072,10 +2227,47 @@ def fig_11_21_verdicts() -> list:
     return out
 
 
-def _os_lead(profile: dict, N: int, parity=None):
+_OS_BOX_RULE = "decay_box(k, y_min=profile, 12); tan s = s0*clip(y_max/100, 1, 3); semi-infinite N*sqrt(y_max/y_min)"
+"""Label of the default box rule of :func:`os_box_numerics` (part of every cache key that depends on it)."""
+
+
+def os_box_numerics(profile: dict, k: float, N: int, n_efold: float = 12.0) -> dict:
+    """Box, map scale and degree of an Orr–Sommerfeld solve of a :func:`parallel_profile` at wavenumber k.
+
+    Book: §11.8 (11.79)–(11.80), §11.10–§11.11 (ours: where "φ → 0 as |y| → ∞" is imposed).  DEVIATION: the book has no
+    truncation.  A fixed box is too short for long waves (the mode decays like e^{−k|y|}): measured, the Bickley lower branch
+    in the box 40 was wrong for every k < 0.1 (Re = 14.58, k = 0.04: c_i = −0.0184 against +0.00125), the Blasius lower
+    branch in the box 20 was 8 % low at Re = 6000 (0.0725 against 0.0790), the tanh c_i at k = 0.05, Re = 1 was 0.161 against
+    0.282.  Rule (walls: nothing changes):
+      * unbounded ("decay"): y_max = :func:`decay_box`(k, profile box, n_efold) = max(profile box, n_efold/k); tan-map scale
+        :func:`decay_box_map_scale` = s₀·min(3, max(1, y_max/100)); N unchanged;
+      * "semi_infinite" (linear map on [0, y_max]): the same y_max; N·√(y_max/profile box), which keeps the number of nodes
+        inside the boundary layer (Chebyshev nodes cluster quadratically at the wall);
+      * ``profile["fixed_box"]`` (an explicit ``y_max`` given to :func:`parallel_profile`): exactly that box, s and N.
+    Parameters
+    ----------
+    profile : dict from :func:`parallel_profile`.   k : wavenumber, non-dimensional (scaled by 1/L), > 0.
+    N : Chebyshev degree in the profile's smallest box [–].   n_efold : e-folds of e^{−k|y|} inside the box [–]; default 12.
+    Returns
+    -------
+    dict(y_max (non-dimensional, scaled by L; None for walls), map_scale (same; None where unused), N [–]).  Scalar-callable.
+    Validation: V3 box doubling and N doubling of the neutral wavenumbers (:func:`bickley_neutral_curve`,
+    :func:`blasius_neutral_curve`).  Label: converged.
+    """
+    bc, ym0, s0 = profile["bc"], profile.get("y_max"), profile.get("map_scale")
+    if bc == "wall" or ym0 is None or profile.get("fixed_box"):
+        return dict(y_max=ym0, map_scale=s0, N=int(N))
+    ym = decay_box(float(k), y_min=float(ym0), n_efold=n_efold)
+    if bc == "semi_infinite":
+        return dict(y_max=ym, map_scale=s0, N=int(math.ceil(N * math.sqrt(ym / float(ym0)))))
+    return dict(y_max=ym, map_scale=decay_box_map_scale(ym, s0=1.0 if s0 is None else float(s0)), N=int(N))
+
+
+def _os_lead(profile: dict, N: int, parity=None, n_efold: float = 12.0):
     def fn(k, Re):
-        c = orr_sommerfeld_eigs(k, Re, profile["U"], profile["Upp"], domain=profile["domain"], N=N, bc=profile["bc"],
-                                y_max=profile.get("y_max"), map_scale=profile.get("map_scale"), filter=False,
+        nm = os_box_numerics(profile, k, N, n_efold)
+        c = orr_sommerfeld_eigs(k, Re, profile["U"], profile["Upp"], domain=profile["domain"], N=nm["N"], bc=profile["bc"],
+                                y_max=nm["y_max"], map_scale=nm["map_scale"], filter=False,
                                 parity=parity if parity is not None else profile.get("parity"))
         c = c[np.abs(c) < 5.0]
         return c[:1] if c.size else np.array([complex(0.0, -np.inf)])
@@ -2083,61 +2275,186 @@ def _os_lead(profile: dict, N: int, parity=None):
     return fn
 
 
+def os_leading_mode(profile: dict, k: float, Re: float, N: int = 80, far_tol: float = 0.2, box_tol: float = 1e-5,
+                    n_try: int = 200, refine: bool = True) -> dict:
+    """Least-damped *discrete* Orr–Sommerfeld mode of a :func:`parallel_profile` in the wavelength-scaled box, with its
+    energy budget — or a statement that none was found and where the continuous spectrum starts.
+
+    Book: §11.8 (11.79)–(11.80), (11.88); §11.10–§11.11.  On an unbounded or semi-infinite profile the spectrum of (11.79) is
+    a finite set of discrete modes plus a continuous spectrum c = U∞ − i(k² + s²)/(kRe), s real (the far-field solutions
+    e^{±isy}; put U = U∞, U″ = 0 in (11.79)), whose least-damped edge is c_i = −k/Re.  A truncated box turns the continuum
+    into box-dependent eigenvalues that are never a mode of the flow; in a stable flow they are often the leading
+    eigenvalues of the box (Blasius, Re = 200, k = 0.05: c_i = −0.0120, −0.0026, −0.00066, −0.00032 in boxes 20, 40, 80,
+    160 δ*; the edge is −0.00025).  Method (ours): eigenvalues in descending c_i; the first whose eigenfunction is localised
+    (:func:`far_field_fraction` < ``far_tol``) **and** which reappears within ``box_tol`` in a second solve in a box 1.5
+    times as large is the mode.  If none of the first ``n_try`` localised candidates passes, ``discrete`` is False, ``c`` is
+    the analytic edge U∞ − ik/Re (c_r = NaN when the two free streams differ) and there is no budget.  A discrete mode may be
+    more damped than the edge (``above_edge`` False): it is still a mode (e.g. a decaying Tollmien–Schlichting wave), but
+    then not the least-damped part of the spectrum.  Walls, or an explicit box (``fixed_box``): the leading eigenvalue as is.
+    Parameters
+    ----------
+    profile : dict from :func:`parallel_profile`.   k, Re : non-dimensional (the profile's L, U₀).   N : degree in the
+    profile's smallest box (:func:`os_box_numerics`).   far_tol : localisation threshold [–]; default 0.2.
+    box_tol : largest |Δc| between the two boxes [U₀]; default 1e-5.   n_try : localised candidates examined [–]; default
+    200 (in effect all).  Measured: discrete modes reappear in the larger box to 1e-10 … 3e-6 (the larger value in boxes of
+    240–600) and have far-field fractions ≤ 0.05 (0.02–0.05 for a mode just above the edge of the continuous spectrum);
+    box eigenvalues of the continuous spectrum with a fraction below 0.2 move by ≥ 2.5e-4.  A strongly damped mode that the
+    degree N does not resolve (Blasius, Re = 4464, k = 0.383: found with N = 160, c = 0.3717 − 0.0472i, moving by 2e-4
+    between the boxes with N = 80) is not accepted at that N.   refine : if no mode is found, search once more with 2N
+    (default True; the returned ``numerics`` then holds the degree used); what is still not found is reported as such,
+    never as a wrong number.
+    Returns
+    -------
+    dict(discrete (bool), c (complex), above_edge (bool), budget (dict of :func:`disturbance_energy_budget` or None), mode
+    (:func:`os_mode`-like dict or None), far (float), numerics (dict)).  Scalar-callable.
+    Validation: V3 (discrete eigenvalues unchanged by doubling the box and N; rejected ones move with the box).
+    Label: converged.
+    """
+    k, Re = float(k), float(Re)
+    nm = os_box_numerics(profile, k, N)
+    kw = dict(domain=profile["domain"], bc=profile["bc"], map_scale=nm["map_scale"], parity=profile.get("parity"))
+    if profile["bc"] == "wall" or profile.get("fixed_box"):
+        m = os_mode(k, Re, profile["U"], profile["Upp"], N=nm["N"], y_max=nm["y_max"], **kw)
+        b = disturbance_energy_budget(k, m["c"], m["phi"], m["y"], profile["Up"], Re, grid=m["grid"])
+        return dict(discrete=True, c=m["c"], above_edge=True, budget=b, mode=m, far=0.0, numerics=nm)
+    semi = profile["bc"] == "semi_infinite"
+    centre = None if semi else 0.5 * (profile["domain"][0] + profile["domain"][1])
+    res = orr_sommerfeld_eigs(k, Re, profile["U"], profile["Upp"], N=nm["N"], y_max=nm["y_max"], filter=False,
+                              return_vectors=True, **kw)
+    ym2 = 1.5 * nm["y_max"]
+    N2 = int(math.ceil(nm["N"] * math.sqrt(1.5))) if semi else nm["N"]
+    s2 = nm["map_scale"] if semi else decay_box_map_scale(ym2, s0=1.0 if profile.get("map_scale") is None
+                                                          else float(profile["map_scale"]))
+    w2 = orr_sommerfeld_eigs(k, Re, profile["U"], profile["Upp"], N=N2, y_max=ym2, filter=False,
+                             **{**kw, "map_scale": s2})
+    g, tried, far_lead = res["grid"], 0, float("nan")
+    for i, c in enumerate(res["c"]):
+        if not np.isfinite(c) or abs(c) >= 5.0:
+            continue
+        far = far_field_fraction(res["phi"][:, i], g.y, nm["y_max"], centre=centre)
+        if i == 0 or not np.isfinite(far_lead):
+            far_lead = far
+        if far >= far_tol:
+            continue
+        tried += 1
+        if np.min(np.abs(w2 - c)) < box_tol:
+            phi = res["phi"][:, i]
+            dphi = g.D1 @ phi
+            scale = dphi[int(np.argmax(np.abs(dphi)))]
+            phi, dphi = phi / scale, dphi / scale  # max|û| = 1, as os_mode
+            m = dict(c=complex(c), y=g.y, phi=phi, u_hat=dphi, v_hat=-1j * k * phi, dphi=dphi, grid=g, k=k, Re=Re)
+            b = disturbance_energy_budget(k, m["c"], phi, g.y, profile["Up"], Re, grid=g)
+            return dict(discrete=True, c=m["c"], above_edge=bool(m["c"].imag > -k / Re), budget=b, mode=m, far=far,
+                        numerics=nm)
+        if tried >= n_try:
+            break
+    if refine:
+        return os_leading_mode(profile, k, Re, 2 * int(N), far_tol, box_tol, n_try, refine=False)
+    ymx = nm["y_max"]
+    hi = float(profile["U"](ymx))
+    lo = hi if semi else float(profile["U"](-ymx))
+    cr = hi if abs(hi - lo) < 1e-9 else float("nan")
+    return dict(discrete=False, c=complex(cr, -k / Re), above_edge=False, budget=None, mode=None, far=far_lead, numerics=nm)
+
+
 # ======================================================================================================================
 # §11.9 Rayleigh tables
 # ======================================================================================================================
+def _rayleigh_lead(pr: dict, k: float, N: int, y_max=None, parity=None):
+    """Leading growing Rayleigh eigenvalue of a profile dict (complex) or None: contour solver for analytic profiles, the
+    real-axis solver for the semi-infinite spline profiles (Blasius-like: no inflection point, no growing mode)."""
+    if pr["bc"] == "semi_infinite":
+        c = rayleigh_eigs(float(k), pr["U"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"], y_max=y_max,
+                          map_scale=pr.get("map_scale"), unstable_only=True, tol=1e-4, ci_min=1e-4, parity=parity)
+    else:
+        c = rayleigh_eigs_contour(float(k), pr["U"], pr["Up"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"],
+                                  y_max=y_max, map_scale=pr.get("map_scale"), parity=parity)
+    return complex(c[0]) if len(c) else None
+
+
 def sin_profile_max_growth(b: float, ks=None, N: int = 80) -> float:
     """Largest inviscid growth rate kc_i of U = sin y between walls at ±b (→ 0 as 2b → π⁺; stable for 2b < π).
 
-    Book: §11.9, p. 513 (Tollmien's counter-example: inflected yet stable for 2b < π).  Rayleigh (11.81)–(11.82); the
-    N-filter uses tol = 1e-4 (these modes converge only to ~1e-4 between N = 80 and 120 — critical layer — and the default 1e-6
-    would drop them; spurious modes move by O(1)).  Parameters: b; ks (default 25 values in [0.02, 1.0]); N.
-    Returns max kc_i (0 if no unstable mode).  Example: b = 1.7 → ≈ 0.0076 (k ≈ 0.1); b = 2 → 0.0596.  Label: converged.
+    Book: §11.9, p. 513 (Tollmien's counter-example: inflected yet stable for 2b < π).  Rayleigh (11.81)–(11.82) by
+    :func:`rayleigh_eigs_contour` (collocation on a path below the critical layer — converged however small c_i is; the
+    earlier real-axis solve with an N-filter lost the near-neutral modes and returned 0 for b = 1.6 and a value 4 % low for
+    b = 1.7).  Parameters: b [–]; ks (default 25 values in [0.02, 1.0]); N (default 80).
+    Returns max kc_i over the k samples (0 if no mode with c_i > 1e-4), non-dimensional.
+    Measured (default ks; N = 80 | N = 120): b = 1.5 → 0 | 0 (2b < π: stable); 1.58 → 0.0002427 | 0.0002427; 1.6 → 0.0013462 |
+    0.0013462; 1.7 → 0.0118854 | 0.0118854 (k = 0.224); 2 → 0.0596099 | 0.0596099; 3 → 0.1573130 | 0.1573130 (1–4 s each).
+    The exact neutral wavenumber is k_n = √(1 − (π/2b)²) (φ = cos(πy/2b), c = 0), so the unstable band 0 < k < k_n shrinks
+    to nothing as 2b → π⁺ and the 25 samples cannot see it once k_n < 0.02 or c_i < 1e-4.
+    Label: converged.
     """
     ks = np.linspace(0.02, 1.0, 25) if ks is None else _F(ks)
+    pr = parallel_profile("sin", b=float(b))
     best = 0.0
     for k in ks:
-        c = rayleigh_eigs(k, np.sin, lambda y: -np.sin(y), domain=(-b, b), N=N, unstable_only=True, tol=1e-4, ci_min=1e-4)
-        if len(c):
-            best = max(best, float(k * c[0].imag))
+        c = _rayleigh_lead(pr, float(k), N)
+        if c is not None:
+            best = max(best, float(k * c.imag))
     return best
+
+
+_RAYLEIGH_TABLE_NOTE = (
+    "ours (fluidpy.ch11_instability.rayleigh_spectrum_table): leading growing Rayleigh eigenvalue (largest c_i), computed "
+    "on a complex collocation path below the critical layer (core.stability.rayleigh_eigs_contour) and converged up to "
+    "the neutral wavenumber; c_i = 0 and c_r = null mean c_i <= 1e-4: no growing mode, or one within about 0.001 in k of "
+    "the exact neutral wavenumber (measured: Bickley jet, sinuous, neutral k = 2: 0 for k > 1.9991; tanh layer, neutral "
+    "k = 1: k > 0.99984; sin y on |y| <= pi, neutral k = sqrt(3)/2 = 0.866025: k > 0.86597); not book data")
 
 
 def rayleigh_spectrum_table(names=None, ks=None, N: int = 120, cache: bool = True, write: bool = True) -> dict:
     """Leading unstable Rayleigh eigenvalue c(k) for the §11.9 profiles (explainer E7, figure F6; our table).
 
     Book: §11.9, (11.81)–(11.82).  Defaults (Part C.5 5.7): names of :func:`inviscid_profile`, k = 0.1 … 2.0 step 0.1.  c_i = 0
-    and c_r = NaN where no converged unstable mode exists.  Writes ``reference/ch11/rayleigh_spectra.json`` (≤ 4 s.f.).
+    and c_r = NaN where no growing mode with c_i > 1e-4 exists.  Writes ``reference/ch11/rayleigh_spectra.json`` (≤ 4 s.f.).
+    Extra names (not in the default list): "jet_sinuous" (φ even) and "jet_varicose" (φ odd) — "jet" is the larger of the two,
+    which is the sinuous mode at every k.
+    Method: :func:`rayleigh_eigs_contour` (N, delta = 0.2, filter against ⌈1.5N⌉ with delta = 0.1) for every analytic
+    profile; the Blasius-like spline profile keeps the real-axis :func:`rayleigh_eigs` (it has no inflection point).
+    DEVIATION (numerical method, ours): the earlier real-axis solve with the N-filter printed 0 where a growing mode exists
+    close to a neutral wavenumber — Bickley jet k = 1.8 (true c = 0.63235 + 0.02432i) and 1.9 (0.64965 + 0.01163i) — and
+    was up to 2.6e-4 off in c below it (k = 1.7: 0.61500 + 0.03812i against 0.61474 + 0.03806i).
+    How near the neutral point a 0 can still hide a growing mode (measured: where c_i falls to the threshold 1e-4): jet
+    sinuous k > 1.99910 (neutral 2), jet varicose k > 0.99945 (neutral 1), tanh layer k > 0.99984 (neutral 1),
+    sin y on |y| ≤ π k > 0.86597 (neutral √3/2 = 0.866025); there c_i < 1e-4.  Past the neutral wavenumber 0 is exact.
     DEVIATION (truncated domain): for the unbounded profiles (bc "decay": shear layer, jet) φ = 0 is imposed at ±y_max with
     y_max = max(the profile's box (30 tanh, 40 Bickley), :func:`decay_box`(k) = 12/k) — the mode decays like e^{−k|y|}, so the
     fixed boxes were 5.1e-4 (tanh) and 4.4e-4 (jet) off in c at k = 0.1 (the table's 4th significant figure); k ≥ 0.4 rows
     are unchanged by the rule.
-    Returns dict(name → dict(k, c_r, c_i)).  Label: converged.
+    Returns dict(name → dict(k, c_r, c_i)).
+    Validation: V3 N = 120 against N = 240 with delta = 0.1: ≤ 1e-8 in c at every entry; independent shooting
+    (:func:`rayleigh_shoot`): ≤ 2e-10; V1 exact neutral wavenumbers approached linearly.  Label: converged.
     """
     names = ["blasius_like", "couette", "poiseuille", "wall_vorticity_max", "jet", "shear_layer", "sin",
              "shear_layer_walls"] if names is None else list(names)
     ks = np.round(np.arange(0.1, 2.0001, 0.1), 10) if ks is None else _F(ks)
+    variants = {"jet_sinuous": ("jet", "even"), "jet_varicose": ("jet", "odd")}
 
     def compute():
         out = {}
         for nm in names:
-            pr = parallel_profile(nm, b=math.pi) if nm == "sin" else parallel_profile(nm)
+            base, parity = variants.get(nm, (nm, None))
+            pr = parallel_profile(base, b=math.pi) if base == "sin" else parallel_profile(base)
             cr, ci = [], []
             for k in ks:
                 ym = pr.get("y_max")
                 if pr["bc"] == "decay":
                     ym = max(float(ym), decay_box(float(k)))  # box scales with 1/k: the mode decays like e^{−k|y|}
-                c = rayleigh_eigs(float(k), pr["U"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"], y_max=ym,
-                                  map_scale=pr.get("map_scale"), unstable_only=True, tol=1e-4, ci_min=1e-4)
-                cr.append(c[0].real if len(c) else np.nan)
-                ci.append(c[0].imag if len(c) else 0.0)
+                c = _rayleigh_lead(pr, float(k), N, y_max=ym, parity=parity)
+                cr.append(np.nan if c is None else c.real)
+                ci.append(0.0 if c is None else c.imag)
             out[f"{nm}__cr"] = np.array(cr)
             out[f"{nm}__ci"] = np.array(ci)
         out["k"] = ks
         return out
 
-    # "box" keys the cache on the truncation rule, so tables computed with the old fixed boxes are not reused
-    raw = _cached("rayleigh_spectrum_table", dict(names=names, ks=list(ks), N=N, box="max(profile,12/k)"), compute, cache)
+    # "box" / "method" key the cache on the truncation rule and the solver, so tables computed with the old fixed boxes or
+    # the real-axis solver (false zeros below the neutral wavenumber) are not reused
+    raw = _cached("rayleigh_spectrum_table", dict(names=names, ks=list(ks), N=N, box="max(profile,12/k)",
+                                                  method="contour(delta=0.2,filter=1.5N@delta/2,tol=1e-6,ci_min=1e-4)"),
+                  compute, cache)
     res = {nm: dict(k=_F(raw["k"]), c_r=_F(raw[f"{nm}__cr"]), c_i=_F(raw[f"{nm}__ci"])) for nm in names}
     if write:
         p = _root() / "reference" / "ch11" / "rayleigh_spectra.json"
@@ -2145,9 +2462,7 @@ def rayleigh_spectrum_table(names=None, ks=None, N: int = 120, cache: bool = Tru
         js = {nm: dict(k=[float(f"{v:.4g}") for v in d["k"]],
                        c_r=[None if not np.isfinite(v) else float(f"{v:.4g}") for v in d["c_r"]],
                        c_i=[float(f"{v:.4g}") for v in d["c_i"]]) for nm, d in res.items()}
-        p.write_text(json.dumps(dict(note="ours (fluidpy.ch11_instability.rayleigh_spectrum_table): leading converged unstable "
-                                     "Rayleigh eigenvalue; c_i = 0 and c_r = null where none; not book data",
-                                     N=N, spectra=js), indent=1), encoding="utf-8")
+        p.write_text(json.dumps(dict(note=_RAYLEIGH_TABLE_NOTE, N=N, spectra=js), indent=1), encoding="utf-8")
     return res
 
 
@@ -2187,7 +2502,7 @@ def poiseuille_neutral_curve(Re_values=None, N: int = 80, cache: bool = True, k_
     """Neutral curve (lower/upper branch k(Re)) of plane Poiseuille flow — the "thumb" (cached).
 
     Book: §11.10.  Re_values default: 24 log-spaced from 5800 to 10⁶ (fast: 8 to 10⁵).  Returns dict(Re, k_lower, k_upper,
-    c_lower, c_upper).  Expect Re = 10⁴: unstable k from ≈ 0.80 to ≈ 1.07.  Label: converged.
+    c_lower, c_upper).  Measured at Re = 10⁴ (N = 80, defaults): unstable k from 0.7972 to 1.0947.  Label: converged.
     """
     if Re_values is None:
         Re_values = np.geomspace(5800.0, 1e5 if fast else 1e6, 8 if fast else 24)
@@ -2215,33 +2530,56 @@ def couette_max_growth(k, Re, N: int = 80) -> float:
     return best
 
 
-def blasius_critical(N: int = 100, y_max: float = 20.0, cache: bool = True) -> dict:
+def blasius_critical(N: int = 100, y_max: float | None = None, cache: bool = True) -> dict:
     """Critical point of the (parallel) Blasius boundary layer (cached).
 
-    Book: §11.11 (Table 11.1, Re based on δ*; Fig. 11.26).  Base flow :func:`blasius_base`; linear map on [0, y_max].
-    Returns dict(Re_c, k_c (αδ*), omega_c (= k_c c_r, units U∞/δ*), c_r).  Expect ≈ 519.1, 0.3038, 0.1205 (Thomas via
-    Gallagher, Griffiths & Stephen 2016: 519.2, 0.303, 0.120; Jordinson 1970: 520).  V3 (N, y_max) = (80, 20) → 519.08,
-    (100, 25) → 519.06, (120, 30) → 519.06.  With ``cache`` and the defaults the published value in
-    reference/ch11/critical_points.json is used (≈ 30 s to recompute).  Label: converged, benchmark.
+    Book: §11.11 (Table 11.1, Re based on δ*; Fig. 11.26), Orr–Sommerfeld (11.79)–(11.80).  Base flow :func:`blasius_base`;
+    linear map on [0, y_max]; minimum over k of the neutral Re (:func:`critical_point`).
+    Parameters
+    ----------
+    N : Chebyshev degree in the profile's smallest box (20 δ*) [–]; default 100.
+    y_max : None (default) → the wavelength-scaled box of :func:`os_box_numerics`, max(20, 12/k) δ* with degree
+        N·√(y_max/20) (at k_c: 39.5 δ*, 12 e-folds of e^{−ky}, degree 141); a number [δ*] → exactly that box with degree N.
+    cache : with the defaults, return the published value of reference/ch11/critical_points.json (≈ 70 s to recompute);
+        otherwise the npz cache of outputs/ch11/cache.
+    Returns
+    -------
+    dict(Re_c [–, U∞δ*/ν], k_c (αδ*) [–], omega_c (= k_c c_r, units U∞/δ*), c_r [units U∞]).
+    Expect 519.060, 0.30377, 0.12049, 0.39664 (Thomas via Gallagher, Griffiths & Stephen 2016: 519.2, 0.303, 0.120; their own
+    n = 1 row 519.12; Jordinson 1970: 520 — ours is 2.7e-4 below Thomas's value; not tuned).
+    DEVIATION (truncation): the book has no box.  The former default, the fixed box 20 δ* (only k_c·y_max = 6 e-folds),
+    gave 519.0765 — 3.2e-5 (relative) above the box-converged value; it is still available as ``y_max=20.0``.
+    Validation: V3, Re_c — rule (default), N = 60 / 80 / 100 / 140: 518.9724 / 519.06016 / 519.06012 / 519.06012; fixed boxes
+    (N, y_max) = (100, 20) → 519.0765, (100, 40) → 519.0558 (box right, N too small: the linear map needs N ∝ √y_max),
+    (142, 40) → 519.06012, (200, 40) → 519.06012, (200, 80) → 519.06012: converged to 519.0601 (2e-7 relative);
+    k_c = 0.30377 (the minimum is flat: 0.303771 – 0.303772), c_r = 0.39664, ω_c = 0.12049.  V5 as above.
+    Label: converged, benchmark.
     """
-    if cache and N == 100 and y_max == 20.0 and (ref := _ref_critical("blasius")):
+    if cache and N == 100 and y_max is None and (ref := _ref_critical("blasius")):
         return ref
 
     def compute():
         r = critical_point(_os_lead(parallel_profile("blasius", y_max=y_max), N), (0.27, 0.34), (350.0, 1200.0))
         return dict(Re_c=r["Re_c"], k_c=r["k_c"], c_r=r["c_r"], omega_c=r["k_c"] * r["c_r"])
 
-    d = _cached("blasius_critical", dict(N=N, y_max=y_max), compute, cache)
+    box = _OS_BOX_RULE if y_max is None else float(y_max)
+    d = _cached("blasius_critical", dict(N=N, y_max=box), compute, cache)
     return {k: float(v) for k, v in d.items()}
 
 
 def blasius_neutral_curve(Re_values=None, in_frequency: bool = False, cache: bool = True, N: int = 80,
-                          y_max: float = 20.0, k_bounds: Sequence[float] = (0.04, 0.42), n_k: int = 31,
+                          y_max: float | None = None, k_bounds: Sequence[float] = (0.04, 0.42), n_k: int = 31,
                           fast: bool = False) -> dict:
     """Neutral curve of the Blasius boundary layer in (Re_δ*, kδ*) or (Re_δ*, F = ων/U∞² = kc_r/Re_δ*) (cached).
 
     Book: §11.11, Fig. 11.26.  Returns dict(Re, k_lower, k_upper, c_lower, c_upper, F_lower, F_upper; with in_frequency the
-    keys ``lower``/``upper`` hold F, otherwise k).  Label: converged.
+    keys ``lower``/``upper`` hold F, otherwise k).
+    y_max : None (default) → the wavelength-scaled box of :func:`os_box_numerics` (max(20, 12/k) δ*, N·√(y_max/20)); a
+    number → exactly that box with degree N (the former default 20.0 is still available this way).  DEVIATION (truncation):
+    the fixed box 20 δ* holds only 1.4 e-folds of e^{−ky} on the lower branch at Re = 6000 and put it at k = 0.0725; boxes
+    40 / 80 / 160 give 0.07879 / 0.07902 / 0.07902 (Re = 3026: 0.0995 → 0.1024; Re = 1051: 0.1660 → 0.1663; Re = 530:
+    unchanged to 1e-4; the upper branch moves by < 5e-5 everywhere).
+    Validation: V3 box and N doubling (numbers above).  Label: converged.
     """
     if Re_values is None:
         Re_values = np.geomspace(530.0, 3000.0 if fast else 6000.0, 8 if fast else 22)
@@ -2254,17 +2592,27 @@ def blasius_neutral_curve(Re_values=None, in_frequency: bool = False, cache: boo
         out["F_upper"] = out["k_upper"] * np.real(out["c_upper"]) / out["Re"]
         return out
 
-    d = _cached("blasius_neutral", dict(Re=Re_values, N=N, y_max=y_max, kb=list(k_bounds), n_k=n_k), compute, cache)
+    box = _OS_BOX_RULE if y_max is None else float(y_max)
+    d = _cached("blasius_neutral", dict(Re=Re_values, N=N, y_max=box, kb=list(k_bounds), n_k=n_k), compute, cache)
     d["lower"], d["upper"] = (d["F_lower"], d["F_upper"]) if in_frequency else (d["k_lower"], d["k_upper"])
     return d
 
 
-def falkner_skan_neutral_curve(m: float, Re_values=None, cache: bool = True, N: int = 80, y_max: float = 25.0,
+def falkner_skan_neutral_curve(m: float, Re_values=None, cache: bool = True, N: int = 80, y_max: float | None = None,
                                k_bounds: Sequence[float] = (0.03, 0.8), n_k: int = 35, fast: bool = False) -> dict:
     """Neutral curve of a Falkner–Skan boundary layer (favourable m > 0: the loop closes; adverse m < 0: flat upper branch).
 
     Book: §11.10, Fig. 11.24 (kδ* vs Re_δ*); base flows from ``core.boundary_layer.falkner_skan`` (Ch. 9 (9.36)) in δ* units.
-    Returns dict(Re, k_lower, k_upper, c_lower, c_upper, m).  Label: converged.
+    y_max : None (default) → the wavelength-scaled box of :func:`os_box_numerics` (max(25, 12/k) δ*, N·√(y_max/25)); a number
+    → exactly that box with degree N (the former default 25.0).  DEVIATION (truncation): as :func:`blasius_neutral_curve`.
+    Measured, lower branch, box 25 → scaled box (N = 80; N = 120 in brackets): m = 0.1: Re = 5000: 0.1245 → 0.1249 (0.1248),
+    2e4: 0.0682 → 0.0718 (0.0719), 1e5: 0.0305 → 0.0424 (0.0425); m = −0.05: Re = 1000: 0.1164 → 0.1168 (0.1168), 5000:
+    0.0536 → 0.0592 (0.0592), 2e4: none found (the box-25 flow looked unstable down to k = 0.03) → 0.0369 (0.0369).
+    Not a box effect and still open: at Re ≥ 2e4 the *upper* branch depends on N (m = 0.1, Re = 1e5: 0.1266 with N = 80,
+    0.1248 with N = 120; m = −0.05, Re = 1e5: 0.4801, 0.4924) — the critical layer is under-resolved there, so those upper
+    branch values are good to about 3 %; pass a larger N for Re ≥ 2e4.
+    Returns dict(Re, k_lower, k_upper, c_lower, c_upper, m).  Label: converged (lower branch; upper branch for Re ≤ 5000),
+    qualitative (upper branch at Re ≥ 2e4 with the default N).
     """
     if Re_values is None:
         Re_values = np.geomspace(100.0, 2e4 if fast else 1e5, 8 if fast else 20)
@@ -2276,7 +2624,8 @@ def falkner_skan_neutral_curve(m: float, Re_values=None, cache: bool = True, N: 
         out["m"] = m
         return out
 
-    return _cached("falkner_skan_neutral", dict(m=m, Re=Re_values, N=N, y_max=y_max, kb=list(k_bounds), n_k=n_k), compute,
+    box = _OS_BOX_RULE if y_max is None else float(y_max)
+    return _cached("falkner_skan_neutral", dict(m=m, Re=Re_values, N=N, y_max=box, kb=list(k_bounds), n_k=n_k), compute,
                    cache)
 
 
@@ -2337,6 +2686,114 @@ def bickley_critical(parity: str = "sinuous", cache: bool = True, N: int = 80, y
     return {k: float(v) for k, v in d.items()}
 
 
+def _os_track(profile: dict, N: int, Re: float, k0: float, c0: complex, k1: float, n: int = 24,
+              n_efold: float = 12.0) -> complex:
+    """Follow one Orr–Sommerfeld eigenvalue from (k0, c0) to k1 at fixed Re by continuation: n equal steps in k, at each the
+    eigenvalue nearest to the linear extrapolation of the last two.  Returns c at k1 (ours; used to tell mode families apart)."""
+    c_prev, c = None, complex(c0)
+    for k in np.linspace(float(k0), float(k1), int(n) + 1)[1:]:
+        nm = os_box_numerics(profile, float(k), N, n_efold)
+        w = orr_sommerfeld_eigs(float(k), Re, profile["U"], profile["Upp"], domain=profile["domain"], N=nm["N"],
+                                bc=profile["bc"], y_max=nm["y_max"], map_scale=nm["map_scale"], filter=False,
+                                parity=profile.get("parity"))
+        guess = c if c_prev is None else 2.0 * c - c_prev
+        c_prev, c = c, complex(w[np.argmin(np.abs(w - guess))])
+    return c
+
+
+def bickley_neutral_curve(Re_values=None, N: int = 80, cache: bool = True, k_bounds: Sequence[float] = (0.02, 2.0),
+                          n_k_long: int = 30, n_k: int = 26, y_max: float | None = None, fast: bool = False,
+                          n_efold: float = 12.0) -> dict:
+    """Neutral wavenumbers of the sinuous Bickley jet U = sech²y at each Re: the main unstable band and the long-wave band.
+
+    Book: §11.10 (Table 11.1 jet; a neutral curve c_i(k, Re) = 0 as in Figs. 11.23–11.24), Orr–Sommerfeld (11.79)–(11.80)
+    with φ even.  Method (ours): at each Re the sign of the leading c_i on a k grid (``n_k_long`` log-spaced points from
+    k_bounds[0] to 0.3, then ``n_k`` equally spaced to k_bounds[1]) and Brent on every sign change; the roots are sorted
+    into bands by the direction of the crossing.  The stability boundary needs no mode identification (the flow is unstable
+    where *any* mode grows; box eigenvalues of the continuous spectrum have c_i < −k/Re < 0 and cannot fake a crossing);
+    the family of each neutral mode is found afterwards by continuation in k (:func:`_os_track`).
+    DEVIATION (truncation): box max(40, 12/k) by default (:func:`os_box_numerics`); ``y_max`` = a number forces that box.
+    What the converged computation shows (and the fixed boxes 40 / 60 hid — there c_i at k < 0.1 was wrong, e.g.
+    Re = 14.58, k = 0.04: −0.0184 (box 40), −0.0026 (60), +0.00125 (150 … 1200)):
+      * up to Re ≈ 17.5 one unstable band; its lower edge falls steeply (k = 0.1257 at Re = 4.1, 0.0655 at 4.72, 0.0427 at
+        5.44, 0.0296 at 6.26, 0.0211 at 7.2) and leaves the resolved range k ≥ 0.02 just above Re = 7.2: for larger Re
+        ``k_lower`` is NaN — unstable down to the smallest k computed, lower edge unknown;
+      * between Re = 17.4 and 17.6, at k ≈ 0.068, a stable gap opens inside the band and splits it: the main band above
+        (lower edge 0.0737 at Re = 17.6, 0.0758 at 19.3, then ≈ 1.6/Re: 0.0620 at 25.6, 0.0234 at 68.7; c_r from −0.03 to
+        −0.22; below k = 0.02 beyond Re ≈ 80) and a long-wave band below it (upper edge ``k_long_upper`` = 0.0624 at
+        Re = 17.6, 0.0447 at 19.3, 0.0222 at 25.6 — roughly (7/Re)³; c_r from −0.014 to −0.001; below k = 0.02 beyond
+        Re ≈ 26, where nothing is reported).  Up to Re = 18.6 both edges of the gap are neutral points of one mode (followed
+        continuously in k); from Re = 19.0 on they belong to two different modes (``gap_same_mode``) — the "kink" of the old
+        table was this gap, drawn with wrong numbers on its left.
+      * the critical point (:func:`bickley_critical`, 4.017 at k = 0.173, 10 e-folds in its box 60) is not affected: at
+        Re = 4.0 every k from 0.02 to 0.23 decays.
+    Parameters
+    ----------
+    Re_values : Reynolds numbers U₀L/ν [–] (default 40 log-spaced 4.1 … 1000; fast: 8).   N : Chebyshev degree [–].
+    cache : npz cache in outputs/ch11/cache.   k_bounds : scanned wavenumbers [1/L]; below 0.02 the box 12/k > 600 and
+    the growth c_i ~ 1e-5 of the long-wave mode is no longer resolved (noise 2e-6) — nothing is reported there.
+    n_k_long, n_k : grid sizes [–] (fast: 14, 12).   y_max : None or an explicit box [L].   fast : coarser k grid.
+    Returns
+    -------
+    dict(Re, k_upper, c_upper, k_lower, c_lower (main band; k_lower NaN where the band reaches below k_bounds[0]),
+    k_long_upper, c_long_upper, k_long_lower, c_long_lower (the long-wave band below the gap; NaN where there is no gap or
+    the edge is below k_bounds[0]), gap_same_mode (1.0: the two edges of the gap are the same mode; 0.0: different modes;
+    NaN: no gap), unstable_at_k_min (1.0 where c_i > 0 at k_bounds[0]), k_min).  k non-dimensional (scaled by 1/L), c by U₀.
+    Assumptions: parallel base flow, 2-D sinuous disturbances.
+    Validation: V3 the 40-point table recomputed with (N, n_efold) = (80, 12), (160, 12), (80, 24), (160, 24): every neutral
+    k agrees to ≤ 5e-6 for k ≥ 0.03 and to ≤ 8e-6 at k ≈ 0.021–0.022 (4e-4 relative: 0.022197, 0.022189, 0.022194,
+    0.022196 at Re = 25.6), so the 4th significant figure of the two entries nearest k = 0.02 is uncertain by one unit.
+    ``n_efold`` : e-folds of e^{−k|y|} in the box (default 12).  Label: converged.
+    """
+    if Re_values is None:
+        Re_values = np.geomspace(4.1, 1000.0, 8 if fast else 40)
+    Re_values = [float(r) for r in np.atleast_1d(Re_values)]
+    k_lo, k_hi = float(k_bounds[0]), float(k_bounds[1])
+    nl, nu = (14, 12) if fast else (int(n_k_long), int(n_k))
+    k_mid = min(0.3, k_hi)
+    ks = np.unique(np.concatenate([np.geomspace(k_lo, k_mid, nl), np.linspace(k_mid, k_hi, nu)])) if k_lo < k_mid \
+        else np.linspace(k_lo, k_hi, nu)
+    pr = parallel_profile("bickley", parity="even", y_max=y_max)
+    fn = _os_lead(pr, N, n_efold=n_efold)
+    nan = complex(np.nan, np.nan)
+
+    def compute():
+        keys = ("k_upper", "k_lower", "k_long_upper", "k_long_lower")
+        out = {key: [] for key in keys}
+        out.update({"c" + key[1:]: [] for key in keys})
+        out.update(gap_same_mode=[], unstable_at_k_min=[])
+        for Re in Re_values:
+            v = np.array([fn(k, Re)[0].imag for k in ks])
+            rising, falling = [], []
+            for j in range(len(ks) - 1):
+                if np.isfinite(v[j]) and np.isfinite(v[j + 1]) and v[j] * v[j + 1] < 0:
+                    r = brentq(lambda k: fn(k, Re)[0].imag, ks[j], ks[j + 1], xtol=1e-9)  # noqa: B023
+                    (rising if v[j] < 0 else falling).append(r)
+            ku = falling[-1] if falling else np.nan  # c_i turns negative for good: upper branch
+            below = [r for r in rising if not np.isfinite(ku) or r < ku]
+            kl = below[-1] if below else np.nan  # lower edge of the band that ends at k_upper
+            gap = [r for r in falling if np.isfinite(kl) and r < kl]
+            kg = gap[-1] if gap else np.nan  # upper edge of the long-wave band (lower edge of the stable gap)
+            outer = [r for r in rising if np.isfinite(kg) and r < kg]
+            ko = outer[-1] if outer else np.nan
+            vals = dict(k_upper=ku, k_lower=kl, k_long_upper=kg, k_long_lower=ko)
+            for key in keys:
+                out[key].append(vals[key])
+                out["c" + key[1:]].append(complex(fn(vals[key], Re)[0]) if np.isfinite(vals[key]) else nan)
+            same = np.nan
+            if np.isfinite(kg):
+                c_end = _os_track(pr, N, Re, kg, out["c_long_upper"][-1], kl, n_efold=n_efold)
+                same = float(abs(c_end - out["c_lower"][-1]) < 2e-3)
+            out["gap_same_mode"].append(same)
+            out["unstable_at_k_min"].append(float(v[0] > 0))
+        res = {key: np.array(val) for key, val in out.items()}
+        res.update(Re=np.array(Re_values), k_min=k_lo)
+        return res
+
+    box = f"{_OS_BOX_RULE}; n_efold = {float(n_efold):g}" if y_max is None else float(y_max)
+    return _cached("bickley_neutral", dict(Re=Re_values, N=N, box=box, k=[float(k) for k in ks]), compute, cache)
+
+
 def table_11_1(cache: bool = True) -> list:
     """Our recomputation of Table 11.1 (critical Reynolds numbers) with the published benchmarks (the book's rounded column
     stays private).
@@ -2391,90 +2848,187 @@ def ts_mode(flow: str = "poiseuille", k: float = 1.0, Re: float = 1e4, N: int = 
     """Leading Orr–Sommerfeld mode of a named flow (:func:`parallel_profile`) with its energy budget (A4, E8).
 
     Book: §11.8–§11.11, (11.79)–(11.80), (11.88).  Returns :func:`core.stability.os_mode`'s dict plus ``budget`` and
-    ``profile``.  Example: Poiseuille Re = 10⁴, k = 1 → c = 0.23752649 + 0.00373967i, P/Λ = 1.616.  Label: converged.
+    ``profile``.  Example: Poiseuille Re = 10⁴, k = 1 → c = 0.23752649 + 0.00373967i, P/Λ = 1.616.
+    Unbounded and semi-infinite flows ("tanh", "bickley" (all parities, as before), "blasius"): solved in the
+    wavelength-scaled box of :func:`os_box_numerics` (N is the degree in the profile's smallest box) — the same numerics as
+    the published grids os_grid_*.csv; the returned mode is the leading eigenvalue of that box.  Where the flow is stable
+    this can be an eigenvalue of the discretised continuous spectrum, not a mode (``far`` = :func:`far_field_fraction` of φ
+    is then ~1, and :func:`os_leading_mode` reports ``discrete=False``).  Channel flows are unchanged.  Label: converged.
     """
     pr = parallel_profile(flow)
-    m = os_mode(k, Re, pr["U"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"], y_max=pr.get("y_max"),
-                map_scale=pr.get("map_scale"), parity=pr.get("parity"))
+    nm = os_box_numerics(pr, k, N)
+    m = os_mode(k, Re, pr["U"], pr["Upp"], domain=pr["domain"], N=nm["N"], bc=pr["bc"], y_max=nm["y_max"],
+                map_scale=nm["map_scale"], parity=pr.get("parity"))
     m["budget"] = disturbance_energy_budget(k, m["c"], m["phi"], m["y"], pr["Up"], Re, grid=m["grid"])
     m["profile"] = pr
+    m["far"] = 0.0 if pr["bc"] == "wall" else far_field_fraction(
+        m["phi"], m["y"], nm["y_max"], centre=None if pr["bc"] == "semi_infinite" else 0.5 * sum(pr["domain"]))
     return m
 
 
-def neutral_curve_tables(out_dir: str | Path | None = None, fast: bool = False, n_Re: int = 40, cache: bool = True) -> dict:
+_OS_TABLE_FLOWS = ("poiseuille", "blasius", "tanh", "bickley")
+_OS_HDR = "# ours (fluidpy.ch11_instability.neutral_curve_tables), Orr–Sommerfeld, Chebyshev; not book data\n"
+_OS_GRID_NOTE = ("# leading mode at each (Re, k): c_r, c_i, production P, dissipation Lambda, energy E (mode normalised "
+                 "max|u_hat| = 1)")
+_OS_GRID_NOTE_OPEN = ("; box {box}; the mode is the least-damped eigenvalue whose eigenfunction is localised (|phi| beyond half "
+                      "the box < 20 % of its maximum) and which is unchanged (1e-5) in a box 1.5 times as large (searched again with twice the degree if none is found) - box-dependent "
+                      "eigenvalues of the continuous spectrum are never listed; where c_i < -k/Re the mode is more damped than "
+                      "the edge of the continuous spectrum; rows with P = nan: no such mode found - c_i is then that edge, -k/Re "
+                      "(analytic, not a mode), and c_r its free-stream speed ({cr})")
+_OS_NEUTRAL_NOTE = dict(
+    blasius="; box max(20, 12/k) delta* (the fixed box 20 put the lower branch up to 8 % too low at Re = 6000)",
+    bickley="; sinuous mode, box max(40, 12/k), k scanned from {k_min:g} to {k_max:g}; k_lower, k_upper = edges of the "
+            "unstable band that contains the fastest-growing wave; k_lower = nan with k_upper finite: that band reaches "
+            "below k = {k_min:g} (its lower edge is not resolved - the flow is UNSTABLE there, not stable){gap}",
+)
+
+
+def _write_bickley_neutral(out: Path, nc: dict, label: str) -> dict:
+    """Write os_neutral_bickley.csv (same five columns as the other flows) and os_neutral_bickley_longwave.csv."""
+    Re, kg = np.asarray(nc["Re"]), np.asarray(nc["k_long_upper"])
+    has = np.isfinite(kg)
+    gap = ""
+    if has.any():
+        i0 = int(np.argmax(has))
+        left = f"between Re = {Re[i0 - 1]:.4g} and {Re[i0]:.4g}" if i0 > 0 else f"below Re = {Re[i0]:.4g}"
+        gap = (f"; a stable gap opens inside the band {left}: from there on k_lower is the upper edge of the gap (it "
+               "jumps - do not join it across) and a second, long-wave unstable band lies below the gap "
+               "(os_neutral_bickley_longwave.csv)")
+    note = _OS_NEUTRAL_NOTE["bickley"].format(k_min=float(nc["k_min"]), k_max=float(nc["k_max"]), gap=gap)
+    p = out / "os_neutral_bickley.csv"
+    with p.open("w", encoding="utf-8") as f:
+        f.write(_OS_HDR + f"# flow: {label}{note}\nRe,k_lower,k_upper,cr_lower,cr_upper\n")
+        for R, kl, ku, cl, cu in zip(Re, nc["k_lower"], nc["k_upper"], nc["c_lower"], nc["c_upper"]):
+            f.write(f"{R:.4g},{kl:.4g},{ku:.4g},{np.real(cl):.4g},{np.real(cu):.4g}\n")
+    p2 = out / "os_neutral_bickley_longwave.csv"
+    with p2.open("w", encoding="utf-8") as f:
+        f.write(_OS_HDR + f"# flow: {label}; sinuous mode, box max(40, 12/k): the long-wave unstable band below the stable "
+                f"gap, k_long_lower < k < k_long_upper (the gap is k_long_upper < k < k_lower of os_neutral_bickley.csv); "
+                f"nan = no gap at this Re, or that edge lies below the smallest k computed ({float(nc['k_min']):g}) and is "
+                "unknown; same_mode = 1: both edges of the gap are neutral points of one mode, 0: of two different modes\n"
+                "Re,k_long_lower,k_long_upper,cr_long_upper,same_mode\n")
+        for R, ko, kgi, cg, sm in zip(Re, nc["k_long_lower"], kg, nc["c_long_upper"], nc["gap_same_mode"]):
+            f.write(f"{R:.4g},{ko:.4g},{kgi:.4g},{np.real(cg):.4g},{sm:.4g}\n")
+    return {"os_neutral_bickley": str(p), "os_neutral_bickley_longwave": str(p2)}
+
+
+def neutral_curve_tables(out_dir: str | Path | None = None, fast: bool = False, n_Re: int = 40, cache: bool = True,
+                         flows: Sequence[str] | None = None, write_modes: bool = True) -> dict:
     """Write our Orr–Sommerfeld tables for explainer E8 / figure F7 to ``reference/ch11/`` (≤ 4 s.f., labelled "ours").
 
     Book: §11.8–§11.11.  Part C.5 5.8: neutral curves on ``n_Re`` log-spaced Re for Poiseuille, Blasius, tanh, Bickley
     (sinuous); leading c and the budget (P, Λ, E) on a 24 Re × 25 k grid per flow (fast: 8 × 8); mode φ, û, v̂ on 41 y points
     for the presets (Poiseuille Re = 10⁴, k = 1; Poiseuille at its critical point; Blasius Re = 1000, k = 0.25; tanh Re = 50,
-    k = 0.45; Bickley Re = 20, k = 0.3).  Returns dict(name → path).  Label: converged.
+    k = 0.45; Bickley Re = 20, k = 0.3).
+    flows : subset of ("poiseuille", "blasius", "tanh", "bickley") to (re)write; None = all.   write_modes : write
+    os_modes.json (default True).
+    Truncation (DEVIATION, ours): Blasius, tanh and Bickley are solved in the wavelength-scaled box of
+    :func:`os_box_numerics`; the fixed boxes used before (20, 30, 40) were too short for long waves — the Bickley lower
+    branch, the Blasius lower branch above Re ≈ 1500 and the small-k columns of the three grids were wrong.  The Bickley
+    neutral table comes from :func:`bickley_neutral_curve` (two unstable bands; the second one in
+    os_neutral_bickley_longwave.csv).  In the grids of these three flows a point where no discrete mode lies above the
+    continuous spectrum (:func:`os_leading_mode`) carries the analytic edge c_i = −k/Re and NaN for P, Λ, E — never a
+    box-dependent eigenvalue.  Whatever is not resolved is NaN and the file header says what a NaN means.
+    Returns dict(name → path).  Label: converged.
     """
     out = Path(out_dir) if out_dir is not None else _root() / "reference" / "ch11"
     out.mkdir(parents=True, exist_ok=True)
     paths: dict = {}
     nr = 8 if fast else n_Re
-    flows = dict(
+    spec_all = dict(
         poiseuille=dict(Re=np.geomspace(5800.0, 1e6, nr), kb=(0.15, 1.35), grid_Re=np.geomspace(2000.0, 1e6, 8 if fast else 24),
                         grid_k=np.linspace(0.2, 1.4, 8 if fast else 25), N=80),
         blasius=dict(Re=np.geomspace(530.0, 6000.0, nr), kb=(0.04, 0.42), grid_Re=np.geomspace(200.0, 6000.0, 8 if fast else 24),
                      grid_k=np.linspace(0.05, 0.45, 8 if fast else 25), N=80),
         tanh=dict(Re=np.geomspace(2.0, 400.0, nr), kb=(0.02, 1.05), grid_Re=np.geomspace(1.0, 400.0, 8 if fast else 24),
                   grid_k=np.linspace(0.05, 1.2, 8 if fast else 25), N=100),
-        bickley=dict(Re=np.geomspace(4.1, 1000.0, nr), kb=(0.02, 1.8), grid_Re=np.geomspace(2.0, 1000.0, 8 if fast else 24),
+        bickley=dict(Re=np.geomspace(4.1, 1000.0, nr), kb=(0.02, 2.0), grid_Re=np.geomspace(2.0, 1000.0, 8 if fast else 24),
                      grid_k=np.linspace(0.05, 1.8, 8 if fast else 25), N=80),
     )
-    hdr = "# ours (fluidpy.ch11_instability.neutral_curve_tables), Orr–Sommerfeld, Chebyshev; not book data\n"
-    for name, spec in flows.items():
+    names = list(_OS_TABLE_FLOWS) if flows is None else [_PROFILE_ALIASES.get(n, n) for n in flows]
+    for name in names:
+        if name not in spec_all:
+            raise ValueError(f"neutral_curve_tables: unknown flow {name!r} (choose from {_OS_TABLE_FLOWS})")
+    for name in names:
+        spec = spec_all[name]
         pr = parallel_profile(name, parity="even") if name == "bickley" else parallel_profile(name)
+        wall = pr["bc"] == "wall"
+        label = f"{pr['label']}; L = {pr['length']}, U0 = {pr['velocity']}"
         fn = _os_lead(pr, spec["N"])
         Rs = [float(r) for r in spec["Re"]]
+        if name == "bickley":
+            nc = dict(bickley_neutral_curve(Rs, N=spec["N"], cache=cache, k_bounds=spec["kb"], fast=fast))
+            nc["k_max"] = spec["kb"][1]
+            paths.update(_write_bickley_neutral(out, nc, label))
+        else:
+            def nc_compute(fn=fn, Rs=Rs, spec=spec):
+                nc = neutral_curve(fn, Rs, spec["kb"], n_k=31)
+                return {key: nc[key] for key in ("Re", "k_lower", "k_upper", "c_lower", "c_upper")}
 
-        def nc_compute(fn=fn, Rs=Rs, spec=spec):
-            nc = neutral_curve(fn, Rs, spec["kb"], n_k=31)
-            return {key: nc[key] for key in ("Re", "k_lower", "k_upper", "c_lower", "c_upper")}
+            key = dict(Re=Rs, kb=list(spec["kb"]), N=spec["N"])
+            if not wall:
+                key["box"] = _OS_BOX_RULE
+            nc = _cached(f"os_neutral_{name}", key, nc_compute, cache)
+            p = out / f"os_neutral_{name}.csv"
+            with p.open("w", encoding="utf-8") as f:
+                f.write(_OS_HDR + f"# flow: {label}{_OS_NEUTRAL_NOTE.get(name, '')}\nRe,k_lower,k_upper,cr_lower,cr_upper\n")
+                for R, kl, ku, cl, cu in zip(nc["Re"], nc["k_lower"], nc["k_upper"], nc["c_lower"], nc["c_upper"]):
+                    f.write(f"{R:.4g},{kl:.4g},{ku:.4g},{np.real(cl):.4g},{np.real(cu):.4g}\n")
+            paths[f"os_neutral_{name}"] = str(p)
 
-        nc = _cached(f"os_neutral_{name}", dict(Re=Rs, kb=list(spec["kb"]), N=spec["N"]), nc_compute, cache)
-        p = out / f"os_neutral_{name}.csv"
-        with p.open("w", encoding="utf-8") as f:
-            f.write(hdr + f"# flow: {pr['label']}; L = {pr['length']}, U0 = {pr['velocity']}\nRe,k_lower,k_upper,cr_lower,cr_upper\n")
-            for R, kl, ku, cl, cu in zip(nc["Re"], nc["k_lower"], nc["k_upper"], nc["c_lower"], nc["c_upper"]):
-                f.write(f"{R:.4g},{kl:.4g},{ku:.4g},{np.real(cl):.4g},{np.real(cu):.4g}\n")
-        paths[f"os_neutral_{name}"] = str(p)
-
-        def grid_compute(pr=pr, spec=spec):
+        def grid_compute(pr=pr, spec=spec, wall=wall):
             GR, GK = spec["grid_Re"], spec["grid_k"]
             cr = np.full((len(GR), len(GK)), np.nan)
             ci, P, D, E = cr.copy(), cr.copy(), cr.copy(), cr.copy()
             for i, R in enumerate(GR):
                 for j, k in enumerate(GK):
-                    try:
-                        m = os_mode(float(k), float(R), pr["U"], pr["Upp"], domain=pr["domain"], N=spec["N"], bc=pr["bc"],
-                                    y_max=pr.get("y_max"), map_scale=pr.get("map_scale"), parity=pr.get("parity"))
-                    except RuntimeError:
-                        continue
-                    b = disturbance_energy_budget(float(k), m["c"], m["phi"], m["y"], pr["Up"], float(R), grid=m["grid"])
-                    cr[i, j], ci[i, j] = m["c"].real, m["c"].imag
-                    P[i, j], D[i, j], E[i, j] = b["production"], b["dissipation"], b["E"]
+                    if wall:
+                        try:
+                            m = os_mode(float(k), float(R), pr["U"], pr["Upp"], domain=pr["domain"], N=spec["N"], bc=pr["bc"],
+                                        y_max=pr.get("y_max"), map_scale=pr.get("map_scale"), parity=pr.get("parity"))
+                        except RuntimeError:
+                            continue
+                        c = m["c"]
+                        b = disturbance_energy_budget(float(k), c, m["phi"], m["y"], pr["Up"], float(R), grid=m["grid"])
+                    else:
+                        try:
+                            lm = os_leading_mode(pr, float(k), float(R), spec["N"])
+                        except RuntimeError:
+                            continue
+                        c, b = lm["c"], lm["budget"]
+                    cr[i, j], ci[i, j] = c.real, c.imag
+                    if b is not None:
+                        P[i, j], D[i, j], E[i, j] = b["production"], b["dissipation"], b["E"]
             return dict(Re=GR, k=GK, cr=cr, ci=ci, P=P, D=D, E=E)
 
-        gd = _cached(f"os_grid_{name}", dict(Re=list(spec["grid_Re"]), k=list(spec["grid_k"]), N=spec["N"]), grid_compute, cache)
+        key = dict(Re=list(spec["grid_Re"]), k=list(spec["grid_k"]), N=spec["N"])
+        note = _OS_GRID_NOTE
+        if not wall:
+            key.update(box=_OS_BOX_RULE, select="localised (far < 0.2) and box-independent (1e-5), all candidates, one retry at 2N")
+            ym0 = pr["y_max"]
+            note += _OS_GRID_NOTE_OPEN.format(
+                box=f"max({ym0:g}, 12/k)", cr="nan: the two streams differ, -1 and +1" if name == "tanh" else
+                ("1" if pr["bc"] == "semi_infinite" else "0"))
+        gd = _cached(f"os_grid_{name}", key, grid_compute, cache)
         p = out / f"os_grid_{name}.csv"
         with p.open("w", encoding="utf-8") as f:
-            f.write(hdr + "# leading mode at each (Re, k): c_r, c_i, production P, dissipation Lambda, energy E (mode "
-                    "normalised max|u_hat| = 1)\nRe,k,c_r,c_i,P,Lambda,E\n")
+            f.write(_OS_HDR + note + "\nRe,k,c_r,c_i,P,Lambda,E\n")
             for i, R in enumerate(gd["Re"]):
                 for j, k in enumerate(gd["k"]):
                     f.write(f"{R:.4g},{k:.4g},{gd['cr'][i, j]:.4g},{gd['ci'][i, j]:.4g},{gd['P'][i, j]:.4g},"
                             f"{gd['D'][i, j]:.4g},{gd['E'][i, j]:.4g}\n")
         paths[f"os_grid_{name}"] = str(p)
+    if not write_modes:
+        return paths
     Pc = poiseuille_critical(cache=cache)
     presets = [("poiseuille", 1.0, 1e4), ("poiseuille", Pc["k_c"], Pc["Re_c"]), ("blasius", 0.25, 1000.0), ("tanh", 0.45, 50.0),
                ("bickley", 0.3, 20.0)]
     modes = []
     for name, k, R in presets:
         pr = parallel_profile(name, parity="even") if name == "bickley" else parallel_profile(name)
-        m = os_mode(k, R, pr["U"], pr["Upp"], domain=pr["domain"], N=100 if name != "bickley" else 80, bc=pr["bc"],
-                    y_max=pr.get("y_max"), map_scale=pr.get("map_scale"), parity=pr.get("parity"))
+        nm = os_box_numerics(pr, k, 100 if name != "bickley" else 80)
+        m = os_mode(k, R, pr["U"], pr["Upp"], domain=pr["domain"], N=nm["N"], bc=pr["bc"],
+                    y_max=nm["y_max"], map_scale=nm["map_scale"], parity=pr.get("parity"))
         b = disturbance_energy_budget(k, m["c"], m["phi"], m["y"], pr["Up"], R, grid=m["grid"])
         lo, hi = (pr["domain"] if pr["bc"] == "wall" else ((0.0, 8.0) if pr["bc"] == "semi_infinite" else (-6.0, 6.0)))
         ys = np.linspace(lo, hi, 41)
@@ -2725,8 +3279,10 @@ def lorenz_largest_lyapunov(t_end: float = 200.0, renorm_dt: float = 1.0, cache:
                             b: float = 8.0 / 3.0) -> float:
     """Largest Lyapunov exponent by two-trajectory renormalisation (Benettin et al. 1980; ours, optional, cached).
 
-    Book: §11.14 (not quantified in the book).  ≈ 0.9 at Lorenz's parameters (literature 0.906 — qualitative only).
-    Label: converged (statistical; depends on t_end).
+    Book: §11.14 (not quantified in the book).  ≈ 0.9 at Lorenz's parameters (literature ≈ 0.906, quoted for orientation
+    only — not a cited benchmark row).  A finite-time statistical estimate: it depends on t_end, the start and the
+    renormalisation interval, and no convergence study in t_end is run.
+    Validation: only the band 0.7 < λ < 1.2 (positive ⇒ sensitive dependence) is tested.  Label: qualitative.
     """
     def compute():
         s = solve_ivp(lorenz_rhs, (0.0, transient), list(s0), args=(Pr, r, b), method="DOP853", rtol=1e-11,

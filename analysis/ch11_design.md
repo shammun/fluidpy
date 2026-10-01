@@ -84,7 +84,7 @@ with N = 40–180, the book's own determinant, `solve_ivp` DOP853); the builder 
 8. **Every book equation is shown in full next to its number** (CLAUDE.md rule 3) — markdown, derivation steps
    ("substitute (11.14), $\phi_j=A_j(z)e^{\mathrm ik(x-ct)}$"), traps, recaps, notes, figure notes and every explainer text. The
    builder keeps an `EQ` dict with all 96 labels of ch11 (TeX from analysis §2 column 5, checked against the pages listed above;
-   (11.72) as on p534) plus the earlier labels cited here ((4.10), (4.86), (4.89), (4.75), (7.95), (7.128), (8.9), (8.10),
+   (11.72) as on p534) plus the earlier labels cited here ((4.10), (4.86), (4.89), (4.75), (7.95), (7.127), (8.9), (8.10),
    (9.71), (1.29)) and uses the ch10 `self_check_near` + `self_check_ctrl`. Exercises are cited as "Exercise 11.6", never as bare
    numbers; (11.92)–(11.96) sit in Exercises 11.9, 11.12, 11.13 and are shown as equations (N124, N127, N128) with **our** inputs.
 9. **nbkit behaviour** (ch04–ch10 lesson): `nb.recap(...)` and `nb.section(...)` end the current CORE block, so every RECAP
@@ -287,7 +287,7 @@ $\bar T=T_0-\tfrac12\Delta T-\Gamma z$. The docstring states it exactly so; `T0`
 | 7.11 | `bickley_critical(parity="sinuous", cache=True)` | R23 (Tatsumi & Kakutani 1958: Re_c ≈ 4 at k ≈ 0.2, approximate) | dict(Re_c, k_c) | C13 | A#35 |
 | 7.12 | `poiseuille_critical(N=100, cache=True)` · `poiseuille_neutral_curve(Re_values=None, N=80, cache=True)` · `poiseuille_spectrum(k, Re, N=100)` | C13 | dict(Re_c, k_c, c_r) — *expect* **5772.22, 1.02056, 0.26400** · dict(Re, k_lower, k_upper) — *expect* Re = 10⁴: unstable k from ≈ 0.80 to ≈ 1.07 · c array | C13, F7, E8 | A#35 |
 | 7.13 | `couette_max_growth(k, Re, N=80)` | N100 | float (< 0) — *expect* k = 1, Re = 10³: c_i = −0.1192; Re = 10⁴: −0.0521 | C13 | A#35 |
-| 7.14 | `blasius_base(y_max=20.0)` · `blasius_critical(N=100, y_max=20.0, cache=True)` · `blasius_neutral_curve(Re_values=None, in_frequency=False, cache=True)` | δ*-scaled U = f′(1.7208 y), U″ = (1.7208)²(−½ff″); N107, N108 | dict(U, Upp) · dict(Re_c, k_c, omega_c) (Thomas via Gallagher et al. 2016: 519.2, 0.303, 0.120; Jordinson 1970: 520) · dict(Re, k or F lower/upper) | C13 | A#35 |
+| 7.14 | `blasius_base(y_max=20.0)` · `blasius_critical(N=100, y_max=None, cache=True)` (None = box max(20, 12/k) δ*; Re_c = 519.0601) · `blasius_neutral_curve(Re_values=None, in_frequency=False, cache=True)` | δ*-scaled U = f′(1.7208 y), U″ = (1.7208)²(−½ff″); N107, N108 | dict(U, Upp) · dict(Re_c, k_c, omega_c) (Thomas via Gallagher et al. 2016: 519.2, 0.303, 0.120; Jordinson 1970: 520) · dict(Re, k or F lower/upper) | C13 | A#35 |
 | 7.15 | `falkner_skan_neutral_curve(m, Re_values=None, cache=True)` | R24 (FS base flows from `BL.falkner_skan`) | dict(Re, k_lower, k_upper) | C13 | A#35 |
 | 7.16 | `table_11_1(cache=True)` | N102 recomputed: jet (Bickley), shear layer (tanh), Blasius, plane Poiseuille, pipe (stated, not computed), plane Couette | list of dict(flow, U, Re_c_ours, k_c_ours, benchmark, source, length_scale, remark) | C13 | A#35 |
 | 7.17 | `ts_wave_fields(x, y, t, k, c, phi, phi_y, amp=0.05, U=None)` (§11.8 convention) | real perturbation ψ, u, v (+ U(y) + u if `U` is given) | dict(psi, u, v, u_total) | C14, A4, E8 table | §8.8 |
@@ -1206,7 +1206,7 @@ Slip callouts are `> ⚠️ **slip #k — the book prints** … **; the correct 
    the hydrostatic balance $0=-\\frac1{\\rho_0}\\frac{\\partial P}{\\partial z}-g\\frac{\\bar\\rho}{\\rho_0}$ (p. 502–503) — Ch. 4's
    Boussinesq set and Ch. 7 §7.8's base state. Only 2-D disturbances are considered (Squire's theorem, proved in C11 for
    unstratified flow, is *assumed* here).", where="Ch. 4 §4.9, Ch. 7 §7.8")`
-3. `nb.recap("R18", "The buoyancy frequency", "$N^2\\equiv-\\frac g{\\rho_0}\\frac{d\\bar\\rho}{dz}$ (7.128) — Ch. 1's (1.29) for an
+3. `nb.recap("R18", "The buoyancy frequency", "$N^2\\equiv-\\frac g{\\rho_0}\\frac{d\\bar\\rho}{dz}$ (7.127) — Ch. 1's (1.29) for an
    incompressible fluid; the linearised density equation becomes $\\frac{\\partial\\rho}{\\partial t}+U\\frac{\\partial\\rho}{\\partial
    x}-\\frac{\\rho_0N^2w}g=0$ (11.56).", where="Ch. 1 §1.10, Ch. 7 §7.8")` + `nb.code`: a thermocline `STRAT.brunt_vaisala_sq(1025.0,
    -0.002*1025/10.0, 0.0)` — the builder sets the arguments as `core.stratification` defines them; *expect:* N² ≈ 2 × 10⁻³ s⁻²
@@ -2477,7 +2477,7 @@ use private scratch subfolders (`<scratchpad>/<slug>/`).
   {id: 'D18', step: 13}` · 4. "Cross ¼" — "J = 0.24: allowed (a sliver of growth); J = 0.26: guaranteed stable." `set` {J: 0.26} ·
   5. "Necessary, not sufficient" — "Below ¼ only some k grow: drag k at J = 0.1." `controls: ['k']` · 6. "Your turn" — "Make the
   density layer thinner (R = 2) and predict where Ri_min moves; then check the profile." `controls: ['R', 'J']`.
-- **Equations:** `N2` ref 'Eq. (11.56)' with (7.128) · `tg` ref 'Eq. (11.61)' · `phi` ref 'Eq. (11.63)' · `sa` ref 'Eq. (11.64)' ·
+- **Equations:** `N2` ref 'Eq. (11.56)' with (7.127) · `tg` ref 'Eq. (11.61)' · `phi` ref 'Eq. (11.63)' · `sa` ref 'Eq. (11.64)' ·
   `id` ref 'Eq. (11.65)' · `Ri` ref 'Eq. (11.66)' live · `mh` ref 'Eq. (11.67)' · symbols.
 - **Check yourself:** (1) "Is Ri_min < ¼ enough for growth?" — "No: necessary only. At J = 0.1 waves with k ≳ 0.7 do not grow." ·
   (2) "Where is Ri smallest for R = 1, and why?" — "At z = 0: Ri = J cosh²z grows away from the centre." · (3) "Why are the computed
@@ -2946,7 +2946,7 @@ Lyapunov exponent, matplotlib 3-D, iterated maps (C15).
 | Galerkin route, (11.92)–(11.94), slip #7 | C07 | C07 (N124) |
 | wavy vortices, Görtler and Dean vortices | C07 | C07 (N69) |
 | stratified parallel flow set-up | C08 | R17 |
-| buoyancy frequency N² (11.56), (7.128) | C08 | R18 |
+| buoyancy frequency N² (11.56), (7.127) | C08 | R18 |
 | stream function, §11.7 sign (11.57), slip #9 | C08 | R19 |
 | history of the Richardson criterion | C08 | C08 (N70) |
 | perturbation equations (11.55), slip #4 | C08 | C08 (N71, D16) |
@@ -3801,7 +3801,7 @@ D19, D24) carry a `check_src` cell, every line commented; D03, D08, D11, D21, D2
      the next equation silently corrects.
   6. *did:* Linearise the density equation · *tex:* $\frac{\partial\rho}{\partial t}+U\frac{\partial\rho}{\partial x}+w\frac{d\bar\rho}{dz}=0\ \Leftrightarrow\
      \frac{\partial\rho}{\partial t}+U\frac{\partial\rho}{\partial x}-\frac{\rho_0N^2w}g=0$ (11.56) · *why:* Dρ̃/Dt (Ch. 3 (3.5)) with ρ̄(z); drop
-     uρ_x, wρ_z; N² = −(g/ρ₀)dρ̄/dz (7.128). · *plain:* rising fluid brings heavier fluid up.
+     uρ_x, wρ_z; N² = −(g/ρ₀)dρ̄/dz (7.127). · *plain:* rising fluid brings heavier fluid up.
   7. *did:* Introduce the stream function · *tex:* $u=\frac{\partial\psi}{\partial z},\ w=-\frac{\partial\psi}{\partial x}$ ⇒ (11.57) · *why:* this satisfies
      ∂u/∂x + ∂w/∂z = 0 automatically (R19, §11.7 sign). · *plain:* three equations for ψ, p, ρ.
 - **Result.** (11.55)–(11.57) — *in words:* linear advection by U, production by shear (wU′), buoyancy and stratification (N²).

@@ -5,8 +5,367 @@
 `reference/ch11/explainer_tables.json`, `reference/ch11/rayleigh_spectra.json`) + uncommitted verifier files
 (`tests/test_ch11.py`, `tests/ch11_verify_figures.py`, `reference/ch11/SOURCES.md` — the two "Verifier re-check" sections)
 · verifier: `math-verifier` (loop 2 of max 3)
+· **latest state: post-review loop 2, 2026-10-01** — commit `9f78058` + uncommitted implementer changes
+(`fluidpy/ch11_instability.py`, `fluidpy/core/stability.py`, four `scripts/ch11_*.py`, nine regenerated files in
+`reference/ch11` + the new `os_neutral_bickley_longwave.csv`) + uncommitted verifier files (`tests/test_ch11.py`,
+`tests/ch11_verify_figures.py`, `reference/ch11/SOURCES.md`, this report)
 
-## Verdict: PASS — both Taylor–Goldstein defects (loop 0: decay box at small k; loop 1: false zeros under the neutral curve at k ≥ 0.65) are fixed and independently confirmed; 0 failing tests
+## Verdict (post-review loop 2, closure, 2026-10-01): PASS — 160 tests, 0 failing; Must-fix 1 closed (the unvalidated `semi_infinite` option of `rayleigh_eigs_contour` is refused); all five implementer changes confirmed by independent routes
+
+The section "Closure of Must-fix 1" directly below is the current state. "Post-review loop 2" after it holds the evidence
+for the five changes (its verdict line, counts and the status of Open items 1–3 are superseded by the closure section);
+the sections after that are older states ("Post-review targeted verification": FAIL on the salt-finger text, since fixed;
+"Verdict at `9f78058`": PASS, 128 tests, before the review).
+
+## Closure of Must-fix 1 (2026-10-01, after the implementer's fix; same environment)
+
+- **Change verified:** `core.stability.rayleigh_eigs_contour(..., bc="semi_infinite")` raises `ValueError`
+  ('… bc="semi_infinite" is not supported — … use rayleigh_shoot … or rayleigh_eigs …') for every keyword variant tried
+  (default, `filter=False`, `delta=0`, `return_vectors=True`, N = 240 with δ = 2); an unknown bc raises too; `_contour` has no
+  semi-infinite path factor any more and raises for anything but wall / decay / unbounded. The docstring states the limits.
+  No caller reaches it: the only package call is in `_rayleigh_lead`, behind its `semi_infinite` branch (→ `rayleigh_eigs`);
+  the three calls in `scripts/ch11_inviscid_criteria.py` pass `bc="decay"`.
+- **Tests:** the failing test is replaced by two (both pass):
+  `test_rayleigh_shoot_V1_semi_infinite_wall_bounded_shear_layer_two_shooting_codes_agree` (the wall-bounded shear layer
+  U = tanh(y − 3) + tanh 3 stays covered by a solver that works: `rayleigh_shoot` = the test's own shooting to 1e-8 at
+  k = 0.5, 0.8, 0.9, 0.95 — c = 0.95764 + 0.34310i, 0.99156 + 0.12618i, 0.99402 + 0.06019i, 0.99467 + 0.02823i; rtol 1e-7
+  vs 1e-10 ≤ 1e-7; box 30 vs 45 ≤ 1e-8; all inside Howard's semicircle) and
+  `test_rayleigh_contour_V7_semi_infinite_is_refused_and_the_blasius_like_row_uses_the_real_axis` (the raise; the
+  Blasius-like spline profile is `semi_infinite`, `_rayleigh_lead` returns None for it at k = 0.1, 0.5, 1, 2 exactly as the
+  real-axis `rayleigh_eigs` does, a live `rayleigh_spectrum_table(["blasius_like"])` is all c_i = 0 / c_r = NaN and equals
+  the 20 published entries; the profile has no inflection point).
+- **Mutants:** M60 (public guard removed) and M61 (guard removed and the semi-infinite case solved on the unbounded path
+  factor) — both killed by the `raises` test. Loop-2 total: **27 planted, 26 killed, 1 survivor** (M52, equivalent on every
+  reachable case); all loops: **61**.
+- **Counts:** `tests/test_ch11.py` has **160 test functions**. Default (`-m "not slow"`): **154 passed, 6 deselected**
+  (580 s). Slow: **6 passed, 154 deselected** (704 s; scripts `--no-show --fast` clean, `make_refs.py --no-tables`
+  byte-identical). Full suite `pytest tests`: **1620 passed, 0 failed** (1594 s; 1460 other chapters + machinery, incl.
+  `test_viz_library_inlined_and_template_lints`, + 160 ch11) — run after the orchestrator's re-inlining of all explainers,
+  the regenerated `notebooks/ch11_instability.ipynb` and the analysis edits.
+  Labels: V1 70 · V2 22 · V3 22 · V4 8 · V5 10 · V6 2 · V7 41. `tools/check_public.py`: OK (594 files). `reference/ch11`
+  unchanged by the runs.
+- **Open items closed:** 1 (Must-fix 1: option (b) taken, tested); 2 (the module Validation section of
+  `core/stability.py` now names the existing tests; the contour docstring states the semi-infinite limit); 3 (S13 is in
+  `analysis/ch11.md` §9, "S1–S13").
+- **Open items that remain** (numbers refer to the list in "Post-review loop 2"): 4 `qualitative` rows
+  (`lorenz_largest_lyapunov`; Falkner–Skan upper branch at Re ≥ 2e4 with the default N); 5 what the Bickley table does not
+  resolve (NaN = unstable down to k = 0.02; do not join `k_lower` across the gap; `k_long_lower` never filled, M52);
+  6 "no discrete mode found" is a search result; 7 N = 80 tables are 1.5–1.8e-6 off at Re = 6000 (below 4 s.f.);
+  8 Bénard residuals (explicit N ≥ 60 unprotected; one documented raise); 9 complex-path limits (δ inside U's strip of
+  analyticity; no margin where U′ = 0 at the critical level of a weakly growing mode; no semi-infinite profiles);
+  10 counter-rotating Taylor benchmark not citable today and the pre-review Should-fix 3–6. None blocks PASS; no row is
+  `unverified`.
+
+## Post-review loop 2 (2026-10-01; implementer changes uncommitted on top of `9f78058`; python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · mpmath 1.3.0)
+
+### What was found by whom, and what the verifier measured
+Independent routes written in `tests/test_ch11.py` for this loop (none shares code with the solver it checks):
+`_ray_shoot` (Rayleigh's equation $(U-c)(\phi''-k^2\phi)-U''\phi=0$ (11.81) by two-sided integration on the real axis + Newton);
+`_cm_*` (the Orr–Sommerfeld equation (11.79) by the compound-matrix method, started on the exact free-stream solutions
+$e^{-k|y|}$, $e^{-\gamma|y|}$ — no box, no collocation; validated first on Orszag's 0.23752649 + 0.00373967i, 2e-8);
+`_blasius_exact` (fresh integration of $f'''+\tfrac12 ff''=0$: f″(0) = 0.3320573, δ* factor 1.7207877; equals
+`blasius_base` to 4e-14 in U, 3e-13 in U″); `_benard_det_root` (6 × 6 determinant of the exponential solutions, mpmath, 30 digits).
+
+| # | Change (found by) | Claim | Result | Evidence (before → after) |
+|---|---|---|---|---|
+| 1 | `salt_finger_regime` text (verifier's failing test, previous run) | real growing root is called "monotonic overturning … (real)" | **confirmed** | (−0.03, −0.0016), d = 5 cm: margin −47 717.7568, hand-expanded cubic roots +16.890, +7.322, −142.8; text "…(the marginal state σ = 0 of (11.46) is not crossed) yet a real root grows: monotonic overturning, σ = 16.89 (real)". 6 points, 3 real + 3 complex: "oscillat" ⇔ complex, "monotonic … (real)" ⇔ real. The previously failing test passes (extended, not weakened). |
+| 2 | Rayleigh near neutral points (lesson review: false zeros in the E7 table) | `rayleigh_eigs_contour` converged up to the neutral wavenumber; 56 non-zero entries agree with shooting to 1.05e-10 | **confirmed for walls and unbounded layers; one defect in the `semi_infinite` branch (Must-fix 1)** | Jet k = 1.8: 0 → 0.63235 + 0.02432i; k = 1.9: 0 → 0.64965 + 0.01163i; k = 1.7: 0.61500 + 0.03812i → 0.61474 + 0.03806i (the real-axis solver still returns nothing at 1.8, 1.9 and is 2.6e-4 off at 1.7 — pinned). All 56 non-zero entries: file = live at 4 s.f.; \|contour − `_ray_shoot`\| ≤ 1.03e-10; \|contour − `rayleigh_shoot`\| ≤ 1.05e-10; all inside Howard's semicircle (11.72). N = 120/180 and δ = 0.1/0.2/0.3: ≤ 3e-9 (2.6e-8 for tanh(y/0.3) with δ = 0.3, whose own pole is 0.47 from the axis). Exact neutral points approached linearly: c_i/(k_n − k) at k_n − k = 0.01 → 0.001: 0.1114 → 0.1109 (jet sinuous, k_n = 2, c_r → 2/3), 0.1809 → 0.1806 (varicose, k_n = 1), 0.6383 → 0.6368 (tanh, k_n = 1; 2/π = 0.6366), 1.672 → 1.726 (sin y, \|y\| ≤ π, k_n = √3/2), 0.409 → 0.413 (b = 1.7, k_n = 0.382398); nothing returned beyond k_n. A 0 in the table: c_i ≤ 1e-4, i.e. within 9.0e-4 (sinuous), 5.5e-4 (varicose), 1.6e-4 (tanh) of k_n — bracketed at 0.7 × / 1.3 × those distances. The contour eigenvalues satisfy the **real-axis** identities of (11.83)–(11.84) built from an independent integration: \|∫U″\|φ\|²/\|U − c\|²\| ≤ 7e-13 of ∫\|U″\|…, real part ≤ 7e-13 (jet k = 1.9, 1.0; tanh 0.9, 0.4). |
+| 2b | `sin_profile_max_growth` | N-independent; b = 1.6 → 0.0013462, 1.7 → 0.0118854, 2 → 0.0596099, 3 → 0.1573130; label `converged` | **confirmed** | b = 1.7: 0.011389 (N = 80) / 0.011872 (N = 120) → 0.0118854 at both N (2e-10 apart) = max of k c_i from `_ray_shoot` at the same k samples (1e-9); 0 beyond the exact k_n and for 2b < π; 1.58 → 0.0002427. |
+| 3 | Orr–Sommerfeld far field (lesson review: Bickley lower branch) | box max(profile box, 12/k); new Bickley picture; Blasius lower branch +9 %; discrete modes vs continuous spectrum | **confirmed** | Bickley, Re = 14.58, k = 0.04: −0.0184 (box 40) → +0.001255 = compound matrix (4e-10). 14 (Re, k) points Chebyshev vs compound matrix: ≤ 7e-8 (3.5e-7 at Re = 1000, k = 1.95). Neutral points: 7 of them agree to ≤ 2e-7 (k_lower 0.1257, 0.02114, 0.02336; k_upper 0.2319, 0.6686, 1.225; k_long_upper 0.04472). Gap: none at Re = 17.4; at 17.6 edges 0.062364 / 0.073737; `same_mode` 1, 1, 0 at Re = 17.6, 18.6, 19.0; sign of c_i by both routes at Re = 17.6: + (k = 0.05), − (0.068), + (0.085). Re = 4.0: every k decays; critical point unchanged (4.016996532 at 0.172834, compound-matrix c_i there < 1e-7). tanh, Re = 1, k = 0.05: 0.161 (box 30) → 0.28162 = compound matrix. Blasius lower branch at Re = 6000: 0.07248 → 0.07902 (+9.0 %) = compound matrix 0.0790171; upper branch moved ≤ 3.8e-4. Blasius, Re = 200, k = 0.05: leading box eigenvalue c_i = −0.011988, −0.002592, −0.000661 in boxes 20, 40, 80 (c_r ≈ 1: continuous spectrum, edge −k/Re = −0.00025); `os_leading_mode` returns the discrete mode 0.3473020 − 0.2432525i = compound matrix (6e-12). |
+| 4 | `blasius_critical` (same cause) | Re_c = 519.0601180747 at k_c = 0.3037711 (was 519.0765 in box 20) | **confirmed** | Compound matrix with an independent base flow: neutral Re at our k_c = 519.0601175 (1e-9 relative), minimum over k at 0.3037710, c_i(k_c, Re_c) = 2e-11. Default live = JSON to 1e-9; explicit (N, box) = (142, 40): 519.0601181; (100, 20): 519.0765 (3.2e-5 high; its c_i at the true critical point is −7.3e-7). N = 60 (rule): 518.9724. Thomas 519.2: 2.7e-4; benchmarks untouched. |
+| 5 | `benard_growth_rate` (implementer's scan) | never a lower mode in place of the leading one | **confirmed** | rigid–free, K = 1.84, Pr = 7.142857, Ra = 2105.3006: −39.61446 → 7.1195004809; determinant root 7.1195004794 (2e-10), the second root is −39.6144642 (so the old answer was the *second* mode). N = 24, 32, 40, 48: ≤ 1.5e-9 absolute (2e-10 relative). Seeded scans: 300 + 80 points (K 1–6, Pr 0.03–30, Ra/Ra(K) 0.2–3, both boundary sets): 0 wrong sign, 0 raised, ≤ 4.0e-9 from the determinant root on 80 of them. Residuals as documented: N = 96 → 5.0e-6 off, N = 60 → 1.3e-6 off, neither raises; rigid–rigid K = 5, Ra = 5e4, Pr = 100 raises naming 605.286 and 116.709 (determinant root 605.28559; N = 32 returns it). |
+| — | (7.128) → (7.127) | N² is (7.127) in Ch. 7 | **confirmed on the page images** | p. 294 (ch07) defines $N^2\equiv-\frac{g}{\rho_0}\frac{d\bar\rho}{dz}$ as (7.127); p. 503 (ch11) prints the same definition with the number "(7.128)" — **printed slip S13** (a cross-reference slip in the book). Both docstrings now cite (7.127) (tested). |
+
+Is the complex-path method sound? **Yes for analytic profiles between walls and on unbounded layers:** U must be analytic in
+the strip |Im y| ≤ δ (tanh, sech²: poles at π/2; a spline or a float-casting profile raises `ValueError` — tested); the path
+runs below the real axis where U′ > 0 and above where U′ < 0 (tested on the returned nodes), i.e. on the far side of the
+critical point of every growing mode (Im y_c ≈ c_i/U′), so the eigenvalue equals the real-axis one by Cauchy's theorem —
+confirmed by two real-axis shooting codes and by the real-axis integral identities; the displaced continuous spectrum has
+c_i ≤ 0 and is never returned. Where U′ = 0 at the critical level the path gives no margin: no such weakly growing mode exists
+in the chapter's profiles (the varicose long wave has c_r → 1 = U_max but c_i = 0.048 at k = 0.02, and agrees with shooting to
+3e-8). A path beyond U's pole (δ = 1.5 for tanh) yields c = 17i unfiltered; the N-filter removes it and returns nothing.
+**Not sound as coded for `bc="semi_infinite"`** — see the failing test.
+
+### Failing test (1) — Must-fix 1 (CLOSED: the option is now refused; see "Closure of Must-fix 1")
+`test_rayleigh_contour_V1_semi_infinite_wall_bounded_shear_layer_has_no_false_zero` — U = tanh(y − 3) + tanh 3 above a wall,
+box 30, default N = 120, δ = 0.2:
+
+| k | shooting (`rayleigh_shoot` = `_ray_shoot` to 1e-8) | `rayleigh_eigs_contour(bc="semi_infinite")` |
+|---|---|---|
+| 0.5 | 0.95764 + 0.34310i | 3.7e-7 off (N = 160: 3e-9) |
+| 0.8 | 0.99156 + 0.12618i | **nothing** (N = 160: nothing; N = 240: 6e-9) |
+| 0.9 | 0.99402 + 0.06019i | **nothing** (N ≤ 240) |
+| 0.95 | 0.99467 + 0.02823i | **nothing** (N ≤ 360) |
+
+- Hypothesis (measured): for `semi_infinite` the path depth is δ·t with t = (1 + ξ)/2 ≈ y/y_max, so at the shear layer (y = 3 of
+  30) the path is only 0.020 below the axis (0.040 for a layer at y = 6): the solver is effectively back on the real axis,
+  the first solve has no growing candidate, the refine loop never starts, and "no mode" is returned. With δ = 2 (depth 0.2 at
+  the layer) every mode above is recovered to ≤ 5e-8 at N = 160 — the method is right, the taper is wrong.
+- Suggested fix, either: (a) a taper that saturates near the wall, e.g. t = 1 − ((1 − ξ)/2)^p (tried on a monkey-patched copy:
+  p = 30 recovers k = 0.5 … 0.95 at N = 120 for the layer at y = 3 to ≤ 3e-7; a layer at y = 6 additionally needs N = 160 —
+  the wall-clustered linear grid has only 9 nodes within |y − y₀| < 1), with the default N raised for this bc and the limits
+  stated in the docstring; or (b) refuse `bc="semi_infinite"` with a `ValueError` pointing to `rayleigh_shoot` until it is
+  validated (the verifier will then turn this test into the corresponding `raises` check).
+- Impact: none on published numbers — `_rayleigh_lead` sends the only semi-infinite profiles of the chapter (the Blasius-like
+  splines, no inflection point) to the real-axis solver; no table, script, notebook cell or explainer calls this branch.
+  It blocks PASS because a public function's documented option returns a false "no growth", the very defect it was written
+  to remove. Nothing was loosened.
+
+### Counts
+- `tests/test_ch11.py`: **159 test functions** (138 + 21 new; 2 existing ones corrected on evidence, 1 extended).
+  Default (`-m "not slow"`): **152 passed, 1 failed, 6 deselected** (654 s, run while the mutant jobs shared the machine).
+  Slow (`-m slow`): **6 passed, 153 deselected** (512 s): the table writers, all 10 runnable `scripts/ch11_*.py --no-show
+  --fast` (never `ch11_tables.py`), `make_refs.py --no-tables` → byte-identical `benchmarks.json`, and the three new
+  convergence studies.
+- Full suite (`pytest tests`): see "Full-suite run" below.
+- Labels in the test names: V1 70 · V2 22 · V3 22 · V4 8 · V5 10 · V6 2 · V7 40 (a test with two labels counts twice).
+- Mutants: **25 new (M35–M59): 24 killed, 1 survived** (M52, equivalent on every reachable case — table at the end) + the
+  34 of the earlier loops (not re-run) = 59.
+- `tools/check_public.py`: OK (594 files). `reference/ch11`: exactly the files named by the implementer changed (plus
+  `SOURCES.md`, verifier); the slow run rewrote none of them.
+
+### Observed convergence (spectral methods: digits, not an algebraic order)
+| Quantity | Refinement | Observed |
+|---|---|---|
+| Rayleigh c, complex path (10 cases incl. jet k = 1.7–1.9) | N 120 → 180 with δ 0.2 → 0.1; δ → 0.3 | ≤ 3e-9 (2.6e-8 thin walled layer) |
+| `sin_profile_max_growth` b = 1.7, 2 | N 80 → 120 | 2e-10 (was 4.1 % on the real axis) |
+| Bickley neutral k (Re = 4.72, 19.3, 25.6) | (N, e-folds) (80, 12) → (160, 24) | ≤ 2.1e-8 for the main band; 6.5e-8 and 7.6e-6 for k_long_upper = 0.0447, 0.0222 |
+| Blasius Re_c | rule N = 60 / 100; boxes (142, 40) | 518.9724 / 519.0601181 / 519.0601181; fixed box 20: 519.0765 |
+| Blasius c at Re = 6000 (k = 0.05, 0.082) | N 80 → 120 → 160 against the compound matrix | 1.5–1.8e-6 → 4e-10 → 6e-10 |
+| Falkner–Skan m = 0.1, lower branch (Re = 5000, 1e5) | N 80 → 120 | 4.5e-4, 1.5e-3 relative |
+| Falkner–Skan m = 0.1, upper branch | N 80 → 120 | Re = 5000: 7e-5; **Re = 1e5: 0.1266 vs 0.1248 (1.4 %) — `qualitative`** |
+| Bénard σ (rigid–free defect point) vs determinant | N = 24, 32, 40, 48 / 60 / 96 | ≤ 2e-10 / 1.3e-6 / 5.0e-6 (relative) |
+
+### Tests added (21), changed (3)
+| Test | Level | Pins |
+|---|---|---|
+| `test_compound_matrix_helper_V5_reproduces_orszag` | V5 | the independent OS route and Blasius profile themselves |
+| `test_rayleigh_contour_V1_exact_neutral_points_are_approached_linearly` | V1 | five exact neutral points; no growth beyond; symbolic k_n of sin y |
+| `test_rayleigh_contour_V3_unchanged_by_degree_and_path_and_V1_equal_to_independent_shooting` | V3 + V1 | 10 cases, two shooting codes; the jet pins; the real-axis false zeros (defect pinned) |
+| `test_rayleigh_shoot_V1_guards_parity_tolerance_and_no_mode_means_not_converged` | V1 | `rayleigh_shoot` |
+| `test_rayleigh_contour_V4_its_eigenvalues_satisfy_the_real_axis_identities_11_83_11_84` | V4 | (11.83)–(11.84) on the real axis |
+| `test_rayleigh_contour_V7_path_side_guards_stable_profiles_and_howard_semicircle` | V7 | path side, guards, the filter, 56 entries in the semicircle |
+| `test_rayleigh_contour_V1_semi_infinite_wall_bounded_shear_layer_has_no_false_zero` | V1 | **fails** — Must-fix 1 |
+| `test_rayleigh_spectra_V1_regenerated_table_is_live_and_the_false_zeros_are_gone` | V1 | JSON = live; explainer copy; the 0-sliver |
+| `test_sin_profile_V1_max_growth_equals_independent_shooting_and_ends_at_the_exact_margin` | V1 | `sin_profile_max_growth` |
+| `test_far_field_helpers_V1_map_scale_far_fraction_and_box_numerics` | V1 | `decay_box_map_scale`, `far_field_fraction`, `os_box_numerics`, `fixed_box` |
+| `test_os_far_field_V1_compound_matrix_route_confirms_the_long_waves` | V1 | Bickley / tanh / Blasius long waves; the box-40 and box-30 defects pinned; `ts_mode` |
+| `test_bickley_neutral_curve_V1_csv_is_live_and_compound_matrix_finds_the_same_neutral_points` | V1 | both Bickley CSVs, 7 neutral points, critical point |
+| `test_bickley_neutral_curve_V7_the_stable_gap_opens_near_Re_17_5_and_the_mode_exchange` | V7 | the gap, `same_mode`, explicit box |
+| `test_os_leading_mode_V3_discrete_modes_do_not_move_with_the_box_the_continuum_does` | V3 | `os_leading_mode`, `os_mode(index=)` |
+| `test_os_tables_V1_regenerated_grids_blasius_neutral_curve_and_preset_are_live` | V1 | three grids (13 rows), `os_neutral_blasius.csv`, `os_modes.json` |
+| `test_blasius_critical_V1_compound_matrix_route_and_the_box_rule` | V1 | `blasius_critical`, `critical_points.json` |
+| `test_benard_growth_rate_V1_determinant_route_and_the_leading_mode_is_never_skipped` | V1 | the defect point, the ladder, the raise |
+| `test_docstrings_V7_loop2_labels_and_the_N2_cross_reference` | V7 | labels, (7.127), DEVIATION notes |
+| `test_blasius_critical_V3_live_default_is_the_json_and_box_and_degree_doubling` (slow) | V3 | default live = JSON; boxes |
+| `test_bickley_neutral_curve_V3_unchanged_by_box_and_degree_doubling` (slow) | V3 | (80, 12) vs (160, 24) |
+| `test_falkner_skan_neutral_curve_V3_lower_branch_converged_upper_branch_at_1e5_only_qualitative` (slow) | V3 | the `qualitative` label is earned |
+
+Changed on evidence (nothing loosened):
+- `test_docstrings_V7_post_review_numbers_are_live_and_labels_say_what_is_tested` pinned the real-axis values 0.011389 /
+  0.011872 for b = 1.7, their 4 % N-dependence and the label "qualitative for…". Both old numbers were under-resolved (the
+  shooting value is 0.0118854); the test now pins 0.0118854 at N = 80 and 120 (≤ 1e-8 apart), 0.0013462, 0.0596099,
+  0.1573130, the label `converged`, and asserts the result is *neither* old number.
+- `test_salt_finger_regime_V7_text_names_the_kind_of_root_that_grows`: the "FAILS" note removed; two more points, the
+  wording of both branches, the docstring's example roots.
+- `test_blasius_critical_V5_thomas_live_and_V3`: the N = 60 live value is pinned (518.9724 — in the fixed box it differs).
+Tolerances of the *new* tests that were set from the first measurement, for the record: path/degree variation 1e-7 (the
+docstring's claim; 1e-8 fails only for the thin walled layer at δ = 0.3); Blasius N = 80 against the compound matrix at
+Re = 6000: 5e-6 (measured 1.8e-6, with N = 120 required to agree to 1e-8 in the same test).
+
+### Labels after loop 2
+| Function / row | Label | Note |
+|---|---|---|
+| `lorenz_largest_lyapunov` | `qualitative` | unchanged (only the band 0.7 < λ < 1.2 is tested) |
+| `falkner_skan_neutral_curve` — upper branch at Re ≥ 2e4 with the default N = 80 | `qualitative` | **new**: 1.4 % between N = 80 and 120 at Re = 1e5 (critical layer under-resolved); lower branch and Re ≤ 5000: `converged` |
+| `sin_profile_max_growth` | `converged` | **no longer `qualitative`** (N-independent, equals shooting) |
+| `rayleigh_eigs_contour`, `rayleigh_shoot`, `rayleigh_spectrum_table` | `converged` | walls / unbounded; `semi_infinite` branch of the first: Must-fix 1 |
+| `os_box_numerics`, `os_leading_mode`, `bickley_neutral_curve`, `blasius_neutral_curve`, `decay_box_map_scale` | `converged` | |
+| `far_field_fraction` | `analytic` | |
+| `blasius_critical` | `converged`, `benchmark` | 2.7e-4 from Thomas's 519.2 |
+| `benard_growth_rate` | `converged` | + V1 determinant route; N ≈ 24–48 |
+No row is `unverified`. CORE rows keep their labels; C12 gains V1 (exact neutral points, shooting) and V4 on the new
+solver, C13 gains an independent V1 route (compound matrix), C03 an independent V1 route (determinant).
+
+### Figures (local, `outputs/ch11/verify/`, `tests/ch11_verify_figures.py --loop2`)
+| Figure | Visual verdict |
+|---|---|
+| `bickley_neutral_bands_loop2.png` | The upper branch rises monotonically from the critical point (star, Re = 4.017, k = 0.173) and flattens onto the dotted line k = 2; the lower edge falls steeply from 0.126 to 0.021 between Re = 4.1 and 7.2, is unresolved (red marks at k = 0.02) for Re = 8.3–16.8, reappears as the upper edge of the stable gap at Re = 19.3 (0.076) and falls like 1/Re to 0.02 at Re = 79; the short green segment below it is the long-wave band's upper edge. |
+| `rayleigh_jet_near_neutral_loop2.png` | The complex-path curve c_i(k) falls smoothly to zero exactly at k = 2 and is tangent there to 0.111 (2 − k); the real-axis solver's crosses follow it up to k = 1.70 and then drop to 0 for every k ≥ 1.725. |
+
+### Open items (post-review loop 2; verbatim for the orchestrator)
+1. **Must-fix 1 (blocks PASS; implementer):** `core.stability.rayleigh_eigs_contour(bc="semi_infinite")` returns nothing for
+   growing modes with c_i up to 0.126 (failing test above; fix (a) taper + degree, or (b) refuse the option).
+2. **Should-fix (implementer, docstrings):** the module docstring of `fluidpy/core/stability.py` still says
+   "`decay_box_map_scale`, `far_field_fraction` (post-lesson-review; tests to be added by the verifier) — planned V1 …" —
+   the tests exist now (`test_far_field_helpers_V1_…`, `test_os_leading_mode_V3_…`); `rayleigh_eigs_contour` should state
+   the `semi_infinite` limits once Must-fix 1 is settled.
+3. **Should-fix (analyst):** add printed slip **S13** to `analysis/ch11.md` §9 (it lists S1–S12): p. 503 prints "(7.128)"
+   beside $N^2\equiv-\frac{g}{\rho_0}\frac{d\bar\rho}{dz}$, which Chapter 7 defines as (7.127) (the notebook builder already
+   carries it as slip #13).
+4. `qualitative` (accepted): `lorenz_largest_lyapunov`; `falkner_skan_neutral_curve` upper branch at Re ≥ 2e4 with the
+   default N — the notebook / F7 must either pass N ≥ 120 there or say "≈ 3 %".
+5. Bickley table, what is *not* known (state it wherever the table is drawn — E8, F7): the lower edge of the main band for
+   8.3 ≤ Re ≤ 16.8 and Re ≥ 91, and the lower edge of the long-wave band at every Re, lie below k = 0.02 (`k_long_lower` is
+   NaN in all 40 rows). NaN there means "unstable down to k = 0.02", never "stable"; `k_lower` must not be joined across
+   Re = 16.8 → 19.3. The band-sorting branch that would fill `k_long_lower` is exercised by no case (mutant M52 survives).
+6. `os_leading_mode(...)["discrete"] = False` ("no discrete mode found") is a search result, not a proof of absence; no
+   independent route can confirm absence. It occurs in none of the 1800 published grid rows (tested: no NaN in P).
+7. Published OS tables use N = 80: at Re = 6000 the Blasius eigenvalues are 1.5–1.8e-6 off (N = 120: 1e-10) — far below the
+   tables' 4 significant figures; recorded, no action.
+8. Bénard residuals as documented: an explicit N ≥ 60 is round-off-limited and not protected (N = 60: 1.3e-6, N = 96:
+   5.0e-6, no raise); the default raises at rigid–rigid K = 5, Ra = 5e4, Pr = 100 (N = 32 or `filter=False` works).
+9. Complex-path limits (documented in the docstring, measured here): δ must stay inside U's strip of analyticity; no margin
+   where U′ = 0 at the critical level of a *weakly* growing mode (none in this chapter).
+10. Carried over unchanged: counter-rotating Taylor benchmark (μ < 0) not citable today; `analysis/ch11_curation.md:185`
+    argument order of `rayleigh_number` (review Should-fix 8); loop-2 Should-fix 3–6 of the pre-review section.
+11. Not the verifier's: `tests/test_machinery.py::test_viz_library_inlined_and_template_lints` (announced as failing with
+    "STALE templates/…" after the orchestrator changed `assets/viz_base.css`) passed here — see "Full-suite run".
+
+### Post-review loop-2 mutants (scratch copy of the repo; the 30 default tests that touch the five changes; baseline 29 passed + the known failure)
+| # | Planted wrong variant | Where | Tests that fail |
+|---|---|---|---|
+| M35 | a real growing root is called "oscillatory" again | `salt_finger_regime` | 1 |
+| M36 | path on the wrong side of the critical points (h → −h) | `core._contour` | 8 |
+| M37 | tables back on the real-axis solver with the N-filter (the old behaviour) | `_rayleigh_lead` | 3 |
+| M38 | path metric without the wall-taper term | `core._contour` | 6 |
+| M39 | threshold c_i > 1e-3 instead of `ci_min` | `rayleigh_eigs_contour` | 2 |
+| M40 | fixed profile boxes again (the old behaviour) | `os_box_numerics` | 8 |
+| M41 | semi-infinite degree not scaled with √box | `os_box_numerics` | 6 |
+| M42 | tan-map scale stays s₀ in long boxes | `decay_box_map_scale` | 5 |
+| M43 | `far_field_fraction` measures the inner part | `far_field_fraction` | 4 |
+| M44 | first localised eigenvalue accepted without the larger-box check | `os_leading_mode` | 2 |
+| M45 | no localisation test | `os_leading_mode` | 2 |
+| M46 | continuous-spectrum edge −k²/Re | `os_leading_mode` | 1 |
+| M47 | 6 e-folds instead of 12 | `os_box_numerics` | 8 |
+| M48 | unconfirmed leading Bénard mode silently replaced by the next (the old behaviour) | `benard_growth_rate` | 1 |
+| M49 | no confirmation ladder (raises at the first miss) | `benard_growth_rate` | 1 |
+| M50 | free end started on the growing exponential | `rayleigh_shoot` | 2 |
+| M51 | `gap_same_mode` always 1 | `bickley_neutral_curve` | 2 |
+| M52 | first instead of last rising crossing as the main band's lower edge | `bickley_neutral_curve` | **0 — survives**: equivalent wherever the function can be evaluated (never two rising crossings for k ≥ 0.02; Open item 5) |
+| M53 | N² cited as (7.128) again | `gradient_richardson` docstring | 1 |
+| M54 | `index` ignored | `os_mode` | 1 |
+| M55 | max c_i instead of max k c_i | `sin_profile_max_growth` | 3 |
+| M56 | sinuous / varicose parities swapped | `rayleigh_spectrum_table` | 1 |
+| M57 | `ts_mode` in the profile's fixed box again | `ts_mode` | 2 |
+| M58 | default back to the fixed box 20 δ* (the old behaviour) | `blasius_critical` | 1 |
+| M59 | N-filter switched off | `rayleigh_eigs_contour` | 1 (survived the first version of the tests; killed after the spurious-mode cases were added to `test_rayleigh_contour_V7_…`) |
+
+24 of 25 killed; every "old behaviour" variant (M35, M37, M40, M48, M58) is killed.
+
+### Full-suite run
+`pytest tests` (all chapters + machinery, slow included): **1618 passed, 1 failed in 1833 s** — 1460 tests of the other
+chapters and the machinery, all passing, + 159 of ch11 (158 passed, 1 failed: Must-fix 1). The run was collected before the
+last edit of `test_rayleigh_contour_V7_path_side_guards_stable_profiles_and_howard_semicircle` (two spurious-mode cases added
+to kill mutant M59); that test was re-run on its own afterwards and passes, so the counts are unchanged.
+`tests/test_machinery.py::test_viz_library_inlined_and_template_lints` — announced as failing ("STALE templates/…" after the
+change to `assets/viz_base.css`) — **passed** in this run and again on its own afterwards: the templates had been re-inlined
+by the time the suite reached it. No failure came from the concurrently edited `notebooks/` or `viz/ch11/`.
+
+---
+
+## Post-review targeted verification (after `reports/ch11_review.md`; implementer changes uncommitted on top of `9f78058`)
+
+### What the review found and what was checked
+The derivation-reviewer found two wrong verdict labels the 128-test suite did not catch (M1, M2) and nine Should-fix
+items. The implementer changed `fluidpy/ch11_instability.py`, `fluidpy/core/stability.py` (docstring),
+`scripts/ch11_double_diffusion.py`, `scripts/ch11_stratified_shear.py`. Pages 494 ((11.45)–(11.46)) and 505
+((11.64)–(11.67)) were re-rendered and re-read: the set with $\hat T = \kappa_s\hat s/\kappa$ is the Bénard set with
+Ra → Rs − Ra and critical value $\mathrm{Rs}-\mathrm{Ra} = \tfrac{27}{4}\pi^4$ (11.46); stability is guaranteed when
+$N^2 > \tfrac14 (dU/dz)^2$ everywhere, i.e. $\mathrm{Ri} \equiv N^2/(dU/dz)^2 > \tfrac14$ (11.66)–(11.67).
+
+| Claim | Result | Evidence |
+|---|---|---|
+| **M1** top-heavy layers below (11.46) are "stable" | **confirmed** | d = 5 cm, dS/dz = 0: dT/dz = −0.005, −0.0074, −0.003 → stable, σ_max = −0.1586186 (= −τa², the salt mode); −0.0076 → overturning, +0.1562203; (0, 0) → stable; (−0.02, −0.0052) → stable, −4.386 ± 22.83i; (−0.015, −0.001) → overturning, 3.296 ± 8.889i. Label flip found by bisection at dT/dz = −0.007509320 = −27π⁴νκ/(4gαd⁴) to 1e-9 relative, also at d = 2 cm and 10 cm. `margin`, `density_stable` identical to `salt_finger_unstable`. |
+| M1, independent route | **confirmed** | The cubic expanded by hand in the test (no call to `double_diffusive_sigma`) on a 31 × 31 scan of (dT/dz, dS/dz) ∈ [−0.03, 0.03] × [−0.006, 0.006]: label "stable" ⇔ the leading root does not grow, at all 961 points; margin > 0 ⇒ a real root grows; fingers ⇔ real, diffusive ⇔ complex (bottom-heavy). **"stable" holds at every wavenumber**: at each stable point no root grows at any of 60 values of K² in [0.05, 400] (a 61 × 61 × 240 probe gave the same: 0 exceptions) — so the docstring caveat "other K² are not scanned" is harmless: steady and oscillatory thresholds are both lowest at K² = π²/2. |
+| M1, classification of top-heavy + stabilising salt + growing root as "overturning" | **right physics, wrong text in part of the region** | The layer is gravitationally unstable and a mode grows although (11.46) is not met: (11.46) marks only the marginal state σ = 0. But the growing root is a complex pair only near the oscillatory threshold; further in it is **two real roots** (the pair has merged), e.g. (−0.03, −0.0016): margin −47 718, roots +16.890, +7.322, −142.8. There the returned text reads "(no steady mode grows) but an oscillatory mode does: overturning by growing oscillations, σ = 16.89 (real)" — self-contradictory. 73 of the 3721 points of the 61 × 61 probe. **Failing test** `test_salt_finger_regime_V7_text_names_the_kind_of_root_that_grows`. |
+| **M2** Ri at dU/dz = 0 carries the sign of N² | **confirmed** | (U′, N²) = (0, −1) → −inf, False; (0, 0) → nan, False; (0, +1) → +inf, True; (2, 1) → 0.25, False (strict >); (2, 1 + 1e-9) → True; U′ = z, N² = ½z² → False with z_min = 0, Ri_min = nan; the same + 1e-9 → True, Ri_min = 0.5. No numpy warning escapes (run with warnings as errors). |
+| M2, independent route | **confirmed** | U ≡ 0 between walls, N² = −1: the Taylor–Goldstein solver returns the exact growing modes c = i/√(k² + n²π²/4), n = 1, 2, 3 to < 1e-8 (k = 0.5: 0.6066289i) — the old "guaranteed stable" was false; N² = +1: no unstable mode. Parabolic jet U = 1 − z², N² = a + 4z²: a = −0.5 (Ri = −inf at the centre) has computed growth c_i = 0.151 (k = 1), 0.146 (k = 2) inside Howard's semicircle; a = +0.5 (Ri > 1, +inf at the centre) has none. |
+| KH degenerate inputs | **confirmed, physically right** | Uniform fluid moving as one: `kh_growth_rate` = 0 and c = U at 200 wavenumbers 1e-3 … 1e4, so `kh_critical_k(1, 1, 1, 1)` = inf and `kh_unstable_band(0, 1, 1)` = (nan, nan) (also with σ_s). Top-heavy with tension, no shear: (0, 11.83617) m⁻¹ = (0, √(gΔρ/σ_s)) = 2π/`rayleigh_taylor_cutoff`; **the clip hides nothing** — growth > 0 at 300 wavenumbers from 1e-9 k₂ to (1 − 1e-9) k₂ and 0 above; the unclipped −11.836 is the mirror root of a quadratic in k, not a band edge. With shear (ΔU = 3): (0, 87.3187), discriminant 0 at k₂. A bottom-heavy band keeps both edges (149.2, 887.4). |
+| Docstring numbers | **confirmed** | Poiseuille Re = 10⁴ band live: 0.79723 – 1.09472 (docstring 0.7972 – 1.0947; sign of c_i bracketed at 0.79 / 0.80 and 1.09 / 1.10 with the OS solver); `sin_profile_max_growth(1.7)` = 0.0113889 (N = 80), 0.0118721 (N = 120): 4.1 % apart; b = 2: 0.0596098 at both N (< 1e-5); `salt_finger_unstable` lhs 61 233.19 (G0), 61 254.11 (g = 9.81). |
+| Bénard, Ra < 0 | **confirmed** | free–free (2.2, −2000, 7) → −58.8384 ± 51.5671i, both solve the quadratic, Re σ = −a²(1 + Pr)/2; (2.2, −50, 7) → −16.0343, −101.6425 real; the real/complex switch sits at Ra = −a⁶(1 − Pr)²/(4PrK²) (4 (K, Pr) pairs, ±1e-6; −845.4 and −21.13 at K = π/√2); the Chebyshev free–free spectrum contains the pair to 1e-7. Rigid–rigid K = 3: (−2000, 1) → −28.6456 ± 26.9938i; (−5000, 0.7) → −23.3965 ± 37.8442i; (−2000, 7) → −44.9839 real; default returns the real part. Note for the notebook: the *leading* free–free mode at Ra < 0 need not be the n = 1 pair (at K = 2.22, Pr = 7, Ra = 3 × threshold the n = 2 real root −52.03 leads the n = 1 pair at −59.22). |
+| `benard_marginal_Ra_det` hint | **confirmed** | For 8 failing (K, mode) cases (even 0.3, 0.5; odd 0.5, 1, 1.2, 2, 3, 3.9) the message names the mode's reach and a `Ra_max`; calling again with exactly that `Ra_max` succeeds and equals the Chebyshev value to < 1e-8. |
+| Labels | **confirmed** | `lorenz_largest_lyapunov`: `qualitative`; `sin_profile_max_growth`: `converged` for b ≥ 2, `qualitative` for π/2 < b ≲ 1.8 at the default N; `potential_well_demo`: `conserved`. |
+
+### Failing test (1)
+`test_salt_finger_regime_V7_text_names_the_kind_of_root_that_grows` — metric: at (dT/dz, dS/dz) = (−0.03, −0.0016), d = 5 cm
+the leading root is real, σ = +16.890 (second root +7.322), and `text` contains "oscillatory mode … growing oscillations".
+- Hypothesis: the `else` branch of the top-heavy case (margin ≤ 0, root grows) assumes the growing root is complex; the
+  docstring sentence "(11.46) is the criterion for *steady* onset only … still a growing complex root" has the same gap.
+  (11.46) is the condition for a root to pass through σ = 0; with margin < 0 the cubic is positive at σ = 0, so the number
+  of positive real roots is even — 0 or 2 — and 2 occurs once the complex pair merges.
+- Suggested fix (text only; regime, numbers and σ_max are right): branch on `is_real` — real: "…Rs − Ra < 27π⁴/4 (the
+  marginal state σ = 0 of (11.46) is not crossed), yet a real root grows: monotonic overturning, σ = …"; complex: the
+  present sentence. Extend the docstring example with (−0.03, −0.0016) → σ = +16.89 (real). Explainer E4 status text and
+  the notebook must use the same wording.
+- Not a tolerance question; nothing was loosened.
+
+### Counts
+- `tests/test_ch11.py`: **138 test functions** (128 + 10 new). Default (`-m "not slow"`): **134 passed, 1 failed, 3
+  deselected** (385 s). Slow (`-m slow`): **3 passed, 135 deselected** (265 s; all scripts run clean with the changed
+  `ch11_double_diffusion.py` and `ch11_stratified_shear.py`; `make_refs.py --no-tables` rewrites a byte-identical
+  `benchmarks.json`).
+- Full suite (`pytest tests`): **1597 passed, 1 failed** in 2461 s (1460 of the other chapters and the machinery, all
+  passing, + 138 of ch11). No failure came from the half-built `notebooks/` or `viz/ch11/` files of the concurrent agents.
+- Labels in the test names: V1 58 · V2 22 · V3 17 · V4 7 · V5 9 · V6 2 · V7 37.
+- Mutants: **9 new, 9 killed** (M26–M34, table at the end) + the 25 of loops 1–2 (not re-run; the code they target is
+  unchanged) = 34.
+- `tools/check_public.py`: OK (594 files).
+
+### Tests added (10)
+| Test | Level | Pins |
+|---|---|---|
+| `test_salt_finger_regime_V1_top_heavy_label_flips_at_the_11_46_margin` | V1 | M1: the seven claimed cases, σ_max, the flip at −27π⁴νκ/(4gαd⁴) for three depths, numeric fields unchanged |
+| `test_salt_finger_regime_V7_label_agrees_with_an_independent_cubic_at_every_K2` | V7 | M1: label ⇔ sign / type of the leading root of a hand-expanded cubic on 961 points; "stable" at every K² |
+| `test_salt_finger_regime_V7_text_names_the_kind_of_root_that_grows` | V7 | **fails** — see above |
+| `test_richardson_V7_shear_free_levels_take_the_sign_of_N2` | V7 | M2: the five claimed cases + strictness, arrays, broadcasting, jet centre, text, no warnings |
+| `test_miles_howard_V1_shear_free_unstable_layer_really_has_the_exact_growing_mode` | V1 | M2: exact c = i/√(k² + n²π²/4) from the TG solver; jet with N² < 0 at its centre |
+| `test_kh_degenerate_V7_uniform_fluid_is_neutral_and_top_heavy_band_starts_at_zero` | V7 | Should-fix 6 and the clip |
+| `test_benard_stably_stratified_V1_complex_pairs_and_their_threshold` | V1 | Should-fix 5 |
+| `test_benard_marginal_Ra_det_V7_error_hint_names_a_sufficient_Ra_max_per_mode` | V7 | Should-fix 9 |
+| `test_docstrings_V7_post_review_numbers_are_live_and_labels_say_what_is_tested` | V7 | Should-fix 1–4 |
+| `test_taylor_critical_V5_corotation_asymptote_as_mu_to_1` | V5 | Should-fix 7 (co-rotation only) |
+
+One of these was wrong in its first version and was corrected on evidence, not loosened: the Bénard test compared the
+leading Chebyshev mode with the n = 1 closed-form pair; the leading mode there is the n = 2 real root (see the table).
+
+### Should-fix 7 (Taylor numbers at μ ≠ 1) — partly closed
+- **Closed for co-rotation (0 ≤ μ < 1), V5:** Wikipedia "Taylor–Couette flow" (revision 1373953105, wikitext read
+  2026-10-01) gives, as μ → 1, Ta_c = 1707.76 [1 − 0.00761 ((1 − μ)/(1 + μ))²] with Ta = −2AΩ₁d⁴(1 + μ)/ν², i.e.
+  ½(1 + μ) × the book's $\mathrm{Ta} = -4A\Omega_1 d^4/\nu^2$ (11.52). Ours × ½(1 + μ) against it: μ = 0.9, 0.75: 1.2e-6;
+  0.5: 3.0e-6; 0.25: 1.7e-5; 0: 1.1e-4 (the formula is leading order in 1 − μ). The coefficient measured from our values
+  at μ = 0.9, 0.8 is 0.007603, 0.007602 (source: 0.00761). Tertiary source, asymptotic: recorded as such in
+  `reference/ch11/SOURCES.md` and `benchmarks.json` (`taylor_narrow_gap_corotation`).
+- **Still open for counter-rotation (μ < 0):** no value for μ = −1 or −0.5 could be read in a source that opens today
+  (Chandrasekhar 1961 is not readable online; arXiv:2601.14806 and 2608.10951 give only μ = 1 and a figure; two journal
+  pages return 403; Scholarpedia's certificate has expired). Nothing is cited from memory. Our μ < 0 values rest on the
+  Galerkin route and N-convergence.
+
+### Labels after the review
+`qualitative`: `lorenz_largest_lyapunov` (and the `lorenz_separation` slope, already described as qualitative in its
+docstring) — only the band 0.7 < λ < 1.2 is tested; `sin_profile_max_growth` for π/2 < b ≲ 1.8 at the default N = 80
+(4.1 % from N = 120 at b = 1.7; `converged` for b ≥ 2). Both are NOTE-level illustrations inside C15 and C12; the CORE
+rows keep their labels (C15 `analytic`, `benchmark`; C12 `analytic`, `conserved`). `potential_well_demo`: `conserved`.
+No row is `unverified`. The statement "No row is `qualitative`" further down was true of the labels as written at
+`9f78058` and is withdrawn.
+
+### Open items (post-review; verbatim for the orchestrator)
+1. **Blocks PASS — `salt_finger_regime` text** in the top-heavy, margin < 0, real-growing-root case (failing test above;
+   one-branch text fix; implementer). After the fix: E4 status text and the regime-map caption must match.
+2. `qualitative` (accepted, no action needed beyond wording in the notebook): `lorenz_largest_lyapunov`;
+   `sin_profile_max_growth` near 2b → π at the default N — the notebook should use N ≥ 120 if it quotes b = 1.7.
+3. Should-fix 7, counter-rotating half: no citable Ta_c for μ < 0 (needs the narrow-gap table of Chandrasekhar 1961 read on paper).
+4. Review Should-fix 8 is not in the verifier's files: `analysis/ch11_curation.md:185` still writes
+   `rayleigh_number(g, alpha, dT, d, kappa, nu)`; the code is `(alpha, dT, d, kappa, nu, g=G0)` — call by keyword.
+5. Review note: slip S5 cites a ch07 page that the reviewer did not reopen — unchanged, not re-checked here.
+6. Loop-2 Should-fix 3–6 below stand (grid for integral identities, 4-s.f. table rounding, the near-neutral sliver wording,
+   Michalke / odd-mode primary sources). Loop-2 Should-fix 1 and 2 are **closed** (hint and stale comments fixed, tested);
+   the script half of 3 is closed (`ch11_stratified_shear.py` now passes `decay_map_scale(k)` and asserts every plotted
+   eigenvalue is inside the semicircle).
+
+---
+
+## Verdict at `9f78058` (pre-review): PASS — both Taylor–Goldstein defects (loop 0: decay box at small k; loop 1: false zeros under the neutral curve at k ≥ 0.65) are fixed and independently confirmed; 0 failing tests
 
 - **`tests/test_ch11.py`: 128 test functions; full file (slow included): 128 passed, 0 failed.** Default run
   (`-m "not slow"`): **125 passed, 3 deselected** (384 s). Slow run (`-m slow`): **3 passed, 125 deselected** (197 s).
@@ -304,7 +663,9 @@ Feigenbaum δ 2e-4 %. All within 0.5 % except the two one-significant-figure val
 | `os_3d_eigs` takes U′ (Part C wrote Upp) | `os_3d_eigs` | passing U″ changes c from 0.2536 − 0.0011i to 0.794 + 0.411i (wrong physics) — the code is right, Part C is the slip |
 
 ## Open items (verbatim for the orchestrator)
-Nothing blocks. No row is `qualitative` or `unverified`.
+(State at `9f78058`; superseded by "Open items (post-review)" near the top.) Nothing blocked then. No row is `unverified`.
+Correction after the review: two NOTE-level functions are `qualitative` — `lorenz_largest_lyapunov` and
+`sin_profile_max_growth` for π/2 < b ≲ 1.8 at the default N — see "Labels after the review".
 
 Closed:
 - **Closed in loop 1 — `ch11.tg_growth` decay box.** Loop 0: with `y_max = 30`, kc_i at k = 0.05 was 26 % too high at
@@ -395,3 +756,19 @@ killed** (all re-run in loop 2 against the 128-test file); baseline on the unpat
 | M23 | guard removed in `benard_growth_rate` (bare `IndexError` again) | `ch11_instability.py` | 1: `test_benard_guards_V7_…` |
 | M24 | Rayleigh table back to the fixed profile boxes | `rayleigh_spectrum_table` | 1: `test_rayleigh_spectra_V1_cached_json_matches_live` |
 | M25 | `_sech2` without the clip | `ch11_instability.py` | 1: `test_parallel_profile_V7_sech2_far_field_is_finite_and_the_clip_is_invisible` |
+
+### Post-review mutants (2026-10-01; scratch copy, the 30 default tests selected by `-k "salt_finger or richardson or miles_howard or kh_ or stably_stratified or error_hint or benard_guards"`; baseline 29 passed + the 1 known failure)
+| # | Planted wrong variant | Where | New tests that fail |
+|---|---|---|---|
+| M26 | top-heavy is always "overturning" (the review's M1 defect) | `salt_finger_regime` | 2: `test_salt_finger_regime_V1_top_heavy_label_flips_at_the_11_46_margin`, `test_salt_finger_regime_V7_label_agrees_with_an_independent_cubic_at_every_K2` |
+| M27 | top-heavy judged by the (11.46) margin alone (growing complex root ignored) | `salt_finger_regime` | 2: the same two |
+| M28 | Ri = +inf at dU/dz = 0 whatever the sign of N² (the review's M2 defect, Ri part) | `_richardson_ratio` | 1: `test_richardson_V7_shear_free_levels_take_the_sign_of_N2` |
+| M29 | a shear-free level always passes (the review's M2 defect, verdict part) | `miles_howard_stable` | 2: `test_richardson_V7_…`, `test_miles_howard_V1_shear_free_unstable_layer_really_has_the_exact_growing_mode` |
+| M30 | ≥ instead of > in (11.67) | `miles_howard_stable` | 1: `test_richardson_V7_…` |
+| M31 | uniform fluid returns k_c = 0.0 again | `kh_critical_k` | 1: `test_kh_degenerate_V7_…` |
+| M32 | uniform fluid returns the band (0, inf) again | `kh_unstable_band` | 1: `test_kh_degenerate_V7_…` |
+| M33 | negative lower root not clipped | `kh_unstable_band` | 1: `test_kh_degenerate_V7_…` |
+| M34 | hint names 0.9 × the Chebyshev root (not sufficient) | `benard_marginal_Ra_det` | 1: `test_benard_marginal_Ra_det_V7_error_hint_…` |
+
+9 of 9 killed. The pre-review test `test_salt_finger_regime_V7_four_regimes_and_eos` passes on M26 and M27 (it uses only a
+supercritical top-heavy point) — which is why M1 was missed.

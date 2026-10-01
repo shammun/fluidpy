@@ -31,11 +31,12 @@ def main() -> int:
     ri = ch11.rayleigh_identity_check(0.44, r["c"][0], r["phi"][:, 0], r["grid"].y, pr["U"], pr["Upp"], grid=r["grid"])
     print(f"(11.83)/(11.84) residuals for the tanh mode at k = 0.44: {ri}")
     for k in (0.9, 0.97, 0.99):
-        c = ch11.rayleigh_eigs(k, pr["U"], pr["Upp"], bc="decay", N=120, map_scale=0.5, unstable_only=True)
+        # near the neutral point: collocation on a path below the critical layer (the real-axis N-filter drops these modes)
+        c = ch11.rayleigh_eigs_contour(k, pr["U"], pr["Up"], pr["Upp"], bc="decay", N=120, map_scale=0.5)
         print(f"  tanh k = {k}: c_i = {c[0].imag if len(c) else 0.0:.5f}  (→ 0 at the neutral k = 1, φ = sech y)")
     bj = ch11.parallel_profile("bickley")
     for k, par in ((1.5, "even"), (1.9, "even"), (0.5, "odd"), (0.9, "odd")):
-        c = ch11.rayleigh_eigs(k, bj["U"], bj["Upp"], bc="decay", N=120, parity=par, unstable_only=True)
+        c = ch11.rayleigh_eigs_contour(k, bj["U"], bj["Up"], bj["Upp"], bc="decay", N=120, y_max=40.0, parity=par)
         print(f"  Bickley {('sinuous' if par == 'even' else 'varicose'):9s} k = {k}: c = {c[0] if len(c) else None}"
               f"  (neutral at k = {2 if par == 'even' else 1}, c = 2/3)")
     for b in (1.4, 1.6, 1.7, 2.0, 3.0):
@@ -47,8 +48,9 @@ def main() -> int:
     fig, ax = plt.subplots(1, 3, figsize=(16, 4.8))
     ks = np.linspace(0.02, 1.0, 25 if args.fast else 50)
     # box scales with 1/k (the mode decays like e^{−k|y|}): decay_box(k) = max(30, 12/k); a fixed 30 is 1.9 % low at k = 0.02
-    gro = [k * (lambda c: c[0].imag if len(c) else 0.0)(ch11.rayleigh_eigs(k, pr["U"], pr["Upp"], bc="decay", N=100,
-                                                                           y_max=ch11.decay_box(k), unstable_only=True))
+    # contour solver: converged up to the neutral k = 1 (no false zero just below it)
+    gro = [k * (lambda c: c[0].imag if len(c) else 0.0)(ch11.rayleigh_eigs_contour(k, pr["U"], pr["Up"], pr["Upp"], bc="decay",
+                                                                                   N=100, y_max=ch11.decay_box(k)))
            for k in ks]
     ax[0].plot(ks, gro, color=COLORS["rose"], label="tanh y (Rayleigh)")
     kh = np.linspace(0.02, 1.4, 200)

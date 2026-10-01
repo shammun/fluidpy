@@ -34,11 +34,29 @@ Validation (``tests/test_ch11.py``; verdicts and numbers in ``reports/ch11_verif
   V3 error 9e-6 (N = 40) → 1e-10 (N = 80); V7 Re → ∞ approaches :func:`rayleigh_eigs`.
 * :func:`rayleigh_eigs` — V1 analytic neutral modes (tanh k = 1; Bickley k = 2, 1 with c = 2/3); V5 Michalke (1964)
   most-amplified tanh mode; V4 identities (11.83)–(11.84) < 1e-9.
+* :func:`rayleigh_eigs_contour` (collocation on a complex path that passes the critical layer on the far side; walls and
+  unbounded layers only — ``bc="semi_infinite"`` raises ValueError) and :func:`rayleigh_shoot` (adaptive shooting on the
+  real axis) — two unrelated routes that agree to 2e-10 on every growing mode of the Bickley jet, the tanh layer, sin y and
+  the walled tanh layer for k = 0.1 … 2, and down to c_i = 1e-4 next to the exact neutral wavenumbers; contour N = 120,
+  delta = 0.2 equals N = 240, delta = 0.1 to 1e-8.  Tests: ``test_rayleigh_contour_V1_exact_neutral_points_are_approached_linearly``,
+  ``test_rayleigh_contour_V3_unchanged_by_degree_and_path_and_V1_equal_to_independent_shooting``,
+  ``test_rayleigh_contour_V4_its_eigenvalues_satisfy_the_real_axis_identities_11_83_11_84``,
+  ``test_rayleigh_contour_V7_path_side_guards_stable_profiles_and_howard_semicircle``,
+  ``test_rayleigh_shoot_V1_guards_parity_tolerance_and_no_mode_means_not_converged``.
 * :func:`taylor_goldstein_eigs` — V1 N² = 0 equals :func:`rayleigh_eigs` (1e-8) and the exact neutral curve J = k(1 − k) of
   the tanh / sech² layer; V4 (11.65), (11.69)–(11.70) residuals < 1e-8, Howard's semicircle; V7 no growth for Ri > ¼.
 * :func:`decay_box` — V1 formula and guards; V3 Taylor–Goldstein growth unchanged (≤ 1e-6) between 8 … 48 e-folds.
 * :func:`decay_map_scale` — V3 Taylor–Goldstein growth at N = 100 equals N = 200 / 240 to 2e-6 next to the neutral curve
-  (measured by the implementer in verify loop 2; the verifier's large-k test exercises it through ``tg_growth``).
+  and equals the scale-halved solve (``test_decay_map_scale_V3_…``); V1 formula, guards and limits
+  (``test_decay_map_scale_V1_…``); an independent shooting route agrees through ``tg_growth``
+  (``test_tg_growth_V1_shooting_…``).
+* :func:`decay_box_map_scale`, :func:`far_field_fraction` — V1 formula, guards and the e^{−k|y|} limit
+  (``test_far_field_helpers_V1_map_scale_far_fraction_and_box_numerics``); V3 through their callers: discrete
+  Orr–Sommerfeld modes do not move with the box while the continuous spectrum does
+  (``test_os_leading_mode_V3_discrete_modes_do_not_move_with_the_box_the_continuum_does``), an independent compound-matrix
+  route confirms the long waves (``test_os_far_field_V1_compound_matrix_route_confirms_the_long_waves``) and the Bickley
+  neutral wavenumbers are unchanged under box and N doubling
+  (``test_bickley_neutral_curve_V3_unchanged_by_box_and_degree_doubling``, slow).
 * :func:`disturbance_energy_budget` — V4 dE/dt = P − Λ closes to 1e-8 relative for every computed OS mode.
 * :func:`normal_mode`, :func:`sigma_from_c`, :func:`stability_class`, :func:`howard_semicircle`,
   :func:`inflection_points`, :func:`squire_transform` — V1 / V7 (round trips, limits, guards).
@@ -59,7 +77,8 @@ __all__ = [
     "SpectralGrid", "cheb", "cheb_matrices", "clenshaw_curtis_weights", "cheb_grid",
     "apply_bc_rows", "generalized_eigs", "constrained_eig", "converged_mask", "converged_eigs",
     "normal_mode", "sigma_from_c", "c_from_sigma", "stability_class", "stability_verdict", "marginal_type",
-    "orr_sommerfeld_eigs", "os_mode", "rayleigh_eigs", "taylor_goldstein_eigs", "decay_box", "decay_map_scale",
+    "orr_sommerfeld_eigs", "os_mode", "rayleigh_eigs", "rayleigh_eigs_contour", "rayleigh_shoot",
+    "taylor_goldstein_eigs", "decay_box", "decay_map_scale", "decay_box_map_scale", "far_field_fraction",
     "max_growth", "neutral_curve", "critical_point",
     "howard_semicircle", "in_howard_semicircle", "inflection_points", "squire_transform",
     "disturbance_energy_budget",
@@ -152,6 +171,7 @@ class SpectralGrid:
     map: str
     domain: tuple
     _cache: dict = field(default_factory=dict, repr=False)
+    yp: np.ndarray | None = None  # dy/dξ of the map at the nodes (set by cheb_grid; the contour solver needs it)
 
     @property
     def N(self) -> int:
@@ -225,7 +245,7 @@ def cheb_grid(N: int, domain: Sequence[float] = (-1.0, 1.0), map: str = "linear"
         raise ValueError('map must be "linear", "tan" or "algebraic"')
     D1 = D / yp[:, None]
     D2 = (D @ D) / yp[:, None] ** 2 - (ypp / yp ** 3)[:, None] * D
-    return SpectralGrid(y=y, xi=xi, D1=D1, D2=D2, w=clenshaw_curtis_weights(N) * yp, map=map, domain=dom)
+    return SpectralGrid(y=y, xi=xi, D1=D1, D2=D2, w=clenshaw_curtis_weights(N) * yp, map=map, domain=dom, yp=yp)
 
 
 # ======================================================================================================================
@@ -452,7 +472,11 @@ def decay_box(k: float, y_min: float = 30.0, n_efold: float = 12.0) -> float:
     y_max : half-width, non-dimensional (scaled by L).  Scalar-callable.
     Validation: V3 Taylor–Goldstein kc_i of U = tanh z, N² = J sech²z (N = 100, tan map s = 0.5) is unchanged to 1e-7 between
     n_efold = 8, 12, 16 and fixed boxes 240, 480 at k = 0.05–0.2 (e.g. k = 0.05, J = 0.04: 0.0163046–0.0163047, against
-    0.0205913 with y_max = 30).  Label: converged.
+    0.0205913 with y_max = 30).  The same rule holds for the viscous problem (11.79): outside the shear region the
+    Orr–Sommerfeld solutions are e^{−k|y|} and e^{−γ|y|}, γ² = k² + ikRe(U∞ − c), and Re γ > k for every mode with c_i ≥ 0, so
+    e^{−k|y|} is the slower one.  Measured (Bickley jet, even modes): error of the leading c against a 16–24 e-fold box is
+    5e-5 with 6 e-folds, 1e-6 with 8, 6e-8 with 12 (Re = 4.1, k = 0.13); the fixed box 40 at Re = 14.58, k = 0.04
+    (1.6 e-folds) gives c_i = −0.0184 where the converged value is +0.00125.  Label: converged.
     """
     k = float(k)
     if k <= 0:
@@ -489,6 +513,61 @@ def decay_map_scale(k: float, s_max: float = 0.5, s_min: float = 0.035, sk: floa
     if k <= 0:
         raise ValueError("decay_map_scale: k > 0 is required")
     return min(float(s_max), max(float(s_min), float(sk) / k))
+
+
+def decay_box_map_scale(y_max: float, s0: float = 1.0, y_ref: float = 100.0, factor_max: float = 3.0) -> float:
+    """Tan-map scale s for an Orr–Sommerfeld solve in a wavelength-scaled box: s0·min(factor_max, max(1, y_max/y_ref)).
+
+    Book: §11.8 (11.79)–(11.80) on an unbounded profile (ours: where the collocation nodes go when the box is
+    :func:`decay_box`(k)).  The viscous problem has no critical-layer singularity, so — unlike :func:`decay_map_scale` for the
+    Taylor–Goldstein problem — the scale may *grow* with the box: with y_max/s kept ≤ ~200 the fourth-derivative matrix of the
+    tan map stays well conditioned.  Measured for the Bickley jet (even modes, N = 80–200): in a box of 300–600 a fixed
+    s = 1 loses digits as N grows (error of the leading c 2e-7 at N = 80 → 1e-5 … 4e-4 at N = 200), s = 3 holds 5e-7 … 3e-6
+    at every N; in the box 40 (k ≥ 0.3) s = 1 is needed at high Re (Re = 1000, k = 1.95, N = 80: 3e-9 with s = 1, 2e-5 with
+    s = 2, 9e-4 with s = 3).  DEVIATION: numerical choice, not in the book.
+    Parameters
+    ----------
+    y_max : half-width of the box, non-dimensional (scaled by L), > 0.
+    s0 : scale used in boxes up to y_ref, non-dimensional (scaled by L); default 1.0.
+    y_ref : box half-width up to which s = s0, non-dimensional (scaled by L); default 100.
+    factor_max : largest s/s0 [–]; default 3.
+    Returns
+    -------
+    s : map scale, non-dimensional (scaled by L).  Scalar-callable.  1 for y_max ≤ 100, 2.4 at 240, 3 for y_max ≥ 300.
+    Validation: V3 (see above and :func:`fluidpy.ch11_instability.bickley_neutral_curve`).  Label: converged.
+    """
+    y_max = float(y_max)
+    if y_max <= 0:
+        raise ValueError("decay_box_map_scale: y_max > 0 is required")
+    return float(s0) * min(float(factor_max), max(1.0, y_max / float(y_ref)))
+
+
+def far_field_fraction(phi, y, y_max: float, centre: float | None = None, outer: float = 0.5) -> float:
+    """max|φ| over the outer part of a truncated domain divided by max|φ| everywhere (0 = localised, ~1 = fills the box).
+
+    Book: §11.8 (11.80) / §11.9 (11.82) on an unbounded flow (ours).  A discrete mode decays like e^{−k|y|} outside the shear
+    region; an eigenvector of the *discretised continuous spectrum* (c = U∞ − i(k² + s²)/(kRe), real s — it exists only because
+    the box is finite, and its eigenvalue moves with the box) oscillates out to the edge.  With y_max = :func:`decay_box`(k)
+    a discrete mode gives ≲ e^{−6} ≈ 0.0025 for ``outer = 0.5``.
+    Parameters
+    ----------
+    phi : eigenfunction on the nodes y (complex array).   y : nodes, non-dimensional (scaled by L).
+    y_max : box half-width (two-sided box, ``centre`` given) or box length (one-sided, ``centre=None``: the box starts at
+            min(y)), non-dimensional (scaled by L).
+    centre : centre of a two-sided box; None for a semi-infinite one.
+    outer : the outer part is |y − centre| > outer·y_max (or y − min(y) > outer·y_max) [–]; default 0.5.
+    Returns
+    -------
+    fraction [–] in [0, 1].
+    Validation: V1 by construction (φ = e^{−k|y|} → e^{−k·outer·y_max}).  Label: analytic.
+    """
+    phi, y = np.abs(np.asarray(phi)), np.asarray(y, dtype=float)
+    d = np.abs(y - float(centre)) if centre is not None else y - y.min()
+    far = d > float(outer) * float(y_max)
+    top = float(phi.max())
+    if top == 0.0 or not far.any():
+        return 0.0
+    return float(phi[far].max() / top)
 
 
 def _grid_for(bc: str, domain, N: int, y_max, map, s) -> SpectralGrid:
@@ -562,6 +641,10 @@ def orr_sommerfeld_eigs(k: float, Re: float, U: Callable, Upp: Callable, domain:
          [0, y_max] by default, because the mapped grid produced spurious modes (c ≈ 1 + 0.04i) at N = 80–120); "decay" /
          "unbounded" (φ = φ′ = 0 at y₀ ± y_max, tan map).
     y_max : truncation [–] (defaults 20 semi-infinite, 30 decay).   map_scale : map scale s (see :func:`cheb_grid`).
+            A fixed box is converged only while k·y_max ≳ 8–12 (the mode decays like e^{−k|y|}): for long waves pass
+            y_max = :func:`decay_box`(k) and, on the tan map, map_scale = :func:`decay_box_map_scale`(y_max); in such a
+            box the leading eigenvalues of a *stable* flow can belong to the discretised continuous spectrum
+            (c_i ≤ −k/Re, box-dependent — tell them apart with :func:`far_field_fraction`).
     return_vectors : return dict(c, y, phi (columns), grid) instead of c.
     filter : N-convergence filter (second solve at ⌈factor·N⌉, keep c within tol·max(1, |c|)).
     parity : None, "even" or "odd" φ about the domain centre (symmetric problems).   map : override the map name.
@@ -594,21 +677,25 @@ def os_mode(k: float, Re: float, U: Callable, Upp: Callable, domain: Sequence[fl
 
     Book: §11.8, Eqs. (11.79)–(11.80); û = dφ/dy, v̂ = −ikφ (§11.8, p. 510).
     Parameters: k, Re; U, Upp callables; domain; N; **kw passed to :func:`orr_sommerfeld_eigs` (bc, y_max, map_scale, parity,
-    filter (default False here: the leading mode is checked by the energy budget instead), …).
+    filter (default False here: the leading mode is checked by the energy budget instead), …); ``index`` (default 0) picks
+    the index-th eigenvalue in descending c_i instead of the leading one.
     Returns dict(c, y, phi, u_hat (= φ′), v_hat (= −ikφ), dphi, grid, k, Re).  Label: converged.
+    On an unbounded profile in a truncated box the leading eigenvalue of a *stable* flow can belong to the discretised
+    continuous spectrum (box-dependent); :func:`far_field_fraction` of the returned φ tells the two apart.
     """
     kw.setdefault("filter", False)
+    index = int(kw.pop("index", 0))
     res = orr_sommerfeld_eigs(k, Re, U, Upp, domain=domain, N=N, return_vectors=True, **kw)
-    if len(res["c"]) == 0:
+    if len(res["c"]) <= index:
         raise RuntimeError("os_mode: no eigenvalue survived the filters")
     g = res["grid"]
-    phi = res["phi"][:, 0]
+    phi = res["phi"][:, index]
     dphi = g.D1 @ phi
     j = int(np.argmax(np.abs(dphi)))
     scale = dphi[j]
     phi = phi / scale
     dphi = dphi / scale
-    return dict(c=complex(res["c"][0]), y=g.y, phi=phi, u_hat=dphi, v_hat=-1j * k * phi, dphi=dphi, grid=g, k=k, Re=Re)
+    return dict(c=complex(res["c"][index]), y=g.y, phi=phi, u_hat=dphi, v_hat=-1j * k * phi, dphi=dphi, grid=g, k=k, Re=Re)
 
 
 # ======================================================================================================================
@@ -642,6 +729,12 @@ def rayleigh_eigs(k: float, U: Callable, Upp: Callable, domain: Sequence[float] 
     (keep c_i > ci_min, default 1e-4: the continuous-spectrum end points c ≈ U_min, U_max carry c_i ~ 1e-6 junk).
     Returns c or dict.  Assumptions: inviscid disturbances on a (possibly viscous) base profile.  The continuous spectrum
     [U_min, U_max] appears as real c that the filter mostly removes; neutral modes (c_i → 0) converge slowly (critical layer).
+    **Near a neutral wavenumber an empty result means "no converged mode", not "stable"**: on the real axis the critical
+    layer (width c_i/|U′|) is under-resolved, the mode moves by more than the filter allows and is dropped — measured at
+    N = 120 for the Bickley jet (neutral k = 2): nothing returned at k = 1.8 (true c = 0.63235 + 0.02432i) and 1.9
+    (0.64965 + 0.01163i), and 2.6e-4 off in c at k = 1.7; unfiltered, c_i at k = 1.9 still wanders 0.0106–0.0129 between
+    N = 120 and 320.  For growth rates up to the neutral point use :func:`rayleigh_eigs_contour` (same equation on a path
+    that avoids the critical layer; converged to 1e-8 there) — this function remains the one for real-axis eigenfunctions.
     Validation: V1 tanh neutral k = 1, c = 0 (φ = sech y); Bickley k = 2 (sinuous), k = 1 (varicose), c = 2/3;
     V5 tanh most-amplified k = 0.4449, kc_i = 0.18970 (Michalke 1964: 0.4446, 0.1897); V4 conjugate pairs; semicircle (11.72).
     """
@@ -660,6 +753,224 @@ def rayleigh_eigs(k: float, U: Callable, Upp: Callable, domain: Sequence[float] 
         g2 = _grid_for(bc, domain, int(math.ceil(factor * N)), y_max, map, map_scale)
         keep &= converged_mask(w, _rayleigh_solve(k, U, Upp, g2, False), tol, ci_rtol)
     return _finish(w, V, g, keep, return_vectors)
+
+
+_CONTOUR_BC_ERROR = (
+    'rayleigh_eigs_contour: bc="semi_infinite" is not supported — the complex-path solver handles walls (bc="wall") and '
+    'unbounded layers (bc="decay"/"unbounded") only; for a semi-infinite profile use rayleigh_shoot (growing modes, '
+    'real-axis shooting from a guess c0) or rayleigh_eigs (real-axis collocation)')
+
+
+def _contour(g: SpectralGrid, Up: Callable, Upp: Callable, delta: float, bc: str):
+    """Complex collocation path y = x + i h(ξ) over the real grid x(ξ): returns (y, D_y, D_yy) (see rayleigh_eigs_contour)."""
+    D, xi = cheb(g.N)
+    n = len(xi)
+    up = np.asarray(Up(g.y), dtype=float) * np.ones(n)
+    upp = np.asarray(Upp(g.y), dtype=float) * np.ones(n)
+    M = float(np.max(np.abs(up)))
+    if M == 0.0 or delta == 0.0:
+        return g.y.astype(complex), g.D1.astype(complex), g.D2.astype(complex)
+    if bc == "wall":  # both ends are walls: the path must return to the real end points
+        t, tp = 1.0 - xi ** 2, -2.0 * xi
+    elif bc in ("decay", "unbounded"):  # U′ → 0 at both ends by itself
+        t, tp = np.ones(n), np.zeros(n)
+    else:  # "semi_infinite" has no validated path factor (see rayleigh_eigs_contour) — never reached from the public solver
+        raise ValueError(_CONTOUR_BC_ERROR if bc == "semi_infinite" else 'bc must be "wall" or "decay" ("unbounded")')
+    h = -(delta / M) * up * t  # below the real axis where U′ > 0, above where U′ < 0
+    hp = -(delta / M) * (upp * g.yp * t + up * tp)  # dh/dξ, exact (chain rule; U″ is given)
+    yp = g.yp + 1j * hp
+    D1 = D / yp[:, None]
+    return g.y + 1j * h, D1, D1 @ D1
+
+
+def _rayleigh_contour_solve(k, U, Up, Upp, g: SpectralGrid, delta: float, bc: str, vectors: bool):
+    y, _, D2 = _contour(g, Up, Upp, delta, bc)
+    n = len(y)
+    I = np.eye(n)
+    L = D2 - k ** 2 * I
+    Uy = np.asarray(U(y)) * np.ones(n)
+    Uppy = np.asarray(Upp(y)) * np.ones(n)
+    if np.iscomplexobj(y) and np.any(y.imag != 0.0) and not np.iscomplexobj(Uy):
+        raise ValueError("rayleigh_eigs_contour: U(y) must accept complex y and return complex values (an analytic profile; "
+                         "a spline or a profile that casts to float cannot be continued off the real axis — use rayleigh_eigs)")
+    A = Uy[:, None] * L - np.diag(Uppy)  # Eq. (11.81) on the path: [U L − U″] φ = c L φ, with d/dy = (1/y′(ξ)) d/dξ
+    C = np.vstack([I[0], I[n - 1]])  # Eq. (11.82): φ = 0 at both (real) ends
+    out = constrained_eig(A, L, C, [0, n - 1], return_vectors=vectors)
+    return (out[0], out[1], y) if vectors else (out, None, y)
+
+
+def rayleigh_eigs_contour(k: float, U: Callable, Up: Callable, Upp: Callable, domain: Sequence[float] = (-1.0, 1.0),
+                          N: int = 120, bc: str = "wall", y_max: float | None = None, map_scale: float | None = None,
+                          delta: float = 0.2, parity: str | None = None, return_vectors: bool = False, filter: bool = True,
+                          factor: float = 1.5, tol: float = 1e-6, ci_min: float = 1e-4, refine: int = 2,
+                          map: str | None = None):
+    """Growing eigenvalues c (c_i > ci_min) of Rayleigh's equation, converged up to the neutral point, sorted by descending c_i.
+
+    Book: §11.9, Eq. (11.81) (U − c)(φ″ − k²φ) − U″φ = 0 with Eq. (11.82) φ = 0 at the walls (bc="decay": at ±y_max).
+    Method (ours — DEVIATION, the book has no numerical method): the same Chebyshev collocation as :func:`rayleigh_eigs`,
+    but along a path in the complex y-plane, y(ξ) = x(ξ) + i h(ξ), h = −delta · U′(x)/max|U′| · t(ξ) (t = 1 − ξ² between
+    walls, so the path ends on the real walls; t = 1 for unbounded layers, where U′ → 0 does it; semi-infinite profiles are
+    refused, see ``bc``).  Why: a mode with small
+    c_i has a critical point y_c, U(y_c) = c, at Im y_c ≈ c_i/U′ — just above the real axis where U′ > 0, just below where
+    U′ < 0 — and φ has a logarithmic branch point there.  On the real axis the collocation error is then O(1) until the node
+    spacing resolves c_i/|U′|, and the N-filter of :func:`rayleigh_eigs` drops the mode: a false "no growth" just below the
+    neutral wavenumber.  The path passes on the *other* side of every such point, at distance ≥ delta·|U′|/max|U′|, so φ is
+    smooth on it however small c_i is, and Cauchy's theorem makes the eigenvalue the same (φ is analytic between the two
+    paths).  The continuous spectrum moves to c = U(y(ξ)), Im c ≈ −delta·U′²/max|U′| ≤ 0, off the growing half-plane.
+    Only c_i > ci_min is returned: what the path shows at c_i ≤ 0 (the displaced continuum, damped quasi-modes beyond the
+    neutral point) depends on the path and is not a normal mode of (11.81).
+    Parameters
+    ----------
+    k : wavenumber > 0, non-dimensional (scaled by 1/L).
+    U, Up, Upp : callables y ↦ U, U′, U″ (scaled by U₀, U₀/L, U₀/L²).  U and Upp are evaluated at **complex** y and must be
+        the analytic functions (np.tanh, np.sin, polynomials …; a spline raises ValueError); Up is evaluated at real y only.
+    domain, y_max, map_scale, map : the real grid, as :func:`rayleigh_eigs`.
+    bc : "wall" (φ = 0 at domain[0], domain[1]) or "decay" / "unbounded" (φ = 0 at centre ± y_max) — the two supported
+        boundary types.  "semi_infinite" raises ValueError: a path factor for a wall at one end and a free end at the other
+        is not validated (a linear taper t = (1 + ξ)/2 ≈ y/y_max left the path only 0.02 below the axis at a shear layer
+        3 above the wall in a box of 30 and returned no mode at k = 0.8, 0.9, 0.95 where shooting gives c_i = 0.126, 0.060,
+        0.028).  For semi-infinite profiles use :func:`rayleigh_shoot` (growing modes) or :func:`rayleigh_eigs`.
+    N : degree (default 120).
+    delta : largest displacement of the path from the real axis, non-dimensional (scaled by L); default 0.2.  Must stay
+        inside U's strip of analyticity, i.e. below the distance of U's own singularities from the real axis (tanh y,
+        sech²y: π/2; tanh(y/d): πd/2 — 0.47 for d = 0.3, where delta = 0.3 already costs a digit: 2.6e-8 instead of 3e-9).
+        Beyond it the unfiltered solve returns nonsense (tanh, delta = 1.5: c = 17i); the filter then returns nothing.
+    parity : None, "even", "odd" (φ about the centre; symmetric U only — the path is then point-symmetric).
+    return_vectors : dict(c, y (complex path nodes), phi (columns, on the path — not the real-axis φ), grid).
+    filter : keep only c that reappear within tol·max(1, |c|) in a second solve with ⌈factor·N⌉ nodes **and** delta/2 — a
+        different resolution and a different path at once.   factor, tol : defaults 1.5, 1e-6.
+    ci_min : smallest c_i returned; default 1e-4 (as ``unstable_only`` of :func:`rayleigh_eigs`).
+    refine : if growing candidates exist but none passes the filter, repeat with N → ⌈factor·N⌉, at most ``refine`` times
+        (default 2), instead of returning "nothing".
+    Returns
+    -------
+    c : complex ndarray (possibly empty), non-dimensional (scaled by U₀); or the dict.
+    Assumptions: as :func:`rayleigh_eigs`; U analytic in the strip |Im y| ≤ delta; path not through a critical point
+    (c_i > −delta·U′²/max|U′| there: always true for c_i > 0).
+    Limits (measured by the verifier): (i) boundary types "wall" and "decay"/"unbounded" only (see ``bc``); (ii) delta inside
+    U's strip of analyticity (see ``delta``); (iii) **no margin where U′ = 0 at the critical level**: the displacement is
+    ∝ U′, so a weakly growing mode whose critical level sits at an extremum of U (c_r → U_max or U_min with c_i → 0) is
+    treated as on the real axis.  None of the chapter's profiles has such a mode (the varicose long wave of the Bickley
+    jet has c_r → 1 = U_max but c_i = 0.048 at k = 0.02, and agrees with shooting to 3e-8).
+    Validation: V1 the exact neutral points are approached linearly (Bickley sinuous k → 2, varicose k → 1, c → 2/3; tanh
+    k → 1; sin y on |y| ≤ π, k → √3/2); V3 unchanged to 1e-7 between N = 120, 180, 240 and delta = 0.1, 0.2, 0.3; independent
+    route :func:`rayleigh_shoot` (adaptive integration on the real axis) agrees to 1e-7; equals :func:`rayleigh_eigs` away
+    from neutral points; V4 the eigenvalues satisfy the real-axis identities (11.83)–(11.84).  Label: converged.
+    """
+    if k <= 0:
+        raise ValueError("rayleigh_eigs_contour: k > 0 is required")
+    if delta < 0:
+        raise ValueError("rayleigh_eigs_contour: delta >= 0 is required")
+    if bc == "semi_infinite":
+        raise ValueError(_CONTOUR_BC_ERROR)
+    if bc not in ("wall", "decay", "unbounded"):
+        raise ValueError('rayleigh_eigs_contour: bc must be "wall" or "decay" ("unbounded")')
+    need_vec = return_vectors or parity is not None
+    Nn = int(N)
+    for attempt in range(int(refine) + 1):
+        g = _grid_for(bc, domain, Nn, y_max, map, map_scale)
+        w, V, y = _rayleigh_contour_solve(k, U, Up, Upp, g, delta, bc, need_vec)
+        keep = (w.imag > ci_min) & np.isfinite(w)
+        if parity is not None:
+            keep &= _parity_mask(V, parity)
+        if not (filter and keep.any()):
+            break
+        N2 = int(math.ceil(factor * Nn))
+        w2 = _rayleigh_contour_solve(k, U, Up, Upp, _grid_for(bc, domain, N2, y_max, map, map_scale), 0.5 * delta, bc,
+                                     False)[0]
+        ok = keep & converged_mask(w, w2, tol)
+        if ok.any() or attempt == int(refine):
+            keep = ok
+            break
+        Nn = N2
+    w = w[keep]
+    if return_vectors:
+        return {"c": w, "y": y, "phi": V[:, keep], "grid": g}
+    return w
+
+
+def rayleigh_shoot(k: float, U: Callable, Upp: Callable, c0: complex, domain: Sequence[float] = (-1.0, 1.0),
+                   bc: str = "wall", y_max: float | None = None, parity: str | None = None, rtol: float = 1e-10,
+                   xtol: float = 1e-12, maxiter: int = 40, ci_floor: float = 1e-6) -> dict:
+    """Refine one growing Rayleigh eigenvalue by shooting on the real axis (an independent check of the collocation solvers).
+
+    Book: §11.9, Eqs. (11.81)–(11.82): φ″ = [k² + U″/(U − c)]φ.  Method (ours): integrate from each end to the mid-point
+    with an adaptive Runge–Kutta pair (DOP853; the step shrinks by itself in the critical layer), and find the c for which
+    the two solutions match (Wronskian φ_L′φ_R − φ_Lφ_R′ = 0; with ``parity`` only the left half is integrated and φ′ = 0
+    ("even") or φ = 0 ("odd") is required at the centre) by the secant method in complex c from the guess ``c0``.
+    A wall end starts with φ = 0, φ′ = 1; a free end (bc "decay": both ends at centre ± y_max; "semi_infinite": the far end
+    domain[0] + y_max) starts on the exact outer solution φ ∝ e^{−k|y|} (φ′ = ±kφ) — the condition of the unbounded
+    problem, where the collocation solvers impose φ = 0 at the box edge (the two differ by O(e^{−2k·y_max})).
+    Parameters
+    ----------
+    k : wavenumber > 0 (scaled by 1/L).   U, Upp : callables of real y (scalar-callable).   c0 : complex guess, c_i > 0.
+    domain, bc, y_max : as :func:`rayleigh_eigs` (y_max default 30 for "decay", 20 for "semi_infinite"); U″ must be
+        negligible at a free end.
+    parity : None, "even", "odd" (symmetric U).   rtol : ODE relative tolerance (default 1e-10).
+    xtol : stop when the secant step |Δc| < xtol.   maxiter : default 40.
+    ci_floor : give up when an iterate has c_i < ci_floor (the real axis is then singular: no growing mode near c0).
+    Returns
+    -------
+    dict(c (complex; nan if not converged), converged (bool), iterations (int), residual (|F| at c, with F normalised to
+    O(1) solutions)).  Non-dimensional (c scaled by U₀).
+    Validation: V1 against the exact neutral limits; V3 rtol 1e-7 vs 1e-10 agree to 1e-8; agrees with
+    :func:`rayleigh_eigs_contour` to 1e-7 (two unrelated discretisations).  Label: converged.
+    """
+    from scipy.integrate import solve_ivp
+
+    if k <= 0:
+        raise ValueError("rayleigh_shoot: k > 0 is required")
+    a, b = float(domain[0]), float(domain[1])
+    if bc == "wall":
+        lo, hi, free_lo, free_hi = a, b, False, False
+    elif bc == "semi_infinite":
+        lo, hi, free_lo, free_hi = a, a + (20.0 if y_max is None else float(y_max)), False, True
+    elif bc in ("decay", "unbounded"):
+        ym = 30.0 if y_max is None else float(y_max)
+        lo, hi, free_lo, free_hi = 0.5 * (a + b) - ym, 0.5 * (a + b) + ym, True, True
+    else:
+        raise ValueError('bc must be "wall", "semi_infinite" or "decay" ("unbounded")')
+    mid = 0.5 * (lo + hi)
+
+    def side(c, y0, free, sgn):
+        amp = math.exp(-min(k * abs(mid - y0), 600.0)) if free else 1.0  # keeps φ(mid) = O(1) whatever k·y_max is
+        f0 = [amp + 0j, sgn * k * amp + 0j] if free else [0j, sgn + 0j]
+        sol = solve_ivp(lambda y, f: [f[1], (k * k + Upp(y) / (U(y) - c)) * f[0]],  # Eq. (11.81) solved for φ″
+                        (y0, mid), f0, method="DOP853", rtol=rtol, atol=rtol * amp * 1e-3)
+        if not sol.success:
+            raise ArithmeticError(sol.message)
+        return sol.y[:, -1]
+
+    def F(c):
+        if not (c.imag >= ci_floor and abs(c) < 1e3):
+            raise ArithmeticError("left the growing half-plane")
+        fl = side(c, lo, free_lo, 1.0)
+        if parity == "even":
+            return fl[1]
+        if parity == "odd":
+            return fl[0]
+        if parity is not None:
+            raise ValueError('parity must be None, "even" or "odd"')
+        fr = side(c, hi, free_hi, -1.0)
+        return fl[1] * fr[0] - fl[0] * fr[1]
+
+    bad = dict(c=complex(np.nan, np.nan), converged=False, iterations=0, residual=float("nan"))
+    try:
+        ca = complex(c0)
+        cb = ca + 1e-3 * max(abs(ca.imag), 1e-3) * (1.0 + 1.0j)
+        fa, fb = F(ca), F(cb)
+        for it in range(1, int(maxiter) + 1):
+            if fb == fa:
+                break
+            cn = cb - fb * (cb - ca) / (fb - fa)
+            if abs(cn - cb) < xtol:
+                return dict(c=complex(cn), converged=True, iterations=it, residual=float(abs(F(cn))))
+            ca, fa = cb, fb
+            cb, fb = cn, F(cn)
+        bad["iterations"] = it
+    except ArithmeticError:
+        pass
+    return bad
 
 
 def _tg_solve(k, U, Upp, N2, g: SpectralGrid, vectors: bool):
@@ -702,7 +1013,7 @@ def taylor_goldstein_eigs(k: float, U: Callable, Upp: Callable, N2: Callable, do
 
     Book: §11.7, Eq. (11.61)  (U − c)(ψ̂″ − k²ψ̂) − U″ψ̂ + N²ψ̂/(U − c) = 0 with rigid lids Eq. (11.62) ψ̂(0) = ψ̂(d) = 0
     (bc="decay": ψ̂ = 0 at ±y_max for unbounded layers); u = ∂ψ/∂z, w = −∂ψ/∂x (the §11.7 sign, slip S9); N² = −(g/ρ₀)dρ̄/dz
-    (7.128).  Non-dimensional (z by the layer scale, U by its velocity scale, N² by (velocity/length)²).
+    (7.127).  Non-dimensional (z by the layer scale, U by its velocity scale, N² by (velocity/length)²).
     Method: × (U − c) → c²M₂ + cM₁ + M₀ = 0 with M₂ = D² − k², M₁ = −2U(D² − k²) + U″, M₀ = U²(D² − k²) − UU″ + N²;
     companion linearisation (P268).  The linearisation doubles the spurious modes (discretised continuous spectrum, small c_i
     that drift with N): the N-convergence filter is ON by default (factor 1.5, tol 1e-5).

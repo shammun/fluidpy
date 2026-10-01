@@ -34,6 +34,12 @@ BENCHMARKS = {
                           "Chebyshev value agrees to 6 digits)"},
     "benard_odd_mode": {"Ra_c": 17610.39, "K_c": 5.365, "source": "Chandrasekhar (1961), p. 39"},
     "taylor_narrow_gap_mu1": {"Ta_c": 1707.76, "k_c": 3.117, "source": "narrow-gap limit = rigid Benard; arXiv:2601.14806"},
+    "taylor_narrow_gap_corotation": {"Ta_c_mu1": 1707.76, "coefficient": 0.00761,
+                                     "formula": "Ta_c = 1707.76 [1 - 0.00761 ((1 - mu)/(1 + mu))^2] as mu -> 1, with "
+                                                "Ta = -2 A Omega_1 d^4 (1 + mu)/nu^2 = (1 + mu)/2 x the Ta of Eq. (11.52)",
+                                     "source": "Wikipedia 'Taylor-Couette flow', section 'Taylor's criterion' (revision "
+                                               "1373953105 of 2026-09-08), read 2026-10-01; asymptotic (leading order in "
+                                               "1 - mu), tertiary source"},
     "plane_poiseuille_critical": {"Re_c": 5772.22, "k_c": 1.02056, "c_r": 0.264, "source": "Orszag (1971), J. Fluid Mech. 50, 689"},
     "plane_poiseuille_Re1e4_k1": {"c_r": 0.23752649, "c_i": 0.00373967, "source": "Orszag (1971); eigentools documentation "
                                   "(max c_i = 3.740e-3)"},

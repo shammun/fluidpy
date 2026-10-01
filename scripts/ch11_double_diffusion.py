@@ -39,6 +39,15 @@ def main() -> int:
     Sz = np.linspace(-0.006, 0.006, 81)
     col = {"stable": 0, "fingers": 1, "diffusive": 2, "overturning": 3}
     M = np.array([[col[ch11.salt_finger_regime(t, s, D)["regime"]] for t in Tz] for s in Sz])
+    # the top-heavy but stable strip of (11.46) on the row dS/dz = 0: Rs − Ra = −Ra < 27π⁴/4 ⇔ dT/dz > −27π⁴νκ/(4gαd⁴)
+    t_crit = -ch11.RA_FREE_FREE / float(ch11.thermal_rayleigh_signed(1.0, D, AL, NU, KA))
+    row0 = [ch11.salt_finger_regime(t, 0.0, D)["regime"] for t in Tz]
+    strip = Tz[(Tz < 0) & (np.array(row0) == "stable")]
+    print(f"dS/dz = 0 row: top-heavy layers are stable for {t_crit:.5f} < dT/dz < 0 K/m ((11.46): Rs − Ra < 27π⁴/4); "
+          f"map points labelled stable there: {len(strip)} (dT/dz = {strip.min():.4f} … {strip.max():.4f}), "
+          f"overturning for dT/dz ≤ {Tz[np.array(row0) == 'overturning'].max():.4f}")
+    assert all(r == "stable" for t, r in zip(Tz, row0) if t_crit < t < 0)
+    assert all(r == "overturning" for t, r in zip(Tz, row0) if t < t_crit)
     fig, ax = plt.subplots(1, 2, figsize=(14, 5))
     from matplotlib.colors import ListedColormap
 
@@ -47,6 +56,8 @@ def main() -> int:
     ax[0].plot(AL * Tz, AL * Tz, color=COLORS["ink"], lw=1.5, label="α dT/dz = β dS/dz (static neutral)")
     lhs_line = (ch11.RA_FREE_FREE * NU / (9.80665 * D ** 4) + AL / KA * Tz) * KS  # β dS/dz on (11.46)
     ax[0].plot(AL * Tz, lhs_line, color=COLORS["blue"], ls="--", label="(11.46) finger threshold")
+    ax[0].plot([AL * t_crit, 0.0], [0.0, 0.0], color=COLORS["ink"], lw=3, solid_capstyle="butt",
+               label="top-heavy but stable: Rs − Ra < 27π⁴/4")
     ax[0].set(xlim=(AL * Tz[0], AL * Tz[-1]), ylim=(BE * Sz[0], BE * Sz[-1]), xlabel="α dT̄/dz [1/m]", ylabel="β dS̄/dz [1/m]",
               title="regimes: teal stable · amber fingers · purple diffusive · rose overturning")
     ax[0].legend(fontsize=7, loc="lower right")
@@ -64,9 +75,9 @@ def main() -> int:
     t_dif = -2e4 / float(ch11.thermal_rayleigh_signed(1.0, D, AL, NU, KA))
     s_dif = -1.9e6 / float(ch11.salinity_rayleigh(1.0, D, BE, NU, KS))
     for name, (t, s) in dict(fingers=(0.01, 0.002), diffusive=(t_dif, s_dif), stable=(0.01, -0.001),
-                             overturning=(-0.01, 0.0)).items():
+                             overturning=(-0.01, 0.0), top_heavy_weak=(-0.005, 0.0)).items():
         r = ch11.salt_finger_regime(t, s, D)
-        print(f"  {name:12s} → {r['regime']:12s} R_ρ = {r['R_rho']:.3f}, σ_max = {r['sigma_max']:.4g}  ({r['text']})")
+        print(f"  {name:14s} → {r['regime']:12s} R_ρ = {r['R_rho']:.3f}, σ_max = {r['sigma_max']:.4g}  ({r['text']})")
     finish(args)
     return 0
 

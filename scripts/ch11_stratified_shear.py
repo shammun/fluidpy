@@ -75,12 +75,22 @@ def main() -> int:
     ax[1].legend(fontsize=8)
     cr, ci = ch11.howard_semicircle(-1.0, 1.0)
     ax[2].fill(cr, ci, color=COLORS["accent"], alpha=0.15)
+    n_semi = 0
     for J in (0.0, 0.1, 0.2):
         p = ch11.richardson_profiles("tanh", J)
         for k in (0.2, 0.4, 0.6, 0.8):
+            # box and node clustering both follow the wave, as tg_growth does (near-neutral modes need the clustering)
             cc = ch11.taylor_goldstein_eigs(k, p["U"], p["Upp"], p["N2"], domain=(-1, 1), N=80, bc="decay",
-                                            y_max=ch11.decay_box(k))
+                                            y_max=ch11.decay_box(k), map_scale=ch11.decay_map_scale(k))
+            n_semi += len(cc)
+            assert np.all(ch11.in_howard_semicircle(cc, -1.0, 1.0)), (J, k, cc)
             ax[2].plot(np.real(cc), np.imag(cc), "o", color=COLORS["rose"], ms=4)
+    print(f"semicircle panel: {n_semi} unstable eigenvalues plotted (J = 0, 0.1, 0.2; k = 0.2 … 0.8), all inside (11.72)")
+    for kw, what in ((dict(dUdz=0.0, N2=-1.0), "U' = 0, N² < 0"), (dict(dUdz=0.0, N2=0.0), "U' = 0, N² = 0"),
+                     (dict(dUdz=0.0, N2=1.0), "U' = 0, N² > 0")):
+        v = ch11.miles_howard_stable(0.0, **kw)
+        print(f"  shear-free level, {what}: Ri = {ch11.gradient_richardson(0.0, **kw)}, guaranteed stable = "
+              f"{v['guaranteed_stable']}")
     ax[2].set(xlabel="c_r", ylabel="c_i", title="unstable c inside Howard's semicircle (p. 507)")
     ax[2].set_aspect("equal")
     save(fig, out, "c08_stratified")

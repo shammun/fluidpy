@@ -190,7 +190,55 @@ def profiles_figure():
     save(fig, "fig_11_21_profiles_and_criteria")
 
 
+def _csv(name):
+    lines = [ln for ln in (ROOT / "reference" / "ch11" / name).read_text(encoding="utf-8").splitlines() if ln and ln[0] != "#"]
+    arr = np.array([[float(v) for v in ln.split(",")] for ln in lines[1:]])
+    return {h: arr[:, j] for j, h in enumerate(lines[0].split(","))}
+
+
+def bickley_neutral_figure():
+    """Post-review loop 2: the regenerated neutral table of the sinuous Bickley jet (wavelength-scaled box)."""
+    nb, nl = _csv("os_neutral_bickley.csv"), _csv("os_neutral_bickley_longwave.csv")
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.loglog(nb["Re"], nb["k_upper"], "o-", ms=3, label="upper branch (main band)")
+    ax.loglog(nb["Re"], nb["k_lower"], "s-", ms=3, label="lower edge of the main band (gap edge from Re = 19.3)")
+    ax.loglog(nl["Re"], nl["k_long_upper"], "^-", ms=4, label="upper edge of the long-wave band")
+    nanl = np.isnan(nb["k_lower"])
+    ax.loglog(nb["Re"][nanl], np.full(nanl.sum(), 0.02), "rv", ms=4, label="unstable down to k = 0.02 (edge not resolved)")
+    cp = ch11.bickley_critical()
+    ax.plot(cp["Re_c"], cp["k_c"], "k*", ms=12, label=f"critical point Re = {cp['Re_c']:.3f}, k = {cp['k_c']:.4f}")
+    ax.axhline(2.0, color="gray", ls=":", lw=1)
+    ax.set_xlabel("Re = U0 L / nu"), ax.set_ylabel("k L"), ax.legend(fontsize=7), ax.set_title("Bickley jet, sinuous: neutral wavenumbers (ours)")
+    save(fig, "bickley_neutral_bands_loop2")
+
+
+def rayleigh_near_neutral_figure():
+    """Post-review loop 2: c_i(k) of the Bickley jet up to the neutral point k = 2 — complex path vs the real-axis solver."""
+    B = ch11.parallel_profile("bickley")
+    ks = np.linspace(1.2, 2.05, 35)
+    con, real = [], []
+    for k in ks:
+        c = ST.rayleigh_eigs_contour(k, B["U"], B["Up"], B["Upp"], N=120, bc="decay", y_max=40.0, map_scale=1.0, parity="even")
+        r = ST.rayleigh_eigs(k, B["U"], B["Upp"], N=120, bc="decay", y_max=40.0, map_scale=1.0, unstable_only=True, tol=1e-4, parity="even")
+        con.append(c[0].imag if len(c) else 0.0)
+        real.append(r[0].imag if len(r) else 0.0)
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    ax.plot(ks, con, "-", label="complex path (rayleigh_eigs_contour)")
+    ax.plot(ks, real, "x", label="real axis + N-filter (rayleigh_eigs): 0 = nothing returned")
+    ax.plot(ks, 0.1109 * (2.0 - ks), ":", color="gray", label="0.111 (2 - k): the linear approach to the exact neutral point")
+    ax.set_ylim(-0.005, 0.12), ax.set_xlabel("k L"), ax.set_ylabel("c_i / U0"), ax.legend(fontsize=7)
+    ax.set_title("Bickley jet, sinuous mode: growth up to the neutral wavenumber k = 2")
+    save(fig, "rayleigh_jet_near_neutral_loop2")
+    print("contour c_i at k = 1.8, 1.9:", [round(v, 5) for v, k in zip(con, ks) if abs(k - 1.8) < 0.013 or abs(k - 1.9) < 0.013])
+
+
 if __name__ == "__main__":
+    if "--loop2" in sys.argv:
+        bickley_neutral_figure()
+        rayleigh_near_neutral_figure()
+        raise SystemExit(0)
+    bickley_neutral_figure()
+    rayleigh_near_neutral_figure()
     fig_11_10()
     kh_figure()
     taylor_figure()

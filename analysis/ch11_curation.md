@@ -182,7 +182,7 @@ order), `R` = RECAP, `S` = SKIP. No ASCII pipe inside cells (∣K∣ is written 
 | N22 | Mixing example: linear profile after mixing, E_final/E_initial = 2/3 with momentum unchanged (p. 482) | 11.3 | B | NOTE | C02 | stated (§4c a-D4) with `kh_mixing_energy` and bars before/after; one number per energy | #35 |
 | N23 | General statement: fixed ∫U dz ⇒ ∫U² dz falls when gradients are smoothed (Cauchy–Schwarz) | 11.3 | C | NOTE | C02 | named; a random-smoothing property test backs it; pointer: energy budget C14 | #36 |
 | N24 | Bénard history (Bénard 1900 hexagons were surface-tension/Marangoni driven; Rayleigh 1916; Jeffreys 1928) | 11.4 | C | NOTE | C03 | named, with the Marangoni remark; pointer: planforms N51 | #37 |
-| N25 | Eq. (11.21) Rayleigh number Ra = gαΓd⁴/(κν), Γ = −dT̄/dz (positive when heated from below) | 11.4 | B | NOTE | C03 | stated with `rayleigh_number(g, alpha, dT, d, kappa, nu)` (dT = T_bottom − T_top), a water-layer number and the ⚠️ two-convention table (slip #10, §9) | #38 |
+| N25 | Eq. (11.21) Rayleigh number Ra = gαΓd⁴/(κν), Γ = −dT̄/dz (positive when heated from below) | 11.4 | B | NOTE | C03 | stated with `rayleigh_number(alpha=, dT=, d=, kappa=, nu=, g=G0)` (call by keyword) (dT = T_bottom − T_top), a water-layer number and the ⚠️ two-convention table (slip #10, §9) | #38 |
 | R12 | Boussinesq set (4.10), (4.86), (4.89) with ρ = ρ₀[1 − α(T̃ − T₀)] | 11.4 | B | RECAP | C03 | ch04 C13 (D27, D28); the starting line of D05 | #39 |
 | N26 | Fig. 11.8 geometry: layer of depth d, z centred, T̄ = T₀ − Γ(z + d/2) | 11.4 | B | NOTE | C03 | stated with our sketch (T̄(z) beside the layer) | #40 |
 | N27 | Eq. (11.22) decomposition ũ = 0 + u, T̃ = T̄(z) + T′, p̃ = P(z) + p | 11.4 | B | NOTE | C03 | stated as the first move of D05 | #41 |
@@ -240,7 +240,7 @@ order), `R` = RECAP, `S` = SKIP. No ASCII pipe inside cells (∣K∣ is written 
 | N70 | Stratified shear-flow history: Taylor 1915, Miles 1961, Howard 1961 | 11.7 | C | NOTE | C08 | named at the top of C08 | #93 |
 | R17 | Set-up U(z)e_x, ρ̄(z); inviscid Boussinesq momentum and basic balance (p. 502–503) | 11.7 | B | RECAP | C08 | ch04 Boussinesq, ch07 §7.8 base state (`boussinesq_linear_sympy`); 2-D by Squire is an assumption here (N88) | #94 |
 | N71 | Eq. (11.55) perturbation momentum (slip #4: the w-equation prints ∂p/∂x) | 11.7 | B | NOTE | C08 | derived in D16; ⚠️ slip #4 callout, `stratified_shear_sympy(printed=True)` fails | #95 |
-| R18 | Linearised density equation and Eq. (11.56) N² ≡ −(g/ρ₀)dρ̄/dz | 11.7 | B | RECAP | C08 | ch01 (1.29), ch07 (7.128) `core.stratification.brunt_vaisala_sq` | #96 |
+| R18 | Linearised density equation and Eq. (11.56) N² ≡ −(g/ρ₀)dρ̄/dz | 11.7 | B | RECAP | C08 | ch01 (1.29), ch07 (7.127) `core.stratification.brunt_vaisala_sq` | #96 |
 | R19 | Eq. (11.57) stream function u = ∂ψ/∂z, w = −∂ψ/∂x | 11.7 | B | RECAP | C08 | ch04 (4.12) ψ; ⚠️ slip #9 sign conventions change between §11.7, §11.8 and §11.14 | #97 |
 | N72 | Normal modes [ρ, p, ψ] = [ρ̂, p̂, ψ̂]e^{ik(x−ct)} → Eq. (11.58), Eq. (11.59), Eq. (11.60) | 11.7 | B | NOTE | C08 | derived in D17 | #98 |
 | C08 | Eq. (11.61) Taylor–Goldstein equation (U − c)(ψ̂″ − k²ψ̂) − U″ψ̂ + N²ψ̂/(U − c) = 0 | 11.7 | A | CORE | – | load-bearing: the master equation of inviscid stratified shear flow (contains Rayleigh's equation at N² = 0); source of C09, C10; stratified jets and thermocline billows in ch13 | #99 |

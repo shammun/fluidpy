@@ -3,8 +3,10 @@ spectrum and neutral curve with its critical point, Squire's theorem checked num
 frequency form (Fig. 11.26 analogue) with Tollmien's profile, the tanh shear layer (Fig. 11.23), Falkner–Skan loops
 (Fig. 11.24), plane Couette, Table 11.1 recomputed and the energy budget (11.88) of a TS wave.
 
-Run: ``.venv/Scripts/python.exe scripts/ch11_neutral_curves.py --no-show [--fast]``   Figures -> outputs/ch11/c11_os_poiseuille.png,
-c13_neutral_curves.png, c14_energy_budget.png.  Critical points and neutral curves are cached (outputs/ch11/cache).
+Run: ``.venv/Scripts/python.exe scripts/ch11_neutral_curves.py --no-show [--fast] [--tables bickley,blasius] [--no-modes]``
+Figures -> outputs/ch11/c11_os_poiseuille.png, c13_neutral_curves.png, c14_energy_budget.png.  Critical points and neutral
+curves are cached (outputs/ch11/cache).  Without --fast the Orr–Sommerfeld tables in reference/ch11 are rewritten (all four
+flows, or only those named by --tables).
 """
 from __future__ import annotations
 
@@ -16,7 +18,12 @@ from fluidpy import ch11_instability as ch11
 
 
 def main() -> int:
-    args = parse_args(__doc__)
+    def extra(ap):
+        ap.add_argument("--tables", default="", help="comma-separated flows (poiseuille, blasius, tanh, bickley) whose "
+                        "reference tables are rewritten; default: all four (ignored with --fast)")
+        ap.add_argument("--no-modes", action="store_true", help="do not rewrite reference/ch11/os_modes.json")
+
+    args = parse_args(__doc__, extra=extra)
     out = setup(args)
     import matplotlib.pyplot as plt
 
@@ -54,10 +61,10 @@ def main() -> int:
     save(fig, out, "c11_os_poiseuille")
     with Timer("Blasius critical point (cached)"):
         B = ch11.blasius_critical()
-    print(f"Blasius (parallel): Re_δ*,c = {B['Re_c']:.3f}, αδ* = {B['k_c']:.4f}, c_r = {B['c_r']:.4f}, ω = {B['omega_c']:.4f} "
-          f"(Thomas 519.2, 0.303, 0.120; Jordinson 520)")
-    for N, ym in ((80, 20.0), (100, 25.0)):
-        print(f"  convergence (N, y_max) = ({N}, {ym}): Re_c = {ch11.blasius_critical(N=N, y_max=ym)['Re_c']:.3f}")
+    print(f"Blasius (parallel): Re_δ*,c = {B['Re_c']:.4f}, αδ* = {B['k_c']:.5f}, c_r = {B['c_r']:.5f}, ω = {B['omega_c']:.5f} "
+          f"(box max(20, 12/k) δ*; Thomas 519.2, 0.303, 0.120; Jordinson 520)")
+    for N, ym in ((100, 20.0), (142, 40.0)):  # fixed boxes: 6 e-folds of e^{−ky} at k_c (too short), then 12
+        print(f"  fixed box (N, y_max) = ({N}, {ym}): Re_c = {ch11.blasius_critical(N=N, y_max=ym)['Re_c']:.4f}")
     with Timer("Blasius neutral curve (cached)"):
         bn = ch11.blasius_neutral_curve(in_frequency=True, fast=args.fast)
     with Timer("tanh neutral curve (cached)"):
@@ -66,6 +73,14 @@ def main() -> int:
     with Timer("Bickley critical (cached)"):
         Bj = ch11.bickley_critical()
     print(f"Bickley jet sinuous: Re_c = {Bj['Re_c']:.4f} at k = {Bj['k_c']:.4f}, c_r = {Bj['c_r']:.4f} (Tatsumi & Kakutani ≈ 4.0 at 0.2)")
+    with Timer("Bickley neutral curve, box max(40, 12/k) (cached)"):
+        bk = ch11.bickley_neutral_curve(fast=args.fast)
+    print("Bickley jet neutral wavenumbers (nan: not in the scanned range k ≥ 0.02 / no gap):")
+    print("      Re   k_lower  c_r      k_upper | long-wave band below the stable gap: upper edge, c_r, same mode")
+    for i, R in enumerate(bk["Re"]):
+        print(f"  {R:7.2f}  {bk['k_lower'][i]:.5f}  {np.real(bk['c_lower'][i]):+.4f}  {bk['k_upper'][i]:.5f} | "
+              f"{bk['k_long_upper'][i]:.5f}  {np.real(bk['c_long_upper'][i]):+.4f}  {bk['gap_same_mode'][i]:.0f}"
+              + ("   (unstable at k = 0.02)" if bk["unstable_at_k_min"][i] else ""))
     with Timer("Falkner–Skan loops (cached)"):
         fav = ch11.falkner_skan_neutral_curve(0.1, fast=args.fast)
         adv = ch11.falkner_skan_neutral_curve(-0.05, fast=args.fast)
@@ -89,7 +104,7 @@ def main() -> int:
           f"favourable m = 0.1: lowest unstable Re in the sample = {fav['Re'][np.isfinite(fav['k_lower'])][0]:.0f}")
     print("Table 11.1 (ours vs published):")
     for row in ch11.table_11_1():
-        print(f"  {row['flow']:18s} U = {row['U']:12s} Re_c ours = {row['Re_c_ours']:<10.4g} benchmark {row['benchmark']:<8g} "
+        print(f"  {row['flow']:18s} U = {row['U']:12s} Re_c ours = {row['Re_c_ours']:<10.6g} benchmark {row['benchmark']:<8g} "
               f"({row['source']}); {row['remark']}")
     m = ch11.ts_mode("poiseuille", 1.0, 1e4)
     b = m["budget"]
@@ -122,8 +137,9 @@ def main() -> int:
     ax[2].legend(fontsize=8)
     save(fig, out, "c14_energy_budget")
     if not args.fast:  # --fast never overwrites the published tables
-        with Timer("E8 tables → reference/ch11 (cached)"):
-            paths = ch11.neutral_curve_tables()
+        flows = [f.strip() for f in args.tables.split(",") if f.strip()] if args.tables else None
+        with Timer("E8 tables → reference/ch11 (cached)" + (f", only {flows}" if flows else "")):
+            paths = ch11.neutral_curve_tables(flows=flows, write_modes=not args.no_modes)
         for k, v in paths.items():
             print(f"  {k:24s} {v}")
     finish(args)

@@ -117,6 +117,7 @@ button, input, select { font: inherit; color: inherit; }
   background: color-mix(in srgb, var(--viz-card) 85%, transparent); padding: 2px 8px; border-radius: 999px;
   pointer-events: none; max-width: calc(100% - 64px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.viz-stage-badge:empty { display: none; }
 
 .viz-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .viz-panel { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; gap: var(--viz-gap); overflow: hidden; }
@@ -318,7 +319,8 @@ button, input, select { font: inherit; color: inherit; }
 .viz-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .viz-stage.multi .viz-view { background: var(--viz-card); border: 1px solid var(--viz-border); border-radius: var(--viz-radius); box-shadow: var(--viz-shadow); padding: 4px 6px; }
 .viz-view-title { flex: 0 0 auto; font-size: 12.5px; color: var(--viz-muted); line-height: 1.3; padding: 1px 2px 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.viz-view-title b { color: var(--viz-text); font-weight: 600; }
+.viz-view-title b { font-weight: 600; }
+.viz-view-title b:not([class*="c-"]) { color: var(--viz-text); }
 .viz-view-holder { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .viz-view-holder > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .viz-3d-canvas { z-index: 0; } .viz-view-holder > canvas.viz-canvas { z-index: 1; }

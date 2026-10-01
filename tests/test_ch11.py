@@ -1983,7 +1983,9 @@ def test_blasius_critical_V5_thomas_live_and_V3():  # V5 + V3 (N108; Thomas via 
     cached = ch11.blasius_critical()
     for r in (live, cached):
         assert rel(r["Re_c"], 519.2) < 1e-3 and rel(r["k_c"], 0.303) < 5e-3 and rel(r["omega_c"], 0.120) < 5e-3
-    assert rel(live["Re_c"], cached["Re_c"]) < 5e-4  # N = 60 vs N = 100 (observed 1.4e-4)
+    assert rel(live["Re_c"], cached["Re_c"]) < 5e-4  # N = 60 vs N = 100 (observed 1.7e-4)
+    # post-review loop 2: the live solve runs in the wavelength-scaled box max(20, 12/k) δ* (the fixed box 20 is gone)
+    assert live["Re_c"] == pytest.approx(518.9724, abs=2e-4) and cached["Re_c"] == pytest.approx(519.06012, abs=1e-5)
     assert cached["omega_c"] == pytest.approx(cached["k_c"] * cached["c_r"], rel=1e-12)
     bn = ch11.blasius_neutral_curve(in_frequency=True)
     ok = np.isfinite(bn["F_lower"])
@@ -2352,6 +2354,1048 @@ def test_part_c_V7_every_contract_function_exists_and_is_exercised():  # V7 (des
 
 
 # ======================================================================================================================
+# Post-review (reports/ch11_review.md, M1, M2, Should-fix 1–7, 9): verdict labels, degenerate inputs, docstring numbers
+# ======================================================================================================================
+def _dd_cubic_roots(K2, Ra, Rs, Pr=7.0, tau=TAU_SW):
+    """Independent of ch11.double_diffusive_sigma: the cubic of D13 expanded by hand, coefficient by coefficient.
+
+    (σ/Pr + a²)a²(σ + a²)(σ + τa²) + K²Ra(σ + τa²) − K²τRs(σ + a²) = 0,  a² = π² + K²  (signs of §11.5).
+    """
+    a2 = PI ** 2 + K2
+    c3 = a2 / Pr
+    c2 = a2 * a2 * (1.0 + (1.0 + tau) / Pr)
+    c1 = a2 ** 3 * (tau / Pr + 1.0 + tau) + K2 * (Ra - tau * Rs)
+    c0 = tau * a2 ** 4 + K2 * tau * a2 * (Ra - Rs)
+    return np.roots([c3, c2, c1, c0])
+
+
+def test_salt_finger_regime_V1_top_heavy_label_flips_at_the_11_46_margin():  # V1 (C06, review M1; page 494 re-read)
+    d = 0.05
+    for Tz in (-0.005, -0.0074, -0.003):  # top-heavy, no salt, Rs − Ra = −Ra < 27π⁴/4: stable (was "overturning")
+        r = ch11.salt_finger_regime(Tz, 0.0, d)
+        assert r["regime"] == "stable" and not r["density_stable"] and r["margin"] < 0, (Tz, r)
+        assert complex(r["sigma_max"]) == pytest.approx(-0.1586186, abs=1e-6)  # the salt mode −τa²: thermal mode more damped
+        assert "657.5" in r["text"] and "no overturning" in r["text"]
+    r = ch11.salt_finger_regime(-0.0076, 0.0, d)
+    assert r["regime"] == "overturning" and r["margin"] > 0 and complex(r["sigma_max"]) == pytest.approx(0.1562203, abs=1e-6)
+    r0 = ch11.salt_finger_regime(0.0, 0.0, d)  # no gradients at all: neutral density, damped
+    assert r0["regime"] == "stable" and r0["margin"] == pytest.approx(-ch11.RA_FREE_FREE)
+    assert complex(r0["sigma_max"]) == pytest.approx(-TAU_SW * 1.5 * PI ** 2, rel=1e-12)  # exactly −τa², a² = 3π²/2
+    # the flip sits where (11.46) says: Rs − Ra = 27π⁴/4 ⇔ dT/dz = −27π⁴νκ/(4gαd⁴), for three layer depths
+    for dd in (0.02, 0.05, 0.1):
+        t_crit = -ch11.RA_FREE_FREE * 1e-6 * 1.4e-7 / (G0 * 2e-4 * dd ** 4)
+        t_flip = brentq(lambda t: 1.0 if ch11.salt_finger_regime(t, 0.0, dd)["regime"] == "stable" else -1.0,
+                        3.0 * t_crit, 0.0, xtol=1e-13 * abs(t_crit))
+        assert t_flip == pytest.approx(t_crit, rel=1e-9), (dd, t_flip, t_crit)
+        for f, want in ((0.999, "stable"), (1.001, "overturning")):
+            r = ch11.salt_finger_regime(f * t_crit, 0.0, dd)
+            assert r["regime"] == want and (r["sigma_max"].real > 0) == (want == "overturning"), (dd, f, r)
+    assert -ch11.RA_FREE_FREE * 1e-6 * 1.4e-7 / (G0 * 2e-4 * 0.05 ** 4) == pytest.approx(-0.007509320, abs=1e-9)
+    # top-heavy with stabilising salt: (11.46) is not met in either case; the root decides
+    r = ch11.salt_finger_regime(-0.02, -0.0052, d)
+    assert r["regime"] == "stable" and not r["density_stable"]
+    assert r["sigma_max"].real == pytest.approx(-4.386, abs=1e-3) and abs(r["sigma_max"].imag) == pytest.approx(22.83, abs=1e-2)
+    r = ch11.salt_finger_regime(-0.015, -0.001, d)
+    assert r["regime"] == "overturning" and r["margin"] < 0 and "oscillat" in r["text"]
+    assert r["sigma_max"].real == pytest.approx(3.296, abs=1e-3) and abs(r["sigma_max"].imag) == pytest.approx(8.889, abs=1e-3)
+    # the numeric fields are those of salt_finger_unstable, whatever the label
+    for Tz, Sz in ((-0.005, 0.0), (-0.0076, 0.0), (0.01, 0.002), (-0.015, -0.001)):
+        r, sf = ch11.salt_finger_regime(Tz, Sz, d), ch11.salt_finger_unstable(Tz, Sz, d)
+        assert r["margin"] == sf["margin"] and r["density_stable"] == sf["density_stable"]
+        assert r["margin"] == pytest.approx(sf["Rs"] - sf["Ra"] - 27 * PI ** 4 / 4, rel=1e-12)
+
+
+def test_salt_finger_regime_V7_label_agrees_with_an_independent_cubic_at_every_K2():  # V7 (C06, M1; independent route)
+    d = 0.05
+    K2s = np.geomspace(0.05, 400.0, 60)
+    seen = {}
+    for Tz in np.linspace(-0.03, 0.03, 31):
+        for Sz in np.linspace(-0.006, 0.006, 31):
+            r, sf = ch11.salt_finger_regime(Tz, Sz, d), ch11.salt_finger_unstable(Tz, Sz, d)
+            lead = max(_dd_cubic_roots(PI ** 2 / 2, sf["Ra"], sf["Rs"]), key=lambda q: q.real)
+            grows, real = lead.real > 1e-9, abs(lead.imag) <= 1e-9 * max(1.0, abs(lead))
+            top_heavy = 2e-4 * Tz - 7.6e-4 * Sz <= 0
+            seen[r["regime"]] = seen.get(r["regime"], 0) + 1
+            assert abs(r["sigma_max"].real - lead.real) < 1e-7 * max(1.0, abs(lead)), (Tz, Sz)
+            assert (r["regime"] == "stable") == (not grows), (Tz, Sz, r["regime"], lead)  # label ⇔ sign of the leading root
+            assert top_heavy == (not r["density_stable"])
+            if grows:
+                want = "overturning" if top_heavy else ("fingers" if real else "diffusive")
+                assert r["regime"] == want, (Tz, Sz, r["regime"], lead)
+            if sf["margin"] > 0:  # (11.46) met ⇒ a real root grows (the cubic is negative at σ = 0)
+                assert grows and r["regime"] in ("overturning", "fingers", "diffusive")
+                assert any(abs(q.imag) < 1e-9 * max(1, abs(q)) and q.real > 0 for q in _dd_cubic_roots(PI ** 2 / 2, sf["Ra"], sf["Rs"]))
+            if r["regime"] == "stable":  # "stable" holds at every wavenumber, not only the scanned K² = π²/2
+                gmax = max(_dd_cubic_roots(K2, sf["Ra"], sf["Rs"]).real.max() for K2 in K2s)
+                assert gmax < 1e-9, (Tz, Sz, gmax)
+    assert set(seen) == {"stable", "fingers", "overturning"} and min(seen.values()) > 100, seen  # (diffusive: thin wedge, tested above)
+
+
+def test_salt_finger_regime_V7_text_names_the_kind_of_root_that_grows():  # V7 (C06, M1 text; failed at review+1, fixed in post-review loop 2)
+    # A top-heavy layer with stabilising salt and (11.46) not met can grow by a complex pair *or* by two real roots
+    # (the pair has merged on the real axis).  The verdict text must not call a real, monotonically growing root
+    # "oscillatory", and must not say that no steady/monotonic mode grows when one does.
+    d = 0.05
+    n_real = n_cplx = 0
+    for Tz, Sz in ((-0.015, -0.001), (-0.03, -0.0016), (-0.03, -0.001), (-0.025, -0.0008), (-0.02, -0.0012), (-0.012, -0.0009)):
+        r, sf = ch11.salt_finger_regime(Tz, Sz, d), ch11.salt_finger_unstable(Tz, Sz, d)
+        roots = _dd_cubic_roots(PI ** 2 / 2, sf["Ra"], sf["Rs"])
+        lead = max(roots, key=lambda q: q.real)
+        assert r["regime"] == "overturning" and sf["margin"] < 0 and lead.real > 0
+        is_real = abs(lead.imag) <= 1e-9 * abs(lead)
+        n_real, n_cplx = n_real + is_real, n_cplx + (not is_real)
+        assert ("oscillat" in r["text"]) == (not is_real), (Tz, Sz, lead, r["text"])
+        assert ("monotonic" in r["text"] and "(real)" in r["text"] and "a real root grows" in r["text"]) == is_real, r["text"]
+        assert ("no steady mode grows" in r["text"]) == (not is_real)  # false when a real root grows
+        assert "is not crossed" in r["text"] or not is_real  # (11.46) marks σ = 0 only; it is not "no growth"
+        assert abs(r["sigma_max"] - lead) < 1e-9 * abs(lead) or abs(r["sigma_max"] - lead.conjugate()) < 1e-9 * abs(lead)
+    assert n_real >= 2 and n_cplx >= 2  # both branches of the text are exercised
+    # the docstring's example of the real case: margin −47 717.7568, roots +16.890, +7.322, −142.8 (hand-expanded cubic)
+    sf = ch11.salt_finger_unstable(-0.03, -0.0016, d)
+    assert sf["margin"] == pytest.approx(-47717.7568, abs=5e-4)
+    roots = np.sort(_dd_cubic_roots(PI ** 2 / 2, sf["Ra"], sf["Rs"]).real)[::-1]
+    assert np.allclose(roots, [16.890, 7.322, -142.8], atol=0.05) and np.allclose(roots[:2], [16.890, 7.322], atol=5e-4)
+    assert "σ = 16.89 (real)" in ch11.salt_finger_regime(-0.03, -0.0016, d)["text"]
+    doc = ch11.salt_finger_regime.__doc__
+    assert "+16.890, +7.322, −142.8" in doc and "−47 718" in doc and "monotonic overturning" in doc
+
+
+def test_richardson_V7_shear_free_levels_take_the_sign_of_N2():  # V7 (C09, review M2; page 505 re-read)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # the 0/0 and x/0 paths must be silent
+        cases = ((0.0, -1.0, -math.inf, False), (0.0, 0.0, math.nan, False), (0.0, 1.0, math.inf, True),
+                 (2.0, 1.0, 0.25, False), (2.0, 1.0 + 1e-9, 0.25 * (1 + 1e-9), True), (2.0, -1.0, -0.25, False))
+        for Up, N2, Ri_want, ok in cases:
+            Ri = ch11.gradient_richardson(0.0, dUdz=Up, N2=N2)
+            v = ch11.miles_howard_stable(0.0, dUdz=Up, N2=N2)
+            assert np.ndim(Ri) == 0 and (math.isnan(Ri) if math.isnan(Ri_want) else Ri == pytest.approx(Ri_want, rel=1e-12))
+            assert v["guaranteed_stable"] is ok, (Up, N2, v)
+            assert v["guaranteed_stable"] == (N2 > 0.25 * Up ** 2)  # (11.67) before the division: N² > ¼(dU/dz)²
+            assert math.isnan(v["Ri_min"]) if math.isnan(Ri_want) else v["Ri_min"] == pytest.approx(Ri_want, rel=1e-12)
+        assert "statically unstable" in ch11.miles_howard_stable(0.0, dUdz=0.0, N2=-1.0)["text"]
+        assert "undefined" in ch11.miles_howard_stable(0.0, dUdz=0.0, N2=0.0)["text"]
+        z = np.linspace(-1, 1, 201)
+        v = ch11.miles_howard_stable(z, dUdz=z, N2=0.5 * z ** 2)  # Ri = ½ everywhere except 0/0 at z = 0
+        assert not v["guaranteed_stable"] and abs(v["z_min"]) < 1e-12 and math.isnan(v["Ri_min"])
+        v = ch11.miles_howard_stable(z, dUdz=z, N2=0.5 * z ** 2 + 1e-9)  # the same with N² > 0 at the shear-free level
+        assert v["guaranteed_stable"] and v["Ri_min"] == pytest.approx(0.5, rel=1e-6)
+        Ri = ch11.gradient_richardson(z, dUdz=z, N2=0.5 * z ** 2)
+        assert np.isnan(Ri[100]) and np.allclose(np.delete(Ri, 100), 0.5, rtol=1e-12)
+        Ri = ch11.gradient_richardson(z[98:103], dUdz=z[98:103], N2=np.array([1.0, 1.0, -1.0, 1.0, 1.0]))
+        assert Ri[2] == -np.inf and np.all(Ri[[0, 1, 3, 4]] > 0.25)
+        v = ch11.miles_howard_stable(z, dUdz=0.0, N2=-1.0)  # numbers broadcast against an array z
+        assert not v["guaranteed_stable"] and v["Ri_min"] == -np.inf
+        assert ch11.miles_howard_stable(z, dUdz=0.0, N2=1.0)["guaranteed_stable"]
+        # a jet centre (dU/dz = 0 at z = 0) in a layer that is statically unstable only near the centre
+        v = ch11.miles_howard_stable(z, dUdz=lambda q: -2 * q, N2=lambda q: 4 * q ** 2 - 0.5)
+        assert not v["guaranteed_stable"] and v["Ri_min"] == -np.inf and abs(v["z_min"]) < 1e-12
+
+
+def test_miles_howard_V1_shear_free_unstable_layer_really_has_the_exact_growing_mode():  # V1 (C09, M2; independent)
+    # U ≡ 0 between walls at z = ±1: (11.61) reduces to ψ″ + (N²/c² − k²)ψ = 0, ψ = sin(nπ(z + 1)/2), so
+    # c² = N²/(k² + n²π²/4): for N² = −1 a growing mode c = i/√(k² + n²π²/4) — the verdict "not guaranteed" is right;
+    # for N² = +1 only neutral internal waves, as (11.67) guarantees.
+    zero = lambda q: 0.0 * q  # noqa: E731
+    z = np.linspace(-1, 1, 101)
+    for k in (0.5, 1.5):
+        c = ST.taylor_goldstein_eigs(k, zero, zero, lambda q: -1.0 + 0.0 * q, domain=(-1, 1), N=60)
+        for n in (1, 2, 3):
+            exact = 1j / math.sqrt(k ** 2 + (n * PI / 2) ** 2)
+            assert np.min(np.abs(c - exact)) < 1e-8, (k, n, c[:4])
+        assert not ch11.miles_howard_stable(z, dUdz=zero, N2=lambda q: -1.0 + 0.0 * q)["guaranteed_stable"]
+        assert len(ST.taylor_goldstein_eigs(k, zero, zero, lambda q: 1.0 + 0.0 * q, domain=(-1, 1), N=60)) == 0
+        assert ch11.miles_howard_stable(z, dUdz=zero, N2=lambda q: 1.0 + 0.0 * q)["guaranteed_stable"]
+    # parabolic jet U = 1 − z², N² = a + 4z² (Ri = 1 + a/(4z²)): a < 0 → Ri = −inf at the centre and computed growth;
+    # a > 0 → Ri > 1 everywhere, +inf at the centre, and no unstable mode
+    U, Upp, Up = (lambda q: 1 - q ** 2), (lambda q: -2.0 + 0 * q), (lambda q: -2 * q)
+    for a, unstable in ((-0.5, True), (0.5, False)):
+        N2 = lambda q, a=a: a + 4 * q ** 2  # noqa: E731
+        v = ch11.miles_howard_stable(z, dUdz=Up, N2=N2)
+        assert v["guaranteed_stable"] is (not unstable)
+        for k in (1.0, 2.0):
+            c = ST.taylor_goldstein_eigs(k, U, Upp, N2, domain=(-1, 1), N=80)
+            assert (len(c) > 0 and c.imag.max() > 0.1) if unstable else len(c) == 0, (a, k, c)
+            assert np.all(ch11.in_howard_semicircle(c, 0.0, 1.0)) or not unstable
+
+
+def test_kh_degenerate_V7_uniform_fluid_is_neutral_and_top_heavy_band_starts_at_zero():  # V7 (C02, review Should-fix 6)
+    k = np.geomspace(1e-3, 1e4, 200)
+    # a uniform fluid moving as one: c = U at every k (11.18) — nothing is unstable
+    assert np.all(ch11.kh_growth_rate(k, 1.0, 1.0, 1.0, 1.0) == 0.0)
+    cp, cm = ch11.kh_phase_speed(k, 1.0, 1.0, 1.0, 1.0)
+    assert np.allclose(cp, 1.0) and np.allclose(cm, 1.0)
+    assert ch11.kh_critical_k(1.0, 1.0, 1.0, 1.0) == math.inf and ch11.kh_critical_k(-2.0, -2.0, 3.0, 3.0) == math.inf
+    assert all(math.isnan(v) for v in ch11.kh_unstable_band(0.0, 1.0, 1.0))
+    assert all(math.isnan(v) for v in ch11.kh_unstable_band(0.0, 1.0, 1.0, surface_tension=0.07))
+    # the neighbours of the degenerate point keep their meaning
+    assert ch11.kh_critical_k(1.0, 1.0, 1.0, 2.0) == math.inf  # bottom-heavy, no shear: stable at every k
+    assert ch11.kh_critical_k(1.0, 0.0, 1.0, 1.0) == 0.0 and ch11.kh_unstable_band(1.0, 1.0, 1.0) == (0.0, math.inf)  # (11.20)
+    assert np.all(ch11.kh_growth_rate(k, 1.0, 0.0, 1.0, 1.0) > 0)
+    assert ch11.kh_critical_k(1.0, 1.0, 2.0, 1.0) == 0.0 and ch11.kh_unstable_band(0.0, 2.0, 1.0) == (0.0, math.inf)  # RT
+    assert np.all(ch11.kh_growth_rate(k, 0.0, 0.0, 2.0, 1.0) > 0)
+    # top-heavy with surface tension, no shear: unstable for 0 < k < √(gΔρ/σ_s) (the lower root is −k₂, not a band edge)
+    s = 0.07
+    k1, k2 = ch11.kh_unstable_band(0.0, 2.0, 1.0, surface_tension=s)
+    assert k1 == 0.0 and k2 == pytest.approx(math.sqrt(G0 * 1.0 / s), rel=1e-14) and k2 == pytest.approx(11.83617, abs=1e-5)
+    assert k2 == pytest.approx(2 * PI / ch11.rayleigh_taylor_cutoff(s, 2.0, 1.0), rel=1e-12)
+    inside = k2 * np.geomspace(1e-9, 1 - 1e-9, 300)
+    assert np.all(ch11.kh_growth_rate(inside, 0.0, 0.0, 2.0, 1.0, surface_tension=s) > 0)  # the clip hides nothing: all of (0, k₂)
+    assert np.all(ch11.kh_growth_rate(k2 * np.geomspace(1 + 1e-9, 1e4, 100), 0.0, 0.0, 2.0, 1.0, surface_tension=s) == 0)
+    # top-heavy with shear and tension: still (0, k₂), k₂ the positive root of σ_s k² − Sk − g(ρ₁ − ρ₂) = 0
+    k1, k2 = ch11.kh_unstable_band(3.0, 2.0, 1.0, surface_tension=s)
+    S = 2.0 * 1.0 * 9.0 / 3.0
+    assert k1 == 0.0 and k2 == pytest.approx((S + math.sqrt(S ** 2 + 4 * s * G0)) / (2 * s), rel=1e-14)
+    assert ch11.kh_discriminant_terms(k2, 3.0, 0.0, 2.0, 1.0, surface_tension=s)["total"] == pytest.approx(0.0, abs=1e-12)
+    assert np.all(ch11.kh_growth_rate(k2 * np.geomspace(1e-9, 1 - 1e-9, 300), 3.0, 0.0, 2.0, 1.0, surface_tension=s) > 0)
+    assert ch11.kh_growth_rate(k2 * (1 + 1e-9), 3.0, 0.0, 2.0, 1.0, surface_tension=s) == 0.0
+    # equal densities with shear and tension: (0, S/σ_s); a bottom-heavy band is not clipped (both roots positive)
+    k1, k2 = ch11.kh_unstable_band(1.0, 1.0, 1.0, surface_tension=s)
+    assert k1 == 0.0 and k2 == pytest.approx(0.5 / s, rel=1e-14)
+    b1, b2 = ch11.kh_unstable_band(8.0, 1.2, 1000.0, surface_tension=0.074)
+    assert 0 < b1 < b2 and ch11.kh_growth_rate(0.999 * b1, 8.0, 0.0, 1.2, 1000.0, surface_tension=0.074) == 0.0
+    assert ch11.kh_growth_rate(1.001 * b1, 8.0, 0.0, 1.2, 1000.0, surface_tension=0.074) > 0
+
+
+def test_benard_stably_stratified_V1_complex_pairs_and_their_threshold():  # V1 (C03/C05, review Should-fix 5)
+    sp_, sm_ = ch11.benard_free_free_sigma(2.2, -2000.0, 7.0)
+    assert isinstance(sp_, complex) and sm_ == sp_.conjugate() and sp_.imag > 0
+    assert sp_ == pytest.approx(complex(-58.8384, 51.5671), abs=1e-4)
+    a2 = PI ** 2 + 2.2 ** 2
+    for s in (sp_, sm_):  # both solve (σ + a²)(σ/Pr + a²)a² = Ra K²
+        assert abs((s + a2) * (s / 7.0 + a2) * a2 - (-2000.0) * 2.2 ** 2) < 1e-9 * a2 ** 3
+    assert sp_.real == pytest.approx(-a2 * (1 + 7.0) / 2, rel=1e-13)  # damped: Re σ = −a²(1 + Pr)/2
+    lo, hi = ch11.benard_free_free_sigma(2.2, -50.0, 7.0)
+    assert not isinstance(lo, complex) and (lo, hi) == pytest.approx((-16.0343, -101.6425), abs=1e-4)
+    for K, Pr in ((PI / math.sqrt(2), 7.0), (PI / math.sqrt(2), 0.7), (2.2, 7.0), (4.0, 0.1)):
+        a2 = PI ** 2 + K ** 2
+        Ra_t = -a2 ** 3 * (1 - Pr) ** 2 / (4 * Pr * K ** 2)  # discriminant a⁴(1 − Pr)² + 4 Pr Ra K²/a² = 0
+        up, dn = ch11.benard_free_free_sigma(K, Ra_t * (1 - 1e-6), Pr), ch11.benard_free_free_sigma(K, Ra_t * (1 + 1e-6), Pr)
+        assert np.isreal(up[0]) and np.isreal(up[1]) and np.iscomplexobj(dn[0]) and abs(dn[0].imag) > 0, (K, Pr)
+        # the Chebyshev solver with free walls contains the n = 1 pair (sign of Im arbitrary) …
+        spec = np.asarray(ch11.benard_growth_rate(K, 3.0 * Ra_t, Pr, bc=("free", "free"), all=True, return_complex=True))
+        ex = ch11.benard_free_free_sigma(K, 3.0 * Ra_t, Pr)[0]
+        assert ex.imag > 0 and min(np.min(np.abs(spec - ex)), np.min(np.abs(spec - ex.conjugate()))) < 1e-7 * abs(ex), (K, Pr, ex)
+        # … and its leading mode is the least-damped closed-form root over the vertical modes n = 1 … 6
+        cand = [complex(s) for n in range(1, 7) for s in ch11.benard_free_free_sigma(K, 3.0 * Ra_t, Pr, n=n)]
+        best = max(cand, key=lambda s: s.real)
+        num = ch11.benard_growth_rate(K, 3.0 * Ra_t, Pr, bc=("free", "free"), return_complex=True)
+        assert abs(num.real - best.real) < 1e-7 * abs(best) and abs(abs(num.imag) - abs(best.imag)) < 1e-6 * abs(best), (K, Pr, num, best)
+    a2 = 1.5 * PI ** 2
+    assert -a2 ** 3 * 36 / (4 * 7 * PI ** 2 / 2) == pytest.approx(-845.4, abs=0.05)  # docstring: Pr = 7 at K = π/√2
+    assert -a2 ** 3 * 0.09 / (4 * 0.7 * PI ** 2 / 2) == pytest.approx(-21.13, abs=0.005)  # Pr = 0.7
+    # rigid–rigid, heated from above: the default drops Im σ (documented); return_complex shows it
+    for K, Ra, Pr, re_, im_ in ((3.0, -2000.0, 1.0, -28.6456, 26.9938), (3.0, -5000.0, 0.7, -23.3965, 37.8442),
+                               (3.0, -2000.0, 7.0, -44.9839, 0.0)):
+        c = ch11.benard_growth_rate(K, Ra, Pr, return_complex=True)
+        assert c.real == pytest.approx(re_, abs=1e-4) and abs(c.imag) == pytest.approx(im_, abs=1e-4), (K, Ra, Pr, c)
+        assert ch11.benard_growth_rate(K, Ra, Pr) == pytest.approx(c.real, rel=1e-12) and c.real < 0
+    for Ra in (500.0, 2500.0):  # heated from below: exchange of stabilities, the leading mode is real
+        assert abs(ch11.benard_growth_rate(3.0, Ra, 0.7, return_complex=True).imag) < 1e-8
+
+
+def test_benard_marginal_Ra_det_V7_error_hint_names_a_sufficient_Ra_max_per_mode():  # V7 (review Should-fix 9)
+    for K, mode, reach in ((0.5, "even", "K ≥ 0.6"), (0.3, "even", "K ≥ 0.6"), (3.9, "odd", "K ≥ 4.0"), (3.0, "odd", "K ≥ 4.0"),
+                           (2.0, "odd", "K ≥ 4.0"), (1.2, "odd", "K ≥ 4.0"), (1.0, "odd", "K ≥ 4.0"), (0.5, "odd", "K ≥ 4.0")):
+        with pytest.raises(ValueError) as e:
+            ch11.benard_marginal_Ra_det(K, mode=mode)
+        msg = str(e.value)
+        assert reach in msg and f"the {mode} root" in msg, msg
+        est = float(re.search(r"root at Ra ≈ ([0-9.e+]+)", msg).group(1))
+        Ra_max = float(re.search(r"Ra_max ≥ ([0-9.e+]+)", msg).group(1))
+        cheb = ch11.benard_marginal_Ra(K, mode=mode)
+        assert rel(est, cheb) < 1e-5 and 1.15 * cheb < Ra_max < 1.25 * cheb
+        assert rel(ch11.benard_marginal_Ra_det(K, mode=mode, Ra_max=Ra_max), cheb) < 1e-8, (K, mode)  # the hint works
+    assert rel(ch11.benard_marginal_Ra_det(1.0, mode="odd", Ra_max=2e5), 163127.6) < 1e-6  # docstring table
+    assert rel(ch11.benard_marginal_Ra_det(0.5, mode="even", Ra_max=3e4), 21009.8) < 1e-6
+    doc = ch11.benard_marginal_Ra_det.__doc__
+    assert "K ≥ 0.6" in doc and "K ≥ 4.0" in doc and "≥ 1e5" not in doc  # the loop-2 imprecise hint is gone
+
+
+def test_docstrings_V7_post_review_numbers_are_live_and_labels_say_what_is_tested():  # V7 (review Should-fix 1–4)
+    def label(fn):
+        return fn.__doc__[fn.__doc__.index("Label:"):]
+
+    assert ch11.salt_finger_unstable(0.01, 0.002, 0.05)["lhs"] == pytest.approx(61233.19, abs=0.005)  # default g = G0
+    assert ch11.salt_finger_unstable(0.01, 0.002, 0.05, g=9.81)["lhs"] == pytest.approx(61254.11, abs=0.005)
+    assert "61 233.19" in ch11.salt_finger_unstable.__doc__ and "61 254.11" in ch11.salt_finger_unstable.__doc__
+    nc = ch11.poiseuille_neutral_curve(Re_values=[1e4], cache=False)  # live: the Re = 10⁴ unstable band
+    assert nc["k_lower"][0] == pytest.approx(0.7972, abs=5e-5) and nc["k_upper"][0] == pytest.approx(1.0947, abs=5e-5)
+    assert "0.7972 to 1.0947" in ch11.poiseuille_neutral_curve.__doc__ and "1.07" not in ch11.poiseuille_neutral_curve.__doc__
+    for kk, sign in ((0.79, -1), (0.80, 1), (1.09, 1), (1.10, -1)):  # an independent bracket of both edges (OS solver)
+        assert np.sign(ST.os_mode(kk, 1e4, POIS["U"], POIS["Upp"], N=80)["c"].imag) == sign, kk
+    # Tollmien's sin profile near the margin 2b → π.  Corrected on evidence in post-review loop 2: this test used to pin the
+    # real-axis values 0.011389 (N = 80) / 0.011872 (N = 120), their 4 % N-dependence and the label "qualitative for
+    # π/2 < b ≲ 1.8".  With the solver on the complex path the value no longer depends on N (2e-10 between N = 80 and 120)
+    # and equals an independent shooting solution (test_sin_profile_V1_…): the old numbers were under-resolved, both of them.
+    g80, g120 = ch11.sin_profile_max_growth(1.7), ch11.sin_profile_max_growth(1.7, N=120)
+    assert g80 == pytest.approx(0.0118854, abs=5e-8) and abs(g120 - g80) < 1e-8
+    assert abs(g80 - 0.011389) > 4e-4 and abs(g80 - 0.011872) > 1e-5  # neither of the old real-axis numbers
+    b80, b120 = ch11.sin_profile_max_growth(2.0), ch11.sin_profile_max_growth(2.0, N=120)
+    assert b80 == pytest.approx(0.0596099, abs=5e-8) and abs(b80 - b120) < 1e-8
+    assert ch11.sin_profile_max_growth(1.6) == pytest.approx(0.0013462, abs=5e-8)  # the real-axis solver returned 0 here
+    assert ch11.sin_profile_max_growth(3.0) == pytest.approx(0.1573130, abs=5e-8)
+    doc = ch11.sin_profile_max_growth.__doc__
+    assert "0.0076" not in doc and "0.0118854" in doc and "0.0013462" in doc and "0.0596099" in doc and "0.1573130" in doc
+    assert label(ch11.sin_profile_max_growth).startswith("Label: converged") and "qualitative" not in label(ch11.sin_profile_max_growth)
+    assert label(ch11.lorenz_largest_lyapunov).startswith("Label: qualitative")
+    assert label(ch11.potential_well_demo).startswith("Label: conserved")
+    assert label(ch11.poiseuille_neutral_curve).startswith("Label: converged")
+
+
+def test_taylor_critical_V5_corotation_asymptote_as_mu_to_1():  # V5 (C07, review Should-fix 7; Wikipedia, see SOURCES.md)
+    bj = json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["taylor_narrow_gap_corotation"]
+    T1, coeff = bj["Ta_c_mu1"], bj["coefficient"]
+    assert (T1, coeff) == (1707.76, 0.00761)
+    # the source's Taylor number is −2AΩ₁d⁴(1 + μ)/ν² = ½(1 + μ) × the book's (11.52) Ta = −4AΩ₁d⁴/ν²
+    for mu, tol in ((1.0, 1e-5), (0.9, 1e-5), (0.75, 1e-5), (0.5, 1e-5), (0.25, 1e-3), (0.0, 1e-3)):
+        ours = 0.5 * (1.0 + mu) * ch11.taylor_critical(mu)["Ta_c"]
+        cited = T1 * (1.0 - coeff * ((1.0 - mu) / (1.0 + mu)) ** 2)
+        assert rel(ours, cited) < tol, (mu, ours, cited)
+    # the leading coefficient itself, measured from our Ta_c close to μ = 1
+    t1 = ch11.taylor_critical(1.0)["Ta_c"]
+    for mu in (0.9, 0.8):
+        c = (1.0 - 0.5 * (1.0 + mu) * ch11.taylor_critical(mu)["Ta_c"] / t1) / ((1.0 - mu) / (1.0 + mu)) ** 2
+        assert c == pytest.approx(coeff, abs=1.5e-5), (mu, c)  # ours 0.007602…0.007603; the source prints 0.00761
+
+
+# ======================================================================================================================
+# Post-review loop 2: Rayleigh's equation up to the neutral point (complex path), the Orr–Sommerfeld far field
+# (wavelength-scaled box), the Blasius critical point, the Bénard leading mode.  Independent routes written here:
+#   * `_ray_shoot`      — Rayleigh (11.81) by two-sided integration on the real axis + Newton (own code, own matching point);
+#   * `_cm_*`           — Orr–Sommerfeld (11.79) by the compound-matrix method (Ng & Reid): the six 2 × 2 minors of two
+#                         solutions, started on the exact free-stream solutions e^{−k|y|}, e^{−γ|y|} — no box, no collocation;
+#   * `_blasius_exact`  — the Blasius profile from a fresh integration of f‴ + ½ff″ = 0;
+#   * `_benard_det_root`— the Bénard growth rate as a root of the 6 × 6 determinant of exponential solutions (mpmath, 30 digits).
+# ======================================================================================================================
+def _sech2(y):
+    return 1.0 / math.cosh(y) ** 2
+
+
+def _ray_shoot(k, U, Upp, c0, lo, hi, free, rtol=1e-11, mid=None):
+    """Growing Rayleigh eigenvalue near c0: integrate (11.81) from both ends to an off-centre point, Newton on the Wronskian.
+
+    free : bool, or (free_lo, free_hi) — a free end starts on e^{−k|y|}, a wall on φ = 0.  mid : matching point (default
+    just off the centre; it must sit near the shear region, or the growing solution swamps the Wronskian)."""
+    mid = lo + 0.5137 * (hi - lo) if mid is None else mid
+    free_lo, free_hi = (free, free) if isinstance(free, bool) else free
+
+    def side(c, y0, sgn):
+        f0 = [1 + 0j, sgn * k + 0j] if (free_lo if sgn > 0 else free_hi) else [0j, 1 + 0j]
+        s = solve_ivp(lambda y, f: [f[1], (k * k + Upp(y) / (U(y) - c)) * f[0]], (y0, mid), f0, method="DOP853", rtol=rtol,
+                      atol=1e-14)
+        return s.y[:, -1] / np.max(np.abs(s.y[:, -1]))
+
+    def F(c):
+        a, b = side(c, lo, 1.0), side(c, hi, -1.0)
+        return a[1] * b[0] - a[0] * b[1]
+
+    c = complex(c0)
+    for _ in range(30):
+        dc = F(c) / ((F(c + 1e-6) - F(c - 1e-6)) / 2e-6)
+        c -= dc
+        if abs(dc) < 1e-10:
+            return c
+    raise RuntimeError("_ray_shoot: Newton did not converge")
+
+
+def _ray_shoot_profile(pr, k, c0, y_far=25.0):
+    if pr["bc"] == "decay":
+        return _ray_shoot(k, pr["U"], pr["Upp"], c0, -y_far, y_far, True)
+    return _ray_shoot(k, pr["U"], pr["Upp"], c0, pr["domain"][0], pr["domain"][1], False)
+
+
+def _contour(pr, k, **kw):
+    ym = pr.get("y_max")
+    if pr["bc"] == "decay":
+        ym = max(float(ym), ST.decay_box(k))
+    kw.setdefault("N", 120)
+    return ST.rayleigh_eigs_contour(k, pr["U"], pr["Up"], pr["Upp"], domain=pr["domain"], bc=pr["bc"], y_max=ym,
+                                    map_scale=pr.get("map_scale"), **kw)
+
+
+def _cm_rhs(k, Re, c, U, Upp, shift):
+    def rhs(y, z):  # φ⁗ = Aφ″ + Bφ is (11.79); z = the six minors of (φ₁, φ₂) times e^{shift·y}
+        A = 2 * k * k + 1j * k * Re * (U(y) - c)
+        B = -k ** 4 - 1j * k * Re * ((U(y) - c) * k * k + Upp(y))
+        return [z[1] + shift * z[0], z[2] + z[3] + shift * z[1], z[4] + A * z[1] + shift * z[2], z[4] + shift * z[3],
+                z[5] + A * z[3] - B * z[0] + shift * z[4], -B * z[1] + shift * z[5]]
+    return rhs
+
+
+def _cm_far(k, Re, c, U, Upp, Y, U_inf, side=1, rtol=1e-10):
+    """Minors at y = 0 of the two solutions that decay as y → side·∞ (started at side·Y on e^{−k|y|}, e^{−γ|y|})."""
+    g = cmath.sqrt(k * k + 1j * k * Re * (U_inf - c))  # γ² = k² + ikRe(U∞ − c), Re γ > 0
+    g = -g if g.real < 0 else g
+    a, b = -side * k, -side * g
+    z0 = np.array([b - a, b * b - a * a, b ** 3 - a ** 3, a * b * (b - a), a * b * (b * b - a * a), a * a * b * b * (b - a)])
+    sol = solve_ivp(_cm_rhs(k, Re, c, U, Upp, -(a + b)), (side * Y, 0.0), z0 / np.max(np.abs(z0)), method="DOP853",
+                    rtol=rtol, atol=rtol * 1e-3)
+    assert sol.success
+    return sol.y[:, -1] / np.max(np.abs(sol.y[:, -1]))
+
+
+def _cm_secant(F, c0, tol=1e-9, maxit=60):
+    ca, cb = complex(c0), complex(c0) + 1e-4 * (1 + 1j)
+    fa, fb = F(ca), F(cb)
+    for _ in range(maxit):
+        cn = cb - fb * (cb - ca) / (fb - fa)
+        if abs(cn - cb) < tol:
+            return cn
+        ca, fa, cb, fb = cb, fb, cn, F(cn)
+    raise RuntimeError("_cm_secant did not converge")
+
+
+def _cm_bickley(k, Re, guess):  # sinuous mode: φ′(0) = φ‴(0) = 0 for both solutions ⇔ minor φ₁′φ₂‴ − φ₁‴φ₂′ = 0
+    Upp = lambda y: (4 * math.tanh(y) ** 2 - 2 * _sech2(y)) * _sech2(y)  # noqa: E731
+    return _cm_secant(lambda c: _cm_far(k, Re, c, _sech2, Upp, 16.0, 0.0)[4], guess)
+
+
+def _cm_tanh(k, Re, guess):  # both sides to y = 0; the 4 × 4 matching determinant by Laplace expansion in the minors
+    Upp = lambda y: -2 * math.tanh(y) * _sech2(y)  # noqa: E731
+
+    def F(c):
+        r, l_ = _cm_far(k, Re, c, math.tanh, Upp, 16.0, 1.0, 1), _cm_far(k, Re, c, math.tanh, Upp, 16.0, -1.0, -1)
+        return l_[0] * r[5] - l_[1] * r[4] + l_[2] * r[3] + l_[3] * r[2] - l_[4] * r[1] + l_[5] * r[0]
+    return _cm_secant(F, guess)
+
+
+_BLASIUS_CACHE: dict = {}
+
+
+def _blasius_exact():
+    """U(y), U″(y) of the Blasius layer in δ* units from a fresh integration (independent of ch11.blasius_base)."""
+    if not _BLASIUS_CACHE:
+        def run(s, dense=False):
+            return solve_ivp(lambda e, f: [f[1], f[2], -0.5 * f[0] * f[2]], (0, 30), [0, 0, s], method="DOP853", rtol=1e-13,
+                             atol=1e-15, dense_output=dense)
+        s = brentq(lambda s: run(s).y[1, -1] - 1.0, 0.3, 0.36, xtol=1e-15)
+        sol = run(s, True)
+        ds = 30.0 - sol.sol(30.0)[0]  # δ*·√(U∞/νx) = lim (η − f)
+        _BLASIUS_CACHE.update(fpp0=s, ds=ds, U=lambda y: sol.sol(min(y * ds, 30.0))[1],
+                              Upp=lambda y: ds * ds * (lambda f: -0.5 * f[0] * f[2])(sol.sol(min(y * ds, 30.0))))
+    return _BLASIUS_CACHE
+
+
+def _cm_blasius(k, Re, guess):  # wall: φ(0) = φ′(0) = 0 for the combination ⇔ minor φ₁φ₂′ − φ₁′φ₂ = 0
+    b = _blasius_exact()
+    return _cm_secant(lambda c: _cm_far(k, Re, c, b["U"], b["Upp"], 14.0, 1.0)[0], guess)
+
+
+def _benard_det_root(K, Ra, Pr, bc, guess):
+    """σ from the 6 × 6 determinant of W = Σ e^{±q_j z}: (L − σ)(L − σ/Pr)L W = −Ra K² W, L = D² − K², x = q² − K² the
+    three roots of x(x − σ)(x − σ/Pr) + Ra K² = 0; rows W = 0, T ∝ L(L − σ/Pr)W = 0 and DW = 0 (rigid) or D²W = 0 (free)."""
+    import mpmath as mp
+    with mp.workdps(30):
+        K_, Ra_, Pr_ = mp.mpf(K), mp.mpf(Ra), mp.mpf(Pr)
+
+        def det(sig):
+            xs = mp.polyroots([1, -(sig + sig / Pr_), sig * sig / Pr_, Ra_ * K_ * K_], maxsteps=200, extraprec=200)
+            rows = []
+            for zb, kind in ((-mp.mpf(1) / 2, bc[0]), (mp.mpf(1) / 2, bc[1])):
+                rW, rT, rD = [], [], []
+                for x in xs:
+                    q = mp.sqrt(x + K_ * K_)
+                    for s in (1, -1):
+                        e = mp.exp(s * q * zb)
+                        rW.append(e)
+                        rT.append(x * (x - sig / Pr_) * e)
+                        rD.append(s * q * e if kind == "rigid" else q * q * e)
+                rows += [rW, rT, rD]
+            return mp.det(mp.matrix(rows))
+        g = mp.mpf(guess)
+        r = mp.findroot(det, (g, g * (1 + mp.mpf("1e-6")) + mp.mpf("1e-7")), solver="secant", tol=1e-20, maxsteps=80,
+                        verify=False)  # (mpmath's own check is absolute; the determinant is O(1e4 … 1e30))
+        assert abs(det(r)) < 1e-10 * abs(det(r * (1 + mp.mpf("1e-6")) + mp.mpf("1e-7")))  # a root, relative to its slope
+        assert abs(r.imag) < 1e-15 * max(1, abs(r.real))
+        return float(r.real)
+
+
+def test_compound_matrix_helper_V5_reproduces_orszag():  # V5 (the independent OS route itself is validated first)
+    U, Upp = (lambda y: 1 - y * y), (lambda y: -2.0)
+
+    def F(c):  # channel, even mode: from the wall y = 1 (only φ₁″φ₂‴ − φ₁‴φ₂″ ≠ 0) to the centre
+        s = solve_ivp(_cm_rhs(1.0, 1e4, c, U, Upp, 0.0), (1.0, 0.0), np.array([0, 0, 0, 0, 0, 1], dtype=complex),
+                      method="DOP853", rtol=1e-10, atol=1e-13)
+        return s.y[4, -1] / np.max(np.abs(s.y[:, -1]))
+    assert abs(_cm_secant(F, 0.2375 + 0.0037j) - ORSZAG_C) < 2e-8
+    b = _blasius_exact()
+    assert b["fpp0"] == pytest.approx(0.332057, abs=1e-6) and b["ds"] == pytest.approx(1.7207877, abs=1e-6)  # Howarth
+    pr = ch11.parallel_profile("blasius")
+    ys = np.linspace(0.0, 9.0, 37)
+    assert max(abs(b["U"](y) - float(pr["U"](y))) for y in ys) < 1e-9 and max(abs(b["Upp"](y) - float(pr["Upp"](y))) for y in ys) < 1e-8
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Change 2 — Rayleigh's equation on a complex path (core.stability.rayleigh_eigs_contour, rayleigh_shoot)
+# ---------------------------------------------------------------------------------------------------------------------
+def test_rayleigh_contour_V1_exact_neutral_points_are_approached_linearly():  # V1 (C12, N127: exact neutral modes)
+    # Exact neutral modes (verified symbolically in test_rayleigh_V1_analytic_neutral_modes…): jet sinuous k = 2 and varicose
+    # k = 1 with c = 2/3; tanh layer k = 1, c = 0; sin y between walls at ±b: φ = cos(πy/2b), c = 0, k_n = √(1 − (π/2b)²).
+    y, kk = sp.symbols("y k", positive=True)
+    b_ = sp.symbols("b", positive=True)
+    phi = sp.cos(sp.pi * y / (2 * b_))
+    res = sp.sin(y) * (sp.diff(phi, y, 2) - kk ** 2 * phi) + sp.sin(y) * phi  # (11.81) with U = sin y, c = 0
+    assert sp.simplify(res.subs(kk, sp.sqrt(1 - (sp.pi / (2 * b_)) ** 2))) == 0 and phi.subs(y, b_) == 0
+    for pr, par, kn, crn in ((BICK, "even", 2.0, 2 / 3), (BICK, "odd", 1.0, 2 / 3), (TANH, None, 1.0, 0.0),
+                             (ch11.parallel_profile("sin", b=PI), None, math.sqrt(3) / 2, 0.0),
+                             (ch11.parallel_profile("sin", b=1.7), None, math.sqrt(1 - (PI / 3.4) ** 2), 0.0)):
+        slopes = []
+        for dk in (0.01, 0.003, 0.001):
+            c = _contour(pr, kn - dk, parity=par)
+            assert len(c) == 1 and c[0].imag > 1e-4, (pr["name"], par, dk)  # a growing mode right up to k_n − 0.001
+            assert abs(c[0].real - crn) < 0.2 * dk  # c_r → the exact neutral phase speed
+            slopes.append(c[0].imag / dk)
+        assert max(slopes) / min(slopes) < 1.05, (pr["name"], par, slopes)  # c_i ∝ (k_n − k): a simple zero at k_n
+        for dk in (0.01, 0.3):
+            assert len(_contour(pr, kn + dk, parity=par)) == 0  # nothing grows beyond the neutral wavenumber
+        if pr is TANH:
+            assert slopes[-1] == pytest.approx(2 / PI, rel=1e-3)  # observed 0.63679 at dk = 0.001 (0.63665 at 0.0002)
+    assert math.sqrt(1 - (PI / 3.4) ** 2) == pytest.approx(0.382398, abs=5e-7)  # the neutral k quoted for b = 1.7
+
+
+def test_rayleigh_contour_V3_unchanged_by_degree_and_path_and_V1_equal_to_independent_shooting():  # V3 + V1 (C12; two routes)
+    def Ua(q):  # an asymmetric layer: tanh y + ½ sech² y (c_r ≠ 0, no parity)
+        return np.tanh(q) + 0.5 / np.cosh(q) ** 2
+    asym = dict(U=Ua, Up=lambda q: (1 - np.tanh(q)) / np.cosh(q) ** 2,
+                Upp=lambda q: (-2 * np.tanh(q) - 1 / np.cosh(q) ** 2 + 2 * np.tanh(q) ** 2) / np.cosh(q) ** 2,
+                domain=(-1.0, 1.0), bc="decay", y_max=30.0, map_scale=1.0, name="asym")
+    h, ys = 1e-5, np.linspace(-3, 3, 13)
+    assert np.max(np.abs((asym["U"](ys + h) - asym["U"](ys - h)) / (2 * h) - asym["Up"](ys))) < 1e-9
+    assert np.max(np.abs((asym["Up"](ys + h) - asym["Up"](ys - h)) / (2 * h) - asym["Upp"](ys))) < 1e-9
+    pins = {("bickley", 1.7): 0.61474 + 0.03806j, ("bickley", 1.8): 0.63235 + 0.02432j, ("bickley", 1.9): 0.64965 + 0.01163j}
+    worst = 0.0
+    for pr, par, k in ((BICK, "even", 1.7), (BICK, "even", 1.8), (BICK, "even", 1.9), (BICK, "odd", 0.9), (BICK, "odd", 0.05),
+                       (TANH, None, 0.9), (ch11.parallel_profile("sin", b=PI), None, 0.8),
+                       (ch11.parallel_profile("shear_layer_walls"), None, 1.5), (asym, None, 0.2), (asym, None, 0.95)):
+        c = _contour(pr, k, parity=par)
+        assert len(c) >= 1, (pr["name"], k)
+        c = c[0]
+        # another degree and another path: the docstring's claim is 1e-7 (observed ≤ 3e-9, except 2.6e-8 for the thin
+        # walled layer tanh(y/0.3) with delta = 0.3 — its own singularity is only 0.3π/2 = 0.47 from the real axis)
+        for kw in (dict(N=180, delta=0.1), dict(N=120, delta=0.3)):
+            assert abs(_contour(pr, k, parity=par, **kw)[0] - c) < 1e-7, (pr["name"], k, kw)
+        mine = _ray_shoot_profile(pr, k, c + 1e-3 * (1 - 1j), y_far=max(25.0, 6.0 / k) if pr["bc"] == "decay" else 0.0)
+        theirs = ST.rayleigh_shoot(k, pr["U"], pr["Upp"], c + 1e-3, domain=pr["domain"], bc=pr["bc"],
+                                   y_max=max(pr["y_max"], ST.decay_box(k)) if pr["bc"] == "decay" else None)
+        assert theirs["converged"] and theirs["residual"] < 1e-8
+        worst = max(worst, abs(mine - c), abs(theirs["c"] - c))
+        assert abs(mine - c) < 1e-7 and abs(theirs["c"] - c) < 1e-7, (pr["name"], k, c, mine, theirs["c"])
+        if (pr["name"], k) in pins:
+            assert abs(c - pins[(pr["name"], k)]) < 6e-6
+    assert worst < 1e-8, worst
+    # the defect this replaces: on the real axis the N-filter returns nothing at k = 1.8, 1.9 (true c_i = 0.0243, 0.0116)
+    for k in (1.8, 1.9):
+        assert len(ST.rayleigh_eigs(k, BICK["U"], BICK["Upp"], N=120, bc="decay", y_max=40.0, map_scale=1.0, unstable_only=True,
+                                    tol=1e-4)) == 0
+    old17 = ST.rayleigh_eigs(1.7, BICK["U"], BICK["Upp"], N=120, bc="decay", y_max=40.0, map_scale=1.0, unstable_only=True, tol=1e-4)[0]
+    assert 2e-4 < abs(old17 - pins[("bickley", 1.7)]) < 3e-4  # and is 2.6e-4 off at k = 1.7
+
+
+def test_rayleigh_shoot_V1_guards_parity_tolerance_and_no_mode_means_not_converged():  # V1 + V3 (core.stability.rayleigh_shoot)
+    with pytest.raises(ValueError):
+        ST.rayleigh_shoot(0.0, TANH["U"], TANH["Upp"], 0.3j, bc="decay")
+    with pytest.raises(ValueError):
+        ST.rayleigh_shoot(0.5, TANH["U"], TANH["Upp"], 0.3j, bc="nonsense")
+    a = ST.rayleigh_shoot(0.5, TANH["U"], TANH["Upp"], 0.3j, bc="decay")
+    b = ST.rayleigh_shoot(0.5, TANH["U"], TANH["Upp"], 0.3j, bc="decay", rtol=1e-7)
+    assert a["converged"] and abs(a["c"] - b["c"]) < 1e-7 and abs(a["c"].real) < 1e-10 and a["iterations"] <= 10
+    assert abs(a["c"] - _ray_shoot(0.5, TANH["U"], TANH["Upp"], 0.3j, -25.0, 25.0, True)) < 1e-8  # my integration
+    assert abs(a["c"] - ST.rayleigh_shoot(0.5, TANH["U"], TANH["Upp"], 0.3j, bc="decay", y_max=60.0)["c"]) < 1e-8  # box-free
+    # parity: the sinuous / varicose jet modes from half the domain equal the two-sided solve
+    for par, k, guess in (("even", 1.0, 0.47 + 0.16j), ("odd", 0.5, 0.75 + 0.1j)):
+        half = ST.rayleigh_shoot(k, BICK["U"], BICK["Upp"], guess, bc="decay", y_max=40.0, parity=par)
+        full = ST.rayleigh_shoot(k, BICK["U"], BICK["Upp"], half["c"] + 1e-3, bc="decay", y_max=40.0)
+        assert half["converged"] and full["converged"] and abs(half["c"] - full["c"]) < 1e-8, (par, half, full)
+    with pytest.raises(ValueError):
+        ST.rayleigh_shoot(1.0, BICK["U"], BICK["Upp"], 0.5 + 0.1j, bc="decay", parity="sideways")
+    # where no growing mode exists the answer is "not converged" with c = nan — never a number
+    for pr, k, guess in ((POIS, 1.0, 0.3 + 0.05j), (TANH, 1.2, 0.05j), (ch11.parallel_profile("couette"), 1.0, 0.02j)):
+        r = ST.rayleigh_shoot(k, pr["U"], pr["Upp"], guess, domain=pr["domain"], bc=pr["bc"])
+        assert not r["converged"] and math.isnan(r["c"].real) and math.isnan(r["c"].imag), (pr["name"], r)
+
+
+def test_rayleigh_contour_V4_its_eigenvalues_satisfy_the_real_axis_identities_11_83_11_84():  # V4 (C12, D22; independent of the path)
+    # Build φ on the REAL axis by integrating (11.81) with the contour eigenvalue from both sides (e^{−k|y|} outside), then
+    # ∫(|φ′|² + k²|φ|²) + ∫U″(U − c_r)|φ|²/|U − c|² = [φ*φ′] (real part of (11.83)) and ∫U″|φ|²/|U − c|² = 0 ((11.84), c_i ≠ 0).
+    import warnings
+    Y = 20.0
+    for pr, par, k in ((BICK, "even", 1.9), (BICK, "even", 1.0), (TANH, None, 0.9), (TANH, None, 0.4)):
+        c = _contour(pr, k, parity=par)[0]
+        rhs = lambda y, f: [f[1], (k * k + pr["Upp"](y) / (pr["U"](y) - c)) * f[0]]  # noqa: E731, B023
+        L = solve_ivp(rhs, (-Y, 0), [1 + 0j, k + 0j], method="DOP853", rtol=1e-11, atol=1e-14, dense_output=True)
+        R = solve_ivp(rhs, (Y, 0), [1 + 0j, -k + 0j], method="DOP853", rtol=1e-11, atol=1e-14, dense_output=True)
+        sc = L.y[0, -1] / R.y[0, -1] if abs(R.y[0, -1]) > 1e-6 else L.y[1, -1] / R.y[1, -1]
+        assert abs(L.y[0, -1] - sc * R.y[0, -1]) + abs(L.y[1, -1] - sc * R.y[1, -1]) < 1e-7 * np.max(np.abs(L.y[:, -1]))  # an eigenfunction
+        f = lambda y: L.sol(y) if y <= 0 else sc * R.sol(y)  # noqa: E731, B023
+        w = lambda y: abs(f(y)[0]) ** 2 / abs(pr["U"](y) - c) ** 2  # noqa: E731, B023
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            q = lambda fun: quad(fun, -Y, Y, limit=400, points=[0.0])[0]  # noqa: E731
+            I84, Iabs = q(lambda y: float(pr["Upp"](y)) * w(y)), q(lambda y: abs(float(pr["Upp"](y))) * w(y))
+            Ia = q(lambda y: abs(f(y)[1]) ** 2 + k * k * abs(f(y)[0]) ** 2)
+            Ib = q(lambda y: float(pr["Upp"](y)) * (float(pr["U"](y)) - c.real) * w(y))
+        edge = -k * (abs(sc) ** 2 + 1.0)  # [φ*φ′] at ±Y with φ = e^{−k|y|} there
+        assert abs(I84) < 1e-8 * Iabs and Iabs > 0, (pr["name"], k, I84 / Iabs)  # observed 7e-13: U″ changes sign where it must
+        assert abs(Ia + Ib - edge) < 1e-8 * Ia, (pr["name"], k)
+
+
+def test_rayleigh_contour_V7_path_side_guards_stable_profiles_and_howard_semicircle():  # V7 (C10, C12; soundness of the path)
+    # the path passes BELOW the real axis where U′ > 0 and ABOVE where U′ < 0 (a growing mode's critical point is at
+    # Im y_c ≈ c_i/U′, on the other side), reaches depth delta where |U′| is largest and ends on the real walls
+    r = _contour(TANH, 0.5, return_vectors=True)
+    assert r["y"].imag.max() <= 0 and r["y"].imag.min() == pytest.approx(-0.2, abs=2e-3)
+    r = _contour(BICK, 1.0, return_vectors=True)
+    yr = r["y"].real
+    assert np.all(np.sign(r["y"].imag) * np.sign(BICK["Up"](yr)) <= 0) and np.abs(r["y"].imag).max() == pytest.approx(0.2, abs=2e-3)
+    assert abs(abs(yr[np.argmax(np.abs(r["y"].imag))]) - math.atanh(1 / math.sqrt(3))) < 0.05  # deepest at the inflection points
+    sinp = ch11.parallel_profile("sin", b=PI)
+    r = _contour(sinp, 0.5, return_vectors=True)
+    assert r["y"][0].imag == 0 and r["y"][-1].imag == 0 and abs(r["y"][0].real) == pytest.approx(PI) and np.abs(r["y"].imag).max() > 0.1
+    # delta = 0 is the real-axis solver; away from a neutral point the two agree
+    c0 = _contour(TANH, 0.5, delta=0.0, tol=1e-4)[0]
+    cr = ST.rayleigh_eigs(0.5, TANH["U"], TANH["Upp"], N=120, bc="decay", y_max=30.0, map_scale=1.0, unstable_only=True, tol=1e-4)[0]
+    assert abs(c0 - cr) < 1e-8 and abs(_contour(TANH, 0.5)[0] - cr) < 1e-7
+    # guards: k ≤ 0, delta < 0, and a profile that cannot be continued off the real axis (spline / float cast)
+    with pytest.raises(ValueError):
+        ST.rayleigh_eigs_contour(0.0, TANH["U"], TANH["Up"], TANH["Upp"], bc="decay")
+    with pytest.raises(ValueError):
+        ST.rayleigh_eigs_contour(0.5, TANH["U"], TANH["Up"], TANH["Upp"], bc="decay", delta=-0.1)
+    with pytest.raises(ValueError, match="complex"):
+        ST.rayleigh_eigs_contour(0.5, lambda q: np.tanh(np.real(q)), TANH["Up"], lambda q: -2 * np.tanh(np.real(q)) / np.cosh(np.real(q)) ** 2,
+                                 bc="decay", y_max=30.0, map_scale=1.0)
+    # the N-filter (second solve at 1.5N on the path delta/2) is what removes spurious growing eigenvalues:
+    # (i) long jet wave at a low degree — unfiltered N = 40 has a third "mode" 0.642 + 0.244i; the default keeps the two real ones
+    ym = ST.decay_box(0.05)
+    raw = ST.rayleigh_eigs_contour(0.05, BICK["U"], BICK["Up"], BICK["Upp"], bc="decay", y_max=ym, map_scale=1.0, N=40, filter=False)
+    kept = ST.rayleigh_eigs_contour(0.05, BICK["U"], BICK["Up"], BICK["Upp"], bc="decay", y_max=ym, map_scale=1.0, N=40)
+    true = [_contour(BICK, 0.05, parity=par)[0] for par in ("even", "odd")]  # 0.04881 + 0.16606i, 0.93306 + 0.07742i
+    assert len(kept) == 2 and all(min(abs(c - t_) for t_ in true) < 1e-6 for c in kept), kept
+    assert len(raw) == 3 and min(abs(raw[0] - t_) for t_ in true) > 0.1  # the spurious one leads the unfiltered list
+    # (ii) a path beyond U's own singularity (tanh: Im y = π/2): the unfiltered solve returns c = 17i, far outside Howard's
+    # semicircle |c| ≤ 1; the default returns nothing rather than that (delta must stay below the singularity — documented)
+    raw = _contour(TANH, 0.5, delta=1.5, filter=False)
+    assert len(raw) >= 1 and abs(raw[0]) > 5 and len(_contour(TANH, 0.5, delta=1.5)) == 0
+    assert abs(_contour(TANH, 0.5, delta=1.2)[0] - cr) < 1e-7  # still inside the strip of analyticity: the same eigenvalue
+    # profiles without an inflection point (or failing Fjørtoft): nothing grows — Rayleigh's theorem (11.84)
+    for name in ("poiseuille", "couette", "wall_vorticity_max"):
+        p = ch11.parallel_profile(name)
+        for k in (0.3, 1.0, 2.0):
+            assert len(_contour(p, k)) == 0, (name, k)
+    # every growing entry of the published table lies in Howard's semicircle (11.72); c_r in the range of U
+    js = json.loads((REF / "rayleigh_spectra.json").read_text(encoding="utf-8"))["spectra"]
+    n = 0
+    for nm, d in js.items():
+        p = ch11.parallel_profile(nm, b=PI) if nm == "sin" else ch11.inviscid_profile(nm)
+        yy = np.linspace(-10, 10, 4001) if p["bc"] != "wall" else np.linspace(p["domain"][0], p["domain"][1], 4001)
+        if p["bc"] == "semi_infinite":
+            yy = np.linspace(0, 20, 4001)
+        Umin, Umax = float(np.min(p["U"](yy))), float(np.max(p["U"](yy)))
+        for cr_, ci_ in zip(d["c_r"], d["c_i"]):
+            assert (ci_ == 0) == (cr_ is None)
+            if ci_:
+                n += 1
+                assert ci_ > 1e-4 and bool(ch11.in_howard_semicircle(complex(cr_, ci_), Umin, Umax)), (nm, cr_, ci_)
+    assert n == 56
+
+
+def test_rayleigh_shoot_V1_semi_infinite_wall_bounded_shear_layer_two_shooting_codes_agree():  # V1 (rayleigh_shoot, semi-infinite)
+    # U = tanh(y − 3) + tanh 3 above a wall at y = 0: the semi-infinite case stays covered by a solver that works.
+    # core's rayleigh_shoot and the test's own integration (own matching point at the layer, own Newton) agree to 1e-8,
+    # rtol 1e-7 vs 1e-10 to 1e-7, box 30 vs 45 to 1e-8, and the modes lie in Howard's semicircle 0 ≤ U ≤ 2 tanh 3.
+    U = lambda q: np.tanh(q - 3) + math.tanh(3)  # noqa: E731
+    Upp = lambda q: -2 * np.tanh(q - 3) / np.cosh(q - 3) ** 2  # noqa: E731
+    ci = []
+    for k, want in ((0.5, 0.95764 + 0.34310j), (0.8, 0.99156 + 0.12618j), (0.9, 0.99402 + 0.06019j), (0.95, 0.99467 + 0.02823j)):
+        s = ST.rayleigh_shoot(k, U, Upp, math.tanh(3) + 0.05j, domain=(0, 1), bc="semi_infinite", y_max=30.0)
+        mine = _ray_shoot(k, U, Upp, want, 0.0, 30.0, (False, True), mid=3.4)  # wall at 0, e^{−ky} at 30
+        assert s["converged"] and abs(s["c"] - want) < 1e-5 and abs(mine - s["c"]) < 1e-8, (k, s, mine)
+        loose = ST.rayleigh_shoot(k, U, Upp, math.tanh(3) + 0.05j, domain=(0, 1), bc="semi_infinite", y_max=30.0, rtol=1e-7)
+        far = ST.rayleigh_shoot(k, U, Upp, s["c"] + 1e-3, domain=(0, 1), bc="semi_infinite", y_max=45.0)
+        assert abs(loose["c"] - s["c"]) < 1e-7 and abs(far["c"] - s["c"]) < 1e-8
+        assert bool(ch11.in_howard_semicircle(s["c"], 0.0, 2 * math.tanh(3)))
+        ci.append(s["c"].imag)
+    assert np.all(np.diff(ci) < 0)  # growth falls towards the neutral wavenumber
+
+
+def test_rayleigh_contour_V7_semi_infinite_is_refused_and_the_blasius_like_row_uses_the_real_axis():  # V7 (Must-fix 1, option (b))
+    # Before the guard the complex-path solver returned "nothing" here for k ≥ 0.8 (true c_i = 0.126 at k = 0.8): its path
+    # depth was δ(1 + ξ)/2 ≈ 0.02 at the shear layer.  It now refuses the option instead of answering wrongly.
+    U = lambda q: np.tanh(q - 3) + math.tanh(3)  # noqa: E731
+    Up = lambda q: 1 / np.cosh(q - 3) ** 2  # noqa: E731
+    Upp = lambda q: -2 * np.tanh(q - 3) / np.cosh(q - 3) ** 2  # noqa: E731
+    for kw in (dict(), dict(filter=False), dict(delta=0.0), dict(return_vectors=True), dict(N=240, delta=2.0)):
+        with pytest.raises(ValueError, match='bc="semi_infinite" is not supported') as e:
+            ST.rayleigh_eigs_contour(0.8, U, Up, Upp, domain=(0, 1), bc="semi_infinite", y_max=30.0, **kw)
+        assert "rayleigh_shoot" in str(e.value) and "rayleigh_eigs" in str(e.value)
+    with pytest.raises(ValueError):
+        ST.rayleigh_eigs_contour(0.8, U, Up, Upp, domain=(0, 1), bc="nonsense")
+    assert 'bc="semi_infinite"' in ST.rayleigh_eigs_contour.__doc__ or '"semi_infinite" raises' in ST.rayleigh_eigs_contour.__doc__
+    # the chapter's only semi-infinite profiles (Blasius-like splines) never reach it: _rayleigh_lead routes them to the
+    # real-axis solver, and the published row is "no growing mode" at every k (no inflection point — Rayleigh's theorem)
+    bl = ch11.inviscid_profile("blasius_like")
+    assert bl["bc"] == "semi_infinite"
+    for k in (0.1, 0.5, 1.0, 2.0):
+        assert ch11._rayleigh_lead(bl, k, 120, y_max=bl.get("y_max")) is None
+        assert len(ST.rayleigh_eigs(k, bl["U"], bl["Upp"], domain=bl["domain"], N=120, bc="semi_infinite", y_max=bl.get("y_max"),
+                                    unstable_only=True, tol=1e-4)) == 0
+    live = ch11.rayleigh_spectrum_table(names=["blasius_like"], ks=[0.1, 0.5, 1.0, 2.0], cache=False, write=False)["blasius_like"]
+    assert np.all(live["c_i"] == 0.0) and np.all(np.isnan(live["c_r"]))
+    row = json.loads((REF / "rayleigh_spectra.json").read_text(encoding="utf-8"))["spectra"]["blasius_like"]
+    assert len(row["k"]) == 20 and all(v == 0 for v in row["c_i"]) and all(v is None for v in row["c_r"])
+    assert not ch11.rayleigh_criterion(np.linspace(0.05, 8, 400), Upp=bl["Upp"])["has_inflection"]
+
+
+def test_rayleigh_spectra_V1_regenerated_table_is_live_and_the_false_zeros_are_gone():  # V1 anti-cache (E7/F6; change 2)
+    full = json.loads((REF / "rayleigh_spectra.json").read_text(encoding="utf-8"))
+    js = full["spectra"]
+    assert full["N"] == 120 and "complex collocation path" in full["note"] and "c_i <= 1e-4" in full["note"]
+    ex = json.loads((REF / "explainer_tables.json").read_text(encoding="utf-8"))["rayleigh"]
+    assert all(ex[nm] == js[nm] for nm in js) and set(ex) >= set(js)  # the explainer's copy is the file, entry for entry
+    r4 = lambda v: float(f"{v:.4g}")  # noqa: E731
+    ks = [0.8, 0.9, 1.7, 1.8, 1.9]
+    live = ch11.rayleigh_spectrum_table(names=["jet", "jet_varicose", "shear_layer", "sin", "shear_layer_walls"], ks=ks,
+                                        cache=False, write=False)
+    for nm in ("jet", "shear_layer", "sin", "shear_layer_walls"):
+        for j, k in enumerate(ks):
+            i = js[nm]["k"].index(k)
+            assert js[nm]["c_i"][i] == r4(live[nm]["c_i"][j]), (nm, k)
+            if nm == "jet":
+                assert js[nm]["c_r"][i] == r4(live[nm]["c_r"][j]), (nm, k)
+    j = js["jet"]
+    assert [(j["c_r"][i], j["c_i"][i]) for i in (15, 16, 17, 18, 19)] == [(0.5968, 0.0528), (0.6147, 0.03806), (0.6324, 0.02432),
+                                                                         (0.6497, 0.01163), (None, 0.0)]  # k = 1.6 … 2.0
+    assert js["shear_layer"]["c_i"][8] == 0.06539 and js["sin"]["c_i"][7] == 0.09395 and js["shear_layer"]["c_i"][9] == 0.0
+    # "jet" is the larger of the two parities: the sinuous one at every k; the varicose mode stops at its own neutral k = 1
+    sin_ = ch11.rayleigh_spectrum_table(names=["jet_sinuous"], ks=[0.9, 1.8], cache=False, write=False)["jet_sinuous"]
+    assert np.allclose(sin_["c_i"], [live["jet"]["c_i"][1], live["jet"]["c_i"][3]], atol=1e-12)
+    v = live["jet_varicose"]["c_i"]
+    assert 0 < v[0] < live["jet"]["c_i"][0] and v[1] == pytest.approx(0.0183018, abs=1e-6) and np.all(v[2:] == 0)
+    # a 0 in the table means c_i ≤ 1e-4: within ≈ 1e-3 in k of the exact neutral wavenumber, or beyond it
+    for pr, par, kn, sliver in ((BICK, "even", 2.0, 0.0009), (BICK, "odd", 1.0, 0.00055), (TANH, None, 1.0, 0.00016)):
+        assert len(_contour(pr, kn - 1.3 * sliver, parity=par)) == 1 and len(_contour(pr, kn - 0.7 * sliver, parity=par)) == 0
+
+
+def test_sin_profile_V1_max_growth_equals_independent_shooting_and_ends_at_the_exact_margin():  # V1 + V7 (N95; change 2)
+    b = 1.7
+    pr = ch11.parallel_profile("sin", b=b)
+    ks = np.linspace(0.02, 1.0, 25)
+    best = 0.0
+    for k in ks[3:8]:  # the default samples around the maximum (k = 0.224)
+        c = _ray_shoot(float(k), np.sin, lambda q: -np.sin(q), _contour(pr, float(k))[0] + 1e-3, -b, b, False)
+        best = max(best, float(k) * c.imag)
+    assert ch11.sin_profile_max_growth(b) == pytest.approx(best, abs=1e-9) and best == pytest.approx(0.0118854, abs=5e-8)
+    assert ch11.sin_profile_max_growth(b, ks=ks[3:8]) == pytest.approx(best, abs=1e-9)
+    kn = math.sqrt(1 - (PI / (2 * b)) ** 2)  # the exact neutral wavenumber: nothing grows beyond it
+    assert ch11.sin_profile_max_growth(b, ks=[kn + 0.005, 0.5, 0.9]) == 0.0 and ch11.sin_profile_max_growth(b, ks=[kn - 0.005]) > 0
+    assert ch11.sin_profile_max_growth(1.58) == pytest.approx(0.0002427, abs=5e-8)  # 2b just above π: a sliver of growth
+    assert ch11.sin_profile_max_growth(0.5 * PI - 1e-3) == 0.0 and ch11.sin_profile_max_growth(1.5, N=120) == 0.0  # 2b < π: stable
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Change 3 — the Orr–Sommerfeld far field: wavelength-scaled box, discrete modes vs the continuous spectrum
+# ---------------------------------------------------------------------------------------------------------------------
+def test_far_field_helpers_V1_map_scale_far_fraction_and_box_numerics():  # V1 (decay_box_map_scale, far_field_fraction, os_box_numerics)
+    for ym, s in ((40.0, 1.0), (100.0, 1.0), (240.0, 2.4), (300.0, 3.0), (600.0, 3.0)):
+        assert ST.decay_box_map_scale(ym) == pytest.approx(s, rel=1e-14)
+    assert ST.decay_box_map_scale(240.0, s0=0.5) == pytest.approx(1.2) and ST.decay_box_map_scale(1e4, factor_max=5.0) == 5.0
+    assert ST.decay_box_map_scale(150.0, y_ref=50.0) == 3.0 and np.ndim(ST.decay_box_map_scale(40.0)) == 0
+    for bad in (0.0, -3.0):
+        with pytest.raises(ValueError):
+            ST.decay_box_map_scale(bad)
+    # far_field_fraction of e^{−k|y|} is e^{−k·outer·y_max} (first node beyond the boundary of the outer part)
+    y = np.linspace(-30, 30, 6001)
+    for k, outer in ((0.5, 0.5), (0.2, 0.5), (0.5, 0.25)):
+        f = ST.far_field_fraction(np.exp(-k * np.abs(y)) * (1 + 1j), y, 30.0, centre=0.0, outer=outer)
+        assert math.exp(-k * (outer * 30.0 + 0.011)) <= f < math.exp(-k * outer * 30.0)
+    ys = np.linspace(0, 20, 2001)
+    f = ST.far_field_fraction(ys * np.exp(-ys), ys, 20.0)  # one-sided box: distance from min(y)
+    assert f == pytest.approx(10.01 * math.exp(-10.01) / math.exp(-1.0), rel=1e-12)
+    assert ST.far_field_fraction(np.cos(3 * y), y, 30.0, centre=0.0) == pytest.approx(1.0, abs=1e-3)  # fills the box
+    assert ST.far_field_fraction(np.zeros_like(y), y, 30.0, centre=0.0) == 0.0 and ST.far_field_fraction(np.ones(5), np.linspace(-1, 1, 5), 30.0, centre=0.0) == 0.0
+    # os_box_numerics: walls untouched; unbounded: max(profile box, 12/k) and s = s0·clip(y_max/100, 1, 3); semi-infinite:
+    # the same box and N·√(y_max/box); an explicit box is honoured exactly
+    assert ch11.os_box_numerics(POIS, 0.04, 80) == dict(y_max=None, map_scale=None, N=80)
+    bick, blas = ch11.parallel_profile("bickley", parity="even"), ch11.parallel_profile("blasius")
+    assert not bick["fixed_box"] and ch11.parallel_profile("bickley", y_max=40.0)["fixed_box"] and not POIS["fixed_box"]
+    assert ch11.os_box_numerics(bick, 0.04, 80) == dict(y_max=pytest.approx(300.0), map_scale=pytest.approx(3.0), N=80)
+    assert ch11.os_box_numerics(bick, 1.0, 80) == dict(y_max=40.0, map_scale=1.0, N=80)
+    assert ch11.os_box_numerics(bick, 0.05, 80) == dict(y_max=pytest.approx(240.0), map_scale=pytest.approx(2.4), N=80)
+    assert ch11.os_box_numerics(bick, 0.04, 80, n_efold=24.0)["y_max"] == pytest.approx(600.0)
+    assert ch11.os_box_numerics(ch11.parallel_profile("bickley", y_max=40.0), 0.04, 80) == dict(y_max=40.0, map_scale=1.0, N=80)
+    assert ch11.os_box_numerics(TANH, 0.05, 100) == dict(y_max=pytest.approx(240.0), map_scale=pytest.approx(2.4), N=100)
+    nb = ch11.os_box_numerics(blas, 0.05, 80)
+    assert nb["y_max"] == pytest.approx(240.0) and nb["map_scale"] is None and nb["N"] == math.ceil(80 * math.sqrt(12.0)) == 278
+    assert ch11.os_box_numerics(blas, 0.3037711, 100)["N"] == 141 and ch11.os_box_numerics(blas, 1.0, 80) == dict(y_max=20.0, map_scale=None, N=80)
+    for k in (0.02, 0.1, 0.7):  # the rule: never fewer than 12 e-folds of e^{−k|y|}
+        for p in (bick, TANH, blas, ch11.parallel_profile("falkner_skan", m=0.1)):
+            assert k * ch11.os_box_numerics(p, k, 80)["y_max"] >= 12.0 - 1e-12
+
+
+def test_os_far_field_V1_compound_matrix_route_confirms_the_long_waves():  # V1 independent route (C11, C13; change 3)
+    bick = ch11.parallel_profile("bickley", parity="even")
+    fn = ch11._os_lead(bick, 80)
+    worst = 0.0
+    for Re, k, ci in ((14.58, 0.04, 0.001255), (4.1, 0.13, 0.000232), (4.0, 0.1728, -0.000358), (19.32, 0.03, 0.000279),
+                      (19.32, 0.06, -0.002025), (19.32, 0.09, 0.045378), (10.0, 0.02, 0.000274), (11.0, 0.04, None),
+                      (16.78, 0.068, 0.001483), (17.6, 0.068, -0.000445), (25.62, 0.03, -0.000256), (100.0, 1.0, 0.139778),
+                      (20.0, 0.3, 0.176438), (1000.0, 1.95, 0.003014)):
+        c = complex(fn(k, Re)[0])
+        cm = _cm_bickley(k, Re, c)
+        worst = max(worst, abs(c - cm))
+        assert abs(c - cm) < 1e-6, (Re, k, c, cm)  # observed ≤ 7e-8 (3.5e-7 at Re = 1000)
+        assert ci is None or abs(cm.imag - ci) < 2e-6, (Re, k, cm)
+    assert worst < 5e-7
+    # the reproduced defect: Re = 14.58, k = 0.04 grows (+0.00125); the fixed box 40 (1.6 e-folds) said −0.0184,
+    # and the old table had the flow stable below k = 0.0646 there; at Re = 11 below 0.0625 — k = 0.04 grows at both
+    assert ch11._os_lead(ch11.parallel_profile("bickley", parity="even", y_max=40.0), 80)(0.04, 14.58)[0].imag == pytest.approx(-0.0184, abs=2e-4)
+    assert _cm_bickley(0.04, 11.0, complex(fn(0.04, 11.0)[0])).imag > 1e-4
+    # tanh layer and Blasius layer in the scaled box, against the same independent route
+    m = ch11.ts_mode("tanh", 0.05, 1.0, N=100)
+    assert abs(m["c"] - _cm_tanh(0.05, 1.0, m["c"])) < 1e-6 and m["c"].imag == pytest.approx(0.28162, abs=1e-5) and m["far"] < 0.01
+    old = ST.os_mode(0.05, 1.0, TANH["U"], TANH["Upp"], N=100, bc="decay", y_max=30.0, map_scale=1.0)["c"]
+    assert old.imag == pytest.approx(0.161, abs=2e-3)  # what the fixed box 30 (1.5 e-folds) gave
+    m = ch11.ts_mode("tanh", 0.45, 50.0, N=100)
+    assert abs(m["c"] - _cm_tanh(0.45, 50.0, m["c"])) < 1e-7
+    blas = ch11.parallel_profile("blasius")
+    for Re, k, tol80 in ((1000.0, 0.25, 1e-6), (6000.0, 0.082, 5e-6), (519.06, 0.30377, 1e-6)):
+        c = complex(ch11._os_lead(blas, 80)(k, Re)[0])
+        cm = _cm_blasius(k, Re, c)
+        # N = 80 (the degree of the published tables) is 1.8e-6 off at Re = 6000 — truncation in N, not the box:
+        # N = 120 agrees with the compound-matrix value to 4e-10
+        assert abs(c - cm) < tol80 and abs(complex(ch11._os_lead(blas, 120)(k, Re)[0]) - cm) < 1e-8, (Re, k, c, cm)
+    assert ch11.ts_mode("blasius", 0.25, 1000.0, N=100)["c"] == pytest.approx(0.3497798 + 0.0120854j, abs=2e-7)
+    assert "far" in ch11.ts_mode("poiseuille", 1.0, 1e4) and ch11.ts_mode("poiseuille", 1.0, 1e4)["far"] == 0.0
+
+
+def test_bickley_neutral_curve_V1_csv_is_live_and_compound_matrix_finds_the_same_neutral_points():  # V1 anti-cache + independent route
+    nb, nl = read_csv("os_neutral_bickley.csv"), read_csv("os_neutral_bickley_longwave.csv")
+    Rfull = np.geomspace(4.1, 1000.0, 40)
+    assert np.allclose(nb["Re"], [float(f"{v:.4g}") for v in Rfull]) and np.array_equal(nb["Re"], nl["Re"])
+    idx = [0, 4, 7, 11, 13, 20, 39]
+    live = ch11.bickley_neutral_curve([float(Rfull[i]) for i in idx], N=80, cache=False)
+    r4 = lambda v: float(f"{v:.4g}")  # noqa: E731
+    same = lambda a, b: (math.isnan(a) and math.isnan(b)) or a == r4(b)  # noqa: E731
+    for j, i in enumerate(idx):
+        for a, b in ((nb["k_lower"][i], live["k_lower"][j]), (nb["k_upper"][i], live["k_upper"][j]),
+                     (nl["k_long_upper"][i], live["k_long_upper"][j]), (nl["k_long_lower"][i], live["k_long_lower"][j]),
+                     (nl["same_mode"][i], live["gap_same_mode"][j]), (nb["cr_upper"][i], float(np.real(live["c_upper"][j])))):
+            assert same(float(a), float(b)), (Rfull[i], a, b)
+    # the picture: one band whose lower edge leaves k ≥ 0.02 above Re = 7.2 (NaN = unstable down to k_min, not stable) …
+    assert np.all(np.isnan(nb["k_lower"][5:11])) and np.all(np.isfinite(nb["k_lower"][:5])) and np.all(np.diff(nb["k_lower"][:5]) < 0)
+    assert live["unstable_at_k_min"][2] == 1.0 and math.isnan(live["k_lower"][2]) and live["unstable_at_k_min"][0] == 0.0
+    # … a stable gap from Re ≈ 17.5 on (k_lower jumps up; a long-wave band below), the upper branch → 2 as Re → ∞
+    assert np.all(np.isnan(nl["k_long_upper"][:11])) and np.all(np.isfinite(nl["k_long_upper"][11:14])) and np.all(nl["same_mode"][11:14] == 0)
+    assert np.all(nl["k_long_upper"][11:14] < nb["k_lower"][11:14]) and np.all(np.isfinite(nb["k_upper"])) and np.all(np.diff(nb["k_upper"]) > 0)
+    assert 1.97 < nb["k_upper"][-1] < 2.0  # the inviscid neutral point k = 2 (the old table stopped at Re = 105)
+    # independent route: brentq on the compound-matrix c_i(k) at the same Re
+    fn = ch11._os_lead(ch11.parallel_profile("bickley", parity="even"), 80)
+
+    def cm_neutral(Re, kg):
+        return brentq(lambda k: _cm_bickley(k, Re, complex(fn(k, Re)[0])).imag, 0.97 * kg, 1.03 * kg, xtol=1e-10)
+    for j, key in ((0, "k_lower"), (0, "k_upper"), (1, "k_lower"), (1, "k_upper"), (3, "k_long_upper"), (3, "k_upper"), (5, "k_lower")):
+        kk = float(live[key][j])
+        assert abs(cm_neutral(float(Rfull[idx[j]]), kk) - kk) < 1e-6, (Rfull[idx[j]], key, kk)  # observed ≤ 2e-7
+    assert max(fn(k, 4.0)[0].imag for k in np.geomspace(0.02, 0.4, 30)) < 0  # Re = 4.0 < Re_c = 4.017: every wave decays
+    cp = ch11.bickley_critical()
+    assert cp["Re_c"] == pytest.approx(4.016996532, abs=1e-8) and cp["k_c"] == pytest.approx(0.172834, abs=1e-6)
+    assert abs(_cm_bickley(cp["k_c"], cp["Re_c"], complex(fn(cp["k_c"], cp["Re_c"])[0])).imag) < 1e-7  # neutral there, box-free
+
+
+def test_bickley_neutral_curve_V7_the_stable_gap_opens_near_Re_17_5_and_the_mode_exchange():  # V7 (change 3: the new picture)
+    g = ch11.bickley_neutral_curve([17.4, 17.6, 18.6, 19.0], N=80, cache=False)
+    assert math.isnan(g["k_long_upper"][0]) and math.isnan(g["k_lower"][0]) and g["unstable_at_k_min"][0] == 1.0  # one band
+    assert g["k_long_upper"][1] == pytest.approx(0.062364, abs=2e-6) and g["k_lower"][1] == pytest.approx(0.073737, abs=2e-6)
+    assert np.all(g["k_long_upper"][1:] < g["k_lower"][1:]) and np.all(np.diff(g["k_long_upper"][1:]) < 0)
+    assert list(g["gap_same_mode"][1:]) == [1.0, 1.0, 0.0] and math.isnan(g["gap_same_mode"][0])
+    assert np.all(g["unstable_at_k_min"] == 1.0) and g["k_min"] == 0.02
+    # inside the gap the flow is stable, on both sides of it unstable — by the compound-matrix route as well
+    fn = ch11._os_lead(ch11.parallel_profile("bickley", parity="even"), 80)
+    for k, sign in ((0.05, 1), (0.068, -1), (0.085, 1)):
+        c = complex(fn(k, 17.6)[0])
+        assert np.sign(c.imag) == sign and np.sign(_cm_bickley(k, 17.6, c).imag) == sign, (k, c)
+    # explicit box: honoured exactly (the old fixed box 40 is still reachable, and is wrong for k < 0.1)
+    old = ch11.bickley_neutral_curve([14.58], N=80, cache=False, y_max=40.0)
+    assert old["k_lower"][0] == pytest.approx(0.0646, abs=5e-4) and old["unstable_at_k_min"][0] == 0.0
+
+
+def test_os_leading_mode_V3_discrete_modes_do_not_move_with_the_box_the_continuum_does():  # V3 + V1 (os_leading_mode, os_mode index)
+    blas = ch11.parallel_profile("blasius")
+    lead = []
+    for ym in (20.0, 40.0, 80.0):  # leading eigenvalue of a fixed box at Re = 200, k = 0.05: it follows the box
+        p = ch11.parallel_profile("blasius", y_max=ym)
+        lead.append(ST.orr_sommerfeld_eigs(0.05, 200.0, p["U"], p["Upp"], domain=p["domain"], N=int(80 * math.sqrt(ym / 20)),
+                                           bc="semi_infinite", y_max=ym, filter=False)[0])
+    assert np.allclose(np.imag(lead), [-0.011988, -0.002592, -0.000661], atol=2e-6) and np.all(np.abs(np.real(lead) - 1) < 1e-3)
+    assert np.all(np.imag(lead) < -0.05 / 200.0)  # all below the analytic edge c_i = −k/Re of the continuous spectrum
+    lm = ch11.os_leading_mode(blas, 0.05, 200.0, 80)
+    assert lm["discrete"] and not lm["above_edge"] and lm["far"] < 0.05 and lm["numerics"] == dict(y_max=pytest.approx(240.0), map_scale=None, N=278)
+    assert abs(lm["c"] - _cm_blasius(0.05, 200.0, lm["c"])) < 1e-7 and lm["c"] == pytest.approx(0.3473020 - 0.2432525j, abs=2e-7)
+    assert abs(lm["budget"]["residual"]) < 1e-6 and lm["budget"]["dEdt"] < 0
+    assert lm["mode"]["c"] == lm["c"] and np.max(np.abs(lm["mode"]["u_hat"])) == pytest.approx(1.0, rel=1e-12)
+    # an unstable discrete mode: above the edge, localised, budget closed, equal to the compound-matrix value
+    bick = ch11.parallel_profile("bickley", parity="even")
+    lm = ch11.os_leading_mode(bick, 0.3, 20.0, 80)
+    assert lm["discrete"] and lm["above_edge"] and lm["far"] < 1e-2 and abs(lm["c"] - _cm_bickley(0.3, 20.0, lm["c"])) < 1e-8
+    assert lm["budget"]["dEdt"] == pytest.approx(2 * 0.3 * lm["c"].imag * lm["budget"]["E"], rel=1e-6)  # dE/dt = 2kc_iE
+    # no discrete mode found: the analytic edge U∞ − ik/Re is reported, flagged, without a budget — never a box eigenvalue
+    lm = ch11.os_leading_mode(bick, 0.05, 1.0, 80)
+    assert not lm["discrete"] and lm["budget"] is None and lm["mode"] is None and not lm["above_edge"]
+    assert abs(lm["c"].real) < 1e-12 and lm["c"].imag == pytest.approx(-0.05, rel=1e-14)
+    lm = ch11.os_leading_mode(TANH, 1.5, 0.3, 80)
+    assert not lm["discrete"] and math.isnan(lm["c"].real) and lm["c"].imag == pytest.approx(-5.0, rel=1e-14)  # U∞ = ±1 differ
+    # walls: the leading eigenvalue as is
+    lm = ch11.os_leading_mode(POIS, 1.0, 1e4, 80)
+    assert lm["discrete"] and lm["far"] == 0.0 and abs(lm["c"] - ORSZAG_C) < 1e-7
+    w = ST.orr_sommerfeld_eigs(1.0, 1e4, POIS["U"], POIS["Upp"], N=80, filter=False)
+    assert ST.os_mode(1.0, 1e4, POIS["U"], POIS["Upp"], N=80, index=1)["c"] == pytest.approx(complex(w[1]), abs=1e-12)
+    assert ST.os_mode(1.0, 1e4, POIS["U"], POIS["Upp"], N=80)["c"] == pytest.approx(complex(w[0]), abs=1e-12)
+    with pytest.raises(RuntimeError):
+        ST.os_mode(1.0, 1e4, POIS["U"], POIS["Upp"], N=80, index=10 ** 4)
+
+
+def test_os_tables_V1_regenerated_grids_blasius_neutral_curve_and_preset_are_live():  # V1 anti-cache (change 3 files)
+    routes = dict(bickley=_cm_bickley, tanh=_cm_tanh, blasius=_cm_blasius)
+    for flow, N, pts in (("bickley", 80, ((39.07, 0.4146), (115.1, 0.2687), (2.0, 0.9979), (2.0, 0.05), (1000.0, 0.05))),
+                         ("tanh", 100, ((4.773, 0.3375), (400.0, 0.2417), (1.684, 0.9604), (1.0, 0.05))),
+                         ("blasius", 80, ((231.9, 0.0667), (756.9, 0.3333), (200.0, 0.05), (6000.0, 0.05)))):
+        g = read_csv(f"os_grid_{flow}.csv")
+        assert len(g["Re"]) == 600 and not np.isnan(g["c_i"]).any()
+        assert not np.isnan(g["P"]).any()  # every grid point has a discrete mode (no continuous-spectrum filler rows)
+        pr = ch11.parallel_profile(flow, parity="even") if flow == "bickley" else ch11.parallel_profile(flow)
+        GR, GK = np.unique(g["Re"]), np.unique(g["k"])
+        for Re4, k4 in pts:
+            i = int(np.argmin(np.abs(g["Re"] - Re4) / Re4 + np.abs(g["k"] - k4)))
+            assert abs(g["Re"][i] - Re4) < 1e-3 * Re4 and abs(g["k"][i] - k4) < 1e-4
+            # the file's Re, k are rounded to 4 s.f.; recompute at the table's own grid values
+            spec_Re = {"bickley": np.geomspace(2.0, 1000.0, 24), "tanh": np.geomspace(1.0, 400.0, 24), "blasius": np.geomspace(200.0, 6000.0, 24)}[flow]
+            spec_k = {"bickley": np.linspace(0.05, 1.8, 25), "tanh": np.linspace(0.05, 1.2, 25), "blasius": np.linspace(0.05, 0.45, 25)}[flow]
+            Re, k = float(spec_Re[np.argmin(np.abs(spec_Re - Re4))]), float(spec_k[np.argmin(np.abs(spec_k - k4))])
+            lm = ch11.os_leading_mode(pr, k, Re, N)
+            c = lm["c"]
+            assert lm["discrete"] and g["c_i"][i] == pytest.approx(c.imag, rel=6e-4, abs=1e-9), (flow, Re, k, c, g["c_i"][i])
+            assert abs(g["c_r"][i] - c.real) < 6e-4 * abs(c.real) + 1e-8 and g["P"][i] == pytest.approx(lm["budget"]["production"], rel=6e-4)
+            assert g["Lambda"][i] == pytest.approx(lm["budget"]["dissipation"], rel=6e-4) and g["E"][i] == pytest.approx(lm["budget"]["E"], rel=6e-4)
+            # the box-free route (Blasius at Re = 6000: the tables' N = 80 is 1.5e-6 off; N = 120: 1e-10, tested above)
+            assert abs(c - routes[flow](k, Re, c)) < (5e-6 if (flow, Re4) == ("blasius", 6000.0) else 1e-6), (flow, Re, k)
+        assert len(GR) == 24 and len(GK) == 25
+    # os_neutral_blasius.csv: lower branch at Re = 6000 is 0.0790 (the fixed box 20 gave 0.0725, 8 % low)
+    nbl = read_csv("os_neutral_blasius.csv")
+    lv = ch11.blasius_neutral_curve([6000.0], cache=False, N=80)
+    r4 = lambda v: float(f"{v:.4g}")  # noqa: E731
+    assert (nbl["k_lower"][-1], nbl["k_upper"][-1]) == (r4(lv["k_lower"][0]), r4(lv["k_upper"][0])) == (0.07902, 0.2427)
+    blas, b20 = ch11.parallel_profile("blasius"), ch11.parallel_profile("blasius", y_max=20.0)
+    fn = ch11._os_lead(blas, 80)
+    kl = brentq(lambda k: _cm_blasius(k, 6000.0, 0.2087 + 0j).imag, 0.0775, 0.0805, xtol=1e-9)  # fixed guess: the TS mode
+    assert kl == pytest.approx(lv["k_lower"][0], abs=2e-6)  # compound matrix: 0.0790171
+    assert fn(0.076, 6000.0)[0].imag < 0 < ch11._os_lead(b20, 80)(0.076, 6000.0)[0].imag  # k = 0.076: stable; "unstable" in box 20
+    assert np.all(nbl["k_lower"] < nbl["k_upper"]) and np.all(np.diff(nbl["k_lower"]) < 0)
+    # os_modes.json: only the Blasius preset moved (box 20 → 48 δ* at k = 0.25)
+    modes = {m["flow"] + f"{m['k']:.3g}": m for m in json.loads((REF / "os_modes.json").read_text(encoding="utf-8"))["modes"]}
+    mb = modes["blasius0.25"]
+    live = ch11.ts_mode("blasius", 0.25, 1000.0, N=100)
+    assert mb["c"] == [float(f"{live['c'].real:.6g}"), float(f"{live['c'].imag:.4g}")] == [0.34978, 0.01209]
+    assert mb["P"] == pytest.approx(live["budget"]["production"], rel=6e-4) and mb["E"] == pytest.approx(live["budget"]["E"], rel=6e-4)
+    assert abs(complex(*modes["poiseuille1"]["c"]) - ORSZAG_C) < 1e-5 and modes["bickley0.3"]["c"] == [0.118466, 0.1764]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Change 4 — the Blasius critical point in the wavelength-scaled box
+# ---------------------------------------------------------------------------------------------------------------------
+def test_blasius_critical_V1_compound_matrix_route_and_the_box_rule():  # V1 independent route + V5 (N108; change 4)
+    bc = ch11.blasius_critical()
+    cj = json.loads((REF / "critical_points.json").read_text(encoding="utf-8"))["blasius"]
+    assert bc == cj and bc["Re_c"] == pytest.approx(519.0601180747, abs=1e-9) and bc["k_c"] == pytest.approx(0.3037711, abs=5e-8)
+    assert bc["c_r"] == pytest.approx(0.3966374, abs=5e-8) and bc["omega_c"] == pytest.approx(bc["k_c"] * bc["c_r"], rel=1e-13)
+    kc, Rc = bc["k_c"], bc["Re_c"]
+    c = _cm_blasius(kc, Rc, bc["c_r"] + 0j)  # no box, no collocation, own base flow
+    assert abs(c.imag) < 1e-9 and abs(c.real - bc["c_r"]) < 1e-9, c  # observed c_i = 2e-11
+
+    def Re_neutral(k):
+        return brentq(lambda R: _cm_blasius(k, R, c).imag, 505.0, 535.0, xtol=1e-9)
+    R0 = Re_neutral(kc)
+    assert rel(R0, Rc) < 1e-8  # 519.06012 by both routes
+    assert Re_neutral(kc - 0.004) > R0 + 0.02 and Re_neutral(kc + 0.004) > R0 + 0.02  # a minimum over k
+    assert abs(Re_neutral(kc - 1e-4) - Re_neutral(kc + 1e-4)) < 2e-5  # stationary at k_c (k_c right to ~1e-6)
+    # the box: at the critical point the rule's eigenvalue is neutral; the fixed box 20 δ* (6 e-folds) is not
+    rule = ch11._os_lead(ch11.parallel_profile("blasius"), 100)(kc, Rc)[0]
+    box20 = ch11._os_lead(ch11.parallel_profile("blasius", y_max=20.0), 100)(kc, Rc)[0]
+    assert abs(rule.imag) < 1e-10 and box20.imag == pytest.approx(-7.3e-7, abs=1e-7) and abs(box20.real - rule.real) > 2e-6
+    # benchmarks untouched (reference/ch11/benchmarks.json): Thomas 519.2 (2.7e-4), Jordinson 520
+    bj = json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["blasius_critical"]
+    assert (bj["Re_delta_star"], bj["alpha_delta_star"], bj["omega"]) == (519.2, 0.303, 0.12) and "520" in bj["source"]
+    assert rel(Rc, 519.2) == pytest.approx(2.7e-4, abs=1e-5) and rel(kc, 0.303) < 3e-3 and rel(bc["omega_c"], 0.12) < 5e-3
+    doc = ch11.blasius_critical.__doc__
+    assert "519.0765" in doc and "519.060" in doc and "Label: converged, benchmark" in doc
+    assert {r["flow"]: r for r in ch11.table_11_1()}["Blasius"]["Re_c_ours"] == pytest.approx(519.06012, abs=1e-5)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Change 5 — the Bénard growth rate never returns a lower mode in place of the leading one
+# ---------------------------------------------------------------------------------------------------------------------
+def test_benard_growth_rate_V1_determinant_route_and_the_leading_mode_is_never_skipped():  # V1 independent route (C03; change 5)
+    K, Pr, bc = 1.84, 1e-6 / 1.4e-7, ("rigid", "free")
+    Ra = 1.6 * ch11.benard_marginal_Ra(K, bc, "any")
+    assert Ra == pytest.approx(2105.3006, abs=5e-4)
+    exact = _benard_det_root(K, Ra, Pr, bc, 7.12)
+    second = _benard_det_root(K, Ra, Pr, bc, -39.6)
+    assert exact == pytest.approx(7.1195004794, abs=2e-10) and second == pytest.approx(-39.61446, abs=1e-5)
+    s = ch11.benard_growth_rate(K, Ra, Pr, bc)
+    assert abs(s - exact) < 1e-7 and abs(s - second) > 40  # the defect: the default returned −39.61446 here
+    spec = ch11.benard_growth_rate(K, Ra, Pr, bc, all=True)
+    assert abs(spec[0] - exact) < 1e-7 and abs(spec[1] - second) < 1e-6  # all=True keeps the leading mode too
+    assert ch11.benard_growth_rate(K, Ra, Pr, bc, filter=False) == pytest.approx(s, rel=1e-14)
+    for N in (24, 32, 40, 48):  # the recommended range: ≤ 1e-7 from the determinant root
+        assert abs(ch11.benard_growth_rate(K, Ra, Pr, bc, N=N) - exact) < 1e-7 * exact, N
+    assert ch11._benard_confirm_ladder(40) == (50, 30, 24) and ch11._benard_confirm_ladder(24) == (30, 18, 15)
+    # the documented residual: a large N is round-off-limited and the filter cannot see it (N = 96: 5e-6)
+    assert 2e-6 < rel(ch11.benard_growth_rate(K, Ra, Pr, bc, N=96), exact) < 1e-5
+    # a seeded scan: sign σ = sign(Ra − Ra(K)) (exchange of stabilities), σ equals the determinant root — never a lower mode
+    rng = np.random.default_rng(11)
+    n = 0
+    for bcs, mode in ((("rigid", "rigid"), "even"), (("rigid", "free"), "any")):
+        for j in range(40):
+            Kk, Prr, f = float(rng.uniform(1.0, 6.0)), float(10 ** rng.uniform(-1.5, 1.5)), float(rng.uniform(0.2, 3.0))
+            Ram = ch11.benard_marginal_Ra(Kk, bcs, mode)
+            sg = ch11.benard_growth_rate(Kk, f * Ram, Prr, bcs)
+            assert np.sign(sg) == np.sign(f - 1.0), (bcs, Kk, Prr, f, sg)
+            if j % 4 == 0:
+                n += 1
+                assert abs(_benard_det_root(Kk, f * Ram, Prr, bcs, sg) - sg) < 1e-7 * max(1.0, abs(sg)), (bcs, Kk, Prr, f, sg)
+    assert n == 20
+    # near the old failure the growth rate is continuous and increasing in Ra (a swapped mode would jump by ~47)
+    ladder = [ch11.benard_growth_rate(K, f * Ra / 1.6, Pr, bc) for f in np.linspace(1.5, 1.7, 9)]
+    assert np.all(np.diff(ladder) > 0) and np.max(np.diff(ladder)) < 0.5
+    # the one documented raise: the leading eigenvalue is named, the lower one is not returned in its place
+    with pytest.raises(ValueError) as e:
+        ch11.benard_growth_rate(5.0, 5e4, 100.0)
+    msg = str(e.value)
+    assert "605.286" in msg and "116.708" in msg and "not returned in its place" in msg and "filter=False" in msg
+    raw = ch11.benard_growth_rate(5.0, 5e4, 100.0, filter=False)
+    det = _benard_det_root(5.0, 5e4, 100.0, ("rigid", "rigid"), raw)
+    assert det == pytest.approx(605.28559, abs=1e-4) and 1e-6 < rel(raw, det) < 2e-6  # round-off 1.3e-6 > the filter's 1e-6
+    assert ch11.benard_growth_rate(5.0, 5e4, 100.0, N=32) == pytest.approx(det, rel=1e-6)  # another N in the recommended range
+
+
+def test_docstrings_V7_loop2_labels_and_the_N2_cross_reference():  # V7 (labels say what is tested; printed slip S13)
+    def label(fn):
+        return fn.__doc__[fn.__doc__.index("Label:"):]
+
+    # N² = −(g/ρ₀)dρ̄/dz is (7.127) in Chapter 7; p. 503 of Chapter 11 prints "(7.128)" next to it (cross-reference slip S13)
+    assert "(7.127)" in ch11.gradient_richardson.__doc__ and "(7.128)" not in ch11.gradient_richardson.__doc__
+    assert "(7.127)" in ST.taylor_goldstein_eigs.__doc__ and "(7.128)" not in ST.taylor_goldstein_eigs.__doc__
+    fs = label(ch11.falkner_skan_neutral_curve)
+    assert fs.startswith("Label: converged (lower branch") and "qualitative (upper branch at Re ≥ 2e4" in fs
+    for fn in (ch11.os_box_numerics, ch11.os_leading_mode, ch11.bickley_neutral_curve, ch11.blasius_neutral_curve,
+               ST.rayleigh_eigs_contour, ST.rayleigh_shoot, ST.decay_box_map_scale, ch11.rayleigh_spectrum_table):
+        assert label(fn).startswith("Label: converged"), fn.__name__
+    assert label(ST.far_field_fraction).startswith("Label: analytic")
+    for fn in (ch11.os_box_numerics, ST.decay_box_map_scale, ST.rayleigh_eigs_contour):
+        assert "DEVIATION" in fn.__doc__  # numerical choices that are ours are declared
+    assert "(11.81)" in ST.rayleigh_eigs_contour.__doc__ and "(11.79)" in ch11.os_leading_mode.__doc__
+
+
+# ======================================================================================================================
 # V6 — numbers printed by the book (private; skipped when the JSON is absent)
 # ======================================================================================================================
 @book_only
@@ -2425,6 +3469,42 @@ def test_neutral_curve_tables_and_reference_writer_V3_fast_rebuild(tmp_path):  #
     assert np.isfinite(fs["k_upper"]).all() and not np.isfinite(fp["k_lower"][0])  # adverse unstable earlier
     gm = ch11.tg_growth_map(fast=True, cache=False)
     assert np.all(gm["kci"][gm["J"] >= 0.25] == 0)
+
+
+@slow
+def test_blasius_critical_V3_live_default_is_the_json_and_box_and_degree_doubling():  # V3 (N108; change 4; ≈ 3 min)
+    cj = json.loads((REF / "critical_points.json").read_text(encoding="utf-8"))["blasius"]
+    live = ch11.blasius_critical(cache=False)  # the rule: max(20, 12/k) δ*, degree 100·√(y_max/20)
+    for key in ("Re_c", "k_c", "c_r", "omega_c"):
+        assert live[key] == pytest.approx(cj[key], rel=1e-9), key
+    big = ch11.blasius_critical(N=142, y_max=40.0, cache=False)  # an explicit box twice the old one, degree ∝ √box
+    assert rel(big["Re_c"], live["Re_c"]) < 1e-7 and abs(big["k_c"] - live["k_c"]) < 1e-6  # observed 4.8e-11, 1.7e-7
+    old = ch11.blasius_critical(N=100, y_max=20.0, cache=False)  # the former default: 6 e-folds of e^{−ky} at k_c
+    assert old["Re_c"] == pytest.approx(519.0765, abs=5e-5) and rel(old["Re_c"], live["Re_c"]) == pytest.approx(3.2e-5, abs=2e-6)
+
+
+@slow
+def test_bickley_neutral_curve_V3_unchanged_by_box_and_degree_doubling():  # V3 (change 3; ≈ 1.5 min)
+    Rs = [4.721, 19.32, 25.62]
+    a = ch11.bickley_neutral_curve(Rs, N=80, cache=False)
+    b = ch11.bickley_neutral_curve(Rs, N=160, cache=False, n_efold=24.0)  # twice the degree in twice the box
+    for key in ("k_lower", "k_upper", "k_long_upper"):
+        ok = np.isfinite(a[key])
+        assert np.array_equal(ok, np.isfinite(b[key])) and np.all(np.abs(a[key][ok] - b[key][ok]) < 8e-6), (key, a[key], b[key])
+        assert np.all(np.abs(a[key][ok] - b[key][ok])[a[key][ok] >= 0.03] < 5e-6)  # the docstring's two bounds
+    assert np.array_equal(a["gap_same_mode"][1:], b["gap_same_mode"][1:]) and math.isnan(a["gap_same_mode"][0])
+    assert a["k_long_upper"][2] == pytest.approx(0.02219, abs=1e-5)  # the entry nearest k_min = 0.02 (observed Δ = 7.6e-6)
+
+
+@slow
+def test_falkner_skan_neutral_curve_V3_lower_branch_converged_upper_branch_at_1e5_only_qualitative():  # V3 (label check; ≈ 2.5 min)
+    f80 = ch11.falkner_skan_neutral_curve(0.1, Re_values=[5000.0, 1e5], cache=False, N=80)
+    f120 = ch11.falkner_skan_neutral_curve(0.1, Re_values=[5000.0, 1e5], cache=False, N=120)
+    assert np.allclose(f80["k_lower"], [0.12486, 0.04238], atol=2e-5) and np.allclose(f120["k_lower"], [0.12480, 0.04245], atol=2e-5)
+    assert np.all(np.abs(f80["k_lower"] / f120["k_lower"] - 1) < 2e-3)  # lower branch: converged (observed 4.5e-4, 1.5e-3)
+    assert abs(f80["k_upper"][0] / f120["k_upper"][0] - 1) < 1e-4  # upper branch at Re = 5000: converged (7e-5)
+    d = f80["k_upper"][1] / f120["k_upper"][1] - 1  # upper branch at Re = 1e5: 0.1266 vs 0.1248 — N-dependent
+    assert 0.01 < d < 0.02 and f80["k_upper"][1] == pytest.approx(0.1266, abs=2e-4) and f120["k_upper"][1] == pytest.approx(0.1248, abs=2e-4)
 
 
 @slow

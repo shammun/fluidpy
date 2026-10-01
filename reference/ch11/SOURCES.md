@@ -55,6 +55,42 @@ the source is reachable:
 - Unchanged against commit `8ae4f15`: the keys `benard`, `taylor`, `lorenz_sweep`, `note` of `explainer_tables.json`,
   `benchmarks.json`, `critical_points.json`, `os_modes.json`.
 
+### Verifier addition after the review (math-verifier, 2026-10-01) — Taylor numbers away from μ = 1 (review Should-fix 7)
+| value/table | what it is | source | DOI/URL | how obtained | verified |
+|---|---|---|---|---|---|
+| Ta_c = 1707.76 [1 − 0.00761 ((1 − μ)/(1 + μ))²] as μ → 1, with Ta = −2AΩ₁d⁴(1 + μ)/ν² (= ½(1 + μ) × the Ta = −4AΩ₁d⁴/ν² of (11.52)) | narrow-gap critical Taylor number for co-rotating cylinders, leading order in 1 − μ | Wikipedia "Taylor–Couette flow", section "Taylor's criterion" (revision 1373953105, 2026-09-08) | https://en.wikipedia.org/wiki/Taylor%E2%80%93Couette_flow | wikitext read with `action=raw` (formula and the definition of Ta typed from it) | 2026-10-01 |
+
+- Tertiary source and an asymptotic formula: used at 1e-5 for μ ≥ 0.5 and 1e-3 for 0 ≤ μ < 0.5 (the general rule is 1 %).
+  Ours × ½(1 + μ) against the formula: μ = 1: 1.0e-6 (the source rounds 1707.762); 0.75: 1.2e-6; 0.5: 3.0e-6; 0.25: 1.7e-5;
+  0: 1.1e-4 (1694.950 vs 1694.764 — the next order in 1 − μ). The coefficient measured from our Ta_c at μ = 0.9 and 0.8 is
+  0.007603 and 0.007602 (the source prints 0.00761: 1e-3 relative in the coefficient, < 1e-7 in Ta_c there).
+- **Not found: a counter-rotating value (μ < 0, e.g. Chandrasekhar's narrow-gap table at μ = −1).** Tried today: Chandrasekhar
+  (1961) is not readable online (archive.org copy is borrow-only); arXiv:2601.14806 (only μ = 1: T_c ≈ 1708, α_c ≈ 3.117);
+  arXiv:2608.10951 (T_c(μ) only as a figure; states μ_c ≈ −0.8 below which the first instability is non-axisymmetric);
+  the Royal Society narrow-gap review (rsta 381, 20220134) and MDPI Fluids 6, 306 return HTTP 403; Scholarpedia's
+  certificate has expired; arXiv:physics/0502069 has no such table. No number for μ < 0 is cited anywhere in the tests;
+  our μ = −0.5 and μ = −1 values stay supported by the Galerkin route and N-convergence only.
+
+### Verifier re-check of the tables regenerated in post-review loop 2 (math-verifier, 2026-10-01)
+No published value changed: `benchmarks.json` is byte-identical to what `make_refs.py --no-tables` writes, and the Blasius
+benchmarks (Thomas 519.2 / 0.303 / 0.120; Gallagher et al. n = 1 row 519.12; Jordinson 520) are untouched. What changed is
+**ours**, and each file was compared with a live recomputation and with a route that shares no code with the solver that
+wrote it. This list supersedes the line "Unchanged against commit `8ae4f15` … `critical_points.json`, `os_modes.json`" above.
+
+| file | what changed | live recomputation | independent route |
+|---|---|---|---|
+| `rayleigh_spectra.json`, `explainer_tables.json → rayleigh` | Rayleigh eigenvalues now from `core.stability.rayleigh_eigs_contour` (collocation on a complex path). Six entries moved: jet k = 1.8 → 0.6324 + 0.02432i and k = 1.9 → 0.6497 + 0.01163i (were 0 — false zeros), jet k = 1.6, 1.7, tanh layer k = 0.9, sin k = 0.8 in the 4th figure. Only the sub-keys `jet`, `shear_layer`, `sin`, `shear_layer_walls` of the explainer copy differ from HEAD | all 56 non-zero entries round to the file; the explainer copy equals the file | real-axis shooting written in the test file: ≤ 1.0e-10 on all 56; `rayleigh_shoot`: ≤ 1.05e-10; the eigenvalues satisfy the real-axis integral identities of (11.83)–(11.84) to 7e-13; exact neutral wavenumbers (2, 1, 1, √3/2) approached linearly |
+| `os_neutral_bickley.csv` | wavelength-scaled box max(40, 12/k); k scanned to 2.0. New picture: one unstable band whose lower edge leaves k ≥ 0.02 above Re = 7.2 (NaN = unstable down to k = 0.02, edge not resolved), a stable gap from Re ≈ 17.5, upper branch finite to Re = 1000 (→ 2) | 7 of 40 rows recomputed: identical at 4 s.f., same NaN pattern | compound-matrix shooting (exact free-stream start, no box): neutral k agree to ≤ 2e-7 at 7 neutral points; eigenvalues to ≤ 7e-8 at 14 (Re, k) points (3.5e-7 at Re = 1000) |
+| `os_neutral_bickley_longwave.csv` (**new**) | the long-wave unstable band below the stable gap (Re = 19.3, 22.2, 25.6: upper edge 0.04472, 0.03091, 0.0222; lower edge below k = 0.02, unknown), with the `same_mode` flag | the three finite rows recomputed: identical | compound matrix: k_long_upper to 8e-8; sign of c_i on both sides of the gap at Re = 17.6 |
+| `os_grid_bickley.csv`, `os_grid_tanh.csv`, `os_grid_blasius.csv` | least-damped *discrete* mode in the wavelength-scaled box (600 rows each, none without a mode; 93 / 237 / 425 rows lie below the edge c_i = −k/Re of the continuous spectrum) | 13 rows recomputed: c, P, Λ, E equal at 4 s.f. | compound matrix: ≤ 6e-9 (Bickley, tanh), ≤ 1.1e-7 (Blasius), 1.5e-6 at Re = 6000 (the tables' N = 80; N = 120 agrees to 1e-10) |
+| `os_neutral_blasius.csv` | box max(20, 12/k) δ*: lower branch up to +9.0 % (Re = 6000: 0.07248 → 0.07902); upper branch moved by ≤ 3.8e-4 | 3 rows recomputed: identical | compound matrix with a freshly integrated Blasius profile: lower branch at Re = 6000 = 0.0790171 |
+| `os_modes.json` | only the Blasius preset (Re = 1000, k = 0.25): c 0.349803 + 0.01208i → 0.34978 + 0.01209i; the four other presets are identical to HEAD | live `ts_mode` rounds to the file | compound matrix: 1.1e-7 |
+| `critical_points.json` | only `blasius`: Re_c 519.0765 → 519.0601180747, k_c 0.3037752 → 0.3037711, c_r, ω_c | default live solve equals the file to 1e-9 (slow test) | compound matrix: neutral Re at our k_c = 519.0601175 (1e-9 relative), minimum over k at 0.3037710 |
+
+Not changed (byte-identical to HEAD): `benard_neutral_curves.csv`, `taylor_critical.csv`, `tg_growth_map.csv`,
+`os_grid_poiseuille.csv`, `os_neutral_poiseuille.csv`, `os_neutral_tanh.csv`; in `explainer_tables.json` the keys `note`,
+`benard`, `taylor`, `tg_map`, `lorenz_sweep`.
+
 ## Our computed tables (labelled "ours" inside each file)
 
 | file | what | written by |
@@ -62,7 +98,8 @@ the source is reachable:
 | `benard_neutral_curves.csv` | marginal Ra(K): rigid–rigid, free–free, rigid–free, odd mode (K = 0.5 … 10) | `ch11.benard_neutral_table` |
 | `taylor_critical.csv` | narrow-gap Ta_c(μ), k_c(μ) vs (11.54) | `ch11.write_reference_tables` |
 | `tg_growth_map.csv` | kc_i(k, J) for U = tanh z, N² = J sech²z | `ch11.tg_growth_map` |
-| `rayleigh_spectra.json` | leading unstable Rayleigh eigenvalue c(k) per profile | `ch11.rayleigh_spectrum_table` |
+| `rayleigh_spectra.json` | leading growing Rayleigh eigenvalue c(k) per profile (complex-path collocation; 0 = c_i ≤ 1e-4) | `ch11.rayleigh_spectrum_table` |
+| `os_neutral_bickley_longwave.csv` | sinuous Bickley jet: the long-wave unstable band below the stable gap (k_long_lower, k_long_upper, c_r, same_mode) | `ch11.neutral_curve_tables` (`bickley_neutral_curve`) |
 | `explainer_tables.json` | the explainers' tables (≤ 4 s.f.) | `ch11.write_reference_tables` |
 | `critical_points.json` | our critical points (Bénard, Taylor, Poiseuille, Blasius, Bickley, tanh, Lorenz, Feigenbaum ratios) | `ch11.write_reference_tables` |
 | `os_neutral_*.csv`, `os_grid_*.csv`, `os_modes.json` | Orr–Sommerfeld neutral curves, (Re, k) grids with budgets, mode samples | `ch11.neutral_curve_tables` |
