@@ -504,6 +504,64 @@ the cavity algorithm non-dimensional with p = ρ/Ma², Re = ρ₀UL/μ; block le
 parabola through the discrete minimum and its neighbours — the vertex value is f₁ − (f₂ − f₀)²/(8(f₂ − 2f₁ + f₀)) per direction (x and y corrections add),
 **always ≤ the grid minimum** (the code once added the correction with the wrong sign; review M1).
 
+**⚠️ ch11: σ is the growth rate; two eigenvalue conventions.** §11.4, §11.6, §11.14 write a mode as e^{σt} with
+σ = σ_r + iσ_i (σ_r > 0 grows; σ_i ≠ 0 oscillates or travels); §11.3 and §11.7–11.11 write e^{ik(x − ct)} with c = c_r + ic_i.
+The two are the same thing: **σ = −ikc**, so σ_r = kc_i (growth rate) and σ_i = −kc_r (a wave moving to +x has σ_i < 0)
+(`ST.sigma_from_c`, `c_from_sigma`). In ch11 code `sigma` is always a growth rate; surface tension is `surface_tension`
+(σ_s in text; ch01/ch07 called it σ), the ch03 vortex core radius is still `sigma` there, ch10's MacCormack safety factor σ
+is unrelated. "Stable" means σ_r ≤ 0 **for every k**.
+
+**⚠️ ch11: Γ has three temperature-gradient conventions and is also a circulation.**
+
+| Convention | Definition | Heated from below | Where |
+|---|---|---|---|
+| Kundu Ch. 1 (the code's lapse rate) | Γ ≡ dT/dz | negative | `core.stratification`, every earlier chapter |
+| meteorology (shown alongside) | Γ ≡ −dT/dz | positive | notebook tables, slider legends |
+| Bénard, (11.21) and (11.24) (slip S10) | Γ = −dT̄/dz = ΔT/d | positive | §11.4 only; **no ch11 function takes a Γ** — `rayleigh_number` takes `dT` = T_bottom − T_top, `gamma_conventions(dT, d)` returns all three numbers |
+
+In §11.6 Γ = 2πrU_θ is the circulation of a fluid ring (`ring_interchange_energy`, `rayleigh_circulation_criterion`).
+
+**⚠️ ch11: the Rayleigh number changes sign between §11.4 and §11.5.** (11.21) Ra = gαΓd⁴/(κν) > 0 when heated from below.
+§11.5 defines Ra ≡ gαd⁴(dT̄/dz)/(νκ) with the gradient itself, so it is **negative** when heated from below and (11.45)
+carries −Ra (`thermal_rayleigh_signed`); Rs = gβd⁴(dS/dz)/(νκ_s) uses κ_s, Rs′ uses κ. The criterion (11.46) reads
+Rs − Ra = 27π⁴/4 at the marginal state.
+
+**⚠️ ch11: three non-dimensionalisations and a Reynolds number per flow.** Bénard: lengths by d, time by d²/κ (σ in κ/d²),
+w left dimensional until W ≡ (Γd²/κ)ŵ. Taylor: gap d, x = (R − R₁)/d ∈ [0, 1], σ in ν/d². Parallel flows: L and U₀ **per
+flow** — plane Poiseuille half-width and centreline speed (Re_c 5772), Blasius δ* and U∞ (Re_c 519), tanh layer and Bickley
+jet their L and U₀, pipe U_max d. Never compare two critical Reynolds numbers without naming the length.
+
+**⚠️ ch11: three stream-function sign conventions (slip S9).** §11.7 u = ∂ψ/∂z, w = −∂ψ/∂x (as ch07); §11.8 u = ∂ψ/∂y,
+v = −∂ψ/∂x (as ch04), so û = φ′, v̂ = −ikφ; §11.14 and our Bénard rolls u = −∂ψ/∂z, w = ∂ψ/∂x. Each function that returns
+velocities states its convention.
+
+**⚠️ ch11: one letter, many meanings.**
+
+| Letter | Meanings in ch11 | What we write / code name |
+|---|---|---|
+| K, k, κ | K horizontal wavenumber magnitude of a Bénard cell (non-dimensional); k streamwise or axial wavenumber; κ thermal diffusivity, κ_s salt diffusivity | `K`, `k`, `kappa`, `kappa_s` |
+| α | thermal expansion coefficient (§11.4–11.5); the book's α = Ω₂/Ω₁ − 1 (§11.6); Orszag's α = streamwise wavenumber | `alpha` (thermal); `mu` = Ω₂/Ω₁ (**not viscosity**); `k` |
+| β | haline contraction coefficient (not ch10's FTCS β, not the planetary β of Ch. 13) | `beta_S` |
+| μ | speed ratio Ω₂/Ω₁ of the cylinders (dynamic viscosity never appears in ch11 code; ν does) | `mu` |
+| R | radius (§11.6, capital, as ch08); shear/density thickness ratio of the tanh layer, N² = J sech²(Rz) (`tg_growth(k, J, R)`); the book's nonlinearity parameter in §11.14 | `R`, `R1`, `R2`; `R` |
+| r | Lorenz's reduced Rayleigh number Ra/Ra_c(k); radius of a fluid ring | `r`; `r1`, `r2` |
+| J | bulk Richardson number of the tanh/sech² layer (Ri at the centre) — **not** ch09's jet momentum flux, **not** ch10's FE Jacobian (the Lorenz Jacobian matrix is `lorenz_jacobian`) | `J` |
+| φ | velocity potential (§11.3); ψ̂/(U − c)^{1/2} (§11.7, Miles–Howard); Orr–Sommerfeld / Rayleigh amplitude (§11.8–11.9) | `phi` (the docstring says which) |
+| U₁ | upper-stream speed (§11.3); speed at the inflection point (§11.9, Fjørtoft) | `U1`; `U_I` |
+| Pr | Prandtl number ν/κ; in the Lorenz system it plays the role the literature calls σ | `Pr` |
+| b | Lorenz's geometric factor 4π²/(π² + k²) = 8/3; half-width of the sin y channel (`sin_profile_max_growth(b)`) | `b` |
+| N | buoyancy frequency (N², may be negative); polynomial degree of the Chebyshev grid | `N2`; `N` |
+| S | salinity (§11.5; ch10's 𝒮 trial space, ch02's strain rate elsewhere) | `S`, `dSdz` |
+
+**⚠️ ch11: cross-reference slip S13.** The book's p. 503 prints "(7.128)" beside $N^2\equiv-\frac{g}{\rho_0}\frac{d\bar\rho}{dz}$;
+Chapter 7 defines the buoyancy frequency as **(7.127)** — cite (7.127). Printed slips are S1–S13 in code and analysis and
+"slip #1…#13" in the notebook (SKIP ids S01, S02 and recap ids R01–R24 are different things).
+
+**⚠️ ch11: what a zero or a NaN means in a table.** `tg_growth` / `tg_growth_map`: a 0 within 0.006 of the neutral curve
+J = k(1 − k) means "kc_i < 0.004", not "stable". `rayleigh_spectrum_table`: c_i = 0 means c_i ≤ 1e-4. `bickley_neutral_curve`:
+NaN in `k_lower` means "unstable down to k = 0.02 (edge not resolved)", never "stable"; do not join `k_lower` across NaN.
+`gradient_richardson` returns ±∞ at U′ = 0 with the sign of N² (nan for 0/0).
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -1045,6 +1103,38 @@ parabola through the discrete minimum and its neighbours — the vertex value is
 | u′, p′ ⚠️ (Newton) | Newton corrections (10.164) | non-dim | p′ ≠ ch04/ch07 perturbation pressure | ch10 | inside `newton_solve` |
 | St, f_s, τ̄ | Strouhal number f_s d/U = 1/τ̄ (non-dimensional period τ̄) | –; Hz; – | **cyclic** frequency (book n); confined (W = 5d) St 0.2054 is qualitative | ch09 → | `strouhal_from_period`, `dominant_frequency` |
 | p (order), r (ratio), f₀, GCI | observed order; refinement ratio; Richardson extrapolate; grid convergence index (F_s = 1.25) | – | p ≠ pressure; NaN when rᵖ − 1 = 0 | ch10 → all | `grid_convergence_index(f1, f2, f3, r)`, `richardson_three` |
+| **ch11 — instability** | | | | | |
+| σ ⚠️, σ_r, σ_i | complex growth rate of a normal mode e^{σt} (11.1); its real part (growth) and imaginary part (frequency) | 1/s (or κ/d², ν/d², U₀/L when scaled) | σ_r > 0 unstable; **σ = −ikc**; ≠ surface tension (σ_s here), ≠ vortex core radius (ch03), ≠ MacCormack safety factor (ch10) | ch11 → Ch. 12, 13 | `sigma`, `ST.sigma_from_c(K, c)`, `stability_class`, `marginal_type` |
+| c, c_r, c_i | complex phase speed of e^{ik(x − ct)}; phase speed; growth is kc_i | m/s (or U₀) | c_i > 0 unstable; unstable c lies in Howard's semicircle on [U_min, U_max] | ch07 (real c) → ch11 (complex) → Ch. 13 | `c`, `ST.c_from_sigma`, `in_howard_semicircle` |
+| k, m, K ⚠️ | streamwise (or axial) wavenumber; spanwise wavenumber; K = (k, m, 0), ∣K∣ horizontal wavenumber magnitude (Bénard K in units of 1/d) | 1/m (or 1/L, 1/d) | k > 0; Squire: k̄ = √(k² + m²) | ch07 → ch11 | `k`, `m`, `K` |
+| σ_s | surface tension in the KH relation (Ex. 11.1) | N/m | adds σ_s k³ restoring; ch01/ch07 wrote σ | ch11 | `surface_tension` |
+| ΔU, U₁, U₂, ρ₁, ρ₂ | velocity jump U₁ − U₂; upper (1) and lower (2) stream speeds and densities | m/s; kg/m³ | ρ₂ > ρ₁ bottom-heavy; growth independent of the sign of ΔU, c_r not | ch11 | `kh_phase_speed(k, U1, U2, rho1, rho2, …)`, `kh_min_shear` |
+| Ra ⚠️ | Rayleigh number gαΓd⁴/(κν) (11.21), Γ = −dT̄/dz | – | > 0 heated from below (§11.4); **signed with dT̄/dz in §11.5** (negative when heated from below); Ra_c 1707.76 rigid–rigid, 1100.65 rigid–free, 27π⁴/4 free–free | ch11 → Ch. 13 | `rayleigh_number(alpha, dT, d, kappa, nu, g=G0)`, `thermal_rayleigh_signed` |
+| Γ (Bénard) ⚠️ | conduction temperature gradient −dT̄/dz = ΔT/d (11.21), (11.24) | K/m | positive heated from below; **opposite in sign to Kundu's Ch. 1 Γ ≡ dT/dz**; equal to the meteorological lapse rate | ch11 §11.4 only | `gamma_conventions(dT, d)`; functions take `dT` or `dTdz` |
+| d | layer depth (Bénard, double diffusion); gap width R₂ − R₁ (Taylor) | m | the length scale of Ra, Rs, Ta | ch11 | `d` |
+| W, T̂, D | scaled vertical-velocity and temperature amplitudes of (11.36)–(11.37); D = d/dz | – | W ≡ (Γd²/κ)ŵ; rigid wall W = DW = T̂ = 0; free wall W = D²W = T̂ = 0 | ch11 | inside `benard_growth_rate`, `benard_eigenfunction` |
+| Pr ⚠️ | Prandtl number ν/κ | – | does not move the Bénard margin (only σ); in the Lorenz system it is the literature's σ | ch04 → ch11 | `Pr` |
+| a² | π² + K² (free–free Bénard), the eigenvalue of −(D² − K²) on the first sine mode | – | Ra = a⁶/K² (11.44) | ch11 | inside `benard_free_free_Ra`, `benard_free_free_sigma` |
+| S, β ⚠️, κ_s, τ | salinity; haline contraction coefficient; salt diffusivity; τ = κ_s/κ ≈ 0.01 | –; 1/(salinity unit); m²/s; – | ρ = ρ₀[1 − α(T − T₀) + β(S − S₀)]; τ ≠ stress, ≠ torsion | ch11 → Ch. 13 | `dSdz`, `beta_S`, `kappa_s`, `linear_eos` |
+| Rs, Rs′ | salinity Rayleigh numbers gβd⁴(dS/dz)/(νκ_s) and gβd⁴(dS/dz)/(νκ) | – | fingers when Rs − Ra > 27π⁴/4 (11.46) with §11.5's signed Ra | ch11 | `salinity_rayleigh`, `salinity_rayleigh_prime`, `double_diffusive_margin` |
+| R_ρ | density ratio αT_z/(βS_z) | – | shown in the E4 status when the column is density-stable | ch11 → Ch. 13 | `salt_finger_regime(...)["R_rho"]` |
+| Ω₁, Ω₂, R₁, R₂, μ ⚠️ | angular speeds and radii of the inner (1) and outer (2) cylinder; μ = Ω₂/Ω₁ | rad/s; m; – | **`mu` is the speed ratio, not viscosity**; book α = μ − 1; Rayleigh's line μ = (R₁/R₂)² | ch08 → ch11 | `mu`, `couette_rayleigh_line`, `taylor_critical(mu)` |
+| A, B (Couette) | circular Couette constants U_φ = AR + B/R (ch08 (8.9)) | 1/s; m²/s | −4AΩ₁ > 0 where Γ² falls outward | ch08 → ch11 | `core.laminar.circular_couette`, inside `taylor_number` |
+| Ta | Taylor number −4AΩ₁d⁴/ν² (11.52) | – | > 0 only beyond Rayleigh's line; narrow gap, inner only: 2(Ω₁R₁d/ν)²(d/R₁); Ta_c ≈ 1708/(½(1 + μ)) (11.54) | ch11 | `taylor_number`, `taylor_number_narrow_inner`, `taylor_critical_approx` |
+| Γ (ring) ⚠️ | circulation 2πrU_θ of a fluid ring | m²/s | unstable where Γ² decreases outward (Rayleigh); → Ch. 13 with absolute angular momentum | ch05 → ch11 → Ch. 13 | `ring_interchange_energy`, `rayleigh_circulation_criterion` |
+| N² | buoyancy frequency squared −(g/ρ₀)dρ̄/dz, ch07 **(7.127)** | 1/s² | > 0 stable; may be negative in `gradient_richardson` | ch01 → ch07 → ch11 | `N2` (callable or array) |
+| Ri | gradient Richardson number N²/(dU/dz)² (11.66) | – | Ri > ¼ **everywhere** ⇒ stable (11.67); Ri < ¼ somewhere only allows instability; ±∞ at U′ = 0 with the sign of N² | ch04 (named) → ch11 → Ch. 13 | `gradient_richardson`, `miles_howard_stable` |
+| J ⚠️, R ⚠️ (tanh layer) | bulk Richardson number (Ri at the centre) of U = tanh z, N² = J sech²(Rz); R = shear/density thickness ratio | – | neutral curve J = k(1 − k) at R = 1; ≠ ch09 J, ≠ ch10 J | ch11 | `tg_growth(k, J, R=1.0)`, `tg_tanh_neutral_J`, `richardson_profiles` |
+| ψ̂, φ ⚠️, F, Q | stream-function amplitude; φ = ψ̂/(U − c)^{1/2} (Miles–Howard) or the OS/Rayleigh amplitude; F = ψ̂/(U − c); Q = ∣F′∣² + k²∣F∣² ≥ 0 | – | û = φ′, v̂ = −ikφ in §11.8; φ = velocity potential in §11.3 | ch11 | `phi` (eigenvectors of `os_mode`, `rayleigh_eigs`) |
+| U, U′, U″, U_I, y_c | basic parallel flow and its derivatives; speed at the inflection point; critical level where U = c_r | U₀; U₀/L; U₀/L²; –; L | Rayleigh: U″ changes sign; Fjørtoft: U″(U − U_I) < 0 somewhere | ch11 → Ch. 13 (U″ − β) | `U`, `Up`, `Upp` callables; `U_I`; `critical_layer` |
+| Re ⚠️, Re_c, k_c | Reynolds number U₀L/ν of the chosen flow; its critical value and wavenumber | – | **L per flow**: half-width (Poiseuille), δ* (Blasius), L (tanh, sech²); Squire Re̅ = kRe/k̄ | ch04 → ch11 | `Re`; `poiseuille_critical`, `blasius_critical`, `bickley_critical`, `table_11_1` |
+| ω, F (frequency) ⚠️ | wave frequency kc_r; Blasius frequency parameter ων/U∞² | U₀/L; – | F ≈ 2.3e-4 at Re_c; ≠ FE load, ≠ Howard's F | ch11 | `blasius_neutral_curve(in_frequency=True)` |
+| E, P, Λ | disturbance kinetic energy per wavelength; production −∫⟨uv⟩U′dy; viscous dissipation (11.88) | per unit ρU₀²L | dE/dt = P − Λ = 2kc_iE; P > Λ inside the neutral curve | ch11 → Ch. 12 | `ST.disturbance_energy_budget` → `production`, `dissipation`, `dEdt`, `ratio`, `residual` |
+| y_max, s, δ (path) ⚠️ | truncation box of an unbounded profile; scale of the tan map; depth of the complex path below/above the real axis | L | y_max = max(profile box, 12/k); s = min(0.5, max(0.035, 0.025/k)); δ inside U's strip of analyticity; ≠ boundary-layer δ | ch11 → every unbounded eigenproblem | `ST.decay_box`, `decay_map_scale`, `decay_box_map_scale`; `delta=` in `rayleigh_eigs_contour` |
+| N (degree) ⚠️ | Chebyshev polynomial degree (N + 1 nodes, descending) | – | ≠ buoyancy frequency; errors fall exponentially then rise with round-off (N ≳ 60 for Bénard) | ch11 | `N=` in every solver |
+| X, Y, Z, r ⚠️, b ⚠️ | Lorenz amplitudes (roll speed, horizontal temperature contrast, distortion of the mean profile); r = Ra/Ra_c(k); b = 4π²/(π² + k²) | – | time in units of d²/((π² + k²)κ); pitchfork at r = 1, Hopf at r_H = Pr(Pr + b + 3)/(Pr − b − 1) | ch11 → Ch. 12, 13 | `lorenz_rhs(t, s, Pr, r, b)`, `lorenz_r`, `lorenz_b`, `lorenz_hopf_r` |
+| δ₀, λ (Lyapunov) ⚠️ | initial separation of two runs; largest Lyapunov exponent (slope of ln∣δ∣) | –; 1/time | λ ≈ 0.9 at r = 28 (**qualitative**); ≠ wavelength, ≠ ch09 Thwaites λ, ≠ ch10 eigenvalue | ch11 | `lorenz_separation`, `lorenz_largest_lyapunov`, `lorenz_predictability_time` |
+| A (logistic), δ_F | control parameter of x_{n+1} = Ax_n(1 − x_n); Feigenbaum ratio | – | period doubling at 3, 1 + √6, …; δ_F → 4.6692 | ch11 | `logistic_map`, `period_doubling_points`, `feigenbaum_estimate` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -1059,3 +1149,4 @@ parabola through the discrete minimum and its neighbours — the vertex value is
 | ch08 | channel: x along the plates, y across, walls y = 0 (fixed) and y = h (moving); pipe and circular Couette: cylindrical (R, φ, z), capital R; lubrication: x along, y across the gap h(x, t) (Hele-Shaw: z across, (x, y) in the plane); §8.4 y normal to the plate, η = y/√(νt); Ex. 8.6 plane polar (r, θ azimuth); §8.6 spherical (r, θ, φ) with θ from the downstream +x axis, body frame (sphere at rest) or fluid frame | fixed lower wall; pipe axis; slider inlet x = 0 with gap h₀; plate at y = 0; sphere centre | p absolute or gauge (only gradients matter) except lubrication p* = p/P_a (absolute atmospheric); dp/dx book sign (favourable < 0), `G` = −dp/dx alias; signed τ; power into the fluid −2πR₁σ_Rφu_φ; §8.6 p − p∞ | lubrication: L along, h = εL across, U, P_a (or μUL/h²); similarity: √(νt); Stokes layer δ_e = √(2ν/ω); low Re: pressure μU/L; Re per section (pipe diameter, Re_L, sphere diameter 2aU/ν, Re_a radius) | dimensional SI throughout; the scaled lubrication and low-Re equations live in the sympy engines (`lubrication_nondim_sympy`, `low_re_scaling_sympy`); g = G0 in `core.lubrication` and `core.creeping` |
 | ch09 | x along the wall from the leading edge (or stagnation point), y normal to it (2-D); jets: x along the jet, y across (free jet symmetric about y = 0, wall jet y = 0 the wall); body angles φ from the **forward** stagnation point; Kármán street rows at y = ±b/2 with spacing a (upper row −Γ in the picture, +Γ in D14 step 1 — an open explainer item); teacup cylindrical (R, z) with z up from the floor | leading edge x = 0 (Blasius δ → 0 there, (9.22)); Thwaites start x[0] with θ₀ (stagnation start: the finite limit); marching inlet x₀ > 0 with a supplied or local Falkner–Skan profile; jet slot x = 0 (virtual origin) | −(1/ρ)dp/dx = U_eU_e′; **dp/dx > 0 adverse**; u = ψ_y, v = −ψ_x; signed τ₀ (> 0 attached, 0 at separation); C_p = (p − p∞)/(½ρU²); C_D of (9.33) for one face; μu_yy(wall) = dp/dx | overall L, U (δ̄ = L Re^{−1/2}); similarity lengths √(νx/U), √(νx/U_e), (Cρν²x²/J)^{1/3}, ∝ x^{3/4}; cylinder/sphere Re on the diameter; St with the cyclic frequency | dimensional SI; similarity profiles and the Thwaites closure non-dimensional; scaled (9.7)–(9.8) in `bl_nondim_sympy`; ρ default 1.2 (air) in BL helpers, 1000 in the teacup; g only in `ball_swing_deflection` (9.81) |
 | ch10 | 1-D x ∈ [0, L] (FD, FEM1); 2-D (x, y) with the `[j, i]` layout, y up (cavity lid at y = 1 moving in +x; block and cylinder channels with the stream in +x); **three grids**: node-based (FD, MCK), element meshes (FEM1 [x_{e−1}, x_e]; FEM2 vertices then mid-edge nodes, Fig. 10.17 numbering), staggered C-grid (MAC: p centres, u x-faces, v y-faces); Fourier angle θ = kπΔx (book e^{iπkx_i}) | x = 0 Dirichlet end (g), x = L Neumann end (q); cavity corner (0, 0), walls on node lines (MCK) or cell faces (MAC); block/cylinder centred in the channel (ours: H = 4 block sides, 8 ahead, 20 behind; cylinder W = 5d) | CFL and upwind side with sign(u), \|u\|; truncation error E = "exact minus scheme"/Δt on the left of (10.16); weak continuity with a minus sign (B, Bᵀ symmetric); pressure pinned by its mean (defined up to a constant); ψ = 0 on the walls, ψ_min < 0 clockwise eddy; drag positive downstream | §10.2–10.3 dimensional (u m/s, D m²/s, L m); §10.4 NS non-dimensional (L, U, L/U, ρU², Re (10.81)); cavity p = ρ/Ma², Re = ρ₀UL/μ; block side and cylinder diameter d as lengths; force coefficients per span on ½ρU²d | §10.2–10.3 dimensional SI; §10.4–10.5 solvers non-dimensional (ρ = 1, c = 1/Ma, μ = 1/Re); our run parameters Ma 0.08 (cavity), 0.06 (block), σ = 0.8 (book values private) |
+| ch11 | KH: (x, z), z up, interface at z = 0, upper stream 1, lower stream 2 (depth h below in Ex. 11.1); Bénard and double diffusion: z up across the layer, **z ∈ [−½, ½]** in units of d; Taylor: cylindrical (R, φ, z), x = (R − R₁)/d ∈ [0, 1]; stratified shear: (x, z), z up, layer centred at z = 0 or between walls; parallel viscous flows: x streamwise, y across (Poiseuille y ∈ [−1, 1], Blasius y ≥ 0 in δ*, free layers y ∈ (−∞, ∞) truncated at ±y_max); Chebyshev nodes **descending** (`grid.y[0]` is the top/right end); Lorenz phase space (X, Y, Z) | interface z = 0; layer mid-plane z = 0; inner cylinder x = 0; wall y = 0 (Blasius); critical level y_c where U = c_r | normal mode e^{ikx + σt} = e^{ik(x − ct)}, σ = −ikc; Γ = −dT̄/dz in (11.21) (code takes `dT` = T_bottom − T_top); §11.5 Ra signed with dT̄/dz; ψ: §11.7 u = ∂ψ/∂z, §11.8 u = ∂ψ/∂y, §11.14 u = −∂ψ/∂z; Ri sign follows N² at U′ = 0; production P = −∫⟨uv⟩U′dy positive when it feeds the wave | Bénard d, d²/κ; Taylor d, d²/ν; parallel flows L and U₀ per flow (half-width and centreline speed; δ* and U∞; L and U₀ of tanh/sech²); Lorenz time d²/((π² + k²)κ); default g = G0 = 9.80665 | KH and the salt-finger examples dimensional SI; every eigen-solver non-dimensional with the scales stated in its docstring |

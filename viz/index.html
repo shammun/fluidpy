@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790804312">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790804312">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1790884486">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790884486">
 </head>
 <body>
 <div class="ce-container">
@@ -429,6 +429,53 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>Why can&#x27;t velocity and pressure use the same elements?</b>
 <p>Switch between P1–P1 and P2–P1 and refine the mesh: count velocity and pressure unknowns, watch the Stokes-cavity pressure turn from noise to smooth, and follow the inf–sup constant.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch10/mixed_fe_lbb.html">Open full window</a><a class="fp-btn" href="../notebooks/ch10_computational_fluid_dynamics.html#viz-mixed_fe_lbb">In the chapter</a></div>
+</div></div>
+<h2 id="ch11">Chapter 11 — Instability</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 11 · explainer 1 · §11.2 11.3 11.4</small>
+<b>When is a flow &#x27;unstable&#x27;?</b>
+<p>A disturbance is a sum of waves, each with its own growth rate: drag the wavenumber along the growth curve and watch one wave grow, decay or travel; raise the control parameter and see which wavelength crosses zero first.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/normal_mode_growth.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-normal_mode_growth">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 2 · §11.3</small>
+<b>Why does wind raise waves only above a threshold?</b>
+<p>Gravity holds long waves, surface tension short ones, shear pushes them all: watch the two wave speeds collide and turn into a growing/decaying pair as the shear crosses the boundary.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/kelvin_helmholtz_boundary.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-kelvin_helmholtz_boundary">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 3 · §11.4</small>
+<b>Why does convection start near Ra ≈ 1708?</b>
+<p>Each cell width K has its own marginal Rayleigh number; drag a point in the (K, Ra) plane, watch the rolls grow or decay and the determinant&#x27;s imaginary part cross zero, and switch the walls to move the whole valley.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/benard_neutral_curve.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-benard_neutral_curve">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 4 · §11.5</small>
+<b>How can a stably stratified column overturn?</b>
+<p>Heat diffuses about a hundred times faster than salt: a displaced parcel keeps its salt and keeps sinking. Drag the two gradients across a regime map and see a column that is stable by density yet finger-unstable.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/salt_fingers.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-salt_fingers">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 5 · §11.6</small>
+<b>Why do vortices stack up between spinning cylinders?</b>
+<p>Swapping two fluid rings releases energy when the squared circulation falls outward; drag the speed ratio and the Taylor number across Rayleigh&#x27;s line and the viscous boundary, and watch Taylor vortices appear only past the second.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/taylor_couette_onset.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-taylor_couette_onset">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 6 · §11.7</small>
+<b>Why does Ri = 1/4 decide whether shear makes billows?</b>
+<p>Slide the stratification J of a tanh shear layer: the Ri(z) profile dips below one quarter exactly when the growth tongue of the (k, J) map is reached and the billows start to grow.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/richardson_shear_instability.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-richardson_shear_instability">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 7 · §11.7 11.9</small>
+<b>Which profiles can be unstable without viscosity?</b>
+<p>Switch profiles: the inflection point, Rayleigh&#x27;s and Fjørtoft&#x27;s verdicts and the wave speed on the c-plane move together, always inside Howard&#x27;s semicircle; open the cat&#x27;s eye at the critical layer.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/inviscid_shear_criteria.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-inviscid_shear_criteria">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 8 · §11.8 11.10 11.11</small>
+<b>How can viscosity make a channel flow unstable?</b>
+<p>Click a point (Re, k) on the neutral-curve map: the Tollmien-Schlichting wave travels over the profile, and its production and dissipation bars show why it grows inside the thumb and decays outside.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/orr_sommerfeld_neutral_curve.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-orr_sommerfeld_neutral_curve">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 11 · explainer 9 · §11.14</small>
+<b>How can three exact equations be unpredictable?</b>
+<p>Two starts a hundred-millionth apart on the Lorenz attractor, on one clock: the 3-D orbit, X(t) of both runs, the log of their separation and the convection roll they describe. Move r through 1 and 24.74 and watch the verdict change.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/lorenz_attractor.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-lorenz_attractor">In the chapter</a></div>
 </div></div>
 </div>
 </body>

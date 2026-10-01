@@ -12,7 +12,7 @@ PASS round 2, 145 parity rows, every page of every pager audited); ch04 E1 `cont
 round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by script); ch05 E1
 `vortex_tubes_cannot_end`, E2 `vortex_pressure_funnel`, E3 `kelvin_material_loop`, E4 `baroclinic_torque`, E5
 `vorticity_stretching_tilting`, E6 `biot_savart_filament`, E7 `vorticity_equation_rotating`, E8 `point_vortex_lab`, E9
-`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). ch08 E1 `couette_poiseuille_backflow`, E2 `lubrication_scaling`, E3 `slider_bearing`, E4 `viscous_gravity_current`, E5 `stokes_first_problem`, E6 `similarity_exponents`, E7 `oscillating_plate`, E8 `stokes_sphere_flow`, E9 `stokes_drag_settling` (all PASS by round 3, 278 parity rows of which 207 JS ↔ fluidpy, 3 312 views, 26 derivations matched step by step against the notebook's `--dump`). ch09 E1 `bl_scaling_thicknesses`, E2 `blasius_similarity_collapse`, E3 `falkner_skan_family`, E4 `thwaites_marching`, E5 `cylinder_drag_crisis`, E6 `karman_street_stability`, E7 `free_jet_similarity`, E8 `wall_jet_invariant`, E9 `teacup_secondary_flow` (all PASS round 2 after a library fix, 248 selftest rows of which 178 JS ↔ fluidpy; 20 of 22 derivations match the final notebook — **D06 and D14 drifted after the lesson review**, see Failures). ch10 E1 `fd_stencil_order`, E2 `von_neumann_amplification`, E3 `upwind_cfl_advection`, E4 `cell_peclet_wiggles`, E5 `fem_hat_assembly`, E6 `mac_projection_staggered`, E7 `lid_driven_cavity`, E8 `mixed_fe_lbb` (all PASS round 2, 310 selftest rows of which 270 JS ↔ fluidpy, 20 derivations matched step for step against the notebook's `--dump`; no library change; heavy local numerics — dense/banded LU, lstsq, tridiagonal, generalised eigen — see ch10 candidates). **Rule since ch03: 5–10 explainers per chapter, as
+`vortex_sheet_rollup` (all PASS round 2, 268 parity rows, 2 776 views, 23 derivations matched); ch06 E1 `superposition_sandbox`, E2 `cylinder_circulation_lift`, E3 `vortex_wall_images`, E4 `complex_potential_corners`, E5 `blasius_kutta_contour`, E6 `conformal_joukowski`, E7 `laplace_relaxation`, E8 `axial_singularity_bodies`, E9 `added_mass_sphere` (all PASS round 2, 291 parity rows, 2 864 views, 31 derivations matched). ch07 E1 `dispersion_relation`, E2 `particle_orbits`, E3 `capillary_gravity_waves`, E4 `seiche_standing_waves`, E5 `group_velocity_packets`, E6 `wave_rays_refraction`, E7 `hydraulic_jump`, E8 `two_layer_modes`, E9 `internal_wave_beams` (all PASS round 2, 222 parity rows of which 172 JS ↔ fluidpy, 3 312 views, 29 derivations matched). ch08 E1 `couette_poiseuille_backflow`, E2 `lubrication_scaling`, E3 `slider_bearing`, E4 `viscous_gravity_current`, E5 `stokes_first_problem`, E6 `similarity_exponents`, E7 `oscillating_plate`, E8 `stokes_sphere_flow`, E9 `stokes_drag_settling` (all PASS by round 3, 278 parity rows of which 207 JS ↔ fluidpy, 3 312 views, 26 derivations matched step by step against the notebook's `--dump`). ch09 E1 `bl_scaling_thicknesses`, E2 `blasius_similarity_collapse`, E3 `falkner_skan_family`, E4 `thwaites_marching`, E5 `cylinder_drag_crisis`, E6 `karman_street_stability`, E7 `free_jet_similarity`, E8 `wall_jet_invariant`, E9 `teacup_secondary_flow` (all PASS round 2 after a library fix, 248 selftest rows of which 178 JS ↔ fluidpy; 20 of 22 derivations match the final notebook — **D06 and D14 drifted after the lesson review**, see Failures). ch10 E1 `fd_stencil_order`, E2 `von_neumann_amplification`, E3 `upwind_cfl_advection`, E4 `cell_peclet_wiggles`, E5 `fem_hat_assembly`, E6 `mac_projection_staggered`, E7 `lid_driven_cavity`, E8 `mixed_fe_lbb` (all PASS round 2, 310 selftest rows of which 270 JS ↔ fluidpy, 20 derivations matched step for step against the notebook's `--dump`; no library change; heavy local numerics — dense/banded LU, lstsq, tridiagonal, generalised eigen — see ch10 candidates). ch11 E1 `normal_mode_growth`, E2 `kelvin_helmholtz_boundary`, E3 `benard_neutral_curve`, E4 `salt_fingers`, E5 `taylor_couette_onset`, E6 `richardson_shear_instability`, E7 `inviscid_shear_criteria`, E8 `orr_sommerfeld_neutral_curve`, E9 `lorenz_attractor` (all PASS round 2 — round 1 failed four on text/CSS items — 417 selftest rows of which 350 JS ↔ fluidpy, 2 824 views, 19 derivations / 207 steps matched against the notebook's `--dump`; no library JS change, two CSS rules added to `assets/viz_base.css` by the orchestrator; tables of fluidpy values embedded in E3, E5–E8 — see ch11 candidates and generators). **Rule since ch03: 5–10 explainers per chapter, as
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
@@ -202,6 +202,21 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **A real solver running live in the page** (MAC 16²–32², banded LU factorised once, advanced by a background pump between frames) + cached finer runs from a parity-checked table + benchmark points + a Richardson panel + a benchmark table with the current row lit; interpretation "128² is further from Ghia than 64² — the comparison measures Ghia" | ch10 E7 | verification is watched, not told; the reader sees convergence saturate at the benchmark's own accuracy |
 | **Counting that becomes an argument** (n_u vs n_p − 1; "at least 6 invisible patterns" at n = 2 = the 6 spurious modes found), an "invisible pattern" picture (max\|Bq\| = 4×10⁻¹⁶), β_h vs n with P1–P1's zeros on the floor; live dense FE ≤ 6 × 6 with a Cholesky + Jacobi generalised eigen-solver; one-element mode (six P2 shapes, 7-point rule) | ch10 E8 | an abstract inf–sup condition becomes a count and a curve that falls or stays flat |
 | **A browser pass that changes state with the Explain tab open and compares with a fresh page at the same state** (25 cases), plus a scan of every config string and live output for control characters and `.katex-error` nodes | ch10 viz review | catches stale Explain text (the ch09 R2-M1 class) and lost backslashes that `shot.py` cannot see |
+| **Three linked views on one state: the motion, the curve it is a point of, and the eigenvalue plane** — interface/shear/Bénard wave + σ(k) with the growing band shaded, ▲ cut-off, ◆ fastest mode and a ghost + the σ-plane with both roots; per-system controls hidden by a data attribute | ch11 E1 (also E2: wave + (k, ΔU) boundary + c-plane where the two roots collide ✕ and leave as a pair; E6; E7) | "which wavelength goes first" is visible only when one point on the curve and the motion it means move together |
+| **Term bars under the square root that add to the discriminant, with the sign deciding** (gravity, surface tension, shear) | ch11 E2 | a stability criterion becomes "which bar wins"; presets at the minimum ◆ (6.70 m/s at 1.73 cm) and in the thermocline |
+| **Table of fluidpy values with exact zero on the live neutral curve**: a small embedded table of `ch11.benard_growth_rate` (4 s.f.), interpolated, and **snapped to σ = 0 on the neutral curve the page computes live** (determinant) so table and curve can never disagree about the sign | ch11 E3 (replaced a one-mode estimate; 60 off-grid points within 7.7e-5; σ = 0 exactly at 0.999, 1, 1.001 × Ra(K)) | the sign (every verdict and band edge) is exact, the magnitude is the tested function's; parity rows at 2e-3 instead of rtol 0.25 |
+| **Interpolation that ends on the exact neutral point**: the exact neutral point (k_n, c_i = 0, c_r known: k_n = 2, 1, √3/2 …) is appended to the tabulated spectrum as its last node and the table is interpolated cubically up to it, so growth reaches 0 exactly there and nowhere before | ch11 E7 (10 off-grid wavenumbers within 1.6e-5 of `rayleigh_eigs_contour`), E6 (growth map ending on J = k(1 − k)) | removes the false "stable" sliver that a bilinear table leaves next to a neutral curve |
+| **Text-checksum parity rows for mirrored fluidpy strings**: the JS mirror of a verdict text is compared with the fluidpy string through a position-weighted sum of character codes computed on both sides, `rtol: 0` (plus regime-word checks on a grid of states) | ch11 E4 (seven checksum rows, one per regime text; regime word = `ch11.salt_finger_regime` on 1 120 states), E6 (nine rows for ±∞ / nan Richardson cases) | a mirrored sentence cannot go stale silently (the ch10 E2 failure); works inside shot.py's restricted `py:` builtins |
+| **Status computed from the run, not from the parameters**: the badge reads what the integrated trajectory actually did ("still switches lobes at t = 50", "window too short (2.7 decades): no fitted line") | ch11 E9 | at r = 24 a stable fixed point coexists with a chaotic set — a parameter-only verdict would be wrong for half the starts |
+| **Canvas orthographic 3-D projector with drag-to-orbit** (no three.js, no CDN): rotate, project, depth-sort, draw on the 2-D view canvas | ch11 E9 (works at 1366×768 and 390×844) | a 3-D orbit that survives offline and in a notebook frame; cheaper than `Viz.three` for line data |
+| **Dimensionless transport parameter when the run length depends on the state**: the transport scrubs a fraction of the run (`run` or `tau` from 0 to 1) and the stage converts it to physical time with the current growth rate or period; where a clock in the flow's own unit is kept (E3 d²/κ, E6 L/U₀, E8 λ/U₀) the title prints the amplitude reached ("×43.7 (drawn capped)") | ch11 E1, E2, E4, E5 (0–1 parameter); E3, E6, E8 (scaled clock) | one transport serves presets whose natural durations differ by orders of magnitude (71.6 s thermocline vs 2.09 min cloud) |
+| **A slider whose displayed value depends on another parameter**: the Ta slider prints "−175 (< 0)" past Rayleigh's line, the plane marks a hollow dot "slider value: not reachable here", and the status states the actual Ta | ch11 E5 (after review) | keeps one control honest where part of its range is physically unreachable; also the two-convention gradient slider (dT/dz and Γ = −dT/dz) of E4 |
+| **Criterion band on a profile + map + three-way status**: Ri(z) on a log axis with the ¼ line and a rose band where N² − ¼U′² < 0; growth map with the exact neutral curve and a slice at the reader's J; status "🛡️ stable for every k" / "🌀 allowed and this wave grows" / "⚖️ allowed, not happening" | ch11 E6 (best of the chapter) | teaches a one-way theorem: "allowed" and "happening" are separate lights; a counter-example preset (R = 3, J = 0.4) shows Ri_centre > ¼ and growth |
+| **Necessary conditions as bars evaluated on a computed mode** (Fjørtoft's two integrals; the two lobes of (11.84) cancelling) with a "Rayleigh ✓ Fjørtoft ✗" preset and a "both met, nothing grows" preset | ch11 E7 | the proof's integral becomes a picture; the reader sees why the theorem is only necessary |
+| **Click a point on a neutral-curve map → the mode over the profile + production/dissipation bars adding to dE/dt = 2kc_iE**, with a Squire ghost point and honest labels ("(table)", "(table, interpolated)", "shape interpolated", "lower edge below k = 0.02, not resolved", "within the table's resolution of a neutral curve") | ch11 E8 | an energy budget explains the sign of the growth; the labels say exactly what is computed and what is not |
+| **"How far to trust it" paragraph in Explain**: what a computed 0 means near a neutral curve, which numbers are interpolated, which finite-time fits are not long-time limits | ch11 E6, E8, E9 | readers stop reading resolution limits as physics |
+| **A review-phase bug taught as a walkthrough step** ("top-heavy is not enough": Rs − Ra = 438 < 657.5, flips at −0.0076 K/m) | ch11 E4 | a boundary the code got wrong is exactly the boundary readers get wrong |
+| **A DOM sweep for `.katex-error` nodes and control characters over every tab, tour step, derivation page and preset** (46–70 states per explainer), plus the regime word against fluidpy on a grid of reachable states | ch11 viz review (found E2's two KaTeX errors; 0 in round 2) | catches what `shot.py` passes (L3) |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -352,6 +367,21 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **Code-tab `{{placeholders}}` share one namespace across code blocks** (a name reused in two blocks shows the last value in both) | ch10 builders (library quirk) | unique placeholder names per block; library: per-block namespaces |
 | **Shell heredocs still mangle backslashes** (`\approx` lost in an explainer string written by a heredoc; `\to` → TAB + "o" in the notebook) | ch10 builders + notebook | Write/Edit only; scan every written file for bytes < 0x20 (the builder's `self_check_ctrl`); **viz_lint rule still missing** (five chapters) |
 | **Parallel builders collided in one shared scratchpad folder** | ch10 viz phase | each agent writes its own scratchpad subfolder |
+| **A one-mode estimate of σ presented as the rigid-wall growth rate was 5–35 % off** (+19.6 % at K = 3.1163, Ra = 2500; +35.1 % at K = 2, Ra = 2500), while the text said "about 10–20 %" and the parity row carried rtol 0.25 | ch11 E3 (round-1 Must) | embed a table of the tested fluidpy function and interpolate; never ship a parity row with a tolerance wider than the claim in the text |
+| **"≈" bridges hide solver defects**: a status that says "≈ neutral" or a row with a loose tolerance near a neutral point looked like honest rounding, but the underlying fluidpy tables had false zeros (Rayleigh jet k = 1.8, 1.9; TG tongue at k ≥ 0.65) | ch11 E7, E6 builders (found the defects) | when the page disagrees with a table near a boundary, report it to the implementer instead of widening the tolerance or adding "≈"; the builders were the accidental testers |
+| **Bilinear interpolation across a neutral curve** puts the zero contour in the wrong place and gives the wrong sign in a sliver (and 65 % error in a c_i of size 1e-4 inside the Bickley gap) | ch11 E6, E7 (fixed), E8 (accepted, labelled) | interpolate in a variable that vanishes on the known neutral curve, or snap to the live root-found curve; where neither is possible, say "within the table's resolution of a neutral curve" and do not claim a sign |
+| **A reference grid that switches mode family cannot be interpolated**: `reference/ch11/os_grid_<flow>.csv` holds the least-damped discrete mode, which jumps between wall and centre modes outside the neutral curve | ch11 E8 | generate the explainer table by **continuation of one mode** from the most unstable node (`tools/viz_tables/ch11/orr_sommerfeld_neutral_curve_table.py`); for the jet's two bands (two families) tabulate the least-damped discrete mode on a finer log-k grid and say so |
+| **A normal quoted JS string with single-backslash TeX** (`'$c=\bar U\pm[\,\cdot\,]^{1/2}$'`: `\b` became a backspace) rendered two red KaTeX errors on a Derivation result page; `shot.py` passed | ch11 E2 (round-1 Must) | raw template strings (or doubled backslashes) for every TeX string; shot.py must fail on `.katex-error` (L3, open) |
+| **Coloured legend words in view titles printed in plain text colour** (`.viz-view-title b` outranked `.c-teal` …): curves had no other label on the stage | ch11 E1, E4, E8, E9 (E4, E9 Must) | fixed in `assets/viz_base.css` (L1: `.viz-view-title b:not([class*="c-"])`), re-inlined everywhere; E6's local workaround is now redundant |
+| **Explain text assumed the sign of the other roots** ("both decay" while the conjugate root grows equally, or a second real root is positive) | ch11 E4 (round-1 Must) | derive every such phrase from the computed signs: "its conjugate grows equally; the third decays" / "one more grows, one decays" / "both decay" |
+| **A fitted slope that depended on an unrelated control** (Lyapunov fit 0.89 at δ₀ = 1e-8 but 0.59 at 1e-4 because the fitting window shrank) | ch11 E9 | print "no fitted line: window too short (2.7 decades)" below two decades; explain the flat start of the separation curve (≈ 12 time units) |
+| **Slider value vs readout disagreed** (Ta slider 1708, readout −175 past Rayleigh's line) | ch11 E5 | show the reachable value on the slider, mark the requested one as "not reachable here" on the plane |
+| **Code-tab lines wrap at 1366×768 above ≈ 44 characters** (E5 18/20, E9 16/23, E2 14/17 lines; comments detach from their lines) | ch11 E1, E2, E4, E5, E6, E9 | reflow to ≤ 44 characters (the skill's "≤ 70" is too generous for the side panel); lint candidate L5 |
+| **`#<param>=…` deep links are overridden by tour step 1** (boot applies the hash, then `goStep(0)` applies the step's `set`) | all nine ch11 explainers (library behaviour) | L4: apply hash parameters after `goStep(0)` |
+| **`shot.py` crashed in the parity stage while a solver module was being edited** (`AttributeError: … no attribute 'rayleigh_eigs_contour'`) | ch11 viz review run 1 | never run the implementer and a shot audit at the same time; a crashed run is not a result |
+| **Builders sharing one scratchpad overwrote each other's generator scripts** (second chapter in a row) | ch11 viz phase | one private scratch subfolder per agent; generators that produce embedded tables are saved in `tools/viz_tables/chNN/` |
+| **A mirrored fluidpy text containing "(11.46)" tripped `eq_refs.py`**, so the builder split the string (`const EQTAG = ' of (' + '11.46)'`) to hide it | ch11 E4 (open) | L6: an allow-marker in `tools/eq_refs.py` for strings mirrored byte for byte from fluidpy; do not split strings |
+| **Thin strip on phones**: seven Bénard cells in a ~45 px view; a rotated y title losing its last character at 360×640 | ch11 E1, E8 (open) | draw fewer wavelengths when the view is short; shorten axis titles ("k L (log)") |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -534,6 +564,85 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch11 candidates (listed, **not promoted**: the ch11 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
+From `reports/ch11_viz.md` ("Helpers worth promoting") and a grep for named function definitions in the nine chapter scripts
+(the reviewer's file lists are wider than the grep where a helper is an inline expression or a `const`).
+
+| Rank | Helper | Found in (ch11) | Proposed library name | Why |
+|---|---|---|---|---|
+| 1 | **complex-pair formatting and complex square root** (`ctex`, `ctxt`, `cpy`, `csqrtReal`: a ± bi in TeX, in text, as a Python literal for `py:` rows; √ of a real that may be negative) | reviewer: E1–E4, E9; named definitions in `normal_mode_growth.html`, `salt_fingers.html` | `Viz.cx.fmt/tex/py`, `Viz.cx.sqrtReal` (with the ch09 `Viz.cx` request: add, mul, div, exp, cos, cosh — E3 computes a complex 3 × 3 determinant) | every stability explainer prints eigenvalue pairs; Ch. 13 will too |
+| 2 | **`bisect` and `goldenMax`** (bracketed root and bracketed maximum) | `normal_mode_growth.html`, `inviscid_shear_criteria.html` (`bisect`); `normal_mode_growth.html` (`goldenMax`) | `Viz.num.bisect`, `Viz.num.goldenMax` (beside `brentq`) | band edges and fastest-growing modes on every σ(k) curve |
+| 3 | **interpolation of a table on a rectangular grid** (bilinear and cubic; optional snap to a known zero curve; log-spaced axes) | reviewer: E5–E8 (`cubW` in `orr_sommerfeld_neutral_curve.html`; local variants in E3, E5, E6, E7) | `Viz.num.table2d(xs, ys, values, {kind: 'bilinear'\|'cubic', logx, logy})` | the "table of fluidpy values" pattern needs one tested interpolator instead of four |
+| 4 | **real-coefficient cubic solver** (three roots, real or a conjugate pair) | `salt_fingers.html` (`cubicCoeffs`, `cubicRoots`), `lorenz_attractor.html` (`cubicC`, `solveCubic`) | `Viz.num.cubicRoots(a2, a1, a0)` | characteristic cubics (double diffusion, Lorenz; Ch. 13 dispersion relations) |
+| 5 | **`arrowPx`** (pixel-space arrow; asked since ch09) | `normal_mode_growth.html`, `salt_fingers.html`, `richardson_shear_instability.html`, `lorenz_attractor.html` (+ 20 earlier files) | `Viz.arrowPx(ctx, x0, y0, x1, y1, opts)` | fourth chapter defining it locally |
+| 6 | **text-checksum row helper** for exact-string parity with a fluidpy text; `pyG` (Python `%g`-style formatting for mirrored strings) | reviewer: E4, E6; `pyG` in `salt_fingers.html`, `richardson_shear_instability.html` | `Viz.selftest.textRow(name, jsString, pyExpr)`, `Viz.pyG` (beside ch10's `pyRound`) | pins mirrored verdict strings without ndarray methods |
+| 7 | **orthographic 3-D projector with drag-to-orbit** on a 2-D canvas | `lorenz_attractor.html` (`projector`) | the offline path of `Viz.three` (`Viz.three.canvas(view, {theta, phi})`) | 3-D line data with no CDN; Ch. 13 Ekman spirals |
+| 8 | **`gutterPlot`** (fourth pass asking) | `kelvin_helmholtz_boundary.html` (+ 26 earlier files) | `Plot` option `gutter: true` | unchanged from the ch10 list |
+
+`Viz.num.linalg` (ch10 rank 1) was **not** needed after all: no ch11 explainer solves an eigenproblem in the browser — E3
+evaluates a 3 × 3 complex determinant, the others read parity-checked tables. Order for the library pass: ch11 ranks 1–4 with
+the ch10 list; then `tools/viz_inline.py --all`, `tools/shot.py --chapter ch01 … ch11 --quick` and
+`templates/viz_example.html --quick`. **Already done by the orchestrator in the ch11 viz phase** (not candidates any more):
+L1 coloured `<b class="c-…">` in view titles and L2 `.viz-stage-badge:empty { display: none }` are in `assets/viz_base.css`
+and inlined in every explainer and template; the five local copies of the badge rule and E6's legend workaround can be deleted
+at the next edit of those files.
+
+### ch11 table generators (`tools/viz_tables/ch11/`)
+`benard_neutral_curve_sigma_table.py` (E3 growth table; paths relative to the script), `taylor_couette_onset_sigma_table.py`
+(E5), `inviscid_shear_criteria_tables.py` (E7), `orr_sommerfeld_neutral_curve_table.py` (E8; continuation of one mode family,
+Bickley on a 36 × 37 log-k grid; writes to `outputs/ch11/viz_tables/`). **To tidy**: the E5 and E7 scripts hard-code the
+absolute repository path as `ROOT`, and the E3/E7 scripts write their JSON/JS next to themselves — make all four
+`Path(__file__)`-relative with one output folder; **the E8 table is spliced into the HTML by hand** (a `tools/viz_embed_table.py`
+that replaces a marked `const OS = …;` block would make it repeatable). Every embedded table is ours, labelled, and pinned by
+parity rows against the fluidpy function.
+
+### ch11 open explainer items (Should, non-blocking; from `reports/ch11_viz.md` round 2)
+- E8 `orr_sommerfeld_neutral_curve`: rotated y title "wavenumber kL (log)" clipped by one character at 360×640 (→ "k L
+  (log)"); quiz 4 answer "Its lower edge below k = 0.02, not resolved." (add "is"); status "grows already at Re = 500" for
+  the jet far above Re_c (drop "already").
+- E4 `salt_fingers`: 3 of 15 code lines wrap at 1366×768; the EQTAG split-string workaround stays until L6.
+- E3 `benard_neutral_curve`: 1 of 41 code lines wraps.
+- E1 `normal_mode_growth`: thin Bénard strip at 360×640 (draw fewer wavelengths).
+- Backup B1 `period_doubling_route` not built.
+
+### ch11 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **L3 `tools/shot.py`: fail on any `.katex-error` node and on control characters in rendered text, on every page of every
+  pager** (E2 passed with two errors; a builder's probe script and the reviewer's sweep exist only in session scratchpads).
+- **L4 deep links**: apply `#<param>=…` after `goStep(0)` (all nine explainers override the hash with step 1's `set`).
+- **L5 code-line length**: lint `code[].src` lines longer than ≈ 44 characters, or shrink the code font one step.
+- **L6 `tools/eq_refs.py`**: an allow-marker for strings that mirror a fluidpy text byte for byte.
+- `tools/check_public.py`: it sees only tracked/staged files — document "run after `git add`" in the tool's help and the
+  pre-push hook text (a selftest label matching a private book string was committed locally before being reworded).
+- One private scratch subfolder per agent (collisions in ch10 and ch11); never pipe an audit through `tail` when its exit
+  code matters.
+- `viz_lint` control-character rule (now six chapters).
+
+### ch11 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch11) **embed a table of the tested fluidpy function instead of a rough in-page estimate**, and
+  snap it to exact zero on the neutral curve the page computes live · interpolate so that growth ends on the exact neutral
+  point; never bilinear across a neutral curve · follow one mode family by continuation when tabulating eigenvalues · pin
+  mirrored fluidpy strings with checksum rows · derive every "the others decay" phrase from the computed signs · a status may
+  be computed from the run · code lines ≤ 44 characters at 1366×768 · TeX strings are raw templates; sweep `.katex-error`
+  before review · when a page disagrees with a fluidpy table near a boundary, report the solver — do not add "≈".
+- `math-to-python` §7: (ch11) **an unbounded profile needs a box that scales with 1/k** (≥ 12 e-folds), proved by box and N
+  doubling · **return the leading mode or raise; a 0 in a table has a stated meaning** · near a neutral point use a complex
+  path round the critical layer and keep an independent route (shooting, determinant, compound matrix) · least-damped ≠ the
+  mode to interpolate; neutral curves may have several bands; never join across NaN · eliminate boundary unknowns rather than
+  replacing rows · spectral convergence is digits and has a round-off rise at large N · a new solver option needs its own
+  test before it is documented (`semi_infinite`).
+- `verify-implementation`: (ch11) **classifier and verdict functions: test both sides of every boundary and every degenerate
+  input, and scan against an independent computation on a grid** · **pin sets and physics, not counts** (299 positives pinned a
+  defect) and re-derive pinned numbers when the numerics change · design-document "expect" values are claims to test, not
+  references · mutants for every "old behaviour" after a fix (61 planted, 1 equivalent survivor recorded with its reason).
+- `teaching-style` Lessons: (ch11) **one-way theorems are taught with the word "necessary" or "sufficient" and a
+  counter-example** · "trust what does not move with N" overlays · say what a table does not resolve next to its figure · a ★★★
+  check cell tests the derived result itself · a numerical disagreement can be the lesson (RK4 vs DOP853 past the
+  predictability time) · the ch11 derivation moves in `concept_map.md` (conjugate-multiply and take the imaginary part;
+  substitute ψ̂/(U − c)ⁿ to make the equation self-adjoint; map a new problem onto a solved one; Galerkin truncation).
+- `colab-notebook` / nbkit: (ch11) animations dominate the runtime (126–239 s by machine load; dpi 60 and 18–22 frames) —
+  cache animation frames or cap frames in the builder; echo comments (`# draw <y> against <x>`) are still generated — fix the
+  template; a live widget must catch `ValueError` from solvers that now raise.
 
 ### ch10 candidates (listed, **not promoted**: the ch10 knowledge pass ran while the site-publisher was reading `viz/`)
 Found by the builders' notes and a script over the eight ch10 chapter scripts (the part after the inlined library); "files" =
@@ -1183,6 +1292,22 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   thermocline layers, upwind tracer advection's numerical diffusivity vs model κ; E7's pump for any live model run.
 - **Ch. 15 compressible (from ch10)**: E3's MacCormack/Lax–Wendroff ring → a shock tube (ripples behind the shock = the D18
   dispersion), the x–t stencil with two characteristic families (u ± c), CFL on \|u\| + c.
+- **Ch. 11 (done — what came of the plans above)**: the three-view layout became E1/E2 (σ(k) or the (k, ΔU) boundary + the
+  eigenvalue plane + the wave); no live eigen-solver was needed (E3 a 3 × 3 complex determinant, E5–E8 parity-checked tables,
+  E9 RK4); the MAC saturation run was not built (roll-up shown by the ch05 sheet in animation A2). Backup B1
+  `period_doubling_route` not built.
+- **Ch. 12 turbulence (from ch11)**: E8's production/dissipation bars → the turbulent kinetic-energy budget across a channel
+  (production −⟨uv⟩U′, dissipation, transport) with DNS profiles; E9's two runs on one clock → sensitivity of a turbulent
+  signal and "statistics are predictable" (time-mean bars that agree while the states do not); E1's σ(k) → an energy spectrum
+  with a cursor; E6's three-way status → "laminar / transitional / turbulent" verdicts that separate *allowed* from *happening*.
+- **Ch. 13 GFD (from ch11)**: E7 with a β slider → Rayleigh–Kuo (the criterion becomes "β − U″ changes sign"; the same
+  `rayleigh_eigs_contour` table generator with `Upp − β`); E3's parameter plane with a neutral curve and a live zero → the Eady
+  growth-rate curve and its short-wave cut-off; E5's ring swap with energy bars → inertial instability (parcel exchange with
+  absolute angular momentum, f(f + ζ) < 0); E6 → Ri in mixing schemes and critical levels of internal waves; E4 → thermohaline
+  staircases and a (R_ρ, regime) map; E9's canvas projector → the Ekman spiral without three.js; E8's "click a point → mode +
+  energy bars" → baroclinic energy conversion.
+- **Ch. 15 compressible (from ch11)**: E2's c-plane where two real roots collide → the compressible vortex sheet (stabilised
+  above a Mach number); E1's mode switcher → acoustic vs vorticity vs entropy modes.
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

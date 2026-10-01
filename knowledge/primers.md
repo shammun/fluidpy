@@ -4,10 +4,11 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254); a new chapter starts at the next free number
-(ch11: **P255**). Total so far: 255 (P01–P254 and P218a — an inserted id: the ch09 lesson review moved integration by parts
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279); a new chapter starts at the next free number
+(ch12: **P280**). Total so far: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
-review and sits before P237 in the notebook).
+review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
+first use).
 
 | Term (maths / physics / Python) | Explained in (chapter · notebook section · CORE block) | One-line gist (our words) |
 |---|---|---|
@@ -302,6 +303,33 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | GMRES in one line (P250) | ch10 · §10.4 · C13 | for big nonsymmetric systems (Newton steps), GMRES builds the best answer in span{b, Ab, A²b, …} and stops at a small residual; `scipy.sparse.linalg.gmres(A, b)` → (x, info), info = 0 converged |
 | reading reference data from a file and interpolating (np.interp) (P251) | ch10 · §10.5 · C14 | benchmark tables live in `reference/chNN/*.csv` with the citation in the header; read with `np.loadtxt`/`pandas.read_csv`, then interpolate **our** profile at **their** points (`np.interp(their_y, our_y, our_u)`, P182) so no benchmark value is invented |
 | caching expensive runs (np.savez and a parameter key) (P252) | ch10 · §10.5 · C14 | save a long run once (`np.savez` in `outputs/chNN/`, parameters in the file name or a hash) and `np.load` it next time; `functools.lru_cache` in memory; the notebook says whether a result was loaded or computed |
+| **ch11 — maths and physics** (the term is the exact `nb.primer` title) | | |
+| necessary vs sufficient conditions, "for every k", and proof by contradiction (P255) | ch11 · §11.2 · C01 | sufficient: A guarantees B (Ri > ¼ everywhere ⇒ stable); necessary: no B without A, but A alone does not force B (an inflection point for inviscid instability); "stable" = σ_r ≤ 0 for **every** k, "unstable" needs **one** k; contradiction: assume a growing mode, reach something impossible |
+| eigenvalue problem for a differential equation (P257) | ch11 · §11.4 · C03 | an ODE with boundary conditions has a nonzero solution only for special parameter values (−u″ = λu, u(0) = u(π) = 0 ⇒ λ = 1, 4, 9, …, u = sin nz); those values are the eigenvalues, the solutions the eigenfunctions (mode shapes) — extends the matrix case of P80 |
+| Chebyshev–Gauss–Lobatto points and the differentiation matrix (P258) | ch11 · §11.4 · C03 | sample at x_j = cos(jπ/N) (crowded near the ends, `x[0]` is the right/top end) and differentiate the interpolating polynomial exactly with a matrix D (`D @ D` for the second derivative); for smooth solutions the error falls exponentially with N — digits, not an order |
+| real and imaginary parts of a complex identity (P260) | ch11 · §11.4 · C03 | one complex equation = two real ones; ∫∣f∣² dz > 0 unless f ≡ 0; 1/(U − c) = (U − c*)/∣U − c∣², so Im 1/(U − c) = c_i/∣U − c∣²; (real quantity) × c_i = 0 forces c_i = 0 or the quantity to vanish — the engine of D08, D18, D19, D22 |
+| even and odd functions; parity under z → −z (P261) | ch11 · §11.4 · C04 | even f(−z) = f(z) (cos, cosh), odd f(−z) = −f(z) (sin, sinh); a problem symmetric under z → −z has even or odd eigenfunctions, found separately (even W one row of cells, odd W two; sinuous vs varicose jet modes) |
+| cube roots of a negative number (P262) | ch11 · §11.4 · C04 | −1 = e^{iπ} has cube roots −1 and ½(1 ± i√3); s³ = −a gives one real root and a complex-conjugate pair (the q, q* of the Bénard determinant) |
+| neutral curve as the zero contour of the growth rate; critical point as its minimum (P263) | ch11 · §11.4 · C04 (before D10) | for each wavenumber find where the leading growth rate crosses zero (`brentq`, P108) → the neutral curve; minimise it over the wavenumber (`minimize_scalar`, P170) → the critical point; the same nested searches give Ra_c, Ta_c and Re_c |
+| Helmholtz equation in the plane; planforms as sums of cosines (P264) | ch11 · §11.4 · C04 | linear theory fixes only ∣K∣: any f(x, y) with ∇_H²f = −K²f grows at the same rate — rolls cos Kx, squares cos Kx + cos Ky, hexagons (three wave vectors 120° apart) |
+| quotient rule, and differentiating with respect to K² as the variable (P265) | ch11 · §11.4 · C05 | (f/g)′ = (f′g − fg′)/g²; a formula in K² only is minimised in x = K² (same point for K > 0) — used for (11.44) and to expose slip #3 |
+| uniqueness of a linear boundary-value problem (P266) | ch11 · §11.5 · C06 | two unknowns with the same linear ODE, right side and boundary conditions are equal when the homogeneous problem has only the zero solution; (d²/dz² − K²)f = 0 with f = 0 at both walls has only f = 0 — hence T̂ ∝ ŝ in D13 |
+| narrow-gap (small-curvature) approximation: expand in d/R and keep the leading order (P267) | ch11 · §11.6 · C07 | when d ≪ R₁ the curvature terms (1/R)d/dR, 1/R² are smaller than d²/dR² by d/R₁, (d/R₁)²: keep the leading order (as lubrication scaling, P188); x = (R − R₁)/d ∈ [0, 1], d/dR = (1/d)d/dx |
+| singular point of an ODE (P269) | ch11 · §11.7 · C08 (before D17) | where the highest-derivative coefficient vanishes — U(z) = c in the Rayleigh and Taylor–Goldstein equations; never for a growing mode (c_i ≠ 0); a neutral mode has a kink or logarithm there (the critical layer); viscosity removes it |
+| quadratic eigenvalue problem c²M₂ + cM₁ + M₀ and its companion linearisation (P268) | ch11 · §11.7 · C08 | (c²M₂ + cM₁ + M₀)v = 0 becomes an ordinary generalised eigenproblem twice as large with w = cv: [[0, I], [−M₀, −M₁]] (v, w) = c [[I, 0], [0, M₂]] (v, w); for 1 × 1 blocks it is the quadratic formula |
+| mapping an infinite domain to [−1, 1] (P270) | ch11 · §11.7 · C08 | z = s tan(θξ), θ = arctan(z_max/s): crowds the Chebyshev points within ∣z∣ ≲ s and still reaches ±z_max, where the e^{−k∣z∣} tail is set to zero; derivatives by the chain rule; always check that the answer does not move when z_max (and N) double |
+| integrating on a Chebyshev grid (Clenshaw–Curtis weights) (P271) | ch11 · §11.7 · C09 | ∫f dx ≈ Σw_j f(x_j) with weights exact for polynomials up to degree N — as accurate as the collocation itself; used for the integral identities and the energy budget (Simpson would be far worse on clustered points) |
+| completing the square into a circle (x − a)² + y² ≤ R² (P272) | ch11 · §11.7 · C10 | x² + y² − 2ax + b ≤ 0 is the disc (x − a)² + y² ≤ a² − b, centre (a, 0), radius √(a² − b) — Howard's last step with x = c_r, y = c_i |
+| the integral of an x-derivative of a periodic function over one period is zero (P273) | ch11 · §11.10 · C14 | ∫₀^λ ∂f/∂x dx = f(λ) − f(0) = 0: averaged over whole wavelengths every ∂(…)/∂x term disappears (the two ends of the control volume cancel) |
+| Jacobian matrix of a nonlinear ODE system and the stability of its fixed points (P274) | ch11 · §11.14 · C15 | fixed point f(s*) = 0; nearby δ̇ = Jδ with J_ij = ∂f_i/∂s_j; stable if every eigenvalue has negative real part (P214); a complex pair crossing the imaginary axis is a Hopf bifurcation |
+| Galerkin truncation: keep a few modes and project with orthogonality of sines (P275) | ch11 · §11.14 · C15 | unknown = a few fixed shapes × time-dependent amplitudes; multiply by each shape and integrate; orthogonality leaves one equation per amplitude and discards what does not fit (ch10 used hats, here sines and cosines) |
+| purely imaginary roots of a cubic λ³ + a₂λ² + a₁λ + a₀: exactly when a₂a₁ = a₀ (P276) | ch11 · §11.14 · C15 | put λ = iω: ω² = a₁ and a₂a₁ = a₀; for positive coefficients all roots are stable when a₂a₁ > a₀ (Routh–Hurwitz); equality is the Hopf point |
+| Lyapunov exponent: the slope of log(separation) against time (P277) | ch11 · §11.14 · C15 | ∣δ(t)∣ ≈ ∣δ₀∣e^{λt} ⇒ ln∣δ∣ is a line of slope λ; λ > 0 means chaos; time to reach an error Δ ≈ ln(Δ/δ₀)/λ (halving the initial error adds only ln 2/λ); fit only while the separation is small |
+| iterated maps: fixed point, stability ∣f′(x*)∣ < 1, cobweb diagram (P279) | ch11 · §11.14 · C15 | x_{n+1} = f(x_n); x* = f(x*) attracts if ∣f′(x*)∣ < 1 (compare ∣G∣ ≤ 1 of Ch. 10); a cobweb goes up to y = f(x), across to y = x, and repeats |
+| **ch11 — Python and numerics** | | |
+| np.roots and np.lib.scimath.sqrt (P256) | ch11 · §11.3 · C02 | `np.roots(coeffs)` returns every root of a polynomial (highest power first, complex if needed); `np.lib.scimath.sqrt(-1.0)` returns `1j` where `np.sqrt` gives nan — what a discriminant that can turn negative needs |
+| boundary-row replacement and the generalised non-symmetric eigenproblem scipy.linalg.eig(A, B) (P259) | ch11 · §11.4 · C03 | collocation gives Av = σBv; a boundary row in A states the condition and the same row of B is zero, so B is singular: `scipy.linalg.eig(A, B)` returns infinite eigenvalues (drop them) and round-off spurious ones (keep only eigenvalues that do not move when N grows); extends the symmetric `eigh(A, B)` of P247 |
+| matplotlib 3-D line plots (P278) | ch11 · §11.14 · C15 | `ax = fig.add_subplot(projection="3d")`, `ax.plot(X, Y, Z)`, `ax.view_init(elev, azim)`; lighter than plotly (P41/P64) for a static page figure |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -507,3 +535,24 @@ disc and 0 with one hole (P2 node counts), `tripcolor`/`tricontourf`/`triplot` (
 (parsing a table header), Kovasznay flow (an exact steady NS solution used for FE orders), Hopf bifurcation (steady wake →
 periodic shedding; → Ch. 11), the Arakawa C-grid (the MAC staggering in ocean/atmosphere models), "reduced speed of sound"
 models, dynamics/physics splitting in GCMs, printed slips named "slip #1…#12" (not recap IDs), DEVIATION boxes.
+
+Reminders written in ch11 instead of new primers (point here): P13 log–log, P15 `assert np.allclose`, P16 animate, P17
+slider_figure, P18 show_viz, P25 partial derivative, P26/P98 Taylor, P31/P94 `solve_ivp`, P38 product rule, P40 sympy, P41/P64
+plotly 3-D, P44 e^{mx} trial, P45 Euler's formula, P48 inequalities, P49 chain rule, P53/P56 determinants, P58 null space, P68
+orders of smallness, P75 level sets, P80 eigenvalues, P81 complex conjugate, P95 RK4 by hand, P108 `brentq`, P121 commuting
+operators, P129 completing the square, P133 scaled variables, P142 Fourier modes, P151 integrals of sines, P153 the complex
+plane in numpy, P155 complex powers, P159 complex square roots and the quadratic formula, P162 collocation, P166 Taylor
+transfer to the mean level, P168 cosh/sinh, P170 `minimize_scalar`, P177 operator elimination, P186 cylindrical Laplacian,
+P188 anisotropic scaling, P203 `simpson`, P212 inflection point, P214 linear stability by eigenvalues, P215 sech, P218a
+integration by parts, P233 arbitrary coefficients, P247 generalised symmetric eigenproblem, P249 Jacobian determinant, P252
+caching; ch10 C07 (Galerkin with hats) and C04 (amplification factor G ↔ e^{σΔt}).
+
+Glosses in ch11 (one sentence where used, no primer): **self-adjoint form** (pφ′)′ − qφ = 0, whose derivative term integrates
+by parts into −∫p∣φ′∣² with no boundary term (C09, the only property D18 uses); **pitchfork** — one fixed point loses stability and two symmetric ones (C₊, C₋) appear (D25 step 7);
+**eigenfunction** (P257); **capillary length** √(σ_s/(gΔρ)) (C02); **volume contraction rate** = trace of the Jacobian,
+−(Pr + 1 + b) (C15); Reynolds stress −⟨uv⟩ (forward pointer in C02, defined in C14; → Ch. 12); Tollmien–Schlichting wave
+(C13); exchange of stabilities and overstability (C01, C03); Clenshaw–Curtis vs Simpson; the compound-matrix and shooting
+routes (named as independent checks, not taught); continuous spectrum vs discrete modes on unbounded profiles (N108, N109);
+Routh–Hurwitz (inside P276); `np.genfromtxt`, `symlog` axes, `twinx`, `ListedColormap`, `Chebyshev.fit`, `np.polyfit`, pandas
+tables (explained where they appear); Marangoni convection; thermohaline staircases; inertial instability and Rayleigh–Kuo
+(pointers to Ch. 13); slips named "slip #1…#13" (S1–S13 in code).
