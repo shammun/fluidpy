@@ -58,7 +58,12 @@ def main() -> int:
     ax[1].set(xlabel="Rs", ylabel="max Re σ [κ/d²]", title="leading root of the free–free cubic (ours)", ylim=(-50, 60))
     ax[1].legend(fontsize=8)
     save(fig, out, "c06_double_diffusion")
-    for name, (t, s) in dict(fingers=(0.01, 0.002), diffusive=(-0.01, -0.0028), stable=(0.01, -0.001),
+    # diffusive row: the gradients that give the tested (Ra, Rs) = (−2×10⁴, −1.9×10⁶) (σ = 9.650 ± 70.389i) in this layer —
+    # Ra and Rs are linear in the gradients, so divide by their value per unit gradient (≈ −0.228 K/m, −0.0612 (g/kg)/m;
+    # the weaker pair (−0.01, −0.0028) used before is damped, σ = −6.54 ± 16.2i: "stable", not diffusive)
+    t_dif = -2e4 / float(ch11.thermal_rayleigh_signed(1.0, D, AL, NU, KA))
+    s_dif = -1.9e6 / float(ch11.salinity_rayleigh(1.0, D, BE, NU, KS))
+    for name, (t, s) in dict(fingers=(0.01, 0.002), diffusive=(t_dif, s_dif), stable=(0.01, -0.001),
                              overturning=(-0.01, 0.0)).items():
         r = ch11.salt_finger_regime(t, s, D)
         print(f"  {name:12s} → {r['regime']:12s} R_ρ = {r['R_rho']:.3f}, σ_max = {r['sigma_max']:.4g}  ({r['text']})")

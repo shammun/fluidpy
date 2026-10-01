@@ -54,7 +54,8 @@ def main() -> int:
             N2 = lambda z, a=a, w=w, R=Rimin_target: R * a ** 2 / np.cosh(a * z) ** 4 * (1 + w * np.tanh(z) ** 2)  # noqa: E731
             assert ch11.miles_howard_stable(zz, U, N2, dUdz=Up)["guaranteed_stable"]
             for k in (0.2, 0.5, 0.8):
-                cc = ch11.taylor_goldstein_eigs(k, U, Upp, N2, domain=(-1, 1), N=60, bc="decay")
+                cc = ch11.taylor_goldstein_eigs(k, U, Upp, N2, domain=(-1, 1), N=60, bc="decay",
+                                                y_max=ch11.decay_box(k))  # box scales with 1/k (e^{−k|z|} decay)
                 if len(cc):
                     worst = max(worst, float(cc[0].imag))
     print(f"largest converged c_i over random Ri_min > 1/4 profiles: {worst:.2e} (must be 0)")
@@ -77,7 +78,8 @@ def main() -> int:
     for J in (0.0, 0.1, 0.2):
         p = ch11.richardson_profiles("tanh", J)
         for k in (0.2, 0.4, 0.6, 0.8):
-            cc = ch11.taylor_goldstein_eigs(k, p["U"], p["Upp"], p["N2"], domain=(-1, 1), N=80, bc="decay")
+            cc = ch11.taylor_goldstein_eigs(k, p["U"], p["Upp"], p["N2"], domain=(-1, 1), N=80, bc="decay",
+                                            y_max=ch11.decay_box(k))
             ax[2].plot(np.real(cc), np.imag(cc), "o", color=COLORS["rose"], ms=4)
     ax[2].set(xlabel="c_r", ylabel="c_i", title="unstable c inside Howard's semicircle (p. 507)")
     ax[2].set_aspect("equal")

@@ -703,6 +703,8 @@ def benard_growth_rate(K: float, Ra: float, Pr: float, bc: Sequence[str] = ("rig
     Boundary unknowns are eliminated (no spurious boundary eigenvalues) and, with ``filter`` (default), only σ that reappear
     in a solve at ⌈1.5N⌉ within 1e-6·max(1, |σ|) are kept (design note: naïve row replacement gives spurious huge σ at N ≥ 32).
     Parameters: K, Ra, Pr; bc; N; all (return all, sorted); return_complex; filter.  Returns float (leading real σ) or ndarray.
+    Raises ValueError if no eigenvalue survives the N-filter (N too small to resolve any mode, e.g. N = 8) — raise N or
+    pass ``filter=False``.
     Validation: V1 free–free = :func:`benard_free_free_sigma` (1e-8); all |σ_i| < 1e-10 for Ra > 0; σ₁ = 0 at
     :func:`benard_marginal_Ra`; V3.  Label: converged.
     """
@@ -711,6 +713,9 @@ def benard_growth_rate(K: float, Ra: float, Pr: float, bc: Sequence[str] = ("rig
     w = _benard_growth_solve(K, Ra, Pr, bc, N)
     if filter:
         w = w[converged_mask(w, _benard_growth_solve(K, Ra, Pr, bc, int(math.ceil(1.5 * N))), 1e-6)]
+    if len(w) == 0 and not all:
+        raise ValueError(f"benard_growth_rate: no eigenvalue of the N = {N} solve reappears at N = {int(math.ceil(1.5 * N))} "
+                         "(resolution too low for the N-convergence filter) — increase N or pass filter=False")
     if all:
         return w if return_complex else np.real(w)
     return complex(w[0]) if return_complex else float(np.real(w[0]))
@@ -773,9 +778,13 @@ def benard_marginal_Ra_det(K: float, mode: str = "even", Ra_max: float = 2e4, n_
 
     Book: §11.4, p. 489 (nonzero (A, B, C) ⇔ det = 0).  Scan Ra geometrically from max(1.02K⁴, 50) (q₀ real; the degenerate
     end Ra → K⁴ has spurious sign changes) to Ra_max (raised automatically to 20K⁴ if smaller), first sign change, brentq.
-    Returns Ra (NaN if no root).  Validation: V1 equals :func:`benard_marginal_Ra` to 1e-8 at K = 2, 3.1163, 5.
+    Returns Ra.  Raises ValueError if K ≤ 0 or if Im det does not change sign below the upper end of the scan (the odd mode
+    at K ≲ 1.5 has its root above the default: pass ``Ra_max`` ≥ 1e5) — never a silent NaN.
+    Validation: V1 equals :func:`benard_marginal_Ra` to 1e-8 at K = 2, 3.1163, 5.
     Label: analytic.
     """
+    if not K > 0:
+        raise ValueError("benard_marginal_Ra_det: K > 0 is required")
     lo = max(1.02 * K ** 4, 50.0)
     hi = max(Ra_max, 20.0 * K ** 4, 2.0 * lo)
     grid = np.geomspace(lo, hi, int(n_scan))
@@ -784,7 +793,8 @@ def benard_marginal_Ra_det(K: float, mode: str = "even", Ra_max: float = 2e4, n_
     for j in range(len(grid) - 1):
         if np.isfinite(v[j]) and np.isfinite(v[j + 1]) and v[j] * v[j + 1] < 0:
             return float(brentq(f, grid[j], grid[j + 1], xtol=1e-10, rtol=1e-14))
-    return float("nan")
+    raise ValueError(f"benard_marginal_Ra_det: no sign change of Im det for K = {K:g}, mode = {mode!r} in "
+                     f"Ra ∈ [{lo:.4g}, {hi:.4g}] — raise Ra_max (the odd mode at small K needs Ra_max ≥ 1e5)")
 
 
 def benard_free_free_Ra(K, n: int = 1):
@@ -1504,8 +1514,8 @@ def richardson_profiles(kind: str = "tanh", J: float = 0.1, R: float = 1.0) -> d
     if kind != "tanh":
         raise ValueError('only kind="tanh" is implemented')
     Up = lambda z: 1.0 / np.cosh(z) ** 2  # noqa: E731
-    N2 = lambda z: J / np.cosh(R * _F(z)) ** 2  # noqa: E731
-    return dict(U=np.tanh, Up=Up, Upp=lambda z: -2.0 * np.tanh(z) / np.cosh(z) ** 2, N2=N2,
+    N2 = lambda z: J / np.cosh(np.clip(R * _F(z), -350.0, 350.0)) ** 2  # noqa: E731  (clip: cosh² overflows past |z| ≈ 355)
+    return dict(U=np.tanh, Up=Up, Upp=lambda z: -2.0 * np.tanh(z) / np.cosh(np.clip(z, -350.0, 350.0)) ** 2, N2=N2,
                 Ri=lambda z: N2(z) / Up(z) ** 2, kind=kind, J=J, R=R)
 
 
@@ -1527,13 +1537,45 @@ def tg_tanh_neutral_mode(z, k: float):
     return _S(np.abs(np.tanh(z)) ** (1.0 - k) / np.cosh(z) ** k)
 
 
-def tg_growth(k: float, J: float, R: float = 1.0, N: int = 100, map_scale: float | None = None, y_max: float = 30.0) -> float:
+def tg_growth(k: float, J: float, R: float = 1.0, N: int = 100, map_scale: float | None = None,
+              y_max: float | None = None) -> float:
     """Leading growth rate kc_i of the tanh / J sech²(Rz) layer (Taylor–Goldstein, decaying BCs; 0 if no converged mode).
 
-    Book: §11.7 (11.61).  map_scale default 0.5 (DEVIATION from Part C's 3.0: see :func:`taylor_goldstein_eigs`).
-    Example: J = 0, k = 0.4449 → 0.1897; J = 0.1, k = 0.4 → 0.1245; J ≥ ¼ → 0.  Near the neutral curve (within ≈ 0.02 of
-    J = k(1 − k)) the filter drops the slowly converging mode: approximate.  Label: converged (away from neutral).
+    Book: §11.7 (11.61).
+    Parameters: k > 0 wavenumber (scaled by 1/L, L the shear-layer half-thickness); J = Ri(0) [–]; R thickness ratio [–];
+    N Chebyshev degree (default 100; the N-filter's second solve uses 150); map_scale tan-map scale s (scaled by L; default
+    None → the rule :func:`decay_map_scale`(k) = min(0.5, max(0.035, 0.025/k)); a number forces that scale); y_max half-width
+    of the box where ψ̂ = 0 is imposed (scaled by L).
+    DEVIATION (node distribution; Part C wrote s = 3.0, loops 0–1 used a fixed 0.5): near the neutral curve the mode has a
+    critical layer at z = 0 that a fixed s = 0.5 does not resolve at N = 100 for k ≥ 0.65 — the filter then dropped modes with
+    kc_i up to 0.033 and reported 0 in a strip 0.04–0.06 wide under J = k(1 − k).  Clustering the nodes (s·k = 0.025, floor
+    0.035) resolves it at the same N.  N-doubling with the default rule (N = 100 | 200 | 240; fixed s = 0.5, N = 100 in
+    brackets): (0.9, 0.04) 0.0332469 | 0.0332455 | 0.0332455 [0]; (0.9, 0.06) 0.0201206 | 0.0201192 | 0.0201192 [0];
+    (0.9, 0.08) 0.0067666 | 0.0067652 | 0.0067652 [0]; (0.85, 0.08) 0.0326887 | 0.0326878 | 0.0326878 [0]; (0.8, 0.13)
+    0.0215916 | 0.0215917 | 0.0215917 [0]; (0.95, 0.01) 0.0242820 | 0.0242804 | 0.0242804 [0]; (0.95, 0.04) 0.0049144 |
+    0.0049133 | 0.0049133 [0]; (0.65, 0.22) 0.0062373 | 0.0062384 | 0.0062384 [0]; (0.5, 0.24) 0.0098401 (all) [0];
+    (0.4, 0.1) 0.1244766 | 0.1244767 | 0.1244767 — largest difference 1.6e-6 absolute.
+    DEVIATION (truncated domain): the book's layer is unbounded; ψ̂ = 0 is imposed at ±y_max.  Default None → the box scales
+    with the wavelength, y_max = :func:`decay_box`(k) = max(30, 12/k) (12 e-folds of e^{−k|z|}); an explicit y_max overrides
+    it.  Checked by doubling (default: N = 100, 12 e-folds | 24 e-folds | N = 160, twice the box): k = 0.05, J = 0.04: 0.0163047
+    | 0.0163048 | 0.0163046; k = 0.05, J = 0.045: 0.0082157 | 0.0082158 | 0.0082156; k = 0.1, J = 0.08: 0.0211430 | 0.0211431
+    | 0.0211428; k = 0.15, J = 0.125: 0.0058248 | 0.0058252 | 0.0058244; k = 0.05, J = 0.05 (outside the tongue
+    J < k(1 − k) = 0.0475): 0.  A fixed y_max = 30 gave 0.0205913 (+26 %) at (0.05, 0.04) and a spurious 0.0077967 at
+    (0.05, 0.05).
+    Returns kc_i [–] (scaled by U₀/L).  Scalar-callable.
+    Example: J = 0, k = 0.4449 → 0.1897; J = 0.1, k = 0.4 → 0.1245; J ≥ ¼ → 0.
+    Near neutral (measured, R = 1, defaults): a 0 is returned although the layer is unstable only in a sliver directly under
+    J = k(1 − k), where the weak mode (kc_i ≲ 0.004) fails the N-convergence filter.  Its width in J,
+    found by bisection in each column, grows smoothly with k: 0.0002 (k = 0.05), 0.0004 (0.1), 0.0007 (0.2), 0.0011 (0.3),
+    0.0016 (0.4), 0.0021 (0.5), 0.0027 (0.6), 0.0032 (0.7), 0.0043 (0.8), 0.0054 (0.9), 0.0059 (0.95); the growth lost there
+    is at most 0.0011 … 0.0038 (2 % of the map's maximum 0.19).  Outside that sliver the value is converged in N: on the
+    whole 20 × 31 default map N = 100 and N = 200 differ by ≤ 2.1e-6 absolute (2.2e-4 relative, at (0.95, 0.04)) with the
+    same zero pattern.  Label: converged (0 within 0.006 of the neutral curve means "kc_i < 0.004", not "stable").
     """
+    if y_max is None:
+        y_max = decay_box(k)  # box scales with 1/k: the mode decays like e^{−k|z|}
+    if map_scale is None:
+        map_scale = decay_map_scale(k)  # nodes follow the wave: s = 0.025/k within [0.05, 0.5] (critical-layer resolution)
     pr = richardson_profiles("tanh", J, R)
     c = taylor_goldstein_eigs(k, pr["U"], pr["Upp"], pr["N2"], domain=(-1, 1), N=N, bc="decay", map_scale=map_scale,
                               y_max=y_max)
@@ -1541,14 +1583,25 @@ def tg_growth(k: float, J: float, R: float = 1.0, N: int = 100, map_scale: float
 
 
 def tg_growth_map(ks=None, Js=None, R: float = 1.0, N: int = 100, cache: bool = True, map_scale: float | None = None,
-                  fast: bool = False) -> dict:
+                  fast: bool = False, y_max: float | None = None) -> dict:
     """kc_i(k, J) of :func:`tg_growth` on a grid (cached; written to ``reference/ch11/tg_growth_map.csv`` by the tables
     script).  Defaults (Part C.5 5.6): k = 0.05 … 1.0 step 0.05, J = 0 … 0.3 step 0.01 (fast: step 0.1, 0.05).
+    y_max : box half-width; default None → each column uses :func:`decay_box`(k) = max(30, 12/k) (DEVIATION, truncated
+    domain: the box scales with 1/k; checked by doubling, see :func:`tg_growth`); a number forces one fixed box.
+    map_scale : tan-map scale; default None → each column uses :func:`decay_map_scale`(k) = min(0.5, max(0.035, 0.025/k))
+    (DEVIATION, node distribution: resolves the critical layer of near-neutral modes at N = 100, see :func:`tg_growth`); a
+    number forces one fixed scale.  N : Chebyshev degree of every column (default 100).
     Returns dict(k, J, kci (len(J) × len(k)), neutral_J (= k(1 − k) for R = 1)).  With ``cache`` and the default grid
-    (R = 1, N = 100) the published 4-s.f. table reference/ch11/tg_growth_map.csv is read if present (≈ 2 min to recompute).
-    Label: converged (approximate near neutral).
+    (R = 1, N = 100, y_max None, map_scale None) the published 4-s.f. table reference/ch11/tg_growth_map.csv is read if
+    present (≈ 2 min to recompute).
+    Near neutral (measured on the default grid): every grid point with J < k(1 − k) carries growth — the zero strip under
+    the exact neutral curve is 0.0075 wide in the columns k = 0.05, 0.15, …, 0.95 and 0.01 in the columns k = 0.1, 0.2, …,
+    0.9 (there the neutral curve passes through a grid point, where kc_i = 0 exactly), i.e. never more than the one grid
+    step in J; between grid points :func:`tg_growth` still returns 0 within 0.0002–0.006 of the curve.  N = 200 gives the
+    same zero pattern.  Label: converged (0 within 0.006 of the neutral curve means "kc_i < 0.004", not "stable").
     """
-    default_grid = ks is None and Js is None and not fast and R == 1.0 and N == 100 and map_scale is None
+    default_grid = (ks is None and Js is None and not fast and R == 1.0 and N == 100 and map_scale is None
+                    and y_max is None)
     p_ref = _root() / "reference" / "ch11" / "tg_growth_map.csv"
     if cache and default_grid and p_ref.exists():
         rows = [ln for ln in p_ref.read_text(encoding="utf-8").splitlines() if ln and not ln.startswith("#")]
@@ -1562,10 +1615,14 @@ def tg_growth_map(ks=None, Js=None, R: float = 1.0, N: int = 100, cache: bool = 
     ks, Js = _F(ks), _F(Js)
 
     def compute():
-        kci = np.array([[tg_growth(k, J, R, N, map_scale) for k in ks] for J in Js])
+        kci = np.array([[tg_growth(k, J, R, N, map_scale, y_max) for k in ks] for J in Js])
         return dict(k=ks, J=Js, kci=kci, neutral_J=ks * (1.0 - ks))
 
-    return _cached("tg_growth_map", dict(ks=list(ks), Js=list(Js), R=R, N=N, s=map_scale), compute, cache)
+    # the "box" and "s" entries key the cache on the truncation and node rules, so maps computed with the old fixed
+    # y_max = 30 or the old fixed map scale 0.5 are not reused
+    return _cached("tg_growth_map", dict(ks=list(ks), Js=list(Js), R=R, N=N,
+                                         s="min(0.5,max(0.035,0.025/k))" if map_scale is None else float(map_scale),
+                                         box="max(30,12/k)" if y_max is None else float(y_max)), compute, cache)
 
 
 def _profile_derivs(grid, f, fp=None, fpp=None):
@@ -1863,7 +1920,8 @@ def piecewise_neutral_kh() -> float:
 # §11.9–§11.11 base profiles
 # ======================================================================================================================
 def _sech2(y):
-    return 1.0 / np.cosh(y) ** 2
+    # clip: cosh² overflows past |y| ≈ 355 (boxes of decay_box(k) for k < 0.034); sech²(350) ~ 1e-304 either way
+    return 1.0 / np.cosh(np.clip(y, -350.0, 350.0)) ** 2
 
 
 def blasius_base(y_max: float = 20.0) -> dict:
@@ -2050,6 +2108,10 @@ def rayleigh_spectrum_table(names=None, ks=None, N: int = 120, cache: bool = Tru
 
     Book: §11.9, (11.81)–(11.82).  Defaults (Part C.5 5.7): names of :func:`inviscid_profile`, k = 0.1 … 2.0 step 0.1.  c_i = 0
     and c_r = NaN where no converged unstable mode exists.  Writes ``reference/ch11/rayleigh_spectra.json`` (≤ 4 s.f.).
+    DEVIATION (truncated domain): for the unbounded profiles (bc "decay": shear layer, jet) φ = 0 is imposed at ±y_max with
+    y_max = max(the profile's box (30 tanh, 40 Bickley), :func:`decay_box`(k) = 12/k) — the mode decays like e^{−k|y|}, so the
+    fixed boxes were 5.1e-4 (tanh) and 4.4e-4 (jet) off in c at k = 0.1 (the table's 4th significant figure); k ≥ 0.4 rows
+    are unchanged by the rule.
     Returns dict(name → dict(k, c_r, c_i)).  Label: converged.
     """
     names = ["blasius_like", "couette", "poiseuille", "wall_vorticity_max", "jet", "shear_layer", "sin",
@@ -2062,7 +2124,10 @@ def rayleigh_spectrum_table(names=None, ks=None, N: int = 120, cache: bool = Tru
             pr = parallel_profile(nm, b=math.pi) if nm == "sin" else parallel_profile(nm)
             cr, ci = [], []
             for k in ks:
-                c = rayleigh_eigs(float(k), pr["U"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"], y_max=pr.get("y_max"),
+                ym = pr.get("y_max")
+                if pr["bc"] == "decay":
+                    ym = max(float(ym), decay_box(float(k)))  # box scales with 1/k: the mode decays like e^{−k|y|}
+                c = rayleigh_eigs(float(k), pr["U"], pr["Upp"], domain=pr["domain"], N=N, bc=pr["bc"], y_max=ym,
                                   map_scale=pr.get("map_scale"), unstable_only=True, tol=1e-4, ci_min=1e-4)
                 cr.append(c[0].real if len(c) else np.nan)
                 ci.append(c[0].imag if len(c) else 0.0)
@@ -2071,7 +2136,8 @@ def rayleigh_spectrum_table(names=None, ks=None, N: int = 120, cache: bool = Tru
         out["k"] = ks
         return out
 
-    raw = _cached("rayleigh_spectrum_table", dict(names=names, ks=list(ks), N=N), compute, cache)
+    # "box" keys the cache on the truncation rule, so tables computed with the old fixed boxes are not reused
+    raw = _cached("rayleigh_spectrum_table", dict(names=names, ks=list(ks), N=N, box="max(profile,12/k)"), compute, cache)
     res = {nm: dict(k=_F(raw["k"]), c_r=_F(raw[f"{nm}__cr"]), c_i=_F(raw[f"{nm}__ci"])) for nm in names}
     if write:
         p = _root() / "reference" / "ch11" / "rayleigh_spectra.json"
@@ -2952,6 +3018,29 @@ def _sig(v, n: int = 4):
     return None if not np.isfinite(v) else float(f"{v:.{n}g}")
 
 
+_REF_HDR = "# ours (fluidpy.ch11_instability), computed; not book data\n"
+_TG_CSV_NOTE = ("# U = tanh z, N^2 = J sech^2 z; k c_i of the leading converged unstable Taylor-Goldstein mode (N = 100, box "
+                "max(30, 12/k), tan-map scale min(0.5, max(0.035, 0.025/k))); every entry with J < k(1 - k) (the exact neutral "
+                "curve) is positive, so the zero strip under the curve is 0.0075 (k = 0.05, 0.15, ..., 0.95) or 0.01 "
+                "(k = 0.1, 0.2, ..., 0.9, where the curve passes through a grid point) wide - one J step at most; off the "
+                "grid a weak mode (k c_i < 0.004) within 0.0002 (k = 0.05) to 0.006 (k = 0.95) of the curve is still "
+                "reported as 0")
+
+
+def _write_tg_growth_csv(path: Path, gm: dict) -> Path:
+    """Write a :func:`tg_growth_map` result as the published CSV (4 s.f.; header states what a 0 means)."""
+    with Path(path).open("w", encoding="utf-8") as f:
+        f.write(_REF_HDR + _TG_CSV_NOTE + "\nJ," + ",".join(f"k={k:.4g}" for k in gm["k"]) + "\n")
+        for J, row in zip(gm["J"], gm["kci"]):
+            f.write(f"{J:.4g}," + ",".join(f"{v:.4g}" for v in row) + "\n")
+    return Path(path)
+
+
+def _tg_map_json(gm: dict) -> dict:
+    """The ``tg_map`` entry of explainer_tables.json (4 s.f.) for a :func:`tg_growth_map` result."""
+    return dict(k=_sig(gm["k"]), J=_sig(gm["J"]), kci=[_sig(r) for r in gm["kci"]], neutral_J=_sig(gm["neutral_J"]))
+
+
 def write_reference_tables(out_dir: str | Path | None = None, fast: bool = False, cache: bool = True,
                            include_os: bool = True) -> dict:
     """Write every table the explainers and the notebook read to ``reference/ch11/`` (ours; ≤ 4 s.f. in the JSON).
@@ -2979,12 +3068,7 @@ def write_reference_tables(out_dir: str | Path | None = None, fast: bool = False
             f.write(",".join(f"{v:.6g}" for v in row) + "\n")
     paths["taylor_critical"] = str(p)
     gm = tg_growth_map(fast=fast, cache=cache)
-    p = out / "tg_growth_map.csv"
-    with p.open("w", encoding="utf-8") as f:
-        f.write(hdr + "# U = tanh z, N^2 = J sech^2 z; k c_i of the leading converged unstable Taylor-Goldstein mode (0 = none;"
-                " approximate within ~0.02 of the exact neutral curve J = k(1 - k))\nJ," + ",".join(f"k={k:.4g}" for k in gm["k"]) + "\n")
-        for J, row in zip(gm["J"], gm["kci"]):
-            f.write(f"{J:.4g}," + ",".join(f"{v:.4g}" for v in row) + "\n")
+    p = _write_tg_growth_csv(out / "tg_growth_map.csv", gm)
     paths["tg_growth_map"] = str(p)
     rs = rayleigh_spectrum_table(ks=np.round(np.arange(0.1, 2.0001, 0.3 if fast else 0.1), 10), cache=cache, write=True)
     paths["rayleigh_spectra"] = str(_root() / "reference" / "ch11" / "rayleigh_spectra.json")
@@ -3002,7 +3086,7 @@ def write_reference_tables(out_dir: str | Path | None = None, fast: bool = False
                     odd=_sig(bt["odd"])),
         taylor=dict(mu=_sig(tt["mu"]), Ta_c=_sig(tt["Ta_c"]), k_c=_sig(tt["k_c"]), approx=_sig(tt["approx"]),
                     eigenfunctions=tef),
-        tg_map=dict(k=_sig(gm["k"]), J=_sig(gm["J"]), kci=[_sig(r) for r in gm["kci"]], neutral_J=_sig(gm["neutral_J"])),
+        tg_map=_tg_map_json(gm),
         rayleigh={nm: dict(k=_sig(d["k"]), c_r=_sig(d["c_r"]), c_i=_sig(d["c_i"])) for nm, d in rs.items()},
         lorenz_sweep=dict(r=_sig(lz["r"]), t=_sig(lz["t"][sel]), X=[_sig(r[sel]) for r in lz["X"]],
                           Z=[_sig(r[sel]) for r in lz["Z"]]),

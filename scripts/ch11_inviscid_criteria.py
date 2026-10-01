@@ -46,8 +46,10 @@ def main() -> int:
     print(f"cat's-eye half-width A = 0.1, φ_c = 1, U′ = 1: {ch11.cats_eye_width(0.1, 1.0, 1.0):.4f}")
     fig, ax = plt.subplots(1, 3, figsize=(16, 4.8))
     ks = np.linspace(0.02, 1.0, 25 if args.fast else 50)
+    # box scales with 1/k (the mode decays like e^{−k|y|}): decay_box(k) = max(30, 12/k); a fixed 30 is 1.9 % low at k = 0.02
     gro = [k * (lambda c: c[0].imag if len(c) else 0.0)(ch11.rayleigh_eigs(k, pr["U"], pr["Upp"], bc="decay", N=100,
-                                                                           unstable_only=True)) for k in ks]
+                                                                           y_max=ch11.decay_box(k), unstable_only=True))
+           for k in ks]
     ax[0].plot(ks, gro, color=COLORS["rose"], label="tanh y (Rayleigh)")
     kh = np.linspace(0.02, 1.4, 200)
     ax[0].plot(kh, kh * np.imag(ch11.piecewise_shear_layer_c(kh, 2.0)) / 2, color=COLORS["muted"], ls="--",

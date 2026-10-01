@@ -24,9 +24,24 @@ Conventions (every solver)
 * Inputs are non-dimensional (lengths by the flow's L, velocities by U₀; Re = U₀L/ν); each wrapper in
   ``fluidpy.ch11_instability`` states its own scales.
 
-Validation (planned; the verifier fills the final labels in ``tests/test_ch11.py``): V1 polynomial exactness and
-−u″ = λu eigenvalues for :func:`cheb`; V5 Orszag (1971) c = 0.23752649 + 0.00373967i (plane Poiseuille, Re = 10⁴, k = 1);
-V3 spectral convergence; V4 the energy budget closes for every computed OS mode.
+Validation (``tests/test_ch11.py``; verdicts and numbers in ``reports/ch11_verification.md``)
+---------------------------------------------------------------------------------------------
+* :func:`cheb`, :func:`clenshaw_curtis_weights`, :func:`cheb_grid` — V1 exact for polynomials of degree ≤ N, mapped
+  derivatives and quadrature; V3 −u″ = λu eigenvalues gain digits spectrally (2e-6 at N = 8, < 1e-9 at N = 16).
+* :func:`apply_bc_rows` / :func:`generalized_eigs` vs :func:`constrained_eig` — V1 two independent boundary-condition
+  routes give the same Orszag eigenvalue (1e-9); :func:`converged_eigs` keeps the TS mode and drops spurious ones (V3).
+* :func:`orr_sommerfeld_eigs` — V5 Orszag (1971) c = 0.23752649 + 0.00373967i (plane Poiseuille, Re = 10⁴, k = 1) to 1e-8;
+  V3 error 9e-6 (N = 40) → 1e-10 (N = 80); V7 Re → ∞ approaches :func:`rayleigh_eigs`.
+* :func:`rayleigh_eigs` — V1 analytic neutral modes (tanh k = 1; Bickley k = 2, 1 with c = 2/3); V5 Michalke (1964)
+  most-amplified tanh mode; V4 identities (11.83)–(11.84) < 1e-9.
+* :func:`taylor_goldstein_eigs` — V1 N² = 0 equals :func:`rayleigh_eigs` (1e-8) and the exact neutral curve J = k(1 − k) of
+  the tanh / sech² layer; V4 (11.65), (11.69)–(11.70) residuals < 1e-8, Howard's semicircle; V7 no growth for Ri > ¼.
+* :func:`decay_box` — V1 formula and guards; V3 Taylor–Goldstein growth unchanged (≤ 1e-6) between 8 … 48 e-folds.
+* :func:`decay_map_scale` — V3 Taylor–Goldstein growth at N = 100 equals N = 200 / 240 to 2e-6 next to the neutral curve
+  (measured by the implementer in verify loop 2; the verifier's large-k test exercises it through ``tg_growth``).
+* :func:`disturbance_energy_budget` — V4 dE/dt = P − Λ closes to 1e-8 relative for every computed OS mode.
+* :func:`normal_mode`, :func:`sigma_from_c`, :func:`stability_class`, :func:`howard_semicircle`,
+  :func:`inflection_points`, :func:`squire_transform` — V1 / V7 (round trips, limits, guards).
 """
 from __future__ import annotations
 
@@ -44,7 +59,7 @@ __all__ = [
     "SpectralGrid", "cheb", "cheb_matrices", "clenshaw_curtis_weights", "cheb_grid",
     "apply_bc_rows", "generalized_eigs", "constrained_eig", "converged_mask", "converged_eigs",
     "normal_mode", "sigma_from_c", "c_from_sigma", "stability_class", "stability_verdict", "marginal_type",
-    "orr_sommerfeld_eigs", "os_mode", "rayleigh_eigs", "taylor_goldstein_eigs",
+    "orr_sommerfeld_eigs", "os_mode", "rayleigh_eigs", "taylor_goldstein_eigs", "decay_box", "decay_map_scale",
     "max_growth", "neutral_curve", "critical_point",
     "howard_semicircle", "in_howard_semicircle", "inflection_points", "squire_transform",
     "disturbance_energy_budget",
@@ -165,7 +180,9 @@ def cheb_grid(N: int, domain: Sequence[float] = (-1.0, 1.0), map: str = "linear"
 
     Book: method (ours) for the bounded (§11.7 lids z = 0, d; §11.8 walls y₁, y₂), semi-infinite (Blasius, §11.11) and
     unbounded (tanh, sech², §11.10) problems.  DEVIATION: ∞ truncated at ``y_max`` (ours); results depending on it are checked
-    by changing it (each wrapper states its tested values).
+    by changing it (each wrapper states its tested values).  A mode of wavenumber k decays like e^{−k|y|} outside the layer, so
+    a fixed box is too short for long waves: wrappers that sweep down to small k take the box from :func:`decay_box`
+    (y_max = max(30, 12/k)) instead of a constant.
     Parameters
     ----------
     N : degree.   domain : (a, b) — "linear": the interval; "tan": only the midpoint y₀ is used; "algebraic": a is the wall.
@@ -173,7 +190,8 @@ def cheb_grid(N: int, domain: Sequence[float] = (-1.0, 1.0), map: str = "linear"
           "algebraic" y = a + s(1 + ξ)/(β − ξ), β = 1 + 2s/y_max (half the nodes below a + s).
     y_max : truncation for "tan"/"algebraic".   s : map scale (default 1.0 "tan", 2.0 "algebraic"); smaller s clusters more
         nodes at the centre (critical layers of near-neutral modes: s = 0.5 converges tanh/Taylor–Goldstein growth rates to 1e-9
-        at N = 120; s = 3 does not).
+        at N = 120 away from the neutral curve; s = 3 does not; next to the neutral curve at k ≥ 0.65 even 0.5 is too coarse —
+        :func:`decay_map_scale` gives the k-dependent scale).
     Returns SpectralGrid.  Label: analytic.
     """
     D, xi = cheb(N)
@@ -417,6 +435,62 @@ def marginal_type(sigma, tol: float = 1e-8) -> str:
 # ======================================================================================================================
 # Orr–Sommerfeld (11.79)–(11.80)
 # ======================================================================================================================
+def decay_box(k: float, y_min: float = 30.0, n_efold: float = 12.0) -> float:
+    """Half-width y_max of the truncated domain for a decaying mode of wavenumber k: max(y_min, n_efold/k).
+
+    Book: §11.7 (11.62) / §11.9 (11.82) applied to an unbounded layer (ours: where to impose "ψ̂ → 0 as |y| → ∞").
+    Outside the shear layer (11.61) and (11.81) reduce to ψ̂″ = k²ψ̂, so ψ̂ ∝ e^{−k|y|}: the mode has decayed by e^{−k·y_max}
+    at the edge of the box.  DEVIATION: the book has no truncation; a fixed y_max = 30 is only 1.5 e-folds at k = 0.05 and
+    solves a different (boxed) problem there — the box must scale with the wavelength.
+    Parameters
+    ----------
+    k : wavenumber, non-dimensional (scaled by 1/L, L the layer length scale), > 0.
+    y_min : smallest half-width, non-dimensional (scaled by L); default 30 (the fixed box that is converged for k ≳ 0.4).
+    n_efold : number of e-folds of e^{−k|y|} inside the box; default 12 (e^{−12} ≈ 6e-6).
+    Returns
+    -------
+    y_max : half-width, non-dimensional (scaled by L).  Scalar-callable.
+    Validation: V3 Taylor–Goldstein kc_i of U = tanh z, N² = J sech²z (N = 100, tan map s = 0.5) is unchanged to 1e-7 between
+    n_efold = 8, 12, 16 and fixed boxes 240, 480 at k = 0.05–0.2 (e.g. k = 0.05, J = 0.04: 0.0163046–0.0163047, against
+    0.0205913 with y_max = 30).  Label: converged.
+    """
+    k = float(k)
+    if k <= 0:
+        raise ValueError("decay_box: k > 0 is required")
+    return max(float(y_min), float(n_efold) / k)
+
+
+def decay_map_scale(k: float, s_max: float = 0.5, s_min: float = 0.035, sk: float = 0.025) -> float:
+    """Tan-map scale s of the truncated unbounded grid for a mode of wavenumber k: min(s_max, max(s_min, sk/k)).
+
+    Book: §11.7 (11.61)–(11.62) on an unbounded layer (ours: where the collocation nodes go).  The grid y = s tan(θξ),
+    θ = arctan(y_max/s), puts half its nodes inside |y| < s.  Two things compete: the critical layer of a near-neutral
+    mode (at the centre, Frobenius exponents ½ ± √(¼ − Ri)) wants s small, the far field e^{−k|y|} out to
+    y_max = :func:`decay_box`(k) wants y_max/s moderate.  With s = sk/k and y_max = 12/k the grid is the same in the wave's
+    own coordinate ky (y_max/s = 480) for 0.05 ≤ k ≤ 0.4; s is capped at s_max (long waves, k ≤ 0.05) and floored at s_min
+    (k ≥ 0.714).  Measured for U = tanh z, N² = J sech²z at N = 100: a fixed s = 0.5 loses every mode within 0.04–0.06 of the
+    neutral curve for k ≥ 0.65; a fixed s = 0.05 is right there but loses the modes at k = 0.05, J = 0.04 and k = 0.15,
+    J = 0.125 (far field under-resolved in the box 12/k); a floor of 0.05 still misses (0.95, 0.04), 0.035 finds it.
+    DEVIATION: numerical choice, not in the book (and not Part C's fixed 3.0 / our earlier fixed 0.5).
+    Parameters
+    ----------
+    k : wavenumber, non-dimensional (scaled by 1/L, L the layer length scale), > 0.
+    s_max, s_min : largest / smallest scale, non-dimensional (scaled by L); defaults 0.5, 0.035.
+    sk : the product s·k kept between the two limits [–]; default 0.025.
+    Returns
+    -------
+    s : map scale, non-dimensional (scaled by L).  Scalar-callable.  0.5 for k ≤ 0.05, 0.25 at 0.1, 0.125 at 0.2, 0.05 at
+    0.5, 0.035 for k ≥ 0.714.
+    Validation: V3 Taylor–Goldstein kc_i of U = tanh z, N² = J sech²z at N = 100 with this scale against N = 200 and 240:
+    ≤ 2e-6 absolute at 20 points incl. (0.9, 0.04) 0.0332469 vs 0.0332455 and (0.95, 0.04) 0.0049144 vs 0.0049133 (see
+    :func:`fluidpy.ch11_instability.tg_growth`); the same zero pattern as N = 200 on the 20 × 31 map.  Label: converged.
+    """
+    k = float(k)
+    if k <= 0:
+        raise ValueError("decay_map_scale: k > 0 is required")
+    return min(float(s_max), max(float(s_min), float(sk) / k))
+
+
 def _grid_for(bc: str, domain, N: int, y_max, map, s) -> SpectralGrid:
     if bc == "wall":
         return cheb_grid(N, domain, map or "linear")
@@ -635,12 +709,19 @@ def taylor_goldstein_eigs(k: float, U: Callable, Upp: Callable, N2: Callable, do
     Parameters: k > 0; U, Upp, N2 callables; domain (default (0, 1)); N (default 80; FAST 60); bc ("wall", "decay");
     map_scale (tan-map scale; default None → 0.5 for "decay" — DEVIATION from Part C's 3.0, which converges poorly near the
     neutral curve: c_i at k = 0.9, J = 0 moves 0.043 → 0.065 from N = 80 to 180 with s = 3, but agrees to 1e-9 with s = 0.5);
-    return_vectors (dict(c, y, psi, grid)); filter; y_max (default 30 for "decay"); map; factor; tol, ci_rtol (as
+    return_vectors (dict(c, y, psi, grid)); filter; y_max (half-width of the "decay" box; default None → 30, which is converged
+    only for k ≳ 0.3 because the mode decays like e^{−k|z|} — DEVIATION (truncated domain): for long waves pass
+    ``y_max=decay_box(k)`` = max(30, 12/k), as :func:`fluidpy.ch11_instability.tg_growth` does; checked there by doubling the
+    box and N); map; factor; tol, ci_rtol (as
     :func:`rayleigh_eigs`); unstable_only
     (keep c_i > ci_min, default 1e-4 — the continuous-spectrum end points c ≈ U_min, U_max carry c_i ~ 1e-6 junk).
     Returns c or dict.  Assumptions: inviscid, Boussinesq, 2-D (Squire assumed in §11.7).
-    Near-neutral modes (critical layer, Frobenius exponents ½ ± √(¼ − Ri)) converge slowly and are dropped by the filter within
-    ≈ 0.02 of the neutral curve — growth there is labelled approximate.
+    Near-neutral modes (critical layer, Frobenius exponents ½ ± √(¼ − Ri)) converge slowly and the filter drops them — an
+    empty result next to a neutral curve means "no converged mode", not "stable".  How near depends on the node clustering:
+    for U = tanh z, N² = J sech²z at N = 100 the fixed default s = 0.5 loses every mode within ≈ 0.02 of J = k(1 − k) for
+    k ≤ 0.6 and within 0.04–0.06 for k = 0.65–0.95 (kc_i up to 0.033); with ``map_scale=decay_map_scale(k)`` =
+    min(0.5, max(0.035, 0.025/k)), as :func:`fluidpy.ch11_instability.tg_growth` passes, only within 0.0002–0.006
+    (kc_i < 0.004).
     Validation: V1 N² = 0 equals :func:`rayleigh_eigs`; tanh/J sech²z exact neutral curve J = k(1 − k) (neutral mode
     ψ̂ = |tanh z|^{1−k} sech^k z, c = 0); V4 unstable c inside Howard's semicircle (11.72) and closed under conjugation; no
     unstable mode when Ri_min > ¼ (11.67); (11.65), (11.69)–(11.70) residuals ~1e-11 for computed modes.

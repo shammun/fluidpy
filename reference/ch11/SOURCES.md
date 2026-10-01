@@ -24,6 +24,37 @@ Regenerate everything with `.venv/Scripts/python.exe reference/ch11/make_refs.py
 | r_H = 24.7368 (Pr = 10, b = 8/3) | Lorenz convection states lose stability | Lorenz (1963); Wikipedia "Lorenz system" | https://en.wikipedia.org/wiki/Lorenz_system | read online (analyst) | 2026-09-30 |
 | δ = 4.669201609, A₂ = 1 + √6, A₃ = 3.5440903, A₄ = 3.5644073, A_∞ = 3.5699456 | Feigenbaum constant, logistic period doublings | Feigenbaum (1978); Wikipedia "Feigenbaum constants" | https://en.wikipedia.org/wiki/Feigenbaum_constants | read online (analyst) | 2026-09-30 |
 
+### Verifier re-check (math-verifier, 2026-09-30)
+Each value used as V5 evidence in `tests/test_ch11.py` was re-read today in the source itself (not a search snippet) where
+the source is reachable:
+
+| value | re-read in | what the source prints | status |
+|---|---|---|---|
+| Re_c = 5772.22; α_c = 1.02056 ± 0.00001; c(10⁴, 1) = 0.23752649 + 0.00373967i; c_r(Re_c) = 0.26400 | Orszag (1971), J. Fluid Mech. 50, 689 — PDF copy at http://www.damtp.cam.ac.uk/user/tong/fluids/Orszag.pdf (abstract, §4 text, Tables 2 and 5) | exactly these digits | verified |
+| Ra_c = 1707.76, K_c = 3.117 (rigid–rigid); 1100.65, 2.682 (rigid–free); 657.511, 2.2214 (free–free) | Nek5000 examples PDF (https://www.mcs.anl.gov/~fischer/nek5000/examples.pdf), table "Critical Rayleigh number for 3 types of boundaries" (column Ra_c, k_c, attributed to Chandrasekhar); arXiv:nlin/0302057 text (1707.76, 3.117) | exactly these digits | verified (secondary source quoting Chandrasekhar 1961) |
+| Blasius Re_δ*,c = 519.2, α_c = 0.303, ω_c = 0.120 (Thomas); Gallagher et al. own n = 1 row 519.12, 0.3022, 0.1198 | Gallagher, Griffiths & Stephen, Phys. Fluids 28, 074107 (2016), Table II (PDF above) | exactly these digits | verified |
+| δ = 4.669201609…, period-doubling a_n = 3, 3.4494897, 3.5440903, 3.5644073, 3.5687594 | Wikipedia "Feigenbaum constants" (logistic-map table) | exactly these digits; the accumulation point only as "≈ 3.5699…" | verified (A_∞ to 7 digits not used in tests) |
+| r_H ≈ 24.74 (Pr = 10, b = 8/3), formula σ(σ + β + 3)/(σ − β − 1) | Wikipedia "Lorenz system" | formula and 24.74 | verified |
+| Bickley Re_c ≈ 4.0 at k ≈ 0.2 | Tatsumi & Kakutani (1958), via the abstract of Int. J. Heat Fluid Flow paper (sciencedirect S0142727X16306518) | "critical Reynolds number … 4.0 at a non-dimensional wavenumber 0.2" | verified as an *approximate* value: our Re_c = 4.017 agrees to 0.4 %, our k_c = 0.1728 differs by 14 % (confirmed by an independent half-domain solve in the tests; the 1958 analysis was approximate) |
+| tanh most amplified k ≈ 0.4446, k c_i ≈ 0.1897 | Michalke (1964) — primary not reachable; 0.4446 appears in secondary snippets | — | approximate (tested at 1e-3, our 0.44492, 0.18970) |
+| odd mode Ra = 17610.39 at K = 5.365 | Chandrasekhar (1961) p. 39 — not reachable online today | — | not verified online: the tests use two independent routes (Chebyshev parity filter and the odd sin/sinh determinant agree to 1e-8) and the private V6 book value instead |
+
+### Verifier re-check of our computed tables (math-verifier, loop 2, 2026-10-01; replaces the loop-1 notes)
+- `tg_growth_map.csv` and the `tg_map` key of `explainer_tables.json` (regenerated in loop 2 with the box rule
+  y_max = max(30, 12/k) and the tan-map scale rule s = min(0.5, max(0.035, 0.025/k)), N = 100): identical to each other
+  entry for entry; a full live recomputation (620 points) rounds to the CSV in all 620 entries (largest relative rounding
+  difference 4.1e-4). 335 positive entries = exactly the 335 grid points with J < k(1 − k); none on or above the exact
+  neutral curve. (Loop 1 had 299: the 36 missing ones were unstable points at k ≥ 0.65 reported as 0 — closed.)
+- Independent check of the values: shooting on the unbounded layer (no box, no Chebyshev grid) agrees with the default
+  `tg_growth` to ≤ 1.7e-6 absolute at 35 points, including the points next to the neutral curve at k = 0.65 … 0.97.
+- Stated limitation, measured: off the grid a weak mode (k c_i < 0.004) within 0.0002 (k = 0.05) … 0.006 (k = 0.95) of the
+  neutral curve is still reported as 0 (CSV header, docstrings) — confirmed by bisection in 13 columns.
+- `rayleigh_spectra.json` / the `rayleigh` key (regenerated in loop 2 with the box max(profile box, 12/k)): identical to
+  each other; a full live recomputation rounds to the file in every entry; the k = 0.1 entries now equal the
+  box-converged values (shear layer c_i 0.8364, jet 0.0928 + 0.215i; the fixed boxes gave 0.836 and 0.09273 + 0.2149i).
+- Unchanged against commit `8ae4f15`: the keys `benard`, `taylor`, `lorenz_sweep`, `note` of `explainer_tables.json`,
+  `benchmarks.json`, `critical_points.json`, `os_modes.json`.
+
 ## Our computed tables (labelled "ours" inside each file)
 
 | file | what | written by |
