@@ -1,0 +1,90 @@
+{
+ "_note": "Published benchmarks for chapter 11 (sources and access dates in SOURCES.md). Analytic values computed.",
+ "benard_rigid_rigid": {
+  "Ra_c": 1707.762,
+  "K_c": 3.117,
+  "source": "Chandrasekhar (1961), Hydrodynamic and Hydromagnetic Stability; quoted in the Nek5000 examples and arXiv:nlin/0302057"
+ },
+ "benard_free_free": {
+  "Ra_c": 657.5113644795163,
+  "K_c": 2.221441469079183,
+  "source": "analytic (Rayleigh 1916)"
+ },
+ "benard_rigid_free": {
+  "Ra_c": 1100.65,
+  "K_c": 2.682,
+  "source": "Chandrasekhar (1961) (primary not fetched; our Chebyshev value agrees to 6 digits)"
+ },
+ "benard_odd_mode": {
+  "Ra_c": 17610.39,
+  "K_c": 5.365,
+  "source": "Chandrasekhar (1961), p. 39"
+ },
+ "taylor_narrow_gap_mu1": {
+  "Ta_c": 1707.76,
+  "k_c": 3.117,
+  "source": "narrow-gap limit = rigid Benard; arXiv:2601.14806"
+ },
+ "plane_poiseuille_critical": {
+  "Re_c": 5772.22,
+  "k_c": 1.02056,
+  "c_r": 0.264,
+  "source": "Orszag (1971), J. Fluid Mech. 50, 689"
+ },
+ "plane_poiseuille_Re1e4_k1": {
+  "c_r": 0.23752649,
+  "c_i": 0.00373967,
+  "source": "Orszag (1971); eigentools documentation (max c_i = 3.740e-3)"
+ },
+ "blasius_critical": {
+  "Re_delta_star": 519.2,
+  "alpha_delta_star": 0.303,
+  "omega": 0.12,
+  "source": "Thomas, via Gallagher, Griffiths & Stephen, Phys. Fluids 28, 074107 (2016); Jordinson (1970): 520"
+ },
+ "bickley_jet_sinuous": {
+  "Re_c": 4.0,
+  "k_c": 0.2,
+  "source": "Tatsumi & Kakutani (1958), J. Fluid Mech. 4, 261 (approximate, via later papers)"
+ },
+ "tanh_shear_layer_inviscid": {
+  "k_max": 0.4446,
+  "kci_max": 0.1897,
+  "neutral_k": 1.0,
+  "source": "Michalke (1964), J. Fluid Mech. 19, 543 (digits approximate); neutral mode analytic"
+ },
+ "bickley_inviscid_neutral": {
+  "sinuous_k": 2.0,
+  "varicose_k": 1.0,
+  "c": 0.6666666666666666,
+  "source": "analytic (Drazin & Reid 1981)"
+ },
+ "piecewise_shear_layer_neutral_kh": {
+  "kh": 1.278465,
+  "source": "root of (kh - 1)^2 = exp(-2kh) (Rayleigh 1880)"
+ },
+ "miles_howard_Ri": {
+  "Ri": 0.25,
+  "source": "Miles (1961); Howard (1961)"
+ },
+ "tanh_sech2_neutral_curve": {
+  "formula": "J = k(1 - k)",
+  "source": "exact neutral mode |tanh z|^(1-k) sech^k z with c = 0 (checked numerically here; Drazin & Reid 1981)"
+ },
+ "lorenz": {
+  "Pr": 10,
+  "b": 2.6666666666666665,
+  "r": 28,
+  "r_H": 24.736842105263154,
+  "source": "Lorenz (1963); Wikipedia 'Lorenz system' (r_H = 24.74)"
+ },
+ "feigenbaum": {
+  "delta": 4.669201609,
+  "alpha": 2.502907875,
+  "A_2": 3.449489742783178,
+  "A_3": 3.5440903,
+  "A_4": 3.5644073,
+  "A_inf": 3.5699456,
+  "source": "Feigenbaum (1978); Wikipedia 'Feigenbaum constants'"
+ }
+}
