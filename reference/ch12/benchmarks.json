@@ -1,0 +1,80 @@
+{
+ "_note": "Published values for chapter 12 (sources and access dates in SOURCES.md). No textbook numbers.",
+ "lee_moser_kappa": {
+  "value": 0.384,
+  "uncertainty": 0.004,
+  "Re_tau": 5186,
+  "source": "Lee & Moser, J. Fluid Mech. 774, 395 (2015), abstract (arXiv:1410.7809)"
+ },
+ "kolmogorov_C1_one_sided": {
+  "value": 0.53,
+  "std": 0.055,
+  "ci95": 0.03,
+  "source": "Sreenivasan, Phys. Fluids 7, 2778 (1995), as summarised by the ATOMIX wiki 'Spectra in the inertial subrange'"
+ },
+ "kolmogorov_C1_over_C": {
+  "value": 0.32727272727272727,
+  "C_implied": 1.5,
+  "source": "isotropic relation C1 = 18C/55 ~ 27/55 (ATOMIX wiki, same page; Pope 2000 \u00a76.5)"
+ },
+ "k_epsilon_constants": {
+  "C_mu": 0.09,
+  "C_eps1": 1.44,
+  "C_eps2": 1.92,
+  "sigma_k": 1.0,
+  "sigma_eps": 1.3,
+  "source": "Launder & Sharma (1974) / Launder & Spalding (1974); OpenFOAM LaunderSharmaKE defaults and SimScale k-epsilon documentation"
+ },
+ "prandtl_pipe_law": {
+  "slope_log10": 2.0,
+  "intercept": -0.8,
+  "source": "Prandtl (1935), quoted by McKeon, Zagarola & Smits, J. Fluid Mech. 538, 429 (2005)"
+ },
+ "businger_dyer_unstable": {
+  "coefficient": 16.0,
+  "exponent": -0.25,
+  "source": "AMS Glossary of Meteorology, 'Businger-Dyer relationship'"
+ },
+ "lee_moser_cases": {
+  "0180": {
+   "Re_tau": 182.088,
+   "u_tau": 0.0637309,
+   "nu": 0.00035,
+   "rows_source": 96,
+   "rows_kept": 43,
+   "file": "LM_Channel_0180_mean_prof.dat"
+  },
+  "0550": {
+   "Re_tau": 543.496,
+   "u_tau": 0.0543496,
+   "nu": 0.0001,
+   "rows_source": 192,
+   "rows_kept": 47,
+   "file": "LM_Channel_0550_mean_prof.dat"
+  },
+  "1000": {
+   "Re_tau": 1000.512,
+   "u_tau": 0.0500256,
+   "nu": 5e-05,
+   "rows_source": 256,
+   "rows_kept": 48,
+   "file": "LM_Channel_1000_mean_prof.dat"
+  },
+  "2000": {
+   "Re_tau": 1994.756,
+   "u_tau": 0.0458794,
+   "nu": 2.3e-05,
+   "rows_source": 384,
+   "rows_kept": 51,
+   "file": "LM_Channel_2000_mean_prof.dat"
+  },
+  "5200": {
+   "Re_tau": 5185.897,
+   "u_tau": 0.0414872,
+   "nu": 8e-06,
+   "rows_source": 768,
+   "rows_kept": 92,
+   "file": "LM_Channel_5200_mean_prof.dat"
+  }
+ }
+}
