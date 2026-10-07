@@ -328,9 +328,9 @@
       "title": "Turbulence",
       "slug": "turbulence",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -338,7 +338,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 243 inventory rows (129 numbered eqs (12.1)-(12.129), each once; 100 on own line + 27 grouped labels + 2 inline), 186 CODE / 28 DEMO / 29 SKIP, 235 NEW / 8 SEEN, 46 derivations (17/23/6 by stars), 17 load-bearing clusters, 15 suspected book slips logged (incl. (12.54) exponent sign, (12.129) condition)",
+      "notes": "analyze: 243 inventory rows (129 numbered eqs (12.1)-(12.129), each once; 100 on own line + 27 grouped labels + 2 inline), 186 CODE / 28 DEMO / 29 SKIP, 235 NEW / 8 SEEN, 46 derivations (17/23/6 by stars), 17 load-bearing clusters, 15 suspected book slips logged (incl. (12.54) exponent sign, (12.129) condition); curate: 16 CORE (A) / 217 NOTE / 8 RECAP / 2 SKIP = 243 rows, 28 derivations written out (10/14/4 by stars), 16 demoted, 27 primers from P280, 10 explainers + backup k_epsilon_decay",
       "updated": "2026-10-06"
     },
     "ch13": {
