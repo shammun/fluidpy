@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch12",
+  "current_chapter": "ch13",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -355,8 +355,8 @@
     "ch13": {
       "title": "Geophysical Fluid Dynamics",
       "slug": "geophysical_fluid_dynamics",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -366,8 +366,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 218 inventory rows, 145 numbered equations (13.1)-(13.145) each once (115 own-line + 30 in grouped labels), 119 CODE / 28 DEMO / 71 SKIP, 177 NEW / 39 SEEN, 42 derivations (8/24/10 by stars), 12 load-bearing clusters, 13 suspected slips + 17 traps, all 70 pages rendered",
+      "updated": "2026-10-07"
     },
     "ch14": {
       "title": "Aerodynamics",
