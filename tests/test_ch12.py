@@ -256,9 +256,9 @@ def test_parity_V1_every_design_parity_expression_evaluates():  # design Part B:
 # ======================================================================================================================
 # Book slips (design convention 8): each planted wrong variant fails its check
 # ======================================================================================================================
-def test_book_slips_V1_table_lists_fifteen_and_names_existing_switches():  # N-rows of §9
+def test_book_slips_V1_table_lists_eighteen_and_names_existing_switches():  # N-rows of §9 + #16-#18 from the reviews
     slips = ch12.book_slips()
-    assert [d["id"] for d in slips] == list(range(1, 16))
+    assert [d["id"] for d in slips] == list(range(1, 19))
     assert {"id", "where", "printed", "corrected", "how_to_tell", "coded_in", "test"} <= set(slips[0])
     for fn in ("inertial_spectrum_1d", "rans_eddy_viscosity_residual", "eddy_diffusivity_asymptote"):
         assert "printed" in inspect.signature(getattr(ch12, fn)).parameters

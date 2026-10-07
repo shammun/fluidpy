@@ -1,14 +1,14 @@
 """Schematic drawings for chapter 12 (our analogues of the book's sketches — drawn by this code, never copied; no physics
 is computed here beyond the profile shapes taken from ``fluidpy``):
 
-* ``scales_sketch``          the outer scale L, the velocity difference ΔU and eddies down to η (cf. Fig. 12.11)
-* ``parcel_sketch``          a parcel displaced across a mean shear arrives with u < 0, v > 0 (cf. Fig. 12.6)
-* ``stress_element_sketch``  viscous and Reynolds shear stress on a fluid element (cf. Fig. 12.7)
-* ``fg_geometry_sketch``     longitudinal f(r) and transverse g(r) velocity pairs (cf. Fig. 12.9)
-* ``free_shear_sketch``      jet, wake or shear layer with self-similar profiles (cf. Fig. 12.13)
-* ``wall_layers_sketch``     sublayer, buffer layer, logarithmic layer and wake region (cf. Figs. 12.16, 12.18)
-* ``surface_layer_sketch``   forced convection below |L_M|, free convection above (cf. Fig. 12.21)
-* ``plume_sketch``           time-averaged smoke plume: a wedge near the source, a parabola far away (cf. Fig. 12.27)
+* ``scales_sketch``          a shear layer of thickness L with velocity difference ΔU, filled with eddies down to η
+* ``parcel_sketch``          two parcels trade places across a mean shear: the one moving up arrives with u < 0, v > 0
+* ``stress_element_sketch``  viscous and Reynolds shear stress drawn on the faces of a small fluid element
+* ``fg_geometry_sketch``     two points a distance r apart: velocity pairs along r (f) and across r (g)
+* ``free_shear_sketch``      jet, wake or shear layer spreading downstream, with its self-similar mean profiles
+* ``wall_layers_sketch``     the mean profile on a logarithmic wall distance, banded into sublayer, buffer, log and wake
+* ``surface_layer_sketch``   daytime surface layer: forced convection below |L_M|, free convection with thermals above
+* ``plume_sketch``           time-averaged smoke plume: a wedge near the source, a parabola far away
 
 Every helper takes a matplotlib Axes first and returns it; the notebook imports them with
 ``sys.path.insert(0, "scripts"); from ch12_drawings import *``.  Colours follow the chapter code: mean = purple (accent),
@@ -39,7 +39,7 @@ def _bare(ax, xlim, ylim, title: str):
 
 
 def scales_sketch(ax, n_tiers: int = 5, seed: int = 0):
-    """A shear layer of thickness L with velocity difference ΔU and eddies of every size down to η (cf. Fig. 12.11)."""
+    """A shear layer of thickness L with velocity difference ΔU and eddies of every size down to η."""
     import matplotlib.patches as mp
 
     rng = np.random.default_rng(seed)
@@ -72,7 +72,7 @@ def scales_sketch(ax, n_tiers: int = 5, seed: int = 0):
 
 
 def parcel_sketch(ax, shear: float = 1.0):
-    """Parcels exchanged across a mean shear: the one moving up arrives slow (u < 0, v > 0), the other fast (cf. Fig. 12.6)."""
+    """Parcels exchanged across a mean shear: the one moving up arrives slow (u < 0, v > 0), the other fast."""
     import matplotlib.patches as mp
 
     y = np.linspace(0.0, 2.0, 50)
@@ -99,7 +99,7 @@ def parcel_sketch(ax, shear: float = 1.0):
 
 
 def stress_element_sketch(ax):
-    """Shear stresses on a fluid element in a mean shear: viscous μ dU/dy and Reynolds −ρ₀ mean(uv) (cf. Fig. 12.7)."""
+    """Shear stresses on a fluid element in a mean shear: viscous μ dU/dy and Reynolds −ρ₀ mean(uv)."""
     import matplotlib.patches as mp
 
     ax.add_patch(mp.Rectangle((1.0, 1.0), 2.0, 2.0, fill=True, fc=COLORS["grid"], ec=COLORS["ink"], lw=1.5))
@@ -119,7 +119,7 @@ def stress_element_sketch(ax):
 
 
 def fg_geometry_sketch(ax):
-    """Two points a distance r apart: velocity components along r give f(r), components across r give g(r) (cf. Fig. 12.9)."""
+    """Two points a distance r apart: velocity components along r give f(r), components across r give g(r)."""
     for y0, lab, col, along in ((1.6, r"longitudinal:  $f(r)=\overline{u_1(\mathbf{x})\,u_1(\mathbf{x}+r\mathbf{e}_1)}/\overline{u_1^2}$",
                                  COLORS["accent"], True),
                                 (0.5, r"transverse:  $g(r)=\overline{u_2(\mathbf{x})\,u_2(\mathbf{x}+r\mathbf{e}_1)}/\overline{u_2^2}$",
@@ -134,7 +134,7 @@ def fg_geometry_sketch(ax):
 
 
 def free_shear_sketch(ax, flow: str = "plane_jet", stations=(1.0, 2.0, 3.0, 4.0), constants: dict | None = None):
-    """A free turbulent shear flow with its self-similar mean profiles at several stations (cf. Fig. 12.13).
+    """A free turbulent shear flow with its self-similar mean profiles at several stations.
 
     flow: "plane_jet", "plane_wake" or "shear_layer".  The profile shapes come from ``ch12.free_shear_flow`` with
     **labelled illustrative constants** (not the book's table): the picture shows the growth laws, not measured numbers.
@@ -173,7 +173,7 @@ def free_shear_sketch(ax, flow: str = "plane_jet", stations=(1.0, 2.0, 3.0, 4.0)
 
 
 def wall_layers_sketch(ax, Re_tau: float = 2000.0, Pi: float = 0.2):
-    """The layers of a wall-bounded turbulent flow on the semi-log profile U⁺(y⁺) (cf. Figs. 12.16 and 12.18).
+    """The layers of a wall-bounded turbulent flow on the semi-log profile U⁺(y⁺), each layer a shaded band.
 
     Shape: ``ch12.composite_profile_plus`` with κ = 0.41, B = 5.0 (a common textbook pair) and an illustrative wake
     strength; bands at y⁺ = 5, y⁺ = 30 and y/δ = 0.15 (nominal boundaries).
@@ -198,7 +198,7 @@ def wall_layers_sketch(ax, Re_tau: float = 2000.0, Pi: float = 0.2):
 
 
 def surface_layer_sketch(ax, L_M: float = -20.0, top: float = 100.0, seed: int = 1):
-    """Unstable daytime surface layer: forced convection below |L_M|, free convection with thermal plumes above (cf. Fig. 12.21)."""
+    """Unstable daytime surface layer: forced convection below |L_M|, free convection with thermal plumes above."""
     absL = abs(L_M)
     ax.axhspan(0.0, absL, color=COLORS["accent"], alpha=0.08)
     ax.axhspan(absL, top, color=COLORS["blue"], alpha=0.08)
@@ -208,7 +208,7 @@ def surface_layer_sketch(ax, L_M: float = -20.0, top: float = 100.0, seed: int =
     ax.plot(1.2 + 0.9 * np.log(z / 0.5) / np.log(top / 0.5), z, color=COLORS["accent"], lw=2.5)
     for zz in (4.0, 9.0, 15.0):
         _arrow(ax, (1.2, zz), (1.2 + 0.9 * np.log(zz / 0.5) / np.log(top / 0.5), zz), COLORS["accent"], 1.0)
-    ax.text(1.25, 0.55 * absL, "forced convection\n(shear makes the turbulence;\nnear-logarithmic wind)", fontsize=8.5, color=COLORS["accent"])
+    ax.text(2.15, 0.5 * absL, "forced convection: shear-made" + chr(10) + "turbulence, near-logarithmic wind", fontsize=8, color=COLORS["accent"])
     rng = np.random.default_rng(seed)
     for x0 in (4.2, 5.6, 7.0, 8.4):
         zz = np.linspace(0.6 * absL, top * rng.uniform(0.8, 0.97), 60)
@@ -227,7 +227,7 @@ def surface_layer_sketch(ax, L_M: float = -20.0, top: float = 100.0, seed: int =
 
 
 def plume_sketch(ax, U: float = 5.0, w_rms: float = 0.5, Lambda_t: float = 10.0, x_max: float = 400.0):
-    """Time-averaged smoke plume behind a chimney: width ∝ x near the source, ∝ √x far away (cf. Fig. 12.27).
+    """Time-averaged smoke plume behind a chimney: width ∝ x near the source, ∝ √x far away.
 
     The envelope is ``ch12.smoke_plume_width`` (Taylor's formula with t = x/U) — linear near, square root far: the
     printed caption of the book's figure names the two regimes the other way round (slip #13).

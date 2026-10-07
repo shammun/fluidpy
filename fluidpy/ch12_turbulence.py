@@ -1491,8 +1491,10 @@ def general_similarity_check(delta_fn: Callable, UCL_fn: Callable, Psi_fn: Calla
     Validation: V1 power family → (n, m + n, 1)·x^{m−1} to 1e-8; exponential family → c2 = 0 to 1e-8 and a non-zero
     momentum-flux exponent; V2 the same coefficients from :func:`plane_jet_similarity_sympy`.
     Reading: the power family δ ∼ x^m, U_CL ∼ x^n, Ψ ∼ x^{2n+m−1} gives (n, m + n, 1)·x^{m−1}: proportional, and the
-    momentum flux is constant only for m + 2n = 0.  **The exponential family δ ∼ e^{ax}, U_CL ∼ e^{−ax} that the page
-    also offers makes c2 identically zero** — the three are then not proportional — and breaks (12.62) (slip #5).
+    momentum flux is constant only for m + 2n = 0.  **The exponential family δ ∼ e^{ax}, U_CL ∼ e^{−ax}, Ψ ∼ e^{−ax}
+    that the book also prints makes c2 identically zero** — the three are then not proportional, so (12.74) is not met —
+    and U_CL² δ ∼ e^{−ax} breaks (12.62) (slip #5).  Exponentials as such are not excluded: δ ∼ e^{ax},
+    U_CL ∼ e^{−ax/2}, Ψ = const gives (−a/2, a/2, Ψ)·e^{ax} — proportional — with U_CL² δ constant.
     """
     x_ = _F(x)
     hx = h * np.maximum(np.abs(x_), 1.0)
@@ -3578,9 +3580,15 @@ def book_slips() -> list:
     """The printed slips of chapter 12 that fluidpy corrects, each with the way a test tells the two versions apart.
 
     Book: §12.5–§12.12 (found by reading the page images against dimensions, limits and the book's own neighbouring
-    equations).  Returns a list of 15 dicts(id, where, printed, corrected, how_to_tell, coded_in, test) — ``test`` names
+    equations).  Returns a list of 18 dicts(id, where, printed, corrected, how_to_tell, coded_in, test) — ``test`` names
     the planted wrong variant a test must fail ("—" for pure wording slips).  Descriptions are ours;
     ``pd.DataFrame(book_slips())`` gives the table of the notebook's opening block.
+    Rows 16–18 were found by the lesson and explainer reviews; none of them changes a result of the book (a vanishing
+    term is misnamed, a sign is dropped in a sentence, a far-field value is misstated).  The one-sided printing of
+    (12.16), mean(uv) ≤ sqrt(mean(u²)) sqrt(mean(v²)) without the absolute value, is true as printed and is taught as
+    a trap, not listed here as a slip.
+    Row 5: the printed exponential family fails, but exponentials as such are not excluded — δ ~ e^{ax},
+    U_CL ~ e^{−ax/2}, Ψ = const satisfies both (12.74) and (12.62), as does the power family with m + 2n = 0.
     Assumptions: none (a table).   Validation: V1 every ``printed=True`` switch named here exists and fails its check.
     """
     rows = [
@@ -3590,9 +3598,11 @@ def book_slips() -> list:
         (3, "(12.70)", "source integral evaluated at y = 0", "at x = 0, as in (12.62)", "the integral runs over y", "plane_jet_mass_fraction"),
         (4, "after (12.67)", "undetermined constants called C_3, C_4; later C_5, C_6 said to be tabulated", "C_3 and C_5; the table's pair multiplies (12.72) and (12.73)",
          "C_5 = C_4 (ρ/J_s)^{1/2}", "free_shear_centerline"),
-        (5, "(12.74)", "exponential family δ ~ e^{ax}, U_CL ~ e^{−ax}, Ψ ~ e^{−ax} offered as a solution",
-         "its middle coefficient vanishes and it breaks (12.62); the power family with m + 2n = 0 is the valid one",
-         "evaluate the three coefficients", "general_similarity_check, plane_jet_similarity_sympy"),
+        (5, "(12.74)", "δ ~ e^{ax}, U_CL ~ e^{−ax}, Ψ ~ e^{−ax} offered as a further solution of (12.74)",
+         "with these exponents the middle bracket δU′_CL/U_CL + δ′ of (12.74) is identically zero, so the three brackets "
+         "are not proportional and (12.74) is not met; and U_CL²δ ~ e^{−ax} violates the momentum invariant "
+         "J_s = ρ∫U² dy = const (12.62). A family that does satisfy both: δ ~ e^{ax}, U_CL ~ e^{−ax/2}, Ψ = const",
+         "evaluate the three brackets and U_CL²δ for each family", "general_similarity_check, plane_jet_similarity_sympy"),
         (6, "(12.97)", "pressure gradient ∂P/∂x_j", "∂P/∂x_i (free index)", "index balance", "rans_eddy_viscosity_residual"),
         (7, "after (12.89)", "control-volume proof of (12.90)–(12.91) cited as Exercise 12.31", "Exercise 12.32", "—", "—"),
         (8, "before (12.103)", "modelled viscous transport written with u_j S′_ij", "u_i S′_ij as in (12.47)", "index balance", "one_equation_closure"),
@@ -3603,6 +3613,16 @@ def book_slips() -> list:
         (13, "Fig. 12.27 caption", "width ∝ x^{1/2} near the source, ∝ x far away", "linear near, square root far", "(12.121), (12.123); local slope of Z_rms(x)", "smoke_plume_width"),
         (14, "Exercise 12.18a", "cites (12.39) for R_ij", "(12.40)", "—", "isotropic_correlation_tensor"),
         (15, "(12.112)", "molecular transport κ ∂mean(T′²)/∂z", "κ ∂(½ mean(T′²))/∂z", "derive it: T′ × (T′-equation), averaged", "temperature_variance_sympy"),
+        (16, "before (12.30), printed p. 557", "mean momentum flux ρ_0 mean((U+u)v) = ρ_0 U mean(u) + ρ_0 mean(uv) = ρ_0 mean(uv)",
+         "ρ_0 mean((U+u)v) = ρ_0 U mean(v) + ρ_0 mean(uv) = ρ_0 mean(uv): the vanishing middle term is ρ_0 U mean(v)",
+         "expand (U+u)v = Uv + uv and average: U is a mean, so mean(Uv) = U mean(v) = 0; the result is unchanged", "—"),
+        (17, "before (12.111), printed p. 598", "'using mean(uw) = u_*²'", "−mean(uw) = u_*²",
+         "with the printed sign Rf = −gα mean(wT′)/(−mean(uw) dU/dz) (12.107) gives −z/L_M, against Rf = z/L_M (12.111)",
+         "flux_richardson, flux_richardson_surface_layer, monin_obukhov_length"),
+        (18, "before (12.62), printed p. 575", "boundary terms [VU + mean(uv)] vanish because U, V and mean(uv) all go to zero as y → ±∞",
+         "they vanish because U → 0 and mean(uv) → 0; V does not: V(±∞) = ∓v_e, the entrainment velocity",
+         "V from continuity (12.58) tends to −½ dV̇/dx ≠ 0; the product VU still vanishes, so (12.62) is unchanged",
+         "plane_jet_cross_velocity, plane_jet_entrainment_velocity"),
     ]
     # "test": the call (or check) with which a test shows that the printed form fails; "—" = a wording slip, no test.
     tests = {1: "inertial_spectrum_1d(printed=True): slope +5/3 and wrong units",
@@ -3612,7 +3632,10 @@ def book_slips() -> list:
              12: "eddy_diffusivity_asymptote(which='long', printed=True) against eddy_diffusivity_exponential "
                  "(dispersion_regime names the regime)",
              13: "smoke_plume_width: local slope d ln Z/d ln x is 1 near the source and 1/2 far away",
-             15: "temperature_variance_sympy()['printed_check'] is False"}
+             15: "temperature_variance_sympy()['printed_check'] is False",
+             17: "flux_richardson with dU/dz = u_*/(κz): uw = −u_*² gives z/L_M (= flux_richardson_surface_layer), "
+                 "uw = +u_*² gives −z/L_M",
+             18: "plane_jet_cross_velocity far outside the jet = −plane_jet_entrainment_velocity, not 0"}
     keys = ("id", "where", "printed", "corrected", "how_to_tell", "coded_in")
     return [dict(zip(keys, r), test=tests.get(r[0], "—")) for r in rows]
 

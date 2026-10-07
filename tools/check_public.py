@@ -25,7 +25,7 @@ Usage::
     .venv/Scripts/python.exe tools/check_public.py a.ipynb b.html
     git config core.hooksPath .githooks                       # installs the pre-push hook that runs this
 
-Exit code 0 = clean, 1 = violations (listed).
+Exit code 0 = clean, 1 = violations (listed), 2 = a local private list could not be parsed (nothing was checked).
 """
 from __future__ import annotations
 
@@ -50,14 +50,22 @@ MAX_HITS = 3  # matches reported per (file, pattern)
 
 
 def _private_lists() -> list[dict]:
-    """The parsed local private lists (absent on a fresh clone → no content check)."""
+    """The parsed local private lists (absent on a fresh clone → no content check).
+
+    A private list that exists but cannot be read or parsed stops the check (exit code 2, file and error printed):
+    skipping it would drop every forbidden string and pattern it holds without a word.
+    """
     out: list[dict] = []
     for pattern in PRIVATE_LISTS:
         for f in sorted(ROOT.glob(pattern)):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-            except Exception:  # noqa: BLE001
-                continue
+            except Exception as exc:  # noqa: BLE001
+                rel = f.relative_to(ROOT).as_posix()
+                print(f"PUBLIC-REPO CHECK ABORTED: private list {rel} cannot be parsed "
+                      f"({type(exc).__name__}: {exc}).\n  Its forbidden strings and patterns would be skipped — "
+                      "fix the JSON and run the check again.", file=sys.stderr)
+                raise SystemExit(2) from exc
             if isinstance(data, dict):
                 out.append(data)
     return out
