@@ -6,11 +6,10 @@ LaTeX the analyst read from the page images, §2b derivations a-D1…a-D46, §4 
 
 **Equation provenance (honest statement).** Every equation placed here is taken from the analyst's page-image transcription in
 `analysis/ch12.md` §2. For this design I re-read eight rendered pages against that transcription and found no difference:
-p583 (term-by-term averages, the collected equation, (12.30)); p589 ((12.38)–(12.41), Λ_g = Λ_f/2, λ_g = λ_f/√2); p592 (the 1/Re
-ratio, (12.47) with its labels — slip #2 seen: the label under the left side names Ē); p596 ((12.52), (12.53), (12.54) — slip #1 seen:
-exponent printed +5/3); p603 (V eliminated, the substituted equation, (12.63), (12.64), (12.65)); p613 ((12.87), (12.88), (12.89));
-p625 ((12.110), (12.111), the log-linear profile); p630 ((12.116), r_α, (12.117), (12.118), the integration by parts, (12.119)).
-The other pages were **not** re-read by the designer; builders render the page (`tools/render_pages.py ch12 --eq N.M`) before
+p583 (term-by-term averages, the collected equation, $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-g[1-\alpha(\bar T-T_0)]\delta_{i3}+\frac1{\rho_0}\frac{\partial\bar\tau_{ij}}{\partial x_j}$ (12.30)); p589 (the four displays from $f(r)\equiv\overline{u_\parallel(\mathbf x+\mathbf r)u_\parallel(\mathbf x)}/\overline{u_\parallel^2}$ (12.38) to $R_{ij}=\overline{u^2}\big\{f(r)\delta_{ij}+\frac r2\frac{df}{dr}\big(\delta_{ij}-\frac{r_ir_j}{r^2}\big)\big\}$ (12.41), Λ_g = Λ_f/2, λ_g = λ_f/√2); p592 (the 1/Re ratio, $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47) with its labels — slip #2 seen: the label under the left side names Ē); p596 ($\frac{\lambda_T}L\propto\mathrm{Re}_L^{-1/2}$ (12.52), $\frac{S_{11}(k_1)}{u_K^2\eta}=\Phi(k_1\eta)$ (12.53), and (12.54), printed $S_{11}(k_1)=\mathit{const}\cdot\bar\varepsilon^{2/3}\cdot k_1^{5/3}$ — ⚠️ slip #1 seen: the exponent must be −5/3, $S_{11}=C_1\bar\varepsilon^{2/3}k_1^{-5/3}$); p603 (V eliminated, the substituted equation, $\big\{\frac{\delta U'_{CL}}{U_{CL}}\big\}F^2-\big\{\frac{\delta U'_{CL}}{U_{CL}}+\delta'\big\}F'\int_0^\xi F\,d\xi=\big\{\frac\Psi{U_{CL}^2}\big\}G'$ (12.63), $\frac{\delta U'_{CL}}{U_{CL}}=C_1$, $\frac{\delta U'_{CL}}{U_{CL}}+\delta'=C_2$, $\frac\Psi{U_{CL}^2}=C_3$ (12.64), $J_s=\rho U_{CL}^2\delta\int_{-\infty}^{+\infty}F^2(\xi)\,d\xi=\rho C_4^2x^{2\gamma+1}\int_{-\infty}^{+\infty}F^2(\xi)\,d\xi$ (12.65)); p613 ($-\xi\frac{dF}{d\xi}=y^+\frac{df}{dy^+}$ (12.87), $U^+=\frac1\kappa\ln(y^+)+B$ (12.88), $F(\xi)=-\frac1\kappa\ln(\xi)+A$ (12.89));
+p625 ($L_M\equiv-u_*^3/(\kappa\alpha g\overline{wT'})$ (12.110), $\mathrm{Rf}=z/L_M$ (12.111), the log-linear profile); p630 ($\frac{d}{dt}(\overline{X_\alpha^2})=2\overline{X_\alpha u_\alpha}=2\int_0^t\overline{u_\alpha(t')u_\alpha(t)}\,dt'$ (12.116), r_α, $\frac{d}{dt}(\overline{X_\alpha^2})=2\overline{u_\alpha^2}\int_0^tr_\alpha(\tau)\,d\tau$ (12.117), $\overline{X_\alpha^2}(t)=2\overline{u_\alpha^2}\int_0^tdt'\int_0^{t'}r_\alpha(\tau)\,d\tau$ (12.118), the integration by parts, $\overline{X_\alpha^2}(t)=2\overline{u_\alpha^2}\,t\int_0^t\big(1-\frac\tau t\big)r_\alpha(\tau)\,d\tau$ (12.119)).
+**Inlining pass of 2026-10-07 (a second honest statement).** While every number-only mention of an equation in this file was completed with the equation itself, a further 34 rendered pages of ch12 were read against the transcription — p573, p574, p577–p582, p585–p588, p590, p591, p594, p595, p601, p602, p604, p605, p607, p610–p612, p617–p620, p622, p624, p627, p629, p631, p634 — again with no difference (so 42 of the chapter's 80 pages are now checked; the others are not, and the rule of the next sentence still holds for them), and nine pages of earlier chapters for the cross-references: ch01 p045 and p047, ch04 p142 and p163, ch07 p321, ch08 p343, ch09 p392, ch11 p532 and p546. One finding there: the book prints the pipe wall stress as $\tau_0=\frac a2\frac{dp}{dz}$ (8.8), with the sign of the pressure gradient, where recap R04 had written $-(a/2)\,dp/dx$; R04 now shows the printed form and says why Chapter 12's positive $\tau_0$ needs the minus sign.
+The remaining pages were **not** re-read by the designer; builders render the page (`tools/render_pages.py ch12 --eq N.M`) before
 setting any equation not in that list. Numbers marked *expect* were computed for this design with a scratch script (numpy/scipy
 closed forms and quadrature; no fluidpy function existed yet); the builder compares an executed cell against them and reports
 any difference instead of editing the expectation.
@@ -33,17 +32,17 @@ any difference instead of editing the expectation.
 | Book symbol | Meanings in this chapter (and earlier) | Notebook / explainer symbol | Code name |
 |---|---|---|---|
 | over-bar, tilde, capital, lower case | $\overline{(\ )}$ ensemble average; $\tilde u$ total field; $U$, $\bar T$ mean; $u$, $T'$ **fluctuation** (so $u$ is not "the velocity" here) | same | `samples` (members on axis 0), `mean`, `fluct` |
-| κ | von Kármán constant (12.88), (12.110); thermal diffusivity (12.31), (12.112); κ_m, κ_T, κ_mT nearby | $\kappa$ = von Kármán; $\kappa_{th}$ = molecular thermal diffusivity in our own lines (the book's κ quoted inside its equations with a ⚠️ line); $\kappa_T$ eddy diffusivity | `kappa`; `kappa_th`; `kappa_T` |
-| k, K | thermal conductivity (12.32); wavenumber $k_1$; 3-D wavenumber $K$; the "k" of k–ε (the book's $\bar e$); kurtosis K (Ex. 12.1) | $k_{th}$ conductivity; $k_1$, $K$ wavenumbers; $\bar e$ turbulent kinetic energy ("k" only in the name k–ε) | `k_th`; `k1`, `K`; `e` |
+| κ | von Kármán constant in $U^+=\frac1\kappa\ln(y^+)+B$ (12.88) and $L_M\equiv-u_*^3/(\kappa\alpha g\overline{wT'})$ (12.110); thermal diffusivity in $\frac{\partial\bar T}{\partial t}+U_j\frac{\partial\bar T}{\partial x_j}+\frac{\partial}{\partial x_j}(\overline{u_jT'})=\kappa\frac{\partial^2\bar T}{\partial x_j^2}$ (12.31) and in the dissipation $\bar\varepsilon_T=\kappa\overline{(\partial T'/\partial x_j)^2}$ of the temperature-variance budget (N190 in C15); κ_m, κ_T, κ_mT nearby | $\kappa$ = von Kármán; $\kappa_{th}$ = molecular thermal diffusivity in our own lines (the book's κ quoted inside its equations with a ⚠️ line); $\kappa_T$ eddy diffusivity | `kappa`; `kappa_th`; `kappa_T` |
+| k, K | thermal conductivity in $Q_j=-k\frac{\partial\bar T}{\partial x_j}+\rho_0C_p\overline{u_jT'}$ (12.32); wavenumber $k_1$; 3-D wavenumber $K$; the "k" of k–ε (the book's $\bar e$); kurtosis K (Ex. 12.1) | $k_{th}$ conductivity; $k_1$, $K$ wavenumbers; $\bar e$ turbulent kinetic energy ("k" only in the name k–ε) | `k_th`; `k1`, `K`; `e` |
 | e, E, ε | $\bar e=\tfrac12\overline{u_i^2}$ (ch01: internal energy); $\bar E=\tfrac12U_i^2$ (ch11: disturbance energy); $\bar\varepsilon$ dissipation, $\bar\varepsilon_T$ its thermal twin | $\bar e$, $\bar E$, $\bar\varepsilon$, $\bar\varepsilon_T$ | `e`, `E_mean`, `eps`, `eps_T` |
 | λ, Λ | Taylor microscales $\lambda_t,\lambda_f,\lambda_g,\lambda_T$ (earlier: wavelength, eigenvalue); integral scales $\Lambda_t,\Lambda_f,\Lambda_g$ (ch11: Λ = dissipation) | same, always with the subscript | `lambda_t`, `lambda_f`, `lambda_g`; `Lambda_t`, `Lambda_f`, `Lambda_g` |
 | η | Kolmogorov length (earlier: similarity variable, surface elevation); $\eta_T$ Batchelor scale | $\eta$, $\eta_T$ | `eta`, `eta_T` |
-| f, g, F, G | $f(r)$, $g(r)$ correlation coefficients (12.38); $f(y^+)$ law of the wall (12.80); Darcy $f$; $g$ gravity; $F(r)$, $G(r)$ tensor functions (12.40); $F(\xi)$, $G(\xi)$ jet profiles (12.56)–(12.57); $F(\xi)$ defect function (12.84) | $f(r)$, $g(r)$; $f_w(y^+)$ in our own lines for the wall function; $f_D$ Darcy; $F_R$, $G_R$ for (12.40) in our own lines; $F$, $G$ jet; $F_d$ defect in our own lines | `f`, `g_corr`; `fD`; `F_R`, `G_R`; `F`, `G` |
+| f, g, F, G | correlation coefficients $f(r)$, $g(r)$: $f(r)\equiv\overline{u_\parallel(\mathbf x+\mathbf r)u_\parallel(\mathbf x)}/\overline{u_\parallel^2}$ (12.38), g likewise with $u_\perp$; law of the wall $U^+=f(y^+)$ (12.80); Darcy $f$; $g$ gravity; tensor functions in $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40); jet profiles in $U=U_{CL}(x)F(y/\delta(x))$ (12.56) and $-\overline{uv}=\Psi(x)G(y/\delta(x))$ (12.57); defect function in $\frac{U_\infty-U}{u_*}=F(\xi)$ (12.84) | $f(r)$, $g(r)$; $f_w(y^+)$ in our own lines for the wall function; $f_D$ Darcy; $F_R$, $G_R$ in $R_{ij}=F_Rr_ir_j+G_R\delta_{ij}$ (12.40) in our own lines; $F$, $G$ jet; $F_d$ defect in our own lines | `f`, `g_corr`; `fD`; `F_R`, `G_R`; `F`, `G` |
 | $R_{ij}$, r | correlation tensor (ch02–ch03: rotation tensor); r separation, radius; $r_{11}$, $r_\alpha$ correlation coefficients | $R_{ij}$ correlation; $r_{11}(\tau)$, $r_\alpha(\tau)$ | `R`, `r` |
-| τ | time lag (12.17); decay time (Ex. 12.1); stress $\bar\tau$, $\tau_0$ | $\tau$ lag; $\tau_d$ decay time in our Example 12.1 lines; $\bar\tau$, $\tau_0$ stress; $\tau_c$ memory time of our test signals | `lag`, `tau`, `tau0`, `tau_c` |
+| τ | time lag in $R_{11}(\tau)=\overline{u_1(t)u_1(t+\tau)}$ (12.17); decay time (Ex. 12.1); stress $\bar\tau$, $\tau_0$ | $\tau$ lag; $\tau_d$ decay time in our Example 12.1 lines; $\bar\tau$, $\tau_0$ stress; $\tau_c$ memory time of our test signals | `lag`, `tau`, `tau0`, `tau_c` |
 | δ, θ, α | δ jet width, boundary-layer thickness, $\delta_{ij}$; θ momentum thickness (§12.9), potential temperature (ours, §12.11); α thermal expansion and the no-sum index of §12.12 | δ, $\delta_{ij}$; $\theta_m$ momentum thickness where both meet; θ potential temperature; α expansion; "component α (no sum)" said in words | `delta`; `theta_m`; `theta`; `alpha` |
 | S, N, L, σ, Π, U₀ | spectra $S_e,S_{11},S_T,S(K)$ vs strain $\bar S_{ij},S'_{ij}$; N realizations vs buoyancy frequency; L outer scale, walk step, $L_M$; σ Gaussian width ($\sigma^2=2\nu t$ here, ch03's core radius had $4\nu t$), $\sigma_e,\sigma_\varepsilon$; Π wake strength (ch01: Π groups); $U_0$ probe speed (§12.4), nozzle speed (§12.8) | as in the book, each named at first use; $N_{bv}$ in our own lines when N members is on the same page | `n_members`, `N2`; `L`, `step`, `L_M`; `Pi` |
-| h, d | h **full** channel height (12.90); d slot width, nozzle or pipe diameter | h (full), δ = h/2 | `h`, `delta`, `d` |
+| h, d | h **full** channel height in $dP/dx=-2\tau_0/h$ (12.90); d slot width, nozzle or pipe diameter | h (full), δ = h/2 | `h`, `delta`, `d` |
 
 5. **Normalisations** (analysis §9 C4): spectra as in 3; $\overline{u^2}$ in §12.6 is **one** component ($\bar e=\tfrac32\overline{u^2}$);
    the book's skewness and kurtosis are un-normalised central moments (`statistics(normalized=True)` gives the usual ones);
@@ -62,20 +61,20 @@ any difference instead of editing the expectation.
 | Slip | The book prints | Correct | Taught in | Planted wrong variant a test must fail |
 |---|---|---|---|---|
 | #1 | (12.54) $S_{11}=\mathit{const}\cdot\bar\varepsilon^{2/3}k_1^{5/3}$ | $S_{11}=C_1\bar\varepsilon^{2/3}k_1^{-5/3}$ | C08, D12, E4 | `inertial_spectrum_1d(printed=True)` |
-| #2 | label under the left side of (12.47): "change of Ē" | the turbulent $\bar e$ | C06, D10 | — |
-| #3 | (12.70) source integral $[U]_{y=0}$ | $[U]_{x=0}$, as in (12.62) | C09 (N118) | `scalar_flux_per_span` at y = 0 |
-| #4 | after (12.67): constants "C₃ and C₄"; "C₅, C₆ tabulated" | C₃ and C₅ ($C_5=C_4(\rho/J_s)^{1/2}$); the tabulated pair multiplies (12.72), (12.73) | C09 (N115), D15 | — |
-| #5 | (12.74) exponential family δ ~ e^{ax}, U_CL ~ e^{−ax} | middle coefficient ≡ 0 and $U_{CL}^2\delta$ not constant; only δ ~ x^m, U_CL ~ x^n with m + 2n = 0 keeps (12.62) | C09 (N125), E6 | `general_similarity_check` on the exponential family |
-| #6 | (12.97) $\partial P/\partial x_j$ | $\partial P/\partial x_i$ (free index) | C12 (N165) | `rans_eddy_viscosity_residual(printed=True)` |
+| #2 | label under the left side of $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47): "change of Ē" | the turbulent $\bar e$ | C06, D10 | — |
+| #3 | (12.70), printed $\dot M_s=\rho_s\int_{-\infty}^{+\infty}[U]_{y=0}\,dy$: the source integral taken at y = 0 | $\dot M_s=\rho_s\int_{-\infty}^{+\infty}[U]_{x=0}\,dy$, as in $J_s\equiv\rho_s\int_{-\infty}^{+\infty}[U^2]_{x=0}dy$ (12.62) | C09 (N118) | `scalar_flux_per_span` at y = 0 |
+| #4 | after $-\overline{uv}=C_3U_{CL}^2G(y/x)=C_3C_5^2(J_s/\rho)x^{-1}G(y/x)$ (12.67): constants "C₃ and C₄"; "C₅, C₆ tabulated" | C₃ and C₅ ($C_5=C_4(\rho/J_s)^{1/2}$); the tabulated pair multiplies $U=C_5U_0(\rho_s/\rho)^{1/2}(x/d)^{-1/2}F(y/x)$ (12.72) and $\bar Y=C_7Y_0(\rho_s/\rho)^{1/2}(x/d)^{-1/2}H(y/x)$ (12.73) | C09 (N115), D15 | — |
+| #5 | after $\frac{\delta U'_{CL}}{U_{CL}}=C_8\big(\frac{\delta U'_{CL}}{U_{CL}}+\delta'\big)=C_9\frac\Psi{U_{CL}^2}$ (12.74): the exponential family δ ~ e^{ax}, U_CL ~ e^{−ax} | middle coefficient ≡ 0 and $U_{CL}^2\delta$ not constant; only δ ~ x^m, U_CL ~ x^n with m + 2n = 0 keeps $J_s=\rho\int_{-\infty}^{+\infty}U^2dy=\mathit{const.}$ (12.62) | C09 (N125), E6 | `general_similarity_check` on the exponential family |
+| #6 | (12.97), printed $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-\frac1\rho\frac{\partial P}{\partial x_j}+\frac{\partial}{\partial x_j}\big([\nu+\nu_T]\big(\frac{\partial U_i}{\partial x_j}+\frac{\partial U_j}{\partial x_i}\big)-\frac23\bar e\delta_{ij}\big)$: pressure gradient $\partial P/\partial x_j$ | $\partial P/\partial x_i$ (free index) | C12 (N165) | `rans_eddy_viscosity_residual(printed=True)` |
 | #7 | p. 590 "Exercise 12.31" | Exercise 12.32 | C10 (R03), D17 | — |
-| #8 | p. 595 $2\nu\overline{u_jS'_{ij}}$ | $2\nu\overline{u_iS'_{ij}}$ as in (12.47) | C13 (N175) | — |
+| #8 | p. 595 $2\nu\overline{u_jS'_{ij}}$ | $2\nu\overline{u_iS'_{ij}}$, as in the exact budget written out in row #2 | C13 (N175) | — |
 | #9 | p. 595 "five" constants, six entries | five: $C_\mu,C_{\varepsilon1},C_{\varepsilon2},\sigma_e,\sigma_\varepsilon$ | C13 (N178) | — |
-| #10 | triple correlation $\tfrac12\overline{ev}$ in (12.75), $\overline{ew}$ in (12.106) | $\tfrac12\overline{u_i^2u_j}$ throughout | C06 (D10), C09 (N128), C14 (N182) | — |
+| #10 | (12.75), printed $0=-U\frac{\partial\bar e}{\partial x}-V\frac{\partial\bar e}{\partial y}-\overline{uv}\frac{\partial U}{\partial y}-\frac{\partial}{\partial y}\big(\frac1{\rho_0}\overline{pv}+\frac12\overline{ev}\big)-\bar\varepsilon$, and (12.106), printed $\frac{\partial\bar e}{\partial t}+U\frac{\partial\bar e}{\partial x}=-\frac{\partial}{\partial z}\big(\frac1{\rho_0}\overline{pw}+\overline{ew}\big)-\overline{uw}\frac{\partial U}{\partial z}+g\alpha\overline{wT'}-\bar\varepsilon$: the triple correlation appears as $\tfrac12\overline{ev}$ and as $\overline{ew}$ | $\tfrac12\overline{u_i^2u_j}$ throughout | C06 (D10), C09 (N128), C14 (N182) | — |
 | #11 | p. 604 "(11.119)" | $\overline{X_\alpha^2}=2\overline{u_\alpha^2}\,t\int_0^t(1-\tau/t)r_\alpha\,d\tau$ (12.119) | C16 (N207), D27 | — |
-| #12 | (12.129) "$t\ll\Lambda_t$" | $D_T\cong\overline{u_\alpha^2}\Lambda_t$ for $t\gg\Lambda_t$ | C16 (N215), D28, E10 | `dispersion_regime` with swapped condition |
+| #12 | (12.129), printed $D_T\cong\overline{u_\alpha^2}\Lambda_t$ for $t\ll\Lambda_t$ | $D_T\cong\overline{u_\alpha^2}\Lambda_t$ for $t\gg\Lambda_t$ | C16 (N215), D28, E10 | `dispersion_regime` with swapped condition |
 | #13 | Fig. 12.27 caption: width ∝ √x near, ∝ x far | ∝ x near the source, ∝ √x far | C16 (N212), E10 | `smoke_plume_width` slopes |
-| #14 | Exercise 12.18a cites (12.39) | $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40) | C05 (N69), D07 | — |
-| #15 | (12.112) molecular transport $\kappa\,\partial\overline{T'^2}/\partial z$ | $\kappa\,\partial(\tfrac12\overline{T'^2})/\partial z$ | C15 (N190) | `temperature_variance_sympy` |
+| #14 | Exercise 12.18a cites the scale definitions $\Lambda_f\equiv\int_0^\infty f(r)\,dr$, $\Lambda_g\equiv\int_0^\infty g(r)\,dr$, $\lambda_f^2\equiv-2/[d^2f/dr^2]_{r=0}$, $\lambda_g^2\equiv-2/[d^2g/dr^2]_{r=0}$ (12.39) | $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40) | C05 (N69), D07 | — |
+| #15 | (12.112), printed $\frac{\partial}{\partial t}\big(\frac12\overline{T'^2}\big)+U\frac{\partial}{\partial x}\big(\frac12\overline{T'^2}\big)=-\overline{wT'}\frac{d\bar T}{dz}-\frac{\partial}{\partial z}\big(\frac12\overline{T'^2w}-\kappa\frac{\partial\overline{T'^2}}{\partial z}\big)-\bar\varepsilon_T$: molecular transport $\kappa\,\partial\overline{T'^2}/\partial z$ | $\kappa\,\partial(\tfrac12\overline{T'^2})/\partial z$ | C15 (N190) | `temperature_variance_sympy` |
 
 9. **Colour code (curation §5; the same in figures, derivations, bars and explainers):** mean = purple (accent) · fluctuation and
    turbulent energy = teal · Reynolds stress / shear production = orange · viscous stress / dissipation = rose · buoyancy and
@@ -653,8 +652,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    principal axes) point along the scatter cloud. `TS.correlated_pair(n, r)` draws such a pair." code: 4 lines, r = −0.6,
    printing `np.cov`.
 7. `nb.note` — **N25 [B]** four-row table with scatter thumbnails (`TS.correlated_pair`, r = 0, 0.3, 0.9, −0.9): uncorrelated,
-   weakly, strongly, anticorrelated. **N27 [B]** $r_{12}\equiv R_{12}/\sqrt{R_{11}R_{22}}=\overline{u_1u_2}\big/\big(\sqrt{\overline{u_1^2}}\sqrt{\overline{u_2^2}}\big)$ (12.14) (arguments as in
-   (12.12)); `TS.correlation_coefficient` vs `np.corrcoef`. **N28 [B]** $r_{11}\equiv R_{11}(\mathbf x_1,t_1,\mathbf x_2,t_2)/\sqrt{R_{11}(1,1)R_{11}(2,2)}$ (12.15),
+   weakly, strongly, anticorrelated. **N27 [B]** $r_{12}\equiv R_{12}/\sqrt{R_{11}R_{22}}=\overline{u_1u_2}\big/\big(\sqrt{\overline{u_1^2}}\sqrt{\overline{u_2^2}}\big)$ (12.14) (arguments as in $R_{ij}(\mathbf x_1,t_1,\mathbf x_2,t_2)\equiv\overline{u_i(\mathbf x_1,t_1)u_j(\mathbf x_2,t_2)}$ (12.12)); `TS.correlation_coefficient` vs `np.corrcoef`. **N28 [B]** $r_{11}\equiv R_{11}(\mathbf x_1,t_1,\mathbf x_2,t_2)/\sqrt{R_{11}(1,1)R_{11}(2,2)}$ (12.15),
    equal to 1 at zero separation.
 8. `nb.primer("a quadratic that is never negative has discriminant ≤ 0", …)` (**P288**): "If $a\lambda^2+b\lambda+c\ge0$ for every
    real λ (a > 0), the parabola never dips below the axis, so it has at most one real root: $b^2-4ac\le0$." code: 3 lines
@@ -814,16 +812,15 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
 20. `nb.note` — **N55 [C]** passive scalar and mixture density $\rho_m=\tilde\upsilon\rho_s+(1-\tilde\upsilon)\rho$ (`mixture_density`; used for jet dilution in C09);
     **N56 [B]** $\frac{\partial}{\partial t}(\rho_m\tilde Y)+\frac{\partial}{\partial x_j}(\rho_m\tilde Y\tilde u_j)=\frac{\partial}{\partial x_j}\big(\rho_m\kappa_m\frac{\partial\tilde Y}{\partial x_j}\big)$ (12.33); **N57 [B]**
     $\frac{\partial\bar Y}{\partial t}+U_j\frac{\partial\bar Y}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\kappa_m\frac{\partial\bar Y}{\partial x_j}-\overline{u_jY'}\big)$ (12.34) — "the D06 moves a third time, at constant $\rho_m$".
-21. `nb.note` — **N58 [B]** "**RANS** = the mean continuity $\partial U_i/\partial x_i=0$ (12.27), (12.30), (12.32), (12.34). ⚠️ From §12.8 to
+21. `nb.note` — **N58 [B]** "**RANS** = the mean continuity $\partial U_i/\partial x_i=0$ (12.27), the mean momentum equation $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-g[1-\alpha(\bar T-T_0)]\delta_{i3}+\frac1{\rho_0}\frac{\partial\bar\tau_{ij}}{\partial x_j}$ (12.30), the mean heat equation $\rho_0C_p\big(\frac{\partial\bar T}{\partial t}+U_j\frac{\partial\bar T}{\partial x_j}\big)=-\frac{\partial Q_j}{\partial x_j}$ (12.32) and the mean scalar equation $\frac{\partial\bar Y}{\partial t}+U_j\frac{\partial\bar Y}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\kappa_m\frac{\partial\bar Y}{\partial x_j}-\overline{u_jY'}\big)$ (12.34). ⚠️ From §12.8 to
     §12.10 the book silently drops gravity and the subscript 0: $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-\frac1\rho\frac{\partial P}{\partial x_i}+\frac{\partial}{\partial x_j}\big(2\nu\bar S_{ij}-\overline{u_iu_j}\big)$, P = deviation from
     hydrostatic."
 22. `nb.note` — **N59 [B]** the transport equation for the Reynolds stress, stated term by term in a table (term · name ·
     colour):
     $\frac{\partial\overline{u_iu_j}}{\partial t}+U_k\frac{\partial\overline{u_iu_j}}{\partial x_k}+\frac{\partial\overline{u_iu_ju_k}}{\partial x_k}=-\overline{u_iu_k}\frac{\partial U_j}{\partial x_k}-\overline{u_ju_k}\frac{\partial U_i}{\partial x_k}-\frac1\rho\Big(\overline{u_i\frac{\partial p}{\partial x_j}}+\overline{u_j\frac{\partial p}{\partial x_i}}\Big)-2\nu\overline{\frac{\partial u_i}{\partial x_k}\frac{\partial u_j}{\partial x_k}}+\nu\frac{\partial^2\overline{u_iu_j}}{\partial x_k^2}+g\alpha\big(\overline{u_jT'}\delta_{i3}+\overline{u_iT'}\delta_{j3}\big)$ (12.35).
-    `ch12.reynolds_stress_budget_sympy()` *expect:* residual 0 for the 12-component; trace/2 − (12.47) = 0 (D10 derives that
-    half-trace in full).
+    `ch12.reynolds_stress_budget_sympy()` *expect:* residual 0 for the 12-component; half the trace reproduces the turbulent-energy budget of C06, $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47) (D10 derives that half-trace in full).
 23. `nb.note` — **N60 [B]** "**The closure problem.** `ch12.closure_count(3)`: the mean equations are 4 (continuity + 3
-    momentum) for 4 + 6 = 10 unknowns (U_i, P, six $\overline{u_iu_j}$); (12.35) gives 6 more equations but brings 10 triple
+    momentum) for 4 + 6 = 10 unknowns (U_i, P, six $\overline{u_iu_j}$); the Reynolds-stress equation of N59 above gives 6 more equations but brings 10 triple
     correlations and the pressure and dissipation terms. Averaging always loses. Three responses: model the unknown
     correlations (RANS models: C12, C13), compute every scale (DNS: its cost is in C07), or compute the large eddies and
     model the small (LES, Ch. 10 pointer)." **N61 [C]** "With Reynolds stresses the mean momentum equation has no Bernoulli
@@ -843,8 +840,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
 1. `nb.section("12.6", "Homogeneous Isotropic Turbulence", intro="**What is this section about?** The simplest turbulence:
    statistically the same at every point and in every direction. Symmetry then does most of the work — nine correlation
    functions become one, and the dissipation rate becomes one measurable gradient.")`
-2. `nb.core("C05", "Isotropic dissipation $\\bar\\varepsilon=-15\\nu\\overline{u^2}[d^2f/dr^2]_{r=0}=30\\nu\\overline{u^2}/\\lambda_f^2=15\\nu\\overline{u^2}/\\lambda_g^2$ (12.43) from
-   the correlations f, g (12.38)–(12.41)", question="How much can symmetry alone tell us about turbulence?")`
+2. `nb.core("C05", "Isotropic dissipation $\\bar\\varepsilon=-15\\nu\\overline{u^2}[d^2f/dr^2]_{r=0}=30\\nu\\overline{u^2}/\\lambda_f^2=15\\nu\\overline{u^2}/\\lambda_g^2$ (12.43) from the correlation coefficients f and g", question="How much can symmetry alone tell us about turbulence?")`
 3. `nb.md` — **Plain words:** "Behind a grid in a wind tunnel the turbulence has no mean shear to remember and soon looks
    the same in every direction (**N62 [B]**: homogeneous = no preferred place; isotropic = no preferred direction; grid
    turbulence is the laboratory approximation). The small eddies of every flow look like this too (local isotropy), which
@@ -914,9 +910,8 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    $\overline{u_iu_j}\,\partial U_i/\partial x_j=\overline{u_iu_j}\bar S_{ij}$ (Ch. 2 §2.10); for U(y) it is $\overline{uv}\,dU/dy$ — negative, a loss, because $\overline{uv}<0$ when $dU/dy>0$
    (C04)." **N80 [B]** $\frac{2\nu\bar S_{ij}\bar S_{ij}}{\overline{u_iu_j}(\partial U_i/\partial x_j)}\sim\frac{\nu(U/L)^2}{u_{rms}^2(U/L)}\sim\frac\nu{UL}=\frac1{\mathrm{Re}}\ll1$ (`mean_to_turbulent_dissipation_ratio(1e6)` → 1e-6).
 7. `nb.derivation("D10", …)` — Part F D10 (15 steps, ★★★, `check_src`), ref "12.47". ⚠️ slip #2 and slip #10 callouts.
-8. `nb.note` — **N81 [B]** table (term · sign · name · colour): $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ shear production (orange; "+" here, "−" in
-   (12.46)) · $\bar\varepsilon=2\nu\overline{S'_{ij}S'_{ij}}>0$ dissipation (rose; **not** small) · $g\alpha\overline{u_3T'}$ buoyant production (> 0, upward heat
-   flux) or destruction (< 0) (blue). "This is the turbulent twin of Ch. 11's disturbance-energy equation (11.88), where the
+8. `nb.note` — **N81 [B]** table (term · sign · name · colour): $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ shear production (orange; "+" here, "−" in the mean-flow budget of D09 above) · $\bar\varepsilon=2\nu\overline{S'_{ij}S'_{ij}}>0$ dissipation (rose; **not** small) · $g\alpha\overline{u_3T'}$ buoyant production (> 0, upward heat
+   flux) or destruction (< 0) (blue). "This is the turbulent twin of Ch. 11's disturbance-energy equation $\frac{d}{dt}\int\frac12u_i^2\,dV=-\int u_iu_j\frac{\partial U_i}{\partial x_j}\,dV-\Lambda$ (11.88), where the
    same $-\overline{uv}\,dU/dy$ fed a growing wave." `ch12.shear_production`, `ch12.buoyant_production`. **N83 [B]** "Isotropic turbulence has no
    shear production: $\overline{u_iu_j}=\overline{u_1^2}\delta_{ij}$ contracts with $\partial U_i/\partial x_j$ to $\overline{u_1^2}\,\partial U_i/\partial x_i=0$." `assert` in code.
 9. `nb.worked_example("production in a log layer", "u_* = 0.3 m/s, z = 10 m, κ = 0.4: $-\\overline{uw}=u_*^2$ = 0.09 m²/s², dU/dz = u_*/(κz) =
@@ -979,9 +974,9 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    axis (L fixed at the left, η sliding right, λ_T between), tiers added at the small end; beside it the model spectrum with
    its −5/3 range widening. *see / read* ("the left end never moves: a higher Re makes the cascade longer, not stronger") */
    change*.
-10. `nb.note` — **N91 [B]** eliminating $\bar\varepsilon$ between (12.43) and (12.49):
+10. `nb.note` — **N91 [B]** eliminating $\bar\varepsilon$ between $\bar\varepsilon=15\nu\overline{u^2}/\lambda_g^2$ (12.43) and $\bar\varepsilon\sim(\Delta U)^3/L$ (12.49):
     $\frac{(\Delta U)^3}L\propto\frac{\nu\overline{u^2}}{\lambda_T^2}\Rightarrow\frac{\lambda_T^2}{L^2}\propto\frac{\overline{u^2}}{(\Delta U)^2}\Big(\frac\nu{\Delta UL}\Big)\propto\frac1{\mathrm{Re}_L}$, or $\frac{\lambda_T}L\propto\mathrm{Re}_L^{-1/2}$ (12.52) — "λ_T
-    is not the size of the dissipating eddies: (12.43) pairs it with the large-eddy velocity, not with $u_K$; $\lambda_T/\eta\sim\mathrm{Re}_L^{1/4}$".
+    is not the size of the dissipating eddies: $\bar\varepsilon=15\nu\overline{u^2}/\lambda_g^2$ (12.43) pairs it with the large-eddy velocity, not with $u_K$; $\lambda_T/\eta\sim\mathrm{Re}_L^{1/4}$".
     **N92 [B]** $R_\lambda\sim\mathrm{Re}_L^{1/2}$ and the ordering $\eta<\lambda_T<\Lambda_{(f\text{ or }g)}<L$ (`scale_ordering`; the book's thresholds private).
 11. `nb.md` — **What would change if…** "…we ask how the energy is shared among the tiers in between? That is a spectrum, and
     dimensional analysis gives its shape (C08)."
@@ -1101,8 +1096,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
     answers stay private.
 18. `nb.note` — **N127 [C]** profiles of $\bar e$ and the stresses across the jet (qualitative panel; $\overline{uv}=0$ on the axis by
     symmetry, largest near the steepest mean shear). **N128 [B]**
-    $0=-U\frac{\partial\bar e}{\partial x}-V\frac{\partial\bar e}{\partial y}-\overline{uv}\frac{\partial U}{\partial y}-\frac{\partial}{\partial y}\big(\frac1{\rho_0}\overline{pv}+\frac12\overline{u_i^2v}\big)-\bar\varepsilon$ (12.75, written with the triple correlation of (12.47): slip
-    #10 callout). **N129 [C]** three balances from `jet_tke_budget` (labelled model): axis — advection ≈ dissipation;
+    $0=-U\frac{\partial\bar e}{\partial x}-V\frac{\partial\bar e}{\partial y}-\overline{uv}\frac{\partial U}{\partial y}-\frac{\partial}{\partial y}\big(\frac1{\rho_0}\overline{pv}+\frac12\overline{u_i^2v}\big)-\bar\varepsilon$ (12.75, written with the triple correlation $\tfrac12\overline{u_i^2u_j}$ of the exact budget of C06; ⚠️ slip #10 callout: the page prints $\tfrac12\overline{ev}$). **N129 [C]** three balances from `jet_tke_budget` (labelled model): axis — advection ≈ dissipation;
     mid-layer — production ≈ dissipation; edge — transport ≈ advection.
 19. `nb.note` — **N130 [B]** (ours) "Close the jet with a constant eddy viscosity $\nu_T\propto U_{CL}\delta$: the equation is then the
     laminar jet's with ν → ν_T, so $F=\mathrm{sech}^2(a\xi)$ — the laminar shape with turbulent exponents"
@@ -1143,13 +1137,12 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
 7. `nb.recap("R03", "Channel: pressure gradient fixed by the wall stress", "Ch. 8's force balance on a slug of fluid (D07)
    holds for the turbulent mean too: $dP/dx=-2\\tau_o/h$ (12.90) — the last step of D17. (⚠️ slip #7: the book cites Exercise
    12.31 for the proof; it is Exercise 12.32.)", where="Ch. 8 §8.2, D07")` + `WT.channel_pressure_gradient(0.3, 0.1)` → −6 Pa/m.
-8. `nb.recap("R04", "Pipe: the same balance", "$dP/dx=-4\\tau_o/d$ (12.91), Ch. 8's $\\tau_0=-(a/2)\\,dp/dx$ (8.8) with a = d/2.",
-   where="Ch. 8 §8.2 (8.8)")` + parity `assert np.isclose(WT.wall_stress_from_pressure_gradient(-12.0, 0.1),
+8. `nb.recap("R04", "Pipe: the same balance", "$dP/dx=-4\\tau_o/d$ (12.91), Ch. 8's $\\tau_0=\\frac a2\\frac{dp}{dz}$ (8.8) with a = d/2 and z → x. (There $\\tau_0$ carries the sign of the pressure gradient; here $\\tau_0>0$ is its magnitude, hence the minus sign.)", where="Ch. 8 §8.2")` + parity `assert np.isclose(WT.wall_stress_from_pressure_gradient(-12.0, 0.1),
    LAM.pipe_wall_stress(...))`.
 9. `nb.note` — **N137 [B]** + `nb.figure` (our Fig. 12.17): `WT.stress_partition` across a channel at Re_τ = 1000: total
    (straight line, black), viscous part (rose, confined to y⁺ ≲ 30), Reynolds part (orange); inset: a zero-pressure-gradient
    boundary layer from `boundary_layer_stress_from_profile` — nearly constant stress near the wall. **N138 [B]**
-   $U\frac{\partial U}{\partial x}+V\frac{\partial U}{\partial y}=-\frac1\rho\frac{\partial P}{\partial x}+\frac1\rho\frac{\partial\bar\tau}{\partial y}$ (12.78) (laminar form: Ch. 9 (9.9)). *see / read / change*.
+   $U\frac{\partial U}{\partial x}+V\frac{\partial U}{\partial y}=-\frac1\rho\frac{\partial P}{\partial x}+\frac1\rho\frac{\partial\bar\tau}{\partial y}$ (12.78) (laminar form: Ch. 9's $u\frac{\partial u}{\partial x}+v\frac{\partial u}{\partial y}=-\frac1\rho\frac{\partial p}{\partial x}+\nu\frac{\partial^2u}{\partial y^2}$ (9.9)). *see / read / change*.
 10. `nb.primer("inner, outer and overlap: two descriptions that must agree where both hold", …)` (**P300**): "Close to the
     wall one set of variables works (inner), far away another (outer). If there is a region where both are valid, the two
     formulas must give the same answer there — *matching*. It is the separation argument (P167) applied to two
@@ -1186,8 +1179,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    $dU/dy=u_*/(\kappa y)$ — and the integral of 1/y is a logarithm."
 4. `nb.derivation("D19", …)` — Part F D19 (12 steps), ref "12.88". Carries **N143 [B]** $U=U(\rho,\tau_0,\delta,y)$ (12.83), **N144 [B]**
    $\frac{U_\infty-U}{u_*}=F(y/\delta)=F(\xi)$ (12.84), **N145 [B]** $\frac{dU}{dy}=\frac{u_*^2}\nu\frac{df}{dy^+}$ (12.85), **N146 [B]** $-\frac{dU}{dy}=\frac{u_*}\delta\frac{dF}{d\xi}$ (12.86), **N147
-   [B]** $-\xi\frac{dF}{d\xi}=y^+\frac{df}{dy^+}$ (12.87), **N148 [B]** $F(\xi)=-\frac1\kappa\ln(\xi)+A$ (12.89). ⚠️ "κ here is the von Kármán constant, not the
-   thermal diffusivity of (12.31)."
+   [B]** $-\xi\frac{dF}{d\xi}=y^+\frac{df}{dy^+}$ (12.87), **N148 [B]** $F(\xi)=-\frac1\kappa\ln(\xi)+A$ (12.89). ⚠️ "κ here is the von Kármán constant, not the thermal diffusivity of $\frac{\partial\bar T}{\partial t}+U_j\frac{\partial\bar T}{\partial x_j}+\frac{\partial}{\partial x_j}(\overline{u_jT'})=\kappa\frac{\partial^2\bar T}{\partial x_j^2}$ (12.31), our $\kappa_{th}$."
 5. `nb.worked_example("reading a log law", "Illustrative pair κ = 0.41, B = 5.0. 1. At y⁺ = 100: U⁺ = ln(100)/0.41 + 5.0 = 11.23 +
    5.0 = 16.23. 2. At y⁺ = 1000: 21.85 — one decade adds 2.303/0.41 = 5.62. 3. Where do U⁺ = y⁺ and the log law cross? Solve
    y⁺ = ln(y⁺)/0.41 + 5.0: y⁺ ≈ 10.8 — the middle of the buffer layer. 4. With u_* = 0.5 m/s, l_ν = 30 µm: at y = 3 mm (y⁺ = 100) the
@@ -1210,7 +1202,15 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    180, 1000, 5200. *see / read* ("the left part never moves; the wake peels off at y⁺ ≈ 0.15 δ⁺") */ change*.
 10. `nb.check_agree` — **from scratch:** κ and B from a straight-line fit of U⁺ against ln y⁺ (`np.polyfit`) on a composite
     profile at δ⁺ = 5000 inside 30 < y⁺ < 0.15 δ⁺; `fit = WT.fit_log_law(yp, Up, Re_tau=5000)`; `assert np.allclose((1/slope, intercept), (fit["kappa"], fit["B"]), rtol=1e-8)`.
-    *expect:* κ = 0.41 ± 0.01, B = 5.0 ± 0.2 (the wake term contaminates the top of the window a little — say so).
+    *expect:* **pending verify ruling (`reports/ch12_verification.md`, flagged item 1).** The first draft of this row expected
+    κ = 0.41 ± 0.01, B = 5.0 ± 0.2; the implemented function returns κ = 0.383, B = 3.99 on this window, because Spalding's
+    composite profile is still about 0.66 below the log law at y⁺ = 30, and 0.399, 4.56 when the window starts at y⁺ = 100.
+    The builder takes the window and the expected pair from the verifier's ruling and never edits them to make the cell
+    pass; the assertion of this row (hand fit = library fit) holds whatever the ruling. **Teaching point** (one sentence in
+    "What does this show?", with a two-row table of the fitted pair for a window starting at y⁺ = 30 and at y⁺ = 100): "The
+    constants you fit depend on where the window starts. At y⁺ = 30 the buffer layer has not quite joined the logarithm, so
+    a window that starts there returns a smaller κ and B than the pair the profile was built with — one reason published
+    values differ from one experiment to the next (N155, N156). The wake bends the top of the window in the same way."
 11. `nb.figure` — the indicator $y^+dU^+/dy^+$ (`WT.log_law_indicator`) at δ⁺ = 180, 1000, 10⁴: a plateau at 1/κ = 2.44 appears
     only when δ⁺ is large. *see / read / change*.
 12. `nb.derivation("D20", …)` — Part F D20 (5 steps), ref "12.93": **N159 [B]**. **N158 [B]** figure (our Fig. 12.19): `WT.log_law`
@@ -1258,7 +1258,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    mean free path. For turbulence: eddy speed $u_T$ × eddy size $l_T$. Near a wall an eddy cannot be bigger than its distance
    from the wall: $l_T=\kappa y$. One guessed length — and the log law comes out."
 5. `nb.note` — **N163 [B]** $\overline{u_iT'}=-\kappa_T\,\partial\bar T/\partial x_i$ (12.95); **N164 [B]** $\overline{u_iY'}=-\kappa_{mT}\,\partial\bar Y/\partial x_i$ (12.96)
-   (`gradient_diffusion_flux`); **N165 [B]** with (12.94) in the constant-density RANS equation,
+   (`gradient_diffusion_flux`); **N165 [B]** with $\overline{u_iu_j}=\frac23\bar e\delta_{ij}-\nu_T\big(\frac{\partial U_i}{\partial x_j}+\frac{\partial U_j}{\partial x_i}\big)$ (12.94) in the constant-density RANS equation,
    $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-\frac1\rho\frac{\partial P}{\partial x_i}+\frac{\partial}{\partial x_j}\Big([\nu+\nu_T]\Big(\frac{\partial U_i}{\partial x_j}+\frac{\partial U_j}{\partial x_i}\Big)-\frac23\bar e\delta_{ij}\Big)$ (12.97) — `> ⚠️ **slip #6 — the book prints**
    $\partial P/\partial x_j$ **; the correct form is** $\partial P/\partial x_i$` (i is the free index); the $\tfrac23\bar e$ term acts as an extra pressure. **N166 [B]**
    "Why the analogy is imperfect: molecules travel a mean free path far smaller than the flow (Kn ≪ 1, Ch. 1); eddies are as
@@ -1315,16 +1315,14 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    experiments you can picture. (⚠️ the 'k' of k–ε is the book's $\bar e$; the book's k is a wavenumber or a conductivity.)"
 3. `nb.md` — **The idea:** "velocity scale $u_T=\sqrt{\bar e}$; length scale = how far an eddy of that speed goes in its lifetime
    $\bar e/\bar\varepsilon$: $l_T=\bar e^{3/2}/\bar\varepsilon$; so $\nu_T\propto u_Tl_T=\bar e^2/\bar\varepsilon$."
-4. `nb.note` — **N175 [B]** one-equation ingredients: $u_T=c\sqrt{\bar e}$, $\bar\varepsilon=C_\varepsilon\bar e^{3/2}/l_T$, and the three transport terms of (12.47)
-   lumped into one gradient flux, $-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}=\frac{\nu_T}{\sigma_e}\frac{\partial\bar e}{\partial x_j}$ (slip #8 callout: the book prints $u_j$ in the
+4. `nb.note` — **N175 [B]** one-equation ingredients: $u_T=c\sqrt{\bar e}$, $\bar\varepsilon=C_\varepsilon\bar e^{3/2}/l_T$, and the three transport terms of the exact budget (C06) lumped into one gradient flux, $-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}=\frac{\nu_T}{\sigma_e}\frac{\partial\bar e}{\partial x_j}$ (slip #8 callout: the book prints $u_j$ in the
    viscous term) (`one_equation_closure`).
 5. `nb.derivation("D22", …)` — Part F D22 (6 steps), ref "12.103": **N176 [B]** $\nu_T=C_\mu[\bar e^{3/2}/\bar\varepsilon]\sqrt{\bar e}=C_\mu\bar e^2/\bar\varepsilon$ (12.104).
 6. `nb.note` — **N177 [B]** the modelled dissipation equation (built by analogy, not derived), term by term:
    $\frac{\partial\bar\varepsilon}{\partial t}+U_j\frac{\partial\bar\varepsilon}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\frac{\nu_T}{\sigma_\varepsilon}\frac{\partial\bar\varepsilon}{\partial x_j}\big)-C_{\varepsilon1}\big(\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}\big)\frac{\bar\varepsilon}{\bar e}-C_{\varepsilon2}\frac{\bar\varepsilon^2}{\bar e}$ (12.105) ("production of ε̄ ∝ production of ē ÷
    the time scale ē/ε̄; destruction ∝ ε̄ ÷ the same time scale"). **N178 [B]** `ch12.K_EPSILON_CONSTANTS` (Launder & Sharma 1974):
-   $C_\mu=0.09$, $C_{\varepsilon1}=1.44$, $C_{\varepsilon2}=1.92$, $\sigma_e=1.0$, $\sigma_\varepsilon=1.3$ (slip #9 callout). **N179 [C]** the closed set = mean continuity,
-   (12.30), (12.94), (12.103)–(12.105); at a wall the log law of C11 is imposed as a boundary condition ("wall function");
-   results are sensitive to inlet values; Reynolds-stress closures model (12.35) instead (Ch. 10 pointer).
+   $C_\mu=0.09$, $C_{\varepsilon1}=1.44$, $C_{\varepsilon2}=1.92$, $\sigma_e=1.0$, $\sigma_\varepsilon=1.3$ (slip #9 callout). **N179 [C]** the closed set = mean continuity $\partial U_i/\partial x_i=0$ (12.27), the mean momentum equation $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=\frac1\rho\frac{\partial\bar\tau_{ij}}{\partial x_j}$ (12.30, constant density), the closure $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94), the ē equation of D22 with $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104), and the ε̄ equation of N177 above; at a wall the log law of C11 is imposed as a boundary condition ("wall function");
+   results are sensitive to inlet values; Reynolds-stress closures model the transport equation for $\overline{u_iu_j}$ (N59 in C04) instead (Ch. 10 pointer).
 7. `nb.primer("dividing two ODEs to eliminate time", …)` (**P303**): "If $dy/dt=f$ and $dx/dt=g$, then $dy/dx=f/g$: time
    disappears and y is found as a function of x. If the result is $dy/dx=n\,y/x$, the solution is the power law $y\propto x^n$."
    code: 4 sympy lines: `dsolve(Eq(y(x).diff(x), 2*y(x)/x))` → C₁x².
@@ -1357,8 +1355,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    temperature gradient compares with the adiabatic one (Ch. 1 §1.10), so 'temperature' in this section means **potential**
    temperature θ: stable when dθ/dz > 0. In terms of the thermometer temperature, with Kundu's $\\Gamma\\equiv dT/dz$:
    $N^2=g\\alpha(dT/dz-\\Gamma_a)$, $\\Gamma_a=-g/C_p\\approx-9.8$ K/km, stable when $dT/dz>\\Gamma_a$; in meteorology's $\\Gamma_{met}\\equiv-dT/dz$:
-   $N^2=g\\alpha(\\Gamma_d-\\Gamma_{met})$, $\\Gamma_d\\approx+9.8$ K/km, stable when $\\Gamma_{met}<\\Gamma_d$. Negate the number, flip the inequality (P48).",
-   where="Ch. 1 §1.10 (1.29)–(1.32); Ch. 7 (7.127); Ch. 11 §11.7")` + the two-row table and `STRAT.lapse_rate_stability` badge
+   $N^2=g\\alpha(\\Gamma_d-\\Gamma_{met})$, $\\Gamma_d\\approx+9.8$ K/km, stable when $\\Gamma_{met}<\\Gamma_d$. Negate the number, flip the inequality (P48). Where these come from: Ch. 1's $N^2=-\\frac g{\\rho(z_o)}\\big(\\frac{d\\rho}{dz}-\\frac{d\\rho_a}{dz}\\big)$ (1.29) and $\\frac T\\theta\\frac{d\\theta}{dz}=\\frac{dT}{dz}+\\frac g{C_p}=\\Gamma-\\Gamma_a$ (1.32); Ch. 7's incompressible form $N^2\\equiv-\\frac g{\\rho_0}\\frac{d\\bar\\rho}{dz}$ (7.127).", where="Ch. 1 §1.10; Ch. 7; Ch. 11 §11.7")` + the two-row table and `STRAT.lapse_rate_stability` badge
    for three profiles (−6.5 K/km standard atmosphere: stable in both; −9.8: neutral; −12: unstable).
 3. `nb.core("C14", "The flux Richardson number $\\mathrm{Rf}=\\frac{-g\\alpha\\overline{wT'}}{-\\overline{uw}(dU/dz)}$ (12.107), $\\mathrm{Ri}\\equiv\\frac{N^2}{(dU/dz)^2}$ (12.108) and
    $\\mathrm{Ri}=(\\nu_T/\\kappa_T)\\mathrm{Rf}$ (12.109)", question="When does stratification switch turbulence off?")`
@@ -1372,10 +1369,9 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
    < ≈ ¼ | shear-driven, weakened | Rf ≳ ¼ | decaying |.
 6. `nb.derivation("D24", …)` — Part F D24 (8 steps), ref "12.107". Carries **N182 [B]**
    $\frac{\partial\bar e}{\partial t}+U\frac{\partial\bar e}{\partial x}=-\frac{\partial}{\partial z}\big(\frac1{\rho_0}\overline{pw}+\frac12\overline{u_i^2w}\big)-\overline{uw}\frac{\partial U}{\partial z}+g\alpha\overline{wT'}-\bar\varepsilon$ (12.106, slip #10 callout) and **N184 [B]** $\mathrm{Ri}=(\nu_T/\kappa_T)\mathrm{Rf}$ (12.109).
-7. `nb.recap("R06", "The gradient Richardson number", "Ch. 11's $\\mathrm{Ri}\\equiv N^2/(dU/dz)^2$ (11.66) — here
+7. `nb.recap("R06", "The gradient Richardson number", "Ch. 11's $\\mathrm{Ri}\\equiv N^2/(dU/dz)^2$ (11.66), with linear stability guaranteed if, everywhere in the flow, $\\mathrm{Ri}>\\tfrac14$ (11.67) — here
    $\\mathrm{Ri}=\\alpha g(d\\bar T/dz)/(dU/dz)^2$ (12.108) with $\\bar T$ the potential temperature. New: `gradient_richardson_thermal` takes the
-   thermometer gradient and $\\Gamma_a$ (Kundu sign) and returns Ri with the verdict in both conventions.", where="Ch. 11 §11.7
-   (11.66)–(11.67)")`
+   thermometer gradient and $\\Gamma_a$ (Kundu sign) and returns Ri with the verdict in both conventions.", where="Ch. 11 §11.7")`
 8. `nb.note` — **N183 [B]** "Turbulence stops being self-supporting near $\mathrm{Rf}_{cr}\approx0.25$ (an **observation**); large −Rf means
    convection dominates (`turbulence_regime`). `> ⚠️ Common confusion:` two different 'one quarter' statements — Ch. 11's
    theorem (Ri > ¼ everywhere ⇒ a laminar stratified shear flow is linearly stable: sufficient, exact) and this observed
@@ -1502,7 +1498,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
 14. `nb.note` — the random walk: **N209 [B]** from $\mathbf R_n=\mathbf R_{n-1}+\mathbf L$: $\overline{R_n^2}=\overline{R_{n-1}^2}+L^2+2\overline{\mathbf R_{n-1}\cdot\mathbf L}$ (12.124) — the cross term
     averages to zero when the new step is uncorrelated with the past (the product rule of C01 again); **N210 [B]** by
     induction $\overline{R_n^2}=\overline{R_{n-1}^2}+L^2=\dots=nL^2$ (figure: three walker paths and the ensemble rms, our Fig. 12.26); **N211 [B]**
-    $(R_n)_{rms}=L\sqrt n$ (12.125) — "with $n=t/\Delta t$, $L=u_{rms}\Delta t$ and $\Delta t=2\Lambda_t$ this is $u_{rms}\sqrt{2\Lambda_tt}$ (12.123): a particle makes
+    $(R_n)_{rms}=L\sqrt n$ (12.125) — "with $n=t/\Delta t$, $L=u_{rms}\Delta t$ and $\Delta t=2\Lambda_t$ this is $(X_\alpha)_{rms}=u_{rms}\sqrt{2\Lambda_tt}$ (12.123): a particle makes
     one independent step every two memory times". *expect:* for 4000 walkers, n = 100: rms = 10.0 ± 0.2.
 15. `nb.note` — **N212 [B]** + `nb.figure` (our Fig. 12.27): a time-averaged plume in a wind U = 5 m/s with w_rms = 0.5 m/s, Λ_t =
     20 s: `ch12.smoke_plume_width` (t = x/U) and `plume_concentration` as colour; *expect:* Z_rms = 0.98, 8.6, 42.4, 99.0 m at
@@ -1516,7 +1512,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
     (`diffusivity_from_variance`). This is the starting line of D28.", where="Ch. 1 §1.5; `core.diffusion.gaussian_spreading`")`
 18. `nb.derivation("D28", …)` — Part F D28 (7 steps), ref "12.127". Carries **N213 [B]**
     $D_T\equiv\frac12\frac{d}{dt}(\overline{X_\alpha^2})=\overline{u_\alpha^2}\int_0^tr_\alpha(\tau)\,d\tau$ (12.127), **N214 [B]** $D_T\cong\overline{u_\alpha^2}t$ for $t\ll\Lambda_t$ (12.128), **N215 [B]**
-    $D_T\cong\overline{u_\alpha^2}\Lambda_t$ for $t\gg\Lambda_t$ (12.129) with `> ⚠️ **slip #12 — the book prints** the condition $t\ll\Lambda_t$ on (12.129) **; the
+    $D_T\cong\overline{u_\alpha^2}\Lambda_t$ for $t\gg\Lambda_t$ (12.129) with `> ⚠️ **slip #12 — the book prints** the condition $t\ll\Lambda_t$ on $D_T\cong\overline{u_\alpha^2}\Lambda_t$ (12.129) **; the
     correct condition is** $t\gg\Lambda_t$`.
 19. `nb.plotly` — **F8** `slider_figure` over Λ_t (1…100 s, 25 steps): X_rms(t) on log–log axes with both limits and a
     constant-D Gaussian ghost of the same late-time width; D_T(t) on a second panel rising to $\overline{u^2}\Lambda_t$. *see / read / change*.
@@ -1608,7 +1604,7 @@ intent is given and the builder reads the docstring for the layout. Constants ar
 | C08 · N95 (row 6) | `ch12.one_dimensional_from_3d(10.0, lambda K: 1.5*K**(-5/3)) / (1.5*10.0**(-5/3))`; `ch12.inertial_spectrum_3d(10.0, 1.0)` | 0.32727 = 18/55 ✎; 0.03232 m³/s² ✎ (= 1.5 × 10^{−5/3}) |
 | C09 · N103 (row 5) | `ch12.plane_jet_reynolds_stress(1.0, 0.1, 1.0, 1.0, C5="from_invariant", xi_half=0.10)`; the same at (4.0, 0.4) and at (1.0, 0.0) | −0.1345 m²/s² ($-\overline{uv}<0$ where $dU/dy<0$: the sign an eddy viscosity gives); −0.0336 = one quarter (∝ x⁻¹, same ξ); 0 on the axis |
 | C09 · N104 (row 5) | `ch12.plane_jet_cross_velocity(1.0, 0.1, 1.0, 1.0, C5="from_invariant", xi_half=0.10)`; the same at y = 1.0 | +0.0245 m/s (outward inside the jet); −0.1372 m/s at the edge = −`plane_jet_entrainment_velocity(1.0, 1.0, 1.0, …)`: the surroundings flow **in** |
-| C09 · N111 (row with D14) | `out = ch12.plane_jet_similarity_sympy()`; `ch12.plane_jet_stress_profile(0.1, xi_half=0.10)` | `out["check"] is True`; `out["coefficients"]` are the three brackets of (12.63) as written in D14; `out["exponential_family"]` has a zero middle coefficient (slip #5); G(0.1) = −0.02025 |
+| C09 · N111 (row with D14) | `out = ch12.plane_jet_similarity_sympy()`; `ch12.plane_jet_stress_profile(0.1, xi_half=0.10)` | `out["check"] is True`; `out["coefficients"]` are the three brackets $\{\delta U'_{CL}/U_{CL}\}$, $\{\delta U'_{CL}/U_{CL}+\delta'\}$, $\{\Psi/U_{CL}^2\}$ of the similarity equation, as written in D14's Result; `out["exponential_family"]` has a zero middle coefficient (slip #5); G(0.1) = −0.02025 |
 | C09 · N117, N119 (row 14) | `ch12.plane_jet_mass_fraction(1.0, 0.0, 1.0, 1.0, 1.0, C6=1.0, xi_half_Y=0.14)`; the same at x = 4.0; then with `C6="from_invariant", C5="from_invariant", xi_half=0.10` | 1.0 and 0.5 ✎ (∝ x^{−1/2}, C₆ = 1 labelled illustrative); 2.240 when C₆ is fixed by the flux invariant $\dot M_s\cong\rho\int\bar YU\,dy$ (12.70) for our illustrative widths |
 | C09 · N120, N121 (row 14) | `ch12.slot_momentum_flux(1.2, 10.0, 0.01)`; `ch12.slot_mass_flux(1.2, 10.0, 0.01)`; `ch12.free_shear_centerline("plane_jet", x, constants={…}, d=0.01, U0=10.0, rho_s=1.2, rho=1.2)` | 1.2 N/m ✎; 0.12 kg/(m s) ✎; centreline speed at x = 0.4 m is twice that at 1.6 m (x^{−1/2}), whatever the illustrative constants |
 | C09 · N123 (row 15) | `ch12.FREE_SHEAR_CONSTANTS` printed | `{}` — "no public table adopted; every constant in this notebook is passed explicitly and labelled" |
@@ -1623,36 +1619,36 @@ intent is given and the builder reads the docstring for the layout. Constants ar
 | C11 · N148 (under D19) | `WT.log_law_defect(0.1, kappa=0.41, A=1.0)` | 6.616 ✎ (= −ln(0.1)/0.41 + 1; A = 1.0 illustrative) |
 | C11 · N153 (row with Spalding) | `WT.spalding_yplus(10.0, kappa=0.41, B=5.0)`; `WT.spalding_uplus(100.0, kappa=0.41, B=5.0)`; `WT.spalding_slope(10.0, kappa=0.41, B=5.0)` | 14.55; 16.08; 0.288 — one formula from the sublayer to the log layer (κ, B the illustrative pair) |
 | C11 · N157 (row 8) | `WT.nagib_chauhan_B(0.384)`; `WT.nagib_chauhan_kappa(4.17)` | 4.17; 0.384 — the two directions of $\kappa B=1.6[\exp(0.1663B)-1]$ (12.92) |
-| C12 · N162 (row with (12.94)) | `ch12.eddy_viscosity_stress(gradU, 0.01, 0.3)` with dU/dy = 2 s⁻¹ | $\overline{uv}$ = −0.02 m²/s² ✎ (= −ν_T dU/dy); each normal stress ⅔ē = 0.2 |
+| C12 · N162 (row with the eddy-viscosity hypothesis) | `ch12.eddy_viscosity_stress(gradU, 0.01, 0.3)` with dU/dy = 2 s⁻¹ | $\overline{uv}$ = −0.02 m²/s² ✎ (= −ν_T dU/dy); each normal stress ⅔ē = 0.2 |
 | C12 · N165 (row 5) | `ch12.rans_eddy_viscosity_residual(U, P, nu_T, e, x, nu=…, rho=…)` on a manufactured field (ν_T constant, P chosen to balance), then with `printed=True` | residual ≲ 1e-6; the printed form (pressure gradient with index j, slip #6) leaves an O(1) residual, the same number in every component |
 | C12 · N168 (start of D21) | `sol = ch12.shear_flow_eddy_viscosity_solve(y, lambda yf, s: 0.0*yf, dPdx, rho, nu)` then with the mixing-length rule | ν_T ≡ 0 returns the laminar parabola to 1e-10 (Ch. 8); with $\nu_T=l_T^2\lvert dU/dy\rvert$ the profile flattens (`sol["converged"]` True) — the Picard primer P302 at work |
-| C13 · N177 (row with (12.105)) | `ch12.k_epsilon_rhs(1.0, 1.0, 0.5)`; `ch12.k_epsilon_rhs(1.0, 1.0, 0.0)` | (−0.5, −1.2) ✎: dē/dt = P − ε̄, dε̄/dt = (1.44 × 0.5 − 1.92) ε̄/ē; and (−1.0, −1.92) with no production — the pair D23 integrates |
+| C13 · N177 (row with the ε̄ equation) | `ch12.k_epsilon_rhs(1.0, 1.0, 0.5)`; `ch12.k_epsilon_rhs(1.0, 1.0, 0.0)` | (−0.5, −1.2) ✎: dē/dt = P − ε̄, dε̄/dt = (1.44 × 0.5 − 1.92) ε̄/ē; and (−1.0, −1.92) with no production — the pair D23 integrates |
 | C14 · N182 (under D24) | `b = ch12.stratified_tke_budget(z, U, uw, wT, eps, alpha)` with the worked example's numbers | `b["Rf"]` = 0.0727 at the worked height, `b["regime"]` = "shear-driven"; buoyancy removes 7 % of the shear production |
 | C14 · N184 (row 6) | `ch12.flux_from_gradient_richardson(0.0647, 0.891)` | 0.0726 ✎ (= Ri/Pr_T): the worked example's Rf recovered from Ri |
-| C15 · the definition (12.110) (code row) | `ch12.monin_obukhov_length(0.3, 0.1, T=300.0, kappa=0.41)`; with wT = −0.02; with wT = 0.0 | −20.1 m (unstable); +100.7 m (stable); inf (neutral) — and the first equals `monin_obukhov_from_fluxes(0.108, 120.6, 1.2, 1005.0, 300.0, kappa=0.41)` |
+| C15 · the definition of $L_M$ (code row) | `ch12.monin_obukhov_length(0.3, 0.1, T=300.0, kappa=0.41)`; with wT = −0.02; with wT = 0.0 | −20.1 m (unstable); +100.7 m (stable); inf (neutral) — and the first equals `monin_obukhov_from_fluxes(0.108, 120.6, 1.2, 1005.0, 300.0, kappa=0.41)` |
 | C15 · N187 (row 3) | `ch12.surface_layer_regime(z, L_M)` for (2 m, −20 m), (100 m, −20 m), (10 m, +100 m), (300 m, +100 m), (10 m, inf) | "forced convection", "free convection", "forced convection", "stable", "neutral" — below ∣L_M∣ the layer is shear-driven whatever the sign of the heat flux |
-| C15 · N190 (row with (12.112)) | `ch12.temperature_variance_budget(z, T_mean, wT, eps_T)` | production $-\overline{wT'}\,d\bar T/dz>0$ whenever the flux runs down the gradient; `["dissipation"]` = −ε̄_T |
+| C15 · N190 (row with the temperature-variance budget) | `ch12.temperature_variance_budget(z, T_mean, wT, eps_T)` | production $-\overline{wT'}\,d\bar T/dz>0$ whenever the flux runs down the gradient; `["dissipation"]` = −ε̄_T |
 | C15 · N193 (row with the scalar spectrum) | `ch12.batchelor_scale(1e-6, 1.4e-7, 1e-6)` | 3.74 × 10⁻⁴ m ✎ (η = 1 mm for sea water with ε̄ = 10⁻⁶ m²/s³; × (κ_th/ν)^{1/2} = 0.374): temperature has finer structure than velocity |
 | C16 · N200 (under D26) | `ch12.taylor_dispersion_rate(t, lambda s: np.exp(-s/10), 1.0)` at t = 1, 10, 100 s | 1.903, 12.64, 20.00 m²/s — rises from 2u²t to 2u²Λ_t |
 | C16 · N213 (under D28) | `ch12.eddy_diffusivity_taylor(t, lambda s: np.exp(-s/10), 1.0)` at the same times | 0.952, 6.321, 10.00 m²/s = half the line above = `eddy_diffusivity_exponential(t, 1.0, 10.0)` (the worked example's 6.3 and 10) |
 
-**A.15b — repeat mentions of an equation by number.** The rule "the equation is written beside its number" also holds for a
-second mention inside the same block. A few drafts above mention an equation again by number only (it is written out a few
-rows earlier). The builder sets the compact form beside the number, copying it from the place named here — never from
-memory; where the page was not among those re-read for this design (header), render it first:
+**A.15b — repeat mentions of an equation by number: completed (inlining pass of 2026-10-07).** The rule "the equation is
+written beside its number" also holds for a second mention inside the same block, for a recap's `where=`, for a table cell
+and for a reference to an earlier chapter. The audit had left about 14 such mentions in Part A for the builders to finish;
+they are now finished in the rows themselves, each in one of two ways:
 
-- C02 "(arguments as in (12.12))" → the definition of $R_{ij}$ in the row of N24–N26 of C02.
-- C04 "trace/2 − (12.47)", C09 N128 "the triple correlation of (12.47)", C13 "the three transport terms of (12.47)" → the
-  turbulent-energy budget in the `nb.core` title of C06.
-- C04 N60 "(12.35) gives 6 more equations", C13 N179 "model (12.35) instead" → the Reynolds-stress equation in the row of N59.
-- C04 N58 "(12.30), (12.32), (12.34)" → the `nb.core` title of C04, and the rows of N53 and N57.
-- C06 term table "'−' in (12.46)" → D09's Result; "Ch. 11's disturbance-energy equation (11.88)" → render the ch11 page
-  (`tools/render_pages.py ch11 --eq 11.88`).
-- C07 N91 "between (12.43) and (12.49)", "(12.43) pairs it" → the `nb.core` titles of C05 and C07.
-- C10 "(laminar form: Ch. 9 (9.9))" → render the ch09 page (`tools/render_pages.py ch09 --eq 9.9`).
-- C11 "the thermal diffusivity of (12.31)" → the row of N52 in C04.
-- C12 N165 "with (12.94)", C13 N179 "(12.30), (12.94), (12.103)–(12.105)" → the `nb.core` titles of C12, C04 and C13, and
-  B1's Equations line for the ε̄ equation (12.105).
+- **the compact equation stands beside the number** — copied from the place in this file where the block writes it out,
+  compared with `analysis/ch12.md` §2 and with the rendered page (header, second provenance statement);
+- **or, where the equation is long and stands in full a few rows above, the number is gone and the row points to it in
+  words** ("the mean-flow budget of D09 above", "the Reynolds-stress equation of N59 above", "the exact budget (C06)").
+
+Builders copy the rows as they stand; nothing is left for them to inline. Rows touched: C02 N27 · C04 N58, N59, N60 · the
+`nb.core` title of C05 (the range of numbers is gone; rows 3–8 of that block write each of the four equations out) · C06 N81
+(twice) · C07 N91 (twice) · C09 N128 · C10 R04 and N138 · C11 row 4 · C12 N165 · C13 N175 and N179 · C14 R05 and R06 (their
+`where=` now names chapter and section only; the earlier-chapter equations are in the recap text) · C16 N211 and N215 · five
+locator cells of A.15a. One correction came out of reading the earlier chapter's page: R04 had quoted Chapter 8's pipe wall
+stress with a minus sign; the book prints $\tau_0=\frac a2\frac{dp}{dz}$ (8.8), where $\tau_0$ carries the sign of the pressure
+gradient, and R04 now shows that form and says why Chapter 12's positive $\tau_0$ needs the minus sign.
 
 ---
 
@@ -2065,8 +2061,7 @@ never uses a sampled value (C.5). Parallel builders use private scratch subfolde
      model profile. **Modelled:** how the turbulence disposes of it (hatched)."
   1. *The stresses here* — "total τ̄⁺ = 1 − y⁺/Re_τ = …; viscous dU⁺/dy⁺ = …; Reynolds −⟨uv⟩⁺ = the rest = …".
   2. *The shared term* — "for U(y): production = −⟨uv⟩ dU/dy = **…** (in u_*⁴/ν). It is +⟨u_iu_j⟩∂U_i/∂x_j — a loss — in the
-     mean-flow budget ∂Ē/∂t + U_j∂Ē/∂x_j = ∂/∂x_j(…) − 2νS̄_ijS̄_ij + ⟨u_iu_j⟩∂U_i/∂x_j − (g/ρ₀)ρ̄U₃ (12.46), and −⟨u_iu_j⟩∂U_i/∂x_j — a gain —
-     in the turbulent budget (12.47)."
+     mean-flow budget ∂Ē/∂t + U_j∂Ē/∂x_j = ∂/∂x_j(…) − 2νS̄_ijS̄_ij + ⟨u_iu_j⟩∂U_i/∂x_j − (g/ρ₀)ρ̄U₃ (12.46), and −⟨u_iu_j⟩∂U_i/∂x_j — a gain — in the turbulent budget ∂ē/∂t + U_j∂ē/∂x_j = ∂/∂x_j(…) − 2ν⟨S′_ijS′_ij⟩ − ⟨u_iu_j⟩∂U_i/∂x_j + gα⟨u₃T′⟩ (12.47)."
   3. *Where it peaks* — "P = (τ⁺ − s)s is largest where s = τ⁺/2: viscous stress = Reynolds stress, P_max = τ⁺²/4 ≈ **0.25** at
      y⁺ ≈ 10.4 (this model; DNS: y⁺ ≈ 12)."
   4. *The mean flow's direct loss* — "2νS̄_ijS̄_ij → (dU⁺/dy⁺)² = …; ratio to production … — of order 1/Re away from the wall
@@ -2555,7 +2550,7 @@ never uses a sampled value (C.5). Parallel builders use private scratch subfolde
      wedge. Calling this 'diffusion' would be wrong: a constant-D cloud (grey) starts far too wide." · transition: "Particles
      are forgetting. No simple law: use the full formula." · diffusive: "Each particle has changed its mind many times; the
      cloud grows like a random walk and one number, D_T = u²Λ_t, describes it — an eddy diffusivity is (rms velocity)² ×
-     memory, the l_T u_T of (12.98)." · long memory: "Slow, large eddies: the wedge lasts longer and the final diffusivity is
+     memory, the same product of a velocity and a length as ν_T ~ l_T u_T (12.98)." · long memory: "Slow, large eddies: the wedge lasts longer and the final diffusivity is
      larger. In the ocean Λ_t is days, which is why drifter clusters spread ballistically for days."
 - **Derivation tab:** **D26** (11 steps) `view: 'corr'` (wide) / `'msd'` (phones); step 6 `live` "∫₀ᵗ r dτ = Λ_t(1 − e^{−t/Λ_t}) = …"
   with the shaded area; step 11 `live` "⟨X²⟩ = … m²". **D27** (8 steps) `view: 'msd'`; step 2 `set` {t: 0.1 Lam}, `live` "u²t² = …
@@ -2621,7 +2616,7 @@ never uses a sampled value (C.5). Parallel builders use private scratch subfolde
 - **Depth features:** Explain + Code + Derivation · linked views · transport · presets · status · terms (in the budget of ē:
   production 0, dissipation −ε̄, transport 0 for decaying turbulence; in the log-layer mode: production = dissipation).
 - **Explain:** 0. what the views show · 1. "decay: dē/dt = −ε̄, dε̄/dt = −C_ε2 ε̄²/ē — the homogeneous form of ∂ē/∂t + U_j∂ē/∂x_j =
-  ∂/∂x_j((ν_T/σ_e)∂ē/∂x_j) − ε̄ − ⟨u_iu_j⟩∂U_i/∂x_j (12.103) and of (12.105)" · 2. "n = 1/(C_ε2 − 1) = 1/0.92 = **1.087**; t₀ = nē₀/ε̄₀" ·
+  ∂/∂x_j((ν_T/σ_e)∂ē/∂x_j) − ε̄ − ⟨u_iu_j⟩∂U_i/∂x_j (12.103) and of ∂ε̄/∂t + U_j∂ε̄/∂x_j = ∂/∂x_j((ν_T/σ_ε)∂ε̄/∂x_j) − C_ε1(⟨u_iu_j⟩∂U_i/∂x_j)ε̄/ē − C_ε2ε̄²/ē (12.105)" · 2. "n = 1/(C_ε2 − 1) = 1/0.92 = **1.087**; t₀ = nē₀/ε̄₀" ·
   3. "ν_T = C_μē²/ε̄ (12.104) = …; l_T = ē^{3/2}/ε̄ = … (grows: small eddies die first)" · 4. "log layer: κ² = √C_μ(C_ε2 − C_ε1)σ_ε = 0.3 ×
   0.48 × 1.3 = 0.187 ⇒ κ = **0.433**; ē = u_*²/√C_μ = 3.33 u_*²" · 5. at the current time (live) · 6. *Reading the current
   setting*: standard — "The five constants are a compromise: the decay exponent is at the low edge of the measurements and
@@ -2937,18 +2932,24 @@ allowed and why we make it) · **plain** (what the line says). An over-bar is th
 step uses a book equation the equation is written out with its number. Colours of terms as convention 9. ★★★ blocks carry a
 **sympy check intent** with a `check_src` sketch that re-runs the derivation's own construction (ch01 lesson).
 
-**Repeat mentions inside a block (added by the audit of 2026-10-07).** Every block writes each equation out where it is
-first used. Some later lines of the same block — a *why*, a Start, a Tools, Check or Traps line — then name it again by
-number only (for example D17 Start and step 2 "(12.30)"; D21 step 1, D22 step 6 and D24 step 6 "(12.94)"; D22 "(12.98)",
-"(12.103)"; D23 "(12.103)", "(12.104)", "(12.105)", "(12.88)"; D24 "(12.47)", "(12.95)", "(12.108)"; D25 "(12.107)",
-"(12.110)"; D26 Tools "(12.6), (12.7)"; D28 Tools "(12.117)"). When a builder copies such a line into the notebook or an
-explainer, the compact equation goes beside the number, copied from where this file writes it out (the block's own
-title, Start or Result, the `nb.core` title of the CORE block named in the heading, or the list in A.15b) — never the
-number alone and never from memory. In an explainer's plain-text *why* the equation is written in Unicode (no raw TeX).
+**Repeat mentions inside a block: completed (inlining pass of 2026-10-07).** Every block writes each equation out where it
+is first used, and every later line of the block that names an equation again — a *why*, a Start, Tools, Result, Check or
+Traps line — now either carries the compact equation beside the number or, where the equation is long, points in words to
+the block's own Start or Result ("the Start's ē equation", "D14's Result"). A Result line that used to read "(number) as in
+step n" now holds the equation itself, which is what `nb.derivation(result=(tex, plain))` needs. Builders copy the lines as
+they stand; nothing is left for them to inline. Two conventions remain, both deliberate:
+
+- **Own-line labels.** A *why* that ends "This is (N.M)." — or "First of (N.M).", "These are (N.M) and (N.M)." — labels the
+  step's own `tex` line: that line *is* the numbered equation and sits directly above the sentence in the notebook cell and
+  on the Derivation page. There are 73 of these. The equation is not repeated in the prose, so that the *why* stays inside
+  its length limit.
+- **Explainer copies.** In an explainer's plain-text *why* the builder writes an inlined equation in Unicode (no raw TeX).
+  If that takes a phone *why* past 35 words, the first sentence stays and the number-plus-equation moves to the step's
+  `tex` (or `live`) field — never the number alone.
 
 ### D01 · The rules of averaging (12.4)–(12.9), $\overline{\bar u}=\bar u$, and $\overline{\tilde u\tilde v}=\bar u\bar v+\overline{uv}$ — ★, 8 steps, in C01 (notebook · `reynolds_averaging_window`)
 - **Goal:** find out which operations may be swapped with an average — and the one that may not. Every later derivation of the
-  chapter uses only these rules. · **Start:** $\overline{u^m(\mathbf x,t)}\equiv\frac1N\sum_{n=1}^N\big(u(\mathbf x,t{:}n)\big)^m$, the finite-N form of (12.1) — "add the N
+  chapter uses only these rules. · **Start:** $\overline{u^m(\mathbf x,t)}\equiv\frac1N\sum_{n=1}^N\big(u(\mathbf x,t{:}n)\big)^m$, the finite-N form of $\langle u^m(\mathbf x,t)\rangle=\lim_{N\to\infty}\frac1N\sum_{n=1}^N\big(u(\mathbf x,t{:}n)\big)^m$ (12.1) — "add the N
   realizations and divide by N". · **Plan:** • write the average as a plain finite sum • pass each linear operation through the
   sum • try a product and see what is left • take N → ∞ last. · **Tools:** finite sums (school algebra); partial derivative
   (P25, reminder); integral as a limit of sums (P84, reminder); expanding a product. · **Assumptions:** ensemble average; the
@@ -2973,8 +2974,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      same in every realization — a "constant" in the sense of step 3. We need this to handle products next. · **plain** A mean
      is not random any more, so averaging it again changes nothing.
   7. **did** Average a product of two total fields · **tex** $\overline{\tilde u\tilde v}=\overline{(\bar u+u)(\bar v+v)}=\bar u\bar v+\bar u\,\overline v+\overline u\,\bar v+\overline{uv}=\bar u\bar v+\overline{uv}$ · **why** Expand
-     the product, then use steps 2, 3 and 6; the two middle terms vanish because a fluctuation has zero mean, $\overline u=\overline v=0$
-     (the (12.26) of C04). A product is **not** linear, so nothing lets us split $\overline{uv}$. · **plain** The mean of a product is
+     the product, then use steps 2, 3 and 6; the two middle terms vanish because a fluctuation has zero mean, $\overline u=\overline v=0$ (C04's $\overline{u_i}=0$ (12.26)). A product is **not** linear, so nothing lets us split $\overline{uv}$. · **plain** The mean of a product is
      the product of the means plus the covariance of the fluctuations.
   8. **did** Let the number of realizations grow · **tex** $\langle\tilde u\tilde v\rangle=\lim_{N\to\infty}\overline{\tilde u\tilde v}=\langle\tilde u\rangle\langle\tilde v\rangle+\langle uv\rangle,\qquad\langle uv\rangle\neq0\ \text{in general}$ · **why** Every line
      above holds for each finite N, so it holds in the limit; taking the limit last avoids swapping a limit with a
@@ -2985,8 +2985,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   $\bar u\bar v$ = 8, $\overline{uv}$ = 2, $\overline{\tilde u\tilde v}$ = 10 ✓. Code: `TS.check_averaging_rules` returns round-off for every entry except
   "product". Special case: if u and v are uncorrelated, $\overline{uv}=0$ and the product rule "works".
 - **What it means:** when we average the equations of motion every linear term keeps its form; the nonlinear term
-  $\tilde u_j\tilde u_i$ leaves $\overline{u_iu_j}$ behind — the Reynolds stress. **Fails when:** the "average" is a finite time window: then
-  (12.6) holds only if the window is short against the drift of the mean (C01, N14).
+  $\tilde u_j\tilde u_i$ leaves $\overline{u_iu_j}$ behind — the Reynolds stress. **Fails when:** the "average" is a finite time window: then $\overline{\partial u^m/\partial t}=\partial\overline{u^m}/\partial t$ (12.6) holds only if the window is short against the drift of the mean (C01, N14).
 - **Traps:** thinking the rules are special to turbulence (they are linearity); forgetting that $\overline{u^2}\neq\bar u^2$ is the same
   failure; using different sets of runs for u and v; commuting a *time* average with ∂/∂t exactly.
 
@@ -3000,13 +2999,12 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   1. **did** Average a square that contains a free number λ · **tex** $\overline{(u+\lambda v)^2}\ge0\quad\text{for every real }\lambda$ · **why** Each realization
      contributes a square, which is ≥ 0, so their average is ≥ 0. λ is a device: one inequality for every λ is a strong
      statement. · **plain** No mixture of u and v can have a negative mean square.
-  2. **did** Expand and average term by term · **tex** $\overline{v^2}\,\lambda^2+2\,\overline{uv}\,\lambda+\overline{u^2}\ge0$ · **why** $(u+\lambda v)^2=u^2+2\lambda uv+\lambda^2v^2$; λ is a constant, so
-     D01's rules (12.4), (12.5) apply. · **plain** The inequality is a parabola in λ that never dips below zero.
+  2. **did** Expand and average term by term · **tex** $\overline{v^2}\,\lambda^2+2\,\overline{uv}\,\lambda+\overline{u^2}\ge0$ · **why** $(u+\lambda v)^2=u^2+2\lambda uv+\lambda^2v^2$; λ is a constant, so D01's rules $\overline{u^m+v^m}=\overline{u^m}+\overline{v^m}$ (12.4) and $\overline{Au^m}=A\overline{u^m}$ (12.5) apply. · **plain** The inequality is a parabola in λ that never dips below zero.
   3. **did** Apply the discriminant condition · **tex** $(2\,\overline{uv})^2-4\,\overline{v^2}\;\overline{u^2}\le0$ · **why** A parabola $a\lambda^2+b\lambda+c$ with a > 0 that is
      never negative has at most one real root, which requires $b^2-4ac\le0$ (P288). · **plain** The cross term cannot be too large
      compared with the two variances.
   4. **did** Rearrange and take the square root · **tex** $\lvert\overline{uv}\rvert\le\sqrt{\overline{u^2}}\,\sqrt{\overline{v^2}}$ · **why** Divide by 4, move one term across, take the positive
-     root of both (non-negative) sides; $\sqrt{x^2}=\lvert x\rvert$ — hence the absolute value, which the printed (12.16) omits. · **plain** A
+     root of both (non-negative) sides; $\sqrt{x^2}=\lvert x\rvert$ — hence the absolute value, which the printed $\overline{uv}\le\sqrt{\overline{u^2}}\sqrt{\overline{v^2}}$ (12.16) omits. · **plain** A
      covariance is never bigger in size than the product of the two rms values.
   5. **did** Divide by the right-hand side · **tex** $-1\le r\equiv\dfrac{\overline{uv}}{\sqrt{\overline{u^2}}\sqrt{\overline{v^2}}}\le1$ · **why** Both rms values are positive, so dividing keeps the
      inequality; this is the coefficient of (12.14), $r_{12}=\overline{u_1u_2}/(\sqrt{\overline{u_1^2}}\sqrt{\overline{u_2^2}})$. · **plain** Every correlation coefficient
@@ -3025,8 +3023,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 
 ### D03 · Stationary lag forms (12.17), $R_{11}(\tau)=R_{11}(-\tau)$ and $R_{ij}(-\tau)=R_{ji}(\tau)$ — ★, 5 steps, in C02 (notebook · `reynolds_averaging_window` · `correlation_and_spectrum`)
 - **Goal:** show that for a stationary signal the correlation depends only on the time *difference*, and that the
-  autocorrelation is the same for a lag forward or backward. · **Start:** $R_{11}(t_1,t_2)\equiv\overline{u_1(t_1)u_1(t_2)}$ at one point — (12.13)
-  with $\mathbf x_1=\mathbf x_2$. · **Plan:** • use stationarity to drop the absolute time • flip the sign of the lag • shift the time origin.
+  autocorrelation is the same for a lag forward or backward. · **Start:** $R_{11}(t_1,t_2)\equiv\overline{u_1(t_1)u_1(t_2)}$ at one point — $R_{11}(\mathbf x_1,t_1,\mathbf x_2,t_2)\equiv\overline{u_1(\mathbf x_1,t_1)u_1(\mathbf x_2,t_2)}$ (12.13) with $\mathbf x_1=\mathbf x_2$. · **Plan:** • use stationarity to drop the absolute time • flip the sign of the lag • shift the time origin.
   · **Tools:** substitution / change of variable (P106); stationarity (N08). · **Assumptions:** temporally stationary; same
   point in space.
 - **Steps:**
@@ -3053,10 +3050,10 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **Traps:** assuming a cross-correlation is even; forgetting that the shift is legitimate *only* because of stationarity.
 
 ### D04 · The Taylor microscale $\lambda_t^2\equiv-2/[d^2r_{11}/d\tau^2]_{\tau=0}$ (12.19) as the foot of the osculating parabola; $\lambda_t^2=2\overline{u^2}/\overline{(du/dt)^2}$ — ★★, 7 steps, in C02 (notebook · `correlation_and_spectrum`)
-- **Goal:** give the definition (12.19) a picture (a parabola fitted to the top of the correlation curve) and a meaning (how
+- **Goal:** give the definition $\lambda_t^2\equiv-2\big/\big[d^2r_{11}/d\tau^2\big]_{\tau=0}$ (12.19) a picture (a parabola fitted to the top of the correlation curve) and a meaning (how
   fast the signal changes). · **Start:** $r_{11}(\tau)$, even, with $r_{11}(0)=1$ (D03). · **Plan:** • Taylor-expand r about τ = 0 •
   evenness kills the linear term • define λ_t where the parabola reaches zero • relate the curvature to the mean-square time
-  derivative. · **Tools:** Taylor series to second order (P26); even functions (P261); product rule (P38); D01's (12.6);
+  derivative. · **Tools:** Taylor series to second order (P26); even functions (P261); product rule (P38); D01's $\overline{\partial u^m/\partial t}=\partial\overline{u^m}/\partial t$ (12.6);
   stationarity. · **Assumptions:** r twice differentiable at 0 (a smooth signal — **not** an Ornstein–Uhlenbeck one).
 - **Steps:**
   1. **did** Expand r about zero lag · **tex** $r_{11}(\tau)=1+r_{11}'(0)\,\tau+\tfrac12r_{11}''(0)\,\tau^2+\dots$ · **why** Taylor's theorem for a twice-differentiable
@@ -3071,7 +3068,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      is the definition (12.19); the minus sign makes $\lambda_t^2$ positive because $r''(0)<0$. · **plain** λ_t is where the fitted
      parabola would hit the axis.
   5. **did** Differentiate the correlation twice in the lag · **tex** $R_{11}''(\tau)=\overline{u(t)\,\dfrac{d^2u}{dt^2}(t+\tau)}$ · **why** τ appears only in the second factor;
-     the derivative passes inside the average by D01's (12.6). · **plain** The curvature of R is a correlation between the
+     the derivative passes inside the average by D01's $\overline{\partial u^m/\partial t}=\partial\overline{u^m}/\partial t$ (12.6). · **plain** The curvature of R is a correlation between the
      signal and its own acceleration.
   6. **did** Set τ = 0 and use the product rule · **tex** $\overline{u\,\ddot u}=\dfrac{d}{dt}\overline{u\,\dot u}-\overline{\dot u^{\,2}}=-\overline{\dot u^{\,2}}$ · **why** $\frac{d}{dt}(u\dot u)=\dot u^2+u\ddot u$; and
      $\overline{u\dot u}=\tfrac12\frac{d}{dt}\overline{u^2}=0$ because a stationary signal has constant variance. · **plain** The curvature at the top is minus
@@ -3128,7 +3125,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **Goal:** find the equations obeyed by the mean flow, and see exactly where the fluctuations enter them. · **Start:** the
   Boussinesq set (R01): $\dfrac{\partial\tilde u_i}{\partial x_i}=0$ (4.10) and $\dfrac{\partial\tilde u_i}{\partial t}+\tilde u_j\dfrac{\partial\tilde u_i}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial\tilde p}{\partial x_i}-g\big[1-\alpha(\tilde T-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2\tilde u_i}{\partial x_j^2}$ (4.86). · **Plan:** • put
   the momentum equation in flux form • substitute mean + fluctuation • average with D01's rules • tidy the result into a
-  stress. · **Tools:** D01's rules; Reynolds decomposition (12.24)–(12.26); product rule (P38); summation convention (ch02).
+  stress. · **Tools:** D01's rules; Reynolds decomposition $\tilde u_i=U_i+u_i$ (12.24) with $\overline{\tilde u_i}=U_i$ (12.25) and $\overline{u_i}=0$ (12.26); product rule (P38); summation convention (ch02).
   · **Assumptions:** Boussinesq (constant ρ₀, ν, α); ensemble average; $\bar T$ is potential temperature in the buoyancy term.
 - **Steps:**
   1. **did** Write the advection term as a divergence · **tex** $\tilde u_j\dfrac{\partial\tilde u_i}{\partial x_j}=\dfrac{\partial}{\partial x_j}(\tilde u_j\tilde u_i)-\tilde u_i\dfrac{\partial\tilde u_j}{\partial x_j}=\dfrac{\partial}{\partial x_j}(\tilde u_j\tilde u_i)$ · **why** Product rule, then
@@ -3136,12 +3133,12 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      **plain** Advection is the divergence of a momentum flux.
   2. **did** Decompose the continuity equation · **tex** $\dfrac{\partial}{\partial x_i}(U_i+u_i)=0$ · **why** Substitute $\tilde u_i=U_i+u_i$ (12.24). · **plain** Mean plus fluctuation
      is divergence-free.
-  3. **did** Average it · **tex** $\dfrac{\partial}{\partial x_i}\big(U_i+\overline{u_i}\big)=\dfrac{\partial U_i}{\partial x_i}=0$ · **why** The average passes through the derivative ((12.8) of D01) and
+  3. **did** Average it · **tex** $\dfrac{\partial}{\partial x_i}\big(U_i+\overline{u_i}\big)=\dfrac{\partial U_i}{\partial x_i}=0$ · **why** The average passes through the derivative (D01's $\overline{\partial u^m/\partial x_j}=\partial\overline{u^m}/\partial x_j$ (12.8)) and
      $\overline{u_i}=0$ (12.26). This is (12.27). · **plain** The mean flow is divergence-free.
   4. **did** Subtract step 3 from step 2 · **tex** $\dfrac{\partial u_i}{\partial x_i}=0$ · **why** Two true equations may be subtracted. This is (12.28); we need it
      in D10. · **plain** The fluctuation is divergence-free too.
   5. **did** Substitute the decomposition into the flux-form momentum equation · **tex** $\begin{aligned}&\dfrac{\partial(U_i+u_i)}{\partial t}+\dfrac{\partial}{\partial x_j}\big((U_j+u_j)(U_i+u_i)\big)=-\dfrac1{\rho_0}\dfrac{\partial(P+p)}{\partial x_i}\\&\quad-g\big[1-\alpha(\bar T+T'-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2(U_i+u_i)}{\partial x_j^2}\end{aligned}$ ·
-     **why** (12.24) in every field. This is (12.29); nothing has been approximated. · **plain** The exact equation, written for
+     **why** $\tilde u_i=U_i+u_i$, $\tilde p=P+p$, $\tilde T=\bar T+T'$ (12.24) in every field. This is (12.29); nothing has been approximated. · **plain** The exact equation, written for
      mean + fluctuation.
   6. **did** Expand the product · **tex** $(U_j+u_j)(U_i+u_i)=U_iU_j+U_iu_j+u_iU_j+u_iu_j$ · **why** Plain algebra; four terms: mean × mean, two mixed, fluctuation
      × fluctuation. · **plain** The momentum flux has four pieces.
@@ -3149,7 +3146,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      out, a single fluctuation averages to zero, a product of two fluctuations does not. · **plain** The mixed terms vanish;
      the covariance survives.
   8. **did** Average the linear terms · **tex** $\overline{\dfrac{\partial(U_i+u_i)}{\partial t}}=\dfrac{\partial U_i}{\partial t},\ \ \overline{\dfrac{\partial(P+p)}{\partial x_i}}=\dfrac{\partial P}{\partial x_i},\ \ \overline{T'}=0,\ \ \overline{\dfrac{\partial^2(U_i+u_i)}{\partial x_j^2}}=\dfrac{\partial^2U_i}{\partial x_j^2}$ · **why** Each is linear in the
-     fields, so (12.4)–(12.6), (12.8) and (12.26) leave the mean part only. · **plain** Every linear term keeps its form with
+     fields, so D01's rules $\overline{u+v}=\bar u+\bar v$ (12.4), $\overline{Au}=A\bar u$ (12.5), $\overline{\partial u/\partial t}=\partial\bar u/\partial t$ (12.6), $\overline{\partial u/\partial x_j}=\partial\bar u/\partial x_j$ (12.8) and $\overline{u_i}=0$ (12.26) leave the mean part only. · **plain** Every linear term keeps its form with
      the mean in place of the total.
   9. **did** Collect the averaged equation · **tex** $\dfrac{\partial U_i}{\partial t}+\dfrac{\partial}{\partial x_j}(U_iU_j)+\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial P}{\partial x_i}-g\big[1-\alpha(\bar T-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2U_i}{\partial x_j^2}$ · **why** Steps 7 and 8
      inside step 5. One term has no counterpart in the original equation. · **plain** The mean obeys the same equation plus
@@ -3158,7 +3155,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
       mean continuity equation $\partial U_j/\partial x_j=0$ (12.27) — step 1 run backwards for the mean. · **plain** The mean flow advects its
       own momentum.
   11. **did** Write the viscous term as a divergence of a stress · **tex** $\nu\dfrac{\partial^2U_i}{\partial x_j^2}=\dfrac1{\rho_0}\dfrac{\partial}{\partial x_j}\big(2\mu\bar S_{ij}\big),\quad\bar S_{ij}=\tfrac12\Big(\dfrac{\partial U_i}{\partial x_j}+\dfrac{\partial U_j}{\partial x_i}\Big)$ · **why**
-      $\partial(2\bar S_{ij})/\partial x_j=\partial^2U_i/\partial x_j^2+\partial(\partial U_j/\partial x_j)/\partial x_i$ and the last term is zero by (12.27); μ = ρ₀ν (Ch. 4's (4.40)). ·
+      $\partial(2\bar S_{ij})/\partial x_j=\partial^2U_i/\partial x_j^2+\partial(\partial U_j/\partial x_j)/\partial x_i$ and the last term is zero by $\partial U_j/\partial x_j=0$ (12.27); μ = ρ₀ν (the mean-flow form of Ch. 4's $\mu\,\partial^2u_j/\partial x_i^2=2\mu\,\partial S_{ij}/\partial x_i$ (4.40)). ·
       **plain** Viscous friction of the mean flow is a stress, as in a laminar flow.
   12. **did** Write the pressure gradient the same way and move the new term to the right · **tex** $-\dfrac1{\rho_0}\dfrac{\partial P}{\partial x_i}-\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=\dfrac1{\rho_0}\dfrac{\partial}{\partial x_j}\big(-P\delta_{ij}-\rho_0\overline{u_iu_j}\big)$
       · **why** $\partial(P\delta_{ij})/\partial x_j=\partial P/\partial x_i$; moving a term across the equals sign changes its sign; ρ₀ is constant. ·
@@ -3168,9 +3165,9 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
       stress made by the fluctuations.
 - **Result:** $\dfrac{\partial U_i}{\partial x_i}=0$ (12.27); $\dfrac{\partial U_i}{\partial t}+U_j\dfrac{\partial U_i}{\partial x_j}=-g[1-\alpha(\bar T-T_0)]\delta_{i3}+\dfrac1{\rho_0}\dfrac{\partial\bar\tau_{ij}}{\partial x_j}$ (12.30) — "the mean flow obeys the
   Navier–Stokes equations with one extra stress, $-\rho_0\overline{u_iu_j}$".
-- **Check:** units — $\rho_0\overline{u_iu_j}$ is kg/m³ × m²/s² = Pa ✓. Limit: no fluctuations ⇒ (12.30) is the laminar equation ✓. Number:
+- **Check:** units — $\rho_0\overline{u_iu_j}$ is kg/m³ × m²/s² = Pa ✓. Limit: no fluctuations ⇒ $\overline{u_iu_j}=0$, the stress is $\bar\tau_{ij}=-P\delta_{ij}+2\mu\bar S_{ij}$ (12.30) and the Result is the laminar equation ✓. Number:
   $\overline{uv}=-0.1$ m²/s² in air ⇒ 0.12 Pa (C04 worked example). Code: `ch12.rans_sympy()` reproduces steps 5–9 symbolically.
-- **What it means:** four equations (12.27), (12.30) for ten unknowns ($U_i$, P and six $\overline{u_iu_j}$): the closure problem. The
+- **What it means:** four equations — $\partial U_i/\partial x_i=0$ (12.27) and the three components of $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-g[1-\alpha(\bar T-T_0)]\delta_{i3}+\frac1{\rho_0}\frac{\partial\bar\tau_{ij}}{\partial x_j}$ (12.30) — for ten unknowns ($U_i$, P and six $\overline{u_iu_j}$): the closure problem. The
   rest of the chapter measures, scales or models this one term. **Fails when:** the density varies strongly
   (compressible flows need mass-weighted averages).
 - **Traps:** averaging $\tilde u_j\,\partial\tilde u_i/\partial x_j$ without first writing it as a divergence (possible, but messier); thinking
@@ -3183,24 +3180,22 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   $f(r)\equiv\overline{u_\parallel(\mathbf x+\mathbf r)u_\parallel(\mathbf x)}/\overline{u^2}$, $g(r)\equiv\overline{u_\perp(\mathbf x+\mathbf r)u_\perp(\mathbf x)}/\overline{u^2}$ (12.38). · **Plan:** • write the most general tensor that isotropy
   allows • read its two functions off by pointing **r** along one axis • impose incompressibility • integrate and
   differentiate the result. · **Tools:** isotropic tensors (P119); derivatives of functions of r (P297, primer above);
-  (12.28) from D06; integration by parts (P218a); Taylor series (P26); sympy (P40). · **Assumptions:** homogeneous, isotropic
+  $\partial u_i/\partial x_i=0$ (12.28) from D06; integration by parts (P218a); Taylor series (P26); sympy (P40). · **Assumptions:** homogeneous, isotropic
   (reflection-invariant), incompressible, three-dimensional; f decays faster than 1/r.
 - **Steps:**
-  1. **did** Note what R can depend on · **tex** $R_{ij}=R_{ij}(\mathbf r)$ · **why** Homogeneity: the statistics are the same at every **x**, so only
-     the separation **r** remains (12.23). · **plain** Only "how far apart and in which direction" matters.
+  1. **did** Note what R can depend on · **tex** $R_{ij}=R_{ij}(\mathbf r)$ · **why** Homogeneity: the statistics are the same at every **x**, so only the separation **r** remains: $R_{ij}(\mathbf r)\equiv\overline{u_i(\mathbf x)u_j(\mathbf x+\mathbf r)}$ (12.23). · **plain** Only "how far apart and in which direction" matters.
   2. **did** Write the most general isotropic form · **tex** $R_{ij}=F_R(r)\,r_ir_j+G_R(r)\,\delta_{ij}$ · **why** With no preferred direction, a second-order tensor
      can be built only from $\delta_{ij}$ and the vector **r** itself, with scalar coefficients depending on r = ∣**r**∣; an
      $\epsilon_{ijk}r_k$ term would change sign under reflection. This is (12.40). · **plain** Two unknown functions instead of nine.
   3. **did** Point **r** along the 1-axis and take the 11-component · **tex** $\mathbf r=(r,0,0):\quad R_{11}=F_Rr^2+G_R$ · **why** We are free to choose the axes
      (isotropy); then $r_1r_1=r^2$ and $\delta_{11}=1$. · **plain** The component along the separation.
-  4. **did** Recognise the longitudinal correlation · **tex** $R_{11}=\overline{u_1(\mathbf x)u_1(\mathbf x+r\mathbf e_1)}=\overline{u^2}\,f(r)$ · **why** Both velocity components lie along **r**: that is
-     the definition of f in (12.38). · **plain** Along the line, the tensor is f.
+  4. **did** Recognise the longitudinal correlation · **tex** $R_{11}=\overline{u_1(\mathbf x)u_1(\mathbf x+r\mathbf e_1)}=\overline{u^2}\,f(r)$ · **why** Both velocity components lie along **r**: that is the definition $f(r)\equiv\overline{u_\parallel(\mathbf x+\mathbf r)u_\parallel(\mathbf x)}/\overline{u_\parallel^2}$ (12.38). · **plain** Along the line, the tensor is f.
   5. **did** Take the 22-component · **tex** $R_{22}=G_R=\overline{u^2}\,g(r)$ · **why** $r_2=0$, $\delta_{22}=1$; both components are perpendicular to **r**: the
      definition of g. · **plain** Across the line, the tensor is g.
   6. **did** Solve for the two functions · **tex** $G_R=\overline{u^2}\,g,\qquad F_R=\overline{u^2}\,\dfrac{f-g}{r^2}$ · **why** Subtract step 5 from steps 3–4 and divide by r². These are
-     the F and G the book quotes after (12.40). · **plain** The tensor is known once f and g are.
+     the F and G the book quotes after $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40). · **plain** The tensor is known once f and g are.
   7. **did** Impose incompressibility at the second point · **tex** $\dfrac{\partial R_{ij}}{\partial r_j}=\overline{u_i(\mathbf x)\,\dfrac{\partial u_j}{\partial x_j}(\mathbf x+\mathbf r)}=0$ · **why** Differentiating with respect to **r**
-     acts only on the second factor (D01's (12.8)), and $\partial u_j/\partial x_j=0$ (12.28). · **plain** The tensor is divergence-free in **r**.
+     acts only on the second factor (D01's $\overline{\partial u^m/\partial x_j}=\partial\overline{u^m}/\partial x_j$ (12.8)), and $\partial u_j/\partial x_j=0$ (12.28). · **plain** The tensor is divergence-free in **r**.
   8. **did** Differentiate the first part · **tex** $\dfrac{\partial}{\partial r_j}\big(F_Rr_ir_j\big)=F_R'\dfrac{r_j}{r}r_ir_j+F_R\big(\delta_{ij}r_j+r_i\delta_{jj}\big)=\big(rF_R'+4F_R\big)r_i$ · **why** Product rule with
      $\partial r/\partial r_j=r_j/r$, $\partial r_i/\partial r_j=\delta_{ij}$, $r_jr_j=r^2$, $\delta_{jj}=3$ (P297). · **plain** The divergence of the $r_ir_j$ part points along **r**.
   9. **did** Differentiate the second part · **tex** $\dfrac{\partial}{\partial r_j}\big(G_R\delta_{ij}\big)=G_R'\dfrac{r_i}{r}$ · **why** Chain rule; $\delta_{ij}$ picks out j = i. · **plain** So does the
@@ -3241,19 +3236,19 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **What it means:** measure f with one probe towed along a line and you know every two-point correlation; g must go
   negative somewhere (fluid crossing a line has to come back). **Fails when:** the turbulence is anisotropic (shear, walls,
   stratification) or two-dimensional (there $g=d(rf)/dr$ and the factors change).
-- **Traps:** using $\delta_{jj}=1$ (it is 3); forgetting $\partial r/\partial r_j=r_j/r$; quoting (12.39) for the tensor as Exercise 12.18 does
-  (slip #14: the tensor is $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40)); confusing these F, G with the jet profiles of (12.56)–(12.57).
+- **Traps:** using $\delta_{jj}=1$ (it is 3); forgetting $\partial r/\partial r_j=r_j/r$; quoting the scale definitions $\Lambda_f\equiv\int_0^\infty f(r)\,dr$, $\lambda_f^2\equiv-2/[d^2f/dr^2]_{r=0}$ (12.39) for the tensor as Exercise 12.18 does
+  (slip #14: the tensor is $R_{ij}=F(r)r_ir_j+G(r)\delta_{ij}$ (12.40)); confusing these F, G with the jet profiles of $U=U_{CL}(x)F(y/\delta(x))$ (12.56) and $-\overline{uv}=\Psi(x)G(y/\delta(x))$ (12.57).
 
 ### D08 · The isotropic dissipation (12.42) → (12.43): moments 2 : 4 : −1 and $\bar\varepsilon=30\nu\overline{u^2}/\lambda_f^2=15\nu\overline{u^2}/\lambda_g^2=15\nu\overline{(\partial u_1/\partial x_1)^2}$ — ★★★, 13 steps, in C05 (notebook)
 - **Goal:** reduce the dissipation rate — an average over nine velocity gradients — to one measurable number. · **Start:**
   $\bar\varepsilon=\dfrac\nu2\,\overline{\Big(\dfrac{\partial u_i}{\partial x_j}+\dfrac{\partial u_j}{\partial x_i}\Big)^2}$ (12.42). · **Plan:** • expand the square and count equal terms using isotropy • express gradient
   moments through the correlation tensor • expand f near r = 0 • read off the three moments and add. · **Tools:** summation
-  convention (ch02); the symmetry statements (12.36)–(12.37); D07's (12.41); Taylor expansion (P26); P297; sympy (P40). ·
+  convention (ch02); the isotropy statements $\overline{(\partial u_1/\partial x_1)^n}=\overline{(\partial u_2/\partial x_2)^n}=\overline{(\partial u_3/\partial x_3)^n}$ (12.36) and $\overline{(\partial u_1/\partial x_2)^n}=\overline{(\partial u_1/\partial x_3)^n}=\dots=\overline{(\partial u_3/\partial x_2)^n}$ (12.37); D07's $R_{ij}=\overline{u^2}\{f\delta_{ij}+\frac r2f'(\delta_{ij}-r_ir_j/r^2)\}$ (12.41); Taylor expansion (P26); P297; sympy (P40). ·
   **Assumptions:** homogeneous, isotropic, incompressible, three-dimensional.
 - **Steps:**
   1. **did** Expand the square · **tex** $\Big(\dfrac{\partial u_i}{\partial x_j}+\dfrac{\partial u_j}{\partial x_i}\Big)^2=2\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_i}{\partial x_j}+2\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_j}{\partial x_i}$ · **why** $(a+b)^2=a^2+2ab+b^2$; summed over i and j, the two squares
      are the same sum (rename i ↔ j). · **plain** Two kinds of double sum.
-  2. **did** Average · **tex** $\bar\varepsilon=\nu\Big[\,\overline{\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_i}{\partial x_j}}+\overline{\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_j}{\partial x_i}}\,\Big]$ · **why** D01's linearity; the factor ½ of (12.42) cancels the 2. · **plain** The
+  2. **did** Average · **tex** $\bar\varepsilon=\nu\Big[\,\overline{\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_i}{\partial x_j}}+\overline{\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_j}{\partial x_i}}\,\Big]$ · **why** D01's linearity; the factor ½ of $\bar\varepsilon=\frac\nu2\overline{(\partial u_i/\partial x_j+\partial u_j/\partial x_i)^2}$ (12.42) cancels the 2. · **plain** The
      dissipation is ν times two sums of nine gradient moments each.
   3. **did** Count the first sum · **tex** $\overline{\dfrac{\partial u_i}{\partial x_j}\dfrac{\partial u_i}{\partial x_j}}=3a+6b,\quad a\equiv\overline{\Big(\dfrac{\partial u_1}{\partial x_1}\Big)^2},\ b\equiv\overline{\Big(\dfrac{\partial u_1}{\partial x_2}\Big)^2}$ · **why** Three terms have i = j; by (12.36),
      $\overline{(\partial u_1/\partial x_1)^n}=\overline{(\partial u_2/\partial x_2)^n}=\overline{(\partial u_3/\partial x_3)^n}$, they are equal. Six have i ≠ j and are equal by (12.37), $\overline{(\partial u_1/\partial x_2)^n}=\overline{(\partial u_1/\partial x_3)^n}=\overline{(\partial u_2/\partial x_1)^n}=\overline{(\partial u_2/\partial x_3)^n}=\overline{(\partial u_3/\partial x_1)^n}=\overline{(\partial u_3/\partial x_2)^n}$. · **plain** Three
@@ -3263,7 +3258,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   5. **did** Add · **tex** $\bar\varepsilon=\nu(6a+6b+6c)=6\nu\Big\{\overline{\Big(\dfrac{\partial u_1}{\partial x_1}\Big)^2}+\overline{\Big(\dfrac{\partial u_1}{\partial x_2}\Big)^2}+\overline{\dfrac{\partial u_1}{\partial x_2}\dfrac{\partial u_2}{\partial x_1}}\Big\}$ · **why** Steps 2–4. This is the first equality of
      (12.43). · **plain** Three different moments — not three equal ones.
   6. **did** Differentiate the correlation once in **r** · **tex** $\dfrac{\partial R_{ij}}{\partial r_l}=\overline{u_i(\mathbf x)\,\dfrac{\partial u_j}{\partial x_l}(\mathbf x+\mathbf r)}$ · **why** **r** appears only in the second factor;
-     the derivative passes through the average (D01's (12.8)). · **plain** One derivative lands on the second velocity.
+     the derivative passes through the average (D01's $\overline{\partial u^m/\partial x_j}=\partial\overline{u^m}/\partial x_j$ (12.8)). · **plain** One derivative lands on the second velocity.
   7. **did** Shift the origin, differentiate again, set r = 0 · **tex** $\dfrac{\partial^2R_{ij}}{\partial r_k\partial r_l}\Big|_{r=0}=-\overline{\dfrac{\partial u_i}{\partial x_k}\dfrac{\partial u_j}{\partial x_l}}$ · **why** By homogeneity
      $\overline{u_i(\mathbf x)\partial_lu_j(\mathbf x+\mathbf r)}=\overline{u_i(\mathbf x'-\mathbf r)\partial_lu_j(\mathbf x')}$; now **r** sits in the first factor with a minus sign. · **plain**
      Gradient moments are (minus) the curvature of the correlation at zero separation.
@@ -3305,14 +3300,14 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **What it means:** oceanographers measure $\overline{(\partial u_1/\partial x_1)^2}$ with a shear probe and multiply by 15ν (or 7.5ν for a transverse
   gradient) to get ε̄. **Fails when:** the small scales are not isotropic (low Reynolds number, strong stratification), or
   in two dimensions (the factor is not 15).
-- **Traps:** assuming the three moments in (12.43)'s bracket are equal; losing the minus sign in step 7; mixing λ_f and λ_g
+- **Traps:** assuming the three moments in the bracket of $\bar\varepsilon=6\nu\big\{\overline{(\partial u_1/\partial x_1)^2}+\overline{(\partial u_1/\partial x_2)^2}+\overline{(\partial u_1/\partial x_2)(\partial u_2/\partial x_1)}\big\}$ (12.43) are equal; losing the minus sign in step 7; mixing λ_f and λ_g
   (a factor 2 in ε̄); using the total variance $2\bar e$ where $\overline{u^2}$ is one component.
 
 ### D09 · The kinetic-energy budget of the mean flow (12.46) — ★★, 9 steps, in C06 (notebook · `turbulent_energy_budget`)
 - **Goal:** find where the mean flow's kinetic energy $\bar E=\tfrac12U_i^2$ goes — in particular, the term that hands energy to the
   turbulence. · **Start:** $\dfrac{\partial U_i}{\partial t}+U_j\dfrac{\partial U_i}{\partial x_j}=-g\big[1-\alpha(\bar T-T_0)\big]\delta_{i3}+\dfrac1{\rho_0}\dfrac{\partial\bar\tau_{ij}}{\partial x_j}$, $\bar\tau_{ij}=-P\delta_{ij}+2\mu\bar S_{ij}-\rho_0\overline{u_iu_j}$ (12.30). · **Plan:** •
   multiply by $U_i$ • turn each product into a derivative of $\bar E$ or a divergence • what cannot be made a divergence is a
-  source or sink. · **Tools:** product rule (P38); mean continuity (12.27); contraction of a symmetric tensor with a velocity
+  source or sink. · **Tools:** product rule (P38); mean continuity $\partial U_i/\partial x_i=0$ (12.27); contraction of a symmetric tensor with a velocity
   gradient (ch02 §2.10). · **Assumptions:** Boussinesq; constant ν.
 - **Steps:**
   1. **did** Multiply the mean momentum equation by $U_i$ (sum over i) · **tex** $U_i\dfrac{\partial U_i}{\partial t}+U_iU_j\dfrac{\partial U_i}{\partial x_j}=-gU_3\big[1-\alpha(\bar T-T_0)\big]+\dfrac{U_i}{\rho_0}\dfrac{\partial\bar\tau_{ij}}{\partial x_j}$ · **why** Force ×
@@ -3337,7 +3332,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      stress — a loss.
   9. **did** Assemble · **tex** $\begin{aligned}\dfrac{\partial\bar E}{\partial t}+U_j\dfrac{\partial\bar E}{\partial x_j}=&\ \dfrac{\partial}{\partial x_j}\Big(-\dfrac{U_jP}{\rho_0}+2\nu U_i\bar S_{ij}-\overline{u_iu_j}U_i\Big)\\&-2\nu\bar S_{ij}\bar S_{ij}+\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}-\dfrac{g}{\rho_0}\bar\rho U_3\end{aligned}$ · **why** Steps 2–8 in step 1. This is (12.46). ·
      **plain** Mean energy changes by transport, direct viscous loss, loss to turbulence and loss to potential energy.
-- **Result:** (12.46) as in step 9 — "the mean flow loses energy to the turbulence at the rate $-\overline{u_iu_j}\,\partial U_i/\partial x_j$".
+- **Result:** $\frac{\partial\bar E}{\partial t}+U_j\frac{\partial\bar E}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac{U_jP}{\rho_0}+2\nu U_i\bar S_{ij}-\overline{u_iu_j}U_i\big)-2\nu\bar S_{ij}\bar S_{ij}+\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}-\frac g{\rho_0}\bar\rho U_3$ (12.46), as in step 9 — "the mean flow loses energy to the turbulence at the rate $-\overline{u_iu_j}\,\partial U_i/\partial x_j$".
 - **Check:** units — every term m²/s³. No fluctuations ⇒ Ch. 4's mechanical-energy equation ✓. Size: direct dissipation /
   production ~ ν/(UL) = 1/Re. Code: `ch12.mean_energy_budget_sympy()` residual 0; integral identity in a channel: pressure
   work = direct dissipation + production (`channel_energy_budget`).
@@ -3348,26 +3343,24 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 
 ### D10 · The turbulent kinetic-energy budget (12.47) — ★★★, 15 steps, in C06 (notebook · `turbulent_energy_budget`)
 - **Goal:** a budget for the turbulent kinetic energy $\bar e=\tfrac12\overline{u_i^2}$: what feeds it, what moves it, what destroys it. ·
-  **Start:** the total momentum equation (4.86) and the mean one (12.30). · **Plan:** • subtract mean from total to get the
+  **Start:** the total (Boussinesq) momentum equation $\frac{\partial\tilde u_i}{\partial t}+\tilde u_j\frac{\partial\tilde u_i}{\partial x_j}=-\frac1{\rho_0}\frac{\partial\tilde p}{\partial x_i}-g[1-\alpha(\tilde T-T_0)]\delta_{i3}+\nu\frac{\partial^2\tilde u_i}{\partial x_j^2}$ (4.86) and the mean one, $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-g[1-\alpha(\bar T-T_0)]\delta_{i3}+\frac1{\rho_0}\frac{\partial\bar\tau_{ij}}{\partial x_j}$ with $\bar\tau_{ij}=-P\delta_{ij}+2\mu\bar S_{ij}-\rho_0\overline{u_iu_j}$ (12.30). · **Plan:** • subtract mean from total to get the
   equation of the fluctuation • multiply by $u_i$ and average • turn each term into a derivative of $\bar e$, a divergence, or a
   source • handle the viscous term last. · **Tools:** D01's rules; product rule on products of three factors (P38);
   $\partial u_i/\partial x_i=0$ (12.28); symmetric contraction (ch02 §2.10); the sympy averaging operator (P294). · **Assumptions:**
   Boussinesq; constant ν; $T'$ is the potential-temperature fluctuation.
 - **Steps:**
-  1. **did** Write the total equation with every field decomposed · **tex** $\begin{aligned}&\dfrac{\partial(U_i+u_i)}{\partial t}+(U_j+u_j)\dfrac{\partial(U_i+u_i)}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial(P+p)}{\partial x_i}\\&\quad-g\big[1-\alpha(\bar T+T'-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2(U_i+u_i)}{\partial x_j^2}\end{aligned}$ · **why** (4.86)
-     with (12.24); the advective form is more convenient here than the flux form of D06. · **plain** The exact equation for
+  1. **did** Write the total equation with every field decomposed · **tex** $\begin{aligned}&\dfrac{\partial(U_i+u_i)}{\partial t}+(U_j+u_j)\dfrac{\partial(U_i+u_i)}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial(P+p)}{\partial x_i}\\&\quad-g\big[1-\alpha(\bar T+T'-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2(U_i+u_i)}{\partial x_j^2}\end{aligned}$ · **why** The Start's Boussinesq equation (4.86), $D\mathbf u/Dt=-\rho_0^{-1}\nabla p'+(\rho'/\rho_0)\mathbf g+\nu\nabla^2\mathbf u$ in Ch. 4, with $\tilde u_i=U_i+u_i$ (12.24); the advective form is more convenient here than the flux form of D06. · **plain** The exact equation for
      mean + fluctuation.
-  2. **did** Write the mean equation in the same form · **tex** $\dfrac{\partial U_i}{\partial t}+U_j\dfrac{\partial U_i}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial P}{\partial x_i}-g\big[1-\alpha(\bar T-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2U_i}{\partial x_j^2}-\dfrac{\partial\overline{u_iu_j}}{\partial x_j}$ · **why** This is D06
-     step 9 with step 10 — (12.30) before the stresses were grouped. · **plain** The equation of the mean alone.
+  2. **did** Write the mean equation in the same form · **tex** $\dfrac{\partial U_i}{\partial t}+U_j\dfrac{\partial U_i}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial P}{\partial x_i}-g\big[1-\alpha(\bar T-T_0)\big]\delta_{i3}+\nu\dfrac{\partial^2U_i}{\partial x_j^2}-\dfrac{\partial\overline{u_iu_j}}{\partial x_j}$ · **why** This is D06 step 9 with step 10 — the mean momentum equation before its stresses were grouped into $\bar\tau_{ij}=-P\delta_{ij}+2\mu\bar S_{ij}-\rho_0\overline{u_iu_j}$ (12.30). · **plain** The equation of the mean alone.
   3. **did** Subtract · **tex** $\dfrac{\partial u_i}{\partial t}+U_j\dfrac{\partial u_i}{\partial x_j}+u_j\dfrac{\partial U_i}{\partial x_j}+u_j\dfrac{\partial u_i}{\partial x_j}-\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial p}{\partial x_i}+g\alpha T'\delta_{i3}+\nu\dfrac{\partial^2u_i}{\partial x_j^2}$ · **why** Total minus mean leaves the
      fluctuation's own equation; $(U_j+u_j)\partial(U_i+u_i)/\partial x_j$ gives four terms, one of which is in the mean equation. ·
      **plain** How one fluctuation evolves: carried by the mean, distorted by the mean shear, acting on itself.
   4. **did** Multiply by $u_i$ and average · **tex** $\overline{u_i\times(\text{step 3})}$ · **why** Force × velocity again (D09 step 1), now for the fluctuation;
      the average is taken because single realizations are not reproducible. Each term is treated in turn below. ·
      **plain** The mean rate of working on the fluctuations.
-  5. **did** Time derivative · **tex** $\overline{u_i\dfrac{\partial u_i}{\partial t}}=\dfrac{\partial}{\partial t}\Big(\tfrac12\overline{u_i^2}\Big)=\dfrac{\partial\bar e}{\partial t}$ · **why** Chain rule backwards, then D01's (12.6). · **plain** The rate of
+  5. **did** Time derivative · **tex** $\overline{u_i\dfrac{\partial u_i}{\partial t}}=\dfrac{\partial}{\partial t}\Big(\tfrac12\overline{u_i^2}\Big)=\dfrac{\partial\bar e}{\partial t}$ · **why** Chain rule backwards, then D01's $\overline{\partial u^m/\partial t}=\partial\overline{u^m}/\partial t$ (12.6). · **plain** The rate of
      change of turbulent kinetic energy.
-  6. **did** Advection by the mean flow · **tex** $U_j\,\overline{u_i\dfrac{\partial u_i}{\partial x_j}}=U_j\dfrac{\partial\bar e}{\partial x_j}$ · **why** $U_j$ is a mean and factors out; chain rule and (12.8). ·
+  6. **did** Advection by the mean flow · **tex** $U_j\,\overline{u_i\dfrac{\partial u_i}{\partial x_j}}=U_j\dfrac{\partial\bar e}{\partial x_j}$ · **why** $U_j$ is a mean and factors out; chain rule and $\overline{\partial u^m/\partial x_j}=\partial\overline{u^m}/\partial x_j$ (12.8). ·
      **plain** Turbulent energy carried along by the mean flow.
   7. **did** The mean-stress term · **tex** $\overline{u_i}\,\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=0$ · **why** $\partial\overline{u_iu_j}/\partial x_j$ is already an average — a "constant" for the averaging
      — and $\overline{u_i}=0$ (12.26). · **plain** This term kept the fluctuation equation mean-free; it does no work on average.
@@ -3376,12 +3369,11 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      mean flow lost, the turbulence gains.
   9. **did** The triple term · **tex** $\overline{u_iu_j\dfrac{\partial u_i}{\partial x_j}}=\overline{u_j\dfrac{\partial}{\partial x_j}\Big(\tfrac12u_i^2\Big)}=\dfrac{\partial}{\partial x_j}\Big(\tfrac12\overline{u_i^2u_j}\Big)$ · **why** Chain rule; then $u_j\,\partial\phi/\partial x_j=\partial(u_j\phi)/\partial x_j$ because
      $\partial u_j/\partial x_j=0$ (12.28). · **plain** The fluctuations carry their own energy about: a divergence, so transport only.
-  10. **did** The pressure term · **tex** $-\dfrac1{\rho_0}\overline{u_i\dfrac{\partial p}{\partial x_i}}=-\dfrac1{\rho_0}\dfrac{\partial}{\partial x_i}\overline{p\,u_i}$ · **why** Product rule: $\partial(pu_i)/\partial x_i=u_i\,\partial p/\partial x_i+p\,\partial u_i/\partial x_i$ and the last
-      term is zero by (12.28). · **plain** Pressure fluctuations only move energy from place to place.
+  10. **did** The pressure term · **tex** $-\dfrac1{\rho_0}\overline{u_i\dfrac{\partial p}{\partial x_i}}=-\dfrac1{\rho_0}\dfrac{\partial}{\partial x_i}\overline{p\,u_i}$ · **why** Product rule: $\partial(pu_i)/\partial x_i=u_i\,\partial p/\partial x_i+p\,\partial u_i/\partial x_i$ and the last term is zero by $\partial u_i/\partial x_i=0$ (12.28). · **plain** Pressure fluctuations only move energy from place to place.
   11. **did** The buoyancy term · **tex** $\overline{u_i\,g\alpha T'\delta_{i3}}=g\alpha\,\overline{u_3T'}$ · **why** $\delta_{i3}$ selects the vertical component; g and α are constants. ·
       **plain** <span style="color:#3b82f6">Buoyant production</span> when warm fluid rises ($\overline{u_3T'}>0$), destruction when the heat flux is downward.
   12. **did** Rewrite the viscous term with the strain rate · **tex** $\dfrac{\partial^2u_i}{\partial x_j^2}=\dfrac{\partial}{\partial x_j}\big(2S'_{ij}\big),\quad S'_{ij}=\tfrac12\Big(\dfrac{\partial u_i}{\partial x_j}+\dfrac{\partial u_j}{\partial x_i}\Big)$ · **why** $\partial(2S'_{ij})/\partial x_j=\partial^2u_i/\partial x_j^2+\partial(\partial u_j/\partial x_j)/\partial x_i$
-      and the last term is zero (12.28). We want the book's form. · **plain** Viscous force = divergence of the viscous
+      and the last term is zero by $\partial u_j/\partial x_j=0$ (12.28). We want the book's form. · **plain** Viscous force = divergence of the viscous
       stress of the fluctuation.
   13. **did** Split it with the product rule · **tex** $\nu\,u_i\dfrac{\partial}{\partial x_j}\big(2S'_{ij}\big)=\dfrac{\partial}{\partial x_j}\big(2\nu\,u_iS'_{ij}\big)-2\nu\,S'_{ij}\dfrac{\partial u_i}{\partial x_j}$ · **why** The same split as D09 step 5: a divergence
       (transport) and a remainder. · **plain** Viscous transport minus viscous deformation work.
@@ -3391,9 +3383,9 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   15. **did** Assemble · **tex** $\begin{aligned}\dfrac{\partial\bar e}{\partial t}+U_j\dfrac{\partial\bar e}{\partial x_j}=&\ \dfrac{\partial}{\partial x_j}\Big(-\dfrac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\tfrac12\overline{u_i^2u_j}\Big)\\&-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}\end{aligned}$ · **why** Steps 5–14 in step 4, transport
       terms gathered in one divergence. This is (12.47). · **plain** Turbulent energy: transport − dissipation + shear
       production ± buoyancy.
-- **Result:** (12.47) as in step 15 — "the turbulence is fed by $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ (and by buoyancy when heated from below) and
+- **Result:** $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47), as in step 15 — "the turbulence is fed by $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ (and by buoyancy when heated from below) and
   drained by $\bar\varepsilon$".
-- **Check:** units — m²/s³. Add (12.46) and (12.47): the production terms cancel — total kinetic energy is only transported,
+- **Check:** units — m²/s³. Add the two budgets: $+\overline{u_iu_j}\,\partial U_i/\partial x_j$ in the mean-flow budget (D09's Result) and $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ in this Result cancel — total kinetic energy is only transported,
   dissipated or exchanged with potential energy ✓. Isotropic turbulence: production = $\overline{u_1^2}\,\partial U_i/\partial x_i=0$ ✓. Homogeneous
   steady shear flow: production = ε̄. Log layer: $u_*^2\cdot u_*/(\kappa z)$ = 6.75 × 10⁻³ m²/s³ for u_* = 0.3 m/s, z = 10 m.
 - **sympy check intent:** run the same moves on a manufactured two-dimensional solenoidal fluctuation and check that each
@@ -3417,7 +3409,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   assert sp.simplify(lhs - rhs) == 0                             # every pointwise identity holds before averaging
   ```
   (The averaging itself — steps 5–8, 11 — is checked by `ch12.tke_budget_sympy()` with the averaging operator of P294, and
-  by `reynolds_stress_budget_sympy()`: half the trace of (12.35) equals (12.47).)
+  by `reynolds_stress_budget_sympy()`: half the trace of the Reynolds-stress equation (N59 in C04) equals this Result.)
 - **What it means:** the three sources and sinks are what every turbulence closure models (C13) and what the Richardson
   numbers compare (C14). **Fails when:** density fluctuations are not small (compressible turbulence has extra pressure–
   dilatation terms).
@@ -3427,15 +3419,14 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   $\tfrac12\overline{u_i^2u_j}$ for the triple correlation everywhere).
 
 ### D11 · $\bar\varepsilon\sim(\Delta U)^3/L$ (12.48)–(12.49), the Kolmogorov scales (12.50), $\eta u_K/\nu=1$ and $\eta/L\sim\mathrm{Re}_L^{-3/4}$ (12.51) — ★, 9 steps, in C07 (notebook · `energy_cascade_spectrum`)
-- **Goal:** estimate how much energy the turbulence dissipates and how small the eddies that do it are. · **Start:** the
-  steady turbulent energy budget (12.47) in a shear flow of velocity difference ΔU across a width L. · **Plan:** • production
+- **Goal:** estimate how much energy the turbulence dissipates and how small the eddies that do it are. · **Start:** the turbulent energy budget $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47), taken steady, in a shear flow of velocity difference ΔU across a width L. · **Plan:** • production
   balances dissipation • estimate production from the large eddies • the smallest eddies know only ν and ε̄: build a length
   and a velocity from them • compare with L. · **Tools:** order-of-magnitude scaling (P130); exponent matching / Π theorem
   (ch01 C69, `DIM.solve_exponents`). · **Assumptions:** stationary turbulence; high Reynolds number; Kolmogorov's first
   hypothesis (small scales depend on ν and ε̄ only).
 - **Steps:**
   1. **did** Balance the budget on average · **tex** $\dot W\equiv-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}=\bar\varepsilon$ · **why** In stationary turbulence $\partial\bar e/\partial t=0$; integrated over the
-     flow the transport terms of (12.47) vanish, leaving production = dissipation. This is $\dot W=\bar\varepsilon$ of (12.49). · **plain**
+     flow the transport (divergence) terms of the Start's budget vanish, leaving production = dissipation. This is $\dot W=\bar\varepsilon$ of (12.49). · **plain**
      What the mean flow supplies is dissipated at the same rate.
   2. **did** Estimate each factor of the production · **tex** $\overline{u_iu_j}\sim(\Delta U)^2,\qquad\dfrac{\partial U_i}{\partial x_j}\sim\dfrac{\Delta U}{L}$ · **why** The large eddies are made by the velocity
      difference, so their velocities are a fraction of ΔU; the mean velocity changes by ΔU over L ("∼" = same order). ·
@@ -3449,8 +3440,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      and of seconds (ch01's Π method). · **plain** Two equations for two exponents.
   6. **did** Solve · **tex** $a=\tfrac34,\ b=-\tfrac14\ \Rightarrow\ \eta=\big(\nu^3/\bar\varepsilon\big)^{1/4}$ · **why** From the second equation a = −3b; then −6b + 2b = 1. This is the first
      of (12.50). · **plain** The Kolmogorov length.
-  7. **did** Repeat for a velocity and a time · **tex** $u_K=(\nu\bar\varepsilon)^{1/4},\qquad\tau_\eta=(\nu/\bar\varepsilon)^{1/2}$ · **why** Same matching with m s⁻¹ and s on the left; the
-     second of (12.50) (the time scale is ours). · **plain** The speed and lifetime of the smallest eddies.
+  7. **did** Repeat for a velocity and a time · **tex** $u_K=(\nu\bar\varepsilon)^{1/4},\qquad\tau_\eta=(\nu/\bar\varepsilon)^{1/2}$ · **why** Same matching with m s⁻¹ and s on the left; the second of $\eta=(\nu^3/\bar\varepsilon)^{1/4}$, $u_K=(\nu\bar\varepsilon)^{1/4}$ (12.50) (the time scale is ours). · **plain** The speed and lifetime of the smallest eddies.
   8. **did** Form their Reynolds number · **tex** $\dfrac{\eta\,u_K}{\nu}=\dfrac{(\nu^3/\bar\varepsilon)^{1/4}(\nu\bar\varepsilon)^{1/4}}{\nu}=1$ · **why** Multiply the two scales; the powers of ε̄ cancel and ν^{3/4+1/4} =
      ν. · **plain** At the Kolmogorov scale inertia and viscosity are equally strong: the cascade stops there.
   9. **did** Eliminate ε̄ with step 3 · **tex** $\dfrac\eta L\sim\dfrac1L\Big(\dfrac{\nu^3L}{(\Delta U)^3}\Big)^{1/4}=\Big(\dfrac{\nu}{\Delta U\,L}\Big)^{3/4}=\mathrm{Re}_L^{-3/4}$ · **why** Substitute $\bar\varepsilon\sim(\Delta U)^3/L$; $L^{1/4}/L=L^{-3/4}$. This is
@@ -3473,7 +3463,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   convention. · **Tools:** units of a spectral density (P293); Π theorem (ch01 C69); log–log slopes (P13). · **Assumptions:**
   high Reynolds number; local isotropy; the inertial range knows neither L nor ν (Kolmogorov's second hypothesis).
 - **Steps:**
-  1. **did** Find the units of the spectrum · **tex** $[S_{11}]=[R_{11}]\,[r_1]=\mathrm m^2\mathrm s^{-2}\times\mathrm m=\mathrm m^3\mathrm s^{-2}$ · **why** In (12.45) a correlation (velocity²) is
+  1. **did** Find the units of the spectrum · **tex** $[S_{11}]=[R_{11}]\,[r_1]=\mathrm m^2\mathrm s^{-2}\times\mathrm m=\mathrm m^3\mathrm s^{-2}$ · **why** In $S_{11}(k_1)=\frac1{2\pi}\int_{-\infty}^{+\infty}R_{11}(r_1)\,e^{-ik_1r_1}\,dr_1$ (12.45) a correlation (velocity²) is
      integrated over a distance; the exponential and 1/2π have no units. · **plain** A spectrum is "variance per unit
      wavenumber".
   2. **did** List what small-scale eddies can depend on · **tex** $S_{11}=\mathrm{fn}(\bar\varepsilon,\ \nu,\ k_1)$ · **why** Far down the cascade the mean shear is forgotten
@@ -3492,8 +3482,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      −5/3. This is (12.54) with the exponent the page misprints as +5/3 (slip #1). · **plain** The −5/3 law.
   7. **did** Check it against the universal form · **tex** $\Phi(k_1\eta)=C_1\,(k_1\eta)^{-5/3}\ \Rightarrow\ S_{11}=C_1u_K^2\eta\,(k_1\eta)^{-5/3}=C_1\bar\varepsilon^{2/3}k_1^{-5/3}$ · **why** $u_K^2\eta^{-2/3}=(\nu\bar\varepsilon)^{1/2}(\nu^3/\bar\varepsilon)^{-1/6}=\bar\varepsilon^{2/3}$:
      ν cancels only for the exponent −5/3. · **plain** The inertial range is the part of Φ where viscosity drops out.
-  8. **did** State the range of validity · **tex** $\dfrac{2\pi}{L}\ll k_1\ll\dfrac{2\pi}{\eta},\qquad\dfrac{L}{\eta}\sim\mathrm{Re}_L^{3/4}$ · **why** Both conditions of step 5; their ratio is D11's
-     (12.51). · **plain** The −5/3 range is ¾ log₁₀Re_L decades wide at most.
+  8. **did** State the range of validity · **tex** $\dfrac{2\pi}{L}\ll k_1\ll\dfrac{2\pi}{\eta},\qquad\dfrac{L}{\eta}\sim\mathrm{Re}_L^{3/4}$ · **why** Both conditions of step 5; their ratio is D11's $\eta/L\sim\mathrm{Re}_L^{-3/4}$ (12.51). · **plain** The −5/3 range is ¾ log₁₀Re_L decades wide at most.
   9. **did** Fix what the constant refers to · **tex** $\displaystyle\int_{-\infty}^{+\infty}S_{11}(k_1)\,dk_1=\overline{u_1^2}=\int_0^{+\infty}2S_{11}(k_1)\,dk_1$ · **why** $S_{11}$ is even (D05), so one-sided
      plots show $2S_{11}$. This is (12.55): a quoted $C_1$ is for the two-sided form; the one-sided constant is twice as
      large. · **plain** Two conventions, a factor 2.
@@ -3516,10 +3505,10 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   scaling (P188, ch09); product rule (P38); integrals over an infinite range (P144). · **Assumptions:** steady in the mean;
   constant density; high Reynolds number; slender (δ ≪ x); still surroundings with uniform pressure.
 - **Steps:**
-  1. **did** Set the scales · **tex** $U\sim U_{CL},\quad x\sim L_x,\quad y\sim\delta\ll L_x,\quad V\sim U_{CL}\,\delta/L_x$ · **why** The jet is long and thin; continuity (12.58) makes
+  1. **did** Set the scales · **tex** $U\sim U_{CL},\quad x\sim L_x,\quad y\sim\delta\ll L_x,\quad V\sim U_{CL}\,\delta/L_x$ · **why** The jet is long and thin; continuity $\partial U/\partial x+\partial V/\partial y=0$ (12.58) makes
      $\partial V/\partial y\sim\partial U/\partial x$, which fixes the size of V (Ch. 9's boundary-layer scaling). · **plain** Cross-stream changes are fast,
      stream-wise ones slow, and V is small.
-  2. **did** Keep the largest terms of the y-equation · **tex** $0\cong-\dfrac1\rho\dfrac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$ · **why** In (12.60) the inertia terms are ~ $U_{CL}^2\delta/L_x^2$, the
+  2. **did** Keep the largest terms of the y-equation · **tex** $0\cong-\dfrac1\rho\dfrac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$ · **why** In the cross-stream equation of the Start the inertia terms are ~ $U_{CL}^2\delta/L_x^2$, the
      stress term $\partial\overline{v^2}/\partial y\sim u'^2/\delta$ is larger by $(L_x/\delta)^2(u'/U_{CL})^2$; only the pressure can balance it. Second of (12.61).
      · **plain** Across the jet, pressure and the normal Reynolds stress add to a constant.
   3. **did** Integrate across the jet · **tex** $P+\rho\,\overline{v^2}=P_\infty$ · **why** Integrate step 2 in y out to the still fluid, where $\overline{v^2}=0$ and the
@@ -3529,7 +3518,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   5. **did** Drop the small terms of the x-equation · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}\cong-\dfrac{\partial\overline{uv}}{\partial y}$ · **why** Viscous terms are ~ 1/Re of the inertia terms;
      pressure and $\overline{u^2}$ gradients were shown small in step 4. First of (12.61). · **plain** Mean advection is balanced by
      the cross-stream gradient of the Reynolds shear stress.
-  6. **did** Add U times the continuity equation · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}+U\Big(\dfrac{\partial U}{\partial x}+\dfrac{\partial V}{\partial y}\Big)=\dfrac{\partial(U^2)}{\partial x}+\dfrac{\partial(VU)}{\partial y}$ · **why** The bracket is zero by (12.58), so
+  6. **did** Add U times the continuity equation · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}+U\Big(\dfrac{\partial U}{\partial x}+\dfrac{\partial V}{\partial y}\Big)=\dfrac{\partial(U^2)}{\partial x}+\dfrac{\partial(VU)}{\partial y}$ · **why** The bracket is zero by $\partial U/\partial x+\partial V/\partial y=0$ (12.58), so
      adding it changes nothing; the product rule then makes exact derivatives. · **plain** Advection as the divergence of a
      momentum flux.
   7. **did** Write the conservation form · **tex** $\dfrac{\partial}{\partial x}\big(U^2\big)+\dfrac{\partial}{\partial y}\big(VU+\overline{uv}\big)\cong0$ · **why** Steps 5 and 6, everything on one side. · **plain** Whatever
@@ -3542,7 +3531,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   10. **did** Integrate in x and multiply by the density · **tex** $J_s\equiv\rho_s\displaystyle\int_{-\infty}^{+\infty}\big[U^2\big]_{x=0}\,dy\cong\rho\int_{-\infty}^{+\infty}U^2\,dy=\mathit{const.}$ · **why** A zero derivative means
       a constant, fixed at the nozzle (x = 0). This is (12.62); downstream the density is the ambient ρ because the jet
       fluid is diluted. · **plain** The momentum flux per unit span is the same at every station.
-- **Result:** (12.61) and $J_s=\rho\int_{-\infty}^{+\infty}U^2dy=\mathit{const.}$ (12.62) — "a jet conserves its momentum flux".
+- **Result:** $U\frac{\partial U}{\partial x}+V\frac{\partial U}{\partial y}\cong-\frac{\partial\overline{uv}}{\partial y}$, $0\cong-\frac1\rho\frac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$ (12.61) and $J_s=\rho\int_{-\infty}^{+\infty}U^2dy=\mathit{const.}$ (12.62) — "a jet conserves its momentum flux".
 - **Check:** units — ρU²·y: kg m⁻³ × m² s⁻² × m = N/m ✓. A top-hat slot of width d: $J_s=\rho_sU_0^2d$. Code: `jet_momentum_flux_per_span`
   flat to 1e-6 along the similarity solution; `thin_shear_layer_terms` prints the dropped terms, of relative order (δ/x)² — small for ξ½ = 0.1 (the builder quotes the printed ratios).
 - **What it means:** with no wall and no pressure gradient nothing can change the jet's momentum; everything else (width,
@@ -3562,7 +3551,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **Steps:**
   1. **did** Solve continuity for V · **tex** $V(x,y)=-\displaystyle\int_0^y\dfrac{\partial U}{\partial x}\,dy$ · **why** Integrate $\partial V/\partial y=-\partial U/\partial x$ (12.58) from the axis, where V = 0 by
      symmetry. · **plain** The cross-flow is whatever is needed to make up for the slowing stream.
-  2. **did** Eliminate V · **tex** $U\dfrac{\partial U}{\partial x}-\Big[\displaystyle\int_0^y\dfrac{\partial U}{\partial x}\,dy\Big]\dfrac{\partial U}{\partial y}\cong-\dfrac{\partial\overline{uv}}{\partial y}$ · **why** Substitute step 1 in (12.61); now only U and $\overline{uv}$ remain. · **plain** One
+  2. **did** Eliminate V · **tex** $U\dfrac{\partial U}{\partial x}-\Big[\displaystyle\int_0^y\dfrac{\partial U}{\partial x}\,dy\Big]\dfrac{\partial U}{\partial y}\cong-\dfrac{\partial\overline{uv}}{\partial y}$ · **why** Substitute step 1 in $U\,\partial U/\partial x+V\,\partial U/\partial y\cong-\partial\overline{uv}/\partial y$ (12.61); now only U and $\overline{uv}$ remain. · **plain** One
      equation for the mean velocity and the shear stress.
   3. **did** Differentiate the similarity variable · **tex** $\dfrac{\partial\xi}{\partial x}=-\dfrac{y\,\delta'}{\delta^2}=-\dfrac{\xi\,\delta'}{\delta},\qquad\dfrac{\partial\xi}{\partial y}=\dfrac1\delta$ · **why** ξ = y/δ(x): at fixed y, ξ decreases as the
      jet widens (P206). A prime on δ, $U_{CL}$ means d/dx. · **plain** A fixed point in space slides inward in the scaled
@@ -3582,18 +3571,17 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
       advection.
   11. **did** Add the two advection terms · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}=U_{CL}U_{CL}'\,F^2-\Big(U_{CL}U_{CL}'+U_{CL}^2\dfrac{\delta'}{\delta}\Big)F'I$ · **why** The two $\xi FF'$ terms of steps 6 and 10
       are equal and opposite and cancel. · **plain** Only two terms survive on the left.
-  12. **did** Differentiate the stress · **tex** $-\dfrac{\partial\overline{uv}}{\partial y}=\dfrac{\partial}{\partial y}\big(\Psi\,G\big)=\dfrac{\Psi}{\delta}\,G'$ · **why** (12.57) and the chain rule of step 5. · **plain** The
+  12. **did** Differentiate the stress · **tex** $-\dfrac{\partial\overline{uv}}{\partial y}=\dfrac{\partial}{\partial y}\big(\Psi\,G\big)=\dfrac{\Psi}{\delta}\,G'$ · **why** $-\overline{uv}=\Psi(x)G(\xi)$ (12.57) and the chain rule of step 5. · **plain** The
       stress gradient in similarity form.
   13. **did** Multiply both sides by $\delta/U_{CL}^2$ · **tex** $\dfrac{\delta\,U_{CL}'}{U_{CL}}F^2-\Big(\dfrac{\delta\,U_{CL}'}{U_{CL}}+\delta'\Big)F'I=\dfrac{\Psi}{U_{CL}^2}G'$ · **why** This makes every coefficient
       dimensionless and puts all the x-dependence into three groups. · **plain** Functions of x multiply functions of ξ.
   14. **did** Write it in the book's form · **tex** $\Big\{\dfrac{\delta U_{CL}'}{U_{CL}}\Big\}F^2-\Big\{\dfrac{\delta U_{CL}'}{U_{CL}}+\delta'\Big\}F'\displaystyle\int_0^\xi F\,d\xi=\Big\{\dfrac{\Psi}{U_{CL}^2}\Big\}G'$ · **why** Replace I by its definition. This is
       (12.63). · **plain** Three brackets that depend on x only; three shape functions that depend on ξ only.
-- **Result:** (12.63) as in step 14 — "self-preservation is possible only if the three brackets behave alike in x".
+- **Result:** $\big\{\frac{\delta U'_{CL}}{U_{CL}}\big\}F^2-\big\{\frac{\delta U'_{CL}}{U_{CL}}+\delta'\big\}F'\int_0^\xi F\,d\xi=\big\{\frac\Psi{U_{CL}^2}\big\}G'$ (12.63), as in step 14 — "self-preservation is possible only if the three brackets behave alike in x".
 - **Check:** units — every bracket is dimensionless (δ × (1/x) ; Ψ/U² with Ψ in m²/s²). With δ = x, $U_{CL}\propto x^{-1/2}$: brackets
   −½, +½, $C_3$, and the left side is the exact derivative $-\tfrac12(FI)'$ (used in D15 step 8). Symmetry: left side even in ξ,
   so G′ is even and G odd ✓.
-- **sympy check intent:** take concrete power-law scales and a Gaussian F, compute U, V from continuity and the left side
-  of (12.61) directly, and compare with the left side of (12.63). `check_src` sketch:
+- **sympy check intent:** take concrete power-law scales and a Gaussian F, compute U, V from continuity and $U\,\partial U/\partial x+V\,\partial U/\partial y$ (the left side of the thin-layer equation in the Start) directly, and compare with $(U_{CL}^2/\delta)\big[\{\delta U'_{CL}/U_{CL}\}F^2-\{\delta U'_{CL}/U_{CL}+\delta'\}F'\int_0^\xi F\,d\xi\big]$, the left side of the Result. `check_src` sketch:
   ```python
   import sympy as sp                                              # symbolic algebra
   x, y, s, a, c4 = sp.symbols("x y s a c4", positive=True)        # s is a dummy for the y-integral
@@ -3634,13 +3622,12 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      separable: $dU_{CL}/U_{CL}=C_1\,dx/x$. · **plain** The centreline speed is a power of x — which power is not yet known.
   5. **did** Put the similarity form in the invariant · **tex** $J_s=\rho\,U_{CL}^2\,\delta\displaystyle\int_{-\infty}^{+\infty}F^2(\xi)\,d\xi=\rho\,C_4^2\,x^{2\gamma+1}\int_{-\infty}^{+\infty}F^2(\xi)\,d\xi$ · **why** $U=U_{CL}F$, dy = δ dξ, δ = x. This
      is (12.65). · **plain** The momentum flux as a power of x times a pure number.
-  6. **did** Demand that it does not depend on x · **tex** $2\gamma+1=0\ \Rightarrow\ \gamma=-\tfrac12$ · **why** $J_s$ is the same at every x (12.62), so the exponent of x
+  6. **did** Demand that it does not depend on x · **tex** $2\gamma+1=0\ \Rightarrow\ \gamma=-\tfrac12$ · **why** $J_s=\rho\int U^2dy=\mathit{const.}$ (12.62) is the same at every x, so the exponent of x
      must be zero (P197). · **plain** Conservation of momentum fixes the decay exponent.
   7. **did** Write the far-field velocity · **tex** $U(x,y)=C_5\,(J_s/\rho)^{1/2}\,x^{-1/2}\,F(y/x),\qquad C_5=\Big(\displaystyle\int_{-\infty}^{+\infty}F^2\,d\xi\Big)^{-1/2}$ · **why** From step 5 with γ = −½:
-     $C_4=(J_s/\rho)^{1/2}(\int F^2)^{-1/2}$. This is (12.66); $C_5=C_4(\rho/J_s)^{1/2}$ (the text's "C₄" after (12.67) is this C₅ — slip
+     $C_4=(J_s/\rho)^{1/2}(\int F^2)^{-1/2}$. This is (12.66); $C_5=C_4(\rho/J_s)^{1/2}$ (the text's "C₄" after $-\overline{uv}=C_3C_5^2(J_s/\rho)x^{-1}G(y/x)$ (12.67) is this C₅ — slip
      #4). · **plain** The whole mean velocity field from one invariant and one shape.
-  8. **did** Integrate the similarity equation once · **tex** $-\tfrac12\big(F\,I\big)'=C_3\,G'\ \Rightarrow\ C_3\,G(\xi)=-\tfrac12F(\xi)\displaystyle\int_0^\xi F\,d\xi$ · **why** With $C_1=-\tfrac12$, $C_2=+\tfrac12$ the left
-     side of (12.63) is $-\tfrac12F^2-\tfrac12F'I=-\tfrac12(FI)'$; G(0) = 0. Then $-\overline{uv}=C_3U_{CL}^2G=C_3C_5^2(J_s/\rho)x^{-1}G(y/x)$ (12.67). ·
+  8. **did** Integrate the similarity equation once · **tex** $-\tfrac12\big(F\,I\big)'=C_3\,G'\ \Rightarrow\ C_3\,G(\xi)=-\tfrac12F(\xi)\displaystyle\int_0^\xi F\,d\xi$ · **why** With $C_1=-\tfrac12$, $C_2=+\tfrac12$ the left side of the similarity equation (D14's Result) is $-\tfrac12F^2-\tfrac12F'I=-\tfrac12(FI)'$; G(0) = 0. Then $-\overline{uv}=C_3U_{CL}^2G=C_3C_5^2(J_s/\rho)x^{-1}G(y/x)$ (12.67). ·
      **plain** The shear-stress shape follows from the velocity shape; it is negative where dU/dy is negative.
   9. **did** Integrate the velocity across the jet · **tex** $\dot V(x)=\displaystyle\int_{-\infty}^{+\infty}U\,dy=C_5\,(J_s/\rho)^{1/2}\,x^{+1/2}\int_{-\infty}^{+\infty}F(\xi)\,d\xi$ · **why** dy = x dξ turns $x^{-1/2}$ into
      $x^{+1/2}$. This is (12.68). · **plain** The volume flux grows downstream: the jet entrains.
@@ -3675,7 +3662,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   3. **did** Round jet: integrate the momentum flux over a disc · **tex** $\displaystyle\int_0^\infty\rho U^2\,2\pi r\,dr\propto U_s^2\,\delta^2=\text{const}\ \Rightarrow\ 2n+2m=0\ \Rightarrow\ n=-1$ · **why** The area element
      is 2πr dr, so the invariant carries δ² instead of δ; m = 1 from step 1. · **plain** A round jet slows faster, as 1/x.
   4. **did** Round jet: scalar and Reynolds number · **tex** $Y_s\,U_s\,\delta^2=\text{const}\ \Rightarrow\ Y_s\propto x^{-1};\qquad\dfrac{U_s\delta}{\nu}\propto x^{\,n+m}=x^{0}$ · **why** The flux of nozzle fluid is
-     conserved (the analogue of (12.70)); the local Reynolds number is the product of the scales. · **plain** A round jet
+     conserved (the analogue of $\dot M_s\cong\rho\int\bar YU\,dy$ (12.70)); the local Reynolds number is the product of the scales. · **plain** A round jet
      keeps the Reynolds number it started with.
   5. **did** Wakes: change the growth law · **tex** $\dfrac{d\delta}{dx}\sim\dfrac{u'}{U_\infty}\sim\dfrac{\Delta U}{U_\infty}\ \Rightarrow\ m-1=n$ · **why** A wake's deficit ΔU ≪ $U_\infty$ is carried at the
      free-stream speed (advection linearised to $U_\infty\,\partial/\partial x$) while it spreads at u′ ∝ ΔU: the ratio is no longer constant.
@@ -3713,7 +3700,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 
 ### D17 · The linear total stress $\bar\tau=\tau_0(1-2y/h)$ from (12.76)–(12.77), and $dP/dx=-2\tau_0/h$ (12.90), $-4\tau_0/d$ (12.91) — ★★, 9 steps, in C10 (notebook · `law_of_the_wall`)
 - **Goal:** show that in a fully developed channel the total shear stress is a straight line across the channel, whatever
-  the turbulence does. · **Start:** the constant-density mean momentum equation (12.30) for flow between walls at y = 0 and
+  the turbulence does. · **Start:** the constant-density form of the mean momentum equation (12.30), $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=\frac1\rho\frac{\partial\bar\tau_{ij}}{\partial x_j}$ with $\bar\tau_{ij}=-P\delta_{ij}+2\mu\bar S_{ij}-\rho\overline{u_iu_j}$, for flow between walls at y = 0 and
   y = h. · **Plan:** • use "fully developed" to delete terms • the wall-normal equation fixes how pressure varies with y • a
   function of y equal to a function of x is a constant • integrate and use symmetry. · **Tools:** fully developed flow
   (ch08); separation argument (P167); integration of a constant; control-volume balance (ch08 D07). · **Assumptions:** steady
@@ -3722,7 +3709,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   1. **did** Apply "fully developed" · **tex** $\dfrac{\partial}{\partial x}\big(\text{any mean velocity or Reynolds stress}\big)=0,\qquad V=0$ · **why** Far from the inlet the statistics no longer change
      downstream; then continuity gives $\partial V/\partial y=0$, and V = 0 at the wall, so V = 0 everywhere. Only P may depend on x. ·
      **plain** A mean flow U(y) only.
-  2. **did** Reduce the stream-wise equation · **tex** $0=-\dfrac{\partial P}{\partial x}+\dfrac{\partial\bar\tau}{\partial y},\qquad\bar\tau=\mu\dfrac{\partial U}{\partial y}-\rho_0\overline{uv}$ · **why** The left side of (12.30) vanishes (steady, V = 0,
+  2. **did** Reduce the stream-wise equation · **tex** $0=-\dfrac{\partial P}{\partial x}+\dfrac{\partial\bar\tau}{\partial y},\qquad\bar\tau=\mu\dfrac{\partial U}{\partial y}-\rho_0\overline{uv}$ · **why** The left side of the Start, $\partial U_i/\partial t+U_j\,\partial U_i/\partial x_j$, vanishes (steady, V = 0,
      ∂U/∂x = 0); of the stress divergence only the y-derivative of the xy-component remains. First of (12.76). · **plain**
      Pressure gradient balances the gradient of the total shear stress.
   3. **did** Reduce the wall-normal equation · **tex** $0=-\dfrac{\partial}{\partial y}\big(P+\rho\,\overline{v^2}\big)$ · **why** Same reduction for the y-component: only pressure and the normal
@@ -3750,7 +3737,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **What it means:** very near the wall (y ≪ h) the stress is nearly the constant τ₀ — the "constant-stress layer" on which
   the law of the wall (D18) and the mixing-length model (D21) stand. **Fails when:** the flow is still developing, or the
   walls differ (the zero-stress point moves off the centreline).
-- **Traps:** using the half-height in (12.90) (h is the full height); thinking ⟨v²⟩ changes dP/dx; citing the proof as
+- **Traps:** using the half-height in $dP/dx=-2\tau_0/h$ (12.90) (h is the full height); thinking ⟨v²⟩ changes dP/dx; citing the proof as
   Exercise 12.31 (slip #7: it is 12.32).
 
 ### D18 · The law of the wall (12.80) with $u_*$ (12.81), and the viscous sublayer $U^+=y^+$ (12.82) — ★, 7 steps, in C10 (notebook · `law_of_the_wall`)
@@ -3867,7 +3854,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   formula (P159); limits; `cumulative_trapezoid` (P190). · **Assumptions:** unidirectional mean flow U(y); zero pressure
   gradient near the wall (constant-stress layer, D17); the eddy size is proportional to the distance from the wall.
 - **Steps:**
-  1. **did** Specialise the hypothesis to U(y) · **tex** $-\overline{uv}=\nu_T\dfrac{dU}{dy}$ · **why** In (12.94) take i = 1, j = 2: $\delta_{12}=0$ and only $\partial U_1/\partial x_2=dU/dy$
+  1. **did** Specialise the hypothesis to U(y) · **tex** $-\overline{uv}=\nu_T\dfrac{dU}{dy}$ · **why** In $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94) take i = 1, j = 2: $\delta_{12}=0$ and only $\partial U_1/\partial x_2=dU/dy$
      is non-zero. · **plain** The Reynolds shear stress is modelled like a viscous stress with a different viscosity.
   2. **did** Estimate the eddy viscosity · **tex** $\nu_T\sim l_T\,u_T$ · **why** A diffusivity is a length times a velocity (units m²/s); for turbulence
      the carriers are eddies of size $l_T$ and speed $u_T$. This is (12.98). · **plain** Big, fast eddies mix more.
@@ -3875,7 +3862,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      velocity excess $l_T\,dU/dy$ (the parcel argument of C04); the proportionality constant is absorbed into $l_T$. · **plain**
      The stress grows as the square of the shear.
   4. **did** Choose the length near a wall and insert · **tex** $l_T=\kappa y:\qquad0=-\dfrac1\rho\dfrac{dP}{dx}+\dfrac{\partial}{\partial y}\Big(\nu\dfrac{dU}{dy}+\kappa^2y^2\Big(\dfrac{dU}{dy}\Big)^2\Big)$ · **why** An eddy cannot be larger than its
-     distance from the wall, so $l_T\propto y$; put step 3 into (12.99). This is (12.100). · **plain** One equation for U(y)
+     distance from the wall, so $l_T\propto y$; put step 3 into $0=-\frac1\rho\frac{dP}{dx}+\frac{\partial}{\partial y}\big(\nu\frac{\partial U}{\partial y}-\overline{uv}\big)$ (12.99). This is (12.100). · **plain** One equation for U(y)
      with one constant, κ.
   5. **did** Integrate once at zero pressure gradient · **tex** $\nu\dfrac{dU}{dy}+\kappa^2y^2\Big(\dfrac{dU}{dy}\Big)^2=\text{const}$ · **why** With dP/dx = 0 the bracket has zero derivative,
      so it is constant. · **plain** The total stress — viscous plus turbulent — is the same at every height.
@@ -3919,35 +3906,34 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
      diffusivity $\nu_T/\sigma_e$ ($\sigma_e$ = a constant of order one). A model, not a theorem. · **plain** Turbulent energy
      diffuses like a scalar.
   3. **did** Name the dissipation and keep the production exact · **tex** $\dfrac{\partial\bar e}{\partial t}+U_j\dfrac{\partial\bar e}{\partial x_j}=\dfrac{\partial}{\partial x_j}\Big(\dfrac{\nu_T}{\sigma_e}\dfrac{\partial\bar e}{\partial x_j}\Big)-\bar\varepsilon-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}$ · **why** $\bar\varepsilon\equiv2\nu\overline{S'_{ij}S'_{ij}}$ becomes an
-     unknown of its own; the production needs no model once $\overline{u_iu_j}$ is given by (12.94). This is (12.103). · **plain**
+     unknown of its own; the production needs no model once $\overline{u_iu_j}$ is given by the closure $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94). This is (12.103). · **plain**
      A transport equation for ē with one diffusion term, one sink, one source.
   4. **did** Build scales from ē and ε̄ · **tex** $u_T=\sqrt{\bar e},\qquad t_T=\dfrac{\bar e}{\bar\varepsilon},\qquad l_T=u_T\,t_T=\dfrac{\bar e^{3/2}}{\bar\varepsilon}$ · **why** ē [m²/s²] gives a velocity; ē/ε̄ [s] is the
      time in which dissipation would use up the energy; their product is a length. · **plain** The eddies' speed, lifetime
      and size from the two model variables.
-  5. **did** Form the eddy viscosity · **tex** $\nu_T=C_\mu\,l_T\,u_T=C_\mu\Big[\dfrac{\bar e^{3/2}}{\bar\varepsilon}\Big]\sqrt{\bar e}=C_\mu\dfrac{\bar e^{\,2}}{\bar\varepsilon}$ · **why** (12.98) with step 4; $C_\mu$ is the proportionality
+  5. **did** Form the eddy viscosity · **tex** $\nu_T=C_\mu\,l_T\,u_T=C_\mu\Big[\dfrac{\bar e^{3/2}}{\bar\varepsilon}\Big]\sqrt{\bar e}=C_\mu\dfrac{\bar e^{\,2}}{\bar\varepsilon}$ · **why** $\nu_T\sim l_Tu_T$ (12.98) with step 4; $C_\mu$ is the proportionality
      constant. This is (12.104). · **plain** More energy, or slower dissipation, means more mixing.
-  6. **did** Write the production with the model stress · **tex** $-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}=2\nu_T\,\bar S_{ij}\bar S_{ij}\ \ge0$ · **why** Insert (12.94): the $\tfrac23\bar e\delta_{ij}$ part
+  6. **did** Write the production with the model stress · **tex** $-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}=2\nu_T\,\bar S_{ij}\bar S_{ij}\ \ge0$ · **why** Insert $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94): the $\tfrac23\bar e\delta_{ij}$ part
      contracts to $\partial U_i/\partial x_i=0$ (12.27); the rest is a symmetric contraction. · **plain** In this model production can never
      be negative.
-- **Result:** (12.103) with $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104) — "two fields, ē and ε̄, give a viscosity everywhere".
+- **Result:** $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\frac{\nu_T}{\sigma_e}\frac{\partial\bar e}{\partial x_j}\big)-\bar\varepsilon-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}$ (12.103) with $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104) — "two fields, ē and ε̄, give a viscosity everywhere".
 - **Check:** units — ē²/ε̄: (m²/s²)²/(m²/s³) = m²/s ✓. Number: ē = 1 m²/s², ε̄ = 1 m²/s³, $C_\mu$ = 0.09 ⇒ ν_T = 0.09 m²/s, l_T = 1 m.
-- **What it means:** the model still needs an equation for ε̄ — (12.105), built by analogy rather than derived. **Fails
+- **What it means:** the model still needs an equation for ε̄ — $\frac{\partial\bar\varepsilon}{\partial t}+U_j\frac{\partial\bar\varepsilon}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\frac{\nu_T}{\sigma_\varepsilon}\frac{\partial\bar\varepsilon}{\partial x_j}\big)-C_{\varepsilon1}\big(\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}\big)\frac{\bar\varepsilon}{\bar e}-C_{\varepsilon2}\frac{\bar\varepsilon^2}{\bar e}$ (12.105), built by analogy rather than derived. **Fails
   when:** transport is not gradient-like (counter-gradient fluxes in convection), or the stress is not aligned with the
   mean strain (strong rotation, curvature).
-- **Traps:** thinking (12.103) is exact (two of its terms are models); writing the book's printed $u_j$ in the viscous
-  transport (slip #8: it is $2\nu\overline{u_iS'_{ij}}$ as in (12.47)).
+- **Traps:** thinking the Result is exact (two of its terms are models); writing the book's printed $u_j$ in the viscous
+  transport (slip #8: it is $2\nu\overline{u_iS'_{ij}}$, the viscous transport of the exact budget in the Start).
 
 ### D23 · What fixes the k–ε constants: decay $\bar e\propto(t+t_0)^{-n}$, $n=1/(C_{\varepsilon2}-1)$, and the log layer $\kappa^2=\sqrt{C_\mu}(C_{\varepsilon2}-C_{\varepsilon1})\sigma_\varepsilon$ — ★★, 12 steps, in C13 (notebook)
 - **Goal:** show that two of the model's constants are tied to things one can measure — how fast grid turbulence decays,
-  and the von Kármán constant. The book states the constants; this derivation is ours. · **Start:** (12.103) and
-  $\dfrac{\partial\bar\varepsilon}{\partial t}+U_j\dfrac{\partial\bar\varepsilon}{\partial x_j}=\dfrac{\partial}{\partial x_j}\Big(\dfrac{\nu_T}{\sigma_\varepsilon}\dfrac{\partial\bar\varepsilon}{\partial x_j}\Big)-C_{\varepsilon1}\Big(\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}\Big)\dfrac{\bar\varepsilon}{\bar e}-C_{\varepsilon2}\dfrac{\bar\varepsilon^{\,2}}{\bar e}$ (12.105). · **Plan:** • homogeneous decay: two ODEs, divide them, integrate
+  and the von Kármán constant. The book states the constants; this derivation is ours. · **Start:** $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(\frac{\nu_T}{\sigma_e}\frac{\partial\bar e}{\partial x_j}\big)-\bar\varepsilon-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}$ (12.103) and $\dfrac{\partial\bar\varepsilon}{\partial t}+U_j\dfrac{\partial\bar\varepsilon}{\partial x_j}=\dfrac{\partial}{\partial x_j}\Big(\dfrac{\nu_T}{\sigma_\varepsilon}\dfrac{\partial\bar\varepsilon}{\partial x_j}\Big)-C_{\varepsilon1}\Big(\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}\Big)\dfrac{\bar\varepsilon}{\bar e}-C_{\varepsilon2}\dfrac{\bar\varepsilon^{\,2}}{\bar e}$ (12.105). · **Plan:** • homogeneous decay: two ODEs, divide them, integrate
   twice • log layer: production = dissipation, uniform ē, and what is left of the ε̄ equation. · **Tools:** dividing two
   ODEs (P303, primer above); separable ODE; the log-layer values of C11. · **Assumptions:** (a) homogeneous turbulence with
   no mean shear; (b) a steady constant-stress layer in local equilibrium.
 - **Steps:**
   1. **did** Reduce the ē equation for decaying homogeneous turbulence · **tex** $\dfrac{d\bar e}{dt}=-\bar\varepsilon$ · **why** Homogeneous: every spatial derivative of a
      statistic vanishes (no transport, no advection); no mean shear: no production. · **plain** The energy only decays.
-  2. **did** Reduce the ε̄ equation the same way · **tex** $\dfrac{d\bar\varepsilon}{dt}=-C_{\varepsilon2}\dfrac{\bar\varepsilon^{\,2}}{\bar e}$ · **why** Only the destruction term of (12.105) survives. · **plain** The
+  2. **did** Reduce the ε̄ equation the same way · **tex** $\dfrac{d\bar\varepsilon}{dt}=-C_{\varepsilon2}\dfrac{\bar\varepsilon^{\,2}}{\bar e}$ · **why** Only the destruction term $-C_{\varepsilon2}\bar\varepsilon^2/\bar e$ of the Start's ε̄ equation survives. · **plain** The
      dissipation rate decays too, at a rate set by one constant.
   3. **did** Divide the second by the first · **tex** $\dfrac{d\bar\varepsilon}{d\bar e}=C_{\varepsilon2}\dfrac{\bar\varepsilon}{\bar e}$ · **why** $d\bar\varepsilon/d\bar e=(d\bar\varepsilon/dt)/(d\bar e/dt)$ eliminates time (P303). · **plain** How ε̄
      changes as ē falls.
@@ -3960,11 +3946,11 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   7. **did** Solve for ē · **tex** $\bar e=\bar e_0\Big(1+\dfrac{t}{t_0}\Big)^{-n},\quad n=\dfrac{1}{C_{\varepsilon2}-1},\quad t_0=\dfrac{n\,\bar e_0}{\bar\varepsilon_0};\qquad\bar\varepsilon=\bar\varepsilon_0\Big(1+\dfrac{t}{t_0}\Big)^{-(n+1)}$ · **why** Raise step 6 to the power −n; ε̄ from
      step 1 by differentiation. · **plain** Power-law decay: the exponent is measured behind grids, so it fixes $C_{\varepsilon2}$.
   8. **did** In a log layer set production equal to dissipation · **tex** $\bar\varepsilon=-\overline{uv}\dfrac{dU}{dy}=u_*^2\cdot\dfrac{u_*}{\kappa y}=\dfrac{u_*^3}{\kappa y}$ · **why** Steady, with ē uniform (step 10)
-     there is no transport in (12.103); the log-layer values are $-\overline{uv}=u_*^2$, $dU/dy=u_*/(\kappa y)$ from (12.88). · **plain**
+     there is no transport in the Start's ē equation; the log-layer values are $-\overline{uv}=u_*^2$, $dU/dy=u_*/(\kappa y)$ from $U^+=\tfrac1\kappa\ln y^++B$ (12.88). · **plain**
      Local equilibrium: what is produced at a height is dissipated there.
   9. **did** Find the eddy viscosity there · **tex** $\nu_T=\dfrac{-\overline{uv}}{dU/dy}=\kappa\,u_*\,y$ · **why** Definition of ν_T for a simple shear (D21 step 1). · **plain**
      The eddy viscosity grows linearly with height.
-  10. **did** Use the model's formula for ν_T · **tex** $\kappa u_*y=C_\mu\dfrac{\bar e^{\,2}}{\bar\varepsilon}=C_\mu\,\bar e^{\,2}\,\dfrac{\kappa y}{u_*^3}\ \Rightarrow\ \bar e=\dfrac{u_*^2}{\sqrt{C_\mu}}$ · **why** (12.104) with step 8; y cancels, so ē
+  10. **did** Use the model's formula for ν_T · **tex** $\kappa u_*y=C_\mu\dfrac{\bar e^{\,2}}{\bar\varepsilon}=C_\mu\,\bar e^{\,2}\,\dfrac{\kappa y}{u_*^3}\ \Rightarrow\ \bar e=\dfrac{u_*^2}{\sqrt{C_\mu}}$ · **why** $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104) with step 8; y cancels, so ē
       is the same at every height — which justifies dropping its transport. · **plain** In the log layer the turbulent
       energy is a fixed multiple of u_*².
   11. **did** Reduce the ε̄ equation in the log layer · **tex** $0=\dfrac{d}{dy}\Big(\dfrac{\nu_T}{\sigma_\varepsilon}\dfrac{d\bar\varepsilon}{dy}\Big)+\big(C_{\varepsilon1}-C_{\varepsilon2}\big)\dfrac{\bar\varepsilon^{\,2}}{\bar e}$ · **why** Steady, V = 0; the production
@@ -3987,7 +3973,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 
 ### D24 · The reduced budget (12.106), the flux Richardson number (12.107) and $\mathrm{Ri}=(\nu_T/\kappa_T)\mathrm{Rf}$ (12.109) — ★, 8 steps, in C14 (notebook · `stratified_surface_layer`)
 - **Goal:** one number that says whether a stratified shear flow can keep its turbulence alive, and its link to the number
-  one can measure from mean profiles. · **Start:** the turbulent energy budget (12.47) and the closures
+  one can measure from mean profiles. · **Start:** the turbulent energy budget $\frac{\partial\bar e}{\partial t}+U_j\frac{\partial\bar e}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\frac12\overline{u_i^2u_j}\big)-2\nu\overline{S'_{ij}S'_{ij}}-\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}+g\alpha\overline{u_3T'}$ (12.47) and the closures
   $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94), $\overline{u_iT'}=-\kappa_T\,\partial\bar T/\partial x_i$ (12.95). · **Plan:** • specialise the budget to a mean flow U(z) with
   horizontally uniform statistics • take the ratio of the buoyancy term to the shear production • substitute the two
   closures. · **Tools:** horizontal homogeneity; substitution; N² from the potential-temperature gradient (ch01, R05). ·
@@ -3995,8 +3981,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   $\bar T$, $T'$ are **potential** temperature.
 - **Steps:**
   1. **did** Specialise the left side and the transport · **tex** $\dfrac{\partial\bar e}{\partial t}+U\dfrac{\partial\bar e}{\partial x}=-\dfrac{\partial}{\partial z}\Big(\dfrac1{\rho_0}\overline{pw}+\tfrac12\overline{u_i^2w}\Big)+\dots$ · **why** The mean flow is (U(z), 0, 0), so
-     $U_j\partial/\partial x_j=U\partial/\partial x$; transport fluxes can vary only with z; viscous transport is negligible at high Re. (Triple
-     correlation written as in (12.47): slip #10.) · **plain** Energy is carried along x by the wind and redistributed
+     $U_j\partial/\partial x_j=U\partial/\partial x$; transport fluxes can vary only with z; viscous transport is negligible at high Re. (Triple correlation written $\tfrac12\overline{u_i^2u_j}$, as in the Start: slip #10.) · **plain** Energy is carried along x by the wind and redistributed
      vertically.
   2. **did** Specialise the shear production · **tex** $-\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}=-\overline{uw}\dfrac{dU}{dz}$ · **why** The only non-zero mean gradient is $\partial U_1/\partial x_3=dU/dz$. ·
      **plain** Production by the vertical shear of the wind.
@@ -4008,12 +3993,12 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   5. **did** Take the ratio · **tex** $\mathrm{Rf}\equiv\dfrac{-g\alpha\,\overline{wT'}}{-\overline{uw}\,(dU/dz)}=\dfrac{\text{buoyant destruction}}{\text{shear production}}$ · **why** Dividing two terms of one budget gives a pure number
      that does not depend on units or on the size of the flow. This is (12.107). · **plain** The fraction of the shear
      production that buoyancy takes away (negative when buoyancy adds).
-  6. **did** Model the two fluxes · **tex** $-\overline{uw}=\nu_T\dfrac{dU}{dz},\qquad\overline{wT'}=-\kappa_T\dfrac{d\bar T}{dz}$ · **why** (12.94) with i = 1, j = 3 and (12.95) with i = 3: eddy
+  6. **did** Model the two fluxes · **tex** $-\overline{uw}=\nu_T\dfrac{dU}{dz},\qquad\overline{wT'}=-\kappa_T\dfrac{d\bar T}{dz}$ · **why** The Start's closures: $\overline{u_iu_j}=\tfrac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94) with i = 1, j = 3 and $\overline{u_iT'}=-\kappa_T\,\partial\bar T/\partial x_i$ (12.95) with i = 3: eddy
      viscosity $\nu_T$ and eddy diffusivity $\kappa_T$ (not the molecular κ, not von Kármán's). · **plain** Fluxes run down the mean
      gradients.
   7. **did** Substitute into Rf · **tex** $\mathrm{Rf}=\dfrac{g\alpha\,\kappa_T\,(d\bar T/dz)}{\nu_T\,(dU/dz)^2}=\dfrac{\kappa_T}{\nu_T}\,\dfrac{g\alpha\,(d\bar T/dz)}{(dU/dz)^2}$ · **why** The two minus signs in the numerator cancel. · **plain** The
      flux ratio in terms of mean gradients.
-  8. **did** Recognise the gradient Richardson number · **tex** $\mathrm{Ri}\equiv\dfrac{N^2}{(dU/dz)^2}=\dfrac{\alpha g\,(d\bar T/dz)}{(dU/dz)^2}\ \Rightarrow\ \mathrm{Ri}=\dfrac{\nu_T}{\kappa_T}\,\mathrm{Rf}$ · **why** (12.108) with $N^2=g\alpha\,d\bar T/dz$ for
+  8. **did** Recognise the gradient Richardson number · **tex** $\mathrm{Ri}\equiv\dfrac{N^2}{(dU/dz)^2}=\dfrac{\alpha g\,(d\bar T/dz)}{(dU/dz)^2}\ \Rightarrow\ \mathrm{Ri}=\dfrac{\nu_T}{\kappa_T}\,\mathrm{Rf}$ · **why** $\mathrm{Ri}\equiv N^2/(dU/dz)^2$ (12.108) with $N^2=g\alpha\,d\bar T/dz$ for
      potential temperature. This is (12.109). · **plain** The measurable Ri is Rf times the turbulent Prandtl number.
 - **Result:** $\mathrm{Rf}=\dfrac{-g\alpha\overline{wT'}}{-\overline{uw}(dU/dz)}$ (12.107); $\mathrm{Ri}=(\nu_T/\kappa_T)\mathrm{Rf}$ (12.109) — "Rf compares what buoyancy removes with what
   shear supplies".
@@ -4024,7 +4009,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **What it means:** in steady state without transport, $\bar\varepsilon=P(1-\mathrm{Rf})$: observations show turbulence cannot sustain
   itself when Rf exceeds about ¼ (dissipation needs the rest). **Fails when:** transport is important (the top of a
   convective layer), or the flow is not horizontally uniform.
-- **Traps:** the sign of Rf (upward heat flux ⇒ negative); using the thermometer gradient in (12.108) without subtracting
+- **Traps:** the sign of Rf (upward heat flux ⇒ negative); using the thermometer gradient in $\mathrm{Ri}=\alpha g(d\bar T/dz)/(dU/dz)^2$ (12.108) without subtracting
   $\Gamma_a$ (an isothermal layer would look neutral instead of strongly stable); confusing the observed $\mathrm{Rf}_{cr}\approx\tfrac14$ with
   Ch. 11's theorem Ri > ¼; three different κ's on one page.
 
@@ -4039,10 +4024,9 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   1. **did** Take the stress and shear of the neutral log layer · **tex** $-\overline{uw}=u_*^2,\qquad\dfrac{dU}{dz}=\dfrac{u_*}{\kappa z}$ · **why** Close to the ground the stress is the
      surface stress ($u_*^2\equiv\tau_0/\rho$ (12.81)) and differentiating $U^+=\tfrac1\kappa\ln y^++B$ (12.88) gives the shear. Here κ is
      von Kármán's constant. · **plain** Near the ground: constant stress, shear ∝ 1/z.
-  2. **did** Put them into Rf · **tex** $\mathrm{Rf}=\dfrac{-g\alpha\,\overline{wT'}}{u_*^2\cdot u_*/(\kappa z)}=-\dfrac{\kappa\,\alpha\,g\,\overline{wT'}}{u_*^3}\,z$ · **why** Substitution in (12.107). · **plain** Rf grows in proportion to
+  2. **did** Put them into Rf · **tex** $\mathrm{Rf}=\dfrac{-g\alpha\,\overline{wT'}}{u_*^2\cdot u_*/(\kappa z)}=-\dfrac{\kappa\,\alpha\,g\,\overline{wT'}}{u_*^3}\,z$ · **why** Substitution in $\mathrm{Rf}=\dfrac{-g\alpha\overline{wT'}}{-\overline{uw}(dU/dz)}$ (12.107). · **plain** Rf grows in proportion to
      height: shear production fades as 1/z, the heat flux does not.
-  3. **did** Recognise the Monin–Obukhov length · **tex** $\mathrm{Rf}=\dfrac{z}{L_M},\qquad L_M\equiv-\dfrac{u_*^3}{\kappa\,\alpha\,g\,\overline{wT'}}$ · **why** The factor multiplying z is exactly $1/L_M$ by
-     (12.110); the minus sign makes $L_M>0$ when the heat flux is downward (stable). This is (12.111). · **plain** $L_M$ is the
+  3. **did** Recognise the Monin–Obukhov length · **tex** $\mathrm{Rf}=\dfrac{z}{L_M},\qquad L_M\equiv-\dfrac{u_*^3}{\kappa\,\alpha\,g\,\overline{wT'}}$ · **why** The factor multiplying z is exactly $1/L_M$ by $L_M\equiv-u_*^3/(\kappa\alpha g\overline{wT'})$ (12.110); the minus sign makes $L_M>0$ when the heat flux is downward (stable). This is (12.111). · **plain** $L_M$ is the
      height at which buoyancy would equal shear production.
   4. **did** Correct the shear for stability · **tex** $\phi_m\equiv\dfrac{\kappa z}{u_*}\dfrac{dU}{dz}=1+\beta\,\dfrac{z}{L_M}$ · **why** Dimensional analysis: the dimensionless shear can
      depend only on ζ = z/L_M; it is 1 when neutral; for small ζ keep the first term of its Taylor series. β is empirical
@@ -4063,15 +4047,14 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   from model-level wind and temperature. **Fails when:** z ≳ ∣L_M∣ on the unstable side — the linear form even gives negative
   winds; use the Businger–Dyer form $\phi_m=(1-16\zeta)^{-1/4}$ there (AMS Glossary) — and for very stable layers (ζ ≳ 1), where
   turbulence is intermittent.
-- **Traps:** the sign of L_M; κ is von Kármán's constant here although (12.112) on the next page uses κ for the thermal
-  diffusivity; α = 1/T needs T in kelvin; H in W/m² must be divided by ρc_p.
+- **Traps:** the sign of L_M; κ is von Kármán's constant here although the temperature-variance budget on the next page (N190 in C15) uses κ for the thermal diffusivity (our $\kappa_{th}$); α = 1/T needs T in kelvin; H in W/m² must be divided by ρc_p.
 
 ### D26 · Taylor's formula: (12.115)–(12.117), the double integral (12.118) and $\overline{X_\alpha^2}=2\overline{u_\alpha^2}\,t\int_0^t(1-\tau/t)r_\alpha\,d\tau$ (12.119) — ★★, 11 steps, in C16 (notebook · `taylor_dispersion`)
 - **Goal:** express how far marked particles have spread, on average, purely in terms of the statistics of their velocity.
   · **Start:** a particle released at the origin at t = 0: $\dfrac{dX_\alpha}{dt}=u_\alpha(t)$, where $u_\alpha$ is the velocity *of that particle*
   (Lagrangian) along one axis α (no sum). · **Plan:** • differentiate the mean-square displacement • write X as the time
   integral of u • recognise the velocity autocorrelation • integrate in time • simplify the double integral by parts. ·
-  **Tools:** D01's rules (12.6), (12.7); chain rule (P49); substitution (P106); even functions (P261); a double integral
+  **Tools:** D01's rules $\overline{\partial u/\partial t}=\partial\bar u/\partial t$ (12.6) and $\overline{\int u\,dt}=\int\bar u\,dt$ (12.7); chain rule (P49); substitution (P106); even functions (P261); a double integral
   over a triangle (P305, primer above); integration by parts (P218a). · **Assumptions:** stationary homogeneous turbulence;
   zero mean velocity; average over many particles (or releases).
 - **Steps:**
@@ -4103,9 +4086,9 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
       lag τ is weighted by the fraction of the time (1 − τ/t) for which it was available.
   11. **did** Assemble · **tex** $\overline{X_\alpha^2}(t)=2\,\overline{u_\alpha^2}\;t\displaystyle\int_0^t\Big(1-\dfrac{\tau}{t}\Big)r_\alpha(\tau)\,d\tau$ · **why** Step 10 in step 8. This is (12.119). · **plain** The spread of the
       cloud needs only the velocity variance and its autocorrelation.
-- **Result:** (12.119) — "dispersion is the velocity autocorrelation, integrated twice".
-- **Check:** units — (m²/s²)(s)(s) = m² ✓. Both forms (12.118) and (12.119) agree numerically to 1e-8 for $r=e^{-\tau/\Lambda_t}$.
-  Differentiating (12.119) returns (12.117) ✓. Particles: 10⁴ Langevin particles reproduce it within 5 standard errors.
+- **Result:** $\overline{X_\alpha^2}(t)=2\overline{u_\alpha^2}\,t\int_0^t\big(1-\frac\tau t\big)r_\alpha(\tau)\,d\tau$ (12.119) — "dispersion is the velocity autocorrelation, integrated twice".
+- **Check:** units — (m²/s²)(s)(s) = m² ✓. The double integral $\overline{X_\alpha^2}(t)=2\overline{u_\alpha^2}\int_0^tdt'\int_0^{t'}r_\alpha(\tau)\,d\tau$ (12.118) and the Result agree numerically to 1e-8 for $r=e^{-\tau/\Lambda_t}$.
+  Differentiating the Result returns $\frac{d}{dt}\overline{X_\alpha^2}=2\overline{u_\alpha^2}\int_0^tr_\alpha\,d\tau$ (12.117) ✓. Particles: 10⁴ Langevin particles reproduce it within 5 standard errors.
 - **What it means:** no eddy diffusivity was assumed — the result is exact kinematics; all the physics is in r(τ) and its
   integral scale Λ_t. **Fails when:** the turbulence is not homogeneous or stationary along the particle's path (a plume
   rising through a boundary layer), or there is mean shear (shear dispersion is faster).
@@ -4154,7 +4137,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **Goal:** define an "effective diffusivity" for turbulent spreading and see why it is not a constant. · **Start:** the
   molecular yardstick (R07): a diffusing patch is a Gaussian whose variance per coordinate grows as $\sigma^2=2\nu t$. · **Plan:** •
   read a diffusivity off the growth of a variance • apply the same reading to the cloud of particles • take the two limits.
-  · **Tools:** Gaussian spreading (ch01 σ² = 2Dt, R08); D26's (12.117); limits (D27). · **Assumptions:** as D26.
+  · **Tools:** Gaussian spreading (ch01 σ² = 2Dt, R08); D26's $\frac{d}{dt}\overline{X_\alpha^2}=2\overline{u_\alpha^2}\int_0^tr_\alpha\,d\tau$ (12.117); limits (D27). · **Assumptions:** as D26.
 - **Steps:**
   1. **did** Recall how a diffusing patch grows · **tex** $\sigma^2=2\,\nu\,t$ · **why** The Gaussian solution of the diffusion equation,
      $\propto\exp(-r^2/4\nu t)$, has variance 2νt along each coordinate (Ch. 1; R07). · **plain** Under diffusion the variance grows
@@ -4183,7 +4166,7 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
   growing with its size, $K\sim\bar\varepsilon^{1/3}l^{4/3}$ (Richardson). **Fails when:** the scale of the cloud is comparable with the
   largest eddies of an inhomogeneous flow.
 - **Traps:** σ² = 2νt per coordinate here, while Ch. 3's vortex core radius used 4νt; treating $D_T$ as a property of the
-  fluid; the printed condition of (12.129).
+  fluid; the printed condition $t\ll\Lambda_t$ on $D_T\cong\overline{u_\alpha^2}\Lambda_t$ (12.129) (⚠️ slip #12: it holds for $t\gg\Lambda_t$).
 
 ---
 
@@ -4206,6 +4189,14 @@ number alone and never from memory. In an explainer's plain-text *why* the equat
 - **Ledger:** 231 rows, none without "Explained by"; every C/R id in that column exists in the curation.
 - **Part C:** every `ch12.` / `TS.` / `WT.` name used in Parts A, B, D, E, F is in Part C; every Part C name but one
   (C.6 item 1) is called or named by a storyboard row; nothing was added, renamed or re-signed.
-- **Open at hand-over:** the three builder notes of C.6 item 3; the repeat mentions listed in A.15b and in the
-  preamble of Part F, which builders complete from the places named there.
+- **Equation mentions (inlining pass of 2026-10-07):** no equation is cited by its number alone in the header, Part A,
+  Part B or Part F — a scratch scanner (kept outside the repo) finds 0, down from 214 (header 48 · A 57 · B 2 · F 107). Each
+  mention has the equation beside it, in TeX (Unicode in the Part B drafts), or was reworded to point at the Start, the
+  Result or the note that writes the equation out. Not counted as mentions, by design: heading lines (`#### Cnn —`,
+  `### Dnn ·`; parsed by tools, the `nb.core` title or the block's Start carries the equation); comments inside code
+  listings and `check_src`; the book's wrong reference quoted in the row of slip #11; and the 73 own-line labels of
+  Part F ("This is (N.M)." directly under the step's own `tex` line). Part C, Part D and the ledger of Part E were not
+  scanned and not changed.
+- **Open at hand-over:** the three builder notes of C.6 item 3; the expected pair of C11 row 10 (`WT.fit_log_law`),
+  pending the verifier's ruling (`reports/ch12_verification.md`, flagged item 1).
 
