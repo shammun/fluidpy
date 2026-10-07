@@ -356,9 +356,9 @@
       "title": "Geophysical Fluid Dynamics",
       "slug": "geophysical_fluid_dynamics",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -366,7 +366,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 218 inventory rows, 145 numbered equations (13.1)-(13.145) each once (115 own-line + 30 in grouped labels), 119 CODE / 28 DEMO / 71 SKIP, 177 NEW / 39 SEEN, 42 derivations (8/24/10 by stars), 12 load-bearing clusters, 13 suspected slips + 17 traps, all 70 pages rendered",
+      "notes": "analyze: 218 inventory rows, 145 numbered equations (13.1)-(13.145) each once (115 own-line + 30 in grouped labels), 119 CODE / 28 DEMO / 71 SKIP, 177 NEW / 39 SEEN, 42 derivations (8/24/10 by stars), 12 load-bearing clusters, 13 suspected slips + 17 traps, all 70 pages rendered; curate: 17 CORE (A) / 168 NOTE / 31 RECAP / 2 SKIP = 218 rows, 29 derivations written out (2/18/9 by stars), 12 demoted, 6 not-in-the-book items (ours), 29 primers P307-P335, 10 explainers + backup inertia_gravity_beams, 13 slips + 17 traps tabled",
       "updated": "2026-10-07"
     },
     "ch14": {
