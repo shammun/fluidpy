@@ -4,8 +4,9 @@
 
 ## Open items carried from ch12 — read before starting ch13 (details `knowledge/ch12.md` §0, §9)
 - **Needs a human**: the Businger–Dyer coefficients/attribution of φ_m(ζ) are unread first-hand (`verified_first_hand:
-  false`; not a benchmark). **User decisions pending**: the Lee & Moser DNS subset is redistributed with its citation but
-  no licence statement; constants coinciding with the book's table sit in two earlier LOCAL, unpushed commits of 2026-10-07.
+  false`; not a benchmark). **Decided by the user, 2026-10-07 (closed)**: the Lee & Moser DNS subset is redistributed
+  as is with its citation (the source carries no licence statement); the few constants coinciding with the book's table in
+  commits c21490a and 5e1db2f stay in history (pushed; the tree itself is clean).
 - **Tooling**: `tools/shot.py` does not fail on `.katex-error` nodes and audits Explain only in default and step states;
   14 library findings and ranked promotion candidates in `knowledge/viz_patterns.md` (log axes first).
 - **Code**: `time_average_variance_ou` has no fluidpy counterpart (E1 invariant rows only); `skin_friction_zpg` 0.074
