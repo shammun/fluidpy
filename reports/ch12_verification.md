@@ -1,16 +1,25 @@
-# Chapter 12 verification — Turbulence                       2026-10-07 · code at `c21490a` (HEAD `5e1db2f` differs only in `analysis/ch12_design.md`)
+# Chapter 12 verification — Turbulence                       2026-10-07 · first pass on code at `c21490a`; revised after the independent review on the working tree at `d158c86` (review fixes applied, uncommitted)
 
-## Verdict: PASS — 117 tests in `tests/test_ch12.py`, 0 failing (122 s); full suite 1737 passed (42 min 44 s); 42 of 42 planted mutants killed
+## Verdict: PASS (after review) — `tests/test_ch12.py`: 173 passed, 0 failing (87 s; 127 test functions); 42 of 42 first-pass mutants and 18 of 18 new mutants killed on the post-review code; full suite not re-run in this pass (first pass: 1737 passed)
 
 Every script ran, every test passes, every computable CORE row has ≥ 2 independent evidence levels (one of V1/V2/V3/V5 in
-each), every one of the 215 names of design Part C is called by at least one test (a self-audit test enforces it), the seven
-planted wrong variants of the book-slip table all fail their checks, and nothing is `unverified` without an Open item. No
-physics defect was found in `fluidpy/`; the ten flagged items are settled below (one design expectation is wrong, six
-docstring statements need correcting — listed, none of them changes a number a builder uses).
+each — re-counted for C08, C13, C15 after three tests lost their "V5" label), every one of the 215 names of design Part C
+is called by at least one test (a self-audit test enforces it), the seven planted wrong variants of the book-slip table all
+fail their checks, and nothing is `unverified` without an Open item. No physics defect was found in `fluidpy/` in the first
+pass; the independent review (`reports/ch12_review.md`) then found a wrong default (`Gamma_a = 0`), table constants in
+committed scripts, stale docstring statements and an unread citation — the implementer's fixes are judged in "After
+review" at the end of this report: all are right, none is reported as a failing item. The ten flagged items of the first
+pass are settled below.
 
 ## Environment
 python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · matplotlib 3.11.2 · Windows 11.
-`tests/test_ch12.py`: **117 tests, 122 s** (114 in 50 s with `-m "not slow"`). After the full-suite run four illustrative inputs of the test file (a scalar half-width, a fitted spreading rate, one B of the (12.92) loop) were changed so that no number coincides with an entry of the book's table; the file was re-run alone: 117 passed in 103 s. Full suite: **1737 passed in 2564.16s (0:42:44)**, 0 failed (`.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`; 1620 before this phase + 117).
+**After the review (this revision):** `.venv/Scripts/python.exe -m pytest -q tests/test_ch12.py` → **173 passed in 87.04s**
+(127 test functions; 173 collected items because the bad-input test is parametrised over 47 calls); with `-m "not slow"`:
+170 passed, 3 deselected in 26.17s. `tests/test_machinery.py`: 9 passed in 5.32s. `tools/check_public.py`: "public-repo
+check OK (646 files)". Before the test file was adapted the post-review code gave 3 failed, 114 passed — the three expected
+consequences of the fixes (see "After review"). The full suite was **not** re-run in this pass (the orchestrator runs it
+at the merge gate).
+**First pass:** `tests/test_ch12.py`: **117 tests, 122 s** (114 in 50 s with `-m "not slow"`). After the full-suite run four illustrative inputs of the test file (a scalar half-width, a fitted spreading rate, one B of the (12.92) loop) were changed so that no number coincides with an entry of the book's table; the file was re-run alone: 117 passed in 103 s. Full suite: **1737 passed in 2564.16s (0:42:44)**, 0 failed (`.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`; 1620 before this phase + 117).
 
 ## The ten flagged items — rulings
 
@@ -19,13 +28,13 @@ python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · m
 | 1 | `WT.fit_log_law` returns κ = 0.383, B = 3.99 on a Spalding profile at δ⁺ = 5000 over 30 < y⁺ < 0.15 δ⁺ | **Function right, design expectation wrong.** The fit recovers (κ, B) of an exact log profile to 1e-10. Spalding's curve reaches the logarithm from below (U⁺ − log law = −0.66 at y⁺ = 30, −0.16 at 100, −0.03 at 300; exactly ln(1 + c/y⁺)/κ with c = O(U⁺³)), so a window that starts at y⁺ = 30 is biased low — and the same happens with real data: on the Lee & Moser DNS at Re_τ = 5186 the window from 30 gives κ = 0.400, B = 4.92, the window from 3√Re_τ = 216 gives 0.3845, 4.31 and from 350 gives 0.3837, 4.28, inside the published κ = 0.384 ± 0.004. **What the notebook should use:** (a) the DNS subset in `reference/ch12` with `window=(350.0, 0.15)` → *expect* κ = 0.384 ± 0.004 (B ≈ 4.28); or (b) the composite profile at δ⁺ = 10⁵ with `window=(1000.0, 0.15)` → 0.4099, 5.001; at δ⁺ = 5000 the best the composite can do is `window=(300.0, 0.15)` → 0.405, 4.80 (state it as "0.405 ± 0.005, 4.8 ± 0.1", not 0.41 ± 0.01, 5.0 ± 0.2). | `test_fit_log_law_V1_exact_recovery_and_the_bias_of_a_composite_profile`, `test_log_law_V5_lee_moser_von_karman_constant_from_the_dns_profile` |
 | 2 | `rans_eddy_viscosity_residual(printed=True)` reads the printed $\partial P/\partial x_j$ of (12.97) as "j summed" | **Accept, with a wording correction.** Page re-read: (12.97) prints $\frac{\partial U_i}{\partial t}+U_j\frac{\partial U_i}{\partial x_j}=-\frac1\rho\frac{\partial P}{\partial x_j}+\frac{\partial}{\partial x_j}\big([\nu+\nu_T](\frac{\partial U_i}{\partial x_j}+\frac{\partial U_j}{\partial x_i})-\frac23\bar e\,\delta_{ij}\big)$ — the pressure term carries a lone j, so the equation is ill-formed (free-index mismatch); the corrected $\partial P/\partial x_i$ is what substituting (12.94) into (12.30) gives, and the code's corrected residual equals the (12.30) residual with the stress of (12.94) to 2e-5 on a manufactured field. The planted variant realises the ill-formed term as Σ_j ∂P/∂x_j; it is off by exactly (Σ_j ∂P/∂x_j − ∂P/∂x_i)/ρ and fails. Docstring should say "ill-formed; realised here as a sum" — the summation convention itself does not sum an index that occurs once. | `test_slip06_rans_eddy_viscosity_V1_corrected_matches_12_30_and_printed_differs` |
 | 3 | `dispersion_regime` inclusive boundaries; an E10 parity row sits on t = 0.3 Λ_t | **Accept; pinned.** t = 0.3 Λ_t → "ballistic", t = 3 Λ_t → "diffusive", for Λ_t = 0.1, 1, 7, 10, 123.4, with both neighbours at ±1e-9; `dispersion_regime(3.0, 10.0) == "ballistic"`. The JS mirror must compare `t/Λ <= 0.3` on the **ratio** (as the Python does), not `t <= 0.3*Λ`. Mutant M25 (exclusive boundaries) is killed. | `test_dispersion_regime_V7_inclusive_boundaries_and_both_sides` |
-| 4 | `surface_layer_wind(unstable="businger_dyer")` without ψ_m(z₀/L) by default | **Accept both.** With `psi_at_z0=True` the function equals $\frac{u_*}\kappa\int_{z_0}^{z}\phi_m\,dz/z$, φ_m = (1 − 16ζ)^{−1/4}, by quadrature to 1e-10 and U(z₀) = 0 exactly. The default equals the common form $\frac{u_*}\kappa[\ln\frac z{z_0}-\psi_m(z/L_M)]$ with ψ_m obtained independently as ∫₀^ζ(1 − φ_m)/ζ′dζ′ to 1e-10; the two differ by exactly (u_*/κ)ψ_m(z₀/L_M) > 0, smaller than 4.2 (u_*/κ) z₀/∣L_M∣ (0.004 m/s for L_M = −20 m, z₀ = 0.03 m), and U(z₀) = −(u_*/κ)ψ_m(z₀/L_M) ≠ 0. | `test_surface_layer_wind_V5_businger_dyer_integral_with_and_without_the_z0_term` |
+| 4 | `surface_layer_wind(unstable="businger_dyer")` without ψ_m(z₀/L) by default | **Accept both** (an analytic consistency check, V1 — not a benchmark: the coefficient's attribution has not been read first-hand, see "After review"). With `psi_at_z0=True` the function equals $\frac{u_*}\kappa\int_{z_0}^{z}\phi_m\,dz/z$, φ_m = (1 − 16ζ)^{−1/4}, by quadrature to 1e-10 and U(z₀) = 0 exactly. The default equals the common form $\frac{u_*}\kappa[\ln\frac z{z_0}-\psi_m(z/L_M)]$ with ψ_m obtained independently as ∫₀^ζ(1 − φ_m)/ζ′dζ′ to 1e-10; the two differ by exactly (u_*/κ)ψ_m(z₀/L_M) > 0, smaller than 4.2 (u_*/κ) z₀/∣L_M∣ (0.004 m/s for L_M = −20 m, z₀ = 0.03 m), and U(z₀) = −(u_*/κ)ψ_m(z₀/L_M) ≠ 0. | `test_surface_layer_wind_V1_businger_dyer_integral_with_and_without_the_z0_term` (renamed from `…_V5_…`) |
 | 5 | `surface_layer_regime` nominal crossover ∣z/L_M∣ = 1; "forced convection" for either sign | **Accept as documented** (the book's meaning: z ≪ ∣L_M∣). Both sides of the boundary, both signs, ±∞ and the `crossover` argument are pinned; a test shows the same string for a stable and an unstable layer while `surface_layer_state(...)["verdict"]` says "stable"/"unstable" — E9 must take stability from `verdict`, never from `layer`. | `test_surface_layer_regime_V7_boundaries_both_signs_and_neutral` |
 | 6 | `channel_energy_budget` / `_at`: magnitudes flat, signs nested; closure, identity, table | **Accept.** Flat: `pressure_work + transport − mean_dissipation − production` = 0 to 1e-12 at every height; nested `mean` sums to 0 and equals minus the flat magnitudes; `turbulence` closes by residual (labelled model). Integral identity work = dissipation + production: residual 6.8e-5 → 5.2e-7 for n = 200 → 1600 (order 2), and exactly (1e-10) by an independent quadrature of my own closed forms; ∫U⁺/Re_τ dy⁺ = U_bulk⁺. `channel_energy_budget_at` equals my closed forms to 1e-11 and U⁺ by quadrature to 1e-9. The JSON equals a fresh `explainer_tables()` and `write_reference_tables` reproduces the file byte for byte. **One note for the explainer builders:** the stored y⁺ is itself rounded to 6 digits, so evaluating the function at the *stored* height reproduces steep or cancelling columns (`transport`, `uv_plus` near the centre, `mean_dissipation` far out) only to ≈ 3e-5 relative — parity rows that read a table value need rtol 1e-4, or should call the function at a round y⁺. | `test_channel_energy_budget_V4_*`, `_V3_*`, `test_channel_energy_budget_at_V1_*`, `test_explainer_tables_V1_*` |
 | 7 | No public DNS in `reference/ch12/`, no `SOURCES.md` | **Done.** `reference/ch12/make_refs.py` downloads the five Lee & Moser mean-profile files (HTTP 200, 2026-10-07) and writes a thinned, un-interpolated subset (281 rows) + `benchmarks.json` + `SOURCES.md` (source, URL, terms, date). Used as V5 for `viscous_sublayer`, `log_law_indicator`, `fit_log_law`, `log_law`, `spalding_uplus`, `stress_partition`, `channel_mixing_length`. | five `*_V5_*lee_moser*` tests |
 | 8a | `model_spectrum` c_L = 6.78 "unverified" | **Verified two ways.** (i) Numerically: c_L is the value for which ∫E dK = (ε̄L)^{2/3}, i.e. L = ē^{3/2}/ε̄; the root is 6.415, 6.745, 6.779 at L/η = 5.6e3, 1.8e5, 5.6e6 → 6.78 in the high-Reynolds limit (C = 1.5, p₀ = 2). (ii) Open sources quoting Pope's p₀ = 2, c_L = 6.78 (arXiv:1705.04917; ATOMIX wiki), read 2026-10-07. Docstring should drop "unverified". | `test_model_spectrum_V4_dissipation_and_energy_integrals` |
 | 8b | `plane_jet_stress_profile`: C₃G = −½F∫F, opposite to analysis row 121 | **Code and design are right; analysis row 121 has the wrong sign.** Page re-read: (12.63) prints $\{\delta U'_{CL}/U_{CL}\}F^2-\{\delta U'_{CL}/U_{CL}+\delta'\}F'\int_0^\xi F\,d\xi=\{\Psi/U_{CL}^2\}G'$; with −½ and +½ the left side is d(−½F∫F)/dξ (sympy, any F). Independently of every similarity formula, integrating $U\,\partial U/\partial x+V\,\partial U/\partial y=-\partial\overline{uv}/\partial y$ (12.61) outward from the axis with V from continuity reproduces the coded −mean(uv) to 2e-5 of its maximum: negative for y > 0, where ∂U/∂y < 0, so ν_T > 0. Mutant M15 (the row-121 sign) is killed. | `test_plane_jet_V2_derivation_D15_*`, `test_plane_jet_stress_V1_sign_from_the_momentum_equation_by_quadrature` |
-| 9 | Lapse-rate convention: Kundu's Γ = dT/dz computed, meteorological Γ = −dT/dz alongside | **Both verdicts agree** for dT/dz = −6.5, 0, +10, −12 K/km and Γ_a itself: the Kundu text carries `>`/`<`/`=` and the meteorological text the mirrored comparison with all numbers negated; both equal `core.stratification.lapse_rate_stability` verbatim; Ri is identical whichever convention is asked for; Ri from (in-situ, Γ_a) equals Ri from dθ/dz to 1e-12 and N² equals ch01's `brunt_vaisala_sq_from_lapse`; the no-Γ_a mutant calls the standard atmosphere unstable (and M21 is killed). **Note for E9:** the strings do not begin with the verdict — an unstable layer reads "stable ⇔ dT/dz > Γa: −12.0 < −9.8 K/km" (criterion, then the comparison that actually holds). Show the bare word from `["verdict"]` beside it. | `test_gradient_richardson_V1_in_situ_and_potential_routes_and_both_conventions`, `test_surface_layer_state_V1_*` |
+| 9 | Lapse-rate convention: Kundu's Γ = dT/dz computed, meteorological Γ = −dT/dz alongside | **Both verdicts agree** for dT/dz = −6.5, 0, +10, −12 K/km and Γ_a itself: the Kundu text carries `>`/`<`/`=` and the meteorological text the mirrored comparison with all numbers negated; both equal `core.stratification.lapse_rate_stability` verbatim; Ri is identical whichever convention is asked for; Ri from (in-situ, Γ_a) equals Ri from dθ/dz to 1e-12 and N² equals ch01's `brunt_vaisala_sq_from_lapse`; the mutant that feeds the thermometer gradient with Γ_a = 0.0 calls the standard atmosphere unstable (and M21 is killed). After the review `Gamma_a` is a required keyword (see "After review"): a θ-gradient is passed with `Gamma_a=0.0` explicitly. **Note for E9:** the strings do not begin with the verdict — an unstable layer reads "stable ⇔ dT/dz > Γa: −12.0 < −9.8 K/km" (criterion, then the comparison that actually holds). Show the bare word from `["verdict"]` beside it. | `test_gradient_richardson_V1_in_situ_and_potential_routes_and_both_conventions`, `test_gradient_richardson_V1_gamma_a_is_required_and_the_standard_atmosphere_is_stable`, `test_surface_layer_state_V1_*` |
 | 10 | `stratified_tke_budget(dUdz=…)` added after the implementer's full-suite run | **Covered and the full suite re-run.** One height with `dUdz`, a profile with and without it (they agree to the (Δz/z)²/3 differencing error of a log profile), Rf = `flux_richardson` = z/L_M, and the one-height call without `dUdz` raises. Full suite: **1737 passed in 2564.16s (0:42:44)**, 0 failed (`.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`; 1620 before this phase + 117). | `test_stratified_tke_budget_V1_terms_and_optional_shear_argument` |
 
 ## Validation table (CORE rows; every computable row has ≥ 2 independent levels incl. one of V1/V2/V3/V5)
@@ -39,19 +48,42 @@ python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · m
 | C05 · $\bar\varepsilon=30\nu\overline{u^2}/\lambda_f^2=15\nu\overline{u^2}/\lambda_g^2$ (12.43), (12.40)–(12.41) | `gradient_moments_isotropic_sympy`, `isotropic_correlation_tensor`, `transverse_from_longitudinal`, `isotropic_scales`, `dissipation_isotropic`, `dissipation_rate` | V2 · V1 · V4 · stat | D07: g = f + (r/2)f′ solved from ∂R_ij/∂r_j = 0, Λ_g = Λ_f/2, λ_g² = λ_f²/2; D08: moments (2, 4, −1), full double sum = 30; three routes agree 2e-5; ε̄ = νΣK²∣û∣² 1e-10 on a 32³ field; ratio 2 (3-D) and 3 (2-D) within 5 s.e. | symbolic |
 | C06 · energy budgets (12.46), (12.47), production $-\overline{u_iu_j}\,\partial U_i/\partial x_j$ | `mean_energy_budget_sympy`, `tke_budget_sympy`, `mean_energy_budget`, `tke_budget`, `channel_energy_budget(_at)` | V2 · V4 · V3 · V1 | D09, D10 by the finite ensemble (≡ 0; wrong sign / factor / triple-correlation ½ ≠ 0); ½ trace of (12.35) = (12.47); Poiseuille work = dissipation 1e-5, residual = its exact truncation term; channel identity 1e-10 by quadrature; order 1.99 | symbolic |
 | C07 · $\eta=(\nu^3/\bar\varepsilon)^{1/4}$, $u_K=(\nu\bar\varepsilon)^{1/4}$ (12.50), (12.48)–(12.52) | `kolmogorov_scales`, `kolmogorov_exponents`, `scale_separation`, `dissipation_outer_scaling`, `scale_table`, `cascade_tiers` | V2 · V1 | exponents (¾, −¼), (¼, ¼), (½, −½) by a rational solve and by ch01's `solve_exponents`; pint units; ηu_K/ν = 1 to 1e-14; slopes −¾, −½, +½ to 1e-12 | symbolic |
-| C08 · $S_{11}=C_1\bar\varepsilon^{2/3}k_1^{-5/3}$ (12.54, corrected), (12.53), (12.55) | `inertial_spectrum_1d/3d`, `kolmogorov_constants`, `one_dimensional_from_3d`, `fit_inertial_range`, `model_spectrum`, `kolmogorov_normalize_spectrum` | V2 · V1 · V4 · V5 | D12: (⅔, −5/3) and (5/4, ¼); 18/55 by sympy and by quadrature 1e-8; printed +5/3 fails units and slope; 2ν∫K²E dK = ε̄ 1e-8; collapse 1e-12; C₁ = 0.491 vs 0.53 ± 0.055 (Sreenivasan 1995) | symbolic |
+| C08 · $S_{11}=C_1\bar\varepsilon^{2/3}k_1^{-5/3}$ (12.54, corrected), (12.53), (12.55) | `inertial_spectrum_1d/3d`, `kolmogorov_constants`, `one_dimensional_from_3d`, `fit_inertial_range`, `model_spectrum`, `kolmogorov_normalize_spectrum` | V2 · V1 · V4 (+ constant consistency, not a level) | D12: (⅔, −5/3) and (5/4, ¼); 18/55 by sympy and by quadrature 1e-8; printed +5/3 fails units and slope; fitted slope −5/3 and collapse 1e-12; a given one-sided C₁ with the two-sided default returns exactly half (1e-14); 2ν∫K²E dK = ε̄ 1e-8; constant consistency: C₁ = 0.491 vs 0.53 ± 0.055 (Sreenivasan 1995) | symbolic |
 | C09 · plane jet $U=C_5(J_s/\rho)^{1/2}x^{-1/2}F(y/x)$ (12.66), (12.62), (12.63), (12.68) | `plane_jet_*`, `plane_jet_similarity_sympy`, `general_similarity_check`, `free_shear_exponents`, `free_shear_flow` | V2 · V4 · V1 | D13–D16 by sympy (two explicit profile pairs, generic δ, U_CL, Ψ); J_s constant 1e-10 at four stations, scalar flux 1e-9; stress from the momentum equation by quadrature 2e-5; seven exponent systems exact | symbolic |
 | C10 · $U^+=f(y^+)$ (12.80), $u_*^2=\tau_0/\rho$ (12.81), $U^+=y^+$ (12.82), $\bar\tau=\tau_0(1-2y/h)$ | `WT.wall_units`, `friction_velocity`, `viscous_sublayer`, `channel_total_stress`, `channel_pressure_gradient`, `law_of_the_wall_groups` | V2 · V1 · V5 | Π groups exact; D17 by sympy; round trips 1e-14; DNS: U⁺ = y⁺ − y⁺²/(2Re_τ) within 5e-4 for y⁺ < 1 at five Re_τ, a few per cent by y⁺ = 5 | benchmark |
 | C11 · $U^+=\frac1\kappa\ln y^++B$ (12.88), (12.84)–(12.89), (12.93) | `WT.log_law`, `log_law_defect`, `fit_log_law`, `log_law_indicator`, `friction_law_from_overlap`, `rough_wall_log_law`, `overlap_matching_sympy` | V2 · V1 · V5 | D19 by `dsolve`; exact recovery 1e-10; DNS Re_τ = 5186: κ = 0.3837 (window 350–0.15δ⁺), 0.3845 (from 3√Re_τ), indicator 0.3834 — all inside 0.384 ± 0.004 | benchmark |
 | C12 · $\overline{u_iu_j}=\frac23\bar e\delta_{ij}-\nu_T(\partial U_i/\partial x_j+\partial U_j/\partial x_i)$ (12.94), (12.98)–(12.101) | `eddy_viscosity_stress`, `mixing_length_wall_profile`, `mixing_length_intercept`, `shear_flow_eddy_viscosity_solve`, `channel_mixing_length` | V2 · V1 · V3 · V5 (approximate) | D21: root, limits, closed form, B = (ln 4κ − 1)/κ by sympy; van Driest profile by independent quadrature 1e-8; trapezoid order 2.00; BVP solver order 2.00 and = closed-form channel to 8e-5; vs DNS ∣ΔU⁺∣ ≤ 0.68, C_f within 1.1 % (Re_τ ≥ 550) | converged |
-| C13 · k–ε: (12.103), $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104), (12.105) | `k_epsilon_decay`, `k_epsilon_rhs`, `k_epsilon_eddy_viscosity`, `k_epsilon_loglayer_kappa`, `K_EPSILON_CONSTANTS` | V2 · V1 · V5 | D23: n = 1/(C_ε2 − 1) and κ² = √C_μ(C_ε2 − C_ε1)σ_ε solved by sympy; closed form = `solve_ivp` = RK4 to 1e-7; constants = published set | symbolic |
-| C14 · $\mathrm{Rf}=\frac{-g\alpha\overline{wT'}}{-\overline{uw}\,dU/dz}$ (12.107), (12.108), (12.109) | `flux_richardson`, `gradient_richardson_thermal`, `turbulence_regime`, `stratified_tke_budget`, `turbulent_prandtl` | V1 · V2 · V7 | hand value 1e-14, signs, ±inf/NaN at zero shear; D24: Ri = (ν_T/κ_T)Rf by sympy and numerically 1e-13; two temperature routes 1e-12; regime boundaries | analytic |
-| C15 · $L_M=-u_*^3/(\kappa\alpha g\overline{wT'})$ (12.110), $\mathrm{Rf}=z/L_M$ (12.111), log-linear profile | `monin_obukhov_length`, `monin_obukhov_from_fluxes`, `flux_richardson_surface_layer`, `WT.surface_layer_wind`, `dimensionless_shear`, `surface_layer_state` | V1 · V2 · V5 · V7 | Rf from (12.107) with the log-law gradient = z/L_M 1e-13; profile by sympy integration; φ_m = (κz/u_*)dU/dz 1e-6; Businger–Dyer integral by quadrature 1e-10 | analytic |
+| C13 · k–ε: (12.103), $\nu_T=C_\mu\bar e^2/\bar\varepsilon$ (12.104), (12.105) | `k_epsilon_decay`, `k_epsilon_rhs`, `k_epsilon_eddy_viscosity`, `k_epsilon_loglayer_kappa`, `K_EPSILON_CONSTANTS` | V2 · V1 (+ constant consistency, not a level) | D23: n = 1/(C_ε2 − 1) and κ² = √C_μ(C_ε2 − C_ε1)σ_ε solved by sympy; closed form = `solve_ivp` = an RK4 loop written in the test to 1e-7 / 1e-8; source terms by hand 1e-13; constant consistency: the five constants equal the cited standard set | symbolic |
+| C14 · $\mathrm{Rf}=\frac{-g\alpha\overline{wT'}}{-\overline{uw}\,dU/dz}$ (12.107), (12.108), (12.109) | `flux_richardson`, `gradient_richardson_thermal`, `turbulence_regime`, `stratified_tke_budget`, `turbulent_prandtl` | V1 · V2 · V7 | hand value 1e-14, signs, ±inf/NaN at zero shear; D24: Ri = (ν_T/κ_T)Rf by sympy and numerically 1e-13; two temperature routes 1e-12; standard atmosphere with Γ_a = −g/C_p: Ri = +1.110 by hand 1e-12, "stable" in both conventions (with Γ_a = 0.0: −2.213, "unstable"); `Gamma_a` omitted → TypeError; regime boundaries | analytic |
+| C15 · $L_M=-u_*^3/(\kappa\alpha g\overline{wT'})$ (12.110), $\mathrm{Rf}=z/L_M$ (12.111), log-linear profile | `monin_obukhov_length`, `monin_obukhov_from_fluxes`, `flux_richardson_surface_layer`, `WT.surface_layer_wind`, `dimensionless_shear`, `surface_layer_state` | V1 · V2 · V7 | Rf from (12.107) with the log-law gradient = z/L_M 1e-13; profile by sympy integration; φ_m = (κz/u_*)dU/dz 1e-6; ψ_m is the integral of the coded Businger–Dyer φ_m by quadrature 1e-10 (V1, not a benchmark); log-linear wind NaN exactly where 1 + βζ ≤ 0 (the mask of `dimensionless_shear`), unchanged to 1e-14 inside; regime boundaries and sign flips | analytic |
 | C16 · $\overline{X_\alpha^2}=2\overline{u_\alpha^2}\,t\int_0^t(1-\tau/t)r_\alpha d\tau$ (12.119), (12.120)–(12.129) | `taylor_dispersion*`, `taylor_dispersion_rate`, `eddy_diffusivity_*`, `langevin_particles`, `random_walk`, `dispersion_regime`, `smoke_plume_width` | V2 · V1 · V4 · stat · V7 | D26–D28 by sympy (generic r; exponential; Gaussian); (12.118) = (12.119) = closed forms ≤ 1e-8; 2e4 Langevin particles within 5 s.e. at 40 times, mean(Xu) = D_T; mean(R_n²) = nL² within 5 s.e. in 1, 2, 3 dimensions | symbolic |
 
 **Counts per validation label (CORE rows):** symbolic 9 · analytic 4 · benchmark 2 · converged 1 · conserved 0 as a primary label
 (V4 is a second level in C03, C05, C06, C08, C09, C16) · qualitative 0 · unverified 0.
-**Tests by primary level:** V1 45 · V2 30 (23 named `_V2_derivation`) · V3 6 · V4 9 · V5 8 · V6 2 (private) · V7 8 · stat 9.
+**Evidence re-counted after the review for the three rows that carried a "V5"** (each still has ≥ 2 independent levels, one
+of them V1/V2/V3/V5):
+- **C08** — V2 (`test_inertial_spectrum_V2_derivation_D12_*`: exponents by a rational solve, 18/55 by a sympy integral;
+  `test_slip01_*_V2_*`: units), V1 (`test_inertial_spectrum_V1_fit_and_kolmogorov_normalisation_collapse`: the slope and
+  constant fitted back from the function's output, the collapse; `test_inertial_spectrum_V1_given_one_sided_constant_*`),
+  V4 (`test_model_spectrum_V4_*`: 2ν∫K²E dK = ε̄, an integral identity neither of the others uses). **3 levels.** The
+  Sreenivasan comparison is constant consistency and is not counted.
+- **C13** — V2 (`test_k_epsilon_V2_derivation_D23_*`: the power law substituted into the model pair, κ from (12.105) with
+  its diffusion term), V1 (`test_k_epsilon_decay_V1_*`: the function against `solve_ivp` on `k_epsilon_rhs` and against an
+  RK4 loop written in the test — a numerical integration, independent of the symbolic substitution). **2 levels.** The
+  comparison of the five constants with the cited set is constant consistency and is not counted; `k_epsilon_channel` is
+  qualitative.
+- **C15** — V1 (`test_monin_obukhov_V1_*`: Rf from (12.107) with the log-law gradient equals z/L_M;
+  `test_surface_layer_wind_V1_log_linear_*`: φ_m by differences of the profile;
+  `test_surface_layer_wind_V1_businger_dyer_integral_*`: ψ_m by quadrature of the coded φ_m — relabelled from V5;
+  `test_surface_layer_state_V1_*`), V2 (the log-linear profile by sympy integration of φ_m/z and Rf = z/L_M symbolically
+  inside `test_monin_obukhov_V1_*_D25`; `test_slip15_*_V2_*`, `test_scalar_spectrum_V2_*`), V7
+  (`test_surface_layer_regime_V7_*`). **3 levels, no benchmark.**
+
+**Tests by the first level tag in the name (127 test functions; 173 collected items, 47 of them the parametrised guard
+test):** V1 54 · V2 30 (22 named `_V2_derivation`) · V3 6 · V4 8 · V5 5 · V6 2 (private) · V7 10 · stat 10 · const 2
+(constant consistency: `test_k_epsilon_const_constants_are_the_cited_standard_set`,
+`test_inertial_spectrum_const_one_dimensional_constant_against_sreenivasan` — not an evidence level). The five V5 tests
+are the four Lee & Moser DNS comparisons and the reference-policy test.
 Coded NOTE items and helpers: all 215 contract names are exercised (`test_contract_V1_every_part_c_name_is_called_by_a_test`);
 labelled **qualitative**: `jet_tke_budget`, `k_epsilon_channel`, the free-shear amplitude constants; labelled **approximate**
 against DNS: `spalding_uplus`, `stress_partition`, `channel_mixing_length`, `mixing_length_intercept(A_plus=26)`.
@@ -145,11 +177,20 @@ are pinned against closed forms written out in the test. Drawing helpers of `scr
 |---|---|---|
 | κ = 0.384 ± 0.004 (channel DNS, Re_τ = 5186) | 0.3837 (fit 350 < y⁺ < 0.15 δ⁺), 0.3845 (from 3√Re_τ), 0.3834 (indicator) | Lee & Moser, J. Fluid Mech. 774, 395 (2015), doi:10.1017/jfm.2015.268, abstract (arXiv:1410.7809) |
 | DNS mean profiles U⁺(y⁺), dU⁺/dy⁺ at Re_τ = 182, 543, 1001, 1995, 5186 | sublayer within 5e-4 (y⁺ < 1); Spalding(0.41, 5.0) within 0.77–0.85 wall units for y/δ < 0.15 (**approximate**); mixing-length channel within 0.54–0.68 wall units and C_f within +0.5 … +1.1 % for Re_τ ≥ 550 (**approximate**; 1.16 and +5.5 % at Re_τ = 182) | same; files at turbulence.oden.utexas.edu/channel2015/data |
-| one-dimensional Kolmogorov constant 0.53, s.d. 0.055 | 18·1.5/55 = 0.491 (inside one s.d.; 7 % below the mean) | Sreenivasan, Phys. Fluids 7, 2778 (1995) via the ATOMIX wiki |
-| C_μ, C_ε1, C_ε2, σ_k, σ_ε = 0.09, 1.44, 1.92, 1.0, 1.3 | identical | Launder & Sharma (1974) (OpenFOAM, SimScale documentation) |
 | Prandtl's law 1/√f = 2.0 log₁₀(Re√f) − 0.8 | residual 1e-10; log-law-derived constants 1.986 and −1.020, f higher by 5–9 % for Re_d = 10⁴–10⁷ | Prandtl (1935) via McKeon et al., J. Fluid Mech. 538, 429 (2005) |
-| φ_m = (1 − 16ζ)^{−1/4}, ζ < 0 | identical; ψ_m proved to be its integral | AMS Glossary, "Businger–Dyer relationship" |
-| Pope's c_L = 6.78, p₀ = 2 | root of ∫E dK = (ε̄L)^{2/3}: 6.779 at L/η = 5.6e6 | Pope (2000) via arXiv:1705.04917 and the ATOMIX wiki |
+| Pope's c_L = 6.78, p₀ = 2 | root of ∫E dK = (ε̄L)^{2/3}: 6.779 at L/η = 5.6e6 (6.529 at 10⁴) | Pope (2000) via arXiv:1705.04917 and the ATOMIX wiki |
+
+**Constant consistency (cited constants compared with constants of the code — no code path is exercised, not an evidence level):**
+
+| Value | Ours | Source |
+|---|---|---|
+| one-dimensional Kolmogorov constant 0.53, s.d. 0.055 | 18·1.5/55 = 0.491 (inside one s.d.; 7 % below the mean) | Sreenivasan, Phys. Fluids 7, 2778 (1995) via the ATOMIX wiki |
+| C_μ, C_ε1, C_ε2, σ_k, σ_ε = 0.09, 1.44, 1.92, 1.0, 1.3 | identical | Launder & Sharma (1974) (OpenFOAM, SimScale documentation; primary papers not read) |
+
+**Not a benchmark:** φ_m = (1 − 16ζ)^{−1/4} (ζ < 0), the "Businger–Dyer" form. `reference/ch12/benchmarks.json` now records
+it as "coefficients as coded", `verified_first_hand: false`; no source has been read first-hand (the AMS Glossary page
+returned HTTP 403). The test only proves ψ_m is the integral of the coded φ_m (V1) and asserts that flag, so that it has to
+be relabelled when a human has read the source.
 
 ## Numbers from the text (book vs ours) — private values redacted to relative differences
 Two `_V6_` tests read `tests/book_values_ch12.json` (git-ignored; they skip when it is absent). Reproduced: the stirred-vessel
@@ -168,7 +209,7 @@ distance (< 0.5 %), centreline speed (< 2 %, two-digit book value); the flat-pla
 | 12.13 analogue | `fig_12_13_plane_jet_similarity.png` | Profiles widen and slow downstream, collapse exactly in ξ = y/x; the stress is odd, zero on the axis, negative for ξ > 0 (peak ∣·∣ ≈ 0.022 U_CL² near ξ ≈ 0.07). |
 | 12.10/12.15 analogue | `fig_12_10_channel_energy_budgets.png` | Near the wall transport (+1) balances direct dissipation (−1); production rises to 0.245 at y⁺ ≈ 10 (below the bound ¼) and is mirrored by the residual sink; everything decays outward. |
 | 12.5 analogue | `fig_12_5_correlation_and_spectrum.png` | Measured r(τ) of an OU record lies on e^{−τ/τc} (Λ_t = 0.498 vs 0.5); the periodogram follows the Lorentzian and lifts above it only near the Nyquist frequency (aliasing of the sampled record). |
-| 12.21 analogue | `fig_12_21_surface_layer_wind.png` | Stable profile bends to more wind aloft, unstable (Businger–Dyer) to less, all three meet at z₀; the book's log-linear form in strongly unstable air turns back to U < 0 above z ≈ 4 m — outside its range, as documented. |
+| 12.21 analogue | `fig_12_21_surface_layer_wind.png` | Stable profile bends to more wind aloft, unstable (Businger–Dyer) to less, all three meet at z₀; the book's log-linear form in unstable air (L_M = −20 m) is drawn only up to z = ∣L_M∣/β = 4 m, where it has bent away from the Businger–Dyer curve to less wind, and stops there (NaN beyond; before the review it ran on to U < 0). Regenerated and re-read after the review; the legend of that curve still says "outside its range" (figure script not edited in this pass). |
 | 12.25–12.27 analogue | `fig_12_25_taylor_dispersion.png` | Particle mean(X²) lies on Taylor's curve, slope 2 then 1 with the crossover near t ≈ 2Λ_t; the plume envelope is a wedge near the source and a parabola far away. |
 
 ## Deviations & justifications (every `# DEVIATION` in the code)
@@ -186,16 +227,26 @@ distance (< 0.5 %), centreline speed (< 2 %, two-digit book value); the flat-pla
    B = 5.0 ± 0.2 from a composite profile at δ⁺ = 5000 over 30 < y⁺ < 0.15 δ⁺" cannot be met by a correct fit (it returns
    0.383, 3.99). Use the Lee & Moser subset with `window=(350.0, 0.15)` (expect 0.384 ± 0.004), or the composite profile at
    δ⁺ = 10⁵ with `window=(1000.0, 0.15)` (0.4099, 5.001), or δ⁺ = 5000 with `window=(300.0, 0.15)` (0.405, 4.80).
-2. **Analysis row 121** writes C₃G = +½F∫F; (12.63) gives −½F∫F. Correct the analysis note (code and design are right).
-3. **Docstring corrections for the implementer (no number changes):** (a) `model_spectrum`: drop "unverified" for c_L = 6.78
-   (verified, see item 8a); (b) `skin_friction_zpg`: the three laws agree within 10 % up to Re_x = 10⁸ and within 12 % at 10⁹,
-   not "within 10 % to 10⁹"; (c) `stress_partition`: equal viscous and Reynolds shares at y⁺ ≈ 9.9 (Spalding, κ = 0.41,
-   B = 5.0), not ≈ 11; (d) `mixing_length_intercept`: the damped value 5.277 is 5.5 % above B = 5.0 and 1.5 % above 5.2 — say
-   which intercept "within 5 %" refers to, and label it approximate (with κ = 0.384 it gives 5.10 against the DNS fit 4.28);
-   (e) `explainer_tables`: rows reproduce the function "to the 6 digits stored" only at the un-rounded heights — at the
-   stored y⁺ to ≈ 3e-5; (f) `rans_eddy_viscosity_residual`: "ill-formed, realised as a sum" (item 2); (g)
-   `WT.dimensionless_shear`: the docstring attributes the stable coefficient 4.7 to the AMS Glossary; today's search summary
-   of that entry gives 1 + 5 z/L (4.7 is Businger et al. 1971) — the page itself returned HTTP 403, so this needs a human look.
+   (Still open after the review pass: design C11 row 10 reads "pending verify ruling" — the ruling is flagged item 1.)
+2. ~~Analysis row 121 writes C₃G = +½F∫F~~ — **closed**: `analysis/ch12.md` row 121 now reads
+   $C_3G=-\tfrac12F\int_0^\xi F\,d\xi$, as (12.63) gives.
+3. **Docstring corrections — closed (a)–(f), each confirmed in the source and its numbers recomputed after the review:**
+   (a) `model_spectrum` no longer says "unverified" (root 6.779 at L/η = 5.6 × 10⁶, 6.529 at 10⁴ — recomputed);
+   (b) `skin_friction_zpg` states the spread per decade (recomputed: 8.7, 7.7, 8.8, 12.0 % for κ = 0.384; 6.7, 10.1, 13.6,
+   17.3 % for κ = 0.41 — the docstring prints 13.7 where the value is 13.65: a rounding slip in the last digit, no
+   consequence); (c) `stress_partition`: equal shares at y⁺ = 9.91 (Re_τ = 1000), 10.28 (180), 9.85 (5200), labelled
+   approximate; (d) `mixing_length_intercept`: "approximate (model)", 5.277 = 5.5 % above 5.0; (e) `explainer_tables`: "at
+   the un-rounded height"; (f) `rans_eddy_viscosity_residual`: "ill-formed … one arbitrary realisation". Also confirmed
+   (review M3): `spalding_uplus` labelled approximate (recomputed 1.19, 0.85, 0.82, 0.79, 0.77 wall units at the five
+   Re_τ), `k_epsilon_channel` qualitative with "no grid study and no comparison with DNS", `channel_mixing_length` peak
+   production 0.222 / 0.241 / 0.245 / 0.249 at y⁺ = 10.2–10.4 (recomputed), `dispersion_local_slope` 1.370 at x = 3.2 and
+   1.301 at 4.0 (recomputed; 1.5 at 2.149, 1.3 at 4.013), `dispersion_rate_from_particles` cites
+   $\frac{d}{dt}\overline{X_\alpha^2}=2\,\overline{X_\alpha\,dX_\alpha/dt}$ (12.115) correctly.
+   **(g) still open — needs a human:** the "Businger–Dyer" coefficients (unstable 16; the stable 4.7 found in part of the
+   literature against the book's 5) have not been read in any source first-hand. `WT.dimensionless_shear`,
+   `WT.surface_layer_wind`, `reference/ch12/benchmarks.json` (`verified_first_hand: false`) and `SOURCES.md` now say so,
+   and the test is V1 (it asserts that flag, so it must be relabelled when someone has read Businger et al. 1971 /
+   Dyer 1974 or the AMS Glossary entry). The coded physics is self-consistent either way.
 4. **Explainer builders:** E10 — compare `t/Λ_t <= 0.3` on the ratio (item 3); E9 — take the stability word from
    `["verdict"]`, the strings `verdict_kundu`/`verdict_met` start with the criterion "stable ⇔ …" even for an unstable layer,
    and `layer == "forced convection"` says nothing about stability (items 5, 9); E5 — table parity needs rtol 1e-4 (item 6).
@@ -211,9 +262,25 @@ distance (< 0.5 %), centreline speed (< 2 %, two-digit book value); the flat-pla
    `make_refs.py` fetch it (the five V5 tests then skip with "run reference/ch12/make_refs.py").
 8. `skin_friction_zpg(law="power_fifth")`: the coefficient 0.074 is still unverified from ch09 (carried open item); only its
    algebra is tested here.
-9. Secondary sources: the k–ε constants, Prandtl's law and the Businger–Dyer form were confirmed through search summaries of
-   the cited pages (two primary pages returned HTTP 403 to the fetch tool); the Sreenivasan constant through the ATOMIX
-   summary of the paper.
+9. Secondary sources: the k–ε constants and Prandtl's law were confirmed through search summaries / documentation pages
+   quoting the primary papers (two primary pages returned HTTP 403 to the fetch tool); the Sreenivasan constant through
+   the ATOMIX summary of the paper; Pope's c_L through arXiv:1705.04917 and the ATOMIX wiki. None of the primary papers was
+   read. The Businger–Dyer form is not confirmed at all (item 3g). Uncited modelling choices, recorded as such in
+   `SOURCES.md`: the core cap l/δ = 0.09; A⁺ = 26 is attributed to van Driest (1956) without a first-hand read.
+10. **Storyboard parity row to follow (lesson-designer):** `analysis/ch12_design.md` (E9) still types
+   `Gamma_a=-0.0098` in the `gradient_richardson_thermal` parity expression; the test file's copy of that row now passes
+   `Gamma_a=ch12.adiabatic_lapse_rate()` (the returned text is the same string, "… 10.0 > −9.8 K/km").
+11. **Naming of the adiabatic gradient in the meteorological verdict (review Should 5, not changed):** `verdict_met` reads
+   "stable ⇔ Γ < Γa: 6.5 < 9.8 K/km" — it writes Γa for the +9.8 K/km that chapter 12 calls Γ_d. The text comes verbatim from
+   ch01's `lapse_rate_stability`; the notebook / E9 should explain it once beside the badge.
+12. `tests/ch12_verify_figures.py`: the legend of the dashed curve of the surface-layer figure still reads "outside its
+   range" although the curve now stops at the edge of the range (cosmetic; the script was not edited in the review pass).
+13. `tools/check_public.py` (two observations, neither blocks): it scans only tracked files, so the untracked
+   `notebooks/build_ch12.py`, `notebooks/ch12_turbulence.ipynb`, `viz/ch12/` and `reports/ch12_review.md` are covered only
+   after `git add` (they were passed explicitly in this pass — clean); and a private list that fails to parse as JSON is
+   skipped silently (`except Exception: continue` in `_private_lists`), which would drop every rule in that file — the
+   opposite of the principle stated in `forbidden_patterns` ("a checker that silently drops a rule is worse than one
+   that stops").
 
 ## Discrimination (planted wrong variants on a scratch copy of `fluidpy/`; the 114 default tests)
 Baseline on the scratch copy: 114 passed, 3 deselected. Each mutant is one changed line; the run stops at the first failing
@@ -268,3 +335,69 @@ Several mutants are first caught by the pinned closed forms of the parity test b
 re-run against later tests only to confirm an independent kill: M24 also fails `test_taylor_dispersion_V1_*`,
 `test_langevin_particles_stat_*` and `test_slip13_*`; M42 (first caught by the cached table) also fails
 `test_mixing_length_V1_van_driest_profile_by_independent_quadrature`.
+**Repeated on the post-review code with the adapted test file** (same 42 one-line variants, all still applicable; baseline
+170 passed, 3 deselected): **42 of 42 killed**, each by the same first failing test as in the table, except that the test
+named for M35 is now called `test_surface_layer_wind_V1_businger_dyer_integral_with_and_without_the_z0_term`.
+
+### Discrimination of the tests added after the review (scratch copy of the post-review `fluidpy/`; one changed line each)
+Baseline on the scratch copy: 168 passed, 2 skipped (the private book-value file is not copied), 3 deselected.
+**18 of 18 killed.** One variant survived the first version of its test and the test was strengthened (R16).
+
+| # | Wrong variant | Result · failing test |
+|---|---|---|
+| R01 | `Gamma_a` given back its default 0.0 | killed · `test_gradient_richardson_V1_gamma_a_is_required_…` (did not raise TypeError) |
+| R02 | log-linear wind returns the bare formula where 1 + βζ ≤ 0 | killed · `test_surface_layer_wind_V1_log_linear_…` |
+| R03 | NaN only where 1 + βζ < 0 (the boundary ζ = −1/β left out) | killed · same |
+| R04 | wall profile: `minus_uv_plus` = s − 1 (the sign of the correlation) | killed · `test_reynolds_stress_key_V1_…` |
+| R05 | channel: `minus_uv_plus` = −`uv_plus` | killed · same |
+| R06 | `channel_energy_budget_at`: `minus_uv_plus` = s − τ⁺ | killed · same |
+| R07 | `log_law_crossing` guard removed (brentq's raw message comes back) | killed · `test_log_law_crossing_V7_…` |
+| R08 | a given `C1` not halved for the two-sided density | killed · `test_inertial_spectrum_V1_given_one_sided_constant_…` |
+| R09 | `window="hann"` silently a boxcar | killed · `test_periodogram_V1_hann_…` |
+| R10 | non-uniform ensemble uses the first time step everywhere | killed · `test_make_ensemble_stat_non_uniform_…` (r = 0.777 against e^{−Δt/τc} = 0.646) |
+| R11 | R_ij(0) filled with ones instead of δ_ij | killed · `test_isotropic_tensor_V1_zero_separation_…` |
+| R12 | `integral_scale`: the no-zero fallback returns NaN | killed · `test_integral_scale_V1_negative_lobe_…` |
+| R13 | `integral_scale` default changed to "all" | killed · same |
+| R14 | `integral_scale(upto="all")` integrates ∣r∣ | killed · same (error 0.52) |
+| R15 | `correlation_time`: first sample ≤ 0 returns 0 instead of the first lag | killed · same |
+| R16 | `check_averaging_rules` ignores `x` for 3-D input | **survived the first version** (every rule is an identity whichever axis is used, so the residuals stay at round-off); killed after adding the check that the round-off of the x-rule scales like ∣u∣/Δx when x is shrunk by 10⁸ (9.5e-7 against 7e-15) |
+| R18 | `periodogram` accepts any window name | killed · `test_bad_input_V7_…[periodogram: window]` |
+| R19 | `dissipation_isotropic` accepts two inputs | killed · `test_bad_input_V7_…[dissipation: two inputs]` |
+
+## After review (2026-10-07; `reports/ch12_review.md` M1–M4, Should 1–12; code = working tree on `d158c86`)
+
+The implementer's fixes were judged on their physics first, then the tests were adapted. Only `tests/test_ch12.py`, the
+private `tests/book_values_ch12.json` and this report were edited; `fluidpy/` and `scripts/` were not touched.
+
+**Rulings on the fixes**
+
+| Fix | Ruling | Evidence |
+|---|---|---|
+| M1 · `gradient_richardson_thermal(dTdz, dUdz, alpha, g=G0, *, Gamma_a, convention="kundu", tol=1e-12)` — `Gamma_a` required | **Right.** With $\mathrm{Ri}=N^2/(dU/dz)^2$ (12.108) and the in-situ $N^2=g\alpha\,(dT/dz-\Gamma_a)$, $\Gamma_a=-g/C_p=-9.7607$ K/km, the standard atmosphere (dT/dz = −6.5 K/km, dU/dz = 0.01 s⁻¹, α = 1/288 K⁻¹) has Ri = +1.1103 (by hand to 1e-12), "stable", and both texts agree: Kundu "−6.5 > −9.8 K/km", meteorological "6.5 < 9.8 K/km" (Γ_met < Γ_d). With `Gamma_a=0.0` the same thermometer gradient gives −2.2133, "unstable" — what the old default did silently; it is now only reachable on purpose. Omitting the keyword, or passing it positionally, raises TypeError. A θ-gradient with `Gamma_a=0.0` reproduces the same Ri to 1e-12. | `test_gradient_richardson_V1_gamma_a_is_required_and_the_standard_atmosphere_is_stable` (new); the two failing tests now pass `Gamma_a=0.0` where the input is a θ-gradient or the deliberate mutant |
+| Should 3 · `WT.surface_layer_wind(unstable="log_linear")` returns NaN where 1 + βζ ≤ 0 | **Right.** φ_m = 1 + βζ is the shear; where it is ≤ 0 the formula's wind falls with height (and reaches U < 0), which the profile it was integrated from cannot do. NaN mask identical to `dimensionless_shear` on 241 heights for four (L_M, β), boundary ζ = −1/β included; values inside unchanged to 1e-14; wind positive and increasing wherever defined; `surface_layer_state(...)["U"]` is NaN exactly where `valid` is False (21 states, both outcomes occur) and never with the Businger–Dyer form. | `test_surface_layer_wind_V1_log_linear_profile_limits_and_shear_function` (the old assertion of a decreasing out-of-range wind is replaced), `test_surface_layer_state_V1_*` |
+| Should 1 · key `minus_uv_plus` | **Right.** Equal to `uv_plus` in `mixing_length_wall_profile`, `channel_mixing_length`, `channel_energy_budget`, `channel_energy_budget_at`, a fresh `explainer_tables` and the regenerated JSON; ≥ 0, so $\overline{uv}<0$ where dU/dy > 0; fed as $\overline{uv}=-$`minus_uv_plus` to `tke_budget` the production is ≥ 0 (peak 0.22–0.25), with the other sign ≤ 0. The JSON equals a fresh call and the writer reproduces it byte for byte (slow test). | `test_reynolds_stress_key_V1_minus_uv_plus_equals_uv_plus_and_the_correlation_is_negative` (new); column added to `test_explainer_tables_V1_json_reproduces_the_functions` |
+| Should 12 · `WT.log_law_crossing` ValueError | **Right.** y⁺ − ln(y⁺)/κ − B has its minimum 1/κ − ln(1/κ)/κ = 0.264 at y⁺ = 1/κ (κ = 0.41): no crossing at all for B below it (the undamped B = −1.2324: the difference is > 0 on 10⁻³ … 10⁴), two crossings for 0.264 < B < 1, one in 1 < y⁺ < 100 for 1 < B < 100 − ln(100)/κ — the function now says so instead of surfacing brentq's message. | `test_log_law_crossing_V7_clear_error_when_no_single_crossing_exists` (new) |
+| Should 2 · `inertial_spectrum_1d(C1=…, two_sided=True)` | **Documented, behaviour unchanged and now pinned:** `C1` is always the one-sided constant; the default returns half of it (1e-14); a two-sided constant goes in as `C1=2*c2`; the band variance is the same in either normalisation (1e-12). | `test_inertial_spectrum_V1_given_one_sided_constant_with_the_two_sided_default_is_halved` (new) |
+| Should 4 · `TS.integral_scale(upto="first_zero")` warning | **Right, and quantified.** For f = e^{−r²/L²}, g = (1 − r²/L²)e^{−r²/L²}: `upto="all"` gives Λ_g = Λ_f/2 (1e-6); the default stops at r = L and returns L[√π erf(1)/4 + 1/(2e)] = 0.629 Λ_f (1e-6) — 26 % too large. `isotropic_scales` and `scripts/ch12_isotropic.py` use "all". | `test_integral_scale_V1_negative_lobe_first_zero_versus_all_and_the_fallbacks` (new) |
+| M4 · Businger–Dyer relabelled | **Agreed.** The test proves ψ_m = ∫₀^ζ(1 − φ_m)/ζ′dζ′ for the coded φ_m — V1. Renamed; it asserts `verified_first_hand: false`. Open item 3g. | `test_surface_layer_wind_V1_businger_dyer_integral_with_and_without_the_z0_term` |
+| Should 9 · two "V5" tests that compare constants | **Agreed.** Renamed with the tag `const` (constant consistency, no evidence level); C08 and C13 re-counted above — 3 and 2 levels without them. | `test_inertial_spectrum_const_…`, `test_k_epsilon_const_…` |
+| M3 · docstrings | **Confirmed in the source, numbers recomputed** (Open item 3). One last-digit slip: `skin_friction_zpg` prints 13.7 % for κ = 0.41 at Re_x = 10⁸; the value is 13.65 %. | scratch recomputation |
+| M2 · table constants; the private-pattern mechanism | **Works.** The twelve patterns were moved from `data/book/forbidden_public_ch12.json` (deleted) into the house location `tests/book_values_ch12.json` under `"_forbidden_public_regex"`; the checker loads the same 12 patterns and 61 literal strings before and after, a scratch file with one planted line per pattern is flagged identically (12 hits, 6 innocent lines untouched), and `tools/check_public.py` prints "public-repo check OK (646 files)" before and after. `tests/test_ch12.py` and this report checked explicitly: OK. | — |
+
+**Branches no default test had executed (review Should 11) — now covered by default tests:** `periodogram(window="hann")`
+(Σ w S = variance; a line between two bins leaks 10⁴ times less twenty bins away and ten times less out of its six
+nearest bins than with the boxcar; an on-bin line gives ¼ : 1 : ¼; an OU record with 256 tapered segments follows the
+Lorentzian within 5 s.e.), `make_ensemble` with unequal time steps (variance and e^{−∣Δt∣/τ_c} for all 15 pairs of times
+within 5 s.e., N = 4 × 10⁴; the recursion written out in the test with the same random numbers to 1e-12),
+`check_averaging_rules` with (N, nx, nt) input and an unequally spaced x (six residuals < 1e-12), the r = 0 branch of
+`isotropic_correlation_tensor` (= u² δ_ij, trace 2ē, and the limit r → 0 from three directions for (12.40) and (12.41)),
+the numeric derivative of a callable f (1e-7), `integral_scale` without a zero crossing, `correlation_time` with a first
+sample ≤ 0 and without a zero, and 47 bad-input calls reaching 45 distinct `raise ValueError` lines (one parametrised
+test, each matched on its message).
+Not covered: the `linspace` branch of `_wall_grid` (private helper) and the two `raise` lines of the private
+`_fluct_degree`.
+
+**Not done in this pass:** the full suite (42 min; the orchestrator runs it at the merge gate — the 1737 of the first pass
+is for the pre-review code). Review Should 10 remains open: both mutant campaigns run against the default tests only, so
+`isotropy_report`, `TS.longitudinal_transverse_correlation` and the fresh full `explainer_tables()` call, which live in
+`@slow` tests, have no planted variant.

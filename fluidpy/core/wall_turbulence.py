@@ -193,10 +193,17 @@ def log_law_crossing(*, kappa: float, B: float) -> float:
 
     Book: §12.9, Fig. 12.18 (the two laws drawn on one semi-log plot; the crossing lies in the buffer layer).
     Returns y⁺ [–] (≈ 10.8 for κ = 0.41, B = 5.0).  brentq on y − ln(y)/κ − B in [1, 100]; residual asserted.
+    Raises ValueError when the two curves do not cross exactly once in 1 < y⁺ < 100 — a single crossing needs
+    1 < B < 100 − ln(100)/κ (e.g. the undamped mixing-length intercept B = (ln 4κ − 1)/κ ≈ −1.23 gives a log line
+    that lies below the sublayer line everywhere: no crossing to report).
     Assumptions: the two laws are extrapolated to their intersection (neither holds there: it lies in the buffer layer).
     Validation: V1 residual < 1e-9; 10.80 for (0.41, 5.0); moves outward when B rises.
     """
     g = lambda y: y - np.log(y) / kappa - B  # noqa: E731
+    if not (kappa > 0 and g(1.0) < 0.0 < g(100.0)):
+        raise ValueError(f"no single crossing of U+ = y+ with the log law in 1 < y+ < 100 for kappa = {kappa}, B = {B}: "
+                         "the sublayer line lies below the log line at y+ = 1 only if B > 1, and above it at y+ = 100 "
+                         "only if B < 100 - ln(100)/kappa")
     root = brentq(g, 1.0, 100.0, xtol=1e-13, rtol=1e-13)
     assert abs(g(root)) < 1e-9
     return float(root)
@@ -300,6 +307,9 @@ def spalding_uplus(yplus, *, kappa: float, B: float):
     Method: ``brentq`` on ``spalding_yplus(U) − y⁺`` in the bracket [0, max(y⁺, ln(y⁺)/κ + B) + 5] (the profile lies below
     both the sublayer line and, by a bounded amount, above/below the log line); the residual is asserted < 1e-9 y⁺.
     Validation: V1 U⁺ → y⁺ (y⁺ → 0) and → log law (relative gap < 1e-2 at y⁺ = 10³); inverse residual.
+    **Approximate** against channel DNS (Lee & Moser 2015, ``reference/ch12``; (κ, B) = (0.41, 5.0), inner layer
+    y/δ < 0.15): largest |ΔU⁺| = 0.82, 0.79, 0.77 wall units at Re_τ ≈ 1000, 2000, 5200 and 0.85 at 550, all in the
+    buffer layer; 1.19 at Re_τ ≈ 180, where there is hardly a logarithmic layer.  A fitted curve, not a law.
     Assumptions: as spalding_yplus.
     """
     yp = np.atleast_1d(_F(yplus)).astype(float)
@@ -454,7 +464,9 @@ def stress_partition(yplus, Re_tau: float, *, kappa: float, B: float) -> dict:
     Model: dU⁺/dy⁺ is taken from Spalding's inner profile (:func:`spalding_slope`), capped by the total stress — so the
     Reynolds part is ≥ 0 and the result is trustworthy in the inner layer (y/δ ≲ 0.2), indicative beyond.
     Parameters: yplus in [0, Re_tau]; kappa, B required keywords.  Returns dict(total, viscous, reynolds) [–].
-    Validation: V1 the parts sum to the linear law; viscous = total = 1 at the wall; equal shares near y⁺ ≈ 11.
+    Validation: V1 the parts sum to the linear law; viscous = total = 1 at the wall.  **Approximate (model)**: the two
+    shares are equal at y⁺ ≈ 9.9 for (κ, B) = (0.41, 5.0) at Re_τ = 1000 (10.3 at Re_τ = 180, 9.8 at 5200), in the
+    buffer layer; the viscous share is within 0.08 τ0 of channel DNS for y/δ < 0.2 (tested at Re_τ ≈ 5200).
     Assumptions: fully developed channel; the viscous share is modelled with Spalding's profile (trustworthy for y/delta <~ 0.2).
     """
     yp = _F(yplus)
@@ -522,7 +534,10 @@ def skin_friction_zpg(Re_x, law: str = "monkewitz", kappa: float | None = None):
     Also "power_fifth" — ``0.8·0.074 Re_x^{−1/5}``, the local form of the one-seventh-power drag law used in ch09
     (``core.boundary_layer.plate_drag_coefficient``; C_f = d(x C_D)/dx; coefficient unverified, see there).
     Parameters: Re_x = U_∞ x/ν [–] (> 10⁶ for the three book laws).  Returns C_f [–].  Scalar-callable.
-    Validation: V7 the three book laws agree within 10 % for 10⁶ ≤ Re_x ≤ 10⁹ and exceed the laminar 0.664/sqrt(Re_x).
+    Validation: V7 the three book laws exceed the laminar 0.664/sqrt(Re_x) and agree with each other to the following
+    spread (max/min − 1), which depends on the κ passed to "monkewitz": with κ = 0.384 within 10 % for
+    10⁶ ≤ Re_x ≤ 10⁸ (8.7 % at 10⁶, 7.7 % at 10⁷, 8.8 % at 10⁸) and 12.0 % at 10⁹; with κ = 0.41, 6.7 % at 10⁶, 10.1 % at 10⁷,
+    13.7 % at 10⁸ and 17.3 % at 10⁹.  They are fits to different data sets, not one law.
     Assumptions: fully turbulent flow over a smooth wall; constant density; zero pressure gradient; Re_x > 1e6; empirical correlations.
     """
     Re = _F(Re_x)
@@ -661,8 +676,11 @@ def dimensionless_shear(zeta, beta: float = 5.0, unstable: str = "log_linear"):
     """Dimensionless wind shear ``φ_m = (κ z/u_*) dU/dz`` as a function of ζ = z/L_M.
 
     Book: §12.11, the log-linear profile ``U = (u_*/κ)[ln(z/z0) + 5 z/L_M]`` ⇒ ``φ_m = 1 + β ζ`` with the book's β = 5.
-    ``unstable="businger_dyer"`` replaces the unstable side (ζ < 0) by ``φ_m = (1 − 16 ζ)^{−1/4}`` (AMS Glossary of
-    Meteorology, "Businger–Dyer relationship", read 2026-10-06; its stable coefficient is 4.7 against the book's 5).
+    ``unstable="businger_dyer"`` replaces the unstable side (ζ < 0) by ``φ_m = (1 − 16 ζ)^{−1/4}``, the
+    "Businger–Dyer" form.  **The coefficients are literature values (unstable 16 as coded; the stable side stays the
+    book's 1 + β ζ with the default β = 5 — a caller wanting the 4.7 found in part of that literature passes
+    ``beta=4.7``), attribution not verified first-hand — see reference/ch12/SOURCES.md.**  Nothing here is a benchmark:
+    the tests only prove that the wind profile is the integral of the coded φ_m.
     Parameters: zeta [–]; beta [–].  Returns φ_m [–]; φ_m(0) = 1; **NaN where the log-linear form would give φ_m ≤ 0**
     (ζ ≤ −1/β: the linear correction is a small-|ζ| formula and has no meaning there).
     Assumptions: constant-flux surface layer; empirical stability functions, valid for moderate |z/L_M|.
@@ -695,16 +713,19 @@ def surface_layer_wind(z, u_star, z0, L_M=np.inf, *, kappa: float, beta: float =
     kappa : von Kármán constant [–] (required keyword).   beta : coefficient of the linear correction [–].
     unstable : "log_linear" (the book's formula on both sides of neutral) or "businger_dyer": for L_M < 0 the integral
         of φ_m = (1 − 16ζ)^{−1/4}, ``U = (u_*/κ)[ln(z/z0) − ψ_m(z/L_M)]`` with
-        ``ψ_m = 2 ln((1 + x)/2) + ln((1 + x²)/2) − 2 arctan x + π/2``, ``x = (1 − 16ζ)^{1/4}`` (the form of the AMS
-        Glossary of Meteorology; cited, not from the book); stable side unchanged.
+        ``ψ_m = 2 ln((1 + x)/2) + ln((1 + x²)/2) − 2 arctan x + π/2``, ``x = (1 − 16ζ)^{1/4}`` (not from the book; the
+        coefficient 16 is a literature value whose attribution is not verified first-hand — see
+        reference/ch12/SOURCES.md; ψ_m itself is proved by quadrature to be ∫_0^ζ (1 − φ_m)/ζ′ dζ′ of the coded φ_m);
+        stable side unchanged.  With "log_linear" the result is **NaN where ζ = z/L_M ≤ −1/β** (φ_m ≤ 0: the linear
+        correction has no meaning there), exactly where :func:`dimensionless_shear` returns NaN.
     psi_at_z0 : add Paulson's lower-limit term ``+ψ_m(z0/L_M)`` (so that U(z0) = 0 exactly).  Default False — the
         common form, which neglects it because z0 ≪ |L_M| (ψ_m(z0/L_M) ≈ −4 z0/L_M, of order z0/|L_M|).
     Returns
     -------
-    U [m/s]; NaN below z0.  A float for scalar input.
+    U [m/s]; NaN below z0, and — with ``unstable="log_linear"`` — NaN where z/L_M ≤ −1/β.  A float for scalar input.
     Assumptions: horizontally uniform, steady surface layer with constant fluxes; z ≪ boundary-layer depth; the linear
-    correction holds for moderate |z/L_M| only (for z/L_M < −1/β the log-linear wind decreases with height and can
-    turn negative: outside its range — use "businger_dyer" there).
+    correction holds for moderate |z/L_M| only (for z/L_M < −1/β the log-linear formula would give a wind that
+    decreases with height and can turn negative: outside its range, hence NaN — use "businger_dyer" there).
     Validation: V1 neutral limit = (12.93); V7 sign test with both signs of L_M; ψ_m is the numerical integral of
     (1 − φ_m)/ζ.
     """
@@ -718,7 +739,9 @@ def surface_layer_wind(z, u_star, z0, L_M=np.inf, *, kappa: float, beta: float =
                 psi0 = _psi_businger_dyer(np.where(np.isinf(L), 0.0, _F(z0) / np.where(np.isinf(L), 1.0, L)))
             corr = np.where(zeta < 0, -(_psi_businger_dyer(zeta) - psi0), beta * zeta)
         elif unstable == "log_linear":
-            corr = beta * zeta
+            # outside the range of the linear correction (φ_m = 1 + βζ ≤ 0, i.e. ζ ≤ −1/β) the formula gives a wind
+            # that decreases with height and can turn negative: NaN there, as in dimensionless_shear
+            corr = np.where(1.0 + beta * zeta > 0, beta * zeta, np.nan)
         else:
             raise ValueError("unstable must be 'log_linear' or 'businger_dyer'")
         U = _F(u_star) / kappa * (log + corr)  # log-linear profile, §12.11

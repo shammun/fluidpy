@@ -39,9 +39,13 @@ def main() -> int:
     print(f"max |g - (f + r f'/2)| for r < 1.2 m: {np.max(np.abs(g - g_pred)[m]):.3f}   (the 2-D form f + r f' misses by "
           f"{np.max(np.abs(g - ch12.transverse_from_longitudinal(r, f, dim=2))[m]):.3f})")
     lam_f, lam_g = TS.taylor_microscale(r, f, fit_points=4), TS.taylor_microscale(r, g, fit_points=4)
-    Lf, Lg = TS.integral_scale(r, f), TS.integral_scale(r, g)
+    # Lambda = int_0^inf r dr (12.18)/(12.39): g(r) has a negative lobe that belongs to the integral, so Lambda_g needs
+    # upto="all" (the default "first_zero" would leave the lobe out); f(r) is integrated the same way for a like-for-like ratio
+    Lf, Lg = TS.integral_scale(r, f, upto="all"), TS.integral_scale(r, g, upto="all")
+    Lg_fz = TS.integral_scale(r, g)
     print(f"lambda_f = {lam_f:.4f} m, lambda_g = {lam_g:.4f} m, ratio {lam_g / lam_f:.3f} (1/sqrt 2 = 0.707); "
-          f"Lambda_f = {Lf:.4f} m, Lambda_g (to first zero) = {Lg:.4f} m")
+          f"Lambda_f = {Lf:.4f} m, Lambda_g = {Lg:.4f} m, ratio {Lg / Lf:.3f} (taught: 1/2)   "
+          f"[stopping g at its first zero would give {Lg_fz:.4f} m, ratio {Lg_fz / Lf:.3f}: not (12.18)]")
     Kq = np.linspace(1e-3, 6 * K0, 20001)
     eps_spec = 2.0 * nu * np.trapezoid(Kq ** 2 * E(Kq), Kq)
     eps_grad = float(ch12.dissipation_isotropic(nu, dudx_sq=float(np.mean(rep["longitudinal"]))))

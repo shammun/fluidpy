@@ -3,7 +3,8 @@
 Evidence levels (``verify-implementation`` skill): V1 analytic · V2 symbolic (sympy / dimensions) · V3 convergence ·
 V4 conservation / invariant / integral identity · V5 published benchmark (``reference/ch12/``, see SOURCES.md) · V6 book
 value (private, ``tests/book_values_ch12.json``, skipped when absent) · V7 limits / symmetry / invariance.  ``stat`` marks a
-sampled check: fixed seed, tolerance 5 standard errors of the estimator.
+sampled check: fixed seed, tolerance 5 standard errors of the estimator.  ``const`` marks a constant-consistency check: a
+constant of the code compared with a cited published value — it exercises no code and counts as no evidence level.
 Every test name is ``test_<concept>_<level>_<what>``; the comment on the ``def`` line repeats the level and the curation ID.
 
 A items (CORE, ≥ 2 independent levels): C01 ensemble average and its rules (12.1)–(12.9) · C02 lag correlation, integral
@@ -183,7 +184,7 @@ PARITY = (
     'ch12.surface_layer_wind(10.0, 0.3, 0.03, -16.6, kappa=0.4, unstable="businger_dyer")',
     'ch12.flux_richardson_surface_layer(10.0, 82.98165)',
     'ch12.turbulence_regime(0.12)',
-    'ch12.gradient_richardson_thermal(0.010, 0.1, 1/300, Gamma_a=-0.0098)["verdict_kundu"]',
+    'ch12.gradient_richardson_thermal(0.010, 0.1, 1/300, Gamma_a=ch12.adiabatic_lapse_rate())["verdict_kundu"]',
     'ch12.taylor_dispersion_exponential(10.0, 1.0, 10.0)',
     'ch12.taylor_dispersion_exponential(0.01, 1.0, 10.0)',
     'ch12.taylor_dispersion_gaussian(10.0, 1.0, 10.0)',
@@ -193,7 +194,9 @@ PARITY = (
     'ch12.dispersion_regime(3.0, 10.0)',
     'ch12.k_epsilon_decay(1.0, 1.0, 10.0, C_eps2=1.92)[0]',
     'ch12.k_epsilon_loglayer_kappa(0.09, 1.44, 1.92, 1.3)',
-)  # the `py:` expressions of the explainer storyboards (design Part B), verbatim
+)  # the `py:` expressions of the explainer storyboards (design Part B), verbatim — except the Richardson row, which
+#    takes Γ_a from the lapse-rate function instead of the storyboard's typed, rounded value (review M1; the
+#    storyboard row is to follow)
 # END-OF-CONTRACT-LIST
 
 
@@ -243,6 +246,11 @@ def test_parity_V1_every_design_parity_expression_evaluates():  # design Part B:
     assert rel(ch12.k_epsilon_loglayer_kappa(0.09, 1.44, 1.92, 1.3), math.sqrt(0.3 * 0.48 * 1.3)) < 1e-14
     assert ch12.layer_name(12.0, 0.012) == "buffer layer" and ch12.turbulence_regime(0.12) == "shear-driven"
     assert ch12.dispersion_regime(3.0, 10.0) == "ballistic"      # the E10 row that sits exactly on t = 0.3 Λ_t
+    # the Richardson row: Γ_a comes from the lapse-rate function (never typed rounded), the text from ch01's converter
+    ri_row = [e for e in PARITY if "gradient_richardson_thermal" in e]
+    assert len(ri_row) == 1 and "adiabatic_lapse_rate()" in ri_row[0] and not re.search(r"Gamma_a=-?\d", ri_row[0])
+    assert ch12.adiabatic_lapse_rate is STRAT.adiabatic_lapse_rate
+    assert eval(ri_row[0], scope) == STRAT.lapse_rate_stability(0.010, STRAT.adiabatic_lapse_rate(), convention="kundu").text  # noqa: S307
 
 
 # ======================================================================================================================
@@ -1406,7 +1414,8 @@ def test_explainer_tables_V1_json_reproduces_the_functions():  # V1 · C06/C12 �
             # the stored y⁺ is itself rounded to 6 digits (the table was evaluated at the unrounded height), so each
             # stored value must lie between the function's values at y⁺(1 ∓ 6e-6), widened by its own 6-digit rounding
             lo, a, hi = (ch12.channel_energy_budget_at(float(yp[i]) * f, Re, KAP, 26.0) for f in (1 - 6e-6, 1.0, 1 + 6e-6))
-            for col, src in (("Uplus", "Uplus"), ("uv_plus", "uv_plus"), ("production", "production"),
+            for col, src in (("Uplus", "Uplus"), ("uv_plus", "uv_plus"), ("minus_uv_plus", "minus_uv_plus"),
+                             ("production", "production"),
                              ("pressure_work", "pressure_work"), ("mean_dissipation", "mean_dissipation"),
                              ("turb_sink", "turb_sink"), ("transport", "transport"), ("dUdy_plus", "slope")):
                 v, pad = row[col][i], 6e-6 * abs(a[src]) + 1e-12
@@ -1547,7 +1556,7 @@ def test_inertial_spectrum_V2_derivation_D12_one_group_and_the_18_over_55():  # 
     assert rel(ch12.inertial_spectrum_1d(7.0, 0.4, C1=0.5, two_sided=False), 0.5 * 0.4 ** (2 / 3) * 7.0 ** (-5 / 3)) < 1e-14
 
 
-def test_inertial_spectrum_V5_one_dimensional_constant_against_sreenivasan():  # V5 · C08 (N95)
+def test_inertial_spectrum_const_one_dimensional_constant_against_sreenivasan():  # constant consistency (not V5) · C08 (N95)
     bm = json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["kolmogorov_C1_one_sided"]
     c1 = ch12.kolmogorov_constants()["C1_one_sided"]
     assert abs(c1 - bm["value"]) < bm["std"]            # 0.491 against 0.53 ± 0.055 (one standard deviation of the survey)
@@ -2387,8 +2396,8 @@ def test_k_epsilon_decay_V1_closed_form_ivp_and_rk4_from_scratch():  # V1 · C13
     assert np.all(np.diff(lt) > 0) and np.all(np.diff(ch12.k_epsilon_eddy_viscosity(e, eps)) < 0)   # eddies grow, ν_T decays (n > 1)
 
 
-def test_k_epsilon_V5_constants_are_the_published_standard_set():  # V5 · C13 (N178)
-    bm = json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["k_epsilon_constants"]
+def test_k_epsilon_const_constants_are_the_cited_standard_set():  # constant consistency (not V5: no code is exercised) · C13 (N178)
+    bm =json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["k_epsilon_constants"]
     K = ch12.K_EPSILON_CONSTANTS
     assert (K["C_mu"], K["C_eps1"], K["C_eps2"], K["sigma_e"], K["sigma_eps"]) == (
         bm["C_mu"], bm["C_eps1"], bm["C_eps2"], bm["sigma_k"], bm["sigma_eps"])
@@ -2442,7 +2451,7 @@ def test_richardson_V2_derivation_D24_reduced_budget_and_ri_equals_prandtl_times
     # numbers: build the fluxes from eddy coefficients and recover Ri = Pr_T Rf through the two functions
     nu_T, k_T, dU, dth, a = 0.6, 0.4, 0.05, 0.01, 1 / 290.0
     Rf_n = ch12.flux_richardson(-k_T * dth, -nu_T * dU, dU, a)
-    Ri_n = ch12.gradient_richardson_thermal(dth, dU, a)["Ri"]
+    Ri_n = ch12.gradient_richardson_thermal(dth, dU, a, Gamma_a=0.0)["Ri"]       # dth is a POTENTIAL-temperature gradient
     assert rel(Ri_n, ch12.turbulent_prandtl(nu_T, k_T) * Rf_n) < 1e-13 and rel(ch12.flux_from_gradient_richardson(Ri_n, 1.5), Rf_n) < 1e-13
 
 
@@ -2489,7 +2498,7 @@ def test_gradient_richardson_V1_in_situ_and_potential_routes_and_both_convention
     assert -9.80e-3 < GAMMA_A < -9.70e-3                                 # Kundu's sign: negative
     for dTdz in (-6.5e-3, 0.0, +10e-3, -12e-3, GAMMA_A):
         r = ch12.gradient_richardson_thermal(dTdz, dU, al, Gamma_a=GAMMA_A)
-        via_theta = ch12.gradient_richardson_thermal(dTdz - GAMMA_A, dU, al)           # Γ_a = 0: already a θ-gradient
+        via_theta = ch12.gradient_richardson_thermal(dTdz - GAMMA_A, dU, al, Gamma_a=0.0)   # Γ_a = 0: already a θ-gradient
         assert abs(r["Ri"] - via_theta["Ri"]) < 1e-12 and abs(r["N2"] - G0 * al * (dTdz - GAMMA_A)) < 1e-18
         assert abs(r["dthetadz"] - (dTdz - GAMMA_A)) < 1e-18 and r["dtheta_dz"] == r["dthetadz"]
         assert abs(r["N2"] - STRAT.brunt_vaisala_sq_from_lapse(T, dTdz)) < 1e-12        # ch01's N² from the lapse rate
@@ -2513,13 +2522,53 @@ def test_gradient_richardson_V1_in_situ_and_potential_routes_and_both_convention
     std = ch12.gradient_richardson_thermal(-6.5e-3, dU, al, Gamma_a=GAMMA_A)
     assert std["verdict"] == "stable" and std["Ri"] > 0                    # cooling at 6.5 K/km with height is STABLE
     assert "−6.5" in std["verdict_kundu"] and "6.5" in std["verdict_met"] and "−6.5" not in std["verdict_met"]
-    mutant = ch12.gradient_richardson_thermal(-6.5e-3, dU, al)             # forgetting Γ_a calls the standard atmosphere unstable
+    # the deliberate mutant: the in-situ gradient fed with Γ_a = 0.0 (what the old default did silently) calls the
+    # standard atmosphere unstable
+    mutant = ch12.gradient_richardson_thermal(-6.5e-3, dU, al, Gamma_a=0.0)
     assert mutant["verdict"] == "unstable" and mutant["Ri"] < 0
     assert ch12.gradient_richardson_thermal(0.0, dU, al, Gamma_a=GAMMA_A)["Ri"] > std["Ri"]     # isothermal: more stable still
-    assert math.isinf(ch12.gradient_richardson_thermal(0.01, 0.0, al)["Ri"]) and ch12.gradient_richardson_thermal(0.01, 0.0, al)["Ri"] > 0
-    assert ch12.gradient_richardson_thermal(-0.01, 0.0, al)["Ri"] == -math.inf and math.isnan(ch12.gradient_richardson_thermal(0.0, 0.0, al)["Ri"])
+    # zero shear, θ-gradients (Γ_a = 0.0 explicitly): Ri = ±∞ by the sign of N², NaN for 0/0
+    th = lambda dthdz: ch12.gradient_richardson_thermal(dthdz, 0.0, al, Gamma_a=0.0)["Ri"]  # noqa: E731
+    assert math.isinf(th(0.01)) and th(0.01) > 0
+    assert th(-0.01) == -math.inf and math.isnan(th(0.0))
     arr = ch12.gradient_richardson_thermal(np.array([-12e-3, -6.5e-3]), dU, al, Gamma_a=GAMMA_A)
     assert arr["Ri"][0] < 0 < arr["Ri"][1] and arr["verdict_kundu"] is None
+
+
+def test_gradient_richardson_V1_gamma_a_is_required_and_the_standard_atmosphere_is_stable():  # V1/V7 · C14 (12.108) · review M1
+    # Ri = N²/(dU/dz)² (12.108) with the in-situ N² = gα(dT/dz − Γ_a), Γ_a = −g/C_p (Kundu's sign, negative)
+    T, dU, dTdz = 288.0, 0.01, -6.5e-3
+    al = 1 / T
+    with pytest.raises(TypeError, match="Gamma_a"):
+        ch12.gradient_richardson_thermal(dTdz, dU, al)                     # no silent Γ_a = 0 any more
+    with pytest.raises(TypeError):
+        ch12.gradient_richardson_thermal(dTdz, dU, al, G0, GAMMA_A)        # … and it is keyword-only
+    p = inspect.signature(ch12.gradient_richardson_thermal).parameters["Gamma_a"]
+    assert p.default is inspect.Parameter.empty and p.kind is inspect.Parameter.KEYWORD_ONLY
+    assert rel(GAMMA_A, -G0 / ch12.CP_AIR) < 1e-14 and -9.80e-3 < GAMMA_A < -9.70e-3
+    std = ch12.gradient_richardson_thermal(dTdz, dU, al, Gamma_a=GAMMA_A)
+    hand = G0 * al * (dTdz + G0 / ch12.CP_AIR) / dU ** 2                   # written out here, not taken from the function
+    assert rel(std["Ri"], hand) < 1e-12 and 1.09 < std["Ri"] < 1.13 and std["N2"] > 0
+    assert std["verdict"] == "stable"
+    # both verdict strings say the same thing: Kundu  dT/dz > Γ_a  (−6.5 > −9.8),  meteorology  Γ < Γ_d  (6.5 < 9.8)
+    assert _comparator(std["verdict_kundu"]) == ">" and _comparator(std["verdict_met"]) == "<"
+    nk, nm = _numbers(std["verdict_kundu"]), _numbers(std["verdict_met"])
+    assert abs(nk[0] + 6.5) < 0.051 and abs(nk[1] - GAMMA_A * 1e3) < 0.051 and nk[0] > nk[1]
+    assert abs(nm[0] - 6.5) < 0.051 and abs(nm[1] + GAMMA_A * 1e3) < 0.051 and nm[0] < nm[1]
+    for conv in ("kundu", "meteorology"):
+        r = ch12.gradient_richardson_thermal(dTdz, dU, al, Gamma_a=GAMMA_A, convention=conv)
+        assert r["verdict"] == "stable" and r["Ri"] == std["Ri"]
+        assert r["text"] == (std["verdict_kundu"] if conv == "kundu" else std["verdict_met"])
+    # what the old default did: the same thermometer gradient with Γ_a = 0.0 → Ri = gα dT/dz/(dU/dz)² < 0, "unstable"
+    old = ch12.gradient_richardson_thermal(dTdz, dU, al, Gamma_a=0.0)
+    assert rel(old["Ri"], G0 * al * dTdz / dU ** 2) < 1e-12 and -2.23 < old["Ri"] < -2.20 and old["verdict"] == "unstable"
+    assert _numbers(old["verdict_kundu"])[1] == 0.0                         # with Γ_a = 0.0 the texts compare with 0
+    # a potential-temperature gradient with Γ_a = 0.0 gives the same Ri as the thermometer gradient with Γ_a
+    th = ch12.gradient_richardson_thermal(dTdz - GAMMA_A, dU, al, Gamma_a=0.0)
+    assert abs(th["Ri"] - std["Ri"]) < 1e-12 and th["verdict"] == "stable"
+    # the neutral layer sits exactly on the boundary function, and a layer cooling faster than it is unstable
+    assert ch12.gradient_richardson_thermal(GAMMA_A, dU, al, Gamma_a=GAMMA_A)["verdict"] == "neutral"
+    assert ch12.gradient_richardson_thermal(-12e-3, dU, al, Gamma_a=GAMMA_A)["verdict"] == "unstable"
 
 
 # ======================================================================================================================
@@ -2574,11 +2623,47 @@ def test_surface_layer_wind_V1_log_linear_profile_limits_and_shear_function():  
     assert WT.dimensionless_shear(0.0) == 1.0 and WT.dimensionless_shear(0.0, unstable="businger_dyer") == 1.0
     assert rel(WT.dimensionless_shear(0.2), 2.0) < 1e-15 and rel(WT.dimensionless_shear(-0.5, unstable="businger_dyer"), 9.0 ** -0.25) < 1e-15
     assert math.isnan(WT.dimensionless_shear(-0.2)) and math.isnan(WT.dimensionless_shear(-1.0))        # 1 + βζ ≤ 0: no meaning
-    assert WT.surface_layer_wind(10.0, us, z0_, -5.0, kappa=kap) < WT.surface_layer_wind(5.0, us, z0_, -5.0, kappa=kap)  # outside its range
+    # outside the range of the linear correction (φ_m = 1 + βζ ≤ 0, i.e. z ≥ |L_M|/β in unstable air) the formula
+    # would give a wind that falls with height and turns negative: no value is returned there (review Should 3)
+    L, zc = -5.0, 1.0                                                     # 1 + 5 z/L = 0 at z = |L|/β = 1 m
+    assert all(math.isnan(WT.surface_layer_wind(zz, us, z0_, L, kappa=kap)) for zz in (zc, 1.001, 5.0, 10.0, 50.0))
+    raw = lambda zz, Lm, b=5.0: us / kap * (np.log(zz / z0_) + b * zz / Lm)  # noqa: E731  the bare formula, written here
+    assert raw(10.0, L) < raw(5.0, L) and raw(50.0, L) < 0                # what the bare formula does out there
+    inside = WT.surface_layer_wind(0.999, us, z0_, L, kappa=kap)          # just inside: a positive wind below neutral
+    assert rel(inside, raw(0.999, L)) < 1e-14 and 0 < inside < us / kap * math.log(0.999 / z0_)
+    for Lm, b in ((-5.0, 5.0), (-20.0, 5.0), (-47.0, 4.7), (-400.0, 5.0)):
+        zz = np.geomspace(z0_, 200.0, 241)
+        U = WT.surface_layer_wind(zz, us, z0_, Lm, kappa=kap, beta=b)
+        ok = 1.0 + b * (zz / Lm) > 0
+        assert ok.any() and (~ok).any()
+        assert np.array_equal(np.isnan(U), ~ok)                           # NaN exactly where φ_m ≤ 0 …
+        assert np.array_equal(np.isnan(U), np.isnan(WT.dimensionless_shear(zz / Lm, beta=b)))   # … as dimensionless_shear
+        assert np.allclose(U[ok], raw(zz[ok], Lm, b), rtol=1e-14, atol=1e-14)   # the values inside the range are unchanged
+        assert np.all(np.diff(U[ok]) > 0) and np.all(U[ok][1:] > 0)       # where it is defined the wind rises with height
+        bd = WT.surface_layer_wind(zz, us, z0_, Lm, kappa=kap, beta=b, unstable="businger_dyer")
+        assert np.all(np.isfinite(bd)) and np.all(np.diff(bd) > 0)        # the other form is usable at every unstable ζ
+    assert np.all(np.isfinite(WT.surface_layer_wind(np.geomspace(z0_, 200.0, 50), us, z0_, 5.0, kappa=kap)))   # stable: never NaN
+    # surface_layer_state: U is NaN exactly where `valid` is False (and nowhere with the Businger–Dyer form)
+    seen = set()
+    for H in (-30.0, 0.0, 5.0, 30.0, 100.0, 300.0, 1000.0):
+        for zz in (2.0, 10.0, 50.0):
+            s = ch12.surface_layer_state(us, H, 288.0, z0_, zz, 1.2, 1005.0, kap)
+            assert s["valid"] is bool(1.0 + 5.0 * s["zeta"] > 0) and math.isnan(s["U"]) is (not s["valid"]), (H, zz)
+            assert math.isnan(s["phi_m"]) is (not s["valid"])
+            if s["valid"]:
+                assert s["U"] > 0 and rel(s["U"], raw(zz, s["L_M"]) if math.isfinite(s["L_M"]) else us / kap * math.log(zz / z0_)) < 1e-12
+            seen.add(s["valid"])
+            b2 = ch12.surface_layer_state(us, H, 288.0, z0_, zz, 1.2, 1005.0, kap, unstable="businger_dyer")
+            assert b2["valid"] is True and math.isfinite(b2["U"]) and b2["U"] > 0
+    assert seen == {True, False}
 
 
-def test_surface_layer_wind_V5_businger_dyer_integral_with_and_without_the_z0_term():  # V1/V5 · C15 (N188) · flagged item 4
+def test_surface_layer_wind_V1_businger_dyer_integral_with_and_without_the_z0_term():  # V1 · C15 (N188) · flagged item 4
+    # V1, not V5 (review M4): this proves that ψ_m is the integral of the *coded* φ_m — an analytic consistency check.
+    # The coefficients are read from benchmarks.json only as "the coefficients the code uses" (verified_first_hand:
+    # false there); nobody has read the cited source first-hand, so nothing here is a benchmark.
     bm = json.loads((REF / "benchmarks.json").read_text(encoding="utf-8"))["businger_dyer_unstable"]
+    assert bm["verified_first_hand"] is False and "not a benchmark" in bm["kind"]   # relabel this test when that changes
     us, z0_, kap = 0.3, 0.03, 0.4
     phi = lambda zeta: (1 - bm["coefficient"] * zeta) ** bm["exponent"]  # noqa: E731  φ_m = (1 − 16ζ)^(−1/4), ζ < 0
     assert rel(WT.dimensionless_shear(-0.37, unstable="businger_dyer"), phi(-0.37)) < 1e-15
@@ -2647,7 +2732,7 @@ def test_surface_layer_state_V1_composition_signs_and_both_verdicts():  # V1/V7 
     assert math.isinf(n["L_M"]) and n["Rf"] == 0 and rel(n["U"], n["U_neutral"]) < 1e-14 and n["verdict"] == "neutral"
     assert n["layer"] == "neutral" and n["regime"] == "shear-driven"
     strong = ch12.surface_layer_state(us, +300.0, T, z0_, z, rho, cp, kap)           # z/L_M < −1/β: outside the log-linear range
-    assert strong["valid"] is False and math.isnan(strong["phi_m"])
+    assert strong["valid"] is False and math.isnan(strong["phi_m"]) and math.isnan(strong["U"])   # no wind where φ_m ≤ 0
     bd = ch12.surface_layer_state(us, +300.0, T, z0_, z, rho, cp, kap, unstable="businger_dyer")
     assert bd["valid"] is True and 0 < bd["phi_m"] < 1 and 0 < bd["U"] < bd["U_neutral"]
     assert rel(bd["U"], WT.surface_layer_wind(z, us, z0_, bd["L_M"], kappa=kap, unstable="businger_dyer")) < 1e-12
@@ -2797,6 +2882,286 @@ def test_random_walk_stat_mean_square_distance_grows_as_n_steps():  # stat · C1
     target = 2000 * (1 + p) / (1 - p)
     assert abs(R2p.mean() - target) < 5 * np.std(R2p, ddof=1) / math.sqrt(4000) + 2 * p / (1 - p) ** 2 * 1.5   # large-n law (+ O(1) offset)
     assert R2p.mean() > 3 * 2000                                                    # memory makes the walk spread faster
+
+
+# ======================================================================================================================
+# After the independent review (reports/ch12_review.md): the alias key, the clear errors, the branches no default test ran
+# ======================================================================================================================
+def test_reynolds_stress_key_V1_minus_uv_plus_equals_uv_plus_and_the_correlation_is_negative():  # V1/V7 · C06/C12 · review Should 1
+    # both keys hold −mean(uv)/u_*² ≥ 0; the correlation itself, mean(uv) = −minus_uv_plus, is ≤ 0 where dU/dy > 0
+    for kw in ({}, dict(damping="van_driest", A_plus=26.0)):
+        for yq in (0.5, 12.0, 300.0, np.array([0.0, 1.0, 12.0, 100.0, 3000.0])):
+            p = ch12.mixing_length_wall_profile(yq, KAP, **kw)
+            assert np.array_equal(p["minus_uv_plus"], p["uv_plus"]) and np.all(np.asarray(p["minus_uv_plus"]) >= 0)
+            assert np.allclose(p["minus_uv_plus"], 1.0 - np.asarray(p["slope"]), atol=1e-15)       # τ⁺ = 1 = viscous + Reynolds
+            assert np.all(np.asarray(p["slope"]) > 0)                                              # dU⁺/dy⁺ > 0 …
+            assert np.all(-np.asarray(p["minus_uv_plus"]) <= 0)                                    # … so mean(uv) ≤ 0
+    for Re in (180.0, 1000.0):
+        c = ch12.channel_mixing_length(Re, KAP)
+        b = ch12.channel_energy_budget(Re, KAP, 26.0)
+        for d in (c, b):
+            assert np.array_equal(d["minus_uv_plus"], d["uv_plus"]) and np.all(d["minus_uv_plus"] >= -1e-15)
+            assert np.allclose(d["minus_uv_plus"] + d["dUdy_plus"], d["total"], atol=1e-13)        # Reynolds + viscous = τ⁺
+            assert np.allclose(d["production"], d["minus_uv_plus"] * d["dUdy_plus"], atol=1e-15)   # P = −mean(uv) dU/dy ≥ 0
+            assert np.all(d["dUdy_plus"][:-1] > 0) and d["minus_uv_plus"][0] == 0.0                # no stress at the wall
+            inner = (d["yplus"] > 1.0) & (d["yplus"] < 0.99 * Re)
+            assert np.all(d["minus_uv_plus"][inner] > 0)                                           # mean(uv) < 0 where dU/dy > 0
+        # the budget functions take the TRUE correlation: mean(uv) = −minus_uv_plus gives a positive production,
+        # the key fed with the wrong sign a negative one
+        y, U = c["yplus"], c["Uplus"]
+        right = ch12.tke_budget(y, U, -c["minus_uv_plus"], eps=c["production"])["production"]
+        wrong = ch12.tke_budget(y, U, +c["minus_uv_plus"], eps=c["production"])["production"]
+        assert np.all(right >= -1e-12) and right.max() > 0.2 and np.all(wrong <= 1e-12) and wrong.min() < -0.2
+        assert np.allclose(right, -wrong, atol=1e-15)
+        for yq in (0.5, 12.0, 100.0, 0.9 * Re):
+            a = ch12.channel_energy_budget_at(yq, Re, KAP, 26.0)
+            tau = 1 - yq / Re
+            assert a["minus_uv_plus"] == a["uv_plus"] and rel(a["minus_uv_plus"], tau - a["slope"]) < 1e-11
+            assert a["minus_uv_plus"] > 0 and a["slope"] > 0
+            assert rel(a["production"], a["minus_uv_plus"] * a["slope"]) < 1e-11
+    T = json.loads((REF / "explainer_tables.json").read_text(encoding="utf-8"))
+    for key, row in T["channel"].items():
+        assert row["minus_uv_plus"] == row["uv_plus"] and len(row["minus_uv_plus"]) == len(row["yplus"]), key
+        assert min(row["minus_uv_plus"]) >= 0 and row["minus_uv_plus"][0] == 0 and max(row["minus_uv_plus"]) < 1
+        for i in (1, 20, 45, 70):                                   # the stored column is the function's value (6 digits)
+            a = ch12.channel_energy_budget_at(row["yplus"][i], float(key), KAP, 26.0)
+            assert abs(row["minus_uv_plus"][i] - a["minus_uv_plus"]) < 1e-4 * max(a["minus_uv_plus"], 1e-3), (key, i)
+    small = ch12.explainer_tables(Re_taus=(180.0,), n_out=12, n=200, vd_points=8)                 # a fresh (small) call
+    assert small["channel"]["180"]["minus_uv_plus"] == small["channel"]["180"]["uv_plus"]
+
+
+def test_log_law_crossing_V7_clear_error_when_no_single_crossing_exists():  # V7 · C11 · review Should 12
+    g = lambda y, B: y - np.log(y) / KAP - B  # noqa: E731   sublayer line minus log line, written here
+    yy = np.geomspace(1e-3, 1e4, 20001)
+    B_und = ch12.mixing_length_intercept(KAP)                        # undamped mixing length: B = (ln 4κ − 1)/κ ≈ −1.23
+    assert -1.24 < B_und < -1.22 and np.all(g(yy, B_und) > 0)        # the log line lies below U⁺ = y⁺ everywhere: no crossing
+    with pytest.raises(ValueError, match="no single crossing"):
+        WT.log_law_crossing(kappa=KAP, B=B_und)
+    assert np.count_nonzero(np.diff(np.sign(g(yy, 0.6)))) == 2       # 1/κ − ln(1/κ)/κ < B < 1: two crossings, not one
+    with pytest.raises(ValueError, match="no single crossing"):
+        WT.log_law_crossing(kappa=KAP, B=0.6)
+    with pytest.raises(ValueError, match="no single crossing"):
+        WT.log_law_crossing(kappa=KAP, B=100.0)                      # the crossing would lie beyond y⁺ = 100
+    with pytest.raises(ValueError, match="no single crossing"):
+        WT.log_law_crossing(kappa=-0.4, B=5.0)
+    for B in (1.5, 5.0, 9.0):                                        # where one crossing exists it is still returned
+        yc = WT.log_law_crossing(kappa=KAP, B=B)
+        inside = (yy > 1.0) & (yy < 100.0)
+        assert abs(g(yc, B)) < 1e-9 and 1 < yc < 100 and np.count_nonzero(np.diff(np.sign(g(yy[inside], B)))) == 1
+
+
+def test_inertial_spectrum_V1_given_one_sided_constant_with_the_two_sided_default_is_halved():  # V1 · C08 (12.54), (12.55) · review Should 2
+    k1, eps, C1 = np.array([3.0, 7.0, 40.0]), 0.4, 0.5
+    law = eps ** (2 / 3) * k1 ** (-5 / 3)
+    one = ch12.inertial_spectrum_1d(k1, eps, C1=C1, two_sided=False)
+    two = ch12.inertial_spectrum_1d(k1, eps, C1=C1, two_sided=True)
+    assert np.allclose(one, C1 * law, rtol=1e-14)                    # C1 is the ONE-sided constant, whatever two_sided is
+    assert np.allclose(two, 0.5 * C1 * law, rtol=1e-14) and np.allclose(two, one / 2, rtol=1e-15)
+    assert np.allclose(ch12.inertial_spectrum_1d(k1, eps, C1=C1), two, rtol=0, atol=0)          # two_sided=True is the default
+    # a caller holding a two-sided constant c2 passes C1 = 2 c2 (or two_sided=False)
+    c2 = ch12.kolmogorov_constants()["C1_two_sided"]
+    assert np.allclose(ch12.inertial_spectrum_1d(k1, eps, C1=2 * c2), c2 * law, rtol=1e-14)
+    assert np.allclose(ch12.inertial_spectrum_1d(k1, eps, C1=c2, two_sided=False), c2 * law, rtol=1e-14)
+    assert np.allclose(ch12.inertial_spectrum_1d(k1, eps), c2 * law, rtol=1e-14)                 # the default constant
+    # the variance is the same in either normalisation: ∫_{−∞}^{∞} two-sided = ∫_0^∞ one-sided over any band |k1| in [a, b]
+    a, b = 2.0, 50.0
+    I1 = quad(lambda k: ch12.inertial_spectrum_1d(k, eps, C1=C1, two_sided=False), a, b, epsrel=1e-12)[0]
+    I2 = 2 * quad(lambda k: ch12.inertial_spectrum_1d(k, eps, C1=C1), a, b, epsrel=1e-12)[0]
+    assert rel(I2, I1) < 1e-12 and rel(I1, 1.5 * C1 * eps ** (2 / 3) * (a ** (-2 / 3) - b ** (-2 / 3))) < 1e-10
+
+
+def test_periodogram_V1_hann_window_keeps_the_variance_and_cuts_the_leakage():  # V1/V7 · C03 (N38) · review Should 11
+    n, d = 1024, 0.01
+    t = np.arange(n) * d
+    w0 = 2 * PI * 10.37 / (n * d)                                    # between two bins: the worst case for leakage
+    u = np.sin(w0 * t)
+    om, Sb, wb = TS.periodogram(u, d, return_weights=True)
+    om2, Sh, wh = TS.periodogram(u, d, window="hann", return_weights=True)
+    var = float(np.mean((u - u.mean()) ** 2))
+    assert np.array_equal(om, om2) and np.array_equal(wb, wh) and np.all(Sh >= 0)
+    assert rel(np.sum(wh * Sh), var) < 1e-12 and rel(np.sum(wb * Sb), var) < 1e-12     # the stated normalisation
+    kpk = int(np.argmax(Sh))
+    assert abs(om[kpk] - w0) <= 2 * PI / (n * d) and abs(om[int(np.argmax(Sb))] - w0) <= 2 * PI / (n * d)
+    far = np.abs(om - w0) > 20 * 2 * PI / (n * d)                    # twenty bins away from the line
+    assert Sh[far].max() < 1e-4 * Sb[far].max()                      # the taper's side lobes fall off much faster
+    near = np.abs(om - w0) <= 3 * 2 * PI / (n * d)                   # the six bins around the line
+    out_h, out_b = 1 - np.sum(wh[near] * Sh[near]) / var, 1 - np.sum(wb[near] * Sb[near]) / var
+    assert 0 < out_h < 0.1 * out_b < 0.01                            # variance leaked out of them: ten times less with the taper
+    # an exactly periodic line: the Hann main lobe spreads it over three bins with weights ¼ : 1 : ¼ in amplitude²
+    u2 = np.sin(2 * PI * 32 / (n * d) * t)
+    _, S2 = TS.periodogram(u2, d, window="hann")
+    assert rel(S2[31] / S2[32], 0.25) < 1e-9 and rel(S2[33] / S2[32], 0.25) < 1e-9 and S2[40] < 1e-20 * S2[32]
+    om1, S1 = TS.periodogram(u, d, window="hann", one_sided=True)    # one-sided = twice the two-sided density
+    assert np.allclose(S1, 2 * Sh, rtol=1e-15)
+    # several tapered segments of an OU record: the Lorentzian within 5 standard errors per bin
+    rec = TS.make_ensemble(1, np.arange(2 ** 16) * 0.05, 0.0, 1.0, 0.5, seed=11)[0]
+    oms, Ss = TS.periodogram(rec, 0.05, segments=256, window="hann")
+    exact = TS.correlation_spectrum_pair("exponential", 1.0, 0.5)["S"](oms)
+    sel = (oms > 0) & (oms < 0.1 * PI / 0.05)                        # well below the Nyquist frequency (no aliasing)
+    assert np.count_nonzero(sel) >= 10 and np.all(np.abs(Ss[sel] / exact[sel] - 1) < 5 / math.sqrt(256))
+
+
+def test_make_ensemble_stat_non_uniform_times_exact_update():  # stat/V1 · C01 (N07) · review Should 11
+    t = np.array([0.0, 0.1, 0.35, 0.4, 1.2, 3.0])                    # unequal steps: the per-step branch
+    N, sig, tc = 40000, 1.5, 0.8
+    mean_fn = lambda tt: 2.0 + 0.5 * tt  # noqa: E731
+    u = TS.make_ensemble(N, t, mean_fn, sig, tc, seed=5)
+    assert u.shape == (N, t.size)
+    fl = u - mean_fn(t)
+    assert np.all(np.abs(fl.mean(axis=0)) < 5 * sig / math.sqrt(N))                    # ensemble mean → mean_fn(t)
+    assert np.all(np.abs(fl.var(axis=0) / sig ** 2 - 1) < 5 * math.sqrt(2.0 / N))      # stationary variance at every time
+    for i, j in itertools.combinations(range(t.size), 2):
+        rho = math.exp(-(t[j] - t[i]) / tc)                          # R(τ) = σ² e^{−|τ|/τ_c} for ANY pair of times
+        r = float(np.mean(fl[:, i] * fl[:, j])) / sig ** 2
+        assert abs(r - rho) < 5 * math.sqrt((1 + rho ** 2) / N), (i, j, r, rho)
+    # the recursion written out here with the same random numbers (exact: no time-step error)
+    xi = np.random.default_rng(5).standard_normal((N, t.size))
+    v = sig * xi[:, 0]
+    for k in range(t.size - 1):
+        rk = math.exp(-(t[k + 1] - t[k]) / tc)
+        v = rk * v + sig * math.sqrt(1 - rk * rk) * xi[:, k + 1]
+    assert np.allclose(fl[:, -1], v, rtol=1e-12, atol=1e-12)
+    # on a uniform grid the two branches are the same process: the per-step loop written here equals the filter branch
+    tu = np.linspace(0.0, 1.0, 6)
+    uu = TS.make_ensemble(50, tu, 0.0, sig, tc, seed=9)
+    xi = np.random.default_rng(9).standard_normal((50, tu.size))
+    v = sig * xi[:, 0]
+    for k in range(tu.size - 1):
+        rk = math.exp(-(tu[k + 1] - tu[k]) / tc)
+        v = rk * v + sig * math.sqrt(1 - rk * rk) * xi[:, k + 1]
+    assert np.allclose(uu[:, -1], v, rtol=1e-11, atol=1e-12)
+    assert np.array_equal(TS.make_ensemble(4, t, 3.0, 0.0, tc), np.full((4, t.size), 3.0))     # σ = 0: the mean only
+
+
+def test_averaging_rules_V1_three_dimensional_input_with_a_space_coordinate():  # V1 · C01 (12.4)–(12.9) · review Should 11
+    rng = np.random.default_rng(21)
+    N, nx, nt = 7, 9, 11
+    x = np.sort(rng.uniform(0.0, 2.0, nx))                           # unequal spacing in x
+    t = np.linspace(0.0, 1.0, nt)
+    u, v = rng.standard_normal((N, nx, nt)), rng.standard_normal((N, nx, nt))
+    out = ch12.check_averaging_rules(u, v, t, A=-3.5, x=x)
+    for key in ("sum", "constant", "d/dt", "integral dt", "d/dx", "integral dx", "average of average"):
+        assert out[key] < 1e-12, (key, out[key])
+    assert rel(out["product"], np.max(np.abs(np.mean(u * v, axis=0) - u.mean(axis=0) * v.mean(axis=0)))) < 1e-13
+    assert out["product"] > 0.05                                     # (12.9)'s neighbour that does NOT hold: mean(uv) ≠ ū v̄
+    # the space rules really use x (axis 1): written out here for one of them
+    lhs = np.mean(np.trapezoid(u, x, axis=1), axis=0)
+    assert np.max(np.abs(lhs - np.trapezoid(u.mean(axis=0), x, axis=0))) < 1e-13 and lhs.shape == (nt,)
+    # that x is the coordinate actually used shows in the round-off, which scales like |u|/Δx: shrink x by 1e8
+    fine = ch12.check_averaging_rules(u, v, t, x=1e-8 * x)
+    assert 1e-10 < fine["d/dx"] < 1e-13 * np.abs(u).max() / (1e-8 * np.diff(x).min()) and fine["d/dt"] == out["d/dt"]
+    cube = ch12.check_averaging_rules(u, v, t, m=3, x=x)             # the rules are about linearity, for any moment m
+    assert max(cube[k] for k in cube if k != "product") < 1e-10
+    no_x = ch12.check_averaging_rules(u, v, t)                       # 3-D input without x: the last axis stands in
+    assert max(no_x[k] for k in no_x if k != "product") < 1e-12
+
+
+def test_isotropic_tensor_V1_zero_separation_branch_and_its_limit():  # V1/V7 · C05 (12.40), (12.41) · review Should 11
+    Lc, u2 = 0.7, 2.5
+    f = lambda r: np.exp(-(r / Lc) ** 2)  # noqa: E731
+    g = lambda r: (1 - (r / Lc) ** 2) * np.exp(-(r / Lc) ** 2)  # noqa: E731   g = f + (r/2) f′ for this f
+    R0 = ch12.isotropic_correlation_tensor([0.0, 0.0, 0.0], f, u2=u2)
+    assert np.allclose(R0, u2 * np.eye(3), atol=1e-15) and rel(np.trace(R0), 3 * u2) < 1e-15      # R_ii(0) = 3 u2 = 2ē
+    R0g = ch12.isotropic_correlation_tensor(np.zeros(3), f, g, u2=u2, incompressible=False)
+    assert np.array_equal(R0g, R0)
+    for n in ([1.0, 0.0, 0.0], [0.0, 0.6, 0.8], [1 / math.sqrt(3)] * 3):                          # r → 0 from any direction
+        for inc in (True, False):
+            Re_ = ch12.isotropic_correlation_tensor(1e-5 * np.array(n), f, g, u2=u2, incompressible=inc)
+            assert np.max(np.abs(Re_ - R0)) < 1e-8 * u2
+    # the central-difference derivative (no fprime given) agrees with the general form (12.40) built from g
+    rv = np.array([0.3, -0.2, 0.5])
+    A = ch12.isotropic_correlation_tensor(rv, f, u2=u2)
+    B_ = ch12.isotropic_correlation_tensor(rv, f, g, u2=u2, incompressible=False)
+    assert np.max(np.abs(A - B_)) < 1e-7 * u2 and np.allclose(A, A.T)
+    rr = np.linspace(0.0, 3.0, 13)
+    assert np.max(np.abs(ch12.transverse_from_longitudinal(rr, f) - g(rr))) < 1e-7                # numeric df/dr of a callable
+    with pytest.raises(ValueError, match="needs g"):
+        ch12.isotropic_correlation_tensor(rv, f, u2=u2, incompressible=False)
+
+
+def test_integral_scale_V1_negative_lobe_first_zero_versus_all_and_the_fallbacks():  # V1 · C02/C05 (12.18), (12.39) · review Should 4, 11
+    Lc = 0.7
+    r = np.linspace(0.0, 8 * Lc, 16001)
+    f = np.exp(-(r / Lc) ** 2)
+    g = (1 - (r / Lc) ** 2) * f                                      # transverse correlation: negative for r > L
+    Lam_f = math.sqrt(PI) * Lc / 2
+    assert rel(TS.integral_scale(r, f, upto="all"), Lam_f) < 1e-7
+    assert rel(TS.integral_scale(r, f), Lam_f) < 1e-7                # f never reaches zero: "first_zero" falls back to "all"
+    assert TS.integral_scale(r, f) == TS.integral_scale(r, f, upto="all") and TS.correlation_time(r, f) == math.inf
+    # Λ_g = ∫_0^∞ g dr = Λ_f/2 needs the negative lobe …
+    assert rel(TS.integral_scale(r, g, upto="all"), Lam_f / 2) < 1e-6
+    # … the default stops at the first zero (r = L) and returns ∫_0^L g dr = L[√π erf(1)/4 + 1/(2e)] ≈ 0.629 Λ_f instead
+    part = Lc * (math.sqrt(PI) * float(erf(1.0)) / 4 + math.exp(-1.0) / 2)
+    fz = TS.integral_scale(r, g)
+    assert rel(fz, part) < 1e-6 and rel(TS.correlation_time(r, g), Lc) < 1e-6
+    assert 0.62 < fz / Lam_f < 0.64 and fz > 1.25 * Lam_f / 2        # not ½: the default over-estimates Λ_g by 26 %
+    sc = ch12.isotropic_scales(r, f)                                 # the chapter's own route uses the whole range
+    assert rel(sc["Lambda_g"], Lam_f / 2) < 1e-5 and rel(sc["Lambda_ratio"], 0.5) < 1e-5
+    # correlation_time: a first sample that is already ≤ 0 returns the first lag; no zero → inf
+    assert TS.correlation_time(np.array([0.5, 1.0, 1.5]), np.array([-0.1, 0.2, 0.3])) == 0.5
+    assert TS.correlation_time(np.array([0.0, 1.0]), np.array([0.0, 1.0])) == 0.0
+    assert TS.correlation_time(np.array([0.0, 1.0, 2.0]), np.array([1.0, 0.5, -0.5])) == 1.5     # linear interpolation
+    assert TS.correlation_time(np.array([0.0, 1.0, 2.0]), np.array([1.0, 0.5, 0.25])) == math.inf
+    with pytest.raises(ValueError, match="upto"):
+        TS.integral_scale(r, f, upto="half")
+
+
+_SIG = np.sin(np.linspace(0.0, 20.0, 64))
+_BAD_CALLS = (     # (label, call, text the error must carry) — one representative per kind of guard
+    ("ensemble: t not 1-D", lambda: TS.make_ensemble(3, np.zeros((2, 2)), 0.0, 1.0, 1.0), "1-D"),
+    ("ensemble: tau_c = 0", lambda: TS.make_ensemble(3, np.arange(4.0), 0.0, 1.0, 0.0), "tau_c"),
+    ("ensemble: sigma < 0", lambda: TS.make_ensemble(3, np.arange(4.0), 0.0, -1.0, 1.0), "sigma"),
+    ("time average: window", lambda: TS.time_average(np.arange(8.0), np.arange(8.0), 0.0), "window"),
+    ("correlated pair: |r| > 1", lambda: TS.correlated_pair(10, 1.5), "r must lie"),
+    ("autocorrelation: max_lag", lambda: TS.autocorrelation(_SIG, 0.1, max_lag=_SIG.size), "max_lag"),
+    ("autocorrelation: method", lambda: TS.autocorrelation(_SIG, 0.1, method="welch"), "method"),
+    ("cross-correlation: lengths", lambda: TS.cross_correlation(_SIG, _SIG[:-1], 0.1), "same length"),
+    ("periodogram: too short", lambda: TS.periodogram(_SIG[:3], 0.1, segments=4), "too short"),
+    ("periodogram: window", lambda: TS.periodogram(_SIG, 0.1, window="hamming"), "window"),
+    ("spectrum pair: tau_c", lambda: TS.correlation_spectrum_pair("exponential", 1.0, 0.0), "tau_c"),
+    ("spectrum pair: kind", lambda: TS.correlation_spectrum_pair("lorentz", 1.0, 0.5), "kind"),
+    ("synthetic field: dim", lambda: TS.synthetic_solenoidal_field(8, 1.0, lambda K: K * 0 + 1.0, dim=4), "dim"),
+    ("f, g: components", lambda: TS.longitudinal_transverse_correlation(np.zeros((4, 4, 4)), np.zeros((4, 4, 4)), 0.1), "3-D"),
+    ("covariance: shape", lambda: TS.velocity_covariance(np.zeros(5)), "shape"),
+    ("anisotropy: shape", lambda: TS.anisotropy_tensor(np.eye(2)), "3 x 3"),
+    ("log-law fit: empty window", lambda: WT.fit_log_law(np.array([1.0, 2.0, 5.0]), np.array([1.0, 2.0, 5.0])), "fewer than two"),
+    ("Spalding: y+ < 0", lambda: WT.spalding_uplus(-1.0, kappa=KAP, B=BLOG), "yplus"),
+    ("wake function: kind", lambda: WT.coles_wake(0.5, kind="tanh"), "kind"),
+    ("skin friction: no kappa", lambda: WT.skin_friction_zpg(1e7), "kappa"),
+    ("skin friction: law", lambda: WT.skin_friction_zpg(1e7, law="blasius"), "law must be"),
+    ("(12.92) inverse: range", lambda: WT.nagib_chauhan_B(5.0), "outside the range"),
+    ("pipe law: half a pair", lambda: WT.pipe_friction_factor_turbulent(1e5, kappa=KAP), "both kappa and B"),
+    ("phi_m: mode", lambda: WT.dimensionless_shear(-0.1, unstable="paulson"), "unstable must be"),
+    ("surface wind: mode", lambda: WT.surface_layer_wind(10.0, 0.3, 0.03, -50.0, kappa=0.4, unstable="paulson"), "unstable must be"),
+    ("dissipation: no input", lambda: ch12.dissipation_isotropic(1e-6, u2=1.0), "exactly one"),
+    ("dissipation: two inputs", lambda: ch12.dissipation_isotropic(1e-6, u2=1.0, lambda_f=0.01, lambda_g=0.01), "exactly one"),
+    ("dissipation: no u2", lambda: ch12.dissipation_isotropic(1e-6, lambda_g=0.01), "u2"),
+    ("scale table: case", lambda: ch12.scale_table("teacup"), "case must be"),
+    ("inertial fit: empty band", lambda: ch12.fit_inertial_range(np.array([1.0, 2.0, 4.0]), np.ones(3), (10.0, 20.0)), "fewer than two"),
+    ("model spectrum: kind", lambda: ch12.model_spectrum(10.0, 1.0, 1e-6, kind="karman"), "kind must be"),
+    ("model spectrum: pope without L", lambda: ch12.model_spectrum(10.0, 1.0, 1e-6, kind="pope"), "needs the outer scale"),
+    ("jet: C5 string", lambda: ch12.plane_jet_mean_velocity(1.0, 0.0, 1.0, 1.0, C5="auto", xi_half=0.2), "C5 must be"),
+    ("jet stress: no profile", lambda: ch12.plane_jet_stress_profile(0.1), "give F or xi_half"),
+    ("jet budget: model", lambda: ch12.jet_tke_budget(np.array([0.0, 0.1]), 0.2, model="k_epsilon"), "eddy_viscosity"),
+    ("free shear: exponents", lambda: ch12.free_shear_exponents("mixing_bowl"), "flow must be"),
+    ("free shear: profile", lambda: ch12.free_shear_profile("mixing_bowl", 0.1, xi_half=0.2), "flow must be"),
+    ("free shear: no constants", lambda: ch12.free_shear_centerline("round_jet", 1.0, constants=None, d=0.01, U0=1.0), "empirical"),
+    ("mixing length: damping", lambda: ch12.mixing_length_wall_profile(10.0, KAP, damping="cebeci"), "damping must be"),
+    ("mixing length: grid", lambda: ch12.mixing_length_wall_profile(np.array([1.0, 2.0]), KAP, method="trapezoid"), "starts at"),
+    ("mixing length: method", lambda: ch12.mixing_length_wall_profile(10.0, KAP, method="simpson"), "method must be"),
+    ("channel budget: height", lambda: ch12.channel_energy_budget_at(1200.0, 1000.0, KAP, 26.0), "yplus must lie"),
+    ("k-eps decay: method", lambda: ch12.k_epsilon_decay(1.0, 1.0, 1.0, method="euler"), "method must be"),
+    ("Monin-Obukhov: no alpha", lambda: ch12.monin_obukhov_length(0.3, -0.02, kappa=0.4), "alpha"),
+    ("dispersion: form", lambda: ch12.taylor_dispersion(1.0, lambda q: np.exp(-q), 1.0, form="triple"), "form must be"),
+    ("diffusivity: which", lambda: ch12.eddy_diffusivity_asymptote(1.0, 1.0, 1.0, which="middle"), "which must be"),
+    ("sympy summary: name", lambda: ch12.sympy_summary("navier_stokes"), "name must be"),
+)
+
+
+@pytest.mark.parametrize("label, call, text", _BAD_CALLS, ids=[c[0] for c in _BAD_CALLS])
+def test_bad_input_V7_raises_a_clear_value_error(label, call, text):  # V7 · guards (review Should 11: the `raise` lines)
+    with pytest.raises(ValueError, match=re.escape(text)):
+        call()
 
 
 # ======================================================================================================================

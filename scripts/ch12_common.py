@@ -20,7 +20,7 @@ REF = ROOT / "reference" / "ch12"
 # The cited public preset used by every ch12 demo that needs log-law constants (WT.LOG_LAW_CONSTANTS["classical"]).
 KAPPA, B_LOG = 0.41, 5.0
 # Illustrative free-shear constants for the demos — NOT the book's table and not a benchmark (exponents are exact).
-ILLUSTRATIVE_JET = dict(C_U=2.5, C_Y=2.0, xi_half_U=0.10, xi_half_Y=0.13)
+ILLUSTRATIVE_JET = dict(C_U=2.5, C_Y=4.0, xi_half_U=0.10, xi_half_Y=0.15)
 
 
 def parse_args(doc: str, extra=None):

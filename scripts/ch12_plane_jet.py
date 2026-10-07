@@ -5,7 +5,7 @@ entrainment velocity (12.58), the stress profile from (12.63), the thin-layer re
 
 Run: ``.venv/Scripts/python.exe scripts/ch12_plane_jet.py --no-show [--fast]``
 Figures -> outputs/ch12/c09_plane_jet_similarity.png, c09_plane_jet_budget.png.
-Our jet: air slot d = 10 mm, U0 = 15 m/s; half-widths 0.10 (velocity) and 0.13 (scalar) are ILLUSTRATIVE, C5 from the invariant.
+Our jet: air slot d = 10 mm, U0 = 15 m/s; half-widths 0.10 (velocity) and 0.15 (scalar) are ILLUSTRATIVE, C5 from the invariant.
 """
 from __future__ import annotations
 

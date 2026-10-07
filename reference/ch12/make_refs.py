@@ -7,7 +7,9 @@
    the source file, printed with 8 significant digits.
 2. ``benchmarks.json`` — scalar published values with their citations (each verified on the date recorded in
    ``SOURCES.md``).  Nothing here comes from the textbook: the book's own numbers live only in the git-ignored
-   ``tests/book_values_ch12.json``.
+   ``tests/book_values_ch12.json``.  One entry is not a verified published value and says so: ``businger_dyer_unstable``
+   records the coefficients the code uses (literature values, attribution not verified first-hand); the test that reads
+   it is an analytic consistency check, not a benchmark.
 
 ``explainer_tables.json`` in this folder is *ours* (computed by ``fluidpy.ch12_turbulence.write_reference_tables`` through
 ``scripts/ch12_tables.py``); this script does not touch it.
@@ -35,7 +37,8 @@ N_LOG = 72            # points kept per profile, log-spaced in y+ (plus the wall
 DENSE = (300.0, 800.0, 3)   # Re_tau = 5200 only: keep every 3rd source point in this y+ band (the logarithmic region)
 
 BENCHMARKS = {
-    "_note": "Published values for chapter 12 (sources and access dates in SOURCES.md). No textbook numbers.",
+    "_note": "Published values for chapter 12 (sources and access dates in SOURCES.md). No textbook numbers. "
+             "Exception: 'businger_dyer_unstable' holds the coefficients the code uses, not a verified published value.",
     "lee_moser_kappa": {"value": 0.384, "uncertainty": 0.004, "Re_tau": 5186,
                         "source": "Lee & Moser, J. Fluid Mech. 774, 395 (2015), abstract (arXiv:1410.7809)"},
     "kolmogorov_C1_one_sided": {"value": 0.53, "std": 0.055, "ci95": 0.03,
@@ -48,8 +51,14 @@ BENCHMARKS = {
                                       "defaults and SimScale k-epsilon documentation"},
     "prandtl_pipe_law": {"slope_log10": 2.0, "intercept": -0.8,
                          "source": "Prandtl (1935), quoted by McKeon, Zagarola & Smits, J. Fluid Mech. 538, 429 (2005)"},
+    # NOT a verified published value: the coefficients the code uses (core/wall_turbulence.py).  The test that reads this
+    # entry is an analytic consistency check (V1: the wind profile is the integral of the coded phi_m), not a V5 benchmark.
     "businger_dyer_unstable": {"coefficient": 16.0, "exponent": -0.25,
-                               "source": "AMS Glossary of Meteorology, 'Businger-Dyer relationship'"},
+                               "kind": "coefficients as coded - analytic consistency check (V1), not a benchmark (V5)",
+                               "verified_first_hand": False,
+                               "source": "literature values ('Businger-Dyer' form, after Businger et al. 1971 and Dyer 1974); "
+                                         "attribution not verified first-hand (no source was read; the AMS Glossary page "
+                                         "returned HTTP 403) - see SOURCES.md"},
 }
 
 

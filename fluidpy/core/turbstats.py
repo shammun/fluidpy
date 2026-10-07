@@ -418,6 +418,11 @@ def integral_scale(lag, r, upto: str = "first_zero") -> float:
     Parameters: lag (n,) ≥ 0; r (n,) correlation function or coefficient (normalised by r[0] internally);
     upto "first_zero" (integrate to the first zero crossing — robust for measured, noisy tails) or "all" (the whole
     range given — right for an exact, fully decayed correlation).
+    **Warning: ``upto="first_zero"`` (the default) is not the Λ = ∫_0^∞ r dτ of (12.18) when r has a negative lobe** —
+    it leaves the negative area out and so over-estimates Λ.  The transverse correlation g(r) of isotropic
+    turbulence always has one (g = f + (r/2) f′ (12.41) integrates to Λ_g = Λ_f/2 only *with* its negative lobe);
+    so does a correlation with an oscillating tail.  Use ``upto="all"`` on a range over which r has decayed for
+    those; "first_zero" is the practical estimate for a positive, noisy r (f(r), a measured autocorrelation).
     Returns Λ in the unit of ``lag``.  Trapezoid rule.
     Validation: V1 exponential → τ_c; Gaussian exp(−τ²/t_c²) → sqrt(π) t_c/2 (1e-6 on fine grids).
     Assumptions: r decays within the range given; trapezoid rule; the result depends on where the integral is stopped (stated by 'upto').

@@ -48,9 +48,9 @@ def main() -> int:
     # Example 12.2 method, our inputs, illustrative constant
     st = ch12.stoichiometric_mass_fraction(44.10, 28.96, 5.0, 0.21)
     rho_ratio = 44.10 / 28.96
-    x_st = ch12.round_jet_distance_for_mass_fraction(st["Y_fuel"], 0.005, rho_ratio, 1.0, 1.0, C_Y=5.0)
-    cl = ch12.free_shear_centerline("round_jet", x_st, constants=dict(C_U=6.0), d=0.005, U0=30.0, rho_s=rho_ratio, rho=1.0)
-    print(f"dilution of a propane jet (illustrative C_Y = 5, C_U = 6): stoichiometric Y = {st['Y_fuel']:.4f} "
+    x_st = ch12.round_jet_distance_for_mass_fraction(st["Y_fuel"], 0.005, rho_ratio, 1.0, 1.0, C_Y=4.0)
+    cl = ch12.free_shear_centerline("round_jet", x_st, constants=dict(C_U=7.0), d=0.005, U0=30.0, rho_s=rho_ratio, rho=1.0)
+    print(f"dilution of a propane jet (illustrative C_Y = 4, C_U = 7 — ours, not measured values): stoichiometric Y = {st['Y_fuel']:.4f} "
           f"(fuel volume fraction {st['v_fuel']:.4f}); reached on the axis at x = {x_st:.3f} m = {x_st / 0.005:.0f} d, "
           f"where U_CL = {cl['U_CL']:.2f} m/s")
 

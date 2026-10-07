@@ -66,7 +66,9 @@ _S = as_scalar_if_0d
 #: Three-dimensional Kolmogorov constant C of E(K) = C ε^{2/3} K^{−5/3} — the usual value (the book quotes "about 1.5").
 KOLMOGOROV_C: float = 1.5
 
-#: Standard k–ε constants (Launder & Sharma 1974; https://www.cfd-online.com/Wiki/Standard_k-epsilon_model).
+#: Standard k–ε constants (Launder & Sharma 1974; Launder & Spalding 1974), as quoted by the OpenFOAM
+#: ``LaunderSharmaKE`` documentation and the SimScale k–epsilon documentation — the same citation, URLs and access date
+#: as the row "C_μ = 0.09 …" of ``reference/ch12/SOURCES.md`` (secondary sources; the primary papers were not read).
 #: Five constants: C_mu, C_eps1, C_eps2, sigma_e (the "sigma_k" of the literature) and sigma_eps.
 K_EPSILON_CONSTANTS: dict[str, float] = {"C_mu": 0.09, "C_eps1": 1.44, "C_eps2": 1.92, "sigma_e": 1.0, "sigma_eps": 1.3}
 
@@ -311,14 +313,18 @@ def rans_eddy_viscosity_residual(U: Callable, P: Callable, nu_T: Callable, e: Ca
     Book: §12.10, Eq. (12.97) (constant density), obtained by putting (12.94) into (12.30):
     ``∂U_i/∂t + U_j ∂U_i/∂x_j = −(1/ρ) ∂P/∂x_i + ∂/∂x_j([ν + ν_T](∂U_i/∂x_j + ∂U_j/∂x_i) − (2/3) ē δ_ij)``.
     **The page prints the pressure gradient as ∂P/∂x_j; the free index of the equation is i (slip #6) — coded with i.**
-    ``printed=True`` reproduces the page literally, so that a test can show it fails: with j repeated on the right-hand
-    side the summation convention turns the term into ``−(1/ρ) Σ_j ∂P/∂x_j``, the same number in every component.
+    As printed the term ``−(1/ρ) ∂P/∂x_j`` is **ill-formed**: j occurs once in it, so it is neither summed (the
+    summation convention needs a repeated index within the term) nor the free index of the equation (that is i) — the
+    page's term has no definite value.  ``printed=True`` therefore codes **one arbitrary realisation** of it,
+    ``−(1/ρ) Σ_j ∂P/∂x_j`` in every component (ours; any other reading that does not use the index i fails the same
+    way), so that a test can show that a pressure term which does not carry the index i cannot balance the equation.
     Parameters
     ----------
     U : callable x → (d,) mean velocity [m/s].   P : callable x → mean pressure [Pa].
     nu_T : callable x → eddy viscosity [m²/s].   e : callable x → turbulent kinetic energy ē [m²/s²].
     x : (d,) point [m].   nu : [m²/s].   rho : [kg/m³].   h : difference step [m].
-    printed : False (corrected index, the default) or True (the page's index — a planted wrong variant).
+    printed : False (corrected index, the default) or True (one realisation of the page's ill-formed index — a planted
+        wrong variant).
     Returns
     -------
     (d,) residual left − right [m/s²].  With ``printed=False`` it equals :func:`rans_momentum_residual` with the stress
@@ -339,10 +345,10 @@ def rans_eddy_viscosity_residual(U: Callable, P: Callable, nu_T: Callable, e: Ca
     gradU = np.stack([_d1(Uf, x, j, h) for j in range(d)], axis=1)
     gradP = np.array([float(_d1(lambda p: _F(P(p)), x, i, h)) for i in range(d)])
     div = sum(_d1(flux, x, j, h)[:, j] for j in range(d))
-    # DEVIATION: ∂P/∂x_i, not the printed ∂P/∂x_j (slip #6) — j is a summed index on the right-hand side, the free
-    # index of the equation is i.  printed=True keeps the page's form available so that a test can show it fails.
+    # DEVIATION: ∂P/∂x_i, not the printed ∂P/∂x_j (slip #6) — the free index of the equation is i; a lone j in that
+    # term is ill-formed.  printed=True keeps one realisation of the page's form so that a test can show it fails.
     if printed:
-        gradP = np.full(d, float(np.sum(gradP)))  # the page's ∂P/∂x_j, j summed: one number for every component
+        gradP = np.full(d, float(np.sum(gradP)))  # one arbitrary reading of the lone j: the same number in every component
     return gradU @ Uf(x) + gradP / rho - div  # Eq. (12.97), corrected index (unless printed=True)
 
 
@@ -1008,8 +1014,15 @@ def inertial_spectrum_1d(k1, eps, C1: float | None = None, two_sided: bool = Tru
     The corrected −5/3 is what the next sentence of the book calls the law, what Fig. 12.12 shows, and what dimensions
     require: ε̄^{2/3} k_1^{−5/3} has the m³/s² of S_11, ε̄^{2/3} k_1^{+5/3} does not.  ``printed=True`` reproduces the page
     so that a test can show it fails.
-    Parameters: k1 [rad/m] > 0; eps [m²/s³]; C1 **one-sided** constant (None → (18/55)·1.5 from
-    :func:`kolmogorov_constants`); two_sided True → the book's two-sided density (12.55), i.e. C1/2; False → one-sided.
+    Parameters: k1 [rad/m] > 0; eps [m²/s³]; C1; two_sided; printed.
+    **``C1`` is always the ONE-SIDED constant** — the C_1 ≈ 0.5 of the literature, for a spectrum defined on k_1 ≥ 0
+    with ∫_0^∞ S dk_1 = mean(u_1²) (None → (18/55)·1.5 = 0.4909 from :func:`kolmogorov_constants`) — whatever
+    ``two_sided`` is.  ``two_sided`` chooses the *normalisation of what is returned*, not the meaning of C1:
+    ``two_sided=True`` (**the default**, the book's (12.55): S_11 defined on −∞ < k_1 < ∞ with
+    ∫_{−∞}^{∞} S_11 dk_1 = mean(u_1²)) returns ``(C1/2) ε̄^{2/3} k_1^{−5/3}``, half the one-sided density;
+    ``two_sided=False`` returns ``C1 ε̄^{2/3} k_1^{−5/3}``.  So ``inertial_spectrum_1d(k, eps, C1=0.5)`` is
+    0.25 ε̄^{2/3} k^{−5/3}: a caller holding a two-sided constant c₂ must pass ``C1=2*c2`` (or ``C1=c2,
+    two_sided=False``), never ``C1=c2`` with the default.
     Returns S_11 [m³/s²].  Scalar-callable.
     Validation: V1 slope −5/3 on log axes; two-sided = one-sided/2; V2 units (``printed=True`` fails the check).
     Assumptions: locally isotropic turbulence at high Reynolds number; k1 inside the inertial range.
@@ -1088,9 +1101,10 @@ def model_spectrum(K, eps: float, nu: float, L: float | None = None, kind: str =
     energy-range factor f_L is applied whenever L is given) or "pope" (the same curve under the name the notebook and
     the explainer use for "Pao's roll-off with Pope's energy-range factor"; **L is then required**); C
     three-dimensional Kolmogorov constant; c_L
-    roll-off constant of the large scales (**a shape parameter, not a measured constant**: 6.78 is the value attributed to
-    Pope's model spectrum and is unverified from an open source — it only sets where the spectrum bends over); p0
-    low-wavenumber exponent.
+    roll-off constant of the large scales (**a shape parameter, not a measured constant**: 6.78 is the value of Pope's
+    model spectrum (cited in ``reference/ch12/SOURCES.md``) and is verified numerically: it is the c_L for which
+    ∫_0^∞ E dK = (ε̄L)^{2/3}, i.e. L = ē^{3/2}/ε̄, at high Reynolds number — the root is 6.779 at L/η = 5.6 × 10⁶
+    (6.53 at L/η = 10⁴); it only sets where the spectrum bends over); p0 low-wavenumber exponent.
     Returns E [m³/s²].  Scalar-callable.
     Assumptions: isotropic turbulence; one universal shape (no bottleneck, no intermittency correction).
     Property (exact for L = None): the dissipation integral ``2ν ∫_0^∞ K² E dK`` equals ε̄ — the exponential cut-off is
@@ -1861,7 +1875,9 @@ def mixing_length_intercept(kappa: float, A_plus: float | None = None) -> float:
     With van Driest's wall damping, l_T = κy[1 − exp(−y⁺/A⁺)] (van Driest 1956; A⁺ ≈ 26 is his value, ours to pass),
     B = B_undamped + ∫_0^∞ (s_damped − s_undamped) dy⁺ (``quad``; the integrand decays like exp(−y⁺/A⁺)).
     Parameters: kappa (**required**); A_plus (None or 0 → no damping).  Returns B [–].  Scalar-callable.
-    Validation: V2 the undamped closed form by sympy; V5 damped value within 5 % of a public log-law intercept.
+    Validation: V2 the undamped closed form by sympy (−1.2324 for κ = 0.41).  The damped value is **approximate
+    (model)**: B(κ = 0.41, A⁺ = 26) = 5.277, i.e. 5.5 % above the cited "classical" intercept 5.0 of
+    ``WT.LOG_LAW_CONSTANTS`` — the right size, not a benchmark agreement.
     Assumptions: constant-stress layer over a smooth wall; l_T = kappa y, optionally with van Driest damping.
     """
     B0 = (np.log(4.0 * kappa) - 1.0) / kappa
@@ -1886,7 +1902,10 @@ def mixing_length_wall_profile(yplus, kappa: float, damping: str | None = None, 
     of the damped correction, accurate to ~1e-10) or "trapezoid" (cumulative trapezoid on the *given* grid from the
     first point, which must be 0 — second order, for convergence studies).
     Returns dict(yplus, Uplus, slope (= dU⁺/dy⁺ = the viscous share of the stress), lT_plus, nuT_over_nu (= l⁺² s),
-    uv_plus (= −mean(uv)⁺ = 1 − s), B (the intercept this model implies, :func:`mixing_length_intercept`)).
+    uv_plus and minus_uv_plus (two names for the same number, **both hold −mean(uv)/u_*² = 1 − s ≥ 0**, the Reynolds
+    shear stress in units of τ0 — not the negative correlation mean(uv) that :func:`mean_energy_budget` and
+    :func:`tke_budget` take; ``minus_uv_plus`` is the self-describing name, ``uv_plus`` is kept for existing callers),
+    B (the intercept this model implies, :func:`mixing_length_intercept`)).
     Scalar-callable (a dict of floats for a float y⁺).
     Assumptions: constant-stress layer (τ̄ = τ0, i.e. y ≪ δ), smooth wall, mixing length l_T = κy (optionally damped).
     Validation: V1 the root satisfies the quadratic to round-off; limits; V3 trapezoid converges at order 2.
@@ -1910,7 +1929,7 @@ def mixing_length_wall_profile(yplus, kappa: float, damping: str | None = None, 
     else:
         raise ValueError("method must be 'quad' or 'trapezoid'")
     return dict(yplus=_S(yp), Uplus=_S(U), slope=_S(s), lT_plus=_S(l), nuT_over_nu=_S(l ** 2 * s), uv_plus=_S(1.0 - s),
-                B=mixing_length_intercept(kappa, A_plus if damping else None))
+                minus_uv_plus=_S(1.0 - s), B=mixing_length_intercept(kappa, A_plus if damping else None))
 
 
 def shear_flow_eddy_viscosity_solve(y, nu_T_fn: Callable, dPdx: float, rho: float, nu: float, bc: tuple = (0.0, 0.0),
@@ -1993,14 +2012,19 @@ def channel_mixing_length(Re_tau: float, kappa: float, A_plus: float | None = 26
     Book: §12.10 (12.99)–(12.100) combined with §12.9 (12.76)–(12.77), ours.  In wall units over the lower half-channel
     (δ⁺ = Re_τ): ``τ⁺ = 1 − y⁺/Re_τ = s + l⁺² s²``, s = dU⁺/dy⁺, so ``s = 2τ⁺/(1 + sqrt(1 + 4 l⁺² τ⁺))``, with
     ``l⁺ = min(κ y⁺, core_cap·Re_τ)·[1 − exp(−y⁺/A⁺)]`` (van Driest damping; the cap keeps the length finite in the
-    core, a standard outer-layer choice l/δ ≈ 0.09; both are options: A_plus None/0 → no damping, core_cap None → no cap).
+    core; 0.09 δ is a conventional outer-layer mixing-length value, a modelling choice of ours with no first-hand
+    citation — see ``reference/ch12/SOURCES.md``; both are options: A_plus None/0 → no damping, core_cap None → no cap).
     Parameters: Re_tau = δ u_*/ν; kappa (**required**); A_plus; n grid points (geometric stretching from Δy⁺ = 0.1);
     core_cap.
-    Returns dict(yplus, y_over_delta, Uplus, dUdy_plus (viscous stress), uv_plus (= −mean(uv)⁺, Reynolds stress),
-    total (τ⁺), production (= uv_plus·dUdy_plus, in u_*⁴/ν), lT_plus, nuT_over_nu, U_bulk_plus, U_cl_plus,
+    Returns dict(yplus, y_over_delta, Uplus, dUdy_plus (viscous stress), uv_plus and minus_uv_plus (the same array
+    under two names: **both hold −mean(uv)/u_*² ≥ 0**, the Reynolds stress; ``uv_plus`` kept for existing callers),
+    total (τ⁺), production (= minus_uv_plus·dUdy_plus, in u_*⁴/ν), lT_plus, nuT_over_nu, U_bulk_plus, U_cl_plus,
     Re_bulk = U_bulk·h/ν = 2 Re_τ U_bulk⁺ (h = full height), Cf = 2/U_bulk⁺², yplus_peak_production).
     U⁺ by cumulative trapezoid (second order in the grid).
-    Production peaks where the viscous and Reynolds stresses are equal (s = τ⁺/2), with value τ⁺²/4 ≈ ¼, near y⁺ ≈ 12.
+    Production peaks where the viscous and Reynolds stresses are equal (s = τ⁺/2), with value τ⁺²/4 (≤ ¼, approached
+    as Re_τ → ∞).  For κ = 0.41, A⁺ = 26: peak at y⁺ ≈ 10.2 with value 0.222 at Re_τ = 180, 10.35 / 0.241 at 550,
+    10.4 / 0.245 at 1000, 10.4 / 0.249 at 5200 (the key ``yplus_peak_production`` is the nearest grid node: 10.2–10.5
+    at n = 400).
     A model, not a simulation: "approximate" against DNS.
     Validation: V1 total stress linear to round-off; V3 order 2; V5 U⁺ and C_f against public channel DNS in a stated band.
     Assumptions: fully developed channel, smooth walls; mixing-length closure with optional damping and core cap (a model).
@@ -2012,8 +2036,8 @@ def channel_mixing_length(Re_tau: float, kappa: float, A_plus: float | None = 26
     prod = uv * s
     Ub = float(np.trapezoid(U, yp) / Re_tau)
     k = int(np.argmax(prod))
-    return dict(yplus=yp, y_over_delta=yp / Re_tau, Uplus=U, dUdy_plus=s, uv_plus=uv, total=tau, production=prod,
-                lT_plus=l, nuT_over_nu=l ** 2 * s, U_bulk_plus=Ub, U_cl_plus=float(U[-1]), Re_bulk=2.0 * Re_tau * Ub,
+    return dict(yplus=yp, y_over_delta=yp / Re_tau, Uplus=U, dUdy_plus=s, uv_plus=uv, minus_uv_plus=uv, total=tau,
+                production=prod, lT_plus=l, nuT_over_nu=l ** 2 * s, U_bulk_plus=Ub, U_cl_plus=float(U[-1]), Re_bulk=2.0 * Re_tau * Ub,
                 Cf=2.0 / Ub ** 2, yplus_peak_production=float(yp[k]), Re_tau=float(Re_tau), kappa=float(kappa))
 
 
@@ -2035,7 +2059,8 @@ def channel_energy_budget(Re_tau: float, kappa: float, A_plus: float | None = 26
     core_cap : cap of the mixing length as a fraction of δ (None → no cap).
     Returns
     -------
-    The :func:`channel_mixing_length` dict (arrays yplus, Uplus, uv_plus = −mean(uv)⁺, dUdy_plus, production, …) plus
+    The :func:`channel_mixing_length` dict (arrays yplus, Uplus, uv_plus = minus_uv_plus = −mean(uv)/u_*² (both keys
+    hold MINUS the correlation), dUdy_plus, production, …) plus
 
     * flat term arrays, **all as sizes (≥ 0 where the name is a gain or a loss)**: ``pressure_work`` W = U⁺/Re_τ,
       ``mean_dissipation`` s² = (dU⁺/dy⁺)², ``production`` P = −mean(uv)⁺ s, ``turb_sink`` = P (the dissipation +
@@ -2083,7 +2108,8 @@ def channel_energy_budget_at(yplus: float, Re_tau: float, kappa: float, A_plus: 
     Returns
     -------
     dict of floats, in units of u_*⁴/ν (stresses in τ0, velocity in u_*): yplus, Uplus, total (τ⁺ = 1 − y⁺/Re_τ),
-    lT_plus, slope (dU⁺/dy⁺ = viscous stress), uv_plus (−mean(uv)⁺ = τ⁺ − slope), pressure_work (U⁺/Re_τ),
+    lT_plus, slope (dU⁺/dy⁺ = viscous stress), uv_plus and minus_uv_plus (the same number under two names: both hold
+    −mean(uv)/u_*² = τ⁺ − slope ≥ 0; ``uv_plus`` kept for existing callers), pressure_work (U⁺/Re_τ),
     mean_dissipation (slope²), production ((τ⁺ − slope)·slope), turb_sink (= production; dissipation + transport as
     the residual of (12.47), labelled model), transport (d(U⁺τ⁺)/dy⁺ = τ⁺·slope − U⁺/Re_τ), viscous_transport
     (d(U⁺·slope)/dy⁺; the slope's derivative by a central difference of the closed form), reynolds_transport (the
@@ -2107,7 +2133,8 @@ def channel_energy_budget_at(yplus: float, Re_tau: float, kappa: float, A_plus: 
     h = 1e-4 * max(y, 1.0)
     lo, hi = max(y - h, 0.0), min(y + h, Re)
     visc_tr = s * s + U * (slope(hi) - slope(lo)) / (hi - lo)    # d(U⁺ s)/dy⁺
-    return dict(yplus=y, Uplus=float(U), total=tau, lT_plus=l, slope=s, uv_plus=tau - s, pressure_work=float(W),
+    return dict(yplus=y, Uplus=float(U), total=tau, lT_plus=l, slope=s, uv_plus=tau - s, minus_uv_plus=tau - s,
+                pressure_work=float(W),
                 mean_dissipation=s * s, production=P, turb_sink=P, transport=float(tr), viscous_transport=float(visc_tr),
                 reynolds_transport=float(tr - visc_tr),
                 dissipation_over_production=s * s / P if P > 0 else float("inf"))
@@ -2250,9 +2277,11 @@ def k_epsilon_channel(Re_tau: float, n: int = 200, constants: dict = K_EPSILON_C
     Method (ours): second-order conservative differences, sinks treated implicitly (−ε̄ = −(ε̄/ē) ē, −C_ε2 ε̄²/ē =
     −(C_ε2 ε̄/ē) ε̄), tridiagonal solves, under-relaxed Picard iteration.
     Returns dict(yplus, Uplus, e_plus, eps_plus, nuT_over_nu, U_bulk_plus, Cf, kappa_model, iterations, converged,
-    residual).  Label: qualitative unless the verifier's grid study and DNS comparison say otherwise.
+    residual, label).  Label: **qualitative**.
     Assumptions: fully developed channel; standard k-epsilon model with wall functions at the first node.
-    Validation: qualitative (a model with wall functions; grid study and comparison with public DNS are the verifier's).
+    Validation: qualitative — the iteration converges (Re_τ = 1000: monotone U⁺, positive ē and ε̄, the wall values
+    imposed, C_f of a plausible size); **no grid study and no comparison with DNS have been made**, so no number
+    returned here is evidence of anything but the model's own behaviour.
     """
     from scipy.linalg import solve_banded
 
@@ -2377,22 +2406,29 @@ def stratified_tke_budget(z, U, uw, wT, eps, alpha: float, g: float = G0, dUdz=N
                 Rf=f(np.atleast_1d(Rf)), regime=turbulence_regime(f(np.atleast_1d(Rf))))  # Eq. (12.106)
 
 
-def gradient_richardson_thermal(dTdz, dUdz, alpha: float, g: float = G0, Gamma_a: float = 0.0,
+def gradient_richardson_thermal(dTdz, dUdz, alpha: float, g: float = G0, *, Gamma_a: float,
                                 convention: str = "kundu", tol: float = 1e-12) -> dict:
     """Gradient Richardson number of a thermally stratified shear flow, from the **in-situ** temperature gradient.
 
-    Convention Γ ≡ dT/dz (Kundu's sign; the adiabatic value is NEGATIVE, ≈ −9.8 K/km in dry air; stable when
-    dT/dz > Γ_a).  Meteorology convention Γ ≡ −dT/dz: stable when Γ < Γ_d ≈ +9.8 K/km.  Both are reported.
+    Convention Γ ≡ dT/dz (Kundu's sign; the adiabatic value is NEGATIVE, Γ_a = −g/C_p ≈ −9.76 K/km in dry air; stable
+    when dT/dz > Γ_a).  Meteorology convention Γ_met ≡ −dT/dz: stable when Γ_met < Γ_d ≈ +9.76 K/km.  Both are reported
+    (``verdict_kundu`` and ``verdict_met``).
 
     Book: §12.11, Eq. (12.108) ``Ri ≡ N²/(dU/dz)² = α g (dT̄/dz)/(dU/dz)²``, where — as the start of the section says —
     the adiabatic part has been subtracted, i.e. T̄ is the potential temperature.  With a thermometer's gradient that
     reads ``N² = g α (dT/dz − Γ_a)``: an atmosphere cooling upward at 6.5 K/km is *stable*, an isothermal layer strongly
     so; (12.108) fed the in-situ gradient without Γ_a would call both wrong.
-    Parameters: dTdz in-situ temperature gradient [K/m], **Kundu sign** (negative when T falls with height); dUdz
-    [1/s]; alpha [1/K] (1/T for a perfect gas); g; Gamma_a adiabatic gradient [K/m], Kundu sign, **negative** for air
-    (``core.stratification.adiabatic_lapse_rate()``; the default 0.0 means ``dTdz`` is already a potential-temperature
-    gradient, or a liquid with negligible Γ_a); convention of the returned ``text`` ("kundu" or "meteorology");
-    tol neutral band of N² [1/s²].
+    Signature: ``gradient_richardson_thermal(dTdz, dUdz, alpha, g=G0, *, Gamma_a, convention="kundu", tol=1e-12)``.
+    **``Gamma_a`` is a required keyword with no default** (so are, as keywords, ``convention`` and ``tol``): leaving it
+    out raises ``TypeError`` instead of silently treating a thermometer's gradient as a potential-temperature gradient
+    (which calls the standard atmosphere unstable: Ri = −2.21 instead of +1.11 for dT/dz = −6.5 K/km, dU/dz = 0.01 1/s,
+    α = 1/288 K).
+    Parameters: dTdz temperature gradient [K/m], **Kundu sign** (negative when T falls with height); dUdz
+    [1/s]; alpha [1/K] (1/T for a perfect gas); g [m/s²]; Gamma_a adiabatic gradient [K/m], Kundu sign, **negative**
+    for air — pass ``core.stratification.adiabatic_lapse_rate()`` (= −g/C_p; never a typed, rounded −0.0098) when
+    ``dTdz`` is the **in-situ** gradient; pass ``Gamma_a=0.0`` **explicitly** when ``dTdz`` is already a
+    **potential-temperature** gradient dθ/dz (or for a liquid with negligible Γ_a) — the verdict texts then compare
+    with 0; convention of the returned ``text`` ("kundu" or "meteorology"); tol neutral band of N² [1/s²].
     Returns dict(Ri [–], N2 [1/s²], dthetadz (= dT/dz − Γ_a, the potential-temperature gradient) [K/m],
     verdict_kundu (the criterion with its numbers in Kundu's convention, e.g. "stable ⇔ dT/dz > Γa: …"), verdict_met
     (the same statement in the meteorological convention Γ ≡ −dT/dz), verdict (the bare word
@@ -2401,8 +2437,9 @@ def gradient_richardson_thermal(dTdz, dUdz, alpha: float, g: float = G0, Gamma_a
     rule).  Array input returns arrays for Ri, N2, dthetadz and ``None`` for the text fields (one sentence per layer).
     Verdict and texts come from ``core.stratification.lapse_rate_stability`` (ch01) — never re-worded here.
     Assumptions: Boussinesq; dry air or a liquid (no moisture effects); α and Γ_a uniform over the layer.
-    Validation: V1 Ri from (in-situ, Γ_a) equals Ri from dθ/dz; an isothermal layer is stable; texts identical after
-    ``lapse_rate_convention``; the no-Γ_a mutant fails on the standard atmosphere.
+    Validation: V1 Ri from (in-situ, Γ_a) equals Ri from (dθ/dz, Γ_a = 0.0 passed explicitly); an isothermal layer is
+    stable; texts identical after ``lapse_rate_convention``; the mutant that feeds the in-situ gradient with
+    Γ_a = 0.0 fails on the standard atmosphere; omitting ``Gamma_a`` raises TypeError.
     """
     dT, dU = _F(dTdz), _F(dUdz)
     dth = dT - Gamma_a
@@ -2547,9 +2584,9 @@ def surface_layer_state(u_star: float, H: float, T: float, z0: float, z: float, 
     (α = 1/T, perfect gas); z0 roughness length [m]; z height [m]; rho [kg/m³]; cp [J/(kg K)]; kappa von Kármán
     constant (no default); beta coefficient of the log-linear profile; Pr_T turbulent Prandtl number; convention of
     ``text``; Rf_cr; g; unstable: "log_linear" (the book's formula on both sides — its linear correction makes the shear
-    vanish at z/L_M = −1/β; beyond that ``valid`` is False, φ_m and the gradients are NaN and U is the formula's value,
-    which no longer increases with height) or "businger_dyer"
-    (φ_m = (1 − 16ζ)^{−1/4} for ζ < 0, usable for any unstable ζ; see ``WT.dimensionless_shear``).
+    vanish at z/L_M = −1/β; at and beyond that ``valid`` is False and φ_m, the gradients and U are all NaN) or
+    "businger_dyer" (φ_m = (1 − 16ζ)^{−1/4} for ζ < 0, usable for any unstable ζ; the coefficient is a literature
+    value whose attribution is not verified first-hand — see ``WT.dimensionless_shear``).
     Returns dict:
       wT = H/(ρ C_p) [K m/s];  L_M (12.110) [m];  zeta = z/L_M;  Rf = z/L_M (12.111);  Ri = Pr_T·Rf (12.109);
       phi_m = 1 + β ζ;  Rf_profile = ζ/φ_m and Ri_profile = Pr_T ζ/φ_m (ours: with the shear of the log-linear profile);
@@ -2718,8 +2755,9 @@ def langevin_particles(n: int, t, u_rms: float, Lambda_t: float, seed: int = 0, 
 def dispersion_rate_from_particles(t, X, u) -> tuple:
     """Both sides of ``d mean(X²)/dt = 2 mean(X u)`` evaluated on an ensemble of particle paths.
 
-    Book: §12.12, Eqs. (12.115) ``dX_α/dt = u_α`` and (12.116) ``d mean(X_α²)/dt = 2 mean(X_α u_α)`` (ensemble average
-    over particles; no sum over the Greek index).
+    Book: §12.12, Eq. (12.115) ``d mean(X_α²)/dt = 2 mean(X_α dX_α/dt)`` (the commutation rule (12.6)); with the
+    definition ``u_α = dX_α/dt`` of the Lagrangian velocity (unnumbered, the sentence after (12.115)) it becomes
+    (12.116) ``d mean(X_α²)/dt = 2 mean(X_α u_α)`` (ensemble average over particles; no sum over the Greek index).
     Parameters: t (nt,) times [s]; X, u (n, nt) one component of position [m] and velocity [m/s], particles on axis 0.
     Returns (lhs, rhs): lhs = d mean(X²)/dt by second-order differences of the sampled mean(X²) [m²/s], rhs =
     2 mean(X u) [m²/s] — two (nt,) arrays; half of rhs is the eddy diffusivity D_T of (12.127).
@@ -2733,7 +2771,7 @@ def dispersion_rate_from_particles(t, X, u) -> tuple:
     t_, X_, u_ = _F(t), _F(X), _F(u)
     X2 = np.mean(X_ ** 2, axis=0)
     rhs = 2.0 * np.mean(X_ * u_, axis=0)                       # Eq. (12.116), right side
-    return np.gradient(X2, t_, edge_order=2), rhs              # Eq. (12.116), left side (with (12.115))
+    return np.gradient(X2, t_, edge_order=2), rhs              # Eq. (12.115)–(12.116), left side
 
 
 def _quad_vec(f: Callable, t) -> np.ndarray:
@@ -2814,7 +2852,8 @@ def dispersion_local_slope(t, Lambda_t: float):
     """Local logarithmic slope ``d ln mean(X²)/d ln t`` for the exponential correlation: 2 (ballistic) → 1 (diffusive).
 
     Book: §12.12, Eqs. (12.120), (12.122) (the two limits); in between ``x(1 − e^{−x})/(x − 1 + e^{−x})``, x = t/Λ_t.
-    Scalar-callable.  Equals 1.3 at x ≈ 3.2 and 2 − x/3 for small x.
+    Scalar-callable.  Equals 1.5 at x ≈ 2.15, 1.370 at x = 3.2, 1.301 at x = 4.0 (1.3 at x ≈ 4.01), and 2 − x/3 for
+    small x.
     Returns the slope [-]; a float for float input.
     Assumptions: exponential Lagrangian correlation.
     Validation: V1 equals the numerical d ln/d ln of taylor_dispersion_exponential; limits 2 and 1.
@@ -3589,19 +3628,24 @@ def explainer_tables(Re_taus=(180.0, 550.0, 1000.0, 5200.0), kappa: float = 0.41
     (y⁺ = 0 plus a geometric grid from 0.2 to Re_τ); n grid points of the underlying solution; vd_decades (log10 of the
     first and last y⁺) and vd_points of the wall-profile table.
     Returns dict(note, kappa, A_plus,
-    channel {"<Re_tau>": dict(yplus, Uplus, uv_plus, dUdy_plus, production, pressure_work, mean_dissipation, turb_sink,
-    transport, U_bulk_plus, U_cl_plus, Cf, yplus_peak_production, production_peak, integrals)},
+    channel {"<Re_tau>": dict(yplus, Uplus, uv_plus, minus_uv_plus (the same list twice: **both hold
+    −mean(uv)/u_*²**; ``uv_plus`` kept for the explainers that read it), dUdy_plus, production, pressure_work,
+    mean_dissipation, turb_sink, transport, U_bulk_plus, U_cl_plus, Cf, yplus_peak_production, production_peak,
+    integrals)},
     van_driest dict(yplus, Uplus (damped, A⁺), Uplus_undamped, B (intercept with damping), B_undamped)) — lists of
     floats rounded to 6 significant digits.  The channel columns are evaluated point by point with
     :func:`channel_energy_budget_at` (U⁺ by adaptive quadrature), so they do not carry the grid error of the arrays.
     Assumptions: as the two functions named.   Validation: V1 each row reproduces ``channel_energy_budget_at`` /
-    ``mixing_length_wall_profile`` to the 6 digits stored; the JSON on disk equals a fresh call.
+    ``mixing_length_wall_profile`` to the 6 digits stored **when evaluated at the un-rounded height** the table was
+    computed at; the stored y⁺ is itself rounded to 6 digits, so recomputing at the stored height agrees only to a
+    few 1e-5 relative (worst column: transport, 5e-5; U⁺ 6e-6); the JSON on disk equals a fresh call.
     """
     sig = lambda a: [float(f"{v:.6g}") for v in np.atleast_1d(a)]  # noqa: E731
     out = dict(note="ours, computed by fluidpy (ch12_turbulence.explainer_tables): mixing-length channel and van Driest "
                     "wall profile; a model, not DNS",
                kappa=kappa, A_plus=A_plus, channel={})
-    cols = ("Uplus", "uv_plus", "slope", "production", "pressure_work", "mean_dissipation", "turb_sink", "transport")
+    cols = ("Uplus", "uv_plus", "minus_uv_plus", "slope", "production", "pressure_work", "mean_dissipation", "turb_sink",
+            "transport")
     for Re in Re_taus:
         b = channel_energy_budget(Re, kappa, A_plus, n=n)
         yq = np.concatenate([[0.0], np.geomspace(0.2, Re, n_out - 1)])

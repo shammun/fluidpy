@@ -36,11 +36,17 @@ def main() -> int:
     for name, dTdz in (("standard atmosphere", -6.5e-3), ("isothermal layer", 0.0), ("adiabatic layer", Ga), ("superadiabatic", -12e-3),
                        ("night inversion", +20e-3)):
         k = ch12.gradient_richardson_thermal(dTdz, 0.01, 1 / 288.0, Gamma_a=Ga)
-        wrong = ch12.gradient_richardson_thermal(dTdz, 0.01, 1 / 288.0)["Ri"]
+        # the trap, shown on purpose: Gamma_a = 0.0 with an IN-SITU gradient treats it as a potential-temperature gradient
+        wrong = ch12.gradient_richardson_thermal(dTdz, 0.01, 1 / 288.0, Gamma_a=0.0)["Ri"]
         print(f"  {name:20s} dT/dz = {dTdz * 1e3:+6.1f} K/km: Ri = {k['Ri']:+8.3f} ({k['verdict']});  {k['verdict_kundu']}  |  {k['verdict_met']}"
-              f"   [without Gamma_a one would get {wrong:+.3f}]")
-    th = ch12.gradient_richardson_thermal(-6.5e-3 - Ga, 0.01, 1 / 288.0)
-    print(f"  same layer from d(theta)/dz = {(-6.5e-3 - Ga) * 1e3:.2f} K/km with Gamma_a = 0: Ri = {th['Ri']:.3f} (identical)")
+              f"   [with Gamma_a = 0 (the in-situ gradient mistaken for d(theta)/dz) one would get {wrong:+.3f}]")
+    # a caller who holds a potential-temperature gradient says so explicitly: Gamma_a = 0.0
+    th = ch12.gradient_richardson_thermal(-6.5e-3 - Ga, 0.01, 1 / 288.0, Gamma_a=0.0)
+    print(f"  same layer from d(theta)/dz = {(-6.5e-3 - Ga) * 1e3:.2f} K/km with Gamma_a = 0.0 passed explicitly: Ri = {th['Ri']:.3f} (identical)")
+    try:
+        ch12.gradient_richardson_thermal(-6.5e-3, 0.01, 1 / 288.0)
+    except TypeError as exc:
+        print(f"  leaving Gamma_a out is an error, not a silent default: TypeError: {exc}")
     print("flux Richardson number (12.107), -uw = 0.09 m2/s2, dU/dz = 0.075 1/s:")
     for wT in (0.10, 0.0, -0.005, -0.02):
         Rf = ch12.flux_richardson(wT, -0.09, 0.075, 1 / T)
@@ -52,7 +58,7 @@ def main() -> int:
         s = ch12.surface_layer_state(us, H, T, z0, 10.0, rho, cp, kap)
         bd = ch12.surface_layer_state(us, H, T, z0, 10.0, rho, cp, kap, unstable="businger_dyer")
         print(f"  {label:17s} H = {H:+6.1f} W/m2: wT = {s['wT']:+.4f} K m/s, L_M = {s['L_M']:+9.1f} m, Rf = z/L_M = {s['Rf']:+.3f} ({s['regime']}, {s['layer']}),"
-              f" U = {s['U']:.2f} (log-linear), {bd['U']:.2f} (B-D), neutral {s['U_neutral']:.2f} m/s; z(Rf = 1/4) = {s['z_crit']:.1f} m")
+              f" U = {(format(s['U'], '.2f') if s['valid'] else 'not defined: z/L_M <= -1/beta')} (log-linear), {bd['U']:.2f} (B-D), neutral {s['U_neutral']:.2f} m/s; z(Rf = 1/4) = {s['z_crit']:.1f} m")
         if bd["verdict_kundu"]:
             print(f"  {'':17s} layer at 10 m: {bd['verdict']};  {bd['verdict_kundu']}  |  {bd['verdict_met']}")
     L = ch12.monin_obukhov_from_fluxes(rho * us ** 2, 200.0, rho, cp, T, kappa=kap)

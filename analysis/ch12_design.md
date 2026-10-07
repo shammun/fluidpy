@@ -306,7 +306,7 @@ $\Lambda_t=\tau_c/(1+\omega_0^2\tau_c^2)$, $t_c=\pi/(2\omega_0)$.
 | `stratified_tke_budget(z, U, uw, wT, eps, alpha, g=G0)` | dict terms + residual | (12.106) |
 | `flux_richardson(wT, uw, dUdz, alpha, g=G0)` | Rf (NaN at zero shear production) | (12.107) |
 | `turbulence_regime(Rf, Rf_cr=0.25)` | "convective" (Rf < 0) / "shear-driven" (0 ≤ Rf < Rf_cr) / "decaying" | N183 |
-| `gradient_richardson_thermal(dTdz, dUdz, alpha, g=G0, Gamma_a=0.0, convention="kundu")` | dict Ri, N2, dthetadz, verdict_kundu, verdict_met | (12.108) |
+| `gradient_richardson_thermal(dTdz, dUdz, alpha, g=G0, *, Gamma_a, convention="kundu")` — `Gamma_a` **required** (review M1): −g/C_p ≈ −9.76e-3 K/m for an in-situ gradient, `0.0` only for a potential-temperature gradient | dict Ri, N2, dthetadz, verdict_kundu, verdict_met | (12.108) |
 | `turbulent_prandtl(nu_T, kappa_T)`, `flux_from_gradient_richardson(Ri, Pr_T)` | float | (12.109) |
 | `monin_obukhov_length(u_star, wT, alpha=None, T=None, *, kappa, g=G0)` | L_M [m] (±inf when wT = 0) | (12.110) |
 | `monin_obukhov_from_fluxes(tau, H, rho, cp, T, *, kappa, g=G0)` | L_M | (12.110) |
@@ -1092,7 +1092,7 @@ curation attaches to that block's notes) and apply A.15b (repeat mentions of an 
     $U_{CL}^2\delta\propto e^{-ax}$ (not constant).
 17. `nb.note` — **N126 [B]** (Example 12.2 with our own numbers): a round methane jet (d = 5 mm, U₀ = 30 m/s) into air:
     `stoichiometric_mass_fraction(16.04, 28.97, 2, 0.21)` → 0.055; `round_jet_distance_for_mass_fraction(0.055, 0.005, 0.656,
-    1.184, 1.0, C_Y=5.0)` with C_Y an **illustrative** constant; mole vs mass fraction glossed. The book's inputs and
+    1.184, 1.0, C_Y=4.0)` with C_Y an **illustrative** constant (not a tabulated one; recompute this row's numbers in the cell); mole vs mass fraction glossed. The book's inputs and
     answers stay private.
 18. `nb.note` — **N127 [C]** profiles of $\bar e$ and the stresses across the jet (qualitative panel; $\overline{uv}=0$ on the axis by
     symmetry, largest near the steepest mean shear). **N128 [B]**
@@ -1605,7 +1605,7 @@ intent is given and the builder reads the docstring for the layout. Constants ar
 | C09 · N103 (row 5) | `ch12.plane_jet_reynolds_stress(1.0, 0.1, 1.0, 1.0, C5="from_invariant", xi_half=0.10)`; the same at (4.0, 0.4) and at (1.0, 0.0) | −0.1345 m²/s² ($-\overline{uv}<0$ where $dU/dy<0$: the sign an eddy viscosity gives); −0.0336 = one quarter (∝ x⁻¹, same ξ); 0 on the axis |
 | C09 · N104 (row 5) | `ch12.plane_jet_cross_velocity(1.0, 0.1, 1.0, 1.0, C5="from_invariant", xi_half=0.10)`; the same at y = 1.0 | +0.0245 m/s (outward inside the jet); −0.1372 m/s at the edge = −`plane_jet_entrainment_velocity(1.0, 1.0, 1.0, …)`: the surroundings flow **in** |
 | C09 · N111 (row with D14) | `out = ch12.plane_jet_similarity_sympy()`; `ch12.plane_jet_stress_profile(0.1, xi_half=0.10)` | `out["check"] is True`; `out["coefficients"]` are the three brackets $\{\delta U'_{CL}/U_{CL}\}$, $\{\delta U'_{CL}/U_{CL}+\delta'\}$, $\{\Psi/U_{CL}^2\}$ of the similarity equation, as written in D14's Result; `out["exponential_family"]` has a zero middle coefficient (slip #5); G(0.1) = −0.02025 |
-| C09 · N117, N119 (row 14) | `ch12.plane_jet_mass_fraction(1.0, 0.0, 1.0, 1.0, 1.0, C6=1.0, xi_half_Y=0.14)`; the same at x = 4.0; then with `C6="from_invariant", C5="from_invariant", xi_half=0.10` | 1.0 and 0.5 ✎ (∝ x^{−1/2}, C₆ = 1 labelled illustrative); 2.240 when C₆ is fixed by the flux invariant $\dot M_s\cong\rho\int\bar YU\,dy$ (12.70) for our illustrative widths |
+| C09 · N117, N119 (row 14) | `ch12.plane_jet_mass_fraction(1.0, 0.0, 1.0, 1.0, 1.0, C6=1.0, xi_half_Y=0.15)`; the same at x = 4.0; then with `C6="from_invariant", C5="from_invariant", xi_half=0.10` | 1.0 and 0.5 ✎ (∝ x^{−1/2}, C₆ = 1 labelled illustrative); 2.240 when C₆ is fixed by the flux invariant $\dot M_s\cong\rho\int\bar YU\,dy$ (12.70) for our illustrative widths |
 | C09 · N120, N121 (row 14) | `ch12.slot_momentum_flux(1.2, 10.0, 0.01)`; `ch12.slot_mass_flux(1.2, 10.0, 0.01)`; `ch12.free_shear_centerline("plane_jet", x, constants={…}, d=0.01, U0=10.0, rho_s=1.2, rho=1.2)` | 1.2 N/m ✎; 0.12 kg/(m s) ✎; centreline speed at x = 0.4 m is twice that at 1.6 m (x^{−1/2}), whatever the illustrative constants |
 | C09 · N123 (row 15) | `ch12.FREE_SHEAR_CONSTANTS` printed | `{}` — "no public table adopted; every constant in this notebook is passed explicitly and labelled" |
 | C09 · N124 (row 15, under D16) | `[ch12.local_reynolds_number_exponent(f) for f in flows]` | ½, 0, 0, −⅓, 1, ⅔, 1 for plane jet, round jet, plane wake, round wake, plane plume, round plume, shear layer (= D16's n + m) |
@@ -1618,7 +1618,7 @@ intent is given and the builder reads the docstring for the layout. Constants ar
 | C11 · N144 (under D19) | `WT.velocity_defect(np.array([0.01, 0.05]), np.array([8.0, 9.0]), 10.0, 0.5, 0.1)` | ξ = (0.1, 0.5), defect = (4.0, 2.0) ✎ |
 | C11 · N148 (under D19) | `WT.log_law_defect(0.1, kappa=0.41, A=1.0)` | 6.616 ✎ (= −ln(0.1)/0.41 + 1; A = 1.0 illustrative) |
 | C11 · N153 (row with Spalding) | `WT.spalding_yplus(10.0, kappa=0.41, B=5.0)`; `WT.spalding_uplus(100.0, kappa=0.41, B=5.0)`; `WT.spalding_slope(10.0, kappa=0.41, B=5.0)` | 14.55; 16.08; 0.288 — one formula from the sublayer to the log layer (κ, B the illustrative pair) |
-| C11 · N157 (row 8) | `WT.nagib_chauhan_B(0.384)`; `WT.nagib_chauhan_kappa(4.17)` | 4.17; 0.384 — the two directions of $\kappa B=1.6[\exp(0.1663B)-1]$ (12.92) |
+| C11 · N157 (row 8) | `B = WT.nagib_chauhan_B(0.384)`; `WT.nagib_chauhan_kappa(B)` | round trip returns 0.384 (print B from the cell, do not type it; review M2) — the two directions of $\kappa B=1.6[\exp(0.1663B)-1]$ (12.92) |
 | C12 · N162 (row with the eddy-viscosity hypothesis) | `ch12.eddy_viscosity_stress(gradU, 0.01, 0.3)` with dU/dy = 2 s⁻¹ | $\overline{uv}$ = −0.02 m²/s² ✎ (= −ν_T dU/dy); each normal stress ⅔ē = 0.2 |
 | C12 · N165 (row 5) | `ch12.rans_eddy_viscosity_residual(U, P, nu_T, e, x, nu=…, rho=…)` on a manufactured field (ν_T constant, P chosen to balance), then with `printed=True` | residual ≲ 1e-6; the printed form (pressure gradient with index j, slip #6) leaves an O(1) residual, the same number in every component |
 | C12 · N168 (start of D21) | `sol = ch12.shear_flow_eddy_viscosity_solve(y, lambda yf, s: 0.0*yf, dPdx, rho, nu)` then with the mixing-length rule | ν_T ≡ 0 returns the laminar parabola to 1e-10 (Ch. 8); with $\nu_T=l_T^2\lvert dU/dy\rvert$ the profile flattens (`sol["converged"]` True) — the Picard primer P302 at work |
@@ -2489,7 +2489,7 @@ never uses a sampled value (C.5). Parallel builders use private scratch subfolde
   `{name: 'U 10 m unstable', js: wind(10, 0.3, 0.03, -16.6, 0.4), py: 'ch12.surface_layer_wind(10.0, 0.3, 0.03, -16.6, kappa=0.4,
   unstable="businger_dyer")', rtol: 1e-9}` · `{name: 'Rf', js: Rf(10, 82.98165), py: 'ch12.flux_richardson_surface_layer(10.0, 82.98165)',
   rtol: 1e-12}` · `{name: 'regime', js: regime(0.12), py: 'ch12.turbulence_regime(0.12)', exact: true}` · `{name: 'verdict kundu', js:
-  verdictKundu(0.010), py: 'ch12.gradient_richardson_thermal(0.010, 0.1, 1/300, Gamma_a=-0.0098)["verdict_kundu"]', exact: true}`.
+  verdictKundu(0.010), py: 'ch12.gradient_richardson_thermal(0.010, 0.1, 1/300, Gamma_a=ch12.adiabatic_lapse_rate())["verdict_kundu"]', exact: true}` (`Gamma_a` is required — review M1; never type −0.0098).
 - **Fit plan:** 360×640: status on two short lines (verdict · L_M · Rf / criterion in the chosen convention; the other
   convention's relation moves to the Explain tab's section 6 and the `temp` title) · `wind` (60 %) over `temp` (40 %); `bud`
   hidden — Rf and Ri are readouts. 844×390: `wind` | `temp`. Desktop: `bud` under both.
@@ -3275,7 +3275,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   12. **did** Add them · **tex** $\bar\varepsilon=6\nu\,(2+4-1)\dfrac{\overline{u^2}}{\lambda_f^2}=30\nu\dfrac{\overline{u^2}}{\lambda_f^2}=-15\nu\,\overline{u^2}\Big[\dfrac{d^2f}{dr^2}\Big]_{r=0}$ · **why** Step 5 with step 11; $1/\lambda_f^2=-f''(0)/2$. The
       middle equalities of (12.43). · **plain** The dissipation is fixed by the curvature of f at the origin.
   13. **did** Rewrite with the transverse microscale and with one gradient · **tex** $\bar\varepsilon=15\nu\dfrac{\overline{u^2}}{\lambda_g^2}=15\nu\,\overline{\Big(\dfrac{\partial u_1}{\partial x_1}\Big)^2}$ · **why** $\lambda_g^2=\lambda_f^2/2$ (D07
-      step 14); and $a=2\overline{u^2}/\lambda_f^2$ from step 11. · **plain** One velocity gradient, measured along a line, gives the whole
+      step 14); and $a=2\overline{u^2}/\lambda_f^2$ from step 11. The first form is the last member of (12.43); the one-gradient form $15\nu\overline{(\partial u_1/\partial x_1)^2}$ is ours (a corollary of step 11, not part of the book's numbered equation). · **plain** One velocity gradient, measured along a line, gives the whole
       dissipation.
 - **Result:** $\bar\varepsilon=6\nu\{a+b+c\}=-15\nu\overline{u^2}f''(0)=30\nu\overline{u^2}/\lambda_f^2=15\nu\overline{u^2}/\lambda_g^2$ (12.43) — "symmetry turns nine gradients into
   one".
@@ -3286,7 +3286,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   and the total. `check_src` sketch:
   ```python
   import sympy as sp                                           # symbolic algebra
-  r1, r2, r3, u2, lam, nu = sp.symbols("r1 r2 r3 u2 lambda_f nu", positive=True)
+  r1, r2, r3, u2, lam, nu = sp.symbols("r1 r2 r3 u2 lambda_f nu", positive=True)   # separation components, one-component variance, λ_f, viscosity
   rv = [r1, r2, r3]; rr = r1**2 + r2**2 + r3**2                # separation and its square
   d = sp.KroneckerDelta                                        # delta_ij
   R = lambda i, j: u2*(d(i, j) - 2*rr/lam**2*d(i, j) + rv[i]*rv[j]/lam**2)   # step 9
@@ -3334,9 +3334,9 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
      **plain** Mean energy changes by transport, direct viscous loss, loss to turbulence and loss to potential energy.
 - **Result:** $\frac{\partial\bar E}{\partial t}+U_j\frac{\partial\bar E}{\partial x_j}=\frac{\partial}{\partial x_j}\big(-\frac{U_jP}{\rho_0}+2\nu U_i\bar S_{ij}-\overline{u_iu_j}U_i\big)-2\nu\bar S_{ij}\bar S_{ij}+\overline{u_iu_j}\frac{\partial U_i}{\partial x_j}-\frac g{\rho_0}\bar\rho U_3$ (12.46), as in step 9 — "the mean flow loses energy to the turbulence at the rate $-\overline{u_iu_j}\,\partial U_i/\partial x_j$".
 - **Check:** units — every term m²/s³. No fluctuations ⇒ Ch. 4's mechanical-energy equation ✓. Size: direct dissipation /
-  production ~ ν/(UL) = 1/Re. Code: `ch12.mean_energy_budget_sympy()` residual 0; integral identity in a channel: pressure
+  production ~ ν/(UL) = 1/Re where the mean gradient is ~ ΔU/L (free shear flows, the outer part of a wall flow) — not in the viscous wall layer, where the gradient is $u_*^2/\nu$ (N80). Code: `ch12.mean_energy_budget_sympy()` residual 0; integral identity in a channel: pressure
   work = direct dissipation + production (`channel_energy_budget`).
-- **What it means:** at high Reynolds number the mean flow hardly feels viscosity directly; it is drained by the Reynolds
+- **What it means:** at high Reynolds number the mean flow, away from walls, hardly feels viscosity directly; it is drained by the Reynolds
   stress, and D10 shows the same term arriving in the turbulence. **Fails when:** density varies beyond Boussinesq.
 - **Traps:** calling $+\overline{u_iu_j}\,\partial U_i/\partial x_j$ a gain because of its plus sign (it is negative); forgetting the divergence terms
   vanish only when integrated over a closed or homogeneous region.
@@ -3355,7 +3355,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   3. **did** Subtract · **tex** $\dfrac{\partial u_i}{\partial t}+U_j\dfrac{\partial u_i}{\partial x_j}+u_j\dfrac{\partial U_i}{\partial x_j}+u_j\dfrac{\partial u_i}{\partial x_j}-\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=-\dfrac1{\rho_0}\dfrac{\partial p}{\partial x_i}+g\alpha T'\delta_{i3}+\nu\dfrac{\partial^2u_i}{\partial x_j^2}$ · **why** Total minus mean leaves the
      fluctuation's own equation; $(U_j+u_j)\partial(U_i+u_i)/\partial x_j$ gives four terms, one of which is in the mean equation. ·
      **plain** How one fluctuation evolves: carried by the mean, distorted by the mean shear, acting on itself.
-  4. **did** Multiply by $u_i$ and average · **tex** $\overline{u_i\times(\text{step 3})}$ · **why** Force × velocity again (D09 step 1), now for the fluctuation;
+  4. **did** Multiply by $u_i$ and average · **tex** $\overline{u_i\dfrac{\partial u_i}{\partial t}}+U_j\overline{u_i\dfrac{\partial u_i}{\partial x_j}}+\overline{u_iu_j}\dfrac{\partial U_i}{\partial x_j}+\overline{u_iu_j\dfrac{\partial u_i}{\partial x_j}}-\overline{u_i}\,\dfrac{\partial\overline{u_iu_j}}{\partial x_j}=-\dfrac1{\rho_0}\overline{u_i\dfrac{\partial p}{\partial x_i}}+g\alpha\overline{u_3T'}+\nu\overline{u_i\dfrac{\partial^2u_i}{\partial x_j^2}}$ · **why** Force × velocity again (D09 step 1), now for the fluctuation;
      the average is taken because single realizations are not reproducible. Each term is treated in turn below. ·
      **plain** The mean rate of working on the fluctuations.
   5. **did** Time derivative · **tex** $\overline{u_i\dfrac{\partial u_i}{\partial t}}=\dfrac{\partial}{\partial t}\Big(\tfrac12\overline{u_i^2}\Big)=\dfrac{\partial\bar e}{\partial t}$ · **why** Chain rule backwards, then D01's $\overline{\partial u^m/\partial t}=\partial\overline{u^m}/\partial t$ (12.6). · **plain** The rate of
@@ -3396,16 +3396,16 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   psi = sp.Function("psi")(x, y); p = sp.Function("p")(x, y)     # any stream function and pressure
   u = [sp.diff(psi, y), -sp.diff(psi, x)]; X = [x, y]            # a divergence-free fluctuation: (12.28) holds exactly
   S = lambda i, j: (sp.diff(u[i], X[j]) + sp.diff(u[j], X[i]))/2 # fluctuating strain rate S'_ij
-  rng = range(2)
+  rng = range(2)   # two components are enough to test the identities
   # step 9: u_i u_j d_j u_i  ==  d_j( u_j u_i^2 / 2 )
-  lhs9 = sum(u[i]*u[j]*sp.diff(u[i], X[j]) for i in rng for j in rng)
-  rhs9 = sum(sp.diff(u[j]*sum(ui**2 for ui in u)/2, X[j]) for j in rng)
-  assert sp.simplify(lhs9 - rhs9) == 0
+  lhs9 = sum(u[i]*u[j]*sp.diff(u[i], X[j]) for i in rng for j in rng)   # step 9, left side: u_i u_j ∂u_i/∂x_j
+  rhs9 = sum(sp.diff(u[j]*sum(ui**2 for ui in u)/2, X[j]) for j in rng)   # step 9, right side: ∂(½ u_i² u_j)/∂x_j
+  assert sp.simplify(lhs9 - rhs9) == 0   # the triple term is a pure divergence (uses ∂u_j/∂x_j = 0)
   # step 10: u_i d_i p == d_i (p u_i)
-  assert sp.simplify(sum(u[i]*sp.diff(p, X[i]) for i in rng) - sum(sp.diff(p*u[i], X[i]) for i in rng)) == 0
+  assert sp.simplify(sum(u[i]*sp.diff(p, X[i]) for i in rng) - sum(sp.diff(p*u[i], X[i]) for i in rng)) == 0   # step 10: u_i ∂p/∂x_i = ∂(p u_i)/∂x_i
   # steps 12-14: nu u_i lap(u_i) == d_j(2 nu u_i S_ij) - 2 nu S_ij S_ij
-  lhs = nu*sum(u[i]*(sp.diff(u[i], x, 2) + sp.diff(u[i], y, 2)) for i in rng)
-  rhs = sum(sp.diff(2*nu*u[i]*S(i, j), X[j]) for i in rng for j in rng) - 2*nu*sum(S(i, j)**2 for i in rng for j in rng)
+  lhs = nu*sum(u[i]*(sp.diff(u[i], x, 2) + sp.diff(u[i], y, 2)) for i in rng)   # steps 12–14, left side: ν u_i ∇²u_i
+  rhs = sum(sp.diff(2*nu*u[i]*S(i, j), X[j]) for i in rng for j in rng) - 2*nu*sum(S(i, j)**2 for i in rng for j in rng)   # right side: ∂(2ν u_i S′_ij)/∂x_j − 2ν S′_ij S′_ij
   assert sp.simplify(lhs - rhs) == 0                             # every pointwise identity holds before averaging
   ```
   (The averaging itself — steps 5–8, 11 — is checked by `ch12.tke_budget_sympy()` with the averaging operator of P294, and
@@ -3509,14 +3509,14 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
      $\partial V/\partial y\sim\partial U/\partial x$, which fixes the size of V (Ch. 9's boundary-layer scaling). · **plain** Cross-stream changes are fast,
      stream-wise ones slow, and V is small.
   2. **did** Keep the largest terms of the y-equation · **tex** $0\cong-\dfrac1\rho\dfrac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$ · **why** In the cross-stream equation of the Start the inertia terms are ~ $U_{CL}^2\delta/L_x^2$, the
-     stress term $\partial\overline{v^2}/\partial y\sim u'^2/\delta$ is larger by $(L_x/\delta)^2(u'/U_{CL})^2$; only the pressure can balance it. Second of (12.61).
+     stress term $\partial\overline{v^2}/\partial y\sim u'^2/\delta$ is larger by $(L_x/\delta)^2(u'/U_{CL})^2$; only the pressure can balance it. This is the second of (12.61), $0\cong-\frac1\rho\frac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$.
      · **plain** Across the jet, pressure and the normal Reynolds stress add to a constant.
   3. **did** Integrate across the jet · **tex** $P+\rho\,\overline{v^2}=P_\infty$ · **why** Integrate step 2 in y out to the still fluid, where $\overline{v^2}=0$ and the
      pressure is the uniform $P_\infty$. · **plain** Inside the jet the mean pressure is slightly below ambient.
   4. **did** Differentiate in x · **tex** $-\dfrac1\rho\dfrac{\partial P}{\partial x}=\dfrac{\partial\overline{v^2}}{\partial x}$ · **why** $P_\infty$ is constant. This term is ~ $u'^2/L_x$, as small as $\partial\overline{u^2}/\partial x$ and
      smaller than $\partial\overline{uv}/\partial y\sim u'^2/\delta$ by δ/L_x. · **plain** The stream-wise pressure gradient is negligible.
   5. **did** Drop the small terms of the x-equation · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}\cong-\dfrac{\partial\overline{uv}}{\partial y}$ · **why** Viscous terms are ~ 1/Re of the inertia terms;
-     pressure and $\overline{u^2}$ gradients were shown small in step 4. First of (12.61). · **plain** Mean advection is balanced by
+     pressure and $\overline{u^2}$ gradients were shown small in step 4. This is the first of (12.61), $Urac{\partial U}{\partial x}+Vrac{\partial U}{\partial y}\cong-rac{\partial\overline{uv}}{\partial y}$. · **plain** Mean advection is balanced by
      the cross-stream gradient of the Reynolds shear stress.
   6. **did** Add U times the continuity equation · **tex** $U\dfrac{\partial U}{\partial x}+V\dfrac{\partial U}{\partial y}+U\Big(\dfrac{\partial U}{\partial x}+\dfrac{\partial V}{\partial y}\Big)=\dfrac{\partial(U^2)}{\partial x}+\dfrac{\partial(VU)}{\partial y}$ · **why** The bracket is zero by $\partial U/\partial x+\partial V/\partial y=0$ (12.58), so
      adding it changes nothing; the product rule then makes exact derivatives. · **plain** Advection as the divergence of a
@@ -3533,7 +3533,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
       fluid is diluted. · **plain** The momentum flux per unit span is the same at every station.
 - **Result:** $U\frac{\partial U}{\partial x}+V\frac{\partial U}{\partial y}\cong-\frac{\partial\overline{uv}}{\partial y}$, $0\cong-\frac1\rho\frac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$ (12.61) and $J_s=\rho\int_{-\infty}^{+\infty}U^2dy=\mathit{const.}$ (12.62) — "a jet conserves its momentum flux".
 - **Check:** units — ρU²·y: kg m⁻³ × m² s⁻² × m = N/m ✓. A top-hat slot of width d: $J_s=\rho_sU_0^2d$. Code: `jet_momentum_flux_per_span`
-  flat to 1e-6 along the similarity solution; `thin_shear_layer_terms` prints the dropped terms, of relative order (δ/x)² — small for ξ½ = 0.1 (the builder quotes the printed ratios).
+  flat to 1e-6 along the similarity solution; `thin_shear_layer_terms` prints the dropped terms, of relative order (δ/x)² — small for ξ½ = 0.1: at x = 1 m, y = 0.1 m in air the viscous term is about 0.001 of the stress gradient and V/U ≈ 0.02 (printed by the cell above the derivation).
 - **What it means:** with no wall and no pressure gradient nothing can change the jet's momentum; everything else (width,
   speed, volume flux) must arrange itself around this invariant (D15). **Fails when:** there is a co-flow or pressure
   gradient, buoyancy (plumes: momentum grows), or a nearby wall (Coanda effect).
@@ -3591,7 +3591,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   U = UCL*F(y/delta)                                              # (12.56)
   V = -sp.integrate(sp.diff(UCL*F(s/delta), x), (s, 0, y))        # step 1: continuity
   lhs = sp.simplify(U*sp.diff(U, x) + V*sp.diff(U, y))            # left side of (12.61), computed directly
-  xi = sp.symbols("xi", positive=True)
+  xi = sp.symbols("xi", positive=True)   # the similarity variable ξ = y/δ
   I = sp.integrate(F(s), (s, 0, xi))                              # running integral of F
   A1 = delta*sp.diff(UCL, x)/UCL; A2 = A1 + sp.diff(delta, x)     # the first two brackets of (12.63)
   rhs = (UCL**2/delta)*(A1*F(xi)**2 - A2*sp.diff(F(xi), xi)*I)    # steps 11-13, times U_CL^2/delta
@@ -3690,7 +3690,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   plane wake (½, −½, −½, 0) · round wake (⅓, −⅔, −⅔, −⅓) · plane plume (1, 0, −1, +1) · round plume (1, −⅓, −5/3, +⅔) · shear layer
   (1, 0, –, +1) — "an invariant and a growth law give every row".
 - **Check:** plane jet agrees with $U=C_5(J_s/\rho)^{1/2}x^{-1/2}F(y/x)$ (12.66) and $\bar Y\propto x^{-1/2}$ (12.71) ✓; similarity variables of
-  the wakes: $y/\sqrt{\theta_px}$ and $r/(\theta_r^2x)^{1/3}$ ✓ (m = ½, ⅓). Units of each invariant: N/m (plane) or N (round). Code:
+  the wakes: $y/\sqrt{\theta_px}$ and $r/(\theta_r^2x)^{1/3}$ ✓ (m = ½, ⅓), where $\theta_p$ = (drag per unit span)/($\rho U_\infty^2$) is a length and $\theta_r^2$ = drag/($\rho U_\infty^2$) an area — the momentum thicknesses of the two wakes. Units of each invariant: N/m (plane) or N (round). Code:
   `free_shear_exponents` returns these as exact `Fraction`s; `wrong_exponent_fluxes` is flat only when 2n + m = 0.
 - **What it means:** the table is not seven facts to memorise but one recipe; the *constants* (spreading rates, amplitude
   factors) are measurements and are not reproduced here. **Fails when:** the invariant is not conserved (co-flowing jets
@@ -3710,10 +3710,10 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
      downstream; then continuity gives $\partial V/\partial y=0$, and V = 0 at the wall, so V = 0 everywhere. Only P may depend on x. ·
      **plain** A mean flow U(y) only.
   2. **did** Reduce the stream-wise equation · **tex** $0=-\dfrac{\partial P}{\partial x}+\dfrac{\partial\bar\tau}{\partial y},\qquad\bar\tau=\mu\dfrac{\partial U}{\partial y}-\rho_0\overline{uv}$ · **why** The left side of the Start, $\partial U_i/\partial t+U_j\,\partial U_i/\partial x_j$, vanishes (steady, V = 0,
-     ∂U/∂x = 0); of the stress divergence only the y-derivative of the xy-component remains. First of (12.76). · **plain**
+     ∂U/∂x = 0); of the stress divergence only the y-derivative of the xy-component remains. This is the first of (12.76), $0=-\frac{\partial P}{\partial x}+\frac{\partial\bar\tau}{\partial y}$; the definition of $\bar\tau$ is the unnumbered line that follows it in the book. · **plain**
      Pressure gradient balances the gradient of the total shear stress.
   3. **did** Reduce the wall-normal equation · **tex** $0=-\dfrac{\partial}{\partial y}\big(P+\rho\,\overline{v^2}\big)$ · **why** Same reduction for the y-component: only pressure and the normal
-     Reynolds stress survive. Second of (12.76). · **plain** Across the channel, P + ρ⟨v²⟩ is uniform.
+     Reynolds stress survive. This is the second of (12.76), $0=-\frac{\partial}{\partial y}\big(P+\rho\overline{v^2}\big)$. · **plain** Across the channel, P + ρ⟨v²⟩ is uniform.
   4. **did** Integrate from the wall · **tex** $P(x,y)-P(x,0)=-\rho\,\overline{v^2}+\rho\big[\overline{v^2}\big]_{y=0}=-\rho\,\overline{v^2}$ · **why** Fundamental theorem of calculus; the
      fluctuation vanishes at the wall (no-slip, impermeable). · **plain** The pressure inside is a little lower than at the
      wall.
@@ -3899,7 +3899,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   • name the dissipation • build scales from ē and ε̄. · **Tools:** gradient-diffusion hypothesis (N162); substitution; units
   check. · **Assumptions:** constant density; high Reynolds number; transport of ē behaves like diffusion.
 - **Steps:**
-  1. **did** Drop the buoyancy term · **tex** $g\alpha\,\overline{u_3T'}\to0$ · **why** From §12.8 to §12.10 the density is constant (convention 6). · **plain** No
+  1. **did** Drop the buoyancy term · **tex** $g\alpha\,\overline{u_3T'}\to0$ · **why** From §12.8 to §12.10 the density is constant (the switch announced at the top of §12.8). · **plain** No
      buoyant production in this model.
   2. **did** Model the three transport terms as one gradient flux · **tex** $-\dfrac1{\rho_0}\overline{pu_j}+2\nu\overline{u_iS'_{ij}}-\tfrac12\overline{u_i^2u_j}=\dfrac{\nu_T}{\sigma_e}\dfrac{\partial\bar e}{\partial x_j}$ · **why** They only move energy from
      where there is much to where there is little; the simplest such law is diffusion down the gradient, with a
@@ -4044,8 +4044,8 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
   m/s, T = 300 K: L_M = +83 m; Rf(10 m) = 0.12; U(10 m) = 4.81 m/s (neutral 4.36). Day, H = +150 W/m²: L_M = −17 m. Neutral: H = 0
   ⇒ L_M = ∞ ⇒ the rough-wall log law ✓.
 - **What it means:** every bulk surface-flux scheme iterates on this profile (and its temperature twin) to get u_* and H
-  from model-level wind and temperature. **Fails when:** z ≳ ∣L_M∣ on the unstable side — the linear form even gives negative
-  winds; use the Businger–Dyer form $\phi_m=(1-16\zeta)^{-1/4}$ there (AMS Glossary) — and for very stable layers (ζ ≳ 1), where
+  from model-level wind and temperature. **Fails when:** z ≥ ∣L_M∣/5 on the unstable side — there the log-linear shear 1 + 5z/L_M reaches zero, and beyond it the linear form even gives negative
+  winds; use a commonly used form (often called Businger–Dyer), $\phi_m=(1-16\zeta)^{-1/4}$, there — and for very stable layers (ζ ≳ 1), where
   turbulence is intermittent.
 - **Traps:** the sign of L_M; κ is von Kármán's constant here although the temperature-variance budget on the next page (N190 in C15) uses κ for the thermal diffusivity (our $\kappa_{th}$); α = 1/T needs T in kelvin; H in W/m² must be divided by ρc_p.
 
@@ -4130,7 +4130,7 @@ they stand; nothing is left for them to inline. Two conventions remain, both del
 - **What it means:** near a source turbulent spreading is not diffusion at all; far from it, it is — with diffusivity
   $\overline{u^2}\Lambda_t$ (D28). On a plot of $\overline{X^2}$ against t the long-time line does not pass through the origin. **Fails when:** r has
   a long tail (anomalous diffusion), or for *relative* dispersion of particle pairs (Richardson's law instead).
-- **Traps:** using the diffusive law at t ~ Λ_t (65 % too large at t = Λ_t); forgetting that Λ_t here is Lagrangian; the
+- **Traps:** using the diffusive law at t ~ Λ_t (at t = Λ_t it gives an rms displacement 65 % too large — a factor 2.7 in the mean square); forgetting that Λ_t here is Lagrangian; the
   book's reference "(11.119)" (slip #11) means $\overline{X_\alpha^2}=2\overline{u_\alpha^2}\,t\int_0^t(1-\tau/t)r_\alpha\,d\tau$ (12.119).
 
 ### D28 · The eddy diffusivity: $\nu=\tfrac12\,d\sigma^2/dt$ (12.126), $D_T=\overline{u_\alpha^2}\int_0^tr_\alpha\,d\tau$ (12.127) and its limits (12.128)–(12.129, condition corrected) — ★, 7 steps, in C16 (notebook · `taylor_dispersion`)

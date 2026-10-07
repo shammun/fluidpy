@@ -1,5 +1,5 @@
 {
- "_note": "Published values for chapter 12 (sources and access dates in SOURCES.md). No textbook numbers.",
+ "_note": "Published values for chapter 12 (sources and access dates in SOURCES.md). No textbook numbers. Exception: 'businger_dyer_unstable' holds the coefficients the code uses, not a verified published value.",
  "lee_moser_kappa": {
   "value": 0.384,
   "uncertainty": 0.004,
@@ -33,7 +33,9 @@
  "businger_dyer_unstable": {
   "coefficient": 16.0,
   "exponent": -0.25,
-  "source": "AMS Glossary of Meteorology, 'Businger-Dyer relationship'"
+  "kind": "coefficients as coded - analytic consistency check (V1), not a benchmark (V5)",
+  "verified_first_hand": false,
+  "source": "literature values ('Businger-Dyer' form, after Businger et al. 1971 and Dyer 1974); attribution not verified first-hand (no source was read; the AMS Glossary page returned HTTP 403) - see SOURCES.md"
  },
  "lee_moser_cases": {
   "0180": {

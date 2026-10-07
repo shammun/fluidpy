@@ -68,7 +68,7 @@ def scales_sketch(ax, n_tiers: int = 5, seed: int = 0):
             ha="center", fontsize=9, color=COLORS["orange"])
     ax.text(x0 - 0.25, 0.25, "viscosity\nacts here", fontsize=8, color=COLORS["rose"], ha="center")
     ax.set_aspect("equal")
-    return _bare(ax, (0.1, x0 + 0.3), (-1.45, 1.45), "outer scale L, eddies down to the Kolmogorov scale (cf. Fig. 12.11)")
+    return _bare(ax, (0.1, x0 + 0.3), (-1.45, 1.45), "outer scale L, eddies down to the Kolmogorov scale")
 
 
 def parcel_sketch(ax, shear: float = 1.0):
@@ -95,7 +95,7 @@ def parcel_sketch(ax, shear: float = 1.0):
     ax.text(5.35, 1.03, r"either way $uv<0$" if shear > 0 else r"either way $uv>0$", fontsize=9, color=COLORS["orange"])
     ax.set_xlabel("x  (mean flow →)")
     ax.set_ylabel("y")
-    return _bare(ax, (0.0, 6.6), (-0.3, 2.3), r"why $\overline{uv}<0$ when $dU/dy>0$ (cf. Fig. 12.6)")
+    return _bare(ax, (0.0, 6.6), (-0.3, 2.3), r"why $\overline{uv}<0$ when $dU/dy>0$")
 
 
 def stress_element_sketch(ax):
@@ -115,7 +115,7 @@ def stress_element_sketch(ax):
     ax.text(0.95, 0.25, "x")
     ax.text(0.22, 0.95, "y")
     ax.set_aspect("equal")
-    return _bare(ax, (0.0, 5.4), (0.1, 3.8), "two shear stresses on one element (cf. Fig. 12.7)")
+    return _bare(ax, (0.0, 5.4), (0.1, 3.8), "two shear stresses on one element")
 
 
 def fg_geometry_sketch(ax):
@@ -130,7 +130,7 @@ def fg_geometry_sketch(ax):
             _arrow(ax, (x0, y0), (x0 + 0.55, y0) if along else (x0, y0 + 0.45), col, 2.4)
         ax.text(2.0, y0 - 0.17, "r", ha="center")
         ax.text(3.75, y0 + 0.05, lab, fontsize=9, color=col, va="center")
-    return _bare(ax, (0.6, 8.4), (0.1, 2.2), "the two correlation coefficients of isotropic turbulence (cf. Fig. 12.9)")
+    return _bare(ax, (0.6, 8.4), (0.1, 2.2), "the two correlation coefficients of isotropic turbulence")
 
 
 def free_shear_sketch(ax, flow: str = "plane_jet", stations=(1.0, 2.0, 3.0, 4.0), constants: dict | None = None):
@@ -140,7 +140,7 @@ def free_shear_sketch(ax, flow: str = "plane_jet", stations=(1.0, 2.0, 3.0, 4.0)
     **labelled illustrative constants** (not the book's table): the picture shows the growth laws, not measured numbers.
     """
     c = dict(ILLUSTRATIVE_JET) if constants is None else dict(constants)
-    c.setdefault("dxi80_coeff", 0.085)
+    c.setdefault("dxi80_coeff", 0.1)   # illustrative spreading coefficient (ours, not a measured value)
     kw = {"plane_jet": dict(d=0.05, U0=1.0, rho_s=1.0, rho=1.0), "plane_wake": dict(theta=0.02, U_inf=1.0),
           "shear_layer": dict(U1=1.0, U2=0.3)}[flow]
     xs = np.linspace(0.3, 4.6, 60)
@@ -169,7 +169,7 @@ def free_shear_sketch(ax, flow: str = "plane_jet", stations=(1.0, 2.0, 3.0, 4.0)
             fontsize=9)
     ax.set_xlabel("x (downstream)")
     ax.set_ylabel("y")
-    return _bare(ax, (0.2, 5.3), (-1.05 * half, 1.05 * half), f"self-similar {name} (illustrative; cf. Fig. 12.13)")
+    return _bare(ax, (0.2, 5.3), (-1.05 * half, 1.05 * half), f"self-similar {name} (illustrative)")
 
 
 def wall_layers_sketch(ax, Re_tau: float = 2000.0, Pi: float = 0.2):
@@ -192,7 +192,7 @@ def wall_layers_sketch(ax, Re_tau: float = 2000.0, Pi: float = 0.2):
     ax.semilogx(yl, ch12.log_law(yl, kappa=KAPPA, B=B_LOG), color=COLORS["ink"], ls="--", lw=1.0,
                 label=rf"$U^+=\frac{{1}}{{\kappa}}\ln y^++B$ ($\kappa$ = {KAPPA}, B = {B_LOG}: a common textbook pair)")
     ax.set(xlim=(0.3, Re_tau), ylim=(0, float(U[-1]) + 3), xlabel=r"$y^+=y\,u_*/\nu$", ylabel=r"$U^+=U/u_*$",
-           title=rf"layers of a wall flow at $\delta^+$ = {Re_tau:.0f} (cf. Fig. 12.18)")
+           title=rf"layers of a wall flow at $\delta^+$ = {Re_tau:.0f}")
     ax.legend(fontsize=7.5, loc="upper left")
     return ax
 
@@ -221,7 +221,7 @@ def surface_layer_sketch(ax, L_M: float = -20.0, top: float = 100.0, seed: int =
         _arrow(ax, (x0, 0.5), (x0, 5.0), COLORS["rose"], 1.0)
     ax.text(5.0, 6.0, r"upward heat flux $\overline{wT'}>0$ from the warm ground", fontsize=8, color=COLORS["rose"])
     ax.set(xlim=(0, 9.6), ylim=(0, top), xticks=[], ylabel="z [m] (illustrative)",
-           title=rf"unstable surface layer, $L_M$ = {L_M:.0f} m (cf. Fig. 12.21)")
+           title=rf"unstable surface layer, $L_M$ = {L_M:.0f} m")
     ax.grid(False)
     return ax
 
@@ -248,7 +248,7 @@ def plume_sketch(ax, U: float = 5.0, w_rms: float = 0.5, Lambda_t: float = 10.0,
     _arrow(ax, (0.05 * x_max, 0.85 * zc), (0.2 * x_max, 0.85 * zc), COLORS["accent"], 1.5)
     ax.text(0.05 * x_max, 0.9 * zc, "wind U", color=COLORS["accent"], fontsize=9, va="bottom")
     ax.set(xlim=(-0.03 * x_max, x_max), ylim=(-zc, zc), xlabel="x [m] downwind", ylabel="z [m]",
-           title="smoke plume: a wedge, then a parabola (cf. Fig. 12.27)")
+           title="smoke plume: a wedge, then a parabola")
     ax.legend(fontsize=8, loc="lower right")
     return ax
 

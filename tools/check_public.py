@@ -10,7 +10,14 @@ Checks every tracked file (``git ls-files``; after ``git add`` that includes sta
 * explainers and pages must not reference rendered book pages (``chapters/pages``);
 * any tracked file above 50 MB (GitHub refuses 100 MB; pages that large are also unusable on phones);
 * no tracked text file may contain a string listed under ``"_forbidden_public"`` in a local (git-ignored)
-  ``tests/book_values_*.json`` — book-quoted run parameters and printed values that must stay private.
+  ``tests/book_values_*.json`` — book-quoted run parameters and printed values that must stay private;
+* no tracked text file may match a regular expression listed under ``"_forbidden_public_regex"`` in one of the local
+  (git-ignored) private lists, ``tests/book_values_*.json`` or ``data/book/forbidden_public*.json`` — for book-quoted
+  *constants*, which are too short to be literal strings (a bare one- or two-digit number) and are therefore keyed by
+  the name they are assigned to (``<name> = <value>``, ``"<name>": <value>``, a pair of values on one line).  An entry
+  is either a pattern string or
+  ``{"regex": "...", "why": "...", "paths": "<regex on the repo-relative path, optional>"}``.  The patterns themselves
+  are book-derived and therefore never written in this (public) file.
 
 Usage::
 
@@ -38,15 +45,62 @@ MAX_MB = 50
 TEXT_SUFFIXES = {".md", ".py", ".ipynb", ".html", ".csv", ".json", ".yaml", ".yml", ".txt", ".js", ".css"}
 
 
-def forbidden_strings() -> list[str]:
-    """Private strings from the local book-value files (absent on a fresh clone → no content check)."""
-    out: list[str] = []
-    for f in sorted((ROOT / "tests").glob("book_values_*.json")):
-        try:
-            out += [s for s in json.loads(f.read_text(encoding="utf-8")).get("_forbidden_public", []) if s]
-        except Exception:  # noqa: BLE001
-            continue
+PRIVATE_LISTS = ("tests/book_values_*.json", "data/book/forbidden_public*.json")  # git-ignored, local only
+MAX_HITS = 3  # matches reported per (file, pattern)
+
+
+def _private_lists() -> list[dict]:
+    """The parsed local private lists (absent on a fresh clone → no content check)."""
+    out: list[dict] = []
+    for pattern in PRIVATE_LISTS:
+        for f in sorted(ROOT.glob(pattern)):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                continue
+            if isinstance(data, dict):
+                out.append(data)
     return out
+
+
+def forbidden_strings() -> list[str]:
+    """Private literal strings from the local book-value files (absent on a fresh clone → no content check)."""
+    out: list[str] = []
+    for data in _private_lists():
+        out += [s for s in data.get("_forbidden_public", []) if s and isinstance(s, str)]
+    return out
+
+
+def forbidden_patterns() -> list[tuple[re.Pattern, re.Pattern | None, str]]:
+    """Private regular expressions for book-quoted constants: (pattern, path filter or None, why).
+
+    Read from ``"_forbidden_public_regex"`` of the local private lists; a malformed entry raises (a checker that
+    silently drops a rule is worse than one that stops).
+    """
+    out: list[tuple[re.Pattern, re.Pattern | None, str]] = []
+    for data in _private_lists():
+        for entry in data.get("_forbidden_public_regex", []):
+            if isinstance(entry, str):
+                entry = {"regex": entry}
+            paths = entry.get("paths")
+            out.append((re.compile(entry["regex"]), re.compile(paths) if paths else None, entry.get("why", "")))
+    return out
+
+
+def pattern_hits(rel: str, body: str, patterns: list[tuple[re.Pattern, re.Pattern | None, str]]) -> list[str]:
+    """Problem lines for every private pattern that matches ``body`` (at most MAX_HITS per pattern, with line numbers)."""
+    problems: list[str] = []
+    for pat, paths, why in patterns:
+        if paths is not None and not paths.search(rel):
+            continue
+        for n, m in enumerate(pat.finditer(body)):
+            if n >= MAX_HITS:
+                problems.append(f"{rel}: … further matches of the same private pattern not listed")
+                break
+            line = body.count("\n", 0, m.start()) + 1
+            problems.append(f"{rel}:{line}: matches a private book-constant pattern ({why or 'see the private list'}): "
+                            f"{m.group(0)!r}")
+    return problems
 
 
 def tracked_files() -> list[str]:
@@ -57,6 +111,7 @@ def tracked_files() -> list[str]:
 def check(paths: list[str]) -> list[str]:
     problems: list[str] = []
     private = forbidden_strings()
+    patterns = forbidden_patterns()
     for rel in paths:
         rel = rel.replace("\\", "/")
         if FORBIDDEN.search(rel):
@@ -68,11 +123,12 @@ def check(paths: list[str]) -> list[str]:
         size_mb = p.stat().st_size / 1e6
         if size_mb > MAX_MB:
             problems.append(f"{rel}: {size_mb:.0f} MB (> {MAX_MB} MB)")
-        if private and p.suffix.lower() in TEXT_SUFFIXES:
+        if (private or patterns) and p.suffix.lower() in TEXT_SUFFIXES:
             body = p.read_text(encoding="utf-8", errors="replace")
             for s in private:
                 if s in body:
                     problems.append(f"{rel}: contains a private book value listed in tests/book_values_*.json: {s!r}")
+            problems += pattern_hits(rel, body, patterns)
         if p.suffix == ".ipynb":
             text = p.read_text(encoding="utf-8", errors="replace")
             try:
