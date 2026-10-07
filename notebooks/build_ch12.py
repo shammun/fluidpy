@@ -1468,12 +1468,13 @@ note("N20 [B]", r"""
 the error. Animation A1 adds members one at a time; the figure after it measures the slope.""")
 nb.animation(r"""
 ens_big = TS.make_ensemble(64, t, mean_fn, sigma=0.3, tau_c=0.5, seed=7)   # the decaying ensemble again, 64 members
-stops = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64] if FAST else [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 56, 64]   # members shown per frame
+stops = [1, 2, 4, 8, 16, 24, 32, 48, 64]                      # members shown per frame (9 frames)
 tavg = TS.time_average(t, ens_big[0], window=2.0)             # a 2 s sliding time average of member 1 alone, Eq. (12.2)
-fig, ax = plt.subplots(figsize=(6.8, 3.6))
+sk4 = slice(None, None, 8)                                    # draw every 8th sample (0.08 s apart): the same picture in a much lighter image
+fig, ax = plt.subplots(figsize=(6.4, 3.4))
 ax.plot(t, mean_fn(t), color=C_REF, lw=3, alpha=0.5, label="true mean $e^{-t/10}$")   # the ghost we are trying to recover
-(ln_new,) = ax.plot(t, ens_big[0], color="0.75", lw=0.5, label="newest member")      # the member just added (grey)
-(ln_mean,) = ax.plot(t, ens_big[0], color=C_MEAN, lw=1.4, label="ensemble mean of N members")   # the running ensemble mean
+(ln_new,) = ax.plot(t[sk4], ens_big[0][sk4], color="0.75", lw=0.5, label="newest member")      # the member just added (grey)
+(ln_mean,) = ax.plot(t[sk4], ens_big[0][sk4], color=C_MEAN, lw=1.4, label="ensemble mean of N members")   # the running ensemble mean
 ax.plot(t, tavg, color=C_FLUC, lw=1.4, label="2 s time average of member 1")          # what one run alone can give
 ax.set(xlabel="time t [s]", ylabel="u [m/s]", xlim=(0, 20), ylim=(-0.6, 1.7))
 ax.legend(fontsize=7, loc="upper right")
@@ -1481,12 +1482,12 @@ ttl = ax.set_title("")
 
 def update(i):                                                # frame i: show the mean of the first N = stops[i] members
     N = stops[i]                                              # number of members in the average
-    ln_new.set_ydata(ens_big[N - 1])                          # the newest member
-    ln_mean.set_ydata(ens_big[:N].mean(axis=0))               # Eq. (12.10) with N members
+    ln_new.set_ydata(ens_big[N - 1][sk4])                     # the newest member
+    ln_mean.set_ydata(ens_big[:N].mean(axis=0)[sk4])          # Eq. (12.10) with N members
     ttl.set_text(f"N = {N}: scatter of the mean ≈ σ/√N = {0.3/np.sqrt(N):.3f} m/s")
     return ln_new, ln_mean, ttl
 
-show_animation(animate(update, frames=len(stops), fig=fig, interval=400), player="frames", dpi=70)   # step with the buttons
+show_animation(animate(update, frames=len(stops), fig=fig, interval=400), player="frames", dpi=45)   # step with the buttons
 """, explain=r"""
 1. `stops` lists how many members are in the average at each frame; `update(i)` redraws the newest member (grey) and the mean of
    the first $N$ (purple).
@@ -1580,7 +1581,7 @@ $A=1$, $B=0.5$ m/s, $\tau_d=10$ s, period 1 s ($\omega=2\pi$ rad/s), $\Delta t=0
 3. With $\Delta t=1$ s (one whole period) the wave factor is $\sin(\pi)/\pi=0$: the wave is removed exactly.
 4. With $\Delta t=20$ s the mean factor is $\sinh(1)/1=1.175$: now the window is too long and distorts the decaying mean by 17.5 %.""")
 nb.plotly(r"""
-tt = np.linspace(0.0, 30.0, 400)                              # time axis for the slider figure [s]
+tt = np.linspace(0.0, 30.0, 160)                            # time axis for the slider figure [s]
 sig_ = np.exp(-tt/10.0) + 0.5*np.cos(2*np.pi*tt)              # the signal: decaying mean (10 s) + a wave of period 1 s
 
 def f1(window):                                               # the four curves for one window length
@@ -1589,9 +1590,9 @@ def f1(window):                                               # the four curves 
     return {"signal": (tt, sig_), "sliding average (TS.time_average)": (tt, sliding),
             "true mean exp(-t/10)": (tt, np.exp(-tt/10.0)), "formula (time_average_exp_cos)": (tt, formula)}
 
-windows = np.round(np.geomspace(0.1, 20.0, 16 if FAST else 30), 2)   # window lengths, log-spaced from 0.1 to 20 s
+windows = np.round(np.geomspace(0.1, 20.0, 12 if FAST else 16), 2)   # window lengths, log-spaced from 0.1 to 20 s
 figF1 = slider_figure(f1, "Δt", windows, unit="s", xlabel="time t [s]", ylabel="u [m/s]",
-                      title="A good window: long against the wave (1 s), short against the decay (10 s)", yrange=(-0.6, 1.6))
+                      title="A good window: longer than the wave, shorter than the decay", yrange=(-0.6, 1.6))
 figF1.show()
 """, explain=r"""
 1. `f1(window)` returns the four curves for one window; `slider_figure` computes them for every slider position now, so the
@@ -2034,7 +2035,7 @@ for ratio in (0.05, 0.2, 0.5):                                # fluctuation leve
    $u_{rms}/U_0=5$ % the error is 0.07 over one eddy (0.125 m) and 0.35 over the whole 1 m line. A *spectrum* is more forgiving: it is only stretched
    along $k_1$ by the factor $1+u'/U_0$. The hypothesis is for weak turbulence on a strong mean flow.""")
 nb.plotly(r"""
-om_ax = np.geomspace(0.02, 100.0, 300)                        # frequency axis [rad/s]
+om_ax = np.geomspace(0.02, 100.0, 150)                       # frequency axis [rad/s]
 
 def f2(tau_c):                                                # the spectrum and its two landmarks for one memory time
     p = TS.correlation_spectrum_pair("exponential", 1.0, tau_c)   # exact pair with variance 1 m²/s²
@@ -2042,8 +2043,8 @@ def f2(tau_c):                                                # the spectrum and
             "level at zero frequency: σ²Λ_t/π": ([om_ax[0], 1.0/tau_c], [p["S0"], p["S0"]]),
             "corner frequency ω = 1/τ_c": ([1.0/tau_c, 1.0/tau_c], [1e-5, p["S0"]])}
 
-figF2 = slider_figure(f2, "τ_c", np.round(np.geomspace(0.1, 5.0, 13 if FAST else 25), 3), unit="s", xlabel="angular frequency ω [rad/s]",
-                      ylabel="S_e [m²/s]", title="Stretch the memory: the spectrum squeezes toward ω = 0 and grows taller there")
+figF2 = slider_figure(f2, "τ_c", np.round(np.geomspace(0.1, 5.0, 11 if FAST else 17), 3), unit="s", xlabel="angular frequency ω [rad/s]",
+                      ylabel="S_e [m²/s]", title="Longer memory: a narrower, taller spectrum")
 figF2.update_xaxes(type="log", range=[np.log10(0.02), 2.0])   # logarithmic frequency axis
 figF2.update_yaxes(type="log", range=[-5.0, 0.5])             # logarithmic spectrum axis, fixed so the change is visible
 figF2.show()
@@ -2053,14 +2054,14 @@ figF2.show()
 2. The correlation that belongs to each slider position is the curve of C02's figure, $r=e^{-\tau/\tau_c}$, with a rectangle of
    width $\tau_c$.""")
 nb.plotly(r"""
-tau_lin = np.linspace(0.0, 15.0, 300)                         # lags [s], linear axis
+tau_lin = np.linspace(0.0, 15.0, 150)                        # lags [s], linear axis
 
 def f2b(tau_c):                                               # the correlation that belongs to the same slider value
     p = TS.correlation_spectrum_pair("exponential", 1.0, tau_c)
     return {"r(τ) = exp(−τ/τ_c)": (tau_lin, p["r"](tau_lin)),
             "equal-area rectangle, width Λ_t = τ_c": ([0.0, tau_c, tau_c], [1.0, 1.0, 0.0])}
 
-figF2b = slider_figure(f2b, "τ_c", np.round(np.geomspace(0.1, 5.0, 13 if FAST else 25), 3), unit="s", xlabel="lag τ [s]", ylabel="r [–]",
+figF2b = slider_figure(f2b, "τ_c", np.round(np.geomspace(0.1, 5.0, 11 if FAST else 17), 3), unit="s", xlabel="lag τ [s]", ylabel="r [–]",
                        title="…while the correlation and its rectangle widen", xrange=(0, 15), yrange=(0, 1.05))
 figF2b.show()
 om_area = np.geomspace(1e-4, 1e5, 4000)                       # a very wide frequency range for the area check
@@ -2586,7 +2587,10 @@ fluctuating strain rate $S'_{ij}=\tfrac12(\partial u_i/\partial x_j+\partial u_j
 NOTES_IN["D08"] = (r"**N74 [B]** gradient correlations are curvatures of the two-point tensor at zero separation, "
                    r"$\overline{\frac{\partial u_i}{\partial x_k}\frac{\partial u_j}{\partial x_l}}=-\big(\frac{\partial^2R_{ij}}{\partial r_k\partial r_l}\big)_{r=0}$, "
                    r"(steps 6–7), and the three kinds of moment stand in the ratio 2 : 4 : −1 (step 11)")
-D("D08", ref="12.43")
+D("D08", ref="12.43", check_src=PF["D08"]["check_src"] + r"""
+print("D08 check — moments × λ_f²/u² (longitudinal, transverse, cross):", [sp.simplify(m_*lam**2/u2) for m_ in (a, b, c)])   # 2, 4, −1
+print("D08 check — ε̄ λ_f²/(ν u²) from all 18 terms:", sp.simplify(eps*lam**2/(nu*u2)), "| cross sum:", sp.simplify(sum(M(i, j, j, i) for i in range(3) for j in range(3))))   # 30 and 0
+""")
 nb.worked_example("dissipation from a Taylor microscale", r"""
 Air, $\nu=1.5\times10^{-5}$ m²/s; $\overline{u^2}=1$ m²/s² (one component); $\lambda_f=1$ cm.
 
@@ -2749,7 +2753,11 @@ layers) and in the outer part of a wall flow. There the mean flow does not dissi
 **Next to a wall it is different**: in the viscous wall layer the mean gradient is $u_*^2/\nu$ (C10), far larger than
 $\Delta U/L$, and a channel flow dissipates a third to a half of its pressure work there *directly* — a share that falls only
 slowly (like $1/\ln\mathrm{Re}_\tau$) as the Reynolds number rises. The channel cell below prints it.""")
-D("D10", ref="12.47", after=r"""
+D("D10", ref="12.47", check_src=PF["D10"]["check_src"] + r"""
+print("D10 check — step 9, triple term minus its divergence form:", sp.simplify(lhs9 - rhs9))                 # 0
+print("D10 check — step 10, pressure term minus its divergence form:", sp.simplify(sum(u[i]*sp.diff(p, X[i]) for i in rng) - sum(sp.diff(p*u[i], X[i]) for i in rng)))   # 0
+print("D10 check — steps 12–14, viscous term: left − right simplifies to", sp.simplify(lhs - rhs))           # 0
+""", after=r"""
 > ⚠️ **slip #2 — the book prints** the label "change of $\bar E$" under the left side of this budget **; the correct form is**
 > "change of the turbulent energy $\bar e$" ($\bar E$ is the mean-flow energy of D09).
 
@@ -3011,7 +3019,7 @@ def update(i):                                                # frame i: the lad
     a2.set_title(f"−5/3 range ≈ {ch12.inertial_range_decades(Re):.1f} decades (L to η)", fontsize=10)
     return tier_dots, sp_line
 
-show_animation(animate(update, frames=len(Re_list), fig=fig, interval=600), player="frames", dpi=70)   # step through the Reynolds numbers
+show_animation(animate(update, frames=len(Re_list), fig=fig, interval=600), player="frames", dpi=40)   # step through the Reynolds numbers
 """, explain=r"""
 1. Each frame is one Reynolds number; $L$ and $\Delta U$ are fixed (so $\bar\varepsilon=1$ m²/s³ in every frame) and only $\nu$
    changes.
@@ -3156,7 +3164,7 @@ note("N96 [B]", r"""
 curve for every flow and every Reynolds number, and only the low-wavenumber end (the energy-containing eddies) moves. The
 slider figure shows our model spectra; measured spectra from very different flows do the same.""")
 nb.plotly(r"""
-Keta = np.logspace(-6, 0.5, 300)                              # the universal axis K η [–]
+Keta = np.logspace(-6, 0.5, 150)                             # the universal axis K η [–]
 
 def f3(logRe):                                                # curves for one outer Reynolds number
     Re = 10.0**logRe
@@ -3168,8 +3176,8 @@ def f3(logRe):                                                # curves for one o
             "−5/3 law: C (Kη)^(−5/3)": (Keta, 1.5*Keta**(-5/3)),
             "inertial range (2π/L ≪ K ≪ 2π/η)": ([lo, hi] if lo < hi else [hi, hi], [1e-2, 1e-2])}
 
-figF3 = slider_figure(f3, "log10 Re_L", np.linspace(3.0, 8.0, 11 if FAST else 21), xlabel="K η [–]", ylabel="E / (u_K² η) [–]",
-                      title="In Kolmogorov units the small-scale end is one curve; a higher Re only extends the −5/3 range")
+figF3 = slider_figure(f3, "log10 Re_L", np.linspace(3.0, 8.0, 11), xlabel="K η [–]", ylabel="E / (u_K² η) [–]",
+                      title="In Kolmogorov units the small-scale end is one curve")
 figF3.update_xaxes(type="log", range=[-6, 0.5])               # logarithmic K η axis
 figF3.update_yaxes(type="log", range=[-3, 10])                # logarithmic spectrum axis
 figF3.show()
@@ -3299,7 +3307,10 @@ D("D13", ref="12.62", after=r"""
 > `ch12.plane_jet_entrainment_velocity`, not 0.""")
 NOTES_IN["D14"] = (r"**N110 [B]** the cross-stream velocity eliminated with continuity (steps 1–2 and 7–9) · **N111 [B]** the similarity equation, "
                    r"the Result of this derivation (step 14)")
-D("D14", ref="12.63")
+D("D14", ref="12.63", check_src=PF["D14"]["check_src"] + r"""
+print("D14 check — advection computed directly minus the similarity form:", sp.simplify(lhs.subs(y, xi*delta) - rhs))   # 0 for every x and ξ
+print("D14 check — the first two brackets for δ ~ x, U_CL ~ x^(−1/2):", sp.simplify(A1), sp.simplify(A2))               # −1/2 and +1/2: constants
+""")
 code(r"""
 sim = ch12.plane_jet_similarity_sympy()                       # sympy repeats D14 with general δ(x), U_CL(x), Ψ(x) (cached)
 print("check:", sim["check"])
@@ -3371,7 +3382,7 @@ print("momentum flux:", np.round(J_mine, 4), "volume flux:", np.round(V_mine, 4)
 The profile is typed out from the formula, the two integrals done with `np.trapezoid`: the momentum flux is flat, the volume
 flux doubles over a factor 4 in distance, and both agree with the library.""")
 nb.plotly(r"""
-y_f = np.linspace(-1.6, 1.6, 321)                             # cross-stream positions [m]
+y_f = np.linspace(-1.6, 1.6, 161)                            # cross-stream positions [m]
 nu_lam = 0.02                                                 # a (large, illustrative) viscosity for the laminar comparison jet [m²/s]
 
 def f4(x):                                                    # raw profiles at station x: turbulent and laminar jet of the same momentum flux
@@ -3380,8 +3391,8 @@ def f4(x):                                                    # raw profiles at 
     return {"turbulent jet U(x, y)": (y_f, Ut), "laminar jet of Ch. 9 (same J_s)": (y_f, Ul),
             "turbulent, rescaled to the station x = 1 m: U × √x against y/x": (y_f/x, Ut*np.sqrt(x))}
 
-figF4 = slider_figure(f4, "x", np.round(np.linspace(0.5, 8.0, 12 if FAST else 24), 2), unit="m", xlabel="y [m]   (rescaled curve: y/x × 1 m)",
-                      ylabel="U [m/s]", title="Raw profiles spread and decay; the rescaled profile does not move", xrange=(-1.6, 1.6), yrange=(0, 4))
+figF4 = slider_figure(f4, "x", np.round(np.linspace(0.5, 8.0, 16), 2), unit="m", xlabel="y [m]   (rescaled curve: y/x × 1 m)",
+                      ylabel="U [m/s]", title="Raw profiles spread and decay; the rescaled one stays", xrange=(-1.6, 1.6), yrange=(0, 4))
 figF4.show()
 """, explain=r"""
 1. `f4(x)` returns the raw turbulent profile, the laminar jet of Ch. 9 (`JET.free_jet`, Bickley's $\mathrm{sech}^2$ solution) with
@@ -3880,6 +3891,7 @@ print(f"its inverse y+(U+ = 10) = {WT.spalding_yplus(10.0, kappa=KAPPA, B=B_LOG)
 for name, entry in WT.LOG_LAW_CONSTANTS.items():              # the cited public values (never unpacked with **: each entry also holds its citation)
     B_txt = entry['B'] if entry['B'] is not None else "not quoted by the source (we fit it below)"   # the DNS entry gives κ only
     print(f"{name}: kappa = {entry['kappa']}, B = {B_txt}  — {entry['citation'][:70]}…")
+# PUBLIC-REPO RULE: keep κ = 0.40 here — at κ = 0.384 the printed pair coincides with a row of the book's table (tools/check_public.py fails).
 B_nc = WT.nagib_chauhan_B(0.40)                               # Eq. (12.92) solved for B at an illustrative κ = 0.40
 print(f"Eq. (12.92): κ = 0.400 → B = {B_nc:.2f} → back to κ = {WT.nagib_chauhan_kappa(B_nc):.3f}")
 """, explain=r"""
@@ -3895,11 +3907,11 @@ logarithmic stretch before the wake peels off. The slider figure shows a composi
 DNS (Lee & Moser 2015, *J. Fluid Mech.* 774, 395; file `reference/ch12/lee_moser_2015_channel_mean.csv`).""")
 nb.plotly(r"""
 dns = pd.read_csv(REF / "lee_moser_2015_channel_mean.csv", comment="#")   # public DNS mean profiles (case, Re_tau, y/δ, y⁺, U⁺, dU⁺/dy⁺)
-dns_pts = {c: dns[dns["case"] == c].iloc[::6] for c in (180, 1000, 5200)}   # three cases, every 6th point
+dns_pts = {c: dns[dns["case"] == c].iloc[::8] for c in (180, 1000, 5200)}   # three cases, every 8th point
 
 def f5(logRe):                                                # curves for one friction Reynolds number δ⁺ = 10^logRe
     Re_tau = 10.0**logRe
-    yp_ = np.geomspace(0.5, Re_tau, 200)                      # from inside the sublayer to the edge of the layer
+    yp_ = np.geomspace(0.5, Re_tau, 120)                     # from inside the sublayer to the edge of the layer
     out = {"composite model profile (κ = 0.41, B = 5.0, Π = 0.1; illustrative)": (yp_, WT.composite_profile_plus(yp_, Re_tau, kappa=KAPPA, B=B_LOG, Pi=0.1)),
            "log law": (yp_[yp_ > 8], WT.log_law(yp_[yp_ > 8], kappa=KAPPA, B=B_LOG)),
            "wake begins: y+ = 0.15 δ+": ([0.15*Re_tau]*2, [0.0, 32.0])}
@@ -3907,8 +3919,8 @@ def f5(logRe):                                                # curves for one f
         out[f"channel DNS, Re_τ ≈ {c} (Lee & Moser 2015)"] = (d_["yplus"].values[1:], d_["Uplus"].values[1:])
     return out
 
-figF5 = slider_figure(f5, "log10 δ+", np.round(np.linspace(np.log10(180), 5.0, 11 if FAST else 20), 3), xlabel="y+ [–]", ylabel="U+ [–]",
-                      title="The inner curve never moves; a higher Reynolds number lengthens the logarithm",
+figF5 = slider_figure(f5, "log10 δ+", np.round(np.linspace(np.log10(180), 5.0, 10 if FAST else 14), 3), xlabel="y+ [–]", ylabel="U+ [–]",
+                      title="The inner curve never moves; the logarithm lengthens",
                       modes={f"channel DNS, Re_τ ≈ {c} (Lee & Moser 2015)": "markers" for c in (180, 1000, 5200)})
 figF5.update_xaxes(type="log", range=[np.log10(0.5), 5.0])    # logarithmic y⁺ axis
 figF5.update_yaxes(range=[0, 32])                             # fixed U⁺ range
@@ -4221,7 +4233,7 @@ def f6(A_plus):                                               # model profiles f
     out["reference log line κ = 0.41, B = 5.0 (illustrative pair)"] = (yp_f[yp_f > 10], WT.log_law(yp_f[yp_f > 10], kappa=KAPPA, B=B_LOG))
     return out
 
-A_values = np.linspace(0.0, 40.0, 11 if FAST else 21)         # the damping constant swept by the slider
+A_values = np.linspace(0.0, 40.0, 11)        # the damping constant swept by the slider
 figF6 = slider_figure(f6, "A+", A_values, xlabel="y+ [–]", ylabel="U+ [–]", title="κ turns the line, the wall damping A+ slides it up and down", yrange=(0, 28))
 figF6.update_xaxes(type="log")                                # logarithmic y⁺ axis
 figF6.show()
@@ -4699,7 +4711,7 @@ note("N189 [B]", r"""
 **Wind profiles for every stability.** On a logarithmic height axis the neutral profile is a straight line; a stable layer
 bends toward larger wind (more shear), an unstable one toward smaller wind (the air is well mixed).""")
 nb.plotly(r"""
-z_ax = np.geomspace(0.05, 100.0, 120)                         # heights from just above z0 = 0.03 m to 100 m
+z_ax = np.geomspace(0.05, 100.0, 80)                        # heights from just above z0 = 0.03 m to 100 m
 U_neut = WT.surface_layer_wind(z_ax, 0.3, 0.03, kappa=0.4)    # the neutral logarithm for u* = 0.3 m/s
 
 def f7(invL):                                                 # profiles for one value of 1/L_M [1/m]
@@ -4715,8 +4727,8 @@ def f7(invL):                                                 # profiles for one
             "unstable: the book's log-linear form (ends where 1 + 5 z/L_M = 0, z = |L_M|/5)": (book_uns, z_ax),
             "height where Rf = z/L_M = ¼ (stable side)": ([0.0, 12.0], z_q)}
 
-figF7 = slider_figure(f7, "1/L_M", np.round(np.linspace(-0.1, 0.05, 16 if FAST else 31), 4), unit="1/m", xlabel="wind speed U [m/s]",
-                      ylabel="height z [m]", title="The wind profile bends away from the neutral logarithm: stable → more shear, unstable → less",
+figF7 = slider_figure(f7, "1/L_M", np.round(np.linspace(-0.1, 0.05, 16), 4), unit="1/m", xlabel="wind speed U [m/s]",
+                      ylabel="height z [m]", title="Stable: more shear than neutral; unstable: less",
                       xrange=(0, 12))
 figF7.update_yaxes(type="log", range=[np.log10(0.05), 2.0])   # logarithmic height axis
 figF7.show()
@@ -5108,14 +5120,14 @@ print(f"from the particles at t = 100 s: D_T ≈ {D_part[-5:].mean():.1f} m²/s 
    the constant under the printed (wrong) condition: 10 m²/s at $t=0.1$ s, a hundred times the true 0.1 m²/s (slip #12).
 3. `ch12.diffusivity_from_variance` (recap R08) applied to the particle cloud returns about 10 m²/s at late times.""")
 nb.plotly(r"""
-t_f8 = np.geomspace(0.1, 1000.0, 200)                         # times [s]
+t_f8 = np.geomspace(0.1, 1000.0, 100)                        # times [s]
 
 def f8(Lam):                                                  # curves for one memory time Λ_t [s] (u_rms = 1 m/s)
     Xr = np.sqrt(ch12.taylor_dispersion_exponential(t_f8, 1.0, Lam))   # exact X_rms(t)
     return {"X_rms (Taylor)": (t_f8, Xr), "ballistic u_rms t": (t_f8, 1.0*t_f8),
             "diffusive u_rms √(2 Λ_t t)  (= a constant diffusivity u²Λ_t from the start)": (t_f8, np.sqrt(2*Lam*t_f8))}
 
-figF8 = slider_figure(f8, "Λ_t", np.round(np.geomspace(1.0, 100.0, 13 if FAST else 25), 2), unit="s", xlabel="time t [s]",
+figF8 = slider_figure(f8, "Λ_t", np.round(np.geomspace(1.0, 100.0, 13), 2), unit="s", xlabel="time t [s]",
                       ylabel="X_rms [m]", title="The bend from t to √t sits at the memory time")
 figF8.update_xaxes(type="log", range=[-1, 3])                 # logarithmic time axis
 figF8.update_yaxes(type="log", range=[-1.5, 3.2])             # logarithmic vertical axis
@@ -5125,8 +5137,8 @@ def f8d(Lam):                                                 # the eddy diffusi
     return {"eddy diffusivity D_T(t)": (t_f8, ch12.eddy_diffusivity_exponential(t_f8, 1.0, Lam)),
             "short-time form u² t": (t_f8[t_f8 < Lam], 1.0*t_f8[t_f8 < Lam]), "long-time value u² Λ_t": ([Lam, 1000.0], [Lam, Lam])}
 
-figF8d = slider_figure(f8d, "Λ_t", np.round(np.geomspace(1.0, 100.0, 13 if FAST else 25), 2), unit="s", xlabel="time t [s]",
-                       ylabel="D_T [m²/s]", title="The eddy diffusivity grows with time and levels off at u²Λ_t")
+figF8d = slider_figure(f8d, "Λ_t", np.round(np.geomspace(1.0, 100.0, 13), 2), unit="s", xlabel="time t [s]",
+                       ylabel="D_T [m²/s]", title="The eddy diffusivity grows, then levels off at u²Λ_t")
 figF8d.update_xaxes(type="log", range=[-1, 3])                # logarithmic time axis
 figF8d.update_yaxes(type="log", range=[-1.2, 2.3])            # logarithmic diffusivity axis
 figF8d.show()
@@ -5436,12 +5448,52 @@ def no_stray_reprs() -> int:
     for c in nb.cells:
         if c.cell_type != "code" or "plt." not in c.source and "ax" not in c.source:
             continue
-        lines = c.source.rstrip("\n").split("\n")
-        last = lines[-1]
-        if re.match(r"(ax\w*|a\d|fig\w*)(\[[^\]]*\])?\.(legend|set|set_\w+|plot|loglog|semilogx|semilogy|text|axhline|axvline|colorbar|add_patch|suptitle)\(", last):
-            c.source = "\n".join(lines) + "\nplt.show()"
+        if _bare_last_expression(c.source):
+            c.source = c.source.rstrip("\n") + "\nplt.show()"
             changed += 1
     return changed
+
+
+_QUIET_CALLS = {"print", "display", "show_animation", "show_viz", "live"}
+
+
+def _bare_last_expression(src: str) -> bool:
+    """Is the cell's last top-level statement a bare expression whose value Jupyter would echo (an Axes returned by a
+    sketch call, a Legend, a list of lines …)? print / display / show_* calls and anything ending in ``.show()`` are not."""
+    import ast
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    if not tree.body or not isinstance(tree.body[-1], ast.Expr):
+        return False
+    val = tree.body[-1].value
+    if isinstance(val, ast.Call):
+        fn = val.func
+        name = fn.id if isinstance(fn, ast.Name) else (fn.attr if isinstance(fn, ast.Attribute) else "")
+        if name in _QUIET_CALLS or name == "show":
+            return False
+    return not isinstance(val, ast.Constant)
+
+
+def self_check_reprs() -> list[str]:
+    """No code cell may end in a bare expression (its repr would be shown), and every figure cell ends in plt.show()."""
+    bad = []
+    for i, c in enumerate(nb.cells):
+        if c.cell_type != "code":
+            continue
+        if _bare_last_expression(c.source):
+            bad.append(f"cell {i}: the last statement is a bare expression — its repr would be printed: {c.source.splitlines()[-1][:80]!r}")
+    return bad
+
+
+def self_check_silent() -> list[str]:
+    """Every code cell shows something: a print, a display, a figure, an animation, a widget or an explainer."""
+    bad = []
+    for i, c in enumerate(nb.cells):
+        if c.cell_type == "code" and not re.search(r"print\(|display\(|\.show\(\)|show_animation\(|show_viz\(|^live\(|plt\.", c.source, flags=re.M):
+            bad.append(f"cell {i}: no visible output: {c.source.splitlines()[0][:80]!r}")
+    return bad
 
 
 print(f"figure cells closed with plt.show(): {no_stray_reprs()}")
@@ -5450,7 +5502,7 @@ print(f"labels tidied in {relabel()} cells")
 n_changed = finalize_equations()
 n_tex = tidy_raw_tex()
 print(f"plain-text exponents turned into maths in {n_tex} cells; equations written out in {n_changed} cells")
-bad = self_check_ctrl() + self_check_eaten() + self_check_numbers() + self_check_prose() + self_check_near()
+bad = self_check_reprs() + self_check_silent() + self_check_ctrl() + self_check_eaten() + self_check_numbers() + self_check_prose() + self_check_near()
 missing_ids = id_coverage()
 print(f"curation ids not named in the notebook: {len(missing_ids)} {missing_ids}")
 for _m in uncommented_report():

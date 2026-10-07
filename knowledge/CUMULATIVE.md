@@ -1,32 +1,43 @@
 # CUMULATIVE knowledge — fluidpy
-(Rewritten by the knowledge-keeper after every chapter. Every agent reads this first. Last rewrite: after ch11,
-2026-10-01, knowledge pass on commit 4bc7060.)
+(Rewritten by the knowledge-keeper after every chapter. Every agent reads this first. Last rewrite: after ch12,
+2026-10-07, knowledge pass on commit f0b48b0.)
+
+## Open items carried from ch12 — read before starting ch13 (details `knowledge/ch12.md` §0, §9)
+- **Needs a human**: the Businger–Dyer coefficients/attribution of φ_m(ζ) are unread first-hand (`verified_first_hand:
+  false`; not a benchmark). **User decisions pending**: the Lee & Moser DNS subset is redistributed with its citation but
+  no licence statement; constants coinciding with the book's table sit in two earlier LOCAL, unpushed commits of 2026-10-07.
+- **Tooling**: `tools/shot.py` does not fail on `.katex-error` nodes and audits Explain only in default and step states;
+  14 library findings and ranked promotion candidates in `knowledge/viz_patterns.md` (log axes first).
+- **Code**: `time_average_variance_ou` has no fluidpy counterpart (E1 invariant rows only); `skin_friction_zpg` 0.074
+  unverified since ch09; secondary sources only for the k–ε constants, Prandtl's law, van Driest's A⁺; core cap 0.09
+  uncited; the ch01 library string "Γ < Γa" means Γ_met < Γ_d — change it across chapters?
+- **Text**: slips #16–#18 unnumbered in three explainers; design Part A shows 6.75e-3 (κ = 0.4) where the notebook prints
+  6.59e-3 (κ = 0.41), and D13 calls slip #18 a "trap"; Should-fix lists in `reports/ch12_lesson.md`, `reports/ch12_viz.md`.
 
 ## Project rules in force (added during ch01–ch03; sharpened since)
-- **5–10 explainers per chapter, as many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`);
-  ch03 has 7, ch04–ch09 9 each, ch10 8, ch11 9.
-- **Every book equation is shown in full next to its number** — notebook prose, derivation steps, traps, recaps and
-  explainer tour/Explain/Derivation/quiz/notes/status text **and `<meta>` strings**. Enforced by `tools/coverage_check.py`
-  check 8 (markdown), `tools/eq_refs.py` (explainers; misses numbers inside template strings — ch10 E8) and, since ch10, the
-  builder's own `self_check_near` (a bare number with no equation nearby); reviewers still scan by eye.
-- **No control characters**: `coverage_check` check 9 for notebooks; ch10's builder adds `self_check_ctrl`. **Explainers are
-  still not linted for it** (five chapters shipped one; machinery TODO).
-- **Rule 9 (public repo) in practice**: a computed value can round to an exercise's printed answer — build it from the
-  function and print 4 s.f.; the book's value lives only in `tests/book_values_chNN.json` (valid JSON). **Since ch10 the
-  analyst writes book run parameters (Mach, grids, geometry, σ, periods) only there, under `"_forbidden_public"`, and
-  `tools/check_public.py` fails if any tracked text file contains one of those strings** (ch10 leaked them into analysis,
-  curation and a report; the unpushed commits were squashed). check_public skips an invalid JSON silently — keep it valid.
-- **Pager and audit**: an item taller than a page is sliced at natural breaks; `tools/shot.py` pages through every page of
-  every pager at every size. **The notebook (`build_chNN.py --dump`) is the reference for derivation step counts and
-  titles** — re-check after the lesson review too (ch09 drift; ch10 matched 20/20).
-- **Two values, the book's first** (ch09): when the book's number and the exact/computed one differ, show both everywhere.
-- **Our own run parameters when the book's are private** (ch10: cavity Ma 0.08, block Ma 0.06, H = 4, cylinder W = 5d,
-  σ = 0.8), and a **DEVIATION box** wherever the code departs from the book (formula, reason, both numbers).
-- **Eigen-solver contract (ch11)**: return the **leading mode or raise**; **a 0 or NaN in a table has a stated meaning**
-  (docstring + file header); unbounded profiles use the box max(profile box, 12/k) (`ST.decay_box`), shown converged by box
-  **and** N doubling; every headline eigenvalue has an independent route (shooting, determinant, compound matrix, Galerkin).
-- **`tools/check_public.py` runs after `git add`** (it sees tracked/staged files only — ch11); a chained `… | tail` hides a
-  failing exit code.
+- **5–10 explainers per chapter, as many as the CORE ideas need** (ch03 7, ch04–ch09 9 each, ch10 8, ch11 9, **ch12 10**).
+- **Every book equation is shown in full next to its number** — notebook, explainer text, `<meta>` strings **and the
+  design file** (ch12: 214 number-only mentions inlined). **A number stands only beside the equation actually printed under
+  it** (render the page); never start a sentence with a symbol. Enforced by `tools/coverage_check.py` check 8,
+  `tools/eq_refs.py`, the builder's `self_check_near`; reviewers still scan by eye.
+- **No control characters, no backslash-less TeX**: `coverage_check` check 9; the builder's `self_check_ctrl` and (ch12)
+  `self_check_eaten`. **Write files with Edit/Write only — shell heredocs and sed destroy backslashes.** Explainers are
+  still not linted for it.
+- **Rule 9 (public repo) in practice**: book-quoted numbers live only in `tests/book_values_chNN.json` (valid JSON), with
+  `"_forbidden_public"` strings and (ch12) `"_forbidden_public_regex"` patterns enforced by `tools/check_public.py`, which
+  exits on an unparsable private file and **scans tracked files only — run it after `git add`**. **"Illustrative"
+  constants must be visibly not the book's** (they coincided five times in ch12); a *computed* value can coincide with a
+  table row too (pick another input); reports that quote findings can leak constants.
+- **Pager and audit**: an item taller than a page is sliced at natural breaks; `tools/shot.py` pages through every pager at
+  every size. The notebook (`build_chNN.py --dump`) or design Part F is the reference for derivation steps and titles.
+- **Two values, the book's first** (ch09); **our own run parameters when the book's are private**, and a **DEVIATION box**
+  wherever the code departs from the book (ch10).
+- **Eigen-solver contract (ch11)**: leading mode or raise; a 0 or NaN in a table has a stated meaning; box
+  max(profile box, 12/k) shown converged by box **and** N doubling; an independent route for every headline eigenvalue.
+- **Contract discipline (ch12)**: design "expect" values are hypotheses computed before the code existed — builders report
+  differences, they do not edit; after a crash, audit code against design Part C mechanically; **convention-carrying
+  arguments (`Gamma_a`) and empirical constants (κ, B, Π, z₀) are required keywords**; "constant consistency" is not V5;
+  an unread source is not a benchmark.
 
 ## Physics pipeline so far
 ```
@@ -53,41 +64,48 @@ ch10 CFD — stencils = weighted Taylor series, order, round-off floor; FTCS (10
      blocks; cell Péclet R_cell > 2 ⇒ wiggles, upwind = +uΔx/2 diffusion; MacCormack = Lax–Wendroff; splitting, projection
      ∇²p = ∇·u*/Δt; staggered C-grid, checkerboard; mixed FE, LBB (P2–P1 β_h ≈ 0.366); cavity vs Ghia 0.26 %; observed
      order + Richardson/GCI (ψ_min p = 2.00; a failed block study p = 0.43)   (D01–D23; details `knowledge/ch10.md`)
-ch11 Instability (done) — "basic state + small disturbance → linearise → normal modes → eigenvalue problem for the growth
-     rate → neutral curve → its minimum is the critical number; the theorems (Ri > ¼, semicircle, inflection point) are
-     one-way; linear onset is not transition; past it, three exact ODEs are unpredictable"
-  normal mode (11.1), σ = −ikc, stable = for every k (D01) [C01]; Kelvin–Helmholtz (11.18), ΔU_min 6.70 m/s with depth and
-     tension (D02–D04) [C02]; Bénard: Ra (11.21), amplitude problem (11.36)–(11.37), σ real (D05–D08) [C03]; rigid–rigid
-     determinant → Ra_c 1707.76 at K_c 3.1163 (D09, D10 ★★★) [C04]; free–free (11.44), 27π⁴/4, growth quadratic (D11, D12)
-     [C05]; salt fingers Rs − Ra = 27π⁴/4 (11.46) (D13) [C06]; Taylor–Couette: ring interchange, (11.51), Ta (11.52),
-     Ta_c(μ = 0) 3389.9, Bénard limit (D14 ★★★, D15) [C07]; Taylor–Goldstein (11.61), neutral J = k(1 − k) (D16, D17) [C08];
-     Miles–Howard Ri > ¼ ⇒ stable (11.67) (D18 ★★★) [C09]; Howard's semicircle (11.72) (D19 ★★★) [C10]; Squire (11.78),
-     Orr–Sommerfeld (11.79) by Chebyshev collocation (D20, D21) [C11]; Rayleigh (11.84), Fjørtoft (11.86), critical layer,
-     complex-path solver (D22) [C12]; Poiseuille Re_c 5772.22, Blasius 519.06 (δ*), Bickley 4.017 (two bands + gap) [C13];
-     disturbance energy dE/dt = P − Λ (11.88) (D23) [C14]; Lorenz (11.91), r_H 24.737, period doubling (D24 ★★★, D25) [C15]
+ch11 Instability — "basic state + small disturbance → linearise → normal modes → eigenvalue problem for the growth rate
+     → neutral curve → its minimum is the critical number; the theorems are one-way; linear onset is not transition"
+  normal mode (11.1), σ = −ikc (D01) [C01]; Kelvin–Helmholtz (11.18), ΔU_min 6.70 m/s (D02–D04) [C02]; Bénard: Ra (11.21),
+     Ra_c 1707.76 rigid–rigid, 27π⁴/4 free–free (11.44) (D05–D12) [C03–C05]; salt fingers (11.46) (D13) [C06];
+     Taylor–Couette Ta (11.52) (D14, D15) [C07]; Taylor–Goldstein (11.61), Miles–Howard Ri > ¼ ⇒ stable (11.67), Howard's
+     semicircle (11.72) (D16–D19) [C08–C10]; Squire (11.78), Orr–Sommerfeld (11.79), Rayleigh (11.84), Fjørtoft (11.86),
+     complex-path solver (D20–D22) [C11, C12]; Poiseuille Re_c 5772.22, Blasius 519.06 (δ*), Bickley 4.017 [C13];
+     disturbance energy dE/dt = P − Λ (11.88) (D23) [C14]; Lorenz (11.91), r_H 24.737 (D24 ★★★, D25) [C15]
+ch12 Turbulence (done) — "an average is a sum; it commutes with every linear operation and fails on exactly one thing,
+     a product — the leftover covariance is the Reynolds stress, the production, the eddy flux; closures guess it"
+  ensemble average (12.1), rules (12.4)–(12.9), mean(ũṽ) = ŪV̄ + mean(uv) (D01) [C01]; R₁₁(τ) (12.17), Λ_t (12.18),
+     λ_t (12.19) (D02–D04) [C02]; S_e ↔ R₁₁ (12.20)–(12.22), S_e(0) = mean(u²)Λ_t/π (D05) [C03]; RANS (12.30), Reynolds
+     stress −ρ₀mean(u_iu_j), closure problem (D06) [C04]; isotropy: g = f + (r/2)f′, ε̄ = 15ν mean(u²)/λ_g² (12.43)
+     (D07, D08 ★★★) [C05]; energy budgets (12.46), (12.47): production is one term with two signs (D09, D10 ★★★) [C06];
+     η = (ν³/ε̄)^{1/4}, η/L ~ Re^{−3/4} (12.50)–(12.51) (D11) [C07]; S₁₁ = C₁ε̄^{2/3}k₁^{−5/3} (12.54, slip #1) (D12) [C08];
+     plane jet: J_s invariant (12.62), δ ∝ x, U_CL ∝ x^{−1/2} (12.66), seven flows by one recipe (D13–D16; D14 ★★★) [C09];
+     U⁺ = f(y⁺) (12.80), U⁺ = y⁺ (12.82) (D17, D18) [C10]; log law by overlap matching (12.88), rough wall (12.93); DNS
+     κ = 0.384 in a stated window (D19, D20) [C11]; eddy viscosity (12.94), mixing length → log law, B = −1.23 undamped,
+     5.28 with van Driest damping (D21) [C12]; k–ε (12.103)–(12.105), κ_model = 0.433 (D22, D23) [C13]; Rf (12.107),
+     Ri = Pr_T Rf (12.109), Γ_a required (D24) [C14]; L_M (12.110), Rf = z/L_M (12.111), log-linear wind (D25) [C15];
+     Taylor dispersion (12.119): ballistic → diffusive, D_T → mean(u²)Λ_t for t ≫ Λ_t (12.129, slip #12) (D26–D28) [C16]
 
-next: ch12 Turbulence — (11.88)'s −⟨uv⟩U′ is the turbulence production (`ST.disturbance_energy_budget`); transition after
-      linear onset (`ch11.table_11_1`, TS waves `ts_mode`); `MAC.run`/`taylor_green` for 2-D decaying turbulence;
-      `ch10.dominant_frequency` for spectra (move to core); `core.laminar` f = 64/Re, `core.boundary_layer` momentum
-      integral and H, `core.jets` (turbulent jets); Lorenz/logistic tools for sensitivity; turbulent 0.074 needs a primary source.
+next: ch13 Geophysical Fluid Dynamics — `TS` for eddy fluxes, spectra and effective degrees of freedom; `WT` + ch12
+      Monin–Obukhov functions for the surface layer and bulk drag (move to core there); `shear_flow_eddy_viscosity_solve`
+      as the Ekman-with-K(z) template; `ST.rayleigh_eigs_contour` with U″ − β; `core.waves`, `core.rotating`, `core.mac`
+      (C-grid); Kundu Γ computed, meteorological shown, `Gamma_a` explicit; primers start at P307.
 ```
-The book ahead: Ch12 turbulence → **Ch13 GFD (uses 4, 5, 7–12)** → Ch14 aerodynamics · Ch15 compressible · Ch16 biofluids.
-Where earlier chapters feed in: ch01 N², θ → Ch. 11, 13; isentropic gas → Ch. 15. ch02 Gauss → every CV; Stokes → Ch. 13 PV;
-invariants → Ch. 12. ch03 vortices → Ch. 13, 14. ch04 NS residual tools → every exact solution; CV budgets → Ch. 12, 14, 15;
-rotating frame, Boussinesq, Ri, Ro → **Ch. 13**. ch05 sheet roll-up → Ch. 11; **(5.30), (ζ + f)/h → Ch. 13**. ch06
-`core.potential`, `conformal`, `panels` → **Ch. 14**; `laplace_solvers` → Ch. 13 PV inversion. ch07 `core.waves` → **Ch. 13**
-(√(gH), Poincaré/Kelvin/Rossby, adjustment), **Ch. 11** (KH, RT), **Ch. 15** (jump ↔ shock). ch08 `core.laminar` → **Ch. 11**
-base states, **Ch. 12** (f = 64/Re), **Ch. 13** (Stokes layer ≡ Ekman with ω → f, spin-up); `lubrication`, `creeping` → Ch. 13,
-16. ch09 `core.boundary_layer` → **Ch. 11** (Blasius/FS base profiles), **Ch. 12** (momentum integral, H), **Ch. 14** (Thwaites
-on airfoils); `bluff_body` → Ch. 11, 13, 14; `jets` → **Ch. 12**, Ch. 11 (Bickley), Ch. 13 (plumes); teacup → **Ch. 13 Ekman**.
-**ch10** `core.fd` → **Ch. 11** (G(θ), FD operators), **Ch. 12** (numerical vs eddy diffusion), **Ch. 13** (CFL for
-gravity/Kelvin waves, upwind tracer advection), Ch. 15; `core.fem1d` → Ch. 13 (Ekman ODE with K(z)), Ch. 11 (Galerkin
-eigenproblems); **`core.mac` → Ch. 13 C-grid shallow water and Boussinesq pressure solve**, Ch. 11 saturation, Ch. 12 2-D
-turbulence; `core.maccormack` → **Ch. 15** shocks; `core.fem2d` → Ch. 14 low-Re bodies, Ch. 11 wake base flows, Ch. 16.
-**ch11** `core.stability` → **Ch. 13** (Rayleigh–Kuo = Rayleigh's equation with U″ → U″ − β via `rayleigh_eigs_contour`;
-Eady/Charney by `cheb_grid` + `constrained_eig`; `taylor_goldstein_eigs`, Ri for mixing; inertial instability = Rayleigh's
-circulation criterion with absolute angular momentum; **Squire fails with rotation or stratification**), **Ch. 12** (energy
-budget → TKE production; TS waves → transition), Ch. 14 (laminar-flow airfoils), Ch. 15 (compressible vortex sheet).
+The book ahead: **Ch13 GFD (uses 4, 5, 7–12)** → Ch14 aerodynamics · Ch15 compressible · Ch16 biofluids.
+Where earlier chapters feed in: ch01 N², θ, lapse-rate conventions → **Ch. 13**; isentropic gas → Ch. 15. ch02 Stokes →
+Ch. 13 PV. ch03 vortices → Ch. 13, 14. ch04 rotating frame, Boussinesq, Ri, Ro → **Ch. 13**; CV budgets → Ch. 14, 15.
+ch05 **(5.30), (ζ + f)/h → Ch. 13**. ch06 `core.potential`, `conformal`, `panels` → **Ch. 14**; `laplace_solvers` → Ch. 13
+PV inversion. ch07 `core.waves` → **Ch. 13** (√(gH), Poincaré/Kelvin/Rossby, adjustment), Ch. 15 (jump ↔ shock). ch08
+`core.laminar` → **Ch. 13** (Stokes layer ≡ Ekman with ω → f, spin-up). ch09 `core.boundary_layer` → **Ch. 14**; teacup →
+**Ch. 13 Ekman**; `jets` → Ch. 13 plumes. ch10 `core.fd` → **Ch. 13** (CFL for gravity/Kelvin waves, upwind tracers);
+`core.fem1d` → Ekman ODE with K(z); **`core.mac` → Ch. 13 C-grid shallow water**; `core.maccormack` → **Ch. 15**. ch11
+`core.stability` → **Ch. 13** (Rayleigh–Kuo = Rayleigh's equation with U″ → U″ − β; Eady/Charney by `cheb_grid` +
+`constrained_eig`; Taylor–Goldstein; inertial instability = Rayleigh's criterion with absolute angular momentum; **Squire
+fails with rotation or stratification**). **ch12** `core.turbstats` → **Ch. 13** (mean + eddy decomposition,
+$\overline{v'T'}$, spectra, decorrelation times), Ch. 14; `core.wall_turbulence` + the Monin–Obukhov and Richardson
+functions → **Ch. 13** (surface stress on the Ekman layer, C_D, stable boundary layers), Ch. 14; eddy coefficients and
+Taylor dispersion → **Ch. 13** (K-closures, tracer mixing); D06 → averaging the rotating equations (the Coriolis term is
+linear and averages to itself); D09–D10 → the energy cycle.
 
 ## Available primitives
 ### Machinery (`fluidpy/core/`, ready before chapter 1)
@@ -123,34 +141,34 @@ budget → TKE production; TS waves → transition), Ch. 14 (laminar-flow airfoi
 | **`maccormack` (MCK)**: `maccormack_step(U, flux_E, flux_F, …)`, `maccormack_advection_1d`, `lax_wendroff_advection_1d`, `ns_*`, `weakly_compressible_step`, `maccormack_dt` (10.110), `maccormack_dt_additive` (default, DEVIATION), `maccormack_dt_asymptotic` (10.155), `cavity_maccormack`, `wc_taylor_green`, `block_channel`, `block_wall_density`, `body_forces` | `maccormack` (ch10) | (10.95)–(10.110), (10.138)–(10.155) | analytic, symbolic, converged, conserved (periodic only), qualitative (block) |
 | **`fem2d` (FEM2)**: `p2_shape(_grad)`, `p1_shape`, `iso_map`, `jacobian`, `tri_quad_7pt`, `integrate_element`, `Mesh`, `structured_square_mesh`, `cylinder_channel_mesh`, `assemble_saddle`, `assemble_newton_system`, `apply_dirichlet`, `newton_solve`, `stokes_solve`, `stokes_cavity`, `infsup_constant/table`, `kovasznay_test`, `poiseuille_test`, `cylinder_steady`, `march_unsteady`, `cylinder_forces` | `fem2d` (ch10) | (10.134)–(10.137), (10.156)–(10.198) | analytic, converged, symbolic, qualitative (confined St) |
 | **`stability` (ST)**: `cheb`, `cheb_matrices`, `clenshaw_curtis_weights`, `cheb_grid(map="linear"\|"tan"\|"algebraic")` → `SpectralGrid`; `constrained_eig` (boundary unknowns eliminated), `apply_bc_rows` + `generalized_eigs`, `converged_mask`, `converged_eigs`; `normal_mode`, `sigma_from_c`, `c_from_sigma`, `stability_class`, `stability_verdict`, `marginal_type`; `orr_sommerfeld_eigs(k, Re, U, Upp, bc="wall"\|"decay"\|"semi_infinite")`, `os_mode(index=)`; `rayleigh_eigs` (real axis), **`rayleigh_eigs_contour(k, U, Up, Upp, delta)`** (complex path; walls/unbounded only), **`rayleigh_shoot`**; `taylor_goldstein_eigs(k, U, Upp, N2)`; **`decay_box(k)`** = max(30, 12/k), **`decay_map_scale(k)`** = min(0.5, max(0.035, 0.025/k)), `decay_box_map_scale(y_max)`, `far_field_fraction`; `max_growth`, `neutral_curve`, `critical_point`; `howard_semicircle`, `in_howard_semicircle`, `inflection_points`, `squire_transform`; `disturbance_energy_budget` | `stability` (ch11) | (11.1), (11.61)–(11.62), (11.71)–(11.72), (11.77)–(11.84), (11.88) | analytic, converged, conserved, benchmark |
-Chapter-only code (move to `core/` on second use): **ch11** `os_box_numerics`, `os_leading_mode` (discrete mode vs
-continuum), `parallel_profile`, `gradient_richardson`, `miles_howard_stable`, `rayleigh_number`, `benard_*`, `taylor_*`,
-`salt_finger_regime`, `rayleigh_circulation_criterion` (→ **Ch. 13**), `lorenz_*`, `logistic_*`, `table_11_1` (→ Ch. 12); ch03 `pipe_profile`; ch04 `couette_heating`, `two_fluid_couette`,
-`wake_drag_per_span`, `linear_wave_surface` (overflows for kH ≳ 710; use `ch07.wave_fields`); ch05 `rotating_cylinder_flow`,
-`lamb_oseen_circulation`, `sheet_rollup` (→ Ch. 11), `column_relative_vorticity` (→ Ch. 13), `ring_dynamics`; ch06
-`elliptic_cylinder_flow`, `lift_per_span` (→ Ch. 14), `sphere_motion`; ch07 `wave_fields`, `particle_path`/`stokes_drift`
-(→ Ch. 13), `hydraulic_jump`, `simple_wave_evolve` (→ Ch. 15), `kdv_solve`, `boussinesq_linear_sympy` (→ Ch. 13); ch08 and
-ch09 sympy engines; ch09 `secondary_flow_radial_force` (→ **Ch. 13**); **ch10** sympy engines, `split_linear_system`,
-`marchuk_yanenko`, `theta_scheme_linear` (→ Ch. 13 splitting), `checkerboard`, `collocated_gradient`, `gradient_null_space`,
-`artificial_compressibility_channel`, `ghia_centreline`, `hou_centres`, `cavity_error_vs_ghia`, `dominant_frequency`
-(→ **Ch. 12** spectra: move to core there), `strouhal_from_period`, `cfl_time_step` (→ **Ch. 13**: move to core there),
-`book_slips`. **Default g**: ch04, ch05, ch07, `core.waves` G_BOOK = 9.81; the rest (incl. ch11) G0 = 9.80665. **Default ρ**:
-ch06 1.2 vs 1000; ch07, ch08 1000; ch09 BL 1.2, teacup 1000; ch10 non-dimensional (ρ = 1) except §10.2–10.3 (no ρ); ch11
-non-dimensional per flow (KH dimensional, air over water in the examples).
+| **`turbstats` (TS)** — statistics of any fluctuating signal: `make_ensemble` (members on axis 0), `ensemble_average`, `moment`, `central_moment`, `statistics(normalized=)`, `standard_error`, `time_average`, `volume_average`, `reynolds_decompose`, `product_average_split`, `check_averaging_rules`; `correlation`, `correlation_coefficient`, `correlated_pair`, `autocorrelation(method="fft", unbiased=)`, `cross_correlation`, `correlation_time`, **`integral_scale(upto="first_zero"\|"all")`**, `effective_samples`, `taylor_microscale`, `spatial_correlation`, `longitudinal_transverse_correlation`; `spectrum_from_correlation` (Filon), `correlation_from_spectrum`, `spectrum_variance`, **`periodogram(segments=, window="boxcar"\|"hann")`**, `taylor_frozen`, `frequency_to_wavenumber_spectrum`, `correlation_spectrum_pair`, `shell_spectrum`; `smooth_signal`, `synthetic_solenoidal_field(dim=2\|3)` (kinematic), `white_noise_field`; `velocity_covariance`, `reynolds_stress`, `turbulent_kinetic_energy`, `anisotropy_tensor` | `turbstats` (ch12) | (12.1)–(12.26), (12.38)–(12.39), (12.45) | analytic, symbolic, converged, conserved |
+| **`wall_turbulence` (WT)** — wall and surface-layer mean-flow summaries: `friction_velocity`, `viscous_length`, `friction_reynolds_number`, `wall_units`, `from_wall_units`, `viscous_sublayer`, `log_law(yplus, *, kappa, B)`, `log_law_defect`, `friction_law_from_overlap`, `log_law_crossing`, **`fit_log_law(window=)`**, `log_law_indicator`, `layer_name`, `spalding_uplus/yplus/slope`, `coles_wake`, `composite_profile(_plus)`, `velocity_defect`, `total_stress`, `channel_total_stress`, `channel_pressure_gradient`, `pipe_pressure_gradient`, `stress_partition`, `boundary_layer_stress_from_profile`, `zpg_boundary_layer`, `skin_friction_zpg`, `nagib_chauhan_kappa/B`, `pipe_friction_factor_turbulent`; **`rough_wall_log_law`, `friction_velocity_from_wind`, `drag_coefficient_neutral`, `dimensionless_shear(zeta, beta, unstable=)`, `surface_layer_wind(z, u_star, z0, L_M, *, kappa, unstable=, psi_at_z0=)`**; `LOG_LAW_CONSTANTS` (cited presets; κ, B, Π, z₀ are required keywords) | `wall_turbulence` (ch12) | (12.76)–(12.93), §12.11 log-linear profile | analytic, symbolic, benchmark (Lee & Moser DNS), approximate (Spalding, stress partition), unread source (Businger–Dyer) |
+Chapter-only code (move to `core/` on second use): **ch12** `gradient_richardson_thermal(…, *, Gamma_a)`, `flux_richardson`,
+`monin_obukhov_length`, `monin_obukhov_from_fluxes`, `surface_layer_state`, `stratified_tke_budget`, `turbulence_regime`
+(→ **Ch. 13**: a `core/surface_layer.py`), `eddy_viscosity_stress`, `gradient_diffusion_flux`, `mixing_length_*`,
+`shear_flow_eddy_viscosity_solve` (→ **Ch. 13** Ekman with K(z)), `taylor_dispersion*`, `eddy_diffusivity_*`,
+`langevin_particles`, `richardson_diffusivity` (→ Ch. 13 tracers), `kolmogorov_scales`, `scale_table`, `model_spectrum`,
+`batchelor_scale`, `convective_velocity_scale`, `mean_energy_budget`, `tke_budget`, `plane_jet_*`, `k_epsilon_*`,
+`book_slips`; **ch11** `os_leading_mode`, `parallel_profile`, `gradient_richardson`, `miles_howard_stable`,
+`rayleigh_number`, `benard_*`, `salt_finger_regime`, `rayleigh_circulation_criterion` (→ **Ch. 13**), `lorenz_*`; ch05
+`column_relative_vorticity`, ch07 `wave_fields`, `stokes_drift`, `boussinesq_linear_sympy`, ch09
+`secondary_flow_radial_force`, ch10 `theta_scheme_linear`, `cfl_time_step` (all → **Ch. 13**); ch06 `lift_per_span`
+(→ Ch. 14); ch07 `simple_wave_evolve` (→ Ch. 15); ch10 `dominant_frequency` is superseded by `TS.periodogram`; the rest in
+`knowledge/chNN.md` §3. **Default g**: ch04, ch05, ch07, `core.waves` G_BOOK = 9.81; the rest (incl. ch11, ch12)
+G0 = 9.80665. **Default ρ**: ch06 1.2 vs 1000; ch07, ch08 1000; ch09 BL 1.2; ch10, ch11 non-dimensional; ch12 an argument.
 
 ### Explainer engine (`assets/viz_lib.js`)
 `Viz.app` (tabs Walkthrough / Explore / Explain / Derivation / Equations / Code / Check; fit-to-window with density levels and
 pagers; transport, modes, presets, status, terms, inspector, notes, selftest parity), `Plot`, `Viz.field`, `Viz.num` (RK4,
-odeint, brentq, erf/erfc **~1.2e-7 only — a defect**, niceTicks), `Viz.work`, `Viz.three`, KaTeX with fallback; `Viz.font`,
-`Viz.roundRect`, `Viz.text`, `Viz.card`, `Viz.fmtTime`, `Viz.tnum(keepTiny)`; pager slicing, `--viz-stage-need`,
-`ev.viewId`/`ev.vizView`; a user-driven `set()` always rebuilds Explain (ch09 fix). **No linear algebra in the library**: ch10's
-builders wrote dense LU, min-norm lstsq, banded LU, two tridiagonal solvers, Cholesky + Jacobi eigen, a background solver
-pump — `Viz.num.linalg` is the top ch10 promotion candidate. Quirk (ch10): **Code-tab `{{placeholders}}` share one namespace
-across code blocks**. **No JS promoted after ch02–ch11** (the site-publisher was reading `viz/` each time). ch11 changed only
-`assets/viz_base.css` (orchestrator, re-inlined everywhere): coloured `<b class="c-…">` legends in view titles keep their
-colour; an empty stage badge is hidden. ch11 builders wrote complex-pair formatters, `bisect`/`goldenMax`, rectangular-table
-interpolation, a real cubic solver, a text-checksum parity helper and a canvas orthographic 3-D projector. Ranked lists in
-`knowledge/viz_patterns.md`. Reference: `templates/viz_example.html`.
+odeint, brentq, erf/erfc **~1e-7 only — a defect**, niceTicks), `Viz.work`, `Viz.three`, KaTeX with fallback; `Viz.font`,
+`Viz.roundRect`, `Viz.text`, `Viz.card`, `Viz.fmtTime`, `Viz.tnum(keepTiny)` (values below 1e-12 print as 0 without it);
+pager slicing, `ev.viewId`/`ev.vizView`. Quirks: Code-tab `{{placeholders}}` share one namespace; `#param=` deep links are
+overridden by tour step 1; **`Viz.tnum(x) + '^2'` is a KaTeX double superscript when x is in scientific notation (ch12 —
+bracket with a local `tsq`/`tpow`)**; `hidePortrait` keeps the view's flex share; no log axes, no linear algebra, no
+complex numbers in the library. **No JS promoted after ch02–ch12** (the site-publisher was reading `viz/` each time); ch11
+changed only `assets/viz_base.css`. Ranked candidate lists per chapter in `knowledge/viz_patterns.md` (ch12: log axes in
+eight files, `tpow`, `fitText`, precise `erf`, Gauss–Legendre, seeded Gaussian/OU draws, log-paced transport, two-line
+status, per-layout `hideOn`, two CSS fixes). Reference: `templates/viz_example.html`.
 
 ## Explainer inventory
 | chapter | slug | CORE idea | reusable stage pattern |
@@ -166,155 +184,138 @@ interpolation, a real cubic solver, a text-checksum parity helper and a canvas o
 | ch09 | `bl_scaling_thicknesses` · `blasius_similarity_collapse` · `falkner_skan_family` · `thwaites_marching` · `cylinder_drag_crisis` · `karman_street_stability` · `free_jet_similarity` · `wall_jet_invariant` · `teacup_secondary_flow` | C01–C14 | streamlines lifted by δ*; raw ↔ rescaled + shooting overlay; one dial through a fold; outer-flow picker → criterion, book first; log-Re dial; configuration + growth + spectrum (Ch. 11 template); invariant bars (one falls, one flat); force bars adding with height (Ekman seed) |
 | ch10 | `fd_stencil_order` · `von_neumann_amplification` · `upwind_cfl_advection` · `cell_peclet_wiggles` · `fem_hat_assembly` · `mac_projection_staggered` · `lid_driven_cavity` · `mixed_fe_lbb` | C01, C03 (D01, D03) · C04, C02 (D04–D07) · C05, C10 (D08, D18 ★★★) · C09 (D15–D17) · C06–C08 (D09, D11, D12, D14) · C11, C12 (D19–D21) · C14, C15 (D23) · C13 (D22) | log–log error vs h with a round-off band and best-h ◆; complex-plane G(θ) + parameter region with a brute-force scan + live kick; x–t stencil with the characteristic's foot and interpolation weights; discrete-root plot with an r < 0 band and a sign strip of rʲ; assembly as a transport (element block lands, outlined); algorithm stages on a transport (u* → Poisson → push → uⁿ⁺¹); live solver (banded LU, background pump); unknown counting → argument |
 | ch11 | `normal_mode_growth` · `kelvin_helmholtz_boundary` · `benard_neutral_curve` · `salt_fingers` · `taylor_couette_onset` · `richardson_shear_instability` · `inviscid_shear_criteria` · `orr_sommerfeld_neutral_curve` · `lorenz_attractor` | C01, C05 (D01, D12) · C02 (D02–D04) · C03, C04 (D09–D11) · C06 (D13) · C07 (D14, D15) · C08, C09 (D17, D18) · C12, C10 (D22, D19) · C11, C13, C14 (D21, D23) · C15 (D24, D25) | three systems in one state: the wave, σ(k) with the growing band, the σ-plane; term bars adding to a discriminant + c-plane where two roots collide; (K, Ra) plane + **table of fluidpy growth rates with exact zero on the live neutral curve**; parcel + regime map with a verdict text pinned by checksum rows; ring swap with energy bars, a slider whose displayed value depends on another parameter; profile on a log axis with the criterion band + growth map + three-way status; necessary conditions as bars on a computed mode, interpolation ending on the exact neutral point; click a point on a neutral-curve map → mode + production/dissipation bars (Ch. 12/13 template); two runs on one clock, canvas 3-D orbit, status computed from the run |
+| ch12 | `reynolds_averaging_window` · `correlation_and_spectrum` · `reynolds_stress_parcels` · `energy_cascade_spectrum` · `turbulent_energy_budget` · `turbulent_jet_similarity` · `law_of_the_wall` · `mixing_length_closure` · `stratified_surface_layer` · `taylor_dispersion` | C01, C02 (D01, D03) · C02, C03 (D03–D05) · C04 (D06) · C07, C08 (D11, D12) · C06 (D09, D10 ★★★) · C09 (D13–D16) · C10, C11 (D17–D20) · C12 (D21) · C14, C15 (D24, D25) · C16 (D26–D28) | two estimators of one mean on one clock with an error split (noise · drift · leak, ◆ formula beside ◇ measured); drag a lag to build r(τ), area = scale, linked spectrum; click one sample → its quadrant → thousands with a ± 5 s.e. band; ladder on a log axis + model spectrum + real-case table + units inspector; **paired budgets sharing one mirrored term, bars summing to zero** (Ch. 13 balances); raw ↔ rescaled with an invariant line that turns rose; **draggable fit window on DNS data**; "κ turns it, damping slides it" with the model's failure shown first; **two-line two-convention badge, a flux as the transport, a formula ending with ✕ at the edge of its range** (Ch. 13 template); log-paced transport, puff ↔ plume modes, constant-D ghost |
 
 ## Notation
 See `knowledge/notation.md` (sign traps first, then the register, then per-chapter conventions). Everywhere: SI and kelvin
 inside functions; **z up** (except ch06 §6.8); **lapse rate Kundu Γ ≡ dT/dz in code, meteorology shown**; `p0` ≠ `p_ref`;
 pressures absolute unless `_gauge` (ch07 gauge); signed τ_xy = μ ∂u/∂y. ch02: passive C; traction on the first index; grid
 `[k, j, i]`. ch03: R = G − Gᵀ, spin ½ω. ch04: Coriolis acceleration +2Ω × u′ vs force −2Ω × u′; **2-D ψ: u = ∂ψ/∂y** (ch07:
-u = ∂ψ/∂z). ch05: γ = u_below − u_above; `ellipk(m)`, m = k². ch06: **Γ counterclockwise in code, `Gamma_cw=`/`Gamma_ccw=`**.
-ch07: **ω = angular frequency**, η = elevation, g′ = g(ρ₂ − ρ₁)/ρ₂. ch08: **dp/dx book sign, `G=` = −dp/dx**; η = y/√(νt).
-ch09: x along the wall; dp/dx > 0 adverse; η = y/δ(x) per flow; θ = momentum thickness; FS exponent book n = code `m`; body
-angles from the forward stagnation point; λ = Thwaites parameter and street eigenvalue; St with the cyclic frequency.
-**ch10 (changes):** three grids (node / element / staggered cell, named in every docstring); **θ = Fourier angle per cell**
-(book e^{iπkx_i}, θ = kπΔx); **i = grid index and √−1** (upright i, index j in our lines); **α, β three ways** (FTCS, Θ-scheme
-α_Θ, β_Θ, FE time α_t, β_t); **C = 2α** Courant; **Ma** for Mach (book M), **M** mass matrix; **K** stiffness vs K_e error
-constant; **𝒮** trial space vs St; **R** global Péclet vs R_cell; **δ** layer thickness vs δ_AB; **F** FE load vs y-flux;
-**G** amplification vs G_A; **p** pressure vs order p; **D** diffusivity vs **D**[u]; **g** Dirichlet value vs body force;
-**λ** eigenvalue; **p′** Newton correction; printed slips "#1…#12" in the notebook (R1–R12 in code) vs recap IDs R01–R13.
-**ch11 (changes):** **σ = σ_r + iσ_i = −ikc is the growth rate** (surface tension σ_s); **K** Bénard wavenumber vs k; **Γ three
-ways** ((11.21) −dT̄/dz, Kundu dT/dz in code, meteorology shown) and Γ = circulation in §11.6; **Ra signed in §11.5**; `mu` =
-Ω₂/Ω₁ (not viscosity); β haline; **Re per flow** (half-width, δ*, L); J bulk Richardson number; r, b, Pr of Lorenz; φ and ψ
-three conventions each; N² is (7.127); slips S1–S13 = "#1…#13".
+u = ∂ψ/∂z). ch05: γ = u_below − u_above. ch06: **Γ counterclockwise in code, `Gamma_cw=`/`Gamma_ccw=`**. ch07: **ω = angular
+frequency**, η = elevation, g′ = g(ρ₂ − ρ₁)/ρ₂. ch08: **dp/dx book sign, `G=` = −dp/dx**; η = y/√(νt). ch09: x along the
+wall; dp/dx > 0 adverse; θ = momentum thickness; FS exponent book n = code `m`; St with the cyclic frequency. ch10: three
+grids (node / element / staggered cell); θ = Fourier angle per cell; α, β three ways; C = 2α Courant; Ma for Mach, M mass
+matrix; slips "#1…#12" (R1–R12 in code). ch11: **σ = σ_r + iσ_i = −ikc is the growth rate** (surface tension σ_s); K Bénard
+wavenumber vs k; **Γ three ways** ((11.21) −dT̄/dz, Kundu dT/dz in code, meteorology shown) and Γ = circulation in §11.6; Ra
+signed in §11.5; `mu` = Ω₂/Ω₁; **Re per flow**; N² is (7.127); slips S1–S13 = "#1…#13".
+**ch12 (changes):** over-bar = **ensemble** average; **lower-case u, v, w, T′ are fluctuations** (members on axis 0);
+**κ = von Kármán** (`kappa`; thermal diffusivity `kappa_th`, eddy `kappa_T`); k₁, K wavenumbers, **ē** = turbulent kinetic
+energy (`e`, the "k" of k–ε), ε̄ dissipation; λ_t, λ_f, λ_g Taylor microscales and Λ_t, Λ_f, Λ_g integral scales (ch11's Λ was
+dissipation); **η = Kolmogorov length**; τ = time lag vs stress; f, g correlation functions vs wall function, Darcy f and
+gravity; R_ij = correlation tensor; **h = full channel height**; θ potential temperature vs θ_m momentum thickness; σ² = 2νt
+(ch03: 4νt); **heat flux positive upward, L_M > 0 stable**; **`uv_plus` keys hold MINUS the correlation** (alias
+`minus_uv_plus`); **spectra two-sided, ∫S = variance**, `C1` one-sided; $\overline{u^2}$ = one component; T̄, T′ potential
+temperature and **`gradient_richardson_thermal` REQUIRES `Gamma_a`** (Γ_a ≈ −9.8 K/km Kundu, Γ_d ≈ +9.8 K/km meteorology;
+the library string "Γ < Γa" means Γ_met < Γ_d); `surface_layer_regime` says nothing about stability; the log-linear
+unstable wind ends at z = |L_M|/5; slips "#1…#18".
 
 ## Teaching lessons
 - **Depth tiered, coverage exhaustive** (A / B / C, derivations, cells): ch01 15/70/21, 12, 496 · ch02 16/60/18, 15, 405
   · ch03 15/52/12, 24, 413 · ch04 15/151/19, 30, 611 · ch05 14/69/11, 23, 496 · ch06 15/116/29, 31, 564 · ch07 16/193/27,
-  37 (321 steps), 617 · ch08 15/113/15, 33 (301 steps), 501 · ch09 14/118/16, 22 (224 steps), 472 · **ch10 15/105/23, 23
-  (222 steps), 602** · **ch11 15/131/24, 25 (258 steps), 618**.
-- **One-way theorems get a counter-example and the word "necessary" or "sufficient"** (ch11, P255): Ri < ¼ only allows
-  instability (R = 3, J = 0.4 grows with Ri_centre 0.4); Rayleigh and Fjørtoft met and nothing grows (sin y, 2b < π);
-  top-heavy yet stable below 27π⁴/4; linear onset ≠ transition. **"Trust what does not move with N"** (raw spectra at two
-  resolutions overlaid); say what a table does not resolve next to its figure; a ★★★ check cell must test the derived
-  result itself (ch11 D24 checked two steps of fifteen).
-- **Convention callouts** ("which p_o?", Coriolis term vs force, Γ_cw vs Γ_ccw, which ω/η/g′/p′/dp/dx/δ/Re/θ/λ): state each
-  convention, the size of the difference in numbers, which the code uses. **ch10: a conventions table up front for every
-  overloaded letter, then enforced in every later cell** (the lesson review found (10.129)–(10.133) shown with bare α, β, θ
-  after the table had renamed them).
-- **Book slips are taught by computing both versions**: a slips table up front, printed forms as code options a test must
-  fail; check a suspected slip on the page first. **ch10: name slips "#k" so they cannot collide with recap IDs "Rkk"**.
-- **Pre-asymptotic honesty** (ch10): state the grids with every observed order (BTCS 1.80 → 1.98, upwind 0.76 → 0.947,
-  Θ(¼) 0.86 → 0.995); teach a failed convergence study as failed (block C_D p = 0.43); a benchmark saturates at its own error
-  (MAC 128² not closer to Ghia than 64²) — self-convergence is the convergence evidence.
-- **Make an approximation measurable** (ch01, ch07, ch08, ch09 Thwaites; ch10 upwind vs its modified equation: gap 0.0134 →
-  1.1e-4; numerical diffusivity 500 m²/s vs model eddy diffusivities); a result sensitive to its inlet is a **bracket**.
-- **Every key number by two independent routes** (ch06 lift; ch07 FD eigenproblem; ch09 Blasius three ways; **ch10: every
-  stability region by its closed form and a brute-force scan; Ghia by two transcriptions; Kovasznay by sympy and by orders**).
-- **Every prose number is printed by a cell**, including numbers written during a review round; captions count what they
-  claim; **drawings must draw what the reading note describes** (ch10 round 1: three drawings did not).
-- **DEVIATION boxes** (ch10): when the code departs from the book (MacCormack additive Δt, corner and inflow densities) say
-  so where the book's formula is taught, with the reason and both numbers computed (2.79e-4 vs 5.62e-4).
-- **A tool first used inside a derivation gets its primer first** (ch09 P218a); **so does a named test case** (ch10:
-  Taylor–Green P254 was used before being explained; ch11: P263, P269 placed after first use). `knowledge/primers.md` lists
-  280 (P01–P279 + P218a); **ch12 starts at P280**.
-- **A sign-checking tiny example** for every transcribed equation whose sign matters (ch09 (9.8)).
-- **Builder rendering hygiene**: design TeX converted, not copied; raw strings for LaTeX; regex tidies never inside maths;
-  headings keep their equations; **ch10: `self_check_ctrl` + `self_check_near` in the builder** (a heredoc turned `\to` into
-  TAB + "o"); templated code comments ("# show the numbers computed above") still appear — fix in the builder template.
-- **Climate hooks with numbers** (ch04 Ro; ch05 tornado; ch06 ψ inversion; ch07 swell, tsunami, √(g′H)/f; ch08 Ekman look-alike;
-  ch09 teacup, island wakes; **ch10 CFL steps 126 s ocean / 78 s atmosphere at 25 km, the Arakawa C-grid, upwind numerical
-  diffusivity 500 m²/s at 10 km vs tens–100 m²/s used, dynamics/physics splitting, "reduced speed of sound"**).
-- Climate hooks, ch11: billows and Ri < ¼ mixing, salt fingers, cloud streets, inertial instability, Rayleigh–Kuo, Lorenz.
-- Reusable derivation moves (ch01–ch11, 190 rows; 14 from ch11) are tabulated in `knowledge/concept_map.md`.
+  37 (321 steps), 617 · ch08 15/113/15, 33 (301 steps), 501 · ch09 14/118/16, 22 (224 steps), 472 · ch10 15/105/23, 23
+  (222 steps), 602 · ch11 15/131/24, 25 (258 steps), 618 · **ch12 16/210/17, 28 (266 steps), 690**.
+- **A spine sentence, pointed back to in every block** (ch11 "one recipe, seven times"; ch12 "an average fails on exactly
+  one thing — a product").
+- **One-way theorems get a counter-example and the word "necessary" or "sufficient"** (ch11, P255); **"theorem vs
+  observation" for look-alike criteria** (ch12: Ri > ¼ of (11.67) vs the observed Rf_cr ≈ ¼); "trust what does not move
+  with N"; say what a table does not resolve next to its figure; a ★★★ check cell tests the derived result itself.
+- **Convention callouts** ("which p_o?", Coriolis term vs force, Γ_cw vs Γ_ccw, which ω/η/g′/dp/dx/δ/Re/θ/λ/κ): state each
+  convention, the size of the difference in numbers, which the code uses; **a conventions table up front for every
+  overloaded letter, enforced in every later cell** (ch10, ch12); **a library string in another notation is translated at
+  every appearance** (ch12: "Γ < Γa" read as Γ_met < Γ_d). **Both lapse-rate conventions on screen, always**: a two-row
+  table, both inequalities in every legend, badge and slider trace; the thermometer trap run in code (+1.110 vs −2.213).
+- **Book slips are taught by computing both versions**: a slips table up front ("slip #k"), printed forms as code options a
+  test must fail, a slip box that says what is printed, why it fails, what is right — and never over-claims (ch12 slip #5:
+  "the printed family fails", not "only power laws").
+- **Make an approximation or an artefact measurable** (ch01, ch07–ch10; ch12: "Where this holds" under an order-of-magnitude
+  estimate; the biased estimator's k⁻² tail beside the exact route with a one-term guide); **test an explanation by
+  removing the alleged cause** (ch12 "leakage"; ch11 the Bickley "kink"). Pre-asymptotic honesty (ch10): grids with every
+  observed order, a failed convergence study taught as failed; **a fitted constant is quoted with its window** (ch12).
+- **Every key number by two independent routes; every prose number printed by a cell** — a printed gap before any
+  comparative sentence; captions count what they claim; drawings draw what the reading note describes.
+- **A tool first used inside a derivation gets its primer first**, and so does a named test case.
+  `knowledge/primers.md` lists 307 (P01–P306 + P218a); **ch13 starts at P307**.
+- **Builder rendering hygiene**: design TeX converted, not copied; raw strings; never a heredoc; `self_check_ctrl` /
+  `self_check_eaten` / `self_check_near` tested on planted damage; templated comments (113 lines in ch12) and stray
+  `<matplotlib.legend.Legend …>` outputs still appear — fix the template.
+- **Statistics are estimates** (ch12): seeded cells, assertions at 5 standard errors (P281), synthetic fields captioned
+  "kinematic — prescribed spectrum, no cascade".
+- **Climate hooks with numbers** (ch04 Ro; ch07 swell, tsunami, √(g′H)/f; ch08 Ekman look-alike; ch09 teacup; ch10 CFL
+  126 s ocean / 78 s atmosphere at 25 km, the Arakawa C-grid; ch11 billows, salt fingers, Rayleigh–Kuo, Lorenz; **ch12
+  30-year normals as an averaging window, L_M = +83 m on a clear night and −17 m on a sunny afternoon, a 1 km model grid
+  against η, a climate model's surface scheme, eddy diffusivity near a source**).
+- Reusable derivation moves (ch01–ch12, 210 rows; 20 from ch12) are tabulated in `knowledge/concept_map.md`.
 
 ## Global pitfalls confirmed in this project
 **Machinery and environment**
 - Extracted text garbles maths (`¼` = `=`, `ð…Þ` = parentheses, missing minus, ω → `u`, γ → g, θ → q, σ/τ → s, ν → n,
   ε → 3, ρ → r, Ω → U, ψ → j, φ → 4, η → h, ζ → z, ∂ → v, ∇ → V): read page images.
-- **Windows: heredocs and `sed` mangle backslashes, quotes and `|`** — write code, explainers and knowledge files with
-  Write/Edit or Python files; builder strings with LaTeX must be raw; single-backslash TeX in JS strings turns `\f`, `\t`,
-  `\r`, `\n` into control characters (ch04, ch06, ch09 ×2, **ch10 `\to` in the notebook and `\approx` in an explainer**).
-- `MPLBACKEND=Agg` strips inline figures; every chapter script takes `--no-show`; Anaconda's kernelspec can shadow
-  `fluidpy-venv`; JS `UIEvent.view` is read-only.
-- `tools/shot.py` does not click/drag (cannot see stale Explain text after a slider drag); its `py:` expressions have
-  restricted builtins — **no ndarray methods (`.min()`, `.sum()`): use `np.min`, `np.add.reduce`** (ch10); set parity
-  tolerances near the achieved agreement.
-- **Intermittent pager clips (1–26 px) under machine load**: leave margin, run shot 3×; **clips can be state-dependent** —
-  the audit reaches a tab with whatever preset the last step left (ch10: Equations at β = 100); KaTeX-late clips need one line
-  of slack and text-size integrals in live rows.
-- **Run the merge gate serially**: the full pytest (≈ 10 min alone at 1460 tests) ran past an hour in parallel with notebook
-  execution and shot audits; `tests/test_machinery.py` separately (19 s) avoids the 96 % stall.
-- **Parallel agents need their own scratchpad subfolders** (ch10 collision; **ch11 again — builders overwrote each other's
-  scripts**). Do not edit a solver module while a shot run evaluates parity rows (ch11: `AttributeError` crash).
-- **`tools/shot.py` does not fail on `.katex-error` nodes or control characters in rendered text** (ch11 E2 shipped two KaTeX
-  errors); reviewers sweep the DOM by hand. **API overload interruptions** (ch11): short steps, consistent disk state.
-- matplotlib 3.11: animations using `subplots_adjust`/`fig.text` disable constrained layout (ch10 cell 159 warning with a
-  local path in the output — drop `subplots_adjust`).
-- `coverage_check` matches ledger reminders by exact primer name; `eq_refs` misses bare numbers inside template strings and
-  rejects en-dash ranges on `ref:` badges.
-- Book wording can hide in docstrings and exercise answers in computed numbers; **book run parameters hide in analysis and
-  reports** (ch10) — `_forbidden_public` + check_public.
-- **Design and analysis documents contain errors; downstream agents compute, not copy** (every chapter; ch10: default-grid
-  order expectations, a design stretched-grid map clustering at the wrong end, "stretched grid removes the wiggles",
-  Θ(¼) order on the default list, "R3 forward wiggles for every R_cell"; ch11: g = 9.81 vs G0, Ra(6) 2672 vs 2680.85,
-  Poiseuille band 0.80–1.07 vs 0.797–1.095, a root for τ = 0.01 quoted at τ = 0.0107, U″ for U′ in a signature, wrong quiz claims).
+- **Windows: heredocs and `sed` mangle backslashes, quotes and `|`** — write code, explainers, design and knowledge files
+  with Write/Edit or Python files; builder strings with LaTeX must be raw; single-backslash TeX in JS strings turns `\f`,
+  `\t`, `\r`, `\n`, `\b` into control characters (ch04, ch06, ch09–ch11; **ch12: form feeds in the design file broke an
+  equation in the notebook**).
+- `MPLBACKEND=Agg` strips inline figures; scripts take `--no-show`; Anaconda's kernelspec can shadow `fluidpy-venv`.
+- **`tools/shot.py` blind spots**: it does not click or drag (stale Explain text after a slider drag); **it does not fail on
+  `.katex-error` nodes or control characters, and audits Explain only in the default and step states** (ch11 E2; ch12 E1,
+  E4 — builders and reviewers run their own DOM probe over presets × slider ends × tabs × pager pages); `py:` expressions
+  have restricted builtins (no ndarray methods); tolerances near the achieved agreement; a table that rounds its own
+  abscissa needs rtol 1e-4 (ch12).
+- **Machine load**: intermittent pager clips (1–26 px), state-dependent clips; **run the merge gate serially** (full pytest
+  ≈ 43 min at 1737 tests alone); **notebook runtime is load-dependent** (ch11 126–239 s; ch12 budget ≈ 170 s, committed
+  run 241 s) — measure on an idle machine; animations are the main cost.
+- **Parallel agents need private scratch subfolders and unique file names** (collisions in ch10, ch11, ch12); do not edit
+  a solver module while a shot run evaluates parity rows; after an API overload or crash, audit code against the design
+  contract mechanically (ch12).
+- `coverage_check` matches ledger reminders by exact primer name; `eq_refs` misses numbers inside template strings and
+  flags `ref:` labels with a suffix. Book wording can hide in docstrings, exercise answers in computed numbers, **run
+  parameters and table constants in analysis, design, scripts and reports** (ch10, ch12).
+- **Design and analysis documents contain errors; downstream agents compute, not copy** (every chapter; **ch12: the
+  log-law fit expectation, an analysis row with the wrong sign of the jet stress, κ = 0.4 vs 0.41 in a worked number**).
 
 **Mathematics → code**
-- **Unbounded profiles (ch11): a fixed truncation box is a different problem at long wavelength** — scale it with 1/k
-  (`ST.decay_box`) and prove it by box **and** N doubling: TG false growth above the neutral curve at k = 0.05; Bickley lower
-  branch 0.0676 → 0.0211 at Re = 7.2; Blasius Re_c 519.0765 → 519.0601, lower branch +9 % at Re = 6000.
-- **A convergence filter can make a false zero or return a lower mode (ch11)**: TG tongue at k ≥ 0.65, Rayleigh jet at
-  k = 1.8, 1.9, Bénard −39.6 instead of +7.12 (the finer solve was the worse one). Leading mode or raise.
-- **Near a neutral point more real-axis points do not help (ch11)**: complex path round the critical layer
-  (`rayleigh_eigs_contour`), nodes where the wave is (`decay_map_scale`), an independent route always. Spectral convergence
-  is digits, not an order: report the error ladder and the round-off rise at large N.
-- **Mode families (ch11)**: least-damped ≠ the mode to interpolate; neutral curves can have several bands (Bickley gap);
-  track by continuation, never join across NaN; tell discrete modes from the continuum (`far_field_fraction`).
-- **Classifiers and verdict strings need tests on both sides of every boundary and at degenerate inputs (ch11)**: top-heavy
-  below the (11.46) margin, Ri at U′ = 0, KH with ΔU = 0 — 128 tests passed with both bugs. **A pinned number can pin a
-  defect** (299 positives, 0.011389): pin sets and physics, re-derive when the numerics change.
-- **A test comparing two of our own functions is not evidence** — and **a table written by the same function is not a
-  reference** (ch10 ψ_min: the tests compared live runs with CSVs made by the same buggy fit). Pin conventions and fits to
-  fields with known answers (a paraboloid), assert must-hold inequalities (fitted min ≤ grid min), and **prove discrimination
-  by planting the wrong variant** (ch02 8/8 … ch09 25, **ch10 38/38**).
-- **A test on |x| cannot see the sign of x** (ch09 (9.8)); every signed transcription gets a signed test on a manufactured
-  field; tests exercise every parameter at non-zero values with both signs; **both signs of u for upwind (ch10 R11)**.
-- **Series stop on the term envelope, never on the actual term** (ch10 (10.199): a term vanishes where the sine does);
-  test against an independent solution at those points.
-- **Defaults encode physics and stability**: ch09 `cp_base=None` gave 2.59; **ch10 a default Δt that dropped the viscous rate
-  gave NaN — explicit solvers take an explicit rule, compute the full limit and raise** (`check_stability=True`, growth cap
-  1e6, never NaN plots); scheme-dependent quantities take required arguments (`numerical_diffusivity(C=)`).
-- **Build operators link by link** (`+=` over real neighbours), and test null vectors on 1-cell and 2-cell grids (ch10 F1).
-- **Floating-point references can be the error** (ch10 F2: `(0.2 − 1.0) % 1`); shift by integers, round before edges.
-- **Guard every division's degenerate case** (ch10 GCI with p = 0 → NaN).
-- **A verifier's correction is a claim too**; **a mutant that hangs is not killed** — cap solver iterations (ch10: none hung).
-- **Folds and bifurcations are mathematics** (ch09 Falkner–Skan): parametrise by the quantity that passes through.
-- **BVPs on infinite domains**: scaling symmetry (Töpfer) or `solve_bvp` with continuation; η_max per member.
-- **Complex-step derivatives need analytic continuations** (ch07); keep |c| and signed dω/dk apart.
+- **Defaults encode physics** (ch09 `cp_base=None`; ch10 a default Δt that dropped the viscous rate; **ch12 `Gamma_a=0.0`
+  called the standard atmosphere unstable**): convention-carrying and empirical arguments are required keywords; explicit
+  solvers compute the full stability limit and raise.
+- **Fitted constants belong to their window** (ch12: a correct fit returns κ = 0.383 on a composite profile from y⁺ = 30
+  because the profile reaches the logarithm from below; DNS 0.400 from 30, 0.384 from 350).
+- **Names carry signs and normalisations** (ch12: `uv_plus` holds −mean(uv) → alias `minus_uv_plus`; `C1` is one-sided
+  and the two-sided default halves it; "to the first zero" is not an integral scale when r has a negative lobe — 26 %).
+- **Estimators have artefacts of predictable size** (ch12: the biased correlation estimate's k⁻² tail); sampled assertions
+  need a seed and 5 standard errors; an OU signal has no Taylor microscale; random-phase fields are kinematic; 2-D
+  isotropy differs from 3-D.
+- **Classifiers and verdict strings need tests on both sides of every boundary and at degenerate inputs** (ch11: 128
+  tests passed with two classifier bugs; ch12: boundaries compared on the ratio and mirrored identically in JS; a regime
+  name is not a stability verdict; NaN outside a formula's range). **A pinned number can pin a defect**: pin sets and physics.
+- **Unbounded profiles (ch11)**: scale the truncation box with 1/k (`ST.decay_box`), prove it by box and N doubling; **a
+  convergence filter can make a false zero or return a lower mode** — leading mode or raise; near a neutral point use a
+  complex path and an independent route; spectral convergence is digits, with a round-off rise at large N; track mode
+  families by continuation, never join across NaN (`knowledge/ch11.md` §4).
+- **A test comparing two of our own functions is not evidence**, nor is a table written by the same function; **prove
+  discrimination by planting the wrong variant** (ch02 8/8 … ch10 38/38, ch11 60/61, **ch12 42/42 + 18/18**); an identity
+  that holds for any input cannot test which input was used (ch12 R16); mutants must reach `@slow` tests too; heavy cached
+  runs are invisible to mutants — keep one slow test that recomputes a coarse cached run.
+- **A test on |x| cannot see the sign of x** (ch09): signed tests on manufactured fields, both signs of every parameter.
+  **Series stop on the term envelope, never on the actual term** (ch10). **Build operators link by link** and test null
+  vectors on 1- and 2-cell grids; guard every division's degenerate case; cap solver iterations.
+- **Folds and bifurcations are mathematics** (ch09): parametrise by the quantity that passes through. **BVPs on infinite
+  domains**: scaling symmetry or `solve_bvp` with continuation. **Complex-step derivatives need analytic continuations**.
 - **Code the corrected form; keep the printed one as a named option a test must fail** (every chapter since ch07).
-- **Never type a constant a function can compute** (ch01, ch09); keep the book's value as a separate named constant.
-- **Overflow and cancellation**: cosh/sinh ratios; expm1; erfc; small-α series; **ch10 scaled (e^{Rx/L} − 1)/(e^R − 1) beyond
-  R ≈ 700**; 0/0 starts with a finite limit (Thwaites at a stagnation point).
-- **Stiff and degenerate PDEs**: CN after a jump needs BE start-up; parabolic marching with a √ψ wall singularity needs a
-  mapping and BDF2 (ch09).
-- **Observed orders only in the asymptotic range**; singular corners and staircase boundaries set the global order (ch06 4/3,
-  ch08 1.11, ch09 0.98); **heuristic boundary closures can wreck it (ch10 block p = 0.43)**; a benchmark saturates at its own
-  accuracy.
-- **Weak compressibility on a fixed grid degrades as Ma falls** (Δt ∝ Ma·Δx); non-conservative boundary closures leak mass
-  (ch10 MacCormack cavity −0.5 %) — label it.
-- **Finite-difference tolerances from a written budget**, never loosened by feel.
-- **A telescoping sum is not a conservation test**; genuine V4 invariants so far: ch07 ∫η², KdV; ch08 thin-film volume, ∫ω dy;
-  ch09 J, Ψ, ρU²θ = ∫τ₀dx; **ch10 projection ∇·u ≤ 1e-12, periodic MacCormack mass (exact), FTCS periodic sum, ∫T of the
-  advected Gaussian**.
-- **Sibling functions share defaults and argument meanings** or are called by keyword; convention-named keywords (`Gamma_cw=`,
-  `ref=`, `G=`, `sides=`, `closure=`, `branch=`, `printed=`, **`convention=`, `dt_rule=`, `scheme=`, `method=`, `lid=None`**).
-- **Two quantities with one name** — the code names the reference in the keyword or the function name (ch10: θ, α, β, M, K,
-  S, R, δ, F, G, p, D, g, λ; see notation).
-- **Benchmarks from the primary source at its printed precision**, cross-checked against a second transcription (ch10 Ghia).
-- **Validation labels**: V4 only for real conservation laws; "converged" only with an asserted order (ch10 review removed it
-  from six functions); "benchmark" only inside the stated tolerance (ch10 MacCormack 64² 1.38 % is not); "approximate" for
-  few-percent agreement; "secondary" for compilations; "qualitative" for confined/heuristic studies.
-- **Heavy cached runs are invisible to mutants**; keep one slow test that recomputes a coarse cached run to 6 s.f.
+  **Never type a constant a function can compute** (ch01, ch09; ch12 explainers: a typed 2.240 went stale).
+- **Overflow and cancellation**: cosh/sinh ratios; expm1; erfc; scaled exponentials beyond R ≈ 700; 0/0 starts with a
+  finite limit. **Stiff and degenerate PDEs**: CN after a jump needs BE start-up; a √ψ wall singularity needs a mapping.
+- **Observed orders only in the asymptotic range**; singular corners, staircase boundaries and heuristic closures set the
+  global order (ch10 block p = 0.43); finite-difference tolerances from a written budget, never loosened by feel.
+- **A telescoping sum is not a conservation test**; genuine V4 invariants: ch07 ∫η², KdV; ch08 thin-film volume; ch09 J,
+  Ψ; ch10 projection ∇·u, periodic mass; ch11 the energy budget of a mode; **ch12 Parseval, ∇·u of synthetic fields,
+  2ν∫K²E dK = ε̄, J_s and the slot-fluid flux, channel work = dissipation + production**.
+- **Sibling functions share defaults and argument meanings** or are called by keyword; convention-named keywords
+  (`Gamma_cw=`, `ref=`, `G=`, `closure=`, `printed=`, `convention=`, `scheme=`, **`Gamma_a=`, `upto=`, `two_sided=`,
+  `unstable=`, `window=`**).
+- **Benchmarks from the primary source at its printed precision, read first-hand** (ch10 Ghia by two transcriptions;
+  **ch12: an unread "Businger–Dyer" citation was relabelled V1 and flagged**). **Validation labels**: V4 only for real
+  conservation laws; "converged" only with an asserted order; "benchmark" only inside the stated tolerance; **"constant
+  consistency" for a constant compared with its citation (not V5)**; "approximate" for models against data with the band
+  stated; "secondary" for compilations; "qualitative" for confined/heuristic studies.
 
 ## Benchmark inventory
 | value / table | source (citation) | stored in | used by |
@@ -344,13 +345,16 @@ three conventions each; N² is (7.127); slips S1–S13 = "#1…#13".
 | Our ch11 data (public, labelled ours): Bénard neutral curves, Taylor table, TG growth map (620 points), Rayleigh spectra (8 profiles), OS grids and neutral curves (Poiseuille, Blasius, tanh, Bickley two bands), critical points, explainer tables | our runs (`reference/ch11/make_refs.py`, `scripts/ch11_tables.py`, `tools/viz_tables/ch11/`) | `reference/ch11/*.csv`, `*.json` | ch11 C04–C15, E3, E5–E8 |
 | Our data (public, labelled ours): MAC cavity 16–128² (Re 100, 400), MacCormack 32–128², block C_D/C_L histories, FE cylinder steady and Re = 100 forces, inf–sup table, explainer tables | our runs (`scripts/ch10_*.py`, `reference/ch10/verify_runs.py`) | `reference/ch10/*.csv`, `explainer_tables.json` | ch10 C13–C15, E6–E8 |
 | Forms (V1 cross-checks, not V5): Rankine, Lamb–Oseen, RTT; Bélanger, Taylor–Green; Kelvin ring, Burgers, Hill; cylinder, Kutta–Joukowski; KdV; Oseen, Stokes, Hagen–Poiseuille, Taylor–Couette | Wikipedia pages; K. T. McDonald | `reference/ch03/`–`reference/ch08/` | ch03–ch08 |
-Book-printed values (private, git-ignored): `tests/book_values_ch01.json` … `…_ch10.json` (ch10: §10.2 numbers, §10.5 run
-parameters and results, Θ printed digits, periods, St, exercise inputs; `_forbidden_public` strings). **Open**: measured
-high-Re cylinder C_p (ch06), primary c_g,min (ch07), primary pipe transition (ch08), Glauert wall-jet constants, Lienhard
-C_D, Roshko St, Howarth angles, a primary turbulent-plate coefficient (ch09), Schäfer–Turek DFG cylinder benchmark (would
-make the FE cylinder V5), Dennis & Chang Re = 40 primary (ch10), **a citable counter-rotating Taylor number (μ < 0;
-Chandrasekhar 1961 on paper), primary Michalke digits and the odd Bénard mode page (ch11)**. `tests/book_values_ch11.json`
-holds the book's rounded critical numbers, Tollmien coefficients, figure parameters and exercise inputs.
+| **Channel DNS mean profiles U⁺(y⁺), dU⁺/dy⁺ at Re_τ = 182, 543, 1001, 1995, 5186; κ = 0.384 ± 0.004** (ours 0.3837 from y⁺ = 350, 0.3845 from 3√Re_τ; sublayer within 5e-4 for y⁺ < 1; Spalding and mixing-length channel "approximate") — **cited, no licence statement: user decision pending** | Lee & Moser, J. Fluid Mech. 774, 395 (2015), doi:10.1017/jfm.2015.268 (arXiv:1410.7809); files at turbulence.oden.utexas.edu/channel2015/data | `reference/ch12/lee_moser_2015_channel_mean.csv` (281-row subset), `benchmarks.json`, `SOURCES.md`, `make_refs.py` | ch12 C10, C11, C12 (V5), E7, E8 |
+| Prandtl's friction law 1/√f = 2.0 log₁₀(Re√f) − 0.8; Pope's c_L = 6.78; one-dimensional Kolmogorov constant 0.53 ± 0.055 (ours 0.491); k–ε standard constants; van Driest A⁺ = 26 — **all secondary** (the last three "constant consistency", not V5). **Not a benchmark**: the "Businger–Dyer" φ_m coefficients (unread first-hand) | Prandtl (1935) via McKeon et al., JFM 538, 429 (2005); Pope (2000) via arXiv:1705.04917 and the ATOMIX wiki; Sreenivasan, Phys. Fluids 7, 2778 (1995) via ATOMIX; Launder & Sharma (1974) via documentation pages | `reference/ch12/benchmarks.json`, `SOURCES.md` | ch12 C08, C11, C13, C15 |
+| Our ch12 data (public, labelled ours): model-channel and van Driest tables (byte-reproducible) | `ch12.explainer_tables`, `write_reference_tables` | `reference/ch12/explainer_tables.json` | ch12 E5, E8 |
+Book-printed values (private, git-ignored): `tests/book_values_ch01.json` … `…_ch12.json` (ch12: the free-shear table's
+constants and half-widths, per-flow (κ, B) pairs, wake strength, worked-example inputs and answers; `_forbidden_public`
+strings and `_forbidden_public_regex` patterns). **Open**: measured high-Re cylinder C_p (ch06), primary c_g,min (ch07),
+primary pipe transition (ch08), Glauert wall-jet constants, Lienhard C_D, Roshko St, **a primary turbulent-plate
+coefficient 0.074** (ch09, still open in ch12), Schäfer–Turek DFG cylinder benchmark, Dennis & Chang Re = 40 (ch10), a
+citable counter-rotating Taylor number and primary Michalke digits (ch11), **first-hand Businger et al. 1971 / Dyer 1974,
+primary k–ε, Prandtl and van Driest papers, a public table of free-shear constants (ch12)**.
 
 ## Validation summary per chapter
 Counts are concept-map rows carrying each label (a row can carry several); tests per evidence level in parentheses.
@@ -367,33 +371,30 @@ Counts are concept-map rows carrying each label (a row can carry several); tests
 | ch09 | 26 (V1 37) | 13 (V2 34) | 8 (V3 17) | 6 (V4 9) | 9 (V5 16) | 2 (V6 5) | 5 (labelled) | 0 | **PASS** loop 1 — 136 items after review; 22/22 D; 25 variants; 9 explainers (248 rows); 472 cells |
 | ch10 | 30 (V1 76) | 13 (V2 36) | 20 (V3 28) | 7 (V4 7) | 1 (V5 5) | 0 rows (V6 2) | 3 (labelled: block C_D, confined St/C_D, heuristic closures) | 0 | **PASS** loop 1 + review (4 Must: ψ_min sign, (10.199) stopping, MacCormack Δt, rule-9 leak) — 340 items (+ V7 20); 23/23 D sympy-checked; 38/38 variants; 8 explainers PASS round 2 (310 rows, 270 vs fluidpy); notebook PASS round 2 (602 cells, 72 s) |
 | ch11 | 15 (V1 70) | 8 (V2 22) | 12 (V3 22) | 6 (V4 8) | 6 (V5 10) | 0 rows (V6 2) | 2 (labelled: Lorenz Lyapunov exponent; Falkner–Skan upper branch at Re ≥ 2e4) | 0 | **PASS** after 2 fix loops (TG decay box; k-dependent map scale) + review (2 Must: `salt_finger_regime`, Ri at U′ = 0) + 6 later defects (Rayleigh false zeros → complex path; OS far-field box → Bickley two bands; Blasius Re_c; Bénard wrong mode; contour `semi_infinite` refused; slip S13) — 160 tests (+ V7 41); 25/25 D sympy-checked (★★/★★★); 61 variants, 1 equivalent survivor; 9 explainers PASS round 2 (417 rows, 350 vs fluidpy); notebook PASS round 3 (618 cells, 126–239 s by load) |
-(V7 tests: ch01 19, ch02 12, ch03 7, ch04 3, ch06 2, ch07 13, ch08 6, ch09 24,
-ch10 20, ch11 41. Full suite at the ch11 gate: **1620 tests**, 1594 s serially.)
+| ch12 | 4 (V1 54) | 9 (V2 30) | 1 (V3 6) | 0 primary (V4 8) | 2 (V5 5) | 0 rows (V6 2) | 3 (labelled: `jet_tke_budget`, `k_epsilon_channel`, free-shear amplitude constants) | 0 | **PASS** on the first pass (117 tests, 42/42 variants) + review (no wrong equation; 4 Must: `Gamma_a` default, table constants in scripts and design, 11 stale docstring statements, an unread citation) — 173 tests (+ V7 10, statistical 10, constant consistency 2); every ★★/★★★ derivation re-derived independently (22 `_V2_derivation` tests); 42/42 + 18/18 variants; 10 explainers PASS round 2 (597 rows, 444 vs fluidpy); notebook PASS round 3 (690 cells, ≈ 240 s) |
+(Counts are CORE rows by primary label for ch12. V7 tests: ch01 19, ch02 12, ch03 7, ch04 3, ch06 2, ch07 13, ch08 6,
+ch09 24, ch10 20, ch11 41, ch12 10. Full suite at the ch12 gate: **1793 tests**; 1737 took 2564 s serially.)
 
 ## Open across chapters
+- **ch12 open**: the list at the top of this file and `knowledge/ch12.md` §0, §9 (also: `@slow` tests without mutants;
+  animations trimmed to A2 45, A3 60, A5 60 frames at dpi 60; the committed notebook carries no outputs until publish).
 - **ch11 open** (`knowledge/ch11.md` §9): no citable Taylor benchmark for μ < 0; Bickley lower edges below k = 0.02;
-  `benard_growth_rate` explicit N ≥ 60 round-off; complex-path limits; notebook runtime 126–239 s (animations); E4 EQTAG
-  workaround; E8 clipped axis title at 360×640; `tools/viz_tables/ch11/` absolute paths and the manual E8 splice.
-- **Library pass (orchestrator, when nothing reads `viz/`)**: ranked lists in `knowledge/viz_patterns.md` — **ch11**: complex
-  numbers (`Viz.cx` + pair formatting; asked since ch09), `bisect`/`goldenMax`, rectangular-table interpolation, cubic solver,
-  `arrowPx`, checksum-row helper, canvas 3-D projector; **ch10**: `Viz.num.linalg`, log axes + `gutterPlot`, `polyFill`, matrix
-  drawer, `pyRound`, `Run`, background pump, `views[i].hideOn`; ch09 (lint rule, formatters, `Viz.profiles`, hatch); ch08
-  (pager-label CSS, erfc precision); ch07 (`Viz.waves`, per-mode hiding before Ch. 13). Then `tools/viz_inline.py --all` and
-  `tools/shot.py --chapter ch01…ch11 --quick` + `templates/viz_example.html --quick`.
-- **Skill pass**: lesson candidates for `interactive-viz`, `math-to-python` §7, `verify-implementation`, `teaching-style` and
-  `colab-notebook` in `knowledge/viz_patterns.md` (ch02–ch11) are not yet in the skills (ch11 first: box ∝ 1/k with box and N
-  doubling; leading mode or raise; a 0 has a meaning; independent route; both sides of every classifier boundary; pin sets
-  not counts; builders recompute design numbers; one-way theorems with counter-examples).
-- **Machinery / tooling TODO**: **`shot.py` failing on `.katex-error` and control characters (L3)**, hash deep links applied
-  after `goStep(0)` (L4), code-line length lint ≈ 44 chars (L5), `eq_refs` allow-marker for mirrored fluidpy strings (L6);
-  `viz_lint` control-character rule (**six chapters**); `eq_refs` en-dash ranges and template strings; a slider-drag Explain
-  test; `check_public.py` on untracked files and **failing on an invalid `book_values_*.json`**; Derivation-tab vs `--dump`
-  diff in `embed_check`; `shot.py` exposing `np` to `py:` rows, resetting presets per tab, a 3-run flake mode; nbkit —
-  templated/echo-comment lint (three chapters), `self_check_ctrl`/`self_check_near` in `tools/nbkit.py`.
-- **Explainer follow-ups**: ch10 E1–E7 items in `knowledge/ch10.md` §9; earlier chapters in their `chNN.md` §9. Backups not
-  built: ch04 `kinematic_free_surface`, ch05 `vortex_rings`, ch06 `flow_net_sources_vortices`, ch07
-  `linearised_free_surface`, ch08 `rotating_cylinders_couette`, ch09 `ball_swing_magnus`, ch10 `operator_splitting_theta`,
-  ch11 `period_doubling_route`.
-- Verification notes: ch10 block C_D non-asymptotic (Δx = 1/64 next), MacCormack cavity mass and low-Mach degradation, no
-  Re = 400 MacCormack 128², cached-run mutants invisible; ch09 sphere Re_cr 5e5 vs 3e5 (G9), `karman_street_spectrum` σ → λ,
-  turbulent 0.074 needs a primary source before Ch. 12; ch08 O5, O8, O9; ch07 O5–O7; ch06 O4, O6; ch05 O2.
+  `benard_growth_rate` explicit N ≥ 60 round-off; complex-path limits; `tools/viz_tables/ch11/` absolute paths.
+- **Library pass (orchestrator, when nothing reads `viz/` or `assets/`)**: ranked lists in `knowledge/viz_patterns.md` —
+  **ch12**: log axes for `v.plot()` (eight files), `Viz.tpow`, `fitText`, precise `erf`, Gauss–Legendre, seeded
+  Gaussian/OU draws, log-paced transport, two-line status, `hideOn`, two CSS fixes; **ch11**: complex numbers,
+  `bisect`/`goldenMax`, table interpolation, cubic solver, `arrowPx`; **ch10**: `Viz.num.linalg`, `gutterPlot`. Then
+  `tools/viz_inline.py --all`, `tools/shot.py --chapter ch01…ch12 --quick` and `templates/viz_example.html --quick`.
+- **Skill pass**: lesson candidates for the five skills in `knowledge/viz_patterns.md` (ch02–ch12) are not yet in the
+  skills (ch12 first: bracket powers and probe `.katex-error`; required keywords for conventions and empirical constants;
+  constant consistency ≠ V5; a number only beside its own equation; test an explanation by removing its cause).
+- **Machinery / tooling TODO**: **`shot.py` failing on `.katex-error` and control characters and walking presets with
+  Explain open** (three chapters); hash deep links after `goStep(0)`; code-line length lint ≈ 44 chars; `eq_refs`
+  allow-marker and `ref:` suffixes; `viz_lint` control-character rule (seven chapters); a slider-drag Explain test;
+  `check_public.py` on untracked files; a contract-audit tool (design Part C vs `inspect.signature`); builder self-checks
+  and a templated-comment lint in `tools/nbkit.py` (four chapters).
+- **Explainer follow-ups**: per chapter in `knowledge/chNN.md` §9 and `viz_patterns.md`. Backups not built: ch04
+  `kinematic_free_surface`, ch05 `vortex_rings`, ch06 `flow_net_sources_vortices`, ch07 `linearised_free_surface`, ch08
+  `rotating_cylinders_couette`, ch09 `ball_swing_magnus`, ch10 `operator_splitting_theta`, ch11 `period_doubling_route`,
+  ch12 `k_epsilon_decay`. Older verification notes: ch10 block C_D non-asymptotic; ch09 sphere Re_cr, turbulent 0.074;
+  ch08 O5, O8, O9; ch07 O5–O7; ch06 O4, O6; ch05 O2.

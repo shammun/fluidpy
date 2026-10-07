@@ -4,8 +4,8 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279); a new chapter starts at the next free number
-(ch12: **P280**). Total so far: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, **ch12 P280–P306**); a new chapter starts at the next free number (**ch13: P307**; total after ch12: 307 = P01–P306 and P218a; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
+(ch12 started at P280). Total after ch11: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
 review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
 first use).
@@ -330,6 +330,35 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | np.roots and np.lib.scimath.sqrt (P256) | ch11 · §11.3 · C02 | `np.roots(coeffs)` returns every root of a polynomial (highest power first, complex if needed); `np.lib.scimath.sqrt(-1.0)` returns `1j` where `np.sqrt` gives nan — what a discriminant that can turn negative needs |
 | boundary-row replacement and the generalised non-symmetric eigenproblem scipy.linalg.eig(A, B) (P259) | ch11 · §11.4 · C03 | collocation gives Av = σBv; a boundary row in A states the condition and the same row of B is zero, so B is singular: `scipy.linalg.eig(A, B)` returns infinite eigenvalues (drop them) and round-off spurious ones (keep only eigenvalues that do not move when N grows); extends the symmetric `eigh(A, B)` of P247 |
 | matplotlib 3-D line plots (P278) | ch11 · §11.14 · C15 | `ax = fig.add_subplot(projection="3d")`, `ax.plot(X, Y, Z)`, `ax.view_init(elev, azim)`; lighter than plotly (P41/P64) for a static page figure |
+| **ch12 — maths and physics** (the term is the exact `nb.primer` title) | | |
+| random variable, probability density and histogram (P280) | ch12 · §12.3 · C01 | a quantity that differs in every realization; the density says how often each value occurs (area = fraction of runs); a histogram is its estimate from samples |
+| standard error of a mean (P281) | ch12 · §12.3 · C01 | the mean of N **independent** samples scatters by σ/√N; "within 5 standard errors" is the test for every sampled number; a correlated record holds only Δt/t_c independent samples |
+| ergodicity (P282) | ch12 · §12.3 · C01 | for a stationary signal a long time average of one run equals the ensemble average over many — assumed every time a measurement is compared with the theory |
+| Ornstein–Uhlenbeck signal (a Langevin equation) (P283) | ch12 · §12.3 · C01 | the chapter's test signal: each step keeps e^{−Δt/τ_c} of the old value and adds fresh Gaussian noise; variance σ², correlation e^{−\|τ\|/τ_c}, a cusp at zero lag (no Taylor microscale) |
+| the sinc function and np.sinc (P285) | ch12 · §12.3 · C01 | sin(x)/x: 1 at 0, zero at multiples of π; `np.sinc(x)` is sin(πx)/(πx); appears whenever a wave is averaged over a window |
+| covariance, the covariance matrix and its ellipse (P287) | ch12 · §12.4 · C02 | mean product of two zero-mean variables; the 2 × 2 matrix has variances on the diagonal; its eigenvectors are the axes of the scatter cloud (tilted cloud ⇔ non-zero covariance) |
+| a quadratic that is never negative has discriminant ≤ 0 (P288) | ch12 · §12.4 · C02 (before D02) | aλ² + bλ + c ≥ 0 for every real λ ⇒ at most one real root ⇒ b² − 4ac ≤ 0: the whole proof of the Schwartz inequality |
+| Fourier-transform pair: where the 2π sits (P290) | ch12 · §12.4 · C03 | a pair needs one factor 1/2π in total; the book puts it in the forward transform with angular frequency; for a real even function the transform is a cosine integral |
+| change of variable in a density; units of a spectral density (P293) | ch12 · §12.4 · C03 | a density is "variance per unit of the axis": S(k)dk = S(ω)dω, so S(k) = U₀S(ω) for k = ω/U₀; S_e in m²/s, a wavenumber spectrum in m³/s² |
+| counting the independent components of a symmetric tensor (P295) | ch12 · §12.5 · C04 | a symmetric 3 × 3 tensor has 6, a fully symmetric triple product 10 — the arithmetic of the closure problem |
+| kinematic vs dynamic fluxes (P296) | ch12 · §12.5 · C04 | observers report H [W/m²] and τ₀ [Pa]; the equations carry $\overline{wT'}$ [K m/s] and u_*² [m²/s²]: H = ρC_p$\overline{wT'}$, τ₀ = ρu_*² |
+| derivatives of functions of r = ∣r∣ (P297) | ch12 · §12.6 · C05 (before D07) | ∂r/∂r_j = r_j/r, ∂r_i/∂r_j = δ_ij, δ_jj = 3, r_jr_j = r² — everything needed to take the divergence of an isotropic tensor |
+| inner, outer and overlap: two descriptions that must agree where both hold (P300) | ch12 · §12.9 · C10 (before D19) | near the wall one set of variables works, far away another; where both are valid the formulas must give the same answer (matching) — the separation argument with two variables |
+| composite profile: inner law + outer correction (P301) | ch12 · §12.9 · C11 | add to the inner formula a correction that vanishes at the wall and reaches full size at the outer edge (`WT.coles_wake`) — usable across the whole layer |
+| dividing two ODEs to eliminate time (P303) | ch12 · §12.10 · C13 (before D23) | dy/dt = f and dx/dt = g give dy/dx = f/g; if that is n·y/x the solution is the power law y ∝ xⁿ |
+| the stability parameter ζ = z/L and integrating a flux–profile relation (P304) | ch12 · §12.11 · C15 | φ_m = (κz/u_*)dU/dz as a function of ζ alone (1 neutral, > 1 stable, < 1 unstable: Monin–Obukhov similarity); integrating dU/dz gives the logarithm minus a correction ψ_m |
+| a double integral over a triangle (P305) | ch12 · §12.12 · C16 (before D26) | ∫₀^t dt′∫₀^{t′} g(τ)dτ covers 0 < τ < t′ < t; each τ is counted over a strip of length t − τ, so it equals ∫₀^t (t − τ)g(τ)dτ |
+| proof by induction (P306) | ch12 · §12.12 · C16 | show the statement for n = 1, and that n − 1 implies n; then it holds for every n — used for the random walk $\overline{R_n^2}=nL^2$ |
+| **ch12 — Python and numerics** | | |
+| sliding-window average with np.cumsum (P284) | ch12 · §12.3 · C01 | the sum over a window is the difference of two cumulative sums — one pass over the data; edges within half a window are NaN |
+| random-phase synthetic fields (np.fft.ifftn) (P286) | ch12 · conventions cell (front) | give every Fourier mode a chosen amplitude and a random phase and transform back: a field with a prescribed spectrum, solenoidal if projected — **kinematic, no cascade** |
+| correlation by FFT with zero padding (P289) | ch12 · §12.4 · C02 | transform, multiply by the conjugate, transform back: all lags at once; pad with zeros or the end wraps onto the beginning; "unbiased" divides lag m by N − m (for a periodic record the wrap-round is the correct lag product) |
+| the discrete Fourier transform as a Riemann sum; Parseval (P291) | ch12 · §12.4 · C03 | `np.fft.rfft(u)*dt` ≈ ∫u e^{−iωt}dt at ω_k = 2πk/(N dt); in the book's normalisation S = \|û\|²/(2πT) and the sum over both signs of ω times Δω is the variance |
+| segment averaging (Welch) and leakage (P292) | ch12 · §12.4 · C03 | one raw periodogram is as noisy as its mean however long the record; averaging K segments cuts the noise by √K at the price of resolution; a taper (Hann) stops a line leaking into distant bins |
+| a sympy averaging operator (P294) | ch12 · §12.5 · C04 (before D06) | teach sympy the rules of D01 — linear, leaves a mean alone, kills a single fluctuation, keeps a product of two as a new symbol — and let it average the equations (`ch12.rans_sympy`) |
+| quadrature on a logarithmic grid (P298) | ch12 · §12.7 · C08 | a spectrum spans decades: with K = e^s, ∫E dK = ∫E K ds on an evenly spaced s = ln K |
+| semi-log axes: a logarithm is a straight line (P299) | ch12 · §12.9 · C10 | on `ax.semilogx` the log law is a line rising 2.303/κ per decade (5.6 for κ = 0.41), and U⁺ = y⁺ is a curve |
+| a nonlinear diffusion problem by Picard iteration on the eddy viscosity (P302) | ch12 · §12.10 · C12 | ν_T depends on the answer: freeze it from the last guess, solve the linear problem, update with under-relaxation, repeat until it stops changing (`shear_flow_eddy_viscosity_solve`) |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -556,3 +585,29 @@ routes (named as independent checks, not taught); continuous spectrum vs discret
 Routh–Hurwitz (inside P276); `np.genfromtxt`, `symlog` axes, `twinx`, `ListedColormap`, `Chebyshev.fit`, `np.polyfit`, pandas
 tables (explained where they appear); Marangoni convection; thermohaline staircases; inertial instability and Rayleigh–Kuo
 (pointers to Ch. 13); slips named "slip #1…#13" (S1–S13 in code).
+
+Reminders written in ch12 instead of new primers (46 one-sentence reminders; point here): sinh (P168), seeded random
+generators `np.random.default_rng` (P10), the Gaussian distribution, P13 log–log slopes and `np.polyfit`, P15
+`assert np.allclose` and `np.isclose`, P16–P18 animate / slider_figure / show_viz, P25 partial derivative, the integral as
+a limit of sums and the fundamental theorem of calculus, P40 sympy, P159 the quadratic formula, P106 substitution in an
+integral or average, P261 even and odd functions, P26 Taylor series to second order, P38 product rule, P37 `np.trapezoid`
+and P203 Simpson, P45 Euler's formula, P144 improper integrals, P142 `np.fft.rfft` and Fourier modes,
+`scipy.integrate.quad`, P252 caching slow symbolic results, P119 isotropic tensors, P218a integration by parts, P22
+`np.gradient`, P130 order-of-magnitude scaling, P57 `np.linalg.solve`, pandas tables, live widgets, P188 two-length
+(thin-layer) scaling, P206 chain rule with a moving similarity variable, P189 Leibniz rule, P167 the separation argument,
+P197 exponent matching, P194 Gaussian profile and integrals, P60 `fractions.Fraction`, P133 scaled variables, P49 chain
+rule, P108 `brentq`, P190 `cumulative_trapezoid`, reading reference data files, P31/P94 `solve_ivp` and P95 an RK4 loop,
+P48 inequalities under a sign change, P255 necessary vs sufficient (theorem vs observation), iterated integrals, P195 erf,
+P109 differentiation under the integral sign.
+
+Glosses in ch12 (one sentence where used, no primer): **stationary** and **homogeneous** statistics (independent of the time
+or space origin); **realization** and **ensemble**; **solenoidal** (divergence-free) field; **Wiener–Khinchin** (the
+spectrum is also the squared magnitude of the transform of the record; the periodic correlation is `ifft(|fft|²)/n`
+exactly); **biased vs unbiased** correlation estimate and the triangle weight 1 − r/L (its kink gives a k⁻² tail);
+**Lorentzian** spectrum of an exponential correlation; **frozen turbulence**; **closure problem**; **local isotropy**;
+**cascade**, **inertial subrange**, **intermittency** (named); **entrainment** and **self-preservation**; **wall units**,
+**buffer layer**, **wake function**, **indicator function** y⁺dU⁺/dy⁺; **van Driest damping**; **wall functions**;
+**forced vs free convection**; **Monin–Obukhov similarity**; **Businger–Dyer** form (named "a commonly used form", source
+unread); **Batchelor scale**; **Lagrangian** vs Eulerian integral scale; **ballistic** and **diffusive** regimes;
+**Richardson's 4/3 law**; `np.fft.fft`/`ifft` (complex, full), `np.fft.ifft2`/`ifftn`, `itertools.product`, `ax.semilogx`,
+`scipy.signal.welch` (cross-check only); slips named "slip #1…#18"; the library string "Γ < Γa" read as Γ_met < Γ_d.

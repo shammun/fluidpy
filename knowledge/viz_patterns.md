@@ -16,6 +16,11 @@ round 2, 255 parity rows, 2 744 views, 30 derivations matched to the notebook by
 many as the CORE ideas need** (`book.yaml → project.min/max_explainers_per_chapter`), and **every book equation cited
 in tour, Explain, Derivation, quiz, notes or status text is written out in TeX next to its number** (`tools/eq_refs.py`
 lists offenders; `ref:` labels next to shown TeX, metadata and selftest names are exempt).
+ch12 E1 `reynolds_averaging_window`, E2 `correlation_and_spectrum`, E3 `reynolds_stress_parcels`, E4
+`energy_cascade_spectrum`, E5 `turbulent_energy_budget`, E6 `turbulent_jet_similarity`, E7 `law_of_the_wall`, E8
+`mixing_length_closure`, E9 `stratified_surface_layer`, E10 `taylor_dispersion` (all PASS round 2 — five failed round 1;
+597 selftest rows of which 444 JS ↔ fluidpy, worst 8.0e-07; 24 derivation instances / 220 steps equal to the design; the
+first chapter with ten explainers).
 
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
@@ -217,6 +222,21 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **"How far to trust it" paragraph in Explain**: what a computed 0 means near a neutral curve, which numbers are interpolated, which finite-time fits are not long-time limits | ch11 E6, E8, E9 | readers stop reading resolution limits as physics |
 | **A review-phase bug taught as a walkthrough step** ("top-heavy is not enough": Rs − Ra = 438 < 657.5, flips at −0.0076 K/m) | ch11 E4 | a boundary the code got wrong is exactly the boundary readers get wrong |
 | **A DOM sweep for `.katex-error` nodes and control characters over every tab, tour step, derivation page and preset** (46–70 states per explainer), plus the regime word against fluidpy on a grid of reachable states | ch11 viz review (found E2's two KaTeX errors; 0 in round 2) | catches what `shot.py` passes (L3) |
+| **Linked views on one cursor or one clock**: profile + paired term bars + whole-domain summary on one cursor height (E5); wind profile + temperature profile + budget bars on one cursor (E9); signal with a draggable lag + correlation + spectrum (E2); particles + log–log ⟨X²⟩ + D_T on one clock (E10) | ch12 E2, E5, E9, E10 | the reader moves one thing and sees every representation follow; phones show two views at a time and swap them by walkthrough step (E2) |
+| **A draggable fit window on real (DNS) data** — drag the lower edge of the window and the fitted κ and B change live (model built with 0.41 returns 0.382 from y⁺ = 30; DNS goes 0.400 → 0.384 from 30 → 350); status "a quoted κ always belongs to a window" | ch12 E7 `law_of_the_wall` (the chapter's "aha"; replaced a wrong design expectation) | turns "constants are data" from a sentence into an experiment; the same stage fits a spectral slope or an e-folding scale in Ch. 13 |
+| **Two-convention status badge in two lines**: line 1 verdict word · L_M · Rf; line 2 the criterion in the chosen convention with numbers, then the other convention's relation ("dT/dz > Γa: −6.5 > −9.8 K/km · Γ_met < Γ_d: 6.5 < 9.8 K/km"), identical at every size, pinned by exact-text rows; the verdict word comes from `["verdict"]`, never from the regime name | ch12 E9 `stratified_surface_layer` (151 rows, 134 py) | the project's lapse-rate rule is visible in every state, including phones where the temperature view is hidden |
+| **Paired budgets that share one mirrored term, bars that sum to zero**: the production bar is drawn twice with opposite signs and joined by a dashed link; a "sink (remainder)" bar is labelled as the remainder; a whole-channel flow diagram (work → direct 44.7 % + via turbulence 55.3 %) with a table against Re_τ | ch12 E5 `turbulent_energy_budget` | "one term seen from two sides" in one glance; closing bars make a missing or wrong-signed term visible (→ Ch. 13 geostrophic and Ekman balances, energy cycle) |
+| **A physical parameter as the transport**: the surface heat flux H sweeps through zero and L_M jumps through infinity while the wind crosses the neutral logarithm | ch12 E9 | a sign change is something to watch happen; the reader finds the singular point without being told |
+| **Log-paced transport**: a 0…1 clock mapped by hand to time on a logarithmic scale, so that the ballistic and the diffusive regime are both seen in one run; first frame opens at t = 0.3 Λ_t with rays already drawn and "↺ replays from the release" | ch12 E10 `taylor_dispersion` | phenomena that span decades of time (dispersion, spin-up, adjustment) cannot be watched on a linear clock |
+| **"Printed vs corrected" toggle for a book slip, with parity rows on both** (`printed=True` ↔ corrected): the printed +5/3 as a ghost that fails a units inspector and a code comment "the book's printed +5/3 (slip #1)"; the condition of the eddy diffusivity and the plume-width caption shown the right way round in the house wording; the printed exponential family worked with numbers beside a family that passes both tests | ch12 E4 (slip #1), E10 (slips #12, #13), E6 (slip #5) | a slip is taught by computing both versions; the house wording "⚠️ slip #k — the book prints …; the correct form is …" |
+| **Constants computed from invariants instead of typed**: C₅ from the momentum-flux invariant (2.577 for ξ½ = 0.10), C₆ = 1/(C₅∫HF dξ) = 2.19 shown as the arithmetic, pinned by selftest rows; a scan for decimal literals in reader strings finds none | ch12 E6 `turbulent_jet_similarity` (after a stale typed 2.240) | a typed number goes stale the moment a default changes; a computed one cannot |
+| **Live Code tabs that were actually run**: every Code block executed as displayed in three or four states by the reviewer (11 blocks in the five re-reviewed files); a block that builds its own runs says so ("N → ∞ here …" vs "the page's own 8 runs …") | ch12 viz review (found E1's `NameError`) | displayed code that raises is worse than no code |
+| **Raw ↔ rescaled toggle plus a wrong-exponent slider that keeps every profile plausible and turns the invariant line rose** | ch12 E6 | the argument is checked by breaking it (same idea as ch09's collapse, with the invariant as the judge) |
+| **One clicked sample → its arithmetic → thousands of samples with a ± 5 s.e. band around the running estimate**; every sampled number labelled "estimate" and held to 5 standard errors in the selftest | ch12 E3 `reynolds_stress_parcels` | statistics become a count the reader can follow; the band says when to stop trusting a digit |
+| **Error view that decomposes an estimate's error into named parts** (noise · drift · leak) with ◆ formula beside ◇ measured | ch12 E1 `reynolds_averaging_window` | "how long must I average?" has a trade-off the reader can see; hook: a 30-year climate normal |
+| **Real-case table with the current row highlighted + presets that are real flows** (kitchen mixer, wind tunnel, atmospheric boundary layer, ocean thermocline) and an inspector that checks units at the clicked point | ch12 E4 `energy_cascade_spectrum` | scale separation is a number in four familiar settings; the units inspector shows the printed slip failing |
+| **A formula that ends with ✕ at the edge of its range, with the reason on the canvas** (log-linear wind stops at z = \|L_M\|/5) and the continuation labelled "a commonly used form", no source claimed | ch12 E9 | validity limits are drawn, not footnoted; honest about an unread citation |
+| **Reviewer's `.katex-error` DOM probe + throwing-mode string probe** over default · every preset · every quiz state · both ends of every slider · every chip · every tab · every derivation page · every walkthrough step (218 state loads, 3 624 tab/page visits; 335 states, ≈ 4 240 fragments) | ch12 viz review (found E1 and E4; 0 in round 2) | catches what `shot.py` passes; the selector found the two round-1 failures, so the zeros can be trusted |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -382,6 +402,22 @@ lists offenders; `ref:` labels next to shown TeX, metadata and selftest names ar
 | **Builders sharing one scratchpad overwrote each other's generator scripts** (second chapter in a row) | ch11 viz phase | one private scratch subfolder per agent; generators that produce embedded tables are saved in `tools/viz_tables/chNN/` |
 | **A mirrored fluidpy text containing "(11.46)" tripped `eq_refs.py`**, so the builder split the string (`const EQTAG = ' of (' + '11.46)'`) to hide it | ch11 E4 (open) | L6: an allow-marker in `tools/eq_refs.py` for strings mirrored byte for byte from fluidpy; do not split strings |
 | **Thin strip on phones**: seven Bénard cells in a ~45 px view; a rotated y title losing its last character at 360×640 | ch11 E1, E8 (open) | draw fewer wavelengths when the view is short; shorten axis titles ("k L (log)") |
+| **KaTeX double superscript**: `Viz.tnum(x) + '^2'` (or `^{2/3}`) is invalid TeX when x prints as `a\times10^{b}` — a boxed Explain line shown as red source text at the default state (E1) and on a preset and at slider ends (E4); `shot.py` passed both | ch12 E1, E4 (round-1 Must) | bracket every formatted number before a power (local `tsq`/`tpow`: `\big(3.27\times10^{-5}\big)^{2}`); run a `.katex-error` probe over presets × slider ends × tabs × pager pages; library `Viz.tpow` and a shot.py check are the top ch12 candidates |
+| **A typed number went stale** ("C₆ = 2.240" where the page computes 2.190 after a default changed) | ch12 E6 (round-1 Must) | compute every displayed constant from the page's own functions and show the arithmetic; scan reader strings for decimal literals before review |
+| **A placeholder left in a derivation step** (`\overline{u_i\times(\text{step 3})}` instead of the eight-term equation of D10 step 4) | ch12 E5 (round-1 Must) | a derivation step always shows its own equation; long lines go in `aligned` rows (three rows; one row per page on a phone) |
+| **A Code block that did not run** (`prod` used undefined `ens_u`, `ens_v`, `k`) | ch12 E1 (round-1 Must) | run every Code block as displayed in several states before review |
+| **Raw library strings as badges or readouts**: fluidpy's verdict strings start with the criterion ("stable ⇔ dT/dz > Γa: −12.0 < −9.8 K/km" for an unstable layer) and write "Γa" for +9.8 K/km in the meteorological line; a regime name ("forced convection") read as a stability verdict | ch12 E9 (design; avoided in the build, still visible in the Code tab) | show the bare verdict word beside the string, translate the other convention's symbol (Γ_d), and never derive stability from a regime label |
+| **"The page prints" used for the book** and slips not in the house wording | ch12 E10 (round-1 Must) | "⚠️ slip #k — the book prints …; the correct form is …" with both equations written out |
+| **Three stacked views on a 360×640 phone**: Explore 10 pages (E7, E8), a walkthrough step over 4 card pages (E9 step 1), D10 step 4 over 9 pages (E5) | ch12 E5, E7, E8, E9 (open, Should) | show two views at a time and swap by step (E2 did); cut Explore readouts to five; drop `notes: true` from long steps |
+| **`hidePortrait` leaves a hole**: a hidden view keeps its flex share of the row, so its neighbour does not grow | ch12 E8, E9 (local workaround: hide the whole row by scoped CSS and set `flex-grow` by hand) | library: per-layout `hideOn` that removes the view from the flex row |
+| **`<sub>` below 12 px** in view titles and status text | ch12 E2, E7, E8 (local `sub { font-size: max(12px, .8em) }`) | put the rule in `assets/viz_base.css` |
+| **A derivation line cut over two pages was re-centred in its slice** (`.viz-der-chain` is `align-items: center`) | ch12 E8, E9 (local `.viz-der-chain.viz-sliced { align-items: flex-start; }`) | same rule into `assets/viz_base.css` |
+| **Values below 1e-12 printed as 0** (a spectrum far beyond the cut-off read "= 0") | ch12 E4 | pass `keepTiny` wherever a physically tiny number is displayed |
+| **View titles truncated with "…"** instead of wrapping (E5 at 1000×700; E9 at 1000×700 and 844×390) | ch12 E5, E9 (open) | shorter titles per layout; library: wrap or a `titleShort` |
+| **The "All steps →" button of a quoted derivation step cut by a page slice on phones** | ch12 E2 (open) | shorten the quote card or drop the button from the quote on phones |
+| **Two estimators or two models, two numbers for "the same" quantity**: DNS intercept 4.29 (mean at fixed κ) vs 4.28 (least squares); equal stresses at y⁺ = 9.9 (Spalding) vs 10.46 (mixing length); model fit 0.382 / 3.94 (page) vs 0.383 / 3.99 (notebook grid); Ri 0.12 vs 0.0752 from two formulas on one screen | ch12 E5, E7, E8, E9 (open, Should) | name the estimator or the model beside each number, or use one across the chapter |
+| **Colour code reused with another meaning** (rose and blue for parts of a product; blue for uv > 0) while the chapter fixes blue = buoyancy, rose = dissipation | ch12 E2, E3 (open) | keep the chapter colour code or say the exception in Explain section 0; muted grey for "the other sign" |
+| **Builders' probe scripts collided by file name in the shared scratch folder** (third chapter) | ch12 viz phase | per-slug scratch subfolders and slug-prefixed file names |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -564,6 +600,117 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch12 candidates (listed, **not promoted**: the ch12 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
+From `reports/ch12_viz.md` ruling l (14 library and tool findings) and a grep for named definitions in the ten chapter
+files (E1 `reynolds_averaging_window`, E2 `correlation_and_spectrum`, E3 `reynolds_stress_parcels`, E4
+`energy_cascade_spectrum`, E5 `turbulent_energy_budget`, E6 `turbulent_jet_similarity`, E7 `law_of_the_wall`, E8
+`mixing_length_closure`, E9 `stratified_surface_layer`, E10 `taylor_dispersion`). Where the reviewer's list is wider than
+the grep, the helper is an inline expression there.
+
+| Rank | Helper | Files carrying a local copy (ch12) | Proposed library name | Why |
+|---|---|---|---|---|
+| 1 | **log axes for `v.plot()`** (`logFrame`, `L10`, log ticks, semi-log and log–log frames) | **eight files**: `logFrame` in E1, E4, E6, E10; `L10` in E1, E4, E5, E7, E8, E9, E10; `logTicks`-type helpers in E7, E8 (+ the ch10 list: E1, E2, E4) | `v.plot({xlog: true, ylog: true})` with decade ticks and minor ticks | every spectrum, every wall profile, every dispersion curve; Ch. 13 needs it on day one (spectra, Ekman depth vs K, Rossby dispersion on log k); third chapter asking |
+| 2 | **bracketed powers of formatted numbers** (`tsq`, `tpow`: `\big(a\times10^{b}\big)^{n}`) | `tsq` in E1, E4, E5, E8, E9; `tpow` in E1, E10 | `Viz.tpow(x, n, sig)` (and `Viz.tsq`) | the round-1 KaTeX double-superscript failures (E1, E4) were this; one tested helper removes the class |
+| 3 | **`fitText`** (shrink-to-fit a canvas label, never below 12 px, else wrap or drop) | E5, E8, E9 | `Viz.fitText(ctx, str, maxWidth, {min: 12})` or a `maxWidth` mode of `Viz.text` | labels on bars and narrow views; the truncated-title finding (11) is the same need |
+| 4 | **`erf` to 1e-14** (series + continued fraction) | E6, E10 (both also call `Viz.num.erf`, good to ≈ 1e-7 only — their rows sit at 1e-6) | fix `Viz.num.erf`/`erfc` in place (asked since ch08) | parity rows at 1e-10 instead of 1e-6; Gaussian profiles and dispersion in Ch. 13 |
+| 5 | **Gauss–Legendre quadrature `gl8`** (8-point rule on a panel, composite) | E5, E8 (local `quad`-type helpers also in E2, E3, E6) | `Viz.num.gauss(f, a, b, {n: 8, panels})` beside `trapz` | wall-profile integrals, spectra and budget integrals to 1e-10 with few evaluations |
+| 6 | **seeded Gaussian and Ornstein–Uhlenbeck draws** (Box–Muller on `Viz.rng`; exact OU update e^{−Δt/τ_c}) | E1, E6, E10 (ch01 E1 has `normal`/`poisson` samplers) | `Viz.rng(seed).normal()`, `Viz.num.ou(rng, n, dt, sigma, tau_c)` | every stochastic explainer; must match the fluidpy recursion for statistical parity rows |
+| 7 | **log-paced transport** (a 0…1 clock mapped to time on a log scale by hand) | E10 | `transport: { param: 't', min, max, scale: 'log' }` | dispersion, spin-up and adjustment span decades (Ch. 13) |
+| 8 | **two-line status** (E9 injects `<br><span class="ssl-conv">` into the status text) | E9 | `status: s => ({ text, sub, tone })` | the two-convention badge; any verdict that needs its criterion underneath |
+| 9 | **per-layout view hiding that frees the space** (`hidePortrait` keeps the flex share; E8 and E9 hide the whole row by scoped CSS and set `flex-grow` by hand) | E8, E9 (+ ch10 list `views[i].hideOn`) | `views[i].hideOn: ['portrait', 'landscape']` removing the view from the flex row | three views cannot stack on a 360×640 phone |
+| 10 | **`.viz-der-chain.viz-sliced { align-items: flex-start; }`** (a sliced derivation line was re-centred in its slice) | E8, E9 | rule in `assets/viz_base.css` | CSS fix, no API |
+| 11 | `sub { font-size: max(12px, .8em) }` in titles and status | E2, E7, E8 (grep also E10) | rule in `assets/viz_base.css` | 12 px floor |
+| 12 | hide the preset strip on phones outside Explore (the same six CSS lines) | at least seven files (reviewer's count) | an app option `presets: { phones: 'explore' }` | removes a copy-pasted block |
+| 13 | `arrowPx` (fifth chapter) | E3, E5, E6, E8, E9 (+ 24 earlier files) | `Viz.arrowPx(ctx, x0, y0, x1, y1, opts)` | unchanged from the ch09–ch11 lists |
+
+Order for the library pass (when nothing reads `viz/` or `assets/`): ch12 ranks 1–4 and 10–11 first (they remove audited
+failures), then 5–9; with the ch11 list (complex numbers, `bisect`/`goldenMax`, table interpolation, cubic solver) and the
+ch10 list (`Viz.num.linalg`, `gutterPlot`). Then `tools/viz_inline.py --all`, `tools/shot.py --chapter ch01 … ch12 --quick`
+and `tools/shot.py templates/viz_example.html --quick`; revert on any failure.
+
+### ch12 library and tool findings (the reviewer's 14, verbatim in substance; nothing was edited)
+1. `.viz-der-chain` is `align-items: center`: a line the pager cuts over two pages is re-centred in its slice (rank 10).
+2. A `hidePortrait` view keeps its flex share of the row (rank 9).
+3. `<sub>` in titles and status falls below 12 px (rank 11).
+4. No log axes in `v.plot()`: local helpers in eight files (rank 1).
+5. `Viz.num.erf` is good to about 1e-7 only (rank 4).
+6. No log-paced transport (rank 7).
+7. No two-line status (rank 8).
+8. `Viz.tnum(x) + '^2'` is a KaTeX double superscript when x prints as a×10^{b} (rank 2).
+9. **`tools/shot.py` does not fail on `.katex-error` nodes and audits Explain only in the default and step states.**
+10. A quoted derivation step's "All steps →" button can be cut by a page slice on phones (E2).
+11. View titles are truncated with "…" instead of wrapping (E5, E9).
+12. At least seven files hide the preset strip on phones outside Explore with the same six CSS lines (rank 12).
+13. `Viz.fmt`/`Viz.tnum` print values below 1e-12 as 0 unless `keepTiny` is passed.
+14. Two builders' probe scripts collided by file name in the shared scratch folder.
+
+### ch12 open explainer items (Should, non-blocking; from `reports/ch12_viz.md` round 2)
+- **E3, E9, E6: label slips #16, #17, #18** in the house wording (the numbers did not exist when the files were built;
+  the corrected forms are already shown). E9: move the −$\overline{uw}$ = u_*² correction from the *watch* line of D25
+  step 1 into its *why*; E6: D13 says "trap".
+- E1: "0.241 = 0.280 + -0.040" → "− 0.040" with a sum that closes on the printed digits; "(no wave in these runs)" on the
+  N → ∞ line; **no fluidpy twin for the OU window variance** (`ch12.time_average_variance_ou` at the next implementer pass).
+- E2: "All steps →" cut on `phone-tall` step 4; say the rose/blue exception in Explain section 0.
+- E5: D10 step 4 takes 9 card pages at 360×640 (hide the step dots there); title truncated at 1000×700; "with damping" in
+  the undamped note.
+- E6: D16 step 1 *why* is 36 words.
+- E7: step 2 should write $u_*^2\equiv\tau_0/\rho$ beside (12.81); Explore 10 pages on a phone (cut readouts to five);
+  "equal shares at 9.9 (Spalding's curve; the mixing-length channel gives 10.5)"; "B −17.55" with a hyphen; model fit
+  0.382 / 3.94 here vs 0.383 / 3.99 in the notebook.
+- E8: DNS intercept "about 4.29" vs 4.28 in E7 and the notebook; Explore 10 pages on a phone.
+- E9: the Code tab prints fluidpy's "Γ < Γa: 6.5 < 9.8 K/km" two lines under "dT/dz > Γa: −6.5 > −9.8 K/km" (add a comment
+  line, or change the library string); ∂ beside (12.106); label the readout "Ri = Pr_T·Rf (neutral shear)"; step 1 over 4
+  card pages on a phone.
+- E10: a lone full stop after u_rms in the Explore intro on a phone.
+- Backup B1 `k_epsilon_decay` not built (C13 has no explainer; neither has C05).
+
+### ch12 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **`tools/shot.py`: fail on any `.katex-error` node, on every page of every pager, and walk the presets (and both ends of
+  every slider) with the Explain tab open** — third chapter; the reviewer's DOM probe and string probe exist only as
+  session scratch files.
+- `tools/check_public.py` now reads `_forbidden_public_regex` from the private `tests/book_values_chNN.json` and exits on an
+  unparsable private file; **still tracked files only** — document "run after `git add`, or pass the files explicitly".
+  Seed the regex list for a chapter **before** scripts and design are written.
+- `tools/nbkit.py`: move `self_check_ctrl`, `self_check_eaten` (TeX command tails without a backslash) and
+  `self_check_near` out of `build_chNN.py` into the kit; generic comment phrases still generated on 113 lines (fourth
+  chapter); stray `<matplotlib.legend.Legend …>` outputs (end the cell with a semicolon).
+- `tools/eq_refs.py`: `ref:` labels of the form "Eq. (12.54), exponent corrected" on cards that show the TeX are flagged
+  (4 hits accepted by hand) — allow a suffix after the number on `ref:` labels.
+- A contract audit tool: compare `inspect.signature` of every design Part C name with the module (done by hand on resume).
+- Per-slug scratch subfolders (collisions in ch10, ch11, ch12).
+- `viz_lint` control-character rule (seven chapters).
+
+### ch12 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch12) **never append `^n` to a formatted number — bracket it (`tsq`/`tpow`)**, and run a
+  `.katex-error` probe over presets × slider ends × tabs × pager pages before review · **compute displayed constants from
+  the page's own functions; no typed results in reader strings** · a derivation step shows its own equation, never a
+  placeholder · run every Code block as displayed · a status badge shows the bare verdict word, then the criterion in the
+  chosen convention, then the other convention — never a raw library string, never a regime label as a stability verdict ·
+  a fitted constant is shown with its window, and the window is draggable · term bars of a budget sum to zero and the
+  remainder is labelled "remainder" · two views at a time on a 360×640 phone, swapped by step · pass `keepTiny` for
+  physically tiny values · "printed vs corrected" toggles carry parity rows on both.
+- `math-to-python` §7: (ch12) **an argument that carries a convention or a physical assumption is a required keyword**
+  (`Gamma_a`) · **empirical constants are never silent defaults** (κ, B, Π, z₀) and illustrative ones are visibly not the
+  book's · dictionary keys carry their sign (`minus_uv_plus`) · state one-sided vs two-sided beside every spectral constant ·
+  "to the first zero" is not an integral scale when the correlation has a negative lobe · a fitted constant is a function of
+  its window · outside its range a formula returns NaN · classifier boundaries are compared on the ratio, inclusive, and
+  mirrored the same way in JS · synthetic random-phase fields are kinematic; 2-D and 3-D isotropy differ.
+- `verify-implementation`: (ch12) **a test that compares a constant with its cited value is "constant consistency", not
+  V5** · **a benchmark whose source nobody read first-hand is not a benchmark** (flag `verified_first_hand: false`, test the
+  flag) · models against DNS are "approximate" with the band in the test · an identity that holds for any input cannot test
+  which input was used (R16) · sampled assertions: seed + 5 standard errors + a measured scatter exponent · a self-audit test
+  that every contract name is called by a test · run the mutant campaign on `@slow` tests too.
+- `teaching-style` Lessons: (ch12) **a number may stand only beside the equation actually printed under it**; never start
+  a sentence with a symbol · show an artefact beside the clean result with its predicted size, and **test an explanation by
+  removing the alleged cause** · "Where this holds" under an order-of-magnitude estimate · a printed gap before a
+  comparative sentence · a slip box says what is printed, why it fails, what is right, and checks both — and never
+  over-claims ("a valid family", not "the valid one") · a library string in another notation is translated at every
+  appearance · "theorem vs observation" for look-alike criteria · the ch12 derivation moves in `concept_map.md`.
+- `colab-notebook` / nbkit: (ch12) **never write LaTeX through a shell heredoc**; the builder scans its own output for
+  control characters and command tails without a backslash, and the scanner is tested on planted damage · design "expect"
+  values are hypotheses (report, do not edit) · runtime is load-dependent — measure on an idle machine; trim animation frames
+  before anything else · the committed notebook should be the executed one.
 
 ### ch11 candidates (listed, **not promoted**: the ch11 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
 From `reports/ch11_viz.md` ("Helpers worth promoting") and a grep for named function definitions in the nine chapter scripts
@@ -1308,6 +1455,24 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   energy bars" → baroclinic energy conversion.
 - **Ch. 15 compressible (from ch11)**: E2's c-plane where two real roots collide → the compressible vortex sheet (stabilised
   above a Mach number); E1's mode switcher → acoustic vs vorticity vs entropy modes.
+- **Ch. 12 (done — what came of the plans above)**: ch11 E8's production/dissipation bars became E5's paired budgets with
+  the mirrored production term and DNS-era channel numbers; the "turbulent channel against DNS profiles" became E7 (five
+  Lee & Moser profiles, draggable fit window) and E8 (closure constants); the −5/3 slope reading became E4 (ladder + model
+  spectrum + units inspector); ch01's two-convention badge became E9's two-line status; ch09's raw ↔ rescaled collapse
+  became E6 with an invariant line as the judge; ch11 E9's "statistics are predictable" became E1 (two estimators of one
+  mean). Not built: numerical vs eddy viscosity (ch10 idea), a MAC 2-D decaying field (it would show the opposite
+  cascade), backup B1 `k_epsilon_decay`.
+- **Ch. 13 GFD (from ch12)**: **E9's two-convention badge, H-as-transport and ✕-at-the-edge-of-validity are the template
+  for every stratified explainer** (Ri-based mixing, stable boundary layer, convective adjustment); **E5's paired budgets
+  with a mirrored term → geostrophic and Ekman force balances with bars that sum to zero ("turn off Coriolis" presets) and
+  the Lorenz energy cycle (baroclinic conversion g α$\overline{wT'}$ as the shared bar)**; E7's draggable fit window →
+  fitting a spectral slope (k⁻³ vs k^{−5/3}) or an Ekman e-folding depth on data; E2's lag-and-spectrum stage → a Rossby
+  or inertial peak in a spectrum; E3's click-one-sample-then-thousands → an eddy heat flux $\overline{v'T'}$ from correlated
+  v′ and T′; E4's ladder → the two cascades of 2-D / geostrophic turbulence (energy upscale, enstrophy downscale) with the
+  Rossby radius marked; E10's log-paced transport and puff ↔ plume modes → spin-up over many rotation periods, tracer
+  spreading on isopycnals; E8's "κ turns it, damping slides it" → an Ekman layer with constant K vs K(z) (what each
+  closure constant does to the spiral); E6's invariant line → potential vorticity as the invariant that turns rose when a
+  wrong scaling is tried; E1's noise · drift · leak error bars → "how long a record for a climate mean?".
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

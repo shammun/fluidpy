@@ -499,7 +499,11 @@ button, input, select { font: inherit; color: inherit; }
     .viz-app[data-layout="portrait"][data-tab="tour"] .viz-stage-top > .viz-seg { display: none !important; }
   }
   /* landscape phones: the flow becomes a strip above the profiles and the conserved integrals */
-  .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(1) { flex: 0.62 1 0 !important; }
+  .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(1) { flex: 0.8 1 0 !important; }
+  /* ... and, as on small upright phones, the transport bar and the view titles go (drag the bold station in the flow view):
+     an embedded landscape frame is only about 345 px tall, and the flow view must keep its 60 px */
+  .viz-app[data-layout="landscape"] .viz-transport { display: none !important; }
+  .viz-app[data-layout="landscape"] .viz-view-title { display: none !important; }
 </style>
 </head>
 <body>

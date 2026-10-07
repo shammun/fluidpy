@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive explainers — fluidpy</title>
 <meta name="description" content="Every interactive explainer, by chapter">
-<link rel="stylesheet" href="../assets/clean-educational.css?v=1790884486">
-<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1790884486">
+<link rel="stylesheet" href="../assets/clean-educational.css?v=1791410256">
+<link rel="stylesheet" href="../assets/fluidpy-site.css?v=1791410256">
 </head>
 <body>
 <div class="ce-container">
@@ -476,6 +476,58 @@ then <b>Explore</b> with the sliders, read the <b>Equations</b> with your own nu
 <b>How can three exact equations be unpredictable?</b>
 <p>Two starts a hundred-millionth apart on the Lorenz attractor, on one clock: the 3-D orbit, X(t) of both runs, the log of their separation and the convection roll they describe. Move r through 1 and 24.74 and watch the verdict change.</p>
 <div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch11/lorenz_attractor.html">Open full window</a><a class="fp-btn" href="../notebooks/ch11_instability.html#viz-lorenz_attractor">In the chapter</a></div>
+</div></div>
+<h2 id="ch12">Chapter 12 — Turbulence</h2>
+<div class="fp-gallery"><div class="fp-gal">
+<small>Ch. 12 · explainer 1 · §12.3 12.4</small>
+<b>How long must you average to get &#x27;the mean&#x27;?</b>
+<p>Many runs or one long record: drag the number of members and the window and watch each estimate of the mean converge - or fail.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/reynolds_averaging_window.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-reynolds_averaging_window">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 2 · §12.4</small>
+<b>Why are a correlation and a spectrum the same thing?</b>
+<p>Slide a signal past itself to build its autocorrelation; stretch its memory and watch the spectrum squeeze while its area stays the variance.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/correlation_and_spectrum.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-correlation_and_spectrum">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 3 · §12.5 12.6</small>
+<b>How can fluctuations push the mean flow?</b>
+<p>Release parcels in a shear: each lands in the (u, v) scatter, the cloud tilts, and the tilt is the Reynolds stress.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/reynolds_stress_parcels.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-reynolds_stress_parcels">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 4 · §12.7</small>
+<b>What does a higher Reynolds number change?</b>
+<p>The big eddies fix the energy supply; viscosity only decides how far down the ladder it must go. Drag ΔU, L and ν and watch the cascade and the −5/3 range.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/energy_cascade_spectrum.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-energy_cascade_spectrum">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 5 · §12.7 12.9 12.10</small>
+<b>Where does turbulent energy come from and go?</b>
+<p>Click a height in a channel: the mean flow&#x27;s loss and the turbulence&#x27;s gain are the same bar with opposite signs.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/turbulent_energy_budget.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-turbulent_energy_budget">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 6 · §12.8</small>
+<b>How does a jet spread without a turbulence model?</b>
+<p>One conserved flux and one shape: toggle raw and rescaled profiles, break the exponents, switch to wakes and plumes.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/turbulent_jet_similarity.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-turbulent_jet_similarity">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 7 · §12.9</small>
+<b>Where does the logarithm come from?</b>
+<p>Wall units collapse every profile near the wall, outer units far from it; where both hold, y dU/dy can depend on neither. Slide the friction Reynolds number and watch the log layer open.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/law_of_the_wall.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-law_of_the_wall">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 8 · §12.10</small>
+<b>What does a closure constant do?</b>
+<p>Replace the Reynolds stress by l_T²(dU/dy)² with l_T = κy: κ turns the log line, the wall damping slides it, and switching the model off returns the laminar parabola.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/mixing_length_closure.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-mixing_length_closure">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 9 · §12.11</small>
+<b>When does stratification kill turbulence?</b>
+<p>Drag the surface heat flux through zero: the Monin-Obukhov length flips sign, the wind profile bends the other way, and the height where buoyancy beats shear moves.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/stratified_surface_layer.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-stratified_surface_layer">In the chapter</a></div>
+</div><div class="fp-gal">
+<small>Ch. 12 · explainer 10 · §12.12</small>
+<b>Why does a puff spread like t, then like √t?</b>
+<p>Particles leave a source on one clock: while they remember their velocity the cloud is a wedge, afterwards a random walk - and the eddy diffusivity grows before it settles.</p>
+<div class="fp-row" style="display:flex;gap:6px;flex-wrap:wrap"><a class="fp-btn primary" href="ch12/taylor_dispersion.html">Open full window</a><a class="fp-btn" href="../notebooks/ch12_turbulence.html#viz-taylor_dispersion">In the chapter</a></div>
 </div></div>
 </div>
 </body>
