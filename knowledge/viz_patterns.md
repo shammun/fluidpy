@@ -21,6 +21,11 @@ ch12 E1 `reynolds_averaging_window`, E2 `correlation_and_spectrum`, E3 `reynolds
 `mixing_length_closure`, E9 `stratified_surface_layer`, E10 `taylor_dispersion` (all PASS round 2 — five failed round 1;
 597 selftest rows of which 444 JS ↔ fluidpy, worst 8.0e-07; 24 derivation instances / 220 steps equal to the design; the
 first chapter with ten explainers).
+ch13 E1 `geostrophic_balance`, E2 `thermal_wind`, E3 `ekman_spiral`, E4 `ekman_force_balance`, E5 `vertical_modes`, E6
+`shallow_water_dispersion`, E7 `kelvin_wave`, E8 `geostrophic_adjustment`, E9 `rossby_waves`, E10 `eady_instability` (all
+PASS round 2 — round 1 had 4 Must in three files; 482 selftest rows of which 374 JS ↔ fluidpy; 14 derivations / 137 steps
+equal to the design; every file also audited at the in-page landscape frame 844×345 and probed for `.katex-error` by
+the builders and the reviewer, because `tools/shot.py` does neither; no library change).
 
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
@@ -237,6 +242,19 @@ first chapter with ten explainers).
 | **Real-case table with the current row highlighted + presets that are real flows** (kitchen mixer, wind tunnel, atmospheric boundary layer, ocean thermocline) and an inspector that checks units at the clicked point | ch12 E4 `energy_cascade_spectrum` | scale separation is a number in four familiar settings; the units inspector shows the printed slip failing |
 | **A formula that ends with ✕ at the edge of its range, with the reason on the canvas** (log-linear wind stops at z = \|L_M\|/5) and the continuation labelled "a commonly used form", no source claimed | ch12 E9 | validity limits are drawn, not footnoted; honest about an unread citation |
 | **Reviewer's `.katex-error` DOM probe + throwing-mode string probe** over default · every preset · every quiz state · both ends of every slider · every chip · every tab · every derivation page · every walkthrough step (218 state loads, 3 624 tab/page visits; 335 states, ≈ 4 240 fragments) | ch12 viz review (found E1 and E4; 0 in round 2) | catches what `shot.py` passes; the selector found the two round-1 failures, so the zeros can be trusted |
+| **Snapshot vs period mean vs prediction for a ringing adjustment**: the instantaneous surface (orange) rings for ever behind the fronts, its mean over one inertial period (teal) lies on the dashed closed-form end state; the conserved quantity is drawn flat in amber; an energy bill shows one third kept; "no rotation first, then the same step on a turning earth" as steps 1–3 | ch13 E8 `geostrophic_adjustment` (the chapter's clearest "aha"; 67 rows, 51 py) | a non-dissipative system never "arrives"; comparing the mean, not the snapshot, makes the end state visible and honest (→ any spin-up, starting vortex, impulsive start) |
+| **Chord and tangent on ω(k), plus a wavenumber circle whose centre the energy arrow points at**: chord from the origin = phase speed, tangent = group velocity, on one curve with the sign change marked; crest ▲ against group ◆ on one clock in the physical view; a clicked column whose arithmetic (βY, stretching share, resulting spin) is traced in the walkthrough card | ch13 E9 `rossby_waves` (best of the chapter on a desktop) | "crests west, energy east" is two slopes of one curve; the mechanism is one column's vorticity budget the reader can follow |
+| **Equations as pairs of equal bars at a cursor, with the refused solution drawn**: each of the three Kelvin equations is two bars of equal length at the cursor position; the wrong direction of travel is drawn growing offshore, greyed, and the status says to turn the wave round | ch13 E7 `kelvin_wave` | a balance is seen term by term at one point; a rejected root is something the reader sees fail, not a sentence |
+| **Sign bars that swap sides while the result bar stays**: f and the temperature gradient are two bars that flip together when the hemisphere chip changes; the shear bar does not move | ch13 E2 `thermal_wind` | "two sign changes, same answer" is the whole point of the hemisphere switch; works for any pair of cancelling conventions |
+| **Log term bars with "smallest / largest" for the selected root of a dispersion relation**: the four terms of the cubic as bars on a log axis for the root under the cursor, the two that balance labelled; three roots on one log–log diagram, the Kelvin line dashed "not a root"; a band shaded where no real triple exists (cards and dashes there, never a number or NaN) | ch13 E6 `shallow_water_dispersion` (60 rows, 47 py) | "which approximation is safe here" is read off bars; a printed slip (#7) becomes a toggle with its own quiz answer |
+| **One cursor shared by a 3-D curve, its hodograph and a running integral**: a depth cursor moves down the spiral, along the hodograph and up the profile, while a purple arrow shows the transport summed so far swinging to 90° | ch13 E3 `ekman_spiral` | an integral result ("the transport is at right angles") is built in front of the reader; "four times the viscosity: twice as deep, half as fast, same transport" is one step with the code line that contains no ν |
+| **Force arrows that close tip to tail, with per-axis term bars that sum to zero**, and a "balanced start" contrast (release from rest: arches; start at the balanced velocity: a straight line along the isobar) | ch13 E1 `geostrophic_balance`, E4 `ekman_force_balance` (triangle that leans toward low pressure in both hemispheres) | the ch12 "bars sum to zero" pattern for forces; a closed polygon is a balance the eye checks |
+| **Hemisphere chips (N / S = sign of f) on every explainer where a direction word appears**, with status sentences that name the side ("coast on the left", "45° to the left") and screenshots at 35° S (60° S for the Ekman pair) checked against the Python | ch13 E1, E2, E3, E4, E7, E8 | every "to the right" of the book is a northern-hemisphere statement; the mirror case is one tap away and pinned by parity rows |
+| **A threshold crossed by one cursor with ◆ cut-off and ▲ fastest-growing presets**, and a quiz that separates two look-alike curves ("growth is k c_i, not c_i" with both drawn) | ch13 E10 `eady_instability` | the reader slides through the cut-off and watches a growing tilted wave fall apart into two neutral edge waves |
+| **Two independent solvers mirrored in JS, each pinned to fluidpy** (finite-difference matrix and shooting for the vertical modes; closed form and Chebyshev eigenvalue for Eady), with a live overlap integral in the view title | ch13 E5 `vertical_modes`, E10 | parity rows test two routes instead of one; "orthogonal with weight 1 for either lid" is a number on screen |
+| **"Ours — not in the book" labels on readouts, legends, titles and callouts** (Ekman pumping, the thermal wind in temperature form, the whole adjustment problem, Rossby and Poincaré group velocities, the Eady growth rate in physical units, the energy speed of the cubic's roots) | all ten ch13 explainers (the one gap of round 1 was a Must) | readers and reviewers can tell a book equation from our extension at a glance |
+| **Derivation quote instead of an equation card in a walkthrough step on phones**: the step shows one derivation step with "All steps →" and drops the live `eq` card | ch13 E5 (fix of the round-1 clip), recommended for E1, E3, E4, E7 | one heavy extra per step keeps a phone step to about four pages and avoids cards whose live rows are filled after the pager measures |
+| **Reviewer tooling re-used from the library**: `shot.audit_explainer` called at a ninth size (844×345, the in-page landscape frame) and a "characters per pager page" scan that finds heading-only pages | ch13 viz review (567 pager pages audited in round 2) | finds title-only pages and clipped derivation steps that the eight standard sizes miss |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -418,6 +436,25 @@ first chapter with ten explainers).
 | **Two estimators or two models, two numbers for "the same" quantity**: DNS intercept 4.29 (mean at fixed κ) vs 4.28 (least squares); equal stresses at y⁺ = 9.9 (Spalding) vs 10.46 (mixing length); model fit 0.382 / 3.94 (page) vs 0.383 / 3.99 (notebook grid); Ri 0.12 vs 0.0752 from two formulas on one screen | ch12 E5, E7, E8, E9 (open, Should) | name the estimator or the model beside each number, or use one across the chapter |
 | **Colour code reused with another meaning** (rose and blue for parts of a product; blue for uv > 0) while the chapter fixes blue = buoyancy, rose = dissipation | ch12 E2, E3 (open) | keep the chapter colour code or say the exception in Explain section 0; muted grey for "the other sign" |
 | **Builders' probe scripts collided by file name in the shared scratch folder** (third chapter) | ch12 viz phase | per-slug scratch subfolders and slug-prefixed file names |
+| **A walkthrough `eq` card with live rows clipped intermittently on portrait phones**: the pager measures the card before the live rows are filled, so the card grows after it was packed (shot FAIL in one of several runs) | ch13 E5 `vertical_modes` step 3 (round-1 Must), E3 `ekman_spiral` | no live `eq` card in a walkthrough step on portrait phones — quote the derivation step instead; library: re-measure after the live fill |
+| **Walkthrough steps of 6–9 pages at 360×640** when a step carries both an equation card and a derivation quote of the same line | ch13 E7 step 2 (9), E4 step 3 (8), E1 steps 2–4 (6–8), E2 step 4 (7), E3 step 3, E8 step 5 (open, Should) | one heavy extra per step on portrait phones |
+| **Explain tab of 28–37 pages on a phone, first page a lone heading** (text body about 50 px under three stacked views) | ch13 E9 (round-1 Must: 37 → 16 pages by keeping only the ω(k) view on portrait in Explain and Explore, with a hint), E10 (28, open), E6 (24), E5 (19) | hide all but one view in the text-heavy tabs on portrait; library: a pager rule "keep a heading with the next block" |
+| **Title-only first page of a derivation step at 844×345** | ch13 E7 (open), E9 (fixed by shortening) | shorter step titles; the same pager rule |
+| **A quantity shown but neither worked out nor labelled** (the energy speed of the selected root: a readout and an arrow, no Explain section, no "ours") | ch13 E6 (round-1 Must) | every readout has an Explain section and, when it is not in the book, the "ours" label on readout, legend, title and callout |
+| **Stack rows crowded, values drawn through the ◇ markers** on a short view | ch13 E5 (round-1 Must) | on a short stack only the selected row carries its value |
+| **Columns that did not move with the mean flow** while the text said they were advected | ch13 E9 (round 1, closed) | advect and wrap them; pin the drift and the wrap with parity rows |
+| **"Settles" for a frictionless parcel** in design and first drafts (it traces cycloid arches for ever; it settles only with drag) | ch13 E1 text, notebook cells (lesson round 1 Must) | status and quiz say "overshoots … about a steady drift"; "settles" only in the drag-on case |
+| **View titles truncated with "…" at 844×345 and losing their number or unit** (second chapter) | ch13 E8, E9 (open) | short titles per layout; the number also in the status badge; library `titleShort` |
+| **View titles are not re-evaluated on a tab change** (a title that depends on the tab or layout stays stale until the next state change) | ch13 builders (library behaviour) | trigger a state refresh on tab change, or keep titles independent of the tab |
+| **Code-tab `live` placeholders merge across blocks** (third chapter) and code comments wrap above ≈ 46 characters even on a desktop | ch13 E3 and others | unique placeholder names per block; comment lines ≤ 46 characters or the live value on its own line |
+| **`Viz.fmt` prints values below 1e-12 as 0** (Rossby frequencies and growth rates in SI are that small when squared or multiplied) | ch13 E9 (local `fk`, `tk` with `keepTiny`), E6 | pass `keepTiny`; consider making it the default for values with a unit |
+| **Plain lambdas in `py:` parity rows cannot see `ch13`** under shot.py's evaluator | ch13 builders | call fluidpy functions directly or pass callables that need no closure; tooling: bind the chapter module into lambda scope |
+| **Missing `.c-amber` class** in the base CSS (amber is the chapter's colour for vorticity and PV) | ch13 E5, E6, E8, E9, E10 use the class (`assets/viz_base.css` has no such rule; builders' note) | add `.c-amber` to `assets/viz_base.css` beside the other colour classes |
+| **Velocity has no single colour across the chapter**: grey in E1 and E4, teal in E3 and E7 (where teal is also the Coriolis force), purple in E2 and E8; forces follow the colour code everywhere | ch13 (open, Should; recorded here as the exception) | fix one velocity colour in the design's colour code before the builders start |
+| **Parity rows with a tolerance far looser than the agreement, without a reason** (rtol 1e-4 or 1e-5 where the value agrees to 5e-9 or 1e-8) | ch13 E4, E8, E10 (open, Should) | tighten the row or put the reason in its label (two discretisations, a cached float16 run) |
+| **Two values of "the same" number across explainers** (first-mode Rossby radius 43.1 km with a free surface by shooting, 43.2 km from NH/π) | ch13 E5 vs E6, E7, E8 (open) | say which formula once in Explain |
+| **A script with other inputs than the notebook and the explainer** (the Eady "ocean twin": about 11 days and 126 km in the script, 22.3 days and 234 km on the page) | `scripts/ch13_instability.py` (open, implementer) | scripts read `ch13.illustrative_inputs()` or the same named preset as the explainer |
+| **A shared scratchpad again**: one agent overwrote another's file; one agent left an interpreter running | ch13 viz and review phases (fourth chapter) | one private sub-folder per agent, slug-prefixed file names, and a process check before hand-back |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -600,6 +637,111 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch13 candidates (listed, **not promoted**: the ch13 knowledge pass ran while the site-publisher was reading `viz/`)
+From the builders' notes (orchestrator's log), `reports/ch13_viz.md` and a scan of named definitions in the ten chapter
+files (E1 `geostrophic_balance`, E2 `thermal_wind`, E3 `ekman_spiral`, E4 `ekman_force_balance`, E5 `vertical_modes`, E6
+`shallow_water_dispersion`, E7 `kelvin_wave`, E8 `geostrophic_adjustment`, E9 `rossby_waves`, E10 `eady_instability`).
+"Rating": **A** clearly worth it (removes an audited failure or a helper copied in many files) · B useful on second use ·
+C keep local.
+
+| Rank | Helper or fix | Files carrying a local copy (ch13) | Proposed library name | Rating · why |
+|---|---|---|---|---|
+| 1 | **`tools/shot.py`: audit the in-page landscape frame 844×345 and fail on `.katex-error`** | every builder and the reviewer ran both from scratch scripts (ten files, two rounds) | a ninth size in the size table; a DOM check on every page of every pager | **A** — fourth chapter asking; `shot.audit_explainer` already accepts the size |
+| 2 | **pixel-space arrow** (`arrowPx`, `arrow2`, `arrow`, `arrowOf`) | `arrowPx` E1; `arrow2` E3, E4, E6, E7; `arrow` E10; `arrowOf` E7, E9 (+ 29 earlier files) | `Viz.arrowPx(ctx, x0, y0, x1, y1, {color, width, head})` | **A** — sixth chapter; eight of ten files here; force and velocity arrows are the chapter's main graphic |
+| 3 | **plot with a y-title strip** (`vplot`, `splot`) | `vplot` E3, E4, E7; `splot` E9 (+ ch01 E4, ch10 `gutterPlot`) | `v.plot({ylabelGutter: true})` or default below 420 px | **A** — a library defect since ch01 (the rotated title covers tick minus signs) |
+| 4 | **log axes and decade ticks** (`pow10` and `Math.log10` frames; carried from ch12 rank 1) and **symmetric-log signed bars** | `pow10` E6; `Math.log10` scalings written by hand in all ten files; symmetric-log bars E6 (builders' note) | `v.plot({xlog, ylog})`, `Viz.num.pow10Ticks`, a `symlog` scale for bars | **A** — every dispersion diagram, spectrum and term-size bar; the first ch12 candidate, still open |
+| 5 | **pager: keep a heading with the next block; re-measure a card after its live rows are filled** | title-only pages in E7, E9 (derivation), E3, E6 (Explain); intermittent clip E5, E3 | library fix in `Pager.layout` | **A** — removes a class of Should-fix items for every chapter and the one intermittent FAIL |
+| 6 | **marker glyphs** (`diamond`, `triangle`) for special points | `diamond` E6, E9; `triangle` E9; inline ◆ ▲ drawing in E4, E10 | `P.marker(x, y, {shape: 'diamond' \| 'triangle' \| 'cross'})` | B — every explainer marks cut-off, fastest mode, maximum |
+| 7 | **trajectory cache by RK4** (`march`, `rk4Uniform`, `displayMarch`) | `march` E1, E8; `rk4Uniform` E1 | `Viz.num.march(rhs, y0, {dt, n})` returning a cached typed array keyed by the parameters | B — two files; the same need as ch11 E9 and ch12 E10 |
+| 8 | **hemisphere and side helpers** (`side(f)`, `sideOf`, `angSide`, `fCor`) | `fCor` in all ten; `side` E2, E3, E4, E7; `sideOf` E1, E8; `angSide` E3 | keep local (chapter physics), but one shared snippet in the design's Part C.6 | C for the library — **A as a design snippet**: ten copies of f = 2Ω sin θ must agree with `ch13.coriolis_parameter` (each has a parity row) |
+| 9 | **contour-level and tick helpers** (`niceStep`, `levelsBetween`, `niceCeil`) | `niceStep`, `levelsBetween` E2; `niceCeil` E10 | `Viz.num.niceStep(span, n)`, `Viz.num.levels(lo, hi, n)` | B — beside the existing `niceTicks` |
+| 10 | **cached scalar field** (`fieldCache`) and **shaded field in a named colour** (`rgb(name)`, `rgbOf`) | `fieldCache` E2; `rgb` E10; `rgbOf` E2 | `Viz.field.cache(key, fn)`; `Viz.rgb(name)` returning [r, g, b] | B — heat maps recomputed every frame are the main cost on phones |
+| 11 | **canvas orthographic projector** (`drawSpiral`) | E3 (by the builders' count the fourth user of a projector of this kind; ch11 E9 is another) | `Viz.proj3({theta, phi, scale})` with drag-to-orbit | B — line data in 3-D without three.js |
+| 12 | **small eigen-solvers** (`solveModes`, `shoot`, `fdSpeeds`; `cubicRoots`) | E5; `cubicRoots` E6 (ch11 list: cubic solver, `bisect`) | `Viz.num.tridiagEig`, `Viz.num.cubicRoots` | B — with the ch10/ch11 `Viz.num.linalg` request |
+| 13 | **formatters** (`fk`, `tk` with `keepTiny`; `tb`; `tn`; `km`, `kmTxt`; `formal`; `axUnit`) | `fk`, `tk` E9; `tb`, `tn` E2, E5, E10; `km`/`kmTxt` E5, E7, E8, E9, E10; `formal`, `axUnit` E7 | `Viz.fmt(v, {keepTiny: true})` as the default for SI values with a unit; `Viz.fmtLength` (asked since ch01) | B — five files format kilometres by hand |
+| 14 | **layout helpers** (`roomy()`, `isPhone()`, `st8`) | `roomy` E4, E7, E9; `isPhone` E2, E5, E10; `st8` E3, E4, E6, E7, E9 | `g.app.layout` / `g.app.density` exposed to draw callbacks | B — builders re-derive the layout from the canvas size |
+| 15 | **drawing helpers** (`drawStack` log bars; `land()` coast hatch; `vline()`; `smooth()`; `convEnd()`; `spin`; `markMode`) | `drawStack` E5; `land` E7 (E6); `vline`, `smooth`, `convEnd` E8; `spin` E9; `markMode` E2, E5 | keep local | C — one file each (two for `markMode`) |
+| 16 | carried from ch12, unchanged: **`Viz.tpow` / `tsq`** (bracketed powers), precise `erf`, Gauss–Legendre, seeded Gaussian draws, log-paced transport, two-line status, `hideOn`, the two CSS rules; **new CSS: `.c-amber`** | ch12 list; `.c-amber` used in E5, E6, E8, E9, E10 | as listed under ch12 | A for `tpow` and the CSS rules (they remove audited failures) |
+
+**Top five, clearly worth it:** (1) `tools/shot.py` 844×345 + `.katex-error`; (2) `Viz.arrowPx`; (3) the y-title strip
+in `v.plot()`; (4) log axes with decade ticks (and a symmetric-log bar scale); (5) the pager's "keep a heading with the next
+block" and "re-measure after the live fill". Order for the library pass (when nothing reads `viz/` or `assets/`): these
+five, then the ch12 ranks 2–4 and 10–11, then the rest; afterwards `tools/viz_inline.py --all`,
+`tools/shot.py --chapter ch01 … ch13 --quick` and `tools/shot.py templates/viz_example.html --quick`; revert on any failure.
+
+### ch13 library and tool findings (from the builders and the reviewer; nothing was edited)
+1. `tools/shot.py` does not audit 844×345 and does not fail on `.katex-error` (rank 1).
+2. The pager can leave a heading alone on a page (Explain) or a title alone on the first page of a derivation step (rank 5).
+3. A walkthrough `eq` card with live rows is measured before the rows are filled — intermittent clip on portrait phones.
+4. Code-tab `live` placeholders merge across blocks (one namespace; third chapter).
+5. `Viz.fmt` prints values below 1e-12 as 0 unless `keepTiny` is passed.
+6. Plain lambdas in `py:` rows cannot see `ch13` under the shot evaluator.
+7. View titles are not re-evaluated on a tab change; long titles are truncated with "…" instead of wrapping.
+8. `assets/viz_base.css` has no `.c-amber` class.
+9. Code lines wrap above ≈ 46 characters in the walkthrough card even on a desktop (the skill says ≤ 70).
+
+### ch13 open explainer items (Should, non-blocking; from `reports/ch13_viz.md` round 2)
+- E1: steps 2–4 need 6–8 pages at 360×640 (step 3 has an equation card and a derivation quote of the same line); the D03
+  result page's "% of the Coriolis arrow" sentence at t = 0.
+- E2: step 4 is 7 phone pages; step 6 says "Switch to S" while the chip stays on N.
+- E3: Explore 10 phone pages (mark three controls `optional`); code comments wrap; one more significant figure for the
+  current at 5 δ; Explain opens with a heading-only page on a phone.
+- E4: step 3 is 8 phone pages; a parity row at rtol 1e-5 without a reason.
+- E5: step 3 page 2 of 4 shows only the head of the quote; Explain 19 phone pages; say once why the radius reads 43.1 km
+  here and 43.2 km elsewhere.
+- E6: Explain 24 phone pages; a "why" note beside the second formula row on a desktop.
+- E7: step 2 is 9 phone pages; a title-only derivation page at 844×345; Λ ≡ c/f on the Equations card while the numbers
+  use c/abs(f).
+- E8: two titles truncated at 844×345; thirteen rows looser than 1e-6 (one without a reason); the end card covers the
+  curve near the front.
+- E9: a cut unit in a title at 844×345; Explore on a phone shows the curve alone with about 170 px of empty text panel.
+- E10: Explain 28 phone pages; a parity row at rtol 1e-4 where the value agrees to 5e-9.
+- Chapter-wide: one colour for velocity; `scripts/ch13_instability.py` inputs; backup B1 `inertia_gravity_beams` not
+  built (C14 and C17 have no explainer; C01 and C07 neither).
+
+### ch13 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **`tools/shot.py`**: add 844×345 to the audited sizes; fail on `.katex-error`; walk presets with Explain open (ch12 TODO).
+- **Pager**: keep a heading with the next block; re-measure a card after `live` rows are filled.
+- **`tools/nbkit.py` / builder**: a guard that compares a figure note with the figure it describes — panel count and
+  axis scale asserted against the words "inset", "upper/lower", "left/right", "slope" (lesson review's proposal).
+- **`tools/check_public.py`**: book values written in words ("a quarter below", "about three times") are invisible to
+  it — add word patterns to `_forbidden_public_regex` per chapter, and keep the reviewer's manual pass.
+- **Shot evaluator**: bind the chapter module into the scope of lambdas in `py:` rows.
+- **Per-agent scratch sub-folders** (fourth chapter) and a check for stray interpreters at hand-back.
+- **Argument order**: normalise `eady_max_growth_rate(f, N, …)` / `eady_time_scale` and `poincare_omega(K, f, c)` to their
+  siblings in a later chapter (with keyword-compatible wrappers).
+
+### ch13 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch13) **no live `eq` card in a walkthrough step on portrait phones — quote the derivation
+  step; one heavy extra per step** · **audit 844×345 and probe `.katex-error` yourself until shot.py does** · on portrait
+  phones keep one view in Explain and Explore and say so in a hint · every readout has an Explain section and, when it is
+  not a book result, an "ours" label on readout, legend, title and callout · a rejected solution is drawn and refused,
+  not omitted · where a direction word appears, give a hemisphere (orientation) chip and check the mirror case against
+  the Python · compare a ringing system's period mean, not its snapshot, with the predicted end state · one colour per
+  physical quantity fixed in the design before building (velocity was not) · parity tolerances carry their reason in the
+  row label · code lines ≤ 46 characters.
+- `math-to-python` §7: (ch13) **project the initial state as well as the products when de-aliasing; the 2/3 mask is a
+  strict inequality** · **a parameter added to a solver is its own keyword, never folded into a profile argument**
+  (β in U″) · compute a small root from its own balance and check Vieta's product · return NaN and expose a discriminant
+  where "all roots real" stops holding · `numpy.allclose` has an absolute tolerance of 1e-8 — compare small quantities
+  (β, growth rates) with relative tolerances only · every function with a rotation sign takes either sign and raises at
+  zero · measure an error order before writing it in a docstring · a box-truncated eigenproblem needs the far-field decay
+  length checked against the box · sibling argument orders (keyword calls).
+- `verify-implementation`: (ch13) **prove a disputed book statement with an invariant that does not depend on the solver**
+  (the westward-step slip: PV conservation alone, three depth pairs) · mutants must flip paths in y and walls north/south
+  (two survived until dy/dt = v and the north-wall state were tested) · "analytic (ours)" for a closed form we derived
+  and no first-hand source confirms · a benchmark is re-readable or it is flagged (the online lecture note could not be
+  re-read by the reviewer) · a design "expect" value that is not reproduced is reported as a hypothesis about another grid.
+- `teaching-style` Lessons: (ch13) **write every figure note from the rendered figure, never from the storyboard** ·
+  **book values in words are still book values** · say the hemisphere in every direction sentence and give the mirror
+  rule · "ours — not in the book" opens every extension · a slip the user has not ruled on is taught with its caveat
+  (true for a finite ridge) · two routes to one result, with the reason the second is stronger · show the conserved
+  quantity not moving before deriving it · "honest caveat" boxes with a criterion and computed cases · slips of kind
+  "loose" are taught as inconsistencies, not errors · the ch13 derivation moves in `concept_map.md`.
+- `colab-notebook` / `python-viz`: (ch13) open each PNG before writing its note; a non-dissipative run started from a
+  discontinuity is shown as a period mean or from a smoothed start; cached runs ship as float16 `.npz` with a
+  regeneration test and a fallback (closed form) when the cache is absent.
 
 ### ch12 candidates (listed, **not promoted**: the ch12 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
 From `reports/ch12_viz.md` ruling l (14 library and tool findings) and a grep for named definitions in the ten chapter
@@ -1473,6 +1615,30 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
   spreading on isopycnals; E8's "κ turns it, damping slides it" → an Ekman layer with constant K vs K(z) (what each
   closure constant does to the spiral); E6's invariant line → potential vorticity as the invariant that turns rose when a
   wrong scaling is tried; E1's noise · drift · leak error bars → "how long a record for a climate mean?".
+
+- **Ch. 13 (done — what came of the plans above)**: ch12 E5's paired budgets became E1's force polygon with per-axis bars
+  that sum to zero and E4's force triangle; ch09's teacup force bars became E4 (bottom Ekman layer); ch12 E9's
+  two-convention badge became E2's two-row lapse-rate table and the notebook's F2 slider; ch12 E10's long-clock idea
+  became E8 (snapshot vs period mean over many inertial periods); ch11 E1's "motion + curve + plane" became E6 (three
+  roots, term bars) and E10 (tilt, growth curve, heat flux); ch07's chord-vs-tangent became E9 on ω(k) with a wavenumber
+  circle; ch11 E7's criterion bars became the Rayleigh–Kuo figure of the notebook (no explainer). Not built: the two
+  cascades of 2-D turbulence (C17 has a cached animation instead), an Ekman layer with K(z) as an explainer (notebook
+  only), a Lorenz energy cycle, a spectral-slope fit, backup B1 `inertia_gravity_beams`.
+- **Ch. 14 aerodynamics (from ch13)**: **E1's force polygon with bars that sum to zero → lift, drag, weight and thrust on
+  a wing section, and induced drag as the lift vector tilted by the downwash**; **E7's "refused solution" → the Kutta
+  condition (the flow round the trailing edge without the right circulation, drawn and refused)**; **E8's snapshot vs
+  end state with a conserved quantity flat in amber → the starting vortex: bound circulation grows while the total stays
+  zero (Kelvin)**; E3's one cursor through a 3-D curve with a running sum → spanwise loading Γ(y) on a lifting line with
+  the downwash as the running Biot–Savart integral (ch05 `biot_savart`); E9's chord vs tangent → lift-curve slope against
+  the local slope near stall, and a clicked panel's contribution in a panel method (ch06 `panels`); E2's swapping sign
+  bars → Γ clockwise vs counter-clockwise and the sign of the lift (ch06's `Gamma_cw=` / `Gamma_ccw=`); E6's log term
+  bars → which term survives in thin-airfoil theory; E10's cursor through a threshold with ◆ and ▲ presets → stall angle,
+  and in Ch. 15 the critical Mach number; `SW.barotropic_run` (β = 0) as a live or cached 2-D vortex-dynamics run for
+  wake roll-up. Keep: orientation chips wherever a direction word appears, "ours — not in the book" labels, one colour
+  per quantity fixed in the design.
+- **Ch. 15 compressible (from ch13)**: the hydraulic analogy as a mode switch (shallow water ↔ gas, Froude ↔ Mach) on
+  E6's dispersion stage; E7's trapped-solution picture → evanescent waves in a duct below cut-off; E5's mode ladder →
+  duct acoustic modes.
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

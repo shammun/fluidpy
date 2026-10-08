@@ -101,7 +101,7 @@ from fluidpy.core.style import setup_notebook            # matplotlib + plotly s
 from fluidpy.core.embed import show_viz                  # shows an interactive explainer in the notebook
 from fluidpy.core.anim import show_animation             # plays a matplotlib animation inline
 FAST = setup_notebook()                                   # FAST=True (env FLUIDPY_FAST=1) shrinks grids for quick runs
-print(f"IN_COLAB = {{IN_COLAB}} | repository root: {{ROOT}} | FAST = {{FAST}}")
+print(f"IN_COLAB = {{IN_COLAB}} | repository root: {{ROOT.name}} | FAST = {{FAST}}")  # folder name only (no local path)
 '''
 
 LIVE_NOTE = ("> ▶️ **Live cell.** The widget below needs a running Python kernel. On the web page it is frozen — open this "

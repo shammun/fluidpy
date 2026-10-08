@@ -623,6 +623,80 @@ molecular transport of (12.112); #16 the vanishing flux term is ρ₀U$\bar v$; 
 vanish at the jet edge. #5 is worded "the printed exponential family fails; exponentials as such are not excluded". The
 one-sided Schwartz inequality (12.16) is a trap, not a slip.
 
+**⚠️ ch13: the sign of f, and every direction word.** $f=2\Omega\sin\theta$ (13.8) is positive in the northern hemisphere
+and negative in the southern. The book writes its formulas for f > 0 ("to the right", "clockwise", "coast on the right",
+√f, $e^{-fy/c}$). Every `core.gfd` function accepts either sign: abs(f) for scales, sign(f) for directions, and a
+`ValueError` at f = 0 where f is in a denominator (`inertial_period(0)` is the one documented `inf`). `*_printed` forms
+refuse f ≤ 0. Latitudes are in radians (`lat_rad`); degrees only in `*_deg` names. The rotation rate is the **sidereal**
+`OMEGA_EARTH`; the book's one turn per solar day (`OMEGA_SOLAR_DAY`) is 0.27 % smaller (trap T1). **The term
+−2Ωu cos θ of $2\boldsymbol\Omega\times\mathbf u\cong(-fv,\ fu,\ -2\Omega u\cos\theta)$ (13.7) is an acceleration term on the
+left of the vertical equation; the Coriolis force per unit mass is +2Ωu cos θ** (trap T18; ch04's convention callout).
+
+**⚠️ ch13: where z = 0 is changes from section to section** (trap T4). Sea surface with the ocean in z < 0: §13.6 (surface
+Ekman layer), §13.9 (vertical modes, nodes from z[0] = −H to z[-1] = 0), §13.14. Solid surface with the fluid in z > 0:
+§13.7 (bottom Ekman layer). Flat bottom: §13.8 (shallow water). Lower lid: §13.17 (Eady). Each function's docstring and
+each notebook block says which.
+
+**⚠️ ch13: lapse rate (the standing rule) and "density".** Compute with Kundu's Γ ≡ dT/dz (Γ_a = −g/C_p ≈ −9.8 K/km; stable
+when dT/dz > Γ_a) and always show the meteorological Γ_met ≡ −dT/dz (Γ_d ≈ +9.8 K/km; stable when Γ_met < Γ_d) beside it:
+`ch13.lapse_rate_table(dT_dz, *, Gamma_a)` returns both rows with the same verdict; `Gamma_a` comes from
+`STRAT.adiabatic_lapse_rate()` and is passed by keyword. The section itself quotes rates of decrease in words
+(meteorological magnitudes). N² in this chapter is always from **potential** density (or potential temperature). From the
+thin-shell equations on, **p and ρ are perturbations with the primes dropped** (trap T3). "Close to neutral" in §13.2
+compares with the moist adiabat; the standard troposphere is stable to dry displacements (trap T2).
+
+**⚠️ ch13: stream function, Rossby number, Rossby radius, spectrum — each differs from an earlier chapter.**
+Stream function: **u = −∂ψ/∂y, v = ∂ψ/∂x** (§13.5, §13.16; `geostrophic_streamfunction`, `barotropic_velocity`) — the
+opposite sign to ch04, ch06 and ch11 (u = ∂ψ/∂y); the eigenvalue c of the stability problem is unchanged (trap T14).
+Rossby number: $\mathrm{Ro}=\frac U{fL}$ (13.13) with abs(f) (`GFD.rossby_number(U, f, L)`); ch04's `SIM.rossby_number` is
+U/(2ΩL) — they differ by sin θ (trap T17). Rossby radius Λ: external c/abs(f); internal NH/(nπ abs(f)) or √(g′H₁)/abs(f);
+**the Eady radius Λ_E = NH/abs(f) has no π** (trap T11; `rossby_radius_internal(with_pi=)`). Spectrum of §13.18:
+**one-sided in K with mean(u²) = ∫₀^∞ S dK and no factor ½** (ch12: two-sided, ∫S = variance; trap T16). Ekman thickness
+$\delta=\sqrt{2\nu_v/f}$ (13.29) is an e-folding scale; the oceanographic "Ekman depth" is πδ
+(`ekman_depth(convention="efold"|"pi")`, trap T6).
+
+**⚠️ ch13: signs returned by the wave functions.** `rossby_omega` returns **signed ω for signed k** (a wave with ω > 0 has
+k < 0; "maximum phase speed" is a maximum of magnitude; trap T8). `shallow_water_omega(k, l, c, f0, beta)` returns the
+three roots of $\omega^3-c^2\omega K^2-f_0^2\omega-c^2\beta k=0$ (13.76): two fast roots of **opposite sign** and the slow
+root, or **NaN where the discriminant is negative** (very long waves: "all roots real" is a β-plane scaling statement,
+trap T9). `kelvin_decay_side(f, direction)` says which direction of travel is trapped. Modes: `Modes.c` is in decreasing
+order; **with a rigid lid index 0 is the first baroclinic mode** (the book's n = 1); ψ_n(0) = 1; the modal amplitudes have
+different units — u_n, v_n [m/s], p_n [m²/s²], w_n [1/s], ρ_n [kg/m²] (trap T12). A wind is named by where it comes from,
+a current by where it goes (`wind_from_to`). The "orbit" figure of a Poincaré wave is a velocity hodograph (trap T7).
+
+**⚠️ ch13: argument order of sibling functions.** `eady_max_growth_rate(f, N, dUdz)` and `eady_time_scale(f, N, dUdz)`
+take (f, N) while `eady_alpha(k, l, N, f)`, `eady_growth_rate(k, l, N, f, H, U0)` take (N, f); `poincare_omega(K, f, c)`
+against `shallow_water_omega(k, l, c, f0, beta)` and `rossby_omega(k, l, beta, f0, c, U)`. **Call them by keyword.**
+
+**⚠️ ch13: one letter, many meanings** (the notebook's conventions block shows this table; `ch13.conventions_table()`).
+
+| Letter | Meanings in ch13 (and earlier) | What we write / code name |
+|---|---|---|
+| f | Coriolis parameter, signed (earlier: a generic function, a frequency in Hz, the Blasius function, ch12's correlation function) | f, f₀ at the central latitude; a frequency is always ω; `f`, `f0` |
+| Ω, ω | Earth's rotation rate; wave frequency; ω_x, ω_y horizontal vorticity in the Ekman layer (13.31) | `Omega`, `omega`, `omega_x` |
+| β | df/dy = 2Ω cos θ₀/R in $f=f_0+\beta y$ (13.10); once the haline contraction coefficient (§13.3); ch10 a scheme parameter, ch12 the log-linear coefficient | β = df/dy only; β_S for salt; `beta` |
+| N | buoyancy frequency from potential density (ch12: a count of members) | N; counts are n, `nx`, `n_modes`; `N`, `N2` |
+| H, h, η | layer depth, ocean depth, WKB scale of N, lid separation, scale height c²/g; h total depth over an uneven bottom; η surface displacement (ch12: Kolmogorov length) | H; H_N; H_s; H_e equivalent depth; h; η; `H`, `He`, `h`, `eta` |
+| c | sound speed (§13.2–13.3); long-wave speed √(gH) (§13.8 on); modal speed c_n; complex phase speed c = c_r + ic_i (§13.16–13.17); c_x, **c**_g | c_s; c; c_n; "complex c" said each time; `c`, `c_n` |
+| k, l, m, K | eastward, northward, vertical wavenumbers; K horizontal magnitude (the 3-D wavevector in §13.14); K the perturbation kinetic energy (§13.17); K₀, K₁, K₂ of the triad; K(z) our eddy-viscosity profile | k, l, m, K; KE; K_v(z); `k`, `l`, `m`, `K` |
+| ζ | relative vorticity ∂v/∂x − ∂u/∂y (ch07: interface displacement; ch12: z/L_M) | ζ, ζ_g, ζ̄; `zeta` |
+| θ | latitude (§13.4); angle of the wavevector with the horizontal (§13.14); potential temperature | θ latitude `lat_rad`; θ_K; θ_p |
+| δ | Ekman e-folding thickness (earlier: boundary-layer thickness, Kronecker delta) | δ; D_E = πδ; `ekman_depth(convention=)` |
+| Λ, λ | Rossby radius (three kinds); ch12: integral scales; λ wavelength (ch12: Taylor microscale) | Λ with the wave speed named; Λ_E; `rossby_radius*`; `lam` |
+| ψ | vertical mode ψ_n(z) (§13.9); stream function with u = −∂ψ/∂y (§13.5, §13.16) | ψ_n; ψ with its sign stated; `psi` |
+| E, Ro, R | Ekman number ν/(abs(f)L²) (earlier: energy); Rossby number; R Earth's radius (earlier: gas constant, correlation) | `ekman_number`, `rossby_number`, `EARTH_RADIUS_MEAN` |
+| α | thermal expansion (§13.3 and our temperature form); Eady wavenumber α = NK/abs(f) (13.139); enstrophy flux (§13.18) | α_T (`alpha`, keyword-only); α (`alphaH`); α_Z (`alpha_ens`) |
+| U, V, τ | velocity scale, geostrophic interior velocity, mean current, U₀z/H; **V = u + iv complex velocity** (§13.6–13.7); τ wind stress | U named each time; `U_g`, `V_g`; `tau_x`, `tau_y` |
+| S(K), i | energy spectrum, one-sided, no ½ (ch12: two-sided); i = √−1 and the label in T_i (slip #5) | `enstrophy_spectrum`, `barotropic_spectrum` state their normalisation |
+
+**⚠️ ch13: 14 printed slips and 18 traps** ("slip #1…#14", `ch13.book_slips()`, each row with `kind`): #1 the sign of ∇p
+in (13.2); #2 the friction force per unit mass needs 1/ρ; #3 the sign of (13.17) is $2\Omega u=-\frac1\rho\frac{\partial p}{\partial y}$;
+#4 the decay condition (13.26) is for z → −∞; #6 the first root of $\tan\frac{NH}{c_n}=\frac{c_nN}g$ (13.69) is ≪ 1; #7 the
+ω³ term of the cubic is negligible for ω ≪ f; #8 N depends on depth in §13.14; **#14 westward flow over a step keeps a
+permanent shift** (true as printed only for a ridge of finite width; the user has not yet ruled on it); #10 and #11 are
+`kind = "loose"` (inconsistent numbers, not false statements); #9 four wrong cross-references; #13 a spelling (the
+attribution is not asserted). `ekman_surface_printed` is a **trap**, not a slip: true as printed for f > 0.
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -1227,6 +1301,30 @@ one-sided Schwartz inequality (12.16) is a trap, not a slip.
 | Γ, Γ_a, Γ_met, Γ_d ⚠️ | Kundu lapse rate dT/dz and its adiabatic value −g/C_p; meteorological −dT/dz and the dry-adiabatic rate +g/C_p | K/m | stable ⇔ dT/dz > Γ_a ⇔ Γ_met < Γ_d; the library string "Γ < Γa" means Γ_met < Γ_d | ch01 → ch11 → ch12 → **Ch. 13** | `Gamma_a` (required), `convention="kundu"\|"met"`; `ch12.adiabatic_lapse_rate()` |
 | X_α, r_α(τ), D_T | displacement of a fluid particle in direction α (no sum); Lagrangian velocity autocorrelation; eddy diffusivity ½d$\overline{X_\alpha^2}$/dt (12.127) | m; –; m²/s | Λ_t here is the **Lagrangian** integral scale; D_T grows as $\overline{u_\alpha^2}$t, saturates at $\overline{u_\alpha^2}$Λ_t for t ≫ Λ_t | ch12 → Ch. 13 | `taylor_dispersion*`, `eddy_diffusivity_*`, `langevin_particles`, `dispersion_regime` |
 | σ ⚠️ (Gaussian width), R_n, L (step) | standard deviation of a diffusing cloud, σ² = 2νt per coordinate (12.126); end-to-end distance of an n-step walk, (R_n)_rms = L√n (12.125) | m | ch03's core radius used 4νt; ≠ ch11 growth rate, ≠ surface tension | ch12 | `sigma_z`, `diffusivity_from_variance`, `random_walk(n_steps, n_walkers, L)` |
+| **ch13 — geophysical fluid dynamics** | | | | | |
+| f ⚠️, f₀, θ (latitude) ⚠️ | Coriolis parameter 2Ω sin θ (13.8); its value at the central latitude; latitude | 1/s; 1/s; rad | **signed** (north +, south −); abs(f) for scales, sign(f) for directions; `ValueError` at f = 0 | ch04 → ch13 | `f`, `f0`, `lat_rad` (`coriolis_parameter`, `coriolis_parameter_deg`, `hemisphere`) |
+| Ω ⚠️, T_i | Earth's rotation rate; inertial period 2π/abs(f) | rad/s; s | sidereal `OMEGA_EARTH` = 7.292115e-5 (solar-day value 0.27 % smaller); the i of T_i is a label (slip #5) | ch04 → ch13 | `Omega`, `OMEGA_EARTH`, `OMEGA_SOLAR_DAY`, `SIDEREAL_DAY`, `inertial_period` |
+| β ⚠️, R | northward gradient of f, 2Ω cos θ₀/R, in $f=f_0+\beta y$ (13.10); Earth's mean radius | 1/(m s); m | β ≥ 0 in both hemispheres; ≠ ch10 scheme β, ch12 log-linear β | ch13 | `beta`, `beta_parameter`, `beta_plane`, `EARTH_RADIUS_MEAN` |
+| ν_H, ν_v, F_x, F_y, F_z | horizontal and vertical eddy viscosities; friction force per unit mass (13.6) | m²/s; m/s² | F = (1/ρ)∂τ_ij/∂x_j (slip #2); ν_v ≪ ν_H typically; illustrative values labelled ours | ch13 | `nu_H`, `nu_v`, `eddy_friction`, `anisotropic_eddy_stress` |
+| Ro ⚠️, E | Rossby number U/(abs(f)L) (13.13); Ekman number ν/(abs(f)L²) (13.18) | – | ch04's Ro is U/(2ΩL) (factor sin θ); E ≠ energy | ch04 → ch13 | `rossby_number(U, f, L)`, `ekman_number(nu, f, L)` |
+| p, ρ (perturbations) ⚠️, ρ₀ | pressure and density departures from the resting state, primes dropped from §13.4 on; reference density | Pa; kg/m³ | geostrophic u = −(1/ρ₀f)∂p/∂y, v = (1/ρ₀f)∂p/∂x | ch13 | `dpdx`, `dpdy`, `rho`, `rho0` |
+| V ⚠️, V_g, τ (stress) | complex horizontal velocity u + iv (§13.6–13.7); its geostrophic part; wind stress τ_x + iτ_y at the sea surface | m/s; m/s; Pa | multiplying by i turns 90° to the left; potential flow's complex velocity is u − iv (ch06) | ch13 | `as_complex=True`, `U_g`, `V_g`, `tau_x`, `tau_y` |
+| δ ⚠️, D_E | Ekman e-folding thickness √(2ν_v/abs(f)) (13.29); Ekman depth πδ | m | `convention="efold"` (default) or `"pi"`; ≠ boundary-layer δ | ch08 (Stokes layer) → ch13 | `ekman_depth`, `eddy_viscosity_from_depth` |
+| M_x, M_y, w_E | Ekman volume transport per unit width (τ_y, −τ_x)/(ρf) (13.30); pumping velocity at the base of the layer | m²/s; m/s | 90° to the right of the stress for f > 0, left for f < 0; w_E > 0 upward (cyclonic stress curl, f > 0) | ch13 | `ekman_transport`, `ekman_pumping`, `ekman_pumping_from_curl`, `sverdrup_transport` |
+| η ⚠️, H, h | surface displacement; undisturbed depth; total depth H + η (over an uneven bottom in §13.13) | m | z = 0 at the flat bottom in §13.8; η ≠ Kolmogorov length (ch12) | ch07 → ch13 | `eta`, `H`, `h` |
+| c ⚠️, c_n, H_e | long-wave speed √(gH); speed of vertical mode n; equivalent depth c_n²/g (13.62) | m/s; m/s; m | c_n = NH/(nπ) for uniform N (13.71); c also sound speed in §13.2 and complex phase speed in §13.16–13.17 | ch07 → ch13 | `long_wave_speed`, `baroclinic_mode_speed`, `equivalent_depth`, `Modes.c`, `Modes.He` |
+| ψ_n(z) ⚠️, w_n, ρ_n, p_n | vertical structure of mode n (13.52), (13.56); modal amplitudes | –; 1/s; kg/m²; m²/s² | ψ_n(0) = 1; orthogonal with **weight 1** for either lid; with a rigid lid index 0 is the first baroclinic mode | ch13 | `Modes.psi`, `w_structure`, `rho_structure`, `modal_amplitudes`, `orthogonality_matrix(kind=)` |
+| k, l, m, K ⚠️ | eastward, northward, vertical wavenumbers; horizontal magnitude √(k² + l²) | rad/m | signed; Rossby waves with ω > 0 have k < 0; K also kinetic energy (§13.17) and K₀, K₁, K₂ (§13.18) | ch07 → ch13 | `k`, `l`, `m`, `K` |
+| ω (three roots) | frequencies of rotating shallow water, (13.76): two Poincaré roots and one Rossby root | rad/s | fast roots of opposite sign with abs(ω) > abs(f); NaN where the discriminant is negative | ch13 | `shallow_water_omega`, `shallow_water_discriminant`, `poincare_omega`, `rossby_omega`, `kelvin_omega` |
+| Λ ⚠️, Λ_E | Rossby radius of deformation c/abs(f); Eady radius NH/abs(f) | m | name the wave speed (external, internal with π, two-layer); Λ_E has **no π**; ≠ ch12 integral scales | ch07 (√(g′H)/f) → ch13 | `rossby_radius`, `rossby_radius_internal(with_pi=)`, `rossby_radius_two_layer` |
+| ζ ⚠️, q | relative vorticity ∂v/∂x − ∂u/∂y; shallow-water potential vorticity (ζ + f)/h (13.94) | 1/s; 1/(m s) | q conserved following the motion; linear form ζ − fη/H | ch05 → ch13 | `zeta`, `potential_vorticity`, `sw_potential_vorticity`, `step_vorticity` |
+| ψ (stream function) ⚠️ | geostrophic or barotropic stream function, p/(fρ₀) on an f-plane | m²/s | **u = −∂ψ/∂y, v = ∂ψ/∂x** (ch04, ch06, ch11: u = ∂ψ/∂y) | ch13 | `geostrophic_streamfunction`, `barotropic_velocity` |
+| θ_K ⚠️, N | angle of the wavevector with the horizontal, tan θ_K = m/k (the book's θ in §13.14); buoyancy frequency | rad; 1/s | internal waves exist for abs(f) < ω < N; N from potential density | ch07 → ch13 | `inertia_gravity_omega`, `inertia_gravity_band`, `N`, `N2` |
+| c_x, **c**_g | zonal phase speed ω/k (13.119); group velocity ∇_K ω | m/s | Rossby: c_x < 0 always (no mean flow); for l = 0, c_gx < 0 when abs(k)Λ < 1 and > 0 for shorter waves | ch07 → ch13 | `rossby_phase_speed`, `rossby_group_velocity`, `poincare_group_velocity`, `inertia_gravity_group_velocity` |
+| U(y), β − U″ | zonal basic current; northward gradient of absolute vorticity (13.124) | m/s; 1/(m s) | must change sign for barotropic instability (necessary) | ch11 → ch13 | `absolute_vorticity_gradient`, `rayleigh_kuo_criterion`, `rayleigh_kuo_eigs`, `ST.rayleigh_eigs_contour(beta=)` |
+| U₀, α ⚠️, αH, c = c_r + ic_i, σ | Eady wind difference between the lids; scaled wavenumber NK/abs(f) (13.139); its product with the lid separation; complex phase speed (13.141); growth rate abs(k)c_i | m/s; 1/m; –; m/s; 1/s | growth for αH < 2.39936; σ_max = 0.30982 abs(f)(dU/dz)/N; α ≠ thermal expansion, ≠ enstrophy flux | ch11 (σ = −ikc) → ch13 | `U0`, `eady_alpha`, `alphaH`, `eady_phase_speed`, `eady_growth_rate`, `eady_max_growth_rate` |
+| S(K) ⚠️, K²S(K), α_Z, L_β | energy spectrum of §13.18; enstrophy spectrum; enstrophy flux; Rhines length √(u_rms/β) | m³/s²; m/s²; 1/s³; m | **one-sided, no ½**, mean(u²) = ∫₀^∞ S dK (ch12: two-sided) | ch12 → ch13 | `enstrophy_spectrum`, `two_d_cascade_spectrum(K, K0, eps, alpha_ens)`, `rhines_length`, `barotropic_spectrum` |
+| Γ, Γ_a, Γ_met, Γ_d ⚠️ | Kundu lapse rate dT/dz and its adiabatic value; meteorological −dT/dz and the dry-adiabatic rate | K/m | computed in Kundu's sign, the meteorological form always shown beside it; `Gamma_a` required keyword | ch01 → ch12 → ch13 | `lapse_rate_table(dT_dz, *, Gamma_a)` |
 
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
@@ -1243,3 +1341,4 @@ one-sided Schwartz inequality (12.16) is a trap, not a slip.
 | ch10 | 1-D x ∈ [0, L] (FD, FEM1); 2-D (x, y) with the `[j, i]` layout, y up (cavity lid at y = 1 moving in +x; block and cylinder channels with the stream in +x); **three grids**: node-based (FD, MCK), element meshes (FEM1 [x_{e−1}, x_e]; FEM2 vertices then mid-edge nodes, Fig. 10.17 numbering), staggered C-grid (MAC: p centres, u x-faces, v y-faces); Fourier angle θ = kπΔx (book e^{iπkx_i}) | x = 0 Dirichlet end (g), x = L Neumann end (q); cavity corner (0, 0), walls on node lines (MCK) or cell faces (MAC); block/cylinder centred in the channel (ours: H = 4 block sides, 8 ahead, 20 behind; cylinder W = 5d) | CFL and upwind side with sign(u), \|u\|; truncation error E = "exact minus scheme"/Δt on the left of (10.16); weak continuity with a minus sign (B, Bᵀ symmetric); pressure pinned by its mean (defined up to a constant); ψ = 0 on the walls, ψ_min < 0 clockwise eddy; drag positive downstream | §10.2–10.3 dimensional (u m/s, D m²/s, L m); §10.4 NS non-dimensional (L, U, L/U, ρU², Re (10.81)); cavity p = ρ/Ma², Re = ρ₀UL/μ; block side and cylinder diameter d as lengths; force coefficients per span on ½ρU²d | §10.2–10.3 dimensional SI; §10.4–10.5 solvers non-dimensional (ρ = 1, c = 1/Ma, μ = 1/Re); our run parameters Ma 0.08 (cavity), 0.06 (block), σ = 0.8 (book values private) |
 | ch11 | KH: (x, z), z up, interface at z = 0, upper stream 1, lower stream 2 (depth h below in Ex. 11.1); Bénard and double diffusion: z up across the layer, **z ∈ [−½, ½]** in units of d; Taylor: cylindrical (R, φ, z), x = (R − R₁)/d ∈ [0, 1]; stratified shear: (x, z), z up, layer centred at z = 0 or between walls; parallel viscous flows: x streamwise, y across (Poiseuille y ∈ [−1, 1], Blasius y ≥ 0 in δ*, free layers y ∈ (−∞, ∞) truncated at ±y_max); Chebyshev nodes **descending** (`grid.y[0]` is the top/right end); Lorenz phase space (X, Y, Z) | interface z = 0; layer mid-plane z = 0; inner cylinder x = 0; wall y = 0 (Blasius); critical level y_c where U = c_r | normal mode e^{ikx + σt} = e^{ik(x − ct)}, σ = −ikc; Γ = −dT̄/dz in (11.21) (code takes `dT` = T_bottom − T_top); §11.5 Ra signed with dT̄/dz; ψ: §11.7 u = ∂ψ/∂z, §11.8 u = ∂ψ/∂y, §11.14 u = −∂ψ/∂z; Ri sign follows N² at U′ = 0; production P = −∫⟨uv⟩U′dy positive when it feeds the wave | Bénard d, d²/κ; Taylor d, d²/ν; parallel flows L and U₀ per flow (half-width and centreline speed; δ* and U∞; L and U₀ of tanh/sech²); Lorenz time d²/((π² + k²)κ); default g = G0 = 9.80665 | KH and the salt-finger examples dimensional SI; every eigen-solver non-dimensional with the scales stated in its docstring |
 | ch12 | signals: time (or space) on the last axis, **ensemble members on axis 0**; shear flows: x streamwise, y across (jet symmetric about y = 0, ξ = y/x; wall at y = 0, channel walls at y = 0 and y = **h = full height**, δ = h/2); surface layer: z up from the ground; isotropic fields: periodic boxes with r the separation vector; dispersion: X_α from the release point | wall y = 0; ground z = 0 with the wind vanishing at z₀; jet origin at the slot (virtual origin dropped unless `x0=`); release at X = 0, t = 0 | Reynolds stress −ρ₀$\overline{u_iu_j}$ (`uv_plus` keys hold −$\overline{uv}$/u_*²); P = deviation from hydrostatic in §12.8–12.10; heat flux positive upward; L_M > 0 stable; Kundu Γ ≡ dT/dz in code with `Gamma_a` required, meteorological Γ_met shown alongside; T̄, T′ potential temperature; two-sided spectra with ∫S = variance | outer ΔU, L (Re_L); Kolmogorov η, u_K, τ_η; wall units u_*, ν/u_* (Re_τ = δ⁺); surface layer u_*, L_M; dispersion u_rms, Λ_t (Lagrangian); default g = G0 = 9.80665; κ = 0.41 in §12.9–12.10, 0.4 in the surface-layer block | dimensional SI for statistics, jets, the surface layer and dispersion; wall functions in wall units with dimensional wrappers (`wall_units`, `from_wall_units`, `composite_profile`); channel budgets in u_*⁴/ν; empirical constants are required keywords |
+| ch13 | local tangent plane: **x east, y north, z up**, (u, v, w); latitude θ in radians; f-plane or β-plane (y measured north from the central latitude); grids `[j, i]` = (y, x) on a C-grid (η centres, u west faces, v south faces, vorticity at corners); vertical-mode nodes from z[0] = −H to z[-1] = 0; Eady: z ∈ [0, H] between two lids | **z = 0 changes by section** (trap T4): sea surface (§13.6, §13.9, §13.14), solid surface (§13.7), flat bottom (§13.8), lower lid (§13.17); coast at y = 0 with the sea in y ≥ 0 (Kelvin wave); step at x = 0 (adjustment, flow over a step) | p, ρ perturbations (primes dropped); **f signed**; Coriolis term −fv, +fu on the left; wind stress at the surface τ = ρν_v ∂u/∂z; **ψ with u = −∂ψ/∂y**; eddy fluxes of the Eady wave positive northward (y) and upward (z); lapse rate Kundu dT/dz with the meteorological form shown | f-plane 1/abs(f) and Λ = c/abs(f); Ekman δ; Eady Λ_E = NH/abs(f) and NH/(abs(f)U₀); numbers from `ch13.illustrative_inputs()` (35° N/S, 60° N for Ekman layers, 12° N for Rossby waves) | dimensional SI throughout; Eady functions also in αH and σNH/(fU₀); model runs dimensional; the Rayleigh–Kuo solver non-dimensional (jet width and speed) |

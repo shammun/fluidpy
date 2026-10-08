@@ -4,7 +4,7 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, **ch12 P280–P306**); a new chapter starts at the next free number (**ch13: P307**; total after ch12: 307 = P01–P306 and P218a; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, **ch13 P307–P335**); a new chapter starts at the next free number (**ch14: P336**; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
 (ch12 started at P280). Total after ch11: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
 review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
@@ -359,6 +359,37 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | quadrature on a logarithmic grid (P298) | ch12 · §12.7 · C08 | a spectrum spans decades: with K = e^s, ∫E dK = ∫E K ds on an evenly spaced s = ln K |
 | semi-log axes: a logarithm is a straight line (P299) | ch12 · §12.9 · C10 | on `ax.semilogx` the log law is a line rising 2.303/κ per decade (5.6 for κ = 0.41), and U⁺ = y⁺ is a curve |
 | a nonlinear diffusion problem by Picard iteration on the eddy viscosity (P302) | ch12 · §12.10 · C12 | ν_T depends on the answer: freeze it from the last guess, solve the linear problem, update with under-relaxation, repeat until it stops changing (`shear_flow_eddy_viscosity_solve`) |
+| **ch13 — maths and physics** (the term is the exact `nb.primer` title; P307–P335, notebook `ch13_geophysical_fluid_dynamics`) | | |
+| geographic vocabulary: zonal / meridional, easterly wind vs eastward current, poleward / equatorward, cyclonic / anticyclonic (P307) | ch13 · §13.1 · front (before C01) | zonal = east–west, meridional = north–south; a wind is named by where it comes from, a current by where it goes; cyclonic = the sense of the local rotation (counter-clockwise in the north, clockwise in the south) |
+| sidereal day vs solar day (P308) | ch13 · §13.4 · C01 | the Earth turns once against the stars in a little less than a solar day, because it also moves round the Sun; the code uses the sidereal rate, 0.27 % above "2π per day" |
+| reading a pressure map: isobars, the pressure-gradient force points from high to low, tight spacing = strong force (P309) | ch13 · §13.5 · C02 | isobars are contours of pressure; the force is perpendicular to them, toward low pressure, and inversely proportional to their spacing |
+| hodograph: the tip of the velocity vector traced as depth (or time) changes (P310) | ch13 · §13.6 · C04 | plot v against u for every depth (or time): a spiral for the Ekman layer, an ellipse for a rotating wave; the curve is not a path in space |
+| complex velocity V = u + iv: multiplying by i turns a vector 90° to the left; e^{(1+i)s} decays and turns at the same rate (P311) | ch13 · §13.6 · C04 (before D06) | pack the two horizontal components into one complex number so that two coupled real equations become one; the Coriolis term is then just i f V |
+| first integral: integrating an ODE once across a layer to get a transport without solving it (P312) | ch13 · §13.6 · C05 (before D07) | if the equation is "something = d(flux)/dz", its integral over the layer is the flux difference between the edges — the profile inside never enters |
+| depth-integrated quantities: transport per unit width [m²/s] and its divergence as a vertical velocity (P313) | ch13 · §13.6 · C05 | ∫u dz is a volume flux per metre of width; where it converges, continuity forces water out of the layer vertically |
+| Sturm–Liouville problem: a ladder of eigenvalues, eigenfunctions with n zero crossings, orthogonality (P314) | ch13 · §13.9 · C08 (before D11) | a second-order equation with a parameter and two boundary conditions has solutions only for a discrete ladder of parameter values; mode n has n interior zeros; different modes are orthogonal |
+| Robin (mixed) boundary condition, between Dirichlet and Neumann (P315) | ch13 · §13.9 · C08 | a condition on a combination a ψ + b ψ′ at the boundary; the free surface of the mode problem is one, the rigid lid is its Neumann limit |
+| graphical roots of a transcendental equation such as tan x = εx (P316) | ch13 · §13.9 · C08 | draw both sides and read the crossings: one tiny root and one just past each multiple of π; then refine each with a bracketed root-finder |
+| three real roots of a cubic: the discriminant and the trigonometric form (P319) | ch13 · §13.10 · C09 (before D13) | a depressed cubic has three real roots when its discriminant is positive; the cosine form gives all three without cancellation — needed because one root is a thousand times smaller than the others |
+| reading a dispersion diagram with several branches: signed ω for signed k, a logarithmic frequency axis (P320) | ch13 · §13.10 · C09 | each branch is one kind of wave; the slope of the chord from the origin is the phase speed, the local slope the group velocity; a log axis is needed when branches differ by decades |
+| polarisation relations: solving a 2 × 2 complex system for the velocity amplitudes (P321) | ch13 · §13.11 · C10 (before D14) | for a plane wave the momentum equations are two linear equations for the two velocity amplitudes in terms of the height amplitude; their complex ratio is the shape and sense of the current ellipse |
+| sense of rotation of (a cos ωt, b sin ωt) from the sign of the swept area (P322) | ch13 · §13.11 · C10 | compute x dy/dt − y dx/dt: positive means counter-clockwise; this is how "clockwise for f > 0" is checked rather than asserted |
+| trapped solutions: keeping the exponential that decays away from a boundary (P323) | ch13 · §13.12 · C11 (before D15) | of e^{+y/Λ} and e^{−y/Λ} only one stays bounded in the fluid; which one depends on where the fluid is and on the sign of f — that choice is the physics |
+| an adjustment problem: what a steady end state can remember (a conserved quantity pins it) (P324) | ch13 · §13.12 · C12 (before D16) | infinitely many steady balanced states exist; the one reached is fixed by a quantity each column keeps from the start (linear potential vorticity) |
+| materially conserved: Dq/Dt = 0 labels a parcel; it does not mean q is steady at a point (P325) | ch13 · §13.13 · C13 | each column carries its own value of q wherever it goes; at a fixed place q changes as different columns pass |
+| group velocity as the gradient of ω in wavenumber space, read off a contour plot (P326) | ch13 · §13.14 · C14 (before D21) | **c**_g = (∂ω/∂k, ∂ω/∂l, ∂ω/∂m) points across the contours of ω toward higher frequency; extends ch07's dω/dk to two and three dimensions |
+| slowly varying medium (WKB): amplitude and phase ansatz, valid when the medium changes little in one wavelength (P327) | ch13 · §13.14 · C14 | write the solution as A(z)e^{iφ(z)} with dφ/dz = the local wavenumber m(z); the amplitude then falls like m^{−1/2}; it fails at a turning point (m → 0), and the measured error is 0.230/(Hm) |
+| ordering in a small parameter: lowest order gives the balance, next order gives the evolution (P328) | ch13 · §13.15 · C15 (before D22) | at lowest order in the Rossby number the flow is geostrophic and says nothing about time; the time dependence comes from the next order — the logic of "quasi-geostrophic" |
+| non-trivial solutions of a homogeneous 2 × 2 system: the determinant must vanish (P330) | ch13 · §13.17 · C16 (before D26) | two homogeneous equations for two constants have a non-zero solution only if the determinant is zero; that condition is the dispersion relation |
+| hyperbolic half-angle identities and coth (P331) | ch13 · §13.17 · C16 (before D26) | coth = cosh/sinh; tanh x + coth x = 2 coth 2x and tanh x · coth x = 1 turn the Eady determinant into a product of two brackets |
+| available potential energy and the wedge of sloping convection (P332) | ch13 · §13.17 · C16 | only the part of the potential energy that a rearrangement can release counts; exchanging parcels along paths flatter than the density surfaces releases it — the wedge between horizontal and the sloping surfaces |
+| enstrophy: mean-square vorticity, and its spectrum K²S(K) (P333) | ch13 · §13.18 · C17 (before D28) | ½ mean(ζ²); in two dimensions it is conserved together with energy, and each Fourier mode holds K² times its energy |
+| **ch13 — Python and numerics** | | |
+| scipy.linalg.eigh_tridiagonal for a discretised eigenproblem (P317) | ch13 · §13.9 · C08 | a second-order two-point eigenproblem on a grid is a symmetric tridiagonal matrix; pass its diagonal and off-diagonal and get eigenvalues in ascending order with orthonormal vectors |
+| projecting a profile on modes: the inner product of two functions (P318) | ch13 · §13.9 · C08 | a_n = ∫q ψ_n dz / ∫ψ_n² dz — the dot product of P65 with a sum replaced by an integral (`VM.project`, `VM.reconstruct`) |
+| two-dimensional FFT wavenumber grids (np.fft.fftfreq, np.fft.fft2) (P329) | ch13 · §13.15 · C15 | `2π·fftfreq(n, d)` gives the wavenumbers in numpy's order (zero, positive, then negative); with `meshgrid` each mode of `fft2` gets its (k, l), so a linear wave equation is advanced exactly by a phase factor |
+| the Jacobian J(ψ, ζ) and a pseudo-spectral step with 2/3 de-aliasing (P334) | ch13 · §13.18 · C17 | advection is J = ψ_x ζ_y − ψ_y ζ_x; derivatives are taken in Fourier space, the product in physical space, and modes at or beyond 2/3 of the largest wavenumber are zeroed so that the product cannot alias (our scheme) |
+| a C-grid shallow-water step and its CFL limit with c = √(gH) (our choice of scheme) (P335) | ch13 · §13.8 · C07 | η at cell centres and velocities on faces make the pressure gradient and the divergence compact two-point differences; the time step is bounded by the fastest gravity wave crossing a cell |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -611,3 +642,29 @@ exactly); **biased vs unbiased** correlation estimate and the triangle weight 1 
 unread); **Batchelor scale**; **Lagrangian** vs Eulerian integral scale; **ballistic** and **diffusive** regimes;
 **Richardson's 4/3 law**; `np.fft.fft`/`ifft` (complex, full), `np.fft.ifft2`/`ifftn`, `itertools.product`, `ax.semilogx`,
 `scipy.signal.welch` (cross-check only); slips named "slip #1…#18"; the library string "Γ < Γa" read as Γ_met < Γ_d.
+
+Reminders written in ch13 instead of new primers (one sentence each, from the curation's prerequisite list and the design
+ledger of 231 rows; point here): P13 log–log plots, P15 `assert np.allclose`, P16–P18 animate / slider_figure / show_viz,
+P25 partial derivative, P26/P98 Taylor expansion, P31/P94 `solve_ivp`, P37 trapezoid rule, P38 product rule, P40/P117
+sympy, P41/P64 plotly 3-D, P44 linear second-order ODE, P45/P159 complex square roots and the quadratic formula, P48
+inequalities under a sign change (the lapse-rate move), P49 chain rule, P53 determinants, P57 `np.linalg.solve`, P70
+`np.arctan2`, P71 Vieta's formulas, P76 `np.meshgrid` and the `[j, i]` layout, P78 contour / quiver / streamplot, P80
+eigenvalues, P103 rotating frame, P104 a linear map of a circle is an ellipse, P108 `brentq`, P121 Schwarz's theorem, P126
+latitude, the Earth's rotation rate and f, P130 order-of-magnitude scaling, P131 reduced gravity, P142 Fourier modes and
+the FFT, P144 improper integrals, P153 complex numbers in numpy, P165 phase of a wave, P167 separation of variables, P168
+cosh, sinh, tanh, P170 `minimize_scalar`, P176 complex amplitudes, P177 operator elimination, P178 mean of a product of
+real parts, P188 scaling with two length scales, P190 `cumulative_trapezoid`, P193 `solve_banded`, P198 dominant balance,
+P210 first-order linear ODE, P214 linear stability of a steady state, P218a integration by parts, P242 staggered arrays,
+P247 generalised symmetric eigenproblem, P252 caching, P255 necessary vs sufficient, P256 `np.roots`, P257 eigenvalue
+problem for a differential operator, P258 Chebyshev points, P260 real and imaginary parts of a complex equation, P262 cube
+roots, P265 quotient rule, P272 completing the square into a circle, P287 covariance, P296 kinematic vs dynamic fluxes;
+ch01 Buckingham Π (`core.dimensional.pi_groups`), ch07 group velocity and the Doppler shift, ch10 the CFL limit, ch11
+normal modes with complex c, ch12 shell spectra and eddy fluxes as covariances.
+
+Glosses in ch13 (one sentence where used, no primer): **f-plane** and **β-plane**; **traditional approximation**;
+**barotropic** and **baroclinic**; **equivalent depth**; **rigid lid**; **superinertial** / **subinertial**; **inertial
+circle**; **upwelling** / **downwelling**; **spin-down time**; **Courant number**; **Cramer's rule**; **hPa**; **sech**;
+**NaN** as "no real root here"; **quasi-geostrophic**; **Rhines length**; **inverse cascade**; **stationary wave**; the
+wind-driven gyre and **equatorial waves** (named, pointers only); the mode boundary conditions (signposted just before
+D11); slips named
+"slip #1…#14" (with "loose" for #10 and #11) and traps T1–T18; the library string "Γ < Γa" read as Γ_met < Γ_d.
