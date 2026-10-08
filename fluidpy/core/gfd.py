@@ -741,7 +741,8 @@ def ekman_residual(z, u, v, nu_v, f, U_g: float = 0.0, V_g: float = 0.0):
     (r_x, r_y) arrays [m/s²] at the **interior** nodes z[1:-1] (length len(z) − 2).
     Numerics: 3-point second differences, second order on uniform and smoothly stretched grids.
     Assumptions: steady, horizontally uniform, constant ν_v.
-    Validation: V3 falls as h² on the closed forms.  Label: converged.
+    Validation: V1 on the closed-form spiral (4001 uniform nodes over 14 δ) the residual is 1.4e-6 of f|V| —
+    truncation of the stencil, not a property of the solution.  Label: analytic.
     """
     z, u, v = _F(z), _F(u), _F(v)
     return (-f * (v - V_g) - nu_v * _d2(z, u))[1:-1], (f * (u - U_g) - nu_v * _d2(z, v))[1:-1]
@@ -1004,8 +1005,9 @@ def ekman_force_balance(z, U_g, nu_v, f, rho: float = 1.0) -> dict:
     -------
     dict: ``coriolis``, ``pressure``, ``friction`` — each a pair (F_x, F_y) [N/m³; m/s² for rho = 1]; ``u``, ``v``,
     ``speed`` [m/s]; ``angle_to_isobars`` [rad, ≥ 0] — the angle between the velocity and the geostrophic direction,
-    always toward low pressure (to the left of U_g for f > 0, to the right for f < 0; π/4 in the limit z → 0, which is
-    the value returned at z = 0); ``sum`` — the vector sum of the three forces (zero to round-off).
+    a magnitude: toward low pressure for 0 < z < πδ (to the left of U_g for f > 0, to the right for f < 0; π/4 in
+    the limit z → 0, which is the value returned at z = 0), and slightly toward HIGH pressure for πδ < z < 2πδ, where
+    the cross-isobar velocity reverses (under 1°; the sign of ``v`` tells which); ``sum`` — the vector sum of the three forces (zero to round-off).
     Assumptions: as :func:`ekman_bottom`.
     Validation: V1 the three vectors sum to zero at every height; angle π/4 at the ground, → 0 above the layer.
     Label: analytic.
@@ -1101,7 +1103,9 @@ def shallow_water_omega(k, l, c, f0, beta):
     -------
     (omega_minus, omega_rossby, omega_plus) [rad/s]: the westward- and eastward-travelling inertia–gravity (Poincaré)
     roots (negative and positive) and the slow root between them, whose sign is opposite to that of β k (westward
-    phase).  All three are NaN where the discriminant is negative (no three real roots: see
+    phase).  The labels "westward" for the negative and "eastward" for the positive fast root hold for k > 0 only:
+    the phase moves along x at ω/k, so for k < 0 the negative root travels east.  The tuple is always in ascending
+    order.  All three are NaN where the discriminant is negative (no three real roots: see
     :func:`shallow_water_discriminant`).
     Numerics: the two fast roots by the trigonometric solution of the depressed cubic; the slow root — smaller by
     one to five orders of magnitude — from the product of the roots (ω₋ ω_R ω₊ = c²βk), so that it does not lose its
@@ -1202,6 +1206,9 @@ def dispersion_term_sizes(k, l, c, f0, beta, omega) -> dict:
 
 def poincare_omega(K, f, c):
     """Frequency of rotational gravity (Poincaré, Sverdrup) waves: ω = sqrt(f² + c² K²).
+
+    **Call by keyword** — ``poincare_omega(K=…, f=…, c=…)``: the order (K, f, c) differs from the (k, l, c, f0, …)
+    order of ``shallow_water_omega`` and from (k, l, f, c) of ``poincare_group_velocity``.
 
     Book: §13.11, Eqs. (13.81)–(13.82) with c² = gH.
     Parameters: K horizontal wavenumber magnitude sqrt(k² + l²) [rad/m]; f [1/s] (either sign); c [m/s].
@@ -1613,7 +1620,7 @@ def wkb_vertical_structure(z, m, A0: float = 1.0, sign: int = +1):
     w_hat : complex array; the phase integral starts at z[0] (cumulative trapezoid rule).  NaN where m is not
     positive (a turning level: the approximation fails there).
     Assumptions: N(z) varies slowly over a vertical wavelength (H m ≫ 1).
-    Validation: V1 exact for uniform m; V3 error ∝ 1/(Hm)² (``ch13.wkb_error``).  Label: approximate (WKB).
+    Validation: V1 exact for uniform m; V3 error ∝ 1/(Hm) (measured about 0.15/Hm, ``ch13.wkb_error``).  Label: approximate (WKB).
     """
     z, m = _F(z), _F(m) * np.ones_like(_F(z))
     ok = m > 0
@@ -1872,7 +1879,8 @@ def absolute_vorticity_gradient(y, U, beta, h: float | None = None):
     array β − U″ at every point of y.
     Numerics (samples): 3-point second differences inside; at the two ends the second derivative of the cubic through
     the four nearest nodes — second order throughout.
-    Assumptions: barotropic zonal flow U(y).   Validation: V1 analytic jets; V3 order 2.  Label: converged.
+    Assumptions: barotropic zonal flow U(y).   Validation: V1 on U = sech²y sampled at 401 points over |y| ≤ 5 the
+    largest error against the analytic β − U″ is 8.3e-4.  Label: analytic.
     """
     y = _F(y)
     if callable(U):
@@ -2041,6 +2049,9 @@ def eady_wavelengths() -> dict:
 def eady_max_growth_rate(f, N, dUdz):
     """Largest Eady growth rate in physical units: σ_max = 0.30982 |f| |dU/dz| / N.
 
+    **Call by keyword** — ``eady_max_growth_rate(f=…, N=…, dUdz=…)``: the order (f, N, dUdz) differs from the
+    (N, f) order of ``eady_alpha`` and ``eady_growth_rate``, and swapping f and N changes the answer by (N/f)².
+
     Book: **ours — not in the book** (the storm-track "Eady growth rate"); the coefficient is the computed maximum of
     Eq. (13.141), ``eady_fastest()["sigma_nd"]``, not a typed constant.
     Parameters: f [1/s]; N [rad/s] > 0; dUdz vertical shear U₀/H [1/s].   Returns sigma_max [1/s].
@@ -2052,6 +2063,8 @@ def eady_max_growth_rate(f, N, dUdz):
 
 def eady_time_scale(f, N, dUdz):
     """e-folding time of the fastest Eady wave, 1/σ_max [s].
+
+    **Call by keyword** — ``eady_time_scale(f=…, N=…, dUdz=…)``: the order is (f, N, dUdz), not (N, f).
 
     Book: **ours — not in the book** (see :func:`eady_max_growth_rate`).
     Parameters: f [1/s]; N [rad/s]; dUdz [1/s].   Returns the time [s] (inf for zero shear or f = 0).

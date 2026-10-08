@@ -103,7 +103,7 @@ def main() -> int:
     print(f"finite depth H = {H:.0f} m with an interior flow of 5 cm/s: V(0) = {Vf[-1] * 100:.2f} cm/s, V(-H) = {abs(Vf[0]):.1e}")
     xg = np.linspace(-1.0e6, 1.0e6, 81)
     Xg, Yg = np.meshgrid(xg, xg)
-    tx = -tau * np.cos(np.pi * Yg / 2.0e6)                        # a zonal wind that changes sign across the box (a gyre-like curl)
+    tx = -tau * np.cos(np.pi * Yg / 2.0e6)                        # a zonal wind that keeps its sign; its curl changes sign at mid-box
     wE = ch13.ekman_pumping(tx, 0.0 * tx, xg[1] - xg[0], xg[1] - xg[0], rho, ch13.beta_plane(xg, I["lat"])[:, None])
     curl = -tau * np.pi / 2.0e6 * np.sin(np.pi * 0.25)            # d(-tau_x)/dy at y = L/4
     print(f"Ekman pumping of a sinusoidal wind (ours): w_E between {wE.min() * 86400 * 365.25:+.0f} and {wE.max() * 86400 * 365.25:+.0f} m/yr; "

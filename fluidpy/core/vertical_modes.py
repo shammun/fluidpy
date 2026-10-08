@@ -132,7 +132,8 @@ def vertical_modes(z, N2, g: float = G0, n_modes: int = 4, lid: str = "free", me
     Validation (measured, uniform N = 2.7e-3 rad/s, H = 4200 m, against :func:`modes_uniform_N`): "fd" relative
     error of c₁ 4.1e-5, 1.0e-5, 2.6e-6, 6.4e-7 at 101, 201, 401, 801 nodes (order 2) and of c₀ below 2e-8; "cheb"
     baroclinic speeds to 2e-10 at n_cheb = 32–64, c₀ to 2e-9 at 32 and 2e-7 at 64 (round-off of the differentiation
-    matrices grows as n⁴: use "fd" or shooting when c₀ matters); V4 ∫ψ_mψ_n dz off-diagonal at 5e-16 of the diagonal
+    matrices grows as n⁴; on the thermocline profile of ``ch13.thermocline_N2`` at n_cheb = 96 the barotropic speed
+    is good to 8.5e-5 only (measured in the chapter review): use "fd" or shooting when c₀ matters); V4 ∫ψ_mψ_n dz off-diagonal at 5e-16 of the diagonal
     for "fd" modes.  Label: converged.
     """
     z, N2a = _check_grid(z, N2)

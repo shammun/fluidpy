@@ -149,9 +149,11 @@ def book_slips() -> dict:
 
     Book: §13.3–§13.17 (found by reading the page images against dimensions, limits and the book's own neighbouring
     equations; slips #1–#8 were re-read on the rendered pages when this module was written).
-    Returns a dict keyed "1" … "13"; each value is a dict with ``id``, ``where``, ``printed``, ``correct`` (alias
-    ``corrected``), ``how_to_tell``, ``taught_in``, ``coded_in`` (the function that carries the corrected form) and
-    ``test`` (the planted wrong variant a test must fail; "—" for wording-only slips).  Descriptions are ours and
+    Returns a dict keyed "1" … "14"; each value is a dict with ``id``, ``where``, ``printed``, ``correct`` (alias
+    ``corrected``), ``how_to_tell``, ``taught_in``, ``coded_in`` (the function that carries the corrected form),
+    ``test`` (the planted wrong variant a test must fail; "—" for wording-only slips) and ``kind`` — "slip" (false
+    as printed) or "loose" (rows 10 and 11: order-of-magnitude statements that are inconsistent with the chapter's
+    own inputs, not false formulas).  Descriptions are ours and
     contain no number from the book.  ``pd.DataFrame(book_slips()).T`` gives the notebook's table.
     Slip #13 (a historical attribution) is of medium confidence and is not asserted anywhere.
     Assumptions: none.   Validation: V1 every ``printed=True`` switch named here exists and fails its check.
@@ -185,8 +187,8 @@ def book_slips() -> dict:
         ("§13.14, opening", "N is said to be taken depth independent", "depth dependent, N(z)",
          "(13.99) writes N²(z) and the WKB section needs it", "C14 (N105)", "inertia_gravity_m2, wkb_vertical_structure",
          "—"),
-        ("cross-references", "sections and an equation of earlier chapters cited by a wrong number",
-         "§4.9 (Boussinesq, buoyancy), §8.4 (impulsively started plate), §5.6 (vortex stretching), (7.127) (N²)",
+        ("cross-references", "three sections and one equation of earlier chapters cited by a wrong number",
+         "§4.9 (Boussinesq approximation), §8.4 (impulsively started plate), §5.6 (vortex stretching), (7.127) (N²)",
          "section titles of the book's own table of contents", "conventions block", "—", "—"),
         ("§13.7, laminar Ekman thickness of air", "a thickness about a quarter below sqrt(2ν/f) for its own inputs",
          "the value of the formula", "recompute", "C06 (N48)", "ekman_depth", "private test asserts the formula"),
@@ -196,21 +198,30 @@ def book_slips() -> dict:
         ("exercise on the long Rossby-wave speed", "an answer that follows only from a round β",
          "with β at the stated latitude the speed is about a fifth smaller", "recompute both ways", "C15 (N135)",
          "rossby_long_wave_speed", "private test"),
-        ("§13.17, opening", "the theory of baroclinic instability attributed to one author (first name misspelt)",
-         "not asserted here (medium confidence): the problem solved in §13.17 is known as the Eady problem",
-         "history of the subject — unread first-hand", "C16 opening", "—", "—"),
+        ("§13.17, opening", "the theory of baroclinic instability credited to one named author 'and others', with "
+         "that author's first name misspelt",
+         "the spelling is the certain part; the attribution is not asserted here (unread first-hand): the problem "
+         "solved in §13.17 is known as the Eady problem",
+         "the spelling against any biography; the attribution needs a first-hand source", "C16 opening", "—", "—"),
+        ("§13.13, westward flow over a step", "the stream is described (and sketched) as returning to its original "
+         "latitude far downstream of the step",
+         r"with $\frac{D}{Dt}\big(\frac{\zeta+f}{h}\big)=0$ and $\zeta\to0$ downstream the streamline keeps a permanent "
+         r"shift $Y_p=f_0(h_1-h_0)/(\beta h_0)$ (the printed description is true for a ridge of finite width, after "
+         "which the depth returns to its upstream value)",
+         "far downstream ζ = 0, so f/h must equal its upstream value: f₀ + βY = f₀h₁/h₀", "C13 (N103), D18",
+         "flow_over_step", "flow_over_step(x → −∞, U < 0, …)['Y'] equals Y_p, not 0"),
     ]
     out = {}
     for i, (where, printed, correct, how, taught, coded, test) in enumerate(rows, start=1):
         out[str(i)] = dict(id=i, where=where, printed=printed, correct=correct, corrected=correct, how_to_tell=how,
-                           taught_in=taught, coded_in=coded, test=test)
+                           taught_in=taught, coded_in=coded, test=test, kind="loose" if i in (10, 11) else "slip")
     return out
 
 
 def traps() -> list:
     """Things that are true as printed but easy to misread — kept apart from :func:`book_slips`.
 
-    Book: §13.1–§13.18.   Returns a list of 17 dicts (``id`` "T1" … "T17", ``what``, ``where`` — the block that
+    Book: §13.1–§13.18.   Returns a list of 18 dicts (``id`` "T1" … "T18", ``what``, ``where`` — the block that
     carries the callout, ``code`` — how the code guards against it).
     Assumptions: none.   Validation: V1 a table.  Label: analytic.
     """
@@ -246,6 +257,9 @@ def traps() -> list:
         ("§13.18's spectrum is one-sided with no factor ½; ch12's was two-sided", "C17",
          "barotropic_spectrum states its normalisation"),
         ("two Rossby numbers: U/(fL) here, U/(2ΩL) in ch04 — they differ by sin θ", "C02", "rossby_number docstring"),
+        ("the text calls −2Ωu cos θ 'the vertical component of the Coriolis force'; it is the acceleration term on the "
+         "left of the vertical equation, the third component of 2Ω × u in (13.7); the force per unit mass is "
+         "+2Ωu cos θ", "C01", "coriolis_acceleration_local returns the acceleration and says so"),
     ]
     return [dict(id=f"T{i}", what=w, where=wh, code=c) for i, (w, wh, c) in enumerate(rows, start=1)]
 
@@ -777,10 +791,11 @@ def rayleigh_kuo_eigs(k, U: Callable, Up: Callable, Upp: Callable, beta, domain=
     Validation (measured; jet U = sech²y, even mode, ``bc="decay"``, y_max = 16, N = 120): growth rate k·c_i at
     k = 0.9 is 0.1608, 0.1373, 0.1064, 0.0670 for β = 0, 0.1, 0.2, 0.3 and no growing mode at 0.45; at k = 1.4 it
     falls from 0.1191 (β = 0) to 0.0151 (β = 0.6) and no growing mode is found at β = 0.7 — beyond max U″ = 2/3,
-    as the Rayleigh–Kuo condition requires; the values change by less than 1e-9 with y_max = 24, N = 160.  Not
-    converged at default resolution for strongly negative β at small k (k = 0.9, β = −1: 0.055 against 0.060), where
-    the critical level approaches the jet maximum (limit (iii) of the solver).  V7 β = 0 reproduces ch11.
-    Label: converged (inherits ``rayleigh_eigs_contour``; ranges above).
+    as the Rayleigh–Kuo condition requires; the values change by less than 1e-9 with y_max = 24, N = 160.
+    **Valid for β ≥ 0.**  For β < 0 the far field of the mode is a weakly damped radiating Rossby wave, which a
+    box with ψ = 0 at ±y_max does not represent: box values scatter (k = 0.9, β = −1: 0.055 to 0.060 with box and
+    N; shooting gives 0.0575), so results there are approximate.  V7 β = 0 reproduces ch11.
+    Label: converged for β ≥ 0 (inherits ``rayleigh_eigs_contour``); approximate for β < 0.
     """
     from .core.stability import rayleigh_eigs_contour
 

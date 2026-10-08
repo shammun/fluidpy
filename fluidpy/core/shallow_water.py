@@ -821,8 +821,12 @@ def barotropic_run(n: int, L: float, zeta0, *, t_end: float, dt: float, beta: fl
     dict: ``t`` (n_saved,), ``zeta`` (n_saved, n, n) and, per saved step, ``energy`` (½ mean(u² + v²)), ``enstrophy``
     (mean ζ²), ``K_E`` and ``K_Z`` (the centroids of :func:`spectral_centroids`).
     Numerics (ours): pseudo-spectral in space, classical RK4 in time (fourth order), 2/3 de-aliasing of the quadratic
-    term.  Inviscid and de-aliased, the truncated equations conserve energy and enstrophy; RK4 adds a drift ∝ dt⁴
-    that acts mostly on the highest wavenumbers kept.
+    term.  With ``dealias=True`` the initial field is first projected onto the retained modes (|k_x|, |k_y| strictly
+    below 2/3 of the Nyquist wavenumber) — so the first stored frame can differ from a ``zeta0`` that is not
+    band-limited; without that projection the modes outside the mask are advected but never de-aliased and energy and
+    enstrophy are not conserved (review: +18 % / +130 % at 64², t = 4, from white noise).  Inviscid and de-aliased,
+    the truncated equations conserve energy and enstrophy; RK4 adds a drift that falls as dt⁵ (measured: a factor 32
+    per halving), acting mostly on the highest wavenumbers kept.
     Raises ValueError if dt exceeds the advective limit dx/max|u| of the initial field.
     Assumptions: two-dimensional, non-divergent, doubly periodic, β-plane without boundaries.
     Validation (measured; 64², :func:`random_vorticity` with seed 1, unit u_rms, box 2π, dt from
@@ -846,6 +850,9 @@ def barotropic_run(n: int, L: float, zeta0, *, t_end: float, dt: float, beta: fl
     dt = t_end / nsteps
     every = max(int(save_every), 1)
     zh = np.fft.rfft2(zeta)
+    if dealias:   # project the start onto the retained modes: only then is the truncated system conservative
+        kcut = 2.0 / 3.0 * np.max(np.abs(KY)) * (1 - 1e-12)
+        zh = zh * ((np.abs(KX) < kcut) & (np.abs(KY) < kcut))
     rhs = lambda q: barotropic_vorticity_rhs(q, KX, KY, beta, nu, dealias)  # noqa: E731
     ts, zs, es, ens, kes, kzs = [], [], [], [], [], []
 

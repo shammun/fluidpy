@@ -1,6 +1,6 @@
 # Chapter 13 verification — Geophysical Fluid Dynamics                       2026-10-07 · code on the working tree at `68f22a4` (ch13 files staged, uncommitted)
 
-## Verdict: PASS — `tests/test_ch13.py`: 89 passed, 0 failed, 0 skipped (88 s; 87 in 47 s without the two slow tests); 34 of 34 planted mutants killed; rest of the suite 1776 passed
+## Verdict: PASS (re-verified after the code review) — `tests/test_ch13.py`: 91 passed, 0 failed, 0 skipped (121 s with the two slow tests); 39 of 39 planted mutants killed; full suite `-m "not slow"`: 1865 passed, 0 failed, 19 deselected (2994 s on a machine shared with other runs)
 
 Every script ran (13 chapter scripts and the cache writer exit 0), every test passes, each of the 17 CORE rows has at
 least two independent evidence levels (one of V1 / V2 / V3 / V5 in each), every coded NOTE item and every one of the 182
@@ -12,6 +12,7 @@ under "Open items" and "Found wrong in design / analysis"; none blocks.
 
 ## Environment
 python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint · matplotlib (Agg) · Windows 11.
+**After the review (this revision):** `tests/test_ch13.py` → **91 passed in 120.6 s** (all, slow included; 89 non-slow); full suite `-m "not slow"`: 1865 passed, 0 failed, 19 deselected (2994 s on a machine shared with other runs). First pass, before the review:
 `.venv/Scripts/python.exe -m pytest tests/test_ch13.py -q -p no:cacheprovider` → **89 passed in 87.55 s** (all, including the two
 `slow` tests: 13 scripts 35 s, cache regeneration 13 s); with `-m "not slow"` → **87 passed, 2 deselected in 47 s**.
 `tools/check_public.py tests/test_ch13.py tests/ch13_verify_figures.py reference/ch13/SOURCES.md reference/ch13/make_refs.py
@@ -57,7 +58,7 @@ Evidence labels: `analytic` V1 · `symbolic` V2 · `converged` V3 · `conserved`
 | C16 Eady problem (13.128), (13.136), (13.141), (13.142) | CORE | `eady_*`, `eady_matrix`, `eady_numeric_eigs`, `eady_basic_state` | V2 (D25, D26, D27), V1, V3, **V5** | see claim 4; 2 × 2 system derived from w′ = 0 equals the page's and the coded matrix; roots of its determinant equal (13.141) to 1e-24 | symbolic, analytic, converged, benchmark | `test_eady_equation_V2_derivation`, `test_eady_phase_speed_V2_derivation`, `test_eady_cutoff_and_fastest_wave_V2_derivation`, `test_eady_V5_published_growth_rate_and_wavenumbers`, `test_eady_V3_chebyshev_eigenvalues_against_the_closed_form`, `test_eady_V1_mode_structure_vertical_velocity_and_fluxes` |
 | C17 two-dimensional turbulence (13.143)–(13.145) | CORE | `fjortoft_transfer`, `enstrophy_spectrum`, `two_d_cascade_spectrum`, `rhines_length`, `barotropic_*`, `spectral_centroids`, `random_vorticity`, caches | V2 (D28, D29), V1, V4, V3 (drift order) | energy drift 2.1e-6, enstrophy 1.0e-5 over t = 1 (order 5.0 and 4.9 in dt); ⟨ψ, rhs⟩ and ⟨ζ, rhs⟩ = 0 to 1e-17 | symbolic, analytic, conserved; cascade pictures `qualitative` | `test_fjortoft_V2_two_constraints_and_ratios`, `test_cascade_spectra_V2_derivation`, `test_barotropic_V4_energy_and_enstrophy_and_strict_dealiasing`, `test_barotropic_V1_single_modes_rossby_wave_viscous_decay_and_diagnostics` |
 | NOTE: stratification (13.1), profiles, standard atmosphere, lapse rate in both conventions | NOTE | `ocean_density_gradient_budget`, `ocean_profile_idealized`, `thermocline_N2`, `buoyancy_frequency_sq`, `atmosphere_layers`, `lapse_rate_table`, `scale_height` | V1, V3, V7 | N² stencil order 2.0; identical verdict in both conventions for four gradients (`Gamma_a` is a required keyword) | analytic | `test_stratification_V1_*`, `test_lapse_rate_V7_both_conventions_same_verdict` |
-| NOTE: tables and names | NOTE | `illustrative_inputs`, `conventions_table`, `book_slips`, `traps`, `wind_from_to`, `viscous_layer_thicknesses`, `sympy_engines`, `reexport_audit` | V7 | 21 inputs; 13 slips; 17 traps; 152 re-exports | — | `test_tables_V7_*`, `test_contract_V7_*` (4 tests) |
+| NOTE: tables and names | NOTE | `illustrative_inputs`, `conventions_table`, `book_slips`, `traps`, `wind_from_to`, `viscous_layer_thicknesses`, `sympy_engines`, `reexport_audit` | V7 | 21 inputs; 14 slips (each with `kind`: "loose" for rows 10 and 11, "slip" otherwise; row 9 lists four cross-references); 18 traps; 152 re-exports | — | `test_tables_V7_*`, `test_contract_V7_*` (4 tests) |
 
 ## Functions used by the notebook and explainers (design Part C)
 `test_contract_V7_every_part_c_name_exists_and_is_exercised_here` holds the list of 182 contract names (C.1–C.4) plus 23
@@ -148,7 +149,9 @@ file — `test_public_V7_no_private_book_number_is_typed_in_this_file` and `tool
 | 8 | "let N be depth independent" (§13.14 opening) | Slip confirmed from the text (the sentence announces more generality than ch07, and (13.99) writes N²(z)); no code variant | — |
 | 10, 11, 12 | numerical inconsistencies | confirmed in the private tests (table above) | `test_book_V6_*` |
 | 5, 9, 13 | wording, cross-references, attribution | not re-read by the verifier; nothing coded depends on them | — |
-| new | westward flow over a step "at its original latitude" (§13.13) | **Slip, confidence about 90 %** (claim 6); not yet a row of `ch13.book_slips()` | `test_flow_over_step_V2_derivation`, `test_flow_over_step_V1_coded_streamlines_and_permanent_shift` |
+| 14 | westward flow over a step "at its original latitude" (§13.13) | **Slip, confidence about 90 %** (claim 6); **now row "14" of `ch13.book_slips()`** | `test_flow_over_step_V2_derivation`, `test_flow_over_step_V1_coded_streamlines_and_permanent_shift`, `test_flow_over_step_V4_printed_westward_statement_fails_pv_conservation` |
+
+`ch13.book_slips()` has 14 rows and `ch13.traps()` 18 (T18: the sign wording of the vertical Coriolis term); the tables test asserts both and the `kind` of every row.
 
 ## Mutation check (do the tests discriminate?)
 The package was copied to the scratchpad and one likely-wrong variant planted at a time (34 in all): transport sign,
@@ -159,7 +162,7 @@ in the 1-D step, group velocity without f², westward step returning to its lati
 Poincaré amplitude sign, bottom pumping without sign(f), C-grid Coriolis sign, m² with the wrong sign, δ without the 2,
 geostrophic sign, Eady matrix sign, β with sin for cos, step vorticity denominator, Fjørtoft's two energies swapped,
 Rossby frequency sign, Poincaré frequency without f, surface height without g, QG evolution sign, bottom transport sign,
-growth rate from c_r, inertial-circle sense, lapse-rate operators swapped. **34 of 34 are killed.** One survived the
+growth rate from c_r, inertial-circle sense, lapse-rate operators swapped. **34 of 34 were killed in the first pass; after the review the check was re-run on the changed code with five more (no projection of the start in `barotropic_run`, `poincare_orbit` path flipped in y, `inertial_oscillation` path flipped in y, north-wall `kelvin_state` travelling the wrong way, north-wall state decaying from the south wall): 39 of 39 killed.** One survived the
 first run in one of its two tests — `numpy.allclose` has a default absolute tolerance of 1e-8, larger than β itself — so
 every comparison in the file now goes through a helper with **no** absolute tolerance unless one is written.
 
@@ -215,7 +218,7 @@ value is `OMEGA_SOLAR_DAY` (0.27 % smaller). Lapse rates are computed in Kundu's
   `kind="energy"` only (claim 2).
 - `analysis/ch13_curation.md` §4b, D11 traps: "the free surface adds a boundary term to the orthogonality relation" —
   the same error; it adds one to the energy relation.
-- The westward-step statement of §13.13 is not in `ch13.book_slips()` (rows "1" … "13"); it should become a slip row or,
+- (Settled after the review: the westward-step statement is now row "14".) Before: it was not in `ch13.book_slips()` (rows "1" … "13"); it should become a slip row or,
   if the user prefers caution, a trap with the 90 % confidence stated.
 - The task brief lists `ekman_surface_printed` among the printed variants that must fail; it is true as printed for
   f > 0 (a trap). The test asserts exactly that.
@@ -224,10 +227,20 @@ value is `OMEGA_SOLAR_DAY` (0.27 % smaller). Lapse rates are computed in Kundu's
   reproduced at our resolution (0.5 % and 0.6 % over the sixth period with cells of 0.2 Λ) — a hypothesis about a
   different grid, not an error.
 
+## After the code review (`reports/ch13_review.md`) — what changed in the tests
+| Change in `fluidpy` | Test evidence added | Measured |
+|---|---|---|
+| `book_slips()` 14 rows with `kind`; `traps()` 18 rows | `test_tables_V7_inputs_conventions_slips_traps_and_names` asserts the 14 keys, every `kind`, the four cross-references of row 9, T1–T18; new `test_flow_over_step_V4_printed_westward_statement_fails_pv_conservation` (independent of the solver: "back at its latitude with ζ = 0" gives PV × h₀/h₁, three depth pairs; `flow_over_step` far downstream sits on Y_p with PV kept to 1e-12) | the printed statement misses (13.94) by 5 %, 7 % and 48 % for our three steps |
+| `barotropic_run` projects the start onto the retained modes | new `test_barotropic_V4_white_noise_start_is_projected_and_conserved`: white noise plus a large-scale mode, and a sharp-edged top-hat (both with > 2 % of their spectral power outside the mask), 64², inviscid, t = 4, quarter step | energy −6.2e-9, enstrophy −1.8e-7 (noise case; the implementer's −3.6e-8 / −1.9e-7 is the same size for a different field); drift order 4.92 / 4.97; frames stay inside the mask to 1e-9; the mutant without the projection fails |
+| reviewer's surviving mutants | `poincare_orbit` and `inertial_oscillation` now checked for dy/dt = v, the path's axis ratio and a closed circle about its centre; `kelvin_state(wall="north")`: largest on the north wall, envelope exp(−(L_y − y)/Λ) to 1e-9, travels toward −sign(f)·x (tendency and quarter-period shift), returns after a period to 0.4 %, cross-channel geostrophy to 2e-3; `kelvin_residuals` at two more points | both y-flipped mutants and both north-wall mutants die |
+| public-repo hygiene | no public test types the page's typical f, β or f/ω pair any more: public tests use `F_N`, `F_S` (35°, ours) and β = 1.7e-11 or 1.9e-11; the two book-only tests read f and β from the private JSON | `tools/check_public.py` OK on the five files |
+| docstring numbers | `ekman_residual`: 4001 nodes over 14 δ, asserted within 0.7e-6 … 2.1e-6 of f|V| (docstring 1.4e-6); `absolute_vorticity_gradient`: 401 points over |y| ≤ 5, asserted within 4e-4 … 1.3e-3 (docstring 8.3e-4) | both inside their bands |
+
+Open item 3 of the first pass (the docstring of `barotropic_run` said dt⁴) is superseded by the measured order above; the
+other open items stand.
+
 ## Rest of the suite
-`tests/test_machinery.py`: **9 passed** in 19 s. All other test files (`tests/test_ch01.py` … `tests/test_ch12.py` and
-`tests/test_machinery.py`, `-m "not slow"`): **1776 passed, 0 failed**, exit code 0. The three files that share modules
-with this chapter were run a second time on their own (`test_ch07.py`, `test_ch11.py`, `test_ch12.py`: 455 passed, 10
-deselected). `fluidpy/core/stability.py` changed (`rayleigh_eigs_contour` gained `beta=0.0`): the default path is
-unchanged — identical arrays with and without the keyword, equal to the independent shooting value to 1e-7, and all of
-chapter 11's tests still pass.
+Full suite after the review, `.venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider -m "not slow"`: **1865 passed, 0 failed, 19 deselected (2994 s on a machine shared with other runs)**.
+`tests/test_machinery.py` is part of that run. First pass: 1776 passed in the other files, `test_machinery.py` 9 passed.
+`fluidpy/core/stability.py` (`rayleigh_eigs_contour` gained `beta=0.0`): the default path is unchanged — identical arrays
+with and without the keyword, equal to the independent shooting value to 1e-7, and all of chapter 11's tests pass.

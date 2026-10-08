@@ -84,7 +84,7 @@ def bench():
 
 def close(a, b, rtol=1e-5, atol=0.0):
     """``numpy.allclose`` with NO absolute tolerance unless one is given: numpy's default atol = 1e-8 would pass any two
-    numbers of the size of f (1e-4 1/s) or beta (1e-11 1/(m s)) — a mutant with sin for cos in beta survived it."""
+    numbers as small as the Coriolis parameter or its gradient beta — a mutant with sin for cos in beta survived it."""
     return bool(np.allclose(a, b, rtol=rtol, atol=atol))
 
 
@@ -193,7 +193,7 @@ def test_contract_V7_scalars_in_floats_out_and_f_zero_raises():  # convention 2 
     scalar_calls = [
         (ch13.beta_parameter, (LAT,)), (ch13.beta_plane, (1e5, LAT)), (ch13.rossby_number, (14.0, F_N, 1.4e6)),
         (ch13.ekman_number, (7.0, F_S, 9e3)), (ch13.ekman_depth, (0.03, F_S)), (ch13.long_wave_speed, (4200.0,)),
-        (ch13.poincare_omega, (1e-5, F_N, 200.0)), (ch13.rossby_radius, (3.1, F_S)), (ch13.rossby_omega, (-1e-5, 2e-6, 2e-11)),
+        (ch13.poincare_omega, (1e-5, F_N, 200.0)), (ch13.rossby_radius, (3.1, F_S)), (ch13.rossby_omega, (-1e-5, 2e-6, 1.9e-11)),
         (ch13.potential_vorticity, (1e-5, F_N, 300.0)), (ch13.eady_alpha, (1e-6, 0.0, 1.1e-2, F_S)),
         (ch13.rhines_length, (13.0, 1.6e-11)), (ch13.inertial_period, (F_S,)), (ch13.kelvin_omega, (1e-5, 3.0)),
         (ch13.eady_growth_rate, (2e-6, 0.0, 1.1e-2, F_N, 9e3, 27.0)), (ch13.lee_wave_m, (10.0, 1e-2, 2e-4)),
@@ -408,11 +408,15 @@ def test_tables_V7_inputs_conventions_slips_traps_and_names():  # smoke, C.4 tab
     ct = ch13.conventions_table()
     assert list(ct.columns) == ["symbol", "meanings", "ours", "code"] and len(ct) >= 15 and "f" in set(ct["symbol"])
     slips = ch13.book_slips()
-    assert list(slips) == [str(i) for i in range(1, 14)]
+    assert list(slips) == [str(i) for i in range(1, 15)]
+    assert {k: v["kind"] for k, v in slips.items()} == {str(i): ("loose" if i in (10, 11) else "slip") for i in range(1, 15)}
+    assert "13.13" in slips["14"]["where"] and "Y_p" in slips["14"]["correct"] and slips["14"]["coded_in"] == "flow_over_step"
+    assert len(re.findall(r"§\d+\.\d+|\(7\.\d+\)", slips["9"]["correct"])) == 4       # four cross-references
     for row in slips.values():
         assert {"where", "printed", "correct", "taught_in"} <= set(row) and not re.search(r"\d\.\d{2,}", row["printed"])
     tr = ch13.traps()
-    assert len(tr) == 17 and [t["id"] for t in tr] == [f"T{i}" for i in range(1, 18)]
+    assert len(tr) == 18 and [t["id"] for t in tr] == [f"T{i}" for i in range(1, 19)]
+    assert all({"id", "what", "where", "code"} <= set(t) for t in tr) and "coriolis_acceleration_local" in tr[17]["code"]
     w = ch13.wind_from_to(9.0, 0.0)
     assert (w["wind_name"], w["current_name"], w["from_deg"], w["to_deg"]) == ("westerly", "eastward", 270.0, 90.0)
     assert ch13.wind_from_to(0.0, -4.0)["wind_name"] == "northerly" and ch13.wind_from_to(0.0, 0.0)["wind_name"] == "calm"
@@ -617,6 +621,11 @@ def test_ekman_surface_V1_spiral_residual_stress_and_hemispheres():  # V1 + V7, 
             assert close(np.gradient(turn, zz)[5:-5], s / d, rtol=1e-6)
             Vg = ch13.ekman_surface(zz, tx, ty, EK["rho"], EK["nu"], f, U_g=0.2, V_g=-0.1, as_complex=True)
             assert close(Vg - V, 0.2 - 0.1j)
+    dd = float(ch13.ekman_depth(EK["nu"], F_N))                                  # the docstring's measured number, re-measured
+    z14 = np.linspace(-14 * dd, 0.0, 4001)
+    V14 = ch13.ekman_surface(z14, EK["tau"], 0.0, EK["rho"], EK["nu"], F_N, as_complex=True)
+    r14 = ch13.ekman_residual(z14, V14.real, V14.imag, EK["nu"], F_N)
+    assert len(r14[0]) == 3999 and 0.7e-6 < max(np.max(np.abs(r14[0])), np.max(np.abs(r14[1]))) / (F_N * np.max(np.abs(V14))) < 2.1e-6
     zb = np.linspace(-200.0, 0.0, 4001)                                          # (13.31): tilting = diffusion of vorticity
     for f in HEMI:
         b = ch13.ekman_vorticity_balance(zb, EK["tau"], EK["rho"], EK["nu"], f)
@@ -709,8 +718,8 @@ def test_ekman_pumping_V2_derivation():  # V2, D09 (ours): w_E = (1/rho) curl_z(
         assert close(ws, -w)
     assert abs(observed_order(hs, es) - 2.0) < 0.15 and w[n // 2, n // 2] > 0
     assert math.isclose(ch13.ekman_pumping_from_curl(2e-7, 1027.0, F_N), 2e-7 / (1027.0 * F_N))
-    assert math.isclose(ch13.ekman_pumping_from_curl(0.0, 1027.0, F_N, beta=2e-11, tau_x=0.1), 2e-11 * 0.1 / (1027.0 * F_N ** 2))
-    assert math.isclose(ch13.sverdrup_transport(-1e-7, 1027.0, 2e-11), -1e-7 / (1027.0 * 2e-11))
+    assert math.isclose(ch13.ekman_pumping_from_curl(0.0, 1027.0, F_N, beta=1.7e-11, tau_x=0.1), 1.7e-11 * 0.1 / (1027.0 * F_N ** 2))
+    assert math.isclose(ch13.sverdrup_transport(-1e-7, 1027.0, 1.7e-11), -1e-7 / (1027.0 * 1.7e-11))
     dlt = float(ch13.ekman_depth(I["nu_v_atm"], F_N))
     assert math.isclose(ch13.ekman_pumping_bottom(1.5e-5, I["nu_v_atm"], F_N), 0.5 * dlt * 1.5e-5)
     assert math.isclose(ch13.ekman_pumping_bottom(-1.5e-5, I["nu_v_atm"], F_S), 0.5 * dlt * 1.5e-5)   # cyclonic in the south is zeta < 0
@@ -1130,11 +1139,15 @@ def test_poincare_V1_fields_satisfy_the_linear_set_and_orbits():  # V1 + V7, C10
         sense = np.sign(np.mean(ob["u"] * np.gradient(ob["v"], tt) - ob["v"] * np.gradient(ob["u"], tt)))
         assert sense == -np.sign(f) and ob["sense"] == ("clockwise" if f > 0 else "counter-clockwise")
         assert close(np.gradient(ob["x"], tt)[2:-2], ob["u"][2:-2], rtol=1e-3, atol=1e-6 * np.max(np.abs(ob["u"])))
+        assert close(np.gradient(ob["y"], tt)[2:-2], ob["v"][2:-2], rtol=1e-3, atol=1e-4 * np.max(np.abs(ob["v"])))   # dy/dt = v too
+        assert math.isclose(np.ptp(ob["x"]) / np.ptp(ob["y"]), w1 / abs(f), rel_tol=1e-4)   # the path has the same axis ratio
         ti = np.linspace(0.0, 2 * PI / abs(f), 2001)
         ui, vi, xi, yi = ch13.inertial_oscillation(ti, 0.2, -0.1, f)                         # K -> 0: inertial circle
         assert close(np.hypot(ui, vi), math.hypot(0.2, 0.1)) and math.isclose(np.ptp(xi) / 2, ch13.inertial_radius(math.hypot(0.2, 0.1), f), rel_tol=1e-5)
         assert np.sign(np.mean(ui * np.gradient(vi, ti) - vi * np.gradient(ui, ti))) == -np.sign(f)
         assert close(np.gradient(xi, ti)[2:-2], ui[2:-2], atol=1e-5) and abs(xi[-1]) + abs(yi[-1]) < 1e-9   # closed circle
+        assert close(np.gradient(yi, ti)[2:-2], vi[2:-2], atol=1e-5) and xi[0] == 0.0 and yi[0] == 0.0       # dy/dt = v too
+        assert close(np.hypot(xi - xi.mean(), yi - yi.mean())[::50], math.hypot(0.2, 0.1) / abs(f), rtol=2e-3)
     assert math.isclose(ch13.poincare_omega(0.0, F_S, c), F_N)                               # omega -> |f|, not 0, as K -> 0
     assert math.isclose(ch13.inertial_radius(I["q_inertial"], F_S), I["q_inertial"] / F_N)
     with pytest.raises(ValueError):
@@ -1469,13 +1482,13 @@ def test_inertia_gravity_V1_fields_hodograph_and_w_equation_residual():  # V1 + 
     wk = ch13.wkb_vertical_structure(zz, 0.02, A0=1.5)
     assert close(wk, 1.5 / math.sqrt(0.02) * np.exp(1j * 0.02 * (zz - zz[0])), rtol=1e-12)   # constant m: exact
     assert close(ch13.wkb_vertical_structure(zz, 0.02, sign=-1), np.conj(ch13.wkb_vertical_structure(zz, 0.02)))
-    num = ch13.vertical_structure_solve(zz, lambda s: N, 2 * PI / 8.0e3, 3e-4, 1e-4, w0=0.0, dw0=1.0)
-    m_c = math.sqrt(ch13.inertia_gravity_m2(2 * PI / 8.0e3, 0.0, 3e-4, N, 1e-4))
+    num = ch13.vertical_structure_solve(zz, lambda s: N, 2 * PI / 8.0e3, 2.9 * F_N, F_S, w0=0.0, dw0=1.0)
+    m_c = math.sqrt(ch13.inertia_gravity_m2(2 * PI / 8.0e3, 0.0, 2.9 * F_N, N, F_S))
     assert np.max(np.abs(num - np.sin(m_c * (zz - zz[0])) / m_c)) < 1e-7 / m_c                 # (13.100) with constant m
 
 
 def test_wkb_V3_error_falls_as_one_over_Hm():  # V3-style scaling, N114 (13.104): claim 7 (wkb_error)
-    f, om, Hs, N0 = 1e-4, 3e-4, 1000.0, 5e-3
+    f, om, Hs, N0 = F_N, 2.9 * F_N, 1000.0, 5.3e-3
     Nf = lambda s: N0 * (1 + 0.5 * np.tanh(s / Hs))  # noqa: E731
     z = np.linspace(-3 * Hs, 3 * Hs, 3001)
     Hm, err = [], []
@@ -1694,6 +1707,9 @@ def test_rayleigh_kuo_V3_growth_rates_against_independent_shooting():  # V3 + V1
     assert gone["stable"] is True and gone["growth_rate"] == 0.0                             # beta > max U'': (13.124) forbids growth
     crit = ch13.rayleigh_kuo_criterion(y, SECH2["U"](y), 0.7)
     assert crit["changes_sign"] is False and crit["min"] > 0 and crit["y_zero"] == []
+    y401 = np.linspace(-5.0, 5.0, 401)                                         # the docstring's measured number, re-measured
+    e401 = np.max(np.abs(ch13.absolute_vorticity_gradient(y401, SECH2["U"](y401), 0.3) - (0.3 - SECH2["Upp"](y401))))
+    assert 4e-4 < e401 < 1.3e-3
     G = ch13.absolute_vorticity_gradient(y, SECH2["U"](y), 0.3)
     assert np.max(np.abs(G - (0.3 - SECH2["Upp"](y)))) < 2e-5
     assert np.max(np.abs(ch13.absolute_vorticity_gradient(y, SECH2["U"], 0.3) - (0.3 - SECH2["Upp"](y)))) < 2e-5   # callable form
@@ -1984,7 +2000,7 @@ def test_cgrid_V3_poincare_wave_second_order_in_space_third_in_time():  # V3, C0
 def test_cgrid_V4_volume_and_energy_conserved_by_the_space_discretisation():  # V4, C07 (13.44), (13.88)–(13.90)
     rng = np.random.default_rng(1)
     for bc in ("periodic", "channel", "closed"):
-        md = ch13.ShallowWater(12, 10, 1.0e6, 8.0e5, 500.0, 1.0e-4, beta=(2e-11 if bc != "periodic" else 0.0), bc=bc)
+        md = ch13.ShallowWater(12, 10, 1.0e6, 8.0e5, 500.0, F_S, beta=(1.7e-11 if bc != "periodic" else 0.0), bc=bc)
         st = SW.make_state(md, 0.5 * rng.standard_normal((10, 12)), 0.1 * rng.standard_normal((10, 12)), 0.1 * rng.standard_normal((10, 12)))
         if bc != "periodic":
             assert np.all(st["v"][0] == 0.0)                                    # wall-normal velocity removed
@@ -2002,9 +2018,9 @@ def test_cgrid_V4_volume_and_energy_conserved_by_the_space_discretisation():  # 
         en = ch13.energy(md, st)
         assert math.isclose(en["total"], en["kinetic"] + en["potential"]) and math.isclose(en["potential"], 0.5 * md.g * np.sum(st["eta"] ** 2) * md.dx * md.dy)
     with pytest.raises(ValueError):
-        ch13.ShallowWater(8, 8, 1e6, 1e6, 100.0, 1e-4, beta=2e-11)              # a beta-plane cannot be periodic in y
+        ch13.ShallowWater(8, 8, 1e6, 1e6, 100.0, F_N, beta=1.7e-11)              # a beta-plane cannot be periodic in y
     with pytest.raises(ValueError):
-        ch13.ShallowWater(8, 8, 1e6, 1e6, 100.0, 1e-4, bottom=150.0)
+        ch13.ShallowWater(8, 8, 1e6, 1e6, 100.0, F_N, bottom=150.0)
 
 
 def test_cgrid_V1_balanced_states_vorticity_and_kelvin_wave_both_hemispheres():  # V1 + V3 + V7, C02, C11, C13
@@ -2041,8 +2057,28 @@ def test_cgrid_V1_balanced_states_vorticity_and_kelvin_wave_both_hemispheres(): 
         shift = int(round(np.sign(f) * 16))                                     # a quarter wavelength toward sign(f) x
         assert np.max(np.abs(quarter - np.roll(ks["eta"], shift, axis=1))) < 6e-3 * 0.2
         assert np.argmax(np.abs(ks["eta"]).max(axis=1)) == 0                    # largest at the wall, decays as exp(-y/Lambda)
+        kn = SW.kelvin_state(ch, 0.2, wall="north")                             # the mirror wave on the other wall
+        assert np.argmax(np.abs(kn["eta"]).max(axis=1)) == 63 and np.all(kn["v"] == 0.0)
+        Lam = c / abs(f)
+        col = np.abs(kn["eta"]).max(axis=1)
+        assert close(col / col[-1], np.exp(-(1.2e6 - ch.y_c - ch.dy / 2) / Lam), rtol=1e-9)   # exp(-(Ly - y)/Lambda)
+        dun, dvn = ch13.momentum_tendencies(ch, kn)
+        den = ch13.continuity_tendency(ch, kn)
+        assert np.max(np.abs(dvn)) < 2e-3 * G0 * 0.2 / Lam                      # geostrophic across the channel (13.84c)
+        kx = 2 * PI / 2.0e6
+        Xc, Yc = ch.grids()["center"]
+        env = 0.2 * np.exp(-(1.2e6 - Yc) / Lam)
+        dnorth = -np.sign(f)                                                    # travels toward -sign(f) x: wall on its right for f > 0
+        assert close(den, dnorth * c * kx * env * np.sin(kx * Xc), atol=4e-3 * c * kx * 0.2)   # d(eta)/dt of a wave moving that way
+        rn = ch13.run(ch, kn, 2.0e6 / c, save_every=10 ** 6)
+        assert np.max(np.abs(rn["eta"][-1] - kn["eta"])) < 4e-3 * 0.2
+        qn = ch13.run(ch, kn, 0.25 * 2.0e6 / c, save_every=10 ** 6)["eta"][-1]
+        assert np.max(np.abs(qn - np.roll(kn["eta"], -shift, axis=1))) < 6e-3 * 0.2   # opposite direction to the south-wall wave
+        for x0, y0 in ((3.3e5, 5.0e4), (1.1e6, 2.0e5)):                         # analytic residuals of (13.84) at the same parameters
+            res = ch13.kelvin_residuals(x0, y0, 400.0, 0.2, kx, 20.0, f, h=10.0, ht=1.0)
+            assert all(abs(v_) < 1e-7 for v_ in res.values())
     with pytest.raises(ValueError):
-        SW.kelvin_state(ch13.ShallowWater(8, 8, 1e6, 1e6, 10.0, 1e-4), 0.1)     # needs a wall
+        SW.kelvin_state(ch13.ShallowWater(8, 8, 1e6, 1e6, 10.0, F_N), 0.1)     # needs a wall
 
 
 def test_particles_V1_interpolation_advection_and_pv_on_paths():  # V1 + V4, C13 (13.94): advect_particles
@@ -2177,6 +2213,52 @@ def test_barotropic_V4_energy_and_enstrophy_and_strict_dealiasing():  # V4 + V3,
     at_cut = np.isclose(np.abs(KX2), 16.0) & np.isclose(np.abs(KY2), 3.0)
     assert full[at_cut].max() > 0.1 * full.max() and kept[at_cut].max() == 0.0   # present in the product, removed by the filter
     assert kept[np.isclose(np.abs(KX2), 0.0) & np.isclose(np.abs(KY2), 3.0)].max() > 0.1 * full.max()   # the resolved partner stays
+
+
+def test_barotropic_V4_white_noise_start_is_projected_and_conserved():  # V4 + V3, C17: a start that is NOT band-limited
+    n, L = 64, 2 * PI
+    rng = np.random.default_rng(11)
+    noise = rng.standard_normal((n, n))
+    noise -= noise.mean()
+    x = np.arange(n) * L / n
+    X, Y = np.meshgrid(x, x)
+    tophat = np.where((np.abs(X - PI) < 0.8) & (np.abs(Y - PI) < 0.8), 1.0, 0.0)          # sharp edges: every wavenumber
+    KX, KY = SW.spectral_wavenumbers(n, L)
+    kcut = 2.0 / 3.0 * (PI * n / L)
+    outside = (np.abs(KX) >= kcut) | (np.abs(KY) >= kcut)
+    for z0 in (noise + 6.0 * np.cos(3 * X) * np.sin(2 * Y), 8.0 * (tophat - tophat.mean())):
+        assert np.sum(np.abs(np.fft.rfft2(z0)[outside]) ** 2) > 0.02 * np.sum(np.abs(np.fft.rfft2(z0)) ** 2)   # not band-limited
+        z0 = z0 / math.sqrt(2 * ch13.barotropic_invariants(z0, L)["energy"])               # unit rms speed
+        dt = SW.barotropic_time_step(z0, L) / 4                                             # a quarter step
+        r = ch13.barotropic_run(n, L, z0, t_end=4.0, dt=dt, save_every=10 ** 6)
+        dE, dZ = r["energy"][-1] / r["energy"][0] - 1, r["enstrophy"][-1] / r["enstrophy"][0] - 1
+        assert abs(dE) < 5e-7 and abs(dZ) < 2e-6, (dE, dZ)                                  # inviscid invariants of the truncated system
+        assert np.max(np.abs(np.fft.rfft2(r["zeta"][0])[outside])) < 1e-9 * np.max(np.abs(np.fft.rfft2(r["zeta"][0])))   # frame 0 is the projection
+        assert np.max(np.abs(np.fft.rfft2(r["zeta"][-1])[outside])) < 1e-9 * np.max(np.abs(np.fft.rfft2(r["zeta"][-1])))  # and it stays there
+        assert r["enstrophy"][0] < ch13.barotropic_invariants(z0, L)["enstrophy"]           # the projection removed something
+    dts, eE, eZ = [], [], []
+    for div in (1, 2, 4):
+        rr = ch13.barotropic_run(n, L, z0, t_end=1.0, dt=2 * dt / div, save_every=10 ** 6)
+        dts.append(2 * dt / div)
+        eE.append(abs(rr["energy"][-1] / rr["energy"][0] - 1))
+        eZ.append(abs(rr["enstrophy"][-1] / rr["enstrophy"][0] - 1))
+    assert observed_order(dts, eE) > 4.3 and observed_order(dts, eZ) > 4.3                  # time-stepping error only: about dt^5
+
+
+def test_flow_over_step_V4_printed_westward_statement_fails_pv_conservation():  # V4, slip #14 (§13.13), independent of the code
+    beta, f0, U = float(ch13.beta_parameter(LAT)), F_N, I["U_mean"]
+    for h0, h1 in ((4000.0, 3800.0), (4000.0, 4300.0), (900.0, 610.0)):
+        q_up = ch13.potential_vorticity(0.0, f0, h0)                           # upstream: uniform stream, no relative vorticity
+        Yp = f0 * (h1 - h0) / (beta * h0)
+        q_printed = ch13.potential_vorticity(0.0, f0 + beta * 0.0, h1)         # "again at its original latitude", zeta = 0
+        assert abs(q_printed / q_up - 1) > 0.04 and math.isclose(q_printed / q_up, h0 / h1)   # misses (13.94) by h0/h1 - 1
+        q_ours = ch13.potential_vorticity(0.0, f0 + beta * Yp, h1)
+        assert math.isclose(q_ours, q_up, rel_tol=1e-13)
+        far = ch13.flow_over_step(np.array([-40.0, -30.0]) * math.sqrt(U / beta), -U, beta, f0, h0, h1)
+        assert close(far["Y"], Yp, rtol=1e-12) and np.max(np.abs(far["zeta"])) < 1e-12 * abs(f0)   # the code: settled at Y_p
+        assert math.isclose(ch13.potential_vorticity(far["zeta"][0], f0 + beta * far["Y"][0], h1), q_up, rel_tol=1e-12)
+        # a ridge of finite width is the case in which the printed description holds: back over h0 the latitude must be the old one
+        assert math.isclose(ch13.potential_vorticity(0.0, f0, h0), q_up)
 
 
 def test_barotropic_V1_single_modes_rossby_wave_viscous_decay_and_diagnostics():  # V1, C15/C17 (13.122)
@@ -2417,12 +2499,13 @@ def test_book_V6_modes_waves_and_regimes():  # V6 §13.9–§13.12 (slips #6, #1
     hi = s10["high_frequency_example"]
     assert rel(hi["beta"] / (hi["omega_s"] * 2 * PI / (hi["wavelength_km"] * 1e3)), s10["derived_by_analyst"]["ratio_high"]) < 1e-3
     lo = s10["low_frequency_example"]
+    f_typ = b["sec_13_15_rossby"]["inputs"]["f0_s"]                             # the page's typical f, from the private file
     kk = 2 * PI / (lo["wavelength_km"] * 1e3)
     for cc, key in ((lo["c_barotropic_m_s"], "ratio_barotropic"), (lo["c_baroclinic_m_s"], "ratio_baroclinic")):
-        ts = ch13.dispersion_term_sizes(kk, 0.0, cc, 1e-4, lo["beta"], lo["omega_s"])
+        ts = ch13.dispersion_term_sizes(kk, 0.0, cc, f_typ, lo["beta"], lo["omega_s"])
         assert rel(abs(ts["omega3"] / ts["beta"]), lo[key]) < 0.01
     s11, s12 = b["sec_13_11_poincare"]["inertial_example"], b["sec_13_12_kelvin"]
-    assert rel(ch13.inertial_radius(s11["q_m_s"], 1e-4) / 1e3, s11["radius_km"]) < 1e-12
+    assert rel(ch13.inertial_radius(s11["q_m_s"], f_typ) / 1e3, s11["radius_km"]) < 1e-12
     dk = s12["deep_sea_example"]
     c = ch13.long_wave_speed(dk["H_km"] * 1e3, g=9.81)
     assert rel(c, dk["c_m_s"]) < 0.01 and rel(ch13.rossby_radius(c, dk["f_s"]) / 1e3, dk["Lambda_km"]) < 0.01   # two-digit rounding
@@ -2450,7 +2533,7 @@ def test_book_V6_rossby_eady_and_turbulence():  # V6 §13.15–§13.18 (slip #12
     assert rel(Nn, e7["answer_N_s"]) < 5e-4
     c1 = ch13.baroclinic_mode_speed(Nn, e7["height_km"] * 1e3, 1)
     assert rel(c1, e7["answer_c1_m_s"]) < 5e-4
-    assert rel(-ch13.rossby_long_wave_speed(2e-11, f45, c1), e7["answer_cx_m_s"]) < 5e-3            # needs the round beta
+    assert rel(-ch13.rossby_long_wave_speed(inp["beta"], f45, c1), e7["answer_cx_m_s"]) < 5e-3            # needs the round beta
     cx_lat = -ch13.rossby_long_wave_speed(float(ch13.beta_parameter(np.deg2rad(45.0))), f45, c1)
     assert rel(cx_lat, e7["derived_by_analyst"]["cx_with_beta_at_45deg"]) < 2e-3 and rel(cx_lat, e7["answer_cx_m_s"]) > 0.15   # slip #12
     s17 = b["sec_13_17_baroclinic"]
