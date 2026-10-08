@@ -247,7 +247,7 @@ only) · machinery: `setup_notebook`, `show_viz`, `animate`, `show_animation`, `
 | `long_wave_speed(H, g=G0)` | √(gH) [m/s] | (13.86) |
 | `equivalent_depth(c, g=G0)` | value c²/g [m] | $c^2=gH_e$ (13.46), (13.62) |
 | `baroclinic_mode_speed(N, H, n=1)` | NH/(nπ) [m/s] | $c_n=\frac{NH}{n\pi}$ (13.71) |
-| `shallow_water_omega(k, l, c, f0, beta)` | tuple (ω₋, ω_R, ω₊) in ascending order [rad/s]: the three real roots of the cubic (trigonometric form) | $\omega^3-c^2\omega K^2-f_0^2\omega-c^2\beta k=0$ (13.76) |
+| `shallow_water_omega(k, l, c, f0, beta)` | tuple (ω₋, ω_R, ω₊) in ascending order [rad/s]: the three real roots of the cubic; **(nan, nan, nan) where `shallow_water_discriminant` is negative** (the one documented exception to "never NaN": callers test the discriminant first) | $\omega^3-c^2\omega K^2-f_0^2\omega-c^2\beta k=0$ (13.76) |
 | `shallow_water_branches(k, l, c, f0, beta)` **(+)** | dict: "poincare_plus", "poincare_minus", "rossby" (the three roots above), "kelvin" (= c·k) | curation §8 note 5 |
 | `shallow_water_discriminant(k, l, c, f0, beta)` | 4(c²K² + f₀²)³ − 27(c²βk)² [1/s⁶] | N82 |
 | `shallow_water_regime(omega, f0)` | dict: "ratio" abs(ω/f₀), "regime" ("high" for ratio > 3, "near-inertial" for 1 ≤ ratio ≤ 3, "low" for ratio < 1), "neglect" (the term of the cubic that may be dropped: "f0^2 omega", "c^2 beta k", "omega^3") | N83 |
@@ -320,7 +320,9 @@ only) · machinery: `setup_notebook`, `show_viz`, `animate`, `show_animation`, `
 `Modes` is a `typing.NamedTuple` with fields `(c, psi, He, z, weights)`: `c` array (n_modes,) [m/s] in decreasing order (index 0
 = barotropic with a free surface; with a rigid lid index 0 is the first baroclinic mode); `psi` array (n_modes, len(z)), each
 normalised to ψ(z = 0) = 1; `He = c²/g`; `weights` the quadrature weights on z. Integer indexing works for parity rows:
-`ch13.vertical_modes(...)[0][1]` is c₁.
+`ch13.vertical_modes(...)[0][1]` is c₁ with a free surface. **With `lid="rigid"` there is no barotropic entry: index 0 is
+the first baroclinic mode, so mode n is at index n − 1** (measured on the implementer's code: rigid c = 3.6096, 1.8048,
+1.2032 m/s; free c = 203.05, 3.6085, 1.8047 m/s for uniform N = 2.7 × 10⁻³ s⁻¹, H = 4200 m, 401 nodes).
 
 | Function (signature) | Returns [units] | Book eq. / source |
 |---|---|---|
@@ -330,10 +332,10 @@ normalised to ψ(z = 0) = 1; `He = c²/g`; `weights` the quadrature weights on z
 | `rigid_lid_error(N, H, g=G0, n=1)` | (c_n(free) − c_n(rigid))/c_n(rigid) [–] | N75 |
 | `w_structure(modes, n)` | array: the integral of ψ_n from −H to z | (13.53) |
 | `rho_structure(modes, n)` | array dψ_n/dz | (13.54) |
-| `project(modes, profile)` | array of coefficients a_n = ∫profile·ψ_n dz / ∫ψ_n² dz | N56, N60 |
+| `project(modes, profile)` | array of coefficients a_n = ∫profile·ψ_n dz / ∫ψ_n² dz (weight 1 for both lids); with rigid-lid modes the depth mean of the profile is not represented (a constant projects to zero) and must be added back by the caller | N56, N60 |
 | `reconstruct(modes, coeffs)` | array Σ a_nψ_n(z) | (13.52) |
-| `orthogonality_matrix(modes)` | array (n, n): ∫ψ_mψ_n dz/√(∫ψ_m²∫ψ_n²) (plus the surface term for `lid="free"`) | N60 |
-| `modal_amplitudes(c_n, p_n_t)` | dict: "rho_n" = −(ρ₀/g)p_n (with rho0 = 1), "w_n" = p_n_t/c_n² | (13.60), (13.61) |
+| `orthogonality_matrix(modes, kind="psi", N2=None, g=G0, lid="free")` | array (n, n). `kind="psi"` (default; the orchestrator's "weight-1" form): ∫ψ_mψ_n dz/√(∫ψ_m²∫ψ_n²), weight 1 and **no surface term for either lid**. `kind="energy"` (needs `N2`): the second relation, ∫ψ_m′ψ_n′/N² dz + ψ_m(0)ψ_n(0)/g for a free surface (the surface term belongs here), normalised likewise | N60 |
+| `modal_amplitudes(c_n, p_n_t, p_n=None, rho0=1.0, g=G0)` | dict: "w_n" = p_n_t/c_n²; "rho_n" = −(ρ₀/g)p_n when `p_n` is given, otherwise `None` | (13.60), (13.61) |
 | `wkb_mode_speed(z, N, n=1)` | ∫N dz/(nπ) [m/s] | ours (the WKB estimate) |
 
 ### C.3 `fluidpy/core/shallow_water.py` (NEW, `SW`; re-exported by `ch13`) — numerical models (our choices)
@@ -371,7 +373,8 @@ write `ch13.<name>` only.
 |---|---|---|
 | `illustrative_inputs()` **(+)** | dict of our inputs (never the book's): "lat" 35° in rad, "lat_ekman" 60°, "lat_rossby" 12°, "ocean_H" 4200.0, "ocean_N" 2.7e-3, "atm_H" 9000.0, "atm_N" 1.1e-2, "atm_U0" 27.0, "tau" 0.07, "nu_v_ocean" 0.03, "U_g" 12.0, "nu_v_atm" 7.0, "U_syn" 14.0, "L_syn" 1.4e6, "H1" 120.0, "drho" 3.1, "rho_ocean" 1027.0, "U_mean" 17.0, "wavelengths" (7.3e5, 3.1e6), "q_inertial" 0.23, "u_rms" (13.0, 0.08) | curation decision 11 |
 | `conventions_table()` **(+)** | `pandas.DataFrame`: the symbol table of convention 4 (letter, meanings, where) | conventions block |
-| `book_slips()` **(+)** | dict keyed "1" … "13": {"where", "printed", "correct", "taught_in"} (LaTeX strings; no book numbers) | slip table |
+| `book_slips()` **(+)** | dict keyed "1" … "13"; each value a dict with "id", "where", "printed", "correct", "taught_in", "corrected", "how_to_tell", "coded_in", "test" (LaTeX strings; no book numbers) | slip table |
+| `traps()` **(+)** | list of 17 dicts, one per trap T1–T17 (kept apart from the slips) | trap table |
 | `lapse_rate_table(dT_dz, *, Gamma_a)` **(+)** | `pandas.DataFrame` of two rows ("Kundu", "meteorology") with columns "symbol", "value_K_per_km", "adiabatic_K_per_km", "criterion", "verdict"; wraps `STRAT.lapse_rate_stability`; the criterion strings are ours ("dT/dz = −6.5 > −9.8 K/km", "Γ_met = 6.5 < Γ_d = 9.8 K/km") | lapse-rate rule |
 | `wind_from_to(u, v)` | dict: "wind_name" (where it comes from, e.g. "westerly"), "current_name" (where it goes, e.g. "eastward"), "from_deg", "to_deg" (compass) | N02 |
 | `ocean_density_gradient_budget(drho_dz, rho, c, g=G0)` | dict: "in_situ", "adiabatic" (= −gρ/c²), "potential" (their difference), "compression_share" | N03 with (13.1) |
@@ -387,11 +390,11 @@ write `ch13.<name>` only.
 | `coastal_upwelling(tau_alongshore, coast_side, lat_rad, rho=1027.0)` | dict: "transport_offshore" [m²/s] (positive = away from the coast), "upwelling" (bool), "kelvin_direction" ("poleward") ; `coast_side` in ("east", "west") = which side of the water the land is on; τ positive northward | N96 |
 | `flow_over_step(x, U, beta, f0, h0, h1)` | dict: "Y" (streamline displacement [m]), "zeta" [1/s], "wavelength" (2π√(U/β) for U > 0, None for U < 0), "decay_length" (√(abs(U)/β)) | N102, N103, D18 (ours) |
 | `vertical_structure_solve(z, N_fn, k, omega, f, w0=0.0, dw0=1.0)` | array ŵ(z) from `solve_ivp` (DOP853, rtol 1e-10) | (13.100) |
-| `wkb_error(z, N_fn, k, omega, f)` | dict: "max_rel_error", "Hm" (smallest value of m·N/abs(dN/dz) on z) | N114 |
+| `wkb_error(z, N_fn, k, omega, f)` | dict: "max_rel_error", "Hm" (smallest value of m·N/abs(dN/dz) on z); raises if the wave does not propagate everywhere on z. Measured: the error falls as 1/Hm (about 0.15/Hm), not as its square | N114 |
 | `w_equation_rotating_residual(w_fn, x, y, z, t, N, f, h=1.0, ht=1.0)` | float residual of (13.96) by central differences | (13.96) |
 | `lee_wave_field(x, z, U, N, k, h0)` | dict: "psi" (streamfunction of the total flow), "w", "m", "tilt" ("upstream") | N126 |
 | `basin_crossing_time(L, lat_rad, c)` | time [s] = L/abs(`rossby_long_wave_speed`) | N135 |
-| `rayleigh_kuo_eigs(k, U, Up, Upp, beta, domain=(-1.0, 1.0), N=120, delta=0.2)` | dict: "c" (complex leading eigenvalue), "growth_rate" (k·Im c), "stable" (bool) — wraps `ST.rayleigh_eigs_contour` with Upp → Upp − β | R30 |
+| `rayleigh_kuo_eigs(k, U, Up, Upp, beta, domain=(-1.0, 1.0), N=120, delta=0.2, **kw)` | dict: "c" (complex leading eigenvalue; nan when no growing mode is found), "growth_rate" (k·Im c; 0.0 then), "stable" (bool) — passes β to `ST.rayleigh_eigs_contour(..., beta=beta)` as its own keyword (β is **not** folded into `Upp`); further keywords (`bc="decay"`, `y_max`, `parity`) go through. Non-dimensional: k in 1/L, β in U₀/L² | R30 |
 | `eady_basic_state(y, z, *, N, f, H, U0, rho0, g=G0)` | dict: "rho" (z, y), "U" (z,), "slope" (isopycnal slope = fU₀/(N²H)), "drho_dy" | N143, (13.128) |
 | `eady_matrix(c, alphaH, U0, H)` | complex array (2, 2): the coefficients of (A, B) in the two boundary conditions | N160 |
 | `eady_numeric_eigs(k, l, N, f, H, U0, n=64)` | dict: "c" (complex, largest Im), "growth_rate" (Chebyshev generalised eigenproblem of (13.136) with the two lid conditions) | independent route |
@@ -411,7 +414,7 @@ Sketch helpers imported by the notebook with `from ch13_drawings import *` (pure
 From curation §8: `parcel_adjust`, `ekman_transport_partial`, `shallow_water_branches`, `kelvin_omega`, `kelvin_decay_side`,
 `adjustment_energy`, `rossby_packet_spectrum`, `eady_factors` (GFD); `vertical_modes_shooting`, `wkb_mode_speed` (VM; the
 second is in §4 row I16); `linear_1d_step`, `linear_1d_run`, `qg_linear_evolve_1d` (SW); `jet_section`, `thermocline_N2`,
-`term_table_thin_layer`, `lapse_rate_table`, `conventions_table`, `illustrative_inputs`, `book_slips` (ch13). Added by this
+`term_table_thin_layer`, `lapse_rate_table`, `conventions_table`, `illustrative_inputs`, `book_slips`, `traps` (ch13). Added by this
 design: `SIDEREAL_DAY`, `load_reference_run`, the alias `sw_potential_vorticity`, `scripts/ch13_make_caches.py`. Clarified
 against §4 (not renamed): `thermal_wind_from_temperature` takes `alpha` keyword-only (curation §9); `barotropic_run` takes
 `t_end`, `dt` keyword-only (§4 wrote them after defaulted arguments, which Python does not allow); `adjustment_energy` gains
@@ -542,7 +545,8 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
    cross-references to "Section 4.18", "Section 4.11", "Section 8.7", "Section 5.7" and to equation number 7.128**; the
    correct form is** §4.9, §4.9, §8.4, §5.6 and the definition $N^2\equiv-\frac g{\rho_0}\frac{d\bar\rho}{dz}$ (7.127) — we cite our section
    numbers with the equation written out; (h)
-   `pd.DataFrame(ch13.book_slips()).T` (13 rows) with the sentence "slips are false as printed; traps are true but easy to
+   `pd.DataFrame(ch13.book_slips()).T` (13 rows; columns where, printed, correct, taught_in, corrected, how_to_tell, coded_in,
+   test) and `pd.DataFrame(ch13.traps())` (17 rows) with the sentence "slips are false as printed; traps are true but easy to
    misread — they are kept apart". (i) "**Which inputs?** All worked numbers use our own illustrative inputs
    (`ch13.illustrative_inputs()`), never the book's."
 
@@ -1195,10 +1199,11 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
    step 8, $\dfrac{\partial u_n}{\partial x}+\dfrac{\partial v_n}{\partial y}+\dfrac1{c_n^2}\dfrac{\partial p_n}{\partial t}=0$ (13.57); **N62 [B]** step 9, $\dfrac{\partial u_n}{\partial t}-fv_n=-\dfrac{\partial p_n}{\partial x}$ and
    $\dfrac{\partial v_n}{\partial t}+fu_n=-\dfrac{\partial p_n}{\partial y}$ (13.58)–(13.59); **N63 [B]** steps 3 and 7, $p_n=-\dfrac g{\rho_0}\rho_n$ and $w_n=\dfrac1{c_n^2}\dfrac{\partial p_n}{\partial t}$ (13.60)–(13.61);
    **N64 [B]** step 10, the identification $p_n\leftrightarrow g\eta$, $c_n^2\leftrightarrow gH$ and the definition $c_n^2\equiv gH_e$ (13.62); **N60 [B]** steps 11–13,
-   orthogonality for a rigid lid, $\int_{-H}^0\psi_m\psi_n\,dz=0$ for m ≠ n (the book only states it). `> ⚠️ Common confusion (trap
+   orthogonality with weight 1, $\int_{-H}^0\psi_m\psi_n\,dz=0$ for m ≠ n, **for the rigid lid and for the free surface alike** (the
+   book only states it; the surface term $\psi_m(0)\psi_n(0)/g$ belongs to the second, "energy" relation, not to this one). `> ⚠️ Common confusion (trap
    T12):` "The amplitudes do not share units: ψ_n is a pure number, so u_n and v_n are velocities [m/s] and p_n is p/ρ₀
    [m²/s²]; but w_n multiplies an integral of ψ_n over z [m], so w_n is in s⁻¹, and ρ_n multiplies dψ_n/dz [1/m], so ρ_n is in
-   kg/m²." `VM.modal_amplitudes(c_n, p_n_t)`.
+   kg/m²." `VM.modal_amplitudes(c_n, p_n_t, p_n=p_n)` (without `p_n` the entry "rho_n" is `None`).
 8. `nb.note` — **N65 [B]** the link the boundary conditions need: $w=\dfrac{g(\partial\rho/\partial t)}{\rho_0N^2}=-\dfrac1{\rho_0N^2}\dfrac{\partial^2p}{\partial z\,\partial t}=-\dfrac1{N^2}\sum_{n=0}^\infty\dfrac{\partial p_n}{\partial t}\dfrac{d\psi_n}{dz}$ (13.63). **N66
    [B]** flat bottom, w = 0: $\dfrac{d\psi_n}{dz}=0$ at $z=-H$ (13.64). **(re-enter C08)** `nb.recap("R21", "The linearised free surface", "$w=\\partial\\eta/\\partial t$ and
    $p=\\rho_0g\\eta$ at z = 0 (the book labels this pair (13.65′)), which combine to $\\partial p/\\partial t=\\rho_0gw$ at z = 0.", where="Ch. 7: the
@@ -1248,7 +1253,8 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
 18. `nb.check_agree` — **from scratch:** the mode equation for uniform N with a rigid lid as a small symmetric matrix
     (`A = (2I − shifted)/h²` with the two Neumann end rows halved), `np.linalg.eigh`, `c_mine = N/np.sqrt(lam[1])`; `assert
     np.isclose(c_mine, GFD.baroclinic_mode_speed(2.7e-3, 4200.0), rtol=1e-4)` and `assert np.isclose(c_mine,
-    VM.vertical_modes(z, N2, lid="rigid").c[0], rtol=1e-6)`.
+    VM.vertical_modes(z, N2, lid="rigid").c[0], rtol=1e-6)` — **index 0**: a rigid-lid `Modes` has no barotropic entry, so its
+    first element is the first baroclinic mode (free-surface modes keep it at index 1).
 19. `nb.note` — **N75 [B]** the rigid-lid approximation: "Replace the surface condition by w = 0 at z = 0, that is, the slope of ψ_n vanishes there.
     Then $\psi_n=\cos\dfrac{n\pi z}{H}$, n = 0, 1, 2, …: the baroclinic speeds change by 3 parts in 10⁴ or less (cell above) and the
     barotropic mode disappears (c₀ → ∞). What the lid does **not** mean: the surface pressure still varies under it — the lid
@@ -1259,8 +1265,12 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     orthogonal, the amount of mode n in any profile F(z) is found by one integral, a_n = ∫Fψ_n dz / ∫ψ_n² dz — like
     reading off a component along an axis.", code="z = np.linspace(-1, 0, 2001); F = 1 + z                       # a linear
     profile\np1 = np.cos(np.pi*z)\nprint(np.trapezoid(F*p1, z)/np.trapezoid(p1*p1, z))            # 0.405 = 4/pi^2: its mode-1
-    content")` (**P318**) + `nb.code`: `VM.orthogonality_matrix(m)` (identity to 10⁻¹⁰ off the diagonal), `a =
-    VM.project(mr, profile)`, `VM.reconstruct(mr, a)`, `VM.w_structure(m, 1)`, `VM.rho_structure(m, 1)`.
+    content")` (**P318**) + `nb.code`: `VM.orthogonality_matrix(m)` for the free-surface modes `m` (default `kind="psi"`:
+    weight 1, no surface term — identity to 10⁻⁸ off the diagonal, *expect* confirmed on the implementer's code and by the
+    designer's own finite-volume solve), `VM.orthogonality_matrix(m, kind="energy", N2=N2)` (the second relation, which
+    carries the surface term), `a = VM.project(m, profile)`, `VM.reconstruct(m, a)`, `VM.w_structure(m, 1)`,
+    `VM.rho_structure(m, 1)`; then the same projection with the rigid-lid modes `mr = VM.vertical_modes(z, N2, lid="rigid")`:
+    "`VM.project(mr, np.ones_like(z))` is zero — rigid-lid modes cannot hold a depth mean; add `profile.mean()` back".
 21. `nb.figure` — **N76 [B]** our Fig. 13.13 (`ch13.fig_vertical_modes()`): left, the first three modes for uniform N
     (cosines); right, the same for the thermocline profile `ch13.thermocline_N2(z)` of §13.2, with N(z) in blue behind.
     *expect* (thermocline profile, defaults N_deep = 5 × 10⁻⁴, N_peak = 8 × 10⁻³ s⁻¹, z_t = −300 m, width 150 m; designer's
@@ -1336,7 +1346,10 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     difference.")`
 11. `nb.code` — `k = 2*np.pi/3.1e6`; `w = GFD.shallow_water_omega(k, 0.0, 202.95, f35, beta35)`;
     `GFD.dispersion_term_sizes(k, 0.0, 202.95, f35, beta35, w[1])` and `(…, w[2])`; `GFD.shallow_water_discriminant(...)`;
-    `GFD.shallow_water_regime(w[1], f35)`; `GFD.shallow_water_branches(...)`. *expect* (35° N, c = 202.95 m/s, wavelength 3100
+    `GFD.shallow_water_regime(w[1], f35)`; `GFD.shallow_water_branches(...)`; then the low-latitude case `k20 = 2*np.pi/2.0e7`,
+    `GFD.shallow_water_discriminant(k20, 0.0, 202.95, f12, beta12)` (negative) and `GFD.shallow_water_omega(k20, 0.0, 202.95, f12,
+    beta12)` → `(nan, nan, nan)`: "test the discriminant first; NaN is the function's way of saying 'no three real roots'".
+    *expect* (35° N, c = 202.95 m/s, wavelength 3100
     km): roots (−4.1525 × 10⁻⁴, −8.888 × 10⁻⁶, +4.2414 × 10⁻⁴) s⁻¹; periods 4.12 h (fast) and 8.18 days (slow); slow/fast = 0.021;
     discriminant > 0; for the first baroclinic mode (c = 3.610 m/s): (−8.3936 × 10⁻⁵, −7.023 × 10⁻⁸, +8.4006 × 10⁻⁵) s⁻¹ — 20.8 h
     and 2.8 years; the slow root differs from the Rossby formula of C15 by 4.5 × 10⁻⁴ (external) and 7 × 10⁻⁷ (baroclinic),
@@ -1349,9 +1362,12 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     'drop the shortest bar'". *change:* "…β = 0: the amber bar vanishes and the slow root becomes ω = 0 — a steady
     geostrophic flow, the state C12's adjustment ends in". + `nb.md` **An honest caveat (ours, computed):** "all three roots
     are real for every wavelength exactly when $\beta c<f_0^2$, i.e. when the Rossby radius c/f₀ is smaller than R tan θ₀. For
-    the external mode of a 4200 m ocean that fails equatorward of 26.3°; there the cubic has a band of complex roots at
-    wavelengths of tens of thousands of kilometres — an artefact of freezing f at f₀, not a real instability." *expect:*
-    βc/f₀² = 0.544 at 35° (external), 0.0097 (baroclinic), 4.94 at 12° (external).
+    the external mode of a 4200 m ocean that fails equatorward of 26.3°; there the discriminant is negative for a band of
+    very long waves and the cubic has no three real roots — an artefact of freezing f at f₀, not a real instability.
+    `GFD.shallow_water_discriminant` is the flag; `GFD.shallow_water_omega` returns NaN there and the figure leaves the band
+    blank with a label." *expect:* βc/f₀² = 0.544 at 35° (external), 0.0097 (baroclinic), 4.94 at 12° (external); at 12° N
+    with the external speed the discriminant is negative for all wavelengths above 12 500 km (verified: 20 000 km gives
+    NaN, and `np.roots` a complex pair there).
 14. `nb.plotly` — **F7** (`slider_figure`, slider = latitude from 5° to 75°, 15 steps; dropdown external / first baroclinic
     c): abs(ω) of the three branches of `GFD.shallow_water_branches` and the Kelvin line `GFD.kelvin_omega(k, c)` against k
     on log–log axes, ω = f dashed. *see / read* ("the gap between the fast and slow branches is the reason filtered
@@ -1476,7 +1492,7 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     and a trough, at a single coast and in a channel 2Λ wide (two waves, one on each wall, travelling in opposite
     directions); + `nb.plotly`: `go.Surface` of η(x, y) hugging the coast, dropdown N / S. *see / read* ("the slope across
     the shore reverses between crest and trough, with the current") */ change*.
-13. `nb.animation` — **A3** (video, 60 frames): a Kelvin wave travelling round a closed square basin with the wall on its
+13. `nb.animation` — **A3** (video, the 24 cached frames): a Kelvin wave travelling round a closed square basin with the wall on its
     right, from the cached C-grid run `ch13.load_reference_run("kelvin_basin")` (64², equivalent depth chosen so that Λ is a
     fifth of the basin; `> 🔧 **Our choice** — our numerical model, cached`). If the cache is absent
     (`load_reference_run` returns None) the straight-coast closed form `GFD.kelvin_wave` is animated instead and the
@@ -1631,9 +1647,11 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     `> ⚠️ **Where our solution and the book's sketch differ:**` "The book draws the westward stream back at its original
     latitude far downstream. With a step, potential-vorticity conservation does not allow that: a column with ζ = 0 over
     the shallower depth must sit where f is smaller by the same 5 %, i.e. 223 km equatorward. It returns to its latitude
-    only if the depth returns too (a ridge instead of a step)." (Flagged for the verifier as a possible fourteenth slip.)
-15. `nb.figure` — nonlinear check from the cache: `pv = ch13.load_reference_run("pv_particles")` (our 128² nonlinear C-grid
-    run with 40 particles; `> 🔧 **Our choice** — our numerical model, cached`): potential vorticity of each particle
+    only if the depth returns too (a ridge instead of a step)." The callout is titled, in the notebook, **"where our
+    potential-vorticity solution and the book's description differ"** with $Y_p=f_0(h_1-h_0)/(\beta h_0)$ written out; by the
+    orchestrator's ruling it is a labelled remark, **not** a slip, unless the math-verifier confirms it independently.
+15. `nb.figure` — nonlinear check from the cache: `pv = ch13.load_reference_run("pv_particles")` (our 48² nonlinear C-grid
+    run with 24 particles at 13 saved times, key `"q"`; `> 🔧 **Our choice** — our numerical model, cached`): potential vorticity of each particle
     against time (flat lines) beside its relative vorticity and local depth (both wandering). If the cache is absent the
     cell prints one sentence and the closed-form figure above stands. *read:* "ζ and h each change by tens of per cent;
     their combination (ζ + f)/h does not".
@@ -1721,8 +1739,10 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     integrates to $\hat w=\dfrac{A_0}{\sqrt m}\,e^{\pm i\int^zm\,dz}$ (13.104) — "the amplitude grows where the wave is long because the vertical
     energy flux must be the same at every level". + `nb.figure`: `ch13.vertical_structure_solve(z, N_fn, k, omega, f35)`
     (numerical reference) against `GFD.wkb_vertical_structure(z, m)` for the thermocline profile, and `ch13.wkb_error` for
-    three wavelengths. *expect* (hypothesis, not computed by the designer): the error falls roughly as $1/(H_Nm)^2$;
-    builder reports the three values.
+    three wavelengths. *expect* (measured by the implementer and re-run by the designer on its test profile N = N₀(1 +
+    0.5 z/D), N₀ = 2.7 × 10⁻³ s⁻¹, k = 10⁻³ m⁻¹, ω = 4 × 10⁻⁴ s⁻¹, 35° N, D = 0.5, 1, 2, 4 km): $H_Nm$ = 1.65, 3.30, 6.59, 13.2 and
+    errors 0.104, 0.045, 0.020, 0.0094 — the error falls as $1/(H_Nm)$ (error × $H_Nm$ ≈ 0.17 → 0.12), **not** as its square.
+    The figure plots error against $H_Nm$ on log axes with a slope −1 guide.
 17. `nb.note` — the velocity field (stated): **N115 [C]** continuity for l = 0, $ik\hat u+\dfrac{d\hat w}{dz}=0$ (13.105); **N116 [C]**
     $\hat u=\mp\dfrac{A_0\sqrt m}{k}e^{\pm i\int^zm\,dz}$ (13.106) ("⚠️ trap T15: √m is treated as constant when ŵ is differentiated"); **N117 [C]**
     $\hat v=\pm\dfrac{if}{\omega}\dfrac{A_0\sqrt m}{k}e^{\pm i\int^zm\,dz}$ (13.107), from $\hat u/\hat v=i\omega/f$; **N118 [B]** the real fields
@@ -1860,11 +1880,16 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
    (the book says the analysis carries over and never shows it). Reminder of P255 (necessary vs sufficient).
 5. `nb.code` — our easterly jet at 12° N: `U = -14.0/np.cosh(y/4.0e5)**2`; `g1 = GFD.absolute_vorticity_gradient(y, U, beta12)`;
    `GFD.rayleigh_kuo_criterion(y, U, beta12)`; the same jet 1200 km wide; `ch11.rayleigh_criterion(y, U=U)` (the β = 0
-   case); `ch13.rayleigh_kuo_eigs(k, U_fn, Up_fn, Upp_fn, beta_nd)` at ≤ 12 (k, β) points (cached). *expect:* largest U″ of
+   case); `ch13.rayleigh_kuo_eigs(1.4, U_fn, Up_fn, Upp_fn, beta_nd, bc="decay", y_max=16, parity="even")` for the
+   non-dimensional **westerly** jet U = sech² y at ≤ 12 (k, β) points (cached; β is passed as its own argument and reaches
+   `ST.rayleigh_eigs_contour(..., beta=…)` — never folded into `Upp`). *expect:* largest U″ of
    this jet is 2U₀/L² = 1.75 × 10⁻¹⁰ m⁻¹ s⁻¹ against β = 2.24 × 10⁻¹¹: the gradient changes sign → may be unstable; with L =
    1200 km (> √(2U₀/β) = 1118 km) it does not → stable by the criterion. A westerly jet of the same shape needs L < 646 km
-   ("easterly jets are the easier ones to destabilise"). Growth rates: reported by the builder (not computed here); the
-   growth rate must vanish once β exceeds 2U₀/L². + hand-written sign test `np.any(np.diff(np.sign(beta12 - Upp)) != 0)`
+   ("easterly jets are the easier ones to destabilise"). Growth rates (measured by the implementer; re-run by the
+   designer with the options above): for U = sech² y at k = 1.4 the growth rate k c_i is 0.1191, 0.0744, 0.0151 at β =
+   0, 0.3, 0.6 (in units of U₀/L and U₀/L²) and no growing mode is found at β = 0.7 — beyond the bound max U″ = 2/3 of this
+   westerly jet, as the criterion requires. (With the default wall box instead of `bc="decay"` the β = 0.6 mode is not
+   found: the builder keeps the stated options.) For scale: our 400 km, 14 m/s jet at 12° N has βL²/U₀ = 0.26. + hand-written sign test `np.any(np.diff(np.sign(beta12 - Upp)) != 0)`
    with `assert` against `GFD.rayleigh_kuo_criterion(...)["changes_sign"]`.
 6. `nb.figure` — **N142 [B]** our Fig. 13.29: U(y), $\bar\zeta$, f and $\bar\zeta+f$ against latitude for the 400 km jet, the extremum of
    $\bar\zeta+f$ marked; right panel: growth rate against β for three wavenumbers. *see / read* ("where the dashed ζ̄ + f curve
@@ -2042,13 +2067,16 @@ where. Recaps of §13.2 and §13.3 come before `nb.core("C01", …)` and need no
     integer wavenumbers -4..3\nprint(np.abs(k) <= n/3)                              # the 2/3 rule keeps |k| <= 2")` (**P334**)
 15. `nb.animation` — **A6** (frames, log-spaced times; 2 rows) — **N168 [B]** **Not in the book — ours**, a demo labelled
     *qualitative*: decaying two-dimensional turbulence from the caches `ch13.load_reference_run("turbulence_f")` and
-    `("turbulence_beta")` (128² pseudo-spectral runs of $\dfrac{\partial\zeta}{\partial t}+J(\psi,\zeta)+\beta\dfrac{\partial\psi}{\partial x}=\nu\nabla^2\zeta$, $\zeta=\nabla^2\psi$; `> 🔧 **Our choice** — our numerical
+    `("turbulence_beta")` (**64²** pseudo-spectral runs, 10 saved frames each, of $\dfrac{\partial\zeta}{\partial t}+J(\psi,\zeta)+\beta\dfrac{\partial\psi}{\partial x}=\nu\nabla^2\zeta$, $\zeta=\nabla^2\psi$; `> 🔧 **Our choice** — our numerical
     model, cached`): vorticity field (vortices merging) beside the energy and enstrophy spectra and the two invariants
     against time; second row with β: the field bands into zonal jets. If a cache is absent and `not FAST`, a 64² run
     `SW.barotropic_run(64, L, zeta0, t_end=…, dt=…, nu=…)` is made live (≈ 4 s); in FAST the cell prints one sentence.
-    *expect* (qualitative; hypotheses the builder reports against, not computed by the designer): energy falls by a few
-    per cent while enstrophy falls by more than half; `SW.spectral_centroids` — the energy centroid K_E moves to smaller K;
-    with β the jets' spacing is of the order of 2π × `GFD.rhines_length(u_rms, beta)`. *see / read / change*.
+    *expect* (read by the designer from the two caches): energy falls to 0.73 of its initial value while enstrophy falls
+    to 0.21 (0.22 with β); the energy centroid K_E (`SW.spectral_centroids`) moves from 8.6 to 3.2 (3.6 with β) — energy moves to larger scales; the
+    zonal (k_x = 0) share of the energy at the last frame is 0.11 without β and 0.29 with β. **Every statement about this
+    run is qualitative: at 64² the K⁻³ range is not resolved, and no spectral slope is read off or quoted from it** — the
+    exponents come from the dimensional argument of D29 only. No jet-spacing number is claimed either. *see / read /
+    change*.
 16. `nb.pointer` — **S01** "Exercises 13.1–13.8 are not reproduced. The one result the text relies on — the group velocity
     of inertia–gravity waves — is derivation D21 in C14." · **S02** "Literature and supplemental reading: see the book's
     list; this notebook cites only what was read (the book itself)."
@@ -2541,7 +2569,7 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
   `ch13.thermocline_N2(z, N_deep=, N_peak=, z_t=, width=)`; `shootMode(n, p, lid)` → {c, psi[]}: integrate $S'=-\psi/c^2$,
   $\psi'=N^2S$ (with $S=\psi'/N^2$) from the bottom by RK4 on 400 steps, bisection on c so that the surface condition holds and ψ
   has n sign changes ↔ `ch13.vertical_modes_shooting(z, N2_fn, n=n, lid=)` (rtol 1e-8) and `ch13.vertical_modes(...)[0][n]` (rtol
-  1e-4); `uniformRoot(N, H, n)` (bisection on tan X = (N²H/g)/X) ↔ `ch13.modes_uniform_N(N, H)[0][n]`; `He(c)` ↔
+  1e-4; index n for a free surface, **index n − 1 for `lid="rigid"`**, whose `Modes` has no barotropic entry); `uniformRoot(N, H, n)` (bisection on tan X = (N²H/g)/X) ↔ `ch13.modes_uniform_N(N, H)[0][n]`; `He(c)` ↔
   `ch13.equivalent_depth`; `cRigid(N, H, n)` ↔ `ch13.baroclinic_mode_speed`; `Lam(c, f)` ↔ `ch13.rossby_radius`; `cWKB(p, n)` ↔
   `ch13.wkb_mode_speed`.
 - **Views** (rows [1.3, 1]): 1. `shape` "N(z) and the mode" (row 0, flex 1.2): depth axis −4200…0 m; N(z) as a filled blue
@@ -2588,13 +2616,13 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
 - **Derivation tab:** **D11** (13 steps) `view: 'shape'`; goal `set` {prof uniform, n 1}; step 2 `watch` "teal is the running
   integral of purple: it is largest where purple crosses zero"; step 5 `live` "(ψ′/N²)/∫ψ at the cursor = −1/c² =
   `Viz.live('sep')` s²/m²"; step 6 `set` {n: 2}; step 10 `live` "c₁² = gH_e → H_e = `Viz.live('He')` m"; step 13 `watch` "the
-  overlap integral of modes 1 and 2 printed in the title: 0".
+  overlap integral of modes 1 and 2 (weight 1) printed in the title: 0 — with the lid on or off".
 - **Code:**
   ```python
   z = np.linspace(-4200.0, 0.0, 401)                         # depth nodes [m]
   N2 = ch13.thermocline_N2(z, z_t={{zt}}, width={{wd}})       # or np.full_like(z, 2.7e-3**2) for uniform N
   modes = ch13.vertical_modes(z, N2, n_modes=5, lid="{{lid}}")   # solves (13.56) with (13.64), (13.65)
-  c = modes[0][{{n}}]                                        # c_n = {{c}} m/s
+  c = modes[0][{{idx}}]                                      # c_n = {{c}} m/s (index n; n - 1 with a rigid lid)
   He = ch13.equivalent_depth(c)                              # (13.62): {{He}} m
   Lam = ch13.rossby_radius(c, ch13.coriolis_parameter(np.deg2rad({{lat}})))   # {{Lam}} km
   ```
@@ -2611,7 +2639,8 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
   speeds" ref 'Eq. (13.71)' $c_n=\frac{NH}{n\pi}$, n = 1, 2, 3, …
 - **Check yourself:** (1) "How many times does mode 3 cross zero?" — "Three." `set {n: 3}` · (2) "Deepen the thermocline
   from 150 m to 600 m. What happens to c₁?" — "It doubles, 1.24 → 2.47 m/s: more of the stratified water lies above the
-  node." `set {zt: 600}` · (3) "Toggle the rigid lid. Which rung of the ladder disappears?" — "Only the barotropic one." ·
+  node." `set {zt: 600}` · (3) "Toggle the rigid lid. Which rung of the ladder disappears, and do the remaining shapes stay orthogonal?" — "Only the
+  barotropic one; and yes — the plain overlap ∫ψ_mψ_n dz is zero for both lids." ·
   (4) "Why is H_e so small?" — "Because the restoring force is buoyancy, weaker than gravity by Δρ/ρ ~ 10⁻³."
 - **Selftest parity rows:** `{name: 'c1 uniform', js: shootMode(1, uni, 'free').c, py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][1]',
   rtol: 1e-6}` (3.60849) · `{name: 'c0 uniform', js: shootMode(0, uni, 'free').c, py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][0]',
@@ -2645,9 +2674,12 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
 - **Views** (rows [1.3, 1]): 1. `disp` "Frequency against wavenumber" (row 0, flex 1.4): log–log, k from 10⁻⁸ to 10⁻³ m⁻¹
   (wavelength labels on the top axis), abs(ω) from 10⁻⁹ to 10⁻² s⁻¹; the two fast branches (purple, they coincide to the eye;
   the legend says "±"), the slow branch (amber), the Kelvin line (dashed teal), ω = abs(f₀) (muted horizontal), the
-  inertial-period and one-year levels labelled; the cursor's three roots as dots, the selected one ringed. Where the
-  discriminant is negative (possible only at low latitude with the external speed) the branches end with a ◆ and the
-  label "β-plane no longer valid here". Pointer: drag the cursor in k. 2. `terms` "The four terms of the cubic" (row 0,
+  inertial-period and one-year levels labelled; the cursor's three roots as dots, the selected one ringed. **No-real-roots band (binding for the builder):** `ch13.shallow_water_omega` returns (NaN, NaN, NaN) where
+  `ch13.shallow_water_discriminant` < 0 (possible only at low latitude with the external speed; at 12° N every wavelength
+  above 12 500 km). The JS mirror `cubicRoots` tests `disc(...)` **first** and returns `null` there — it never computes or
+  prints a NaN. In that band the three branches are not drawn: each ends with a ◆ at the band's edge, the band is
+  shaded muted with the label "no three real roots here — the β-plane is stretched too far", the cursor's dots and the
+  term bars are replaced by the same sentence, and the readouts show "—". Pointer: drag the cursor in k. 2. `terms` "The four terms of the cubic" (row 0,
   flex 0.8): signed bars ω³ (purple), −c²K²ω (orange), −f₀²ω (teal), −c²βk (amber) for the selected root, on a
   symmetric-log axis, with their sum (≈ 0) printed. 3. `plan` "The selected wave from above" (row 1, `hidePortrait`): crests
   moving (transport), one parcel with its current ellipse and sense of rotation; for the slow root, the crests drift
@@ -2659,7 +2691,7 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
 - **Transport:** `t` 0…3 periods of the selected root, `end: 'loop'`; rate chosen per root so that one period takes 4 s.
 - **Presets:** "no rotation (f → 0)" {lat 0.01} · "inertial limit (very long wave)" {lam 300 000, root fast +} · "K = 1/Λ:
   slow branch peaks" {lam 2πΛ, root slow} · "external vs baroclinic" (toggles `mode`).
-- **Status** (built from `regime`): fast root: "fast root: ω = 5.0 f — a gravity wave bent by rotation; the β term is 10⁻³
+- **Status** (built from `regime`): in the no-real-roots band: "⚠️ no three real roots at this wavelength (discriminant below zero): shorten the wave or move poleward"; otherwise fast root: "fast root: ω = 5.0 f — a gravity wave bent by rotation; the β term is 10⁻³
   of the others"; ω within 5 % of f: "near-inertial: the water circles, the surface hardly moves"; slow root: "slow root: ω
   = 0.11 f ≪ f — the ω³ term is negligible; this wave exists only because of β"; β off: "with β = 0 the slow root is ω = 0, a
   steady geostrophic flow".
@@ -2681,7 +2713,9 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
      dropped term changes it by 0.04 %."
   5. *Term sizes for the selected root* — the four bars as numbers, with the largest pair named.
   6. *Are all three real?* — "discriminant $4(c^2K^2+f_0^2)^3-27(c^2\beta k)^2$ > 0 here. It is positive for every wavelength
-     when βc < f₀² (ours, computed): 0.54 at this setting."
+     when βc < f₀² (ours, computed): 0.54 at this setting." In the no-real-roots band this section reads instead: "the
+     discriminant is negative: the cubic has one real root and a complex pair, which only means that f can no longer
+     be frozen at f₀ over such a long wave. Nothing is plotted."
   7. *The plan view* (or the hint "turn the phone sideways to see the wave from above").
   8. *Reading the current setting* — fast, ω > 3f: "A gravity wave that hardly notices rotation: ω ≈ cK." · fast, f < ω <
      3f: "Rotation matters: the frequency cannot go below f and the current traces an ellipse with axis ratio ω/f." ·
@@ -2730,7 +2764,10 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
   'N'), 202.95), py: 'ch13.poincare_omega(2*np.pi/3.1e6, ch13.coriolis_parameter(np.deg2rad(35.0)), 202.95)', rtol: 1e-12}`
   (4.19762e-4) · `{name: 'beta', js: betaOf(35), py: 'ch13.beta_parameter(np.deg2rad(35.0))', rtol: 1e-12}` · `{name: 'axis ratio S',
   js: orbit(0, 2*Math.PI/3.1e6, 0.5, 4200, fCor(35, 'S')).axis_ratio, py: 'ch13.poincare_orbit(0.0, 2*np.pi/3.1e6, 0.5, 4200.0,
-  ch13.coriolis_parameter(np.deg2rad(-35.0)))["axis_ratio"]', rtol: 1e-10}` · invariant `{name: 'roots sum to 0', js: sum3(roots)/roots[2],
+  ch13.coriolis_parameter(np.deg2rad(-35.0)))["axis_ratio"]', rtol: 1e-10}` · `{name: 'discriminant sign 12N', js: disc(2*Math.PI/2.0e7, 0, 202.95, fCor(12, 'N'), betaOf(12)) < 0 ? 1 : 0, py:
+  '1.0*(ch13.shallow_water_discriminant(2*np.pi/2.0e7, 0.0, 202.95, ch13.coriolis_parameter(np.deg2rad(12.0)),
+  ch13.beta_parameter(np.deg2rad(12.0))) < 0)', rtol: 0}` (1; the Python roots are NaN there, so the parity row compares the
+  flag, never the roots) · invariant `{name: 'roots sum to 0', js: sum3(roots)/roots[2],
   expect: 0, atol: 1e-12}`.
 - **Fit plan:** 360×640: status · `disp` (58 %) over `terms` (42 %); `plan` hidden (the selected root's period and ω/f are
   in the diagram's title); transport hidden on phones. 844×345: `disp` beside `terms`. Desktop: rows [1.3, 1].
@@ -2837,8 +2874,9 @@ subfolders (`<scratchpad>/<slug>/`). JS constants allowed as definitions: `OMEGA
   201 faces with u = 0 at both ends, v at centres) ↔ `ch13.linear_1d_step` (one step) and `ch13.linear_1d_run(...)["eta"][-1]`
   (after a fixed number of steps); `endState(x, eta0, H, f)` → [η, v] ↔ `ch13.geostrophic_adjustment_1d`; `energy(eta0, H, f)` →
   {pe_released, ke_jet, radiated, ratio} ↔ `ch13.adjustment_energy`; `Lam(c, f)` ↔ `ch13.rossby_radius`; for the two bump
-  shapes the end state is the Green's-function convolution $\eta_\infty(x)=\frac1{2\Lambda}\int\eta_{init}(x')e^{-\lvert x-x'\rvert/\Lambda}dx'$ (ours; for the step it
-  reproduces `endState`, pinned by a row); `linPV(v, eta, dx, f, H)` ↔ `ch13.linear_1d_run(...)["pv"]`.
+  shapes the end state is the Green's-function convolution $\eta_\infty(x)=\frac1{2\Lambda}\int\eta_{init}(x')e^{-\lvert x-x'\rvert/\Lambda}dx'$ (ours; labelled in the Explain tab and in the view title **"computed in the explainer; the step case is checked
+  against Python"** — by the orchestrator's ruling there is no general-shape Python function; the step case is pinned by
+  the row 'convolution = closed form'); `linPV(v, eta, dx, f, H)` ↔ `ch13.linear_1d_run(...)["pv"]`.
 - **Views** (rows [1.2, 1]): 1. `eta` "Surface height η(x, t)" (row 0, full width): x from −25Λ to 25Λ in km; the initial
   shape (muted), the evolving surface (orange, bold), the closed-form end state (dashed ghost), Λ marked on both sides
   of the step; departing wave fronts labelled "±c t". 2. `jet` "Velocity along the step v(x, t)" (row 1, flex 1): evolving v
@@ -3201,12 +3239,12 @@ analysis (§4 cost column) otherwise. The builder reports the measured numbers.
 | §13.9 C08 | `vertical_modes` n = 401 for two profiles and two lids (< 1 s); `modes_uniform_N` (`brentq`); `fig_mode_roots`, `fig_vertical_modes`; **F6** (15 steps × eigen-solve at n = 201 ≈ 0.05 s each) 2 s; D11 sympy check (2 s ✓); E5 iframe | 9 s | 7 s |
 | §13.10 C09 | closed-form cubic on 400 wavenumbers; term-bar figure; **F7** (15 latitudes × 2 modes × 4 traces × 300 pts) 3 s; D12 sympy check (1.5 s ✓); `v_equation_sympy` (≤ 5 s, cached) | 10 s (first) / 6 s | 5 s |
 | §13.11 C10 | `fig_poincare_kelvin_dispersion`; **A1** (80 frames, dpi 80, closed form; FAST 40) ≈ 6 s / 3 s; E6 iframe | 9 s | 5 s |
-| §13.12 C11, C12 | `fig_kelvin_sections`; plotly surface; **A3** from `reference/ch13/kelvin_basin.npz` (60 frames) ≈ 5 s / 3 s — never recomputed in the notebook; **A2** march 800 cells × 6 inertial periods ×2 (0.5 s ✓) + 4 stop-frames ×2 rows (frames player) 3 s; D16 sympy check (1.7 s ✓); E7, E8 iframes | 14 s | 9 s |
+| §13.12 C11, C12 | `fig_kelvin_sections`; plotly surface; **A3** from `reference/ch13/kelvin_basin.npz` (24 frames) ≈ 3 s / 3 s — never recomputed in the notebook; **A2** march 800 cells × 6 inertial periods ×2 (0.5 s ✓) + 4 stop-frames ×2 rows (frames player) 3 s; D16 sympy check (1.7 s ✓); E7, E8 iframes | 14 s | 9 s |
 | §13.13 C13 | `flow_over_step` (closed form); PV-particle figure from `reference/ch13/pv_particles.npz` (< 1 s); D17 sympy check (1.2 s ✓); `pv_conservation_sympy` (≤ 5 s, cached) | 9 s (first) / 4 s | 4 s |
 | §13.14 C14 | closed forms; `vertical_structure_solve` (DOP853, rtol 1e-10) ×3 ≈ 0.6 s; `wkb_error` ×3; plotly helix; lee-wave streamlines 201 × 101; D19 sympy check (2.2 s ✓); `w_equation_rotating_sympy` (≤ 5 s, cached) | 12 s (first) / 7 s | 6 s |
 | §13.15–13.16 C15 | `fig_rossby_dispersion`; **F8** (20 steps × 2 traces × 300 pts) 2 s; **A4** (90 frames, 48 modes × 600 pts, exact; FAST 40) ≈ 7 s / 3 s; `qg_linear_evolve` 128 × 64 × 3 times (< 0.1 s); D22 sympy check (1.9 s ✓); `rayleigh_kuo_eigs` at ≤ 12 (k, β) points ≈ 10 s (cached to `outputs/ch13/cache/`; FAST 4 points); E9 iframe | 26 s (first) / 16 s | 10 s |
 | §13.17 C16 | closed forms on 400 wavenumbers; `eady_numeric_eigs` at 8 wavenumbers (≈ 1 s); **F9** (19 steps × 2 systems) 2 s; **A5** (80 frames, closed form; FAST 40) ≈ 6 s / 3 s; D25, D26 sympy checks (1.9 s + 2.0 s ✓); `eady_qg_sympy` (≤ 5 s, cached); live cell; E10 iframe | 20 s (first) / 15 s | 10 s |
-| §13.18 C17 | triad map 200 × 200; `two_d_cascade_spectrum`; **A6** from `reference/ch13/turbulence_f.npz` and `turbulence_beta.npz` (2 × 12 log-spaced frames, frames player) ≈ 5 s; live 64² fallback only if a cache is missing and `not FAST` (≈ 4 s per run) | 8 s | 6 s |
+| §13.18 C17 | triad map 200 × 200; `two_d_cascade_spectrum`; **A6** from `reference/ch13/turbulence_f.npz` and `turbulence_beta.npz` (2 × 10 saved frames at 64², frames player) ≈ 4 s; live 64² re-run only if a cache is missing and `not FAST` (≈ 4 s per run) | 8 s | 6 s |
 | explainers | 10 `show_viz` cells (iframes; no computation) | 3 s | 3 s |
 | **Total** | | **≈ 180 s on a first run (cold sympy and eigenvalue caches); ≈ 145 s afterwards** | **≈ 105 s** |
 
@@ -3215,15 +3253,16 @@ analysis (§4 cost column) otherwise. The builder reports the measured numbers.
 figures ≤ 29 steps × ≤ 4 traces × ≤ 300 points (≈ 150 kB each; nine of them). The twelve sympy engines are cached with a
 parameter hash in `outputs/ch13/cache/` (git-ignored); the nine ★★★ `check_src` cells always run live (17 s together ✓).
 
-**Cached model output under `reference/ch13/` (our own output only; committed; < 2 MB together; regenerated by
+**Cached model output under `reference/ch13/` (our own output only; committed; 405 kB together as measured; regenerated by
 `scripts/ch13_make_caches.py --which all`, which prints sizes and a checksum):**
 
 | File | What | Made by | Size (target) | Cost to regenerate |
 |---|---|---|---|---|
-| `kelvin_basin.npz` | surface height η(t, y, x) of a Kelvin wave going round a closed 64 × 64 basin, equivalent depth chosen so that Λ = 1/5 of the basin; 60 frames, float16 | `SW.run` (C-grid, linear, closed) | ≈ 0.25 MB | ≈ 8 s |
-| `turbulence_f.npz` | vorticity ζ(t, y, x) of decaying two-dimensional turbulence, 128², β = 0; 12 log-spaced frames float16 + energy, enstrophy, centroids at every saved step | `SW.barotropic_run` | ≈ 0.45 MB | ≈ 20–40 s |
-| `turbulence_beta.npz` | the same with β ≠ 0 (jets) | `SW.barotropic_run` | ≈ 0.45 MB | ≈ 20–40 s |
-| `pv_particles.npz` | 40 particle tracks with ζ, h and (ζ + f)/h along each, from a 128² nonlinear run over a Gaussian bump | `SW.run(linear=False)`, `SW.advect_particles` | ≈ 0.1 MB | ≈ 10–20 s |
+| `kelvin_basin.npz` | surface height η(t, y, x) of a Kelvin wave going round a closed 64 × 64 basin, equivalent depth chosen so that Λ = 1/5 of the basin; 24 frames | `SW.run` (C-grid, linear, closed) | 185 kB (measured) | ≈ 8 s |
+| `turbulence_f.npz` | vorticity ζ(t, y, x) of decaying two-dimensional turbulence, **64²**, β = 0; 10 saved frames + energy, enstrophy, centroids K_E, K_Z at every saved step (the K⁻³ range is not resolved at this size: qualitative use only) | `SW.barotropic_run` | 78 kB (measured) | ≈ 4 s |
+| `turbulence_beta.npz` | the same with β ≠ 0 (zonal share of the energy at the last frame 0.29 against 0.11 without β) | `SW.barotropic_run` | 78 kB (measured) | ≈ 4 s |
+| `explainer_constants.json` | the constants the explainers pin by parity rows (Eady cut-off and fastest wave, the adjustment ratio, Ω, R, our inputs) | the implementer's cache script | 1 kB | < 1 s |
+| `pv_particles.npz` | 24 particle tracks at 13 times with (ζ + f)/h along each (key `q`) and the η field, from a 48² nonlinear run | `SW.run(linear=False)`, `SW.advect_particles` | 61 kB (measured) | ≈ 10 s |
 
 Every cell that reads a cache goes through `ch13.load_reference_run(name)` and has a stated fallback when it returns
 `None` (A3: the straight-coast closed form; A6: a live 64² run unless FAST; the C13 particle figure: skipped with one
@@ -3963,7 +4002,7 @@ every block where direction matters gives the f < 0 form.
   $\dfrac{\partial\rho}{\partial t}-\dfrac{\rho_0N^2}{g}w=0$ (13.51) — "mass, two momentum balances, hydrostatics, and density carried up and down". · **Plan:** • give
   u, v and p one common vertical shape • let continuity and hydrostatics fix the shapes of w and ρ • separate the
   density equation into a z-part and an (x, y, t)-part • read off the vertical eigenproblem and the horizontal equations
-  • prove orthogonality. · **Tools:** separation of variables (P167, reminder); Sturm–Liouville problems (P314);
+  • prove orthogonality (weight 1, for a rigid lid and for a free surface). · **Tools:** separation of variables (P167, reminder); Sturm–Liouville problems (P314);
   integration by parts (P218a, reminder). · **Assumptions:** linear; hydrostatic, so ω ≪ N; flat bottom at z = −H; no mean
   shear; N = N(z) only.
 - **Steps:**
@@ -4002,16 +4041,19 @@ every block where direction matters gives the f < 0 form.
   12. **did** Integrate over the depth by parts · **tex** $\Big[\dfrac{\psi_n\psi_m'-\psi_m\psi_n'}{N^2}\Big]_{-H}^0+\Big(\dfrac1{c_m^2}-\dfrac1{c_n^2}\Big)\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0$ · **why** The first two terms
       are the derivative of the bracket (the cross terms $\psi_n'\psi_m'/N^2$ cancel), so their integral is its end values. ·
       **plain** Everything reduces to values at the top and the bottom.
-  13. **did** Use the boundary conditions · **tex** $\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0\qquad(m\neq n,\ \text{rigid lid})$ · **why** With ψ′ = 0 at the bottom and at a
-      rigid lid the bracket vanishes; since c_m ≠ c_n the integral must be zero. This is what "independent modes" meant
-      in steps 5 and 9. · **plain** Different modes are orthogonal.
+  13. **did** Use the boundary conditions · **tex** $\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0\qquad(m\neq n,\ \text{either lid})$ · **why** At the bottom ψ′ = 0. At the top either
+      ψ′ = 0 (lid) or ψ′ = −(N²/g)ψ for both modes (free surface), so the numerator cancels; with c_m ≠ c_n the integral
+      vanishes. · **plain** Different modes are orthogonal.
 - **Result:** $\dfrac{d}{dz}\Big(\dfrac1{N^2}\dfrac{d\psi_n}{dz}\Big)+\dfrac1{c_n^2}\psi_n=0$ with $c_n^2\equiv gH_e$, and for each n the three shallow-water equations
   $\dfrac{\partial u_n}{\partial x}+\dfrac{\partial v_n}{\partial y}+\dfrac1{c_n^2}\dfrac{\partial p_n}{\partial t}=0$, $\dfrac{\partial u_n}{\partial t}-fv_n=-\dfrac{\partial p_n}{\partial x}$, $\dfrac{\partial v_n}{\partial t}+fu_n=-\dfrac{\partial p_n}{\partial y}$ — "a stratified layer is a stack of shallow-water
   systems".
 - **Check:** units — ψ_n dimensionless, so $(1/N^2)\psi''$ is s²/m² and $\psi/c_n^2$ is s²/m² ✓. Uniform N with a rigid lid — $\psi_n=\cos(n\pi z/H)$,
-  $c_n=NH/(n\pi)$: 3.61 m/s for H = 4200 m, N = 2.7 × 10⁻³ s⁻¹. Free surface — the bracket of step 12 does not vanish at z = 0;
-  the modes are then orthogonal with the extra weight $\psi_m(0)\psi_n(0)/g$ added to the integral (`VM.orthogonality_matrix`
-  includes it).
+  $c_n=NH/(n\pi)$: 3.61 m/s for H = 4200 m, N = 2.7 × 10⁻³ s⁻¹. Free surface — the bracket of step 12 vanishes at z = 0 too:
+  $\psi_n\psi_m'-\psi_m\psi_n'=-\frac{N^2}g(\psi_n\psi_m-\psi_m\psi_n)=0$ by $\dfrac{d\psi_n}{dz}+\dfrac{N^2}{g}\psi_n=0$ at $z=0$ (13.65), so the weight is 1 for both lids
+  (`VM.orthogonality_matrix(modes)`, default `kind="psi"`; verified by the designer's own finite-volume solve of the
+  thermocline profile with a free surface: off-diagonal overlaps below 10⁻⁸). The surface term appears only in the second
+  relation, obtained by multiplying the structure equation by ψ_m and integrating once by parts:
+  $\dfrac1{c_n^2}\displaystyle\int_{-H}^0\psi_n\psi_m\,dz=\displaystyle\int_{-H}^0\dfrac{\psi_n'\psi_m'}{N^2}\,dz+\dfrac{\psi_n(0)\psi_m(0)}{g}$ (`kind="energy"`).
 - **sympy check** (`check_src`; executed as written — every assertion passes and the final line is printed):
   ```python
   import sympy as sp                                            # symbolic algebra
@@ -4040,8 +4082,8 @@ every block where direction matters gives the f < 0 form.
   baroclinic mode's c₁ sets the internal Rossby radius and the speed of thermocline signals. **Fails when:** the bottom is
   not flat or there is a sheared mean current (the modes couple); the motion is not hydrostatic (ω comparable to N).
 - **Traps:** w's shape is the integral of ψ_n and ρ's is its derivative, not the reverse; the separation constant is
-  negative; the modal amplitudes have different units (trap T12); with a free surface the orthogonality relation has a
-  surface term.
+  negative; the modal amplitudes have different units (trap T12); the surface term $\psi_m(0)\psi_n(0)/g$ belongs to the
+  energy relation, not to the weight-1 orthogonality, which holds for both lids.
 
 ### D12 · One equation for v, (13.75), from the linear shallow-water set on a β-plane — ★★★, 10 steps, in C09 (notebook · `shallow_water_dispersion`)
 - **Goal:** eliminate u and η from the three shallow-water equations so that a single equation for v remains, valid at
@@ -4144,7 +4186,9 @@ every block where direction matters gives the f < 0 form.
 - **Check:** units — every term s⁻³ ✓. Number — 35° N, c = 202.95 m/s, wavelength 3100 km: (−4.1525 × 10⁻⁴, −8.888 × 10⁻⁶, +4.2414
   × 10⁻⁴) s⁻¹; sum zero; the approximations of steps 6 and 7 are off by 1 % and 0.04 %. The bound of step 5 is sharp: Δ
   first reaches zero at $c^2k^2=f_0^2/2$ when βc = f₀² (ours, computed: for c = 203 m/s that is at latitude 26.3°; closer to
-  the equator a band of very long waves has complex roots — the β-plane stretched too far).
+  the equator Δ < 0 for a band of very long waves — the β-plane stretched too far). Code — `GFD.shallow_water_discriminant`
+  is the flag; where it is negative `GFD.shallow_water_omega` returns (nan, nan, nan), e.g. at 12° N with the external
+  speed for a 20 000 km wave.
 - **What it means:** a model that wants only weather may drop ω³ (filtering the fast waves); a tide model may drop β.
   **Fails when:** βc is not small against f₀² (external mode at low latitude), where the fixed-f₀ replacement is itself
   invalid.
@@ -5036,7 +5080,7 @@ every block where direction matters gives the f < 0 form.
   `DIM.pi_groups` returns exponents (2/3, −3). Number — 35° N: √(u/β) = 833 km for u = 13 m/s and 65 km for u = 0.08 m/s.
 - **What it means:** energy injected at the scale of baroclinic eddies moves up-scale until β turns eddies into waves:
   the alternating jets of the giant planets and of the ocean are of this width. **Fails when:** there is no clean
-  inertial range (our 128² demo has none: its slope is labelled qualitative), or dissipation and forcing overlap the
+  inertial range (our 64² demo has none: the K⁻³ range is not resolved there and no slope is quoted from it), or dissipation and forcing overlap the
   range.
 - **Traps:** α is the enstrophy flux [s⁻³] in this section (trap T13); the exponents are exact rationals from the Π
   theorem, the constants C_E, C_Z are not given by it; nothing here is a benchmark — it is dimensional reasoning.
@@ -5074,8 +5118,8 @@ and `tools/embed_check.py` do), on the file as saved on 2026-10-07.
   Concept is the primer term verbatim.
 - **Ledger:** 231 rows, none without "Explained by"; every C / R id in that column exists in the curation; no primer is
   placed after its first use.
-- **Part C:** 157 function rows (GFD 99 plus one row of constants · VM 11 · SW 20 including the `ShallowWater` class ·
-  ch13 27), plus one row naming the 12 sympy engines and one naming the 8 `fig_*` helpers — 177 callables in all; every `ch13.` / `GFD.` / `VM.` / `SW.` name used in Parts A, B, D, E, F is
+- **Part C:** 158 function rows (GFD 99 plus one row of constants · VM 11 · SW 20 including the `ShallowWater` class ·
+  ch13 28), plus one row naming the 12 sympy engines and one naming the 8 `fig_*` helpers — 178 callables in all; every `ch13.` / `GFD.` / `VM.` / `SW.` name used in Parts A, B, D, E, F is
   in Part C; every Part C row is called by a storyboard row, mirrored by an explainer, or listed in C.7 as test-only. No
   name or signature was changed after the first save (19:39 EDT); later edits to Part C touched wording only (the
   word "value" in front of Returns cells that began with a symbol; `SW.relative_vorticity` added to the C.7 list).
@@ -5095,5 +5139,18 @@ and `tools/embed_check.py` do), on the file as saved on 2026-10-07.
   from the trigonometric form (external mode, 3100 km, 35° N: −8.904 × 10⁻⁶ against −8.888 × 10⁻⁶ s⁻¹; its three roots do
   not sum to zero) — reported to the orchestrator, not edited; and one check of mine was too strict (the density flux of
   the Eady mode is zero, not negative, exactly on the lids).
-- **Open at hand-over:** see the designer's reply (the westward step flow; `ekman_solve` and the Rayleigh–Kuo growth
-  rates and the WKB error were not computed by the designer and are marked as hypotheses in their rows).
+- **Correction pass of 2026-10-07 (after the implementer's measurements; each claim re-run by the designer before
+  editing):** weight-1 orthogonality of the vertical modes holds for both lids — the surface term belongs to the energy
+  relation (Part C.2, C08 rows 7 and 20, D11 step 13, Check and Traps, E5); `orthogonality_matrix(modes, kind="psi" or
+  "energy", …)`, `modal_amplitudes(c_n, p_n_t, p_n=None, rho0=1.0, g=G0)`, `book_slips()` keys, `traps()`,
+  `rayleigh_kuo_eigs(..., **kw)` with β as its own keyword, and the NaN return of `shallow_water_omega` where the
+  discriminant is negative are now in the contract; the WKB error falls as 1/(H_N m), not as its square; the Rayleigh–Kuo
+  growth rates 0.1191, 0.0744, 0.0151 (β = 0, 0.3, 0.6; none at 0.7) replace the hypothesis row; the cached turbulence
+  runs are 64² and every statement about them is qualitative (no slope is quoted); rigid-lid `Modes` start at the first
+  baroclinic mode and `project` drops the depth mean; the westward step flow is a labelled remark, not a slip; E8's bump
+  presets stay a JS convolution labelled "computed in the explainer; the step case is checked against Python". The
+  earlier remark above about a slow-root discrepancy in `shallow_water_omega` is obsolete: re-run, it returns
+  −8.88828 × 10⁻⁶ s⁻¹. Item 5 of the orchestrator's list (energy drift of the nonlinear model, Poincaré errors of `run`)
+  needed no edit: this design states no value for either.
+- **Still a hypothesis in its row:** the three `ekman_solve` transports with $K_v(z)$ (C05 row 9) and the tilt of the
+  fastest Eady mode (C16 row 16) — not computed by the designer.
