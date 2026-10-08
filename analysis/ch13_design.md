@@ -4041,8 +4041,8 @@ every block where direction matters gives the f < 0 form.
   12. **did** Integrate over the depth by parts · **tex** $\Big[\dfrac{\psi_n\psi_m'-\psi_m\psi_n'}{N^2}\Big]_{-H}^0+\Big(\dfrac1{c_m^2}-\dfrac1{c_n^2}\Big)\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0$ · **why** The first two terms
       are the derivative of the bracket (the cross terms $\psi_n'\psi_m'/N^2$ cancel), so their integral is its end values. ·
       **plain** Everything reduces to values at the top and the bottom.
-  13. **did** Use the boundary conditions · **tex** $\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0\qquad(m\neq n,\ \text{either lid})$ · **why** At the bottom ψ′ = 0. At the top either
-      ψ′ = 0 (lid) or ψ′ = −(N²/g)ψ for both modes (free surface), so the numerator cancels; with c_m ≠ c_n the integral
+  13. **did** Use the boundary conditions · **tex** $\displaystyle\int_{-H}^0\psi_m\psi_n\,dz=0\qquad(m\neq n,\ \text{either lid})$ · **why** At the flat bottom w = 0 gives ψ′ = 0 (note N66 above). At the top either
+      ψ′ = 0 (lid) or ψ′ = −(N²/g)ψ for both modes (the free-surface condition of note N67 above), so the numerator cancels; with c_m ≠ c_n the integral
       vanishes. · **plain** Different modes are orthogonal.
 - **Result:** $\dfrac{d}{dz}\Big(\dfrac1{N^2}\dfrac{d\psi_n}{dz}\Big)+\dfrac1{c_n^2}\psi_n=0$ with $c_n^2\equiv gH_e$, and for each n the three shallow-water equations
   $\dfrac{\partial u_n}{\partial x}+\dfrac{\partial v_n}{\partial y}+\dfrac1{c_n^2}\dfrac{\partial p_n}{\partial t}=0$, $\dfrac{\partial u_n}{\partial t}-fv_n=-\dfrac{\partial p_n}{\partial x}$, $\dfrac{\partial v_n}{\partial t}+fu_n=-\dfrac{\partial p_n}{\partial y}$ — "a stratified layer is a stack of shallow-water
@@ -4176,7 +4176,7 @@ every block where direction matters gives the f < 0 form.
      radius c/f₀ is smaller than f₀/β = R tan θ₀. · **plain** All three roots are real for every
      wavenumber as long as the β-plane itself makes sense.
   6. **did** Find the fast roots by dropping the β term · **tex** $\omega\big(\omega^2-c^2K^2-f_0^2\big)=0\ \Rightarrow\ \omega=\pm\sqrt{f_0^2+c^2K^2}$ · **why** For
-     $\lvert\omega\rvert\ge\lvert f_0\rvert$ the ratio of the β term to the second term is of order β/(ωK), about 10⁻³; neglect it. · **plain** Two
+     $\lvert\omega\rvert\ge\lvert f_0\rvert$ the ratio of the β term to the second term is of order β/(ωK) — about 0.02 for our 3100 km wave at 35° N (the code cell below prints the terms), smaller for shorter waves; neglect it. · **plain** Two
      gravity waves bent by rotation, one in each direction, never slower than f₀.
   7. **did** Find the slow root by dropping ω³ · **tex** $\omega\simeq-\dfrac{c^2\beta k}{c^2K^2+f_0^2}=-\dfrac{\beta k}{K^2+f_0^2/c^2}$ · **why** For $\lvert\omega\rvert\ll\lvert f_0\rvert$, ω³ is smaller than
      $f_0^2\omega$ by $(\omega/f_0)^2$; the remaining three terms balance. · **plain** One slow wave that exists only because of β and
@@ -4924,8 +4924,8 @@ every block where direction matters gives the f < 0 form.
      z = 0 the argument is −X; cosh is even and sinh odd. At z = H the argument is +X, so the same expressions hold
      with +B sinh X and +A sinh X. · **plain** The even and odd parts add on one lid and subtract on the other.
   8. **did** Write the two conditions · **tex** $A\Big[\alpha c\sinh X-\dfrac{U_0}H\cosh X\Big]+B\Big[-\alpha c\cosh X+\dfrac{U_0}H\sinh X\Big]=0$;
-     $A\Big[\alpha(U_0-c)\sinh X-\dfrac{U_0}H\cosh X\Big]+B\Big[\alpha(U_0-c)\cosh X-\dfrac{U_0}H\sinh X\Big]=0$ · **why** Insert step 7 into step 6 (the first equation
-     multiplied by −1). These are the book's pair. · **plain** Two homogeneous equations for A and B.
+     $A\Big[\alpha(U_0-c)\sinh X-\dfrac{U_0}H\cosh X\Big]+B\Big[\alpha(U_0-c)\cosh X-\dfrac{U_0}H\sinh X\Big]=0$ · **why** Insert step 7 into step 6 and collect the
+     terms with A and with B. These are the book's pair. · **plain** Two homogeneous equations for A and B.
   9. **did** Set the determinant to zero and expand · **tex** $\alpha^2c\,(U_0-c)\sinh\alpha H-\alpha\dfrac{U_0^2}{H}\cosh\alpha H+\dfrac{U_0^2}{H^2}\sinh\alpha H=0$ · **why** A
      non-trivial (A, B) needs a vanishing determinant; after multiplying out, use $2\sinh X\cosh X=\sinh2X$ and
      $\cosh^2X+\sinh^2X=\cosh2X$ with 2X = αH. · **plain** One equation for the phase speed.
@@ -4991,13 +4991,13 @@ every block where direction matters gives the f < 0 form.
      Waves with αH below 2.3994 are unstable.
   3. **did** Translate into wavelength · **tex** $\dfrac{HN}{f}<\dfrac{\alpha_cH}{k}$ (13.142; the book prints $\alpha_cH$ as a rounded number), i.e.
      $\lambda>\dfrac{2\pi}{\alpha_cH}\Lambda=2.6187\,\Lambda,\quad\Lambda\equiv\dfrac{HN}f$ · **why** For l = 0, α = Nk/f, so αH = kΛ; αH < α_cH is the printed inequality, and
-     λ = 2π/k. · **plain** Only waves longer than about 2.6 Eady radii grow.
+     λ = 2π/k. · **plain** Only waves longer than 2.62 Eady radii grow.
   4. **did** Write the growth rate · **tex** $\sigma=kc_i=\dfrac{fU_0}{NH}\,G(x),\qquad G(x)=\sqrt{(x-\tanh x)(\coth x-x)}$ · **why** A wave
      $e^{ik(x-ct)}$ grows like $e^{kc_it}$; from the Start $c_i=(U_0/\alpha H)\,G$, and for l = 0, k/α = f/N. · **plain** The growth
      rate is a universal curve G times fU₀/(NH).
   5. **did** Maximise G · **tex** $G_{max}=0.30982\ \text{at}\ x=0.80306,\ \text{i.e.}\ \alpha H=1.6061,\quad\lambda=\dfrac{2\pi}{1.6061}\Lambda=3.9120\,\Lambda$ · **why** G is zero
      at x = 0 and at x_c and positive between; a bounded scalar maximiser finds the peak. Ours, computed. · **plain**
-     The fastest-growing wave is about four Eady radii long.
+     The fastest-growing wave is 3.91 Eady radii long.
   6. **did** Put the units back · **tex** $\sigma_{max}=0.30982\,\dfrac{f}{N}\dfrac{dU}{dz},\qquad\text{e-folding time}=\dfrac1{\sigma_{max}}$ · **why** U₀/H is the shear dU/dz;
      the result no longer contains the depth H. · **plain** Storms grow faster where the shear is strong, the
      stratification weak and the latitude high.
