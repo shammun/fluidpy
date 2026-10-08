@@ -783,7 +783,7 @@ def _contour(g: SpectralGrid, Up: Callable, Upp: Callable, delta: float, bc: str
     return g.y + 1j * h, D1, D1 @ D1
 
 
-def _rayleigh_contour_solve(k, U, Up, Upp, g: SpectralGrid, delta: float, bc: str, vectors: bool):
+def _rayleigh_contour_solve(k, U, Up, Upp, g: SpectralGrid, delta: float, bc: str, vectors: bool, beta: float = 0.0):
     y, _, D2 = _contour(g, Up, Upp, delta, bc)
     n = len(y)
     I = np.eye(n)
@@ -793,7 +793,9 @@ def _rayleigh_contour_solve(k, U, Up, Upp, g: SpectralGrid, delta: float, bc: st
     if np.iscomplexobj(y) and np.any(y.imag != 0.0) and not np.iscomplexobj(Uy):
         raise ValueError("rayleigh_eigs_contour: U(y) must accept complex y and return complex values (an analytic profile; "
                          "a spline or a profile that casts to float cannot be continued off the real axis — use rayleigh_eigs)")
-    A = Uy[:, None] * L - np.diag(Uppy)  # Eq. (11.81) on the path: [U L − U″] φ = c L φ, with d/dy = (1/y′(ξ)) d/dξ
+    # Eq. (11.81) on the path: [U L − U″] φ = c L φ, with d/dy = (1/y′(ξ)) d/dξ; beta adds the planetary vorticity
+    # gradient of Eq. (13.123): [U L + (β − U″)] φ = c L φ (the path itself is still built from the true U′, U″)
+    A = Uy[:, None] * L - np.diag(Uppy - beta)
     C = np.vstack([I[0], I[n - 1]])  # Eq. (11.82): φ = 0 at both (real) ends
     out = constrained_eig(A, L, C, [0, n - 1], return_vectors=vectors)
     return (out[0], out[1], y) if vectors else (out, None, y)
@@ -803,7 +805,7 @@ def rayleigh_eigs_contour(k: float, U: Callable, Up: Callable, Upp: Callable, do
                           N: int = 120, bc: str = "wall", y_max: float | None = None, map_scale: float | None = None,
                           delta: float = 0.2, parity: str | None = None, return_vectors: bool = False, filter: bool = True,
                           factor: float = 1.5, tol: float = 1e-6, ci_min: float = 1e-4, refine: int = 2,
-                          map: str | None = None):
+                          map: str | None = None, beta: float = 0.0):
     """Growing eigenvalues c (c_i > ci_min) of Rayleigh's equation, converged up to the neutral point, sorted by descending c_i.
 
     Book: §11.9, Eq. (11.81) (U − c)(φ″ − k²φ) − U″φ = 0 with Eq. (11.82) φ = 0 at the walls (bc="decay": at ±y_max).
@@ -840,6 +842,10 @@ def rayleigh_eigs_contour(k: float, U: Callable, Up: Callable, Upp: Callable, do
     filter : keep only c that reappear within tol·max(1, |c|) in a second solve with ⌈factor·N⌉ nodes **and** delta/2 — a
         different resolution and a different path at once.   factor, tol : defaults 1.5, 1e-6.
     ci_min : smallest c_i returned; default 1e-4 (as ``unstable_only`` of :func:`rayleigh_eigs`).
+    beta : planetary vorticity gradient (scaled by U₀/L²), default 0.  Non-zero β solves the barotropic problem of
+        Ch. 13 §13.16, (U − c)(φ″ − k²φ) + (β − U″)φ = 0 (Eq. (13.123) with normal modes).  Pass β here and **not**
+        folded into ``Upp``: the path uses U″ for its own slope, and a shifted U″ makes the result depend on delta
+        (found in ch13: growing modes were then rejected by the filter).
     refine : if growing candidates exist but none passes the filter, repeat with N → ⌈factor·N⌉, at most ``refine`` times
         (default 2), instead of returning "nothing".
     Returns
@@ -869,7 +875,7 @@ def rayleigh_eigs_contour(k: float, U: Callable, Up: Callable, Upp: Callable, do
     Nn = int(N)
     for attempt in range(int(refine) + 1):
         g = _grid_for(bc, domain, Nn, y_max, map, map_scale)
-        w, V, y = _rayleigh_contour_solve(k, U, Up, Upp, g, delta, bc, need_vec)
+        w, V, y = _rayleigh_contour_solve(k, U, Up, Upp, g, delta, bc, need_vec, beta)
         keep = (w.imag > ci_min) & np.isfinite(w)
         if parity is not None:
             keep &= _parity_mask(V, parity)
@@ -877,7 +883,7 @@ def rayleigh_eigs_contour(k: float, U: Callable, Up: Callable, Upp: Callable, do
             break
         N2 = int(math.ceil(factor * Nn))
         w2 = _rayleigh_contour_solve(k, U, Up, Upp, _grid_for(bc, domain, N2, y_max, map, map_scale), 0.5 * delta, bc,
-                                     False)[0]
+                                     False, beta)[0]
         ok = keep & converged_mask(w, w2, tol)
         if ok.any() or attempt == int(refine):
             keep = ok

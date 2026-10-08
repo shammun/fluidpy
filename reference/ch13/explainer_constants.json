@@ -1,0 +1,45 @@
+{
+ "eady_critical": 2.3993572805154675,
+ "eady_fastest": {
+  "alphaH": 1.6061153012383769,
+  "sigma_nd": 0.3098168351859504,
+  "ci_over_U0": 0.19289825266409558,
+  "cr_over_U0": 0.5
+ },
+ "eady_wavelengths": {
+  "cutoff_over_Lambda": 2.6186951639939733,
+  "fastest_over_Lambda": 3.912038757326456
+ },
+ "adjustment_ratio": 0.3333333333333333,
+ "omega_earth": 7.292115e-05,
+ "earth_radius": 6371000.0,
+ "inputs": {
+  "lat": 0.6108652381980153,
+  "lat_ekman": 1.0471975511965976,
+  "lat_rossby": 0.20943951023931956,
+  "ocean_H": 4200.0,
+  "ocean_N": 0.0027,
+  "atm_H": 9000.0,
+  "atm_N": 0.011,
+  "atm_U0": 27.0,
+  "tau": 0.07,
+  "nu_v_ocean": 0.03,
+  "U_g": 12.0,
+  "nu_v_atm": 7.0,
+  "U_syn": 14.0,
+  "L_syn": 1400000.0,
+  "H1": 120.0,
+  "drho": 3.1,
+  "rho_ocean": 1027.0,
+  "U_mean": 17.0,
+  "wavelengths": [
+   730000.0,
+   3100000.0
+  ],
+  "q_inertial": 0.23,
+  "u_rms": [
+   13.0,
+   0.08
+  ]
+ }
+}

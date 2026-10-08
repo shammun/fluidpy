@@ -357,9 +357,21 @@
       "slug": "geophysical_fluid_dynamics",
       "analyze": "pass",
       "curate": "pass",
-      "design": "running",
-      "implement": "running",
-      "verify": "todo",
+      "design": {
+        "status": "pass",
+        "notes": "17 CORE blocks, 29 derivations (253 steps), E1-E10 + B1, 231 ledger rows; correction pass after implement in progress",
+        "updated": "2026-10-07"
+      },
+      "implement": {
+        "status": "pass",
+        "notes": "gfd/vertical_modes/shallow_water cores + ch13 module; 188/188 Part C; 14 scripts exit 0; stability.rayleigh_eigs_contour gained beta kw",
+        "updated": "2026-10-07"
+      },
+      "verify": {
+        "status": "running",
+        "notes": "",
+        "updated": "2026-10-07"
+      },
       "review": "todo",
       "viz": "todo",
       "notebook": "todo",
