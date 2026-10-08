@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>How can one layer stand for a stratified ocean?</title>
+<title>Why does this wave run only one way along a coast?</title>
 <meta name="viz:chapter" content="ch13">
-<meta name="viz:slug" content="vertical_modes">
-<meta name="viz:order" content="5">
-<meta name="viz:title" content="How can one layer stand for a stratified ocean?">
-<meta name="viz:summary" content="Reshape N(z) and watch the mode shapes, their speeds and their equivalent depths respond.">
-<meta name="viz:concept" content="C08">
-<meta name="viz:sections" content="13.9 13.12">
-<meta name="viz:equations" content="13.8 13.47 13.48 13.49 13.50 13.51 13.52 13.53 13.54 13.55 13.56 13.57 13.58 13.59 13.61 13.62 13.64 13.65 13.69 13.70 13.71">
-<meta name="viz:fluidpy" content="ch13.vertical_modes ch13.vertical_modes_shooting ch13.modes_uniform_N ch13.equivalent_depth ch13.baroclinic_mode_speed ch13.rossby_radius ch13.coriolis_parameter ch13.thermocline_N2 ch13.wkb_mode_speed ch13.rigid_lid_error">
-<meta name="viz:derivations" content="D11">
+<meta name="viz:slug" content="kelvin_wave">
+<meta name="viz:order" content="7">
+<meta name="viz:title" content="Why does this wave run only one way along a coast?">
+<meta name="viz:summary" content="Reverse the wave or the hemisphere and watch the offshore profile turn from decaying to growing — and be rejected.">
+<meta name="viz:concept" content="coastal Kelvin wave: no cross-shore flow, geostrophic across the shore, speed sqrt(gH), trapped within the Rossby radius c/|f| with the coast on the right (f &gt; 0) or left (f &lt; 0)">
+<meta name="viz:sections" content="13.12">
+<meta name="viz:equations" content="13.84 13.86 13.87">
+<meta name="viz:fluidpy" content="ch13.kelvin_wave ch13.kelvin_residuals ch13.kelvin_decay_side ch13.long_wave_speed ch13.rossby_radius ch13.rossby_radius_two_layer ch13.kelvin_omega ch13.poincare_omega ch13.coriolis_parameter ch13.hemisphere">
+<meta name="viz:derivations" content="D15">
 <style id="viz-base">
 /* VIZ_BASE_CSS:BEGIN (inlined from assets/viz_base.css by tools/viz_inline.py) */
 :root {
@@ -476,30 +476,32 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (vertical_modes) — small, tokens only */
+  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  sub { font-size: max(12px, .8em); }
   .viz-stage-top .viz-presets { flex-wrap: wrap; }
+  .viz-seg { flex-wrap: wrap; }
   .viz-pager-label { white-space: nowrap; min-width: 52px; }
+  .viz-stage-badge:empty { display: none !important; }
+  /* the three-part status may wrap instead of being clipped */
   .viz-status { white-space: normal; border-radius: 12px; }
-  /* the thermocline sliders exist only for the thermocline profile (html[data-vm] is set by markMode) */
-  html[data-vm="uni"] [data-viz-key="param:zt"], html[data-vm="uni"] [data-viz-key="param:wd"] { display: none !important; }
-  /* phones: the preset chips go outside Explore (the walkthrough sets the cases; the status names the mode) */
+  /* phones: the plan view and the offshore section; the row of equation bars goes (the cross-shore balance is a readout) */
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+  .viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
+  /* the preset chips stay in Explore on portrait phones and go on landscape phones (the walkthrough sets the cases) */
   .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
   .viz-app[data-layout="portrait"]:not([data-tab="explore"]) .viz-presets { display: none !important; }
   @media (max-height: 700px) {
     .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
   }
-  /* phones and the short in-page frame: the travelling-wave row goes (its numbers are in the stack's title, the readouts
-     and Explain 7), and the transport with it — the wave view is its only client */
-  .viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2),
-  .viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
-  .viz-app:not([data-layout="wide"]) .viz-transport, .viz-app:not([data-layout="wide"]) .viz-stage-bar { display: none !important; }
-  /* portrait: the mode shape (60 %) over the stack of layers (40 %) */
-  .viz-app[data-layout="portrait"] .viz-views > .viz-row:first-child { flex-direction: column; }
-  .viz-app[data-layout="portrait"] .viz-view[data-view="shape"] { flex-grow: 1.5 !important; }
-  .viz-app[data-layout="portrait"] .viz-view[data-view="stack"] { flex-grow: 1 !important; }
+  /* tall portrait windows: the plan view above the section (both are wide pictures) */
+  @media (min-height: 700px) {
+    .viz-app[data-layout="portrait"]:not([data-tab="derive"]) .viz-views > .viz-row:nth-child(1) { flex-direction: column; }
+  }
+  /* the short landscape frame inside the chapter page: a one-line transport (no step buttons, no speed) */
+  .viz-app[data-layout="landscape"] .viz-transport .viz-optional,
+  .viz-app[data-layout="landscape"] .viz-transport .viz-speed { display: none !important; }
+  /* a chain line cut over two pages must not be re-centred in its slice */
   .viz-der-chain.viz-sliced { align-items: flex-start; }
-  /* the short landscape frame: the derivation's title would take a page of its own (the chips and the step name stay) */
-  .viz-app[data-layout="landscape"][data-tab="derive"] .viz-side .viz-step-title { display: none !important; }
 </style>
 </head>
 <body>
@@ -2358,774 +2360,706 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch13_geophysical_fluid_dynamics (core/vertical_modes.py, core/gfd.py), §13.9 and §13.12.
-   z is measured upward from the sea surface: the bottom is z = −H, the surface z = 0. SI units.
-     d/dz[(1/N²) dψ_n/dz] + ψ_n/c_n² = 0                  (13.56)   the vertical structure equation
-     dψ_n/dz = 0 at z = −H                                 (13.64)   flat bottom
-     dψ_n/dz + (N²/g) ψ_n = 0 at z = 0                     (13.65)   free surface   (rigid lid: dψ_n/dz = 0 at z = 0)
-     c_n² ≡ g H_e                                          (13.62)   ch13.equivalent_depth(c)
-     tan(NH/c_n) = c_n N/g                                 (13.69)   ch13.modes_uniform_N(N, H)[0][n]
-     c_0 = sqrt(gH)                                        (13.70)
-     c_n = NH/(nπ), n = 1, 2, 3, …                         (13.71)   ch13.baroclinic_mode_speed(N, H, n)
-     Λ_n = c_n/|f|, f = 2Ω sin θ (13.8)                              ch13.rossby_radius, ch13.coriolis_parameter
-   METHOD (ours, the same as ch13.vertical_modes_shooting): write (13.56) as S′ = N² P, P′ = −λ S with S = ψ,
-   P = ψ′/N², λ = 1/c²; integrate from the bottom (S = 1, P = 0) with the classical RK4 on 401 nodes; scan λ on a
-   logarithmic grid and refine each sign change of the surface residual P(0) + S(0)/g (rigid lid: P(0)).
-   Second route (ours, the same as ch13.vertical_modes(method="fd")): linear finite elements with a lumped mass matrix,
-   a symmetric tridiagonal eigenproblem, solved here by Sturm-sequence bisection (only for the Code tab and parity).
-   MODE NUMBERS are the book's: n = 0 barotropic, n ≥ 1 baroclinic. With a rigid lid there is no mode 0, and the Python
-   `Modes` tuple then starts at baroclinic mode 1 (index n − 1). Everything here is stored by the physical n.
-   Illustrative values (ours, not the book's): H = 4200 m, uniform N = 2.7×10⁻³ 1/s; thermocline profile
-   N = N_d + (N_p − N_d) exp(−((z − z_t)/w)²) with N_d = 5×10⁻⁴, N_p = 8×10⁻³ 1/s (ch13.thermocline_N2); 35° latitude.
+   PHYSICS — mirrors fluidpy.ch13_geophysical_fluid_dynamics, §13.12 (same symbols, SI units).
+   Axes: x along the coast, y offshore, z up. The coast is the line y = 0 and the SEA is y >= 0 (land: y < 0).
+   Seen from above with x to the right and y up the screen, the coast is at the BOTTOM of the picture.
+     f = 2 Omega sin(latitude)                                                   ch13.coriolis_parameter
+     c = sqrt(g H)                (13.86)                                        ch13.long_wave_speed
+     Lambda = c/|f|               (§13.12, unnumbered)                           ch13.rossby_radius
+     Lambda_i = sqrt(g' H1)/|f|,  g' = g (rho2 - rho1)/rho2                      ch13.rossby_radius_two_layer
+     omega = c k                                                                 ch13.kelvin_omega
+     eta = eta0 exp(-y/Lambda) cos k(x - d c t),  u = d sqrt(g/H) eta,  v = 0    ch13.kelvin_wave   (13.87)
+        d = +1 (toward +x) or -1; a solution only if d sign(f) > 0               ch13.kelvin_decay_side
+     the three equations (13.84) evaluated on it                                 ch13.kelvin_residuals
    --------------------------------------------------------------------------------------------------------------------- */
-const TX = String.raw;
-const G0 = 9.80665, OMEGA = 7.292115e-5;                 // the two typed constants allowed: definitions (pinned by parity rows)
-const HOC = 4200, N_UNI = 2.7e-3, N_DEEP = 5.0e-4, N_PEAK = 8.0e-3;   // illustrative ocean (ours)
-const NZ = 401, NMAX = 4, SCAN = 60;                     // RK4 nodes, highest mode shown, trial eigenvalues per decade
-const LWAVE = 5.0e5;                                     // wavelength of the wave view [m] (ours: long, so hydrostatic)
-const ZOOM = -1200;                                      // lower edge of the zoomed depth axis [m]
-const NAX = 9e-3;                                        // right end of the little N axis [1/s]
+const R = String.raw, PI = Math.PI;
+const OMEGA = 7.292115e-5;                 // Earth's rotation rate [rad/s] (a definition; pinned by a parity row)
+const G = 9.80665;                         // standard gravity [m/s^2] (a definition; ch13.G0)
+const H1 = 120, RHO1 = 1023.9, RHO2 = 1027; // our illustrative two-layer ocean: upper layer [m], densities [kg/m^3]
+const ETA_E = 0.5, ETA_I = 10;             // our amplitudes at the coast: sea surface 0.5 m; upper layer thicker by 10 m
+const NW = 3;                              // the plan view shows three wavelengths of coast
+const WCH = 2;                             // channel width in Rossby radii
 
-const clampv = (x, a, b) => (x < a ? a : x > b ? b : x);
-/** np.linspace(-H, 0, nz) (numpy computes start + i·step) */
-function zgrid(nz) { const z = new Float64Array(nz), st = HOC / (nz - 1); for (let i = 0; i < nz; i++) z[i] = -HOC + i * st; z[nz - 1] = 0; return z; }
-const ZN = zgrid(NZ), DZ = HOC / (NZ - 1);
-/** ch13.thermocline_N2(z, N_deep=, N_peak=, z_t=, width=) → N² [1/s²]; zt is the depth of the maximum (positive, m) */
-function thermoN2(z, zt, wd) { const e = (z + zt) / wd, N = N_DEEP + (N_PEAK - N_DEEP) * Math.exp(-e * e); return N * N; }
-/** N² at depth z for the profile p = {uni, zt, wd} */
-function N2prof(z, p) { return p.uni ? N_UNI * N_UNI : thermoN2(z, p.zt, p.wd); }
-/** ch13.coriolis_parameter(lat_rad): f = 2Ω sin θ   Eq. (13.8) */
-function fCor(latDeg) { return 2 * OMEGA * Math.sin(latDeg * Math.PI / 180); }
-/** ch13.equivalent_depth(c) = c²/g   Eq. (13.62) */
-function He(c) { return c * c / G0; }
-/** ch13.rossby_radius(c, f) = c/|f| */
+/** ch13.coriolis_parameter(np.deg2rad(lat)) with the latitude counted negative in the southern hemisphere */
+function fCor(latDeg, hemi) { return 2 * OMEGA * Math.sin((hemi === 'S' ? -latDeg : latDeg) * (PI / 180)); }
+/** ch13.long_wave_speed */
+function cLong(H, g) { return Math.sqrt((g === undefined ? G : g) * H); }
+/** ch13.rossby_radius */
 function Lam(c, f) { return c / Math.abs(f); }
-/** ch13.baroclinic_mode_speed(N, H, n) = NH/(nπ)   Eq. (13.71) */
-function cRigid(N, H, n) { return N * H / (n * Math.PI); }
-/** ch13.modes_uniform_N(N, H)[0][n]: the root X_n = NH/c_n of X sin X − (N²H/g) cos X = 0 on (nπ, nπ + π/2)   Eq. (13.69) */
-function uniformRoot(N, H, n) {
-  const eps = N * N * H / G0, F = x => x * Math.sin(x) - eps * Math.cos(x);
-  return Viz.num.brentq(F, n * Math.PI + (n === 0 ? 1e-300 : 0), n * Math.PI + 0.5 * Math.PI, 1e-16, 300);
+/** reduced gravity g' = g (rho2 - rho1)/rho2, as inside ch13.rossby_radius_two_layer */
+function gPrime(r1, r2) { return G * (r2 - r1) / r2; }
+/** ch13.rossby_radius_two_layer */
+function LamTwoLayer(h1, r1, r2, f) { return Lam(Math.sqrt(gPrime(r1, r2) * h1), f); }
+/** ch13.kelvin_omega */
+function omegaK(k, c) { return c * k; }
+/** ch13.poincare_omega (the ghost curve of the frequency view) */
+function poincareOmega(K, f, c) { return Math.sqrt(f * f + c * c * K * K); }
+/** ch13.inertial_period */
+function inertialPeriod(f) { return 2 * PI / Math.abs(f); }
+/** ch13.kelvin_decay_side → {trapped, coast_on} */
+function decaySide(f, dir) { const d = dir > 0 ? 1 : -1; return { trapped: d * f > 0, coast_on: f > 0 ? 'right' : 'left' }; }
+/** the side of the direction of travel on which a trapped wave keeps its coast (= ch13.hemisphere(lat)['turns']) */
+function side(f) { return decaySide(f, 1).coast_on; }
+/** The formal solution of the three equations (13.84) for travel direction d, with every derivative in closed form:
+    eta = eta0 exp(-d f y/c) cos k(x - d c t), u = d sqrt(g/H) eta. It decays offshore only if d sign(f) > 0. */
+function formal(x, y, t, eta0, k, H, f, d, g) {
+  g = g === undefined ? G : g;
+  const c = Math.sqrt(g * H), A = eta0 * Math.exp(-d * f * y / c), ph = k * (x - d * c * t), cs = Math.cos(ph), sn = Math.sin(ph), r = d * Math.sqrt(g / H);
+  const eta = A * cs;
+  return { eta, u: r * eta, ex: -k * A * sn, ey: -d * f / c * eta, et: d * c * k * A * sn, ux: -r * k * A * sn, ut: r * d * c * k * A * sn };
 }
-function cUniform(N, H, n) { return N * H / uniformRoot(N, H, n); }
+/** ch13.kelvin_wave → [eta, u]; [NaN, NaN] on land (y < 0); null where Python raises (the wave would grow offshore) */
+function kelvin(x, y, t, eta0, k, H, f, dir, g) {
+  const d = (dir === undefined || dir === null) ? (f > 0 ? 1 : -1) : (dir > 0 ? 1 : -1);
+  if (d * f < 0) return null;
+  if (!(y >= 0)) return [NaN, NaN];
+  const w = formal(x, y, t, eta0, k, H, f, d, g);
+  return [w.eta, w.u];
+}
+/** the wave on the opposite wall y = Wc of a channel: ch13.kelvin_wave turned by 180° about the vertical
+    (x → −x, y → Wc − y; a rotation keeps f, and it reverses the velocity component) */
+function kelvinFar(x, y, t, eta0, k, H, f, Wc, g) { const r = kelvin(-x, Wc - y, t, eta0, k, H, f, undefined, g); return [r[0], -r[1]]; }
+/** ch13.kelvin_residuals, with the closed-form derivatives instead of central differences */
+function residuals(x, y, t, eta0, k, H, f, g, dir) {
+  g = g === undefined ? G : g;
+  const d = (dir === undefined || dir === null) ? (f > 0 ? 1 : -1) : (dir > 0 ? 1 : -1), w = formal(x, y, t, eta0, k, H, f, d, g);
+  const c = Math.sqrt(g * H), fa = Math.abs(f), amp = Math.abs(eta0) * Math.exp(-fa * y / c);
+  return { continuity: (w.et + H * w.ux) / (amp * Math.abs(k) * c), x_momentum: (w.ut + g * w.ex) / (g * amp * Math.abs(k)), y_geostrophy: (f * w.u + g * w.ey) / (fa * Math.sqrt(g / H) * amp) };
+}
+const addF = (a, b) => ({ eta: a.eta + b.eta, u: a.u + b.u, ex: a.ex + b.ex, ey: a.ey + b.ey, et: a.et + b.et, ux: a.ux + b.ux, ut: a.ut + b.ut });
 
-/* ---- the profile on the grid (cached) ---- */
-const PCACHE = new Map();
-function profOf(s) { return { uni: s.prof !== 'thermo', zt: s.zt, wd: s.wd }; }
-function profile(p) {
-  const key = p.uni ? 'uni' : 'th|' + p.zt + '|' + p.wd;
-  let pr = PCACHE.get(key); if (pr) return pr;
-  const N2n = new Float64Array(NZ), N2h = new Float64Array(NZ - 1), Nn = new Float64Array(NZ);
-  for (let j = 0; j < NZ; j++) { N2n[j] = N2prof(ZN[j], p); Nn[j] = Math.sqrt(N2n[j]); }
-  for (let j = 0; j < NZ - 1; j++) N2h[j] = N2prof(ZN[j] + 0.5 * (ZN[j + 1] - ZN[j]), p);
-  let I = 0; for (let j = 0; j < NZ - 1; j++) I += 0.5 * (Nn[j + 1] + Nn[j]) * (ZN[j + 1] - ZN[j]);   // ∫N dz (trapezoid)
-  pr = { key, p, N2n, N2h, Nn, I };
-  if (PCACHE.size > 60) PCACHE.clear();
-  PCACHE.set(key, pr); return pr;
-}
-/** ch13.wkb_mode_speed(z, N, n) = (1/nπ) ∫N dz (ours — not in the book) */
-function cWKB(pr, n) { return pr.I / (n * Math.PI); }
+/* ---- formatting ------------------------------------------------------------------------------------------------------ */
+const f2 = v => Viz.fmt(v, { sig: 2 }), f3 = v => Viz.fmt(v, { sig: 3 }), f4 = v => Viz.fmt(v, { sig: 4 });
+const t3 = v => Viz.tnum(v, 3), t4 = v => Viz.tnum(v, 4);
+const par = (v, sig) => (v < 0 ? '(' + Viz.tnum(v, sig || 3) + ')' : Viz.tnum(v, sig || 3));
+const fT = v => Viz.fmtTime(v);
+const km = v => f4(v / 1e3) + ' km';
+const sgn3 = v => Viz.fmt(v, { sig: 3 });
+const DEF = { mode: 'external', H: 4200, lat: 35, hemi: 'N', lam: 1.28, geo: 'coast', dir: 'pos', xc: 0.9, yc: 0.5 };
+const st8 = o => Object.assign({}, DEF, o || {});
+const layout = () => { const a = document.querySelector('.viz-app'); return (a && a.getAttribute('data-layout')) || 'wide'; };
+const roomy = () => layout() === 'wide' && window.innerWidth >= 1200;
 
-/** one RK4 sweep from the bottom: returns the surface residual; fills S, P when given (mirrors core.vertical_modes._shoot) */
-function shoot(pr, lam, free, S, P) {
-  let s = 1, p = 0; const n2 = pr.N2n, nh = pr.N2h;
-  if (S) { S[0] = 1; P[0] = 0; }
-  for (let j = 0; j < NZ - 1; j++) {
-    const h = ZN[j + 1] - ZN[j], a0 = n2[j], am = nh[j], a1 = n2[j + 1];
-    const k1s = a0 * p, k1p = -lam * s;
-    const k2s = am * (p + 0.5 * h * k1p), k2p = -lam * (s + 0.5 * h * k1s);
-    const k3s = am * (p + 0.5 * h * k2p), k3p = -lam * (s + 0.5 * h * k2s);
-    const k4s = a1 * (p + h * k3p), k4p = -lam * (s + h * k3s);
-    s = s + h / 6 * (k1s + 2 * k2s + 2 * k3s + k4s);
-    p = p + h / 6 * (k1p + 2 * k2p + 2 * k3p + k4p);
-    if (S) { S[j + 1] = s; P[j + 1] = p; }
-  }
-  return p + (free ? s / G0 : 0);
+/* ---- everything derived from the state (time and cursor excluded), cached ----------------------------------------- */
+let _key = null, _n = null;
+function N(s) {
+  const key = [s.mode, s.H, s.lat, s.hemi, s.lam, s.geo, s.dir].join('|');
+  if (key === _key) return _n;
+  const f = fCor(s.lat, s.hemi), sg = Math.sign(f), internal = s.mode === 'internal';
+  const g = internal ? gPrime(RHO1, RHO2) : G, H = internal ? H1 : s.H, eta0 = internal ? ETA_I : ETA_E;
+  const c = cLong(H, g), L = internal ? LamTwoLayer(H1, RHO1, RHO2, f) : Lam(c, f), lambda = s.lam * L, k = 2 * PI / lambda;
+  const omega = omegaK(k, c), T = 2 * PI / omega, Ti = inertialPeriod(f);
+  const d = s.dir === 'neg' ? -1 : 1, ds = decaySide(f, d), d1 = sg > 0 ? 1 : -1;
+  const walls = s.geo === 'coast' ? 1 : 2, Wc = WCH * L, ymax = walls === 2 ? Wc : 4 * L;
+  const kind = s.geo === 'both' ? 'both' : (ds.trapped ? 'near' : (s.geo === 'channel' ? 'far' : 'rejected'));
+  const near = (x, y, t) => formal(x, y, t, eta0, k, H, f, d1, g), far = (x, y, t) => formal(x, y - Wc, t, eta0, k, H, f, -d1, g);
+  const field = kind === 'near' ? near : kind === 'far' ? far : kind === 'both' ? ((x, y, t) => addF(near(x, y, t), far(x, y, t))) : ((x, y, t) => formal(x, y, t, eta0, k, H, f, d, g));
+  _n = { f, fa: Math.abs(f), sg, internal, g, H, eta0, c, Lam: L, lambda, k, omega, T, Ti, d, d1, trapped: ds.trapped, side: ds.coast_on, walls, Wc, ymax, kind, field,
+    U0: eta0 * Math.sqrt(g / H), sub: omega < Math.abs(f), wf: omega / Math.abs(f), hemiName: sg > 0 ? 'northern' : 'southern' };
+  _key = key;
+  return _n;
 }
-/** all modes n ≤ NMAX of a profile: out[n] = {n, c, lam, He, psi, P, W, zeros, …}; out[0] is null under a rigid lid
-    (mirrors ch13.vertical_modes_shooting(z, N2_fn, n=n, lid=)) */
-function solveModes(pr, lid) {
-  const free = lid !== 'rigid', I = pr.I;
-  const lamHi = Math.pow((NMAX + 1.6) * Math.PI / I, 2), lamLo = Math.min(1e-3 / (G0 * HOC), 1e-3 * Math.pow(Math.PI / I, 2));
-  const npts = Math.max(Math.floor(SCAN * Math.log10(lamHi / lamLo)) + 2, 20), l0 = Math.log(lamLo), l1 = Math.log(lamHi);
-  const out = [null, null, null, null, null];
-  let prevL = lamLo, prevR = shoot(pr, lamLo, free), found = 0;
-  for (let i = 1; i < npts && found <= NMAX; i++) {
-    const L = i === npts - 1 ? lamHi : Math.exp(l0 + (l1 - l0) * i / (npts - 1)), R = shoot(pr, L, free);
-    if (Math.sign(prevR) * Math.sign(R) < 0) {
-      const n = free ? found : found + 1; found++;
-      if (n <= NMAX) {
-        const lam = Viz.num.brentq(x => shoot(pr, x, free), prevL, L, 1e-14 * L, 200);
-        out[n] = buildMode(pr, lam, free, n);
+/** the field at the cursor, now */
+function at(s, n) {
+  n = n || N(s);
+  const yr = Viz.clamp(s.yc, 0, n.ymax / n.Lam), x = Viz.clamp(s.xc, 0, NW) * n.lambda, y = yr * n.Lam, t = (s.t || 0) * n.T;
+  const F = n.field(x, y, t);
+  return Object.assign({ x, y, yr, t, fu: n.f * F.u, pg: -n.g * F.ey }, F);
+}
+const arrowOf = d => (d > 0 ? '→' : '←'), dirWord = d => (d > 0 ? 'toward +x' : 'toward −x');
+
+/* ---- drawing -------------------------------------------------------------------------------------------------------- */
+let PLAN = null, SECT = null, DISP = null;
+
+function arrow2(ctx, a, b, color, width, head) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.8) return;
+  const hd = Math.min(head || 8, L * 0.6), ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0] - hd * 0.7 * Math.cos(ang), b[1] - hd * 0.7 * Math.sin(ang)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+  ctx.lineTo(b[0] - hd * Math.cos(ang - 0.42), b[1] - hd * Math.sin(ang - 0.42)); ctx.lineTo(b[0] - hd * Math.cos(ang + 0.42), b[1] - hd * Math.sin(ang + 0.42));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+/** land: a filled, hatched block (pixel rectangle) */
+function land(ctx, x, y, w, h) {
+  if (w <= 0 || h <= 0) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = Viz.alpha(Viz.color('amber'), 0.2); ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = Viz.alpha(Viz.color('muted'), 0.45); ctx.lineWidth = 1; ctx.beginPath();
+  for (let q = -h; q < w + h; q += 7) { ctx.moveTo(x + q, y + h); ctx.lineTo(x + q + h, y); }
+  ctx.stroke(); ctx.restore();
+}
+/** a plot whose rotated y title has its own strip on narrow views */
+function vplot(v, opt, ax) {
+  if (v.w >= 420) return v.plot(opt).axes(ax);
+  const r0 = opt.rect || { x: 0, y: 0, w: v.w, h: v.h };
+  const o = Object.assign({}, opt, { rect: { x: r0.x + 15, y: r0.y, w: r0.w - 15, h: r0.h }, ylabel: undefined, pad: Object.assign({ l: 40, r: 8, t: 8, b: 34 }, opt.pad || {}) });
+  const P = v.plot(o).axes(Object.assign({}, ax || {}, { ylabel: null }));
+  if (opt.ylabel) { const c = v.ctx; c.save(); c.font = Viz.font(12, 500); c.fillStyle = Viz.color('text-soft'); c.translate(r0.x + 8, P.px.y + P.px.h / 2); c.rotate(-PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(opt.ylabel, 0, 0); c.restore(); }
+  return P;
+}
+const axUnit = maxM => (maxM >= 2e7 ? { div: 1e6, name: '1000 km' } : { div: 1e3, name: 'km' });
+const ticksIn = (hi, n) => Viz.num.niceTicks(0, hi, n).filter(q => q >= 0 && q <= hi * 1.0001);
+
+/** the sea from above: height as colour, current as arrows, the coast at the bottom (y = 0) */
+function drawPlan(v, s, n) {
+  v.clear(); PLAN = null;
+  const ctx = v.ctx, W = v.w, Hh = v.h; if (W < 60 || Hh < 60) return;
+  const small = W < 300 || Hh < 150, tiny = Hh < 100;
+  const or = Viz.color('orange'), blue = Viz.color('blue'), teal = Viz.color('teal'), soft = Viz.color('text-soft'), txt = Viz.color('text'), card = Viz.color('card'), rose = Viz.color('rose');
+  const ux = axUnit(NW * n.lambda), uy = axUnit(n.ymax), xmax = NW * n.lambda / ux.div, ymax = n.ymax / uy.div;
+  const padB = small ? 30 : 36, band = tiny ? 12 : (small ? 18 : 24), ph = Hh - 8 - padB;
+  const q = band / Math.max(30, ph - band * n.walls), ylim = [-q * ymax, (1 + (n.walls === 2 ? q : 0)) * ymax];
+  const P = vplot(v, { xlim: [0, xmax], ylim, xlabel: small ? 'x [' + ux.name + ']' : 'x, along the coast [' + ux.name + ']', ylabel: small ? 'y [' + uy.name + ']' : 'y, offshore [' + uy.name + ']', pad: { l: 50, r: 10, t: 8, b: padB } },
+    { yticks: ticksIn(ymax, Math.max(2, Math.round(ph / 60))), grid: false });
+  const px = P.px, y0p = P.Y(0), y1p = P.Y(ymax), tsec = n.T * s.t, rej = n.kind === 'rejected';
+  const nx = Math.max(24, Math.min(132, Math.floor(px.w / 4))), ny = Math.max(8, Math.min(56, Math.floor((y0p - y1p) / 4))), cw = px.w / nx, chh = (y0p - y1p) / ny;
+  const NL = 24, amax = rej ? 0.5 : 0.85, pal = [[], []], norm = rej ? Math.exp(2) : 1;
+  for (let i = 0; i <= NL; i++) { const a = amax * Math.pow(i / NL, 0.85); pal[0].push(Viz.alpha(or, a)); pal[1].push(Viz.alpha(blue, a)); }
+  P.clip(() => {
+    for (let j = 0; j < ny; j++) {
+      const ym = (j + 0.5) / ny * n.ymax;
+      for (let i = 0; i < nx; i++) {
+        const val = Viz.clamp(n.field((i + 0.5) / nx * NW * n.lambda, ym, tsec).eta / (n.eta0 * norm), -1, 1), lev = Math.round(Math.abs(val) * NL);
+        if (lev < 1) continue;
+        const xa = Math.round(px.x + i * cw), xb = Math.round(px.x + (i + 1) * cw), ya = Math.round(y0p - (j + 1) * chh), yb = Math.round(y0p - j * chh);
+        ctx.fillStyle = pal[val > 0 ? 0 : 1][lev];
+        ctx.fillRect(xa, ya, xb - xa, yb - ya);
       }
     }
-    prevL = L; prevR = R;
-  }
-  return out;
-}
-function buildMode(pr, lam, free, n) {
-  const S = new Float64Array(NZ), P = new Float64Array(NZ), W = new Float64Array(NZ);
-  shoot(pr, lam, free, S, P);
-  const top = S[NZ - 1]; let mx = 0, mxz = 0, wmax = 0;
-  for (let j = 0; j < NZ; j++) { S[j] /= top; P[j] /= top; if (Math.abs(S[j]) > mx) mx = Math.abs(S[j]); if (ZN[j] >= ZOOM && Math.abs(S[j]) > mxz) mxz = Math.abs(S[j]); }
-  for (let j = 1; j < NZ; j++) { W[j] = W[j - 1] + 0.5 * (S[j] + S[j - 1]) * (ZN[j] - ZN[j - 1]); if (Math.abs(W[j]) > wmax) wmax = Math.abs(W[j]); }
-  const zeros = [];
-  for (let j = 1, k = 0; j < NZ; j++) {                    // k = the last node where ψ is not exactly zero
-    if (S[j] === 0) continue;
-    if (Math.sign(S[k]) * Math.sign(S[j]) < 0) zeros.push(j - k > 1 ? 0.5 * (ZN[k] + ZN[j]) : ZN[k] + (ZN[j] - ZN[k]) * S[k] / (S[k] - S[j]));
-    k = j;
-  }
-  const c = 1 / Math.sqrt(lam);
-  return { n, lam, c, He: He(c), psi: S, P, W, zeros, max: mx, maxZoom: mxz, wmax, free };
-}
-const MCACHE = new Map();
-function modesOf(p, lid) {
-  const pr = profile(p), key = pr.key + '|' + lid;
-  let ms = MCACHE.get(key); if (ms) return ms;
-  ms = solveModes(pr, lid);
-  if (MCACHE.size > 60) MCACHE.clear();
-  MCACHE.set(key, ms); return ms;
-}
-const lidOf = s => (s.lid ? 'rigid' : 'free');
-const modesFor = s => modesOf(profOf(s), lidOf(s));
-/** the storyboard's name: shootMode(n, p, lid) → {c, psi[]} */
-function shootMode(n, p, lid) { return modesOf(p, lid)[n]; }
-/** normalised overlap ∫ψ_aψ_b dz / sqrt(∫ψ_a² dz ∫ψ_b² dz), weight 1 (trapezoid on the nodes) */
-function overlap(ma, mb) {
-  let ab = 0, aa = 0, bb = 0;
-  for (let j = 0; j < NZ - 1; j++) {
-    const h = ZN[j + 1] - ZN[j];
-    ab += 0.5 * h * (ma.psi[j] * mb.psi[j] + ma.psi[j + 1] * mb.psi[j + 1]);
-    aa += 0.5 * h * (ma.psi[j] * ma.psi[j] + ma.psi[j + 1] * ma.psi[j + 1]);
-    bb += 0.5 * h * (mb.psi[j] * mb.psi[j] + mb.psi[j + 1] * mb.psi[j + 1]);
-  }
-  return ab / Math.sqrt(aa * bb);
-}
-/** ch13.vertical_modes(z, N2, n_modes=5, lid=, method="fd")[0] on the 401 nodes: speeds by the physical n (null for
-    mode 0 under a lid). Linear elements, lumped mass; eigenvalues of the symmetric tridiagonal by Sturm bisection. */
-const FCACHE = new Map();
-function fdSpeeds(p, lid) {
-  const pr = profile(p), key = pr.key + '|' + lid;
-  let got = FCACHE.get(key); if (got) return got;
-  const n = NZ, w = new Float64Array(n), d = new Float64Array(n), kel = new Float64Array(n - 1), a = new Float64Array(n), b = new Float64Array(n - 1);
-  for (let j = 0; j < n - 1; j++) {
-    const h = ZN[j + 1] - ZN[j];
-    w[j] += 0.5 * h; w[j + 1] += 0.5 * h;
-    kel[j] = 0.5 * (1 / pr.N2n[j + 1] + 1 / pr.N2n[j]) / h;
-    d[j] += kel[j]; d[j + 1] += kel[j];
-  }
-  if (lid !== 'rigid') d[n - 1] += 1 / G0;                                   // the surface term of (13.65)
-  for (let j = 0; j < n; j++) a[j] = d[j] / w[j];
-  for (let j = 0; j < n - 1; j++) b[j] = -kel[j] / Math.sqrt(w[j] * w[j + 1]);
-  let hi = 0; for (let j = 0; j < n; j++) hi = Math.max(hi, a[j] + (j > 0 ? Math.abs(b[j - 1]) : 0) + (j < n - 1 ? Math.abs(b[j]) : 0));
-  const count = x => { let q = a[0] - x, c = q < 0 ? 1 : 0; for (let j = 1; j < n; j++) { if (q === 0) q = 1e-300; q = a[j] - x - b[j - 1] * b[j - 1] / q; if (q < 0) c++; } return c; };
-  const eig = k => { let lo = -1e-9 * hi, up = hi; for (let it = 0; it < 200; it++) { const mid = 0.5 * (lo + up); if (mid === lo || mid === up) break; if (count(mid) > k) up = mid; else lo = mid; } return 0.5 * (lo + up); };
-  got = [];
-  for (let k = 0; k <= NMAX; k++) got.push(lid === 'rigid' && k === 0 ? null : 1 / Math.sqrt(eig(k)));   // rigid: eigenvalue 0 is the null mode ψ = const
-  if (FCACHE.size > 60) FCACHE.clear();
-  FCACHE.set(key, got); return got;
-}
-
-/** everything the page shows for the selected mode */
-function sel(s) {
-  const ms = modesFor(s), n = Math.round(s.n), m = ms[n] || null, f = fCor(s.lat), pr = profile(profOf(s));
-  return { ms, n, m, f, pr, lid: !!s.lid, uni: s.prof !== 'thermo', exists: !!m, c: m ? m.c : Infinity, He: m ? m.He : Infinity, Lam: m ? Lam(m.c, f) : Infinity,
-    wkb: n >= 1 ? cWKB(pr, n) : Math.sqrt(G0 * HOC) };
-}
-/** the values at the depth cursor: nearest interior node, the two terms of (13.56) (the first by a central difference of P) */
-function probe(s) {
-  const q = sel(s), j = clampv(Math.round((s.zc + HOC) / DZ), 1, NZ - 2), m = q.m;
-  if (!m) return { q, j, z: ZN[j], none: true };
-  const t1 = (m.P[j + 1] - m.P[j - 1]) / (ZN[j + 1] - ZN[j - 1]), t2 = m.psi[j] / (m.c * m.c);
-  return { q, j, z: ZN[j], psi: m.psi[j], P: m.P[j], W: m.W[j], N2: q.pr.N2n[j], t1, t2, sum: t1 + t2 };
-}
-function psiAt(m, z) { const x = clampv((z + HOC) / DZ, 0, NZ - 1), j = Math.min(NZ - 2, Math.floor(x)), fr = x - j; return m.psi[j] * (1 - fr) + m.psi[j + 1] * fr; }
-function WAt(m, z) { const x = clampv((z + HOC) / DZ, 0, NZ - 1), j = Math.min(NZ - 2, Math.floor(x)), fr = x - j; return m.W[j] * (1 - fr) + m.W[j + 1] * fr; }
-
-const UNI = { uni: true, zt: 300, wd: 150 }, THERMO = { uni: false, zt: 300, wd: 150 };
-const DEF = { prof: 'uni', zt: 300, wd: 150, n: 1, lid: false, lat: 35, zoom: false, zc: -1000, t: 0 };
-const U = modesOf(UNI, 'free'), T = modesOf(THERMO, 'free');
-const F35 = fCor(35);
-
-/* ---- formatting ---- */
-const f2 = v => Viz.fmt(v, { sig: 2 }), f3 = v => Viz.fmt(v, { sig: 3 }), f4 = v => Viz.fmt(v, { sig: 4 });
-const tn = (v, sig) => Viz.tnum(v, sig || 3);
-const tb = (v, sig) => '(' + tn(v, sig) + ')';            // a formatted number that is multiplied, divided, negative or raised to a power
-const isPhone = () => window.innerWidth < 520 || window.innerHeight < 520;
-const modeName = n => (n === 0 ? 'barotropic mode' : 'baroclinic mode ' + n);
-const modeShort = n => (n === 0 ? 'barotropic' : 'mode ' + n);
-const SUBS = ['₀', '₁', '₂', '₃', '₄'];
-const kmTxt = L => (L >= 1e6 ? f3(L / 1e3) : L >= 1e4 ? f3(L / 1e3) : f2(L / 1e3)) + ' km';
-const heTxt = h => (h >= 100 ? Math.round(h) + ' m' : h >= 0.1 ? f3(h) + ' m' : f3(h * 100) + ' cm');
-const ovTxt = v => (Math.abs(v) < 5e-6 ? '0.00000' : v.toFixed(5));
-function markMode(s, app) {
-  const el = document.documentElement, k = s.prof === 'thermo' ? 'thermo' : 'uni';
-  if (el.getAttribute('data-vm') === k) return;
-  el.setAttribute('data-vm', k);
-  if (app && app.fit) requestAnimationFrame(() => app.fit());
-}
-
-/* ---- drawing ---- */
-const LAST = {};
-let DRAG = 'zc';
-function drawShape(v, s) {
-  v.clear();
-  const ctx = v.ctx, W = v.w, H = v.h; if (W < 60 || H < 50) return;
-  const q = sel(s), m = q.m, pr = q.pr, small = W < 420, short = H < 150;
-  const zlo = s.zoom ? ZOOM : -HOC, j0 = s.zoom ? Math.floor((ZOOM + HOC) / DZ) : 0;
-  const xmax = m ? Math.max(1.2, (s.zoom ? m.maxZoom : m.max) * 1.12) : 1.2;
-  const P = v.plot({ xlim: [-xmax, xmax], ylim: [zlo, 0], pad: { l: small ? 40 : 56, r: 10, t: 22, b: short ? 30 : 36 },
-    xlabel: small ? 'shape ψ (surface = 1)' : 'mode shape ψₙ, dimensionless (ψₙ = 1 at the surface)', ylabel: small ? null : 'depth z [m]' });
-  P.axes({ yticks: short ? [zlo, zlo / 2, 0] : null, xticks: xmax < 1.6 ? [-1, 0, 1] : null });
-  LAST.shape = P;
-  const zs = Array.from(ZN.subarray(j0)), xN = N => P.px.x + N / NAX * 0.46 * P.px.w;
-  // N(z): a filled blue curve on its own little axis along the top
-  P.clip(() => {
-    ctx.save(); ctx.beginPath(); ctx.moveTo(P.px.x, P.Y(zs[0]));
-    for (let i = 0; i < zs.length; i++) ctx.lineTo(xN(pr.Nn[j0 + i]), P.Y(zs[i]));
-    ctx.lineTo(P.px.x, P.Y(0)); ctx.closePath(); ctx.fillStyle = Viz.alpha(Viz.color('blue'), 0.16); ctx.fill();
-    ctx.beginPath(); for (let i = 0; i < zs.length; i++) { const X = xN(pr.Nn[j0 + i]), Y = P.Y(zs[i]); if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
-    ctx.strokeStyle = Viz.alpha(Viz.color('blue'), 0.85); ctx.lineWidth = 1.6; ctx.stroke(); ctx.restore();
-  });
-  ctx.save(); ctx.strokeStyle = Viz.color('blue'); ctx.lineWidth = 1.2;
-  [0, 4e-3, 8e-3].forEach(Nv => { ctx.beginPath(); ctx.moveTo(xN(Nv) + 0.5, P.px.y - 4); ctx.lineTo(xN(Nv) + 0.5, P.px.y); ctx.stroke(); });
-  ctx.restore();
-  if (P.px.w < 200) Viz.text(ctx, 'N: 0 … 8×10⁻³/s', xN(0) - 2, P.px.y - 12, { color: Viz.color('blue'), size: 12, weight: 600, halo: false });
-  else {
-    Viz.text(ctx, 'N: 0', xN(0) - 2, P.px.y - 12, { color: Viz.color('blue'), size: 12, weight: 600, halo: false });
-    Viz.text(ctx, small ? '8×10⁻³/s' : '8×10⁻³ s⁻¹', xN(8e-3), P.px.y - 12, { color: Viz.color('blue'), size: 12, weight: 600, align: 'center', halo: false });
-  }
-  if (!small) Viz.text(ctx, '4', xN(4e-3), P.px.y - 12, { color: Viz.color('blue'), size: 12, weight: 600, align: 'center', halo: false });
-  // the other modes, faint
-  P.clip(() => {
-    q.ms.forEach(o => { if (o && o !== m) P.line(Array.from(o.psi.subarray(j0)), zs, { color: Viz.alpha(Viz.color('muted'), 0.38), width: 1.2 }); });
-    if (m) {
-      const sc = xmax * 0.8 / m.wmax;
-      P.line(Array.from(m.W.subarray(j0)).map(x => x * sc), zs, { color: Viz.color('teal'), width: 1.7 });
-      P.line(Array.from(m.psi.subarray(j0)), zs, { color: Viz.color('accent'), width: 3 });
-    } else P.line([1, 1], [zlo, 0], { color: Viz.color('muted'), width: 2, dash: [6, 5] });
-  });
-  if (m) m.zeros.forEach(z0 => { if (z0 >= zlo) P.dot(0, z0, 4.5, { color: Viz.color('card'), stroke: Viz.color('accent'), strokeWidth: 2 }); });
-  // the lid or the free surface, and the bottom
-  ctx.save(); ctx.fillStyle = Viz.color('text');
-  if (s.lid) ctx.fillRect(P.px.x, P.px.y - 1.5, P.px.w, 4);
-  ctx.restore();
-  const topTxt = s.lid ? (small ? 'rigid lid' : 'rigid lid: ψ′ = 0') : (small ? 'free surface' : 'free surface: ψ′ + (N²/g)ψ = 0');
-  if (!short && s.zoom) Viz.text(ctx, 'top: ' + topTxt, P.px.x + P.px.w - 5, P.px.y + P.px.h - 11, { align: 'right', size: 12, weight: 600, color: Viz.color('muted'), bg: true });
-  if (!short && !s.zoom) Viz.text(ctx, topTxt, P.px.x + P.px.w - 5, P.px.y + 11, { align: 'right', size: 12, weight: 600, color: Viz.color('muted'), bg: true });
-  if (!short && !s.zoom && !small) Viz.text(ctx, 'flat bottom: ψ′ = 0', P.px.x + P.px.w - 5, P.px.y + P.px.h - 11, { align: 'right', size: 12, weight: 600, color: Viz.color('muted'), bg: true });
-  // the thermocline handle
-  if (!q.uni && -s.zt >= zlo) {
-    const X = xN(N_PEAK), Y = P.Y(-s.zt);
-    ctx.save(); ctx.beginPath(); ctx.arc(X, Y, 6.5, 0, 2 * Math.PI); ctx.fillStyle = Viz.color('blue'); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-    LAST.handle = { x: X, y: Y };
-    if (!small && !short) Viz.text(ctx, '↕ drag the thermocline', X + 11, Y, { size: 12, weight: 600, color: Viz.color('blue'), bg: true });
-  } else LAST.handle = null;
-  // the depth cursor
-  if (m && s.zc >= zlo) {
-    const pb = probe(s);
-    P.line([-xmax, xmax], [pb.z, pb.z], { color: Viz.alpha(Viz.color('text'), 0.7), width: 1.2, dash: [5, 4] });
-    P.dot(pb.psi, pb.z, 4.5, { color: Viz.color('amber'), stroke: '#fff', strokeWidth: 1.5 });
-  }
-  if (!m) Viz.card(ctx, W / 2, P.px.y + P.px.h * 0.5, ['A rigid lid removes the barotropic mode:', 'its shape is ψ₀ = 1 at every depth, its speed → ∞.', 'Pick a mode number n ≥ 1.'], { color: Viz.color('orange'), maxWidth: Math.min(W - 16, 320) });
-}
-
-function drawStack(v, s) {
-  v.clear();
-  const ctx = v.ctx, W = v.w, H = v.h; if (W < 120 || H < 56) return;
-  const q = sel(s), narrow = W < 300, tiny = H < 130, crowded = (H - (H < 130 ? 22 : 54)) / (NMAX + 1) < 24;
-  const labW = narrow ? 34 : 96, x0 = labW + 6, x1 = W - 12, top = tiny ? 4 : 20, bot = tiny ? 18 : 34;
-  const lo = Math.log10(0.15), hi = Math.log10(450), X = c => x0 + (Math.log10(c) - lo) / (hi - lo) * (x1 - x0);
-  const rh = (H - top - bot) / (NMAX + 1), th = clampv(rh * 0.5, 8, 18);
-  LAST.stack = { top, rh };
-  // grid: speed decades below, equivalent depths above
-  ctx.save(); ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1;
-  [1, 10, 100].forEach(c => { ctx.beginPath(); ctx.moveTo(Math.round(X(c)) + 0.5, top); ctx.lineTo(Math.round(X(c)) + 0.5, H - bot); ctx.stroke(); });
-  ctx.strokeStyle = Viz.color('border'); ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, H - top - bot - 1); ctx.restore();
-  [1, 10, 100].forEach(c => Viz.text(ctx, String(c), X(c), H - bot + 9, { align: 'center', size: 12, color: Viz.color('axis'), halo: false }));
-  if (!tiny) {
-    Viz.text(ctx, narrow ? 'cₙ [m/s], log' : 'long-wave speed cₙ [m/s] (logarithmic)', (x0 + x1) / 2, H - 8, { align: 'center', size: 12, color: Viz.color('text-soft'), halo: false });
-    (narrow ? [[0.01, '1 cm'], [100, '100 m']] : [[0.01, '1 cm'], [1, '1 m'], [100, '100 m']]).forEach(e => {
-      const xx = X(Math.sqrt(G0 * e[0]));
-      ctx.save(); ctx.strokeStyle = Viz.color('amber'); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(xx + 0.5, top - 4); ctx.lineTo(xx + 0.5, top); ctx.stroke(); ctx.restore();
-      Viz.text(ctx, (e[0] === 0.01 ? (narrow ? 'Hₑ ' : 'Hₑ = ') : '') + e[1], xx, top - 11, { align: 'center', size: 12, weight: 600, color: Viz.color('amber'), halo: false });
+    // the current: every arrow is parallel to the coast (v = 0)
+    const nxa = Math.max(5, Math.round(px.w / 54)), La = 0.84 * px.w / nxa;
+    const rows = (n.walls === 2 ? [0.07, 0.26, 0.5, 0.74, 0.93] : [0.035, 0.13, 0.25, 0.4, 0.58, 0.8]).filter((r, i) => (y0p - y1p) >= 110 || i % 2 === 0);
+    rows.forEach(r => {
+      const Y = y0p - r * (y0p - y1p);
+      for (let i = 0; i < nxa; i++) {
+        const xm = (i + 0.5) / nxa * NW * n.lambda, L = Viz.clamp(n.field(xm, r * n.ymax, tsec).u / (n.U0 * norm), -1, 1) * La * 0.5, X = px.x + (i + 0.5) / nxa * px.w;
+        if (Math.abs(L) >= 2.5) arrow2(ctx, [X - L, Y], [X + L, Y], teal, 1.7, 6);
+      }
     });
-  }
-  for (let n = 0; n <= NMAX; n++) {
-    const mo = q.ms[n], yc = top + rh * (n + 0.5), on = n === q.n, col = Viz.color('accent');
-    if (on) { ctx.save(); ctx.fillStyle = Viz.alpha(col, 0.09); ctx.fillRect(1, top + rh * n + 1, W - 2, rh - 2); ctx.restore(); }
-    Viz.text(ctx, narrow ? 'n=' + n : (n === 0 ? 'barotropic' : 'baroclinic ' + n), labW, yc, { align: 'right', size: crowded ? 12 : 12.5, weight: on ? 750 : 550, color: on ? col : Viz.color('text'), halo: false });
-    if (!mo) {
-      ctx.save(); ctx.fillStyle = Viz.alpha(Viz.color('muted'), 0.22); ctx.fillRect(x0, yc - th / 2, x1 - x0, th); ctx.restore();
-      Viz.text(ctx, narrow ? 'removed: c → ∞' : 'removed by the lid: c → ∞', x0 + 8, yc, { size: 12.5, weight: 650, color: Viz.color('orange'), bg: true });
-      continue;
-    }
-    const xe = X(mo.c), est = n === 0 ? Math.sqrt(G0 * HOC) : cWKB(q.pr, n);
-    ctx.save(); ctx.fillStyle = on ? col : Viz.alpha(col, 0.32); ctx.fillRect(x0, yc - th / 2, xe - x0, th);
-    // ghost: the quick estimate (◇)
-    const xg = X(est); ctx.strokeStyle = Viz.color('text'); ctx.fillStyle = Viz.color('card'); ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(xg, yc - 5.5); ctx.lineTo(xg + 4.5, yc); ctx.lineTo(xg, yc + 5.5); ctx.lineTo(xg - 4.5, yc); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-    const Ln = Lam(mo.c, q.f), opts = [f3(mo.c) + ' m/s · Hₑ ' + heTxt(mo.He) + ' · Λ ' + kmTxt(Ln), f3(mo.c) + ' m/s · Hₑ ' + heTxt(mo.He), f3(mo.c) + ' m/s'];
-    ctx.save(); ctx.font = Viz.font(12.5, on ? 700 : 550);
-    let done = crowded && !on;                       // crowded rows: the value only for the selected mode (the others keep bar + ◇)
-    const xfree = Math.max(xe, xg + 5) + 7;          // the first pixel to the right of both the bar and the ◇
-    for (const t of (done ? [] : opts)) {
-      const tw = ctx.measureText(t).width;
-      if (xfree + tw < x1 - 2) { ctx.restore(); Viz.text(ctx, t, xfree, yc, { size: 12.5, weight: on ? 700 : 550, color: on ? Viz.color('text') : Viz.color('text-soft'), halo: false }); done = true; break; }
-      if (tw + 14 < Math.min(xe, xg - 5) - x0) { ctx.restore(); Viz.text(ctx, t, x0 + 7, yc, { size: 12.5, weight: 700, color: on ? '#fff' : Viz.color('text'), halo: false }); done = true; break; }
-    }
-    if (!done) { ctx.restore(); if (on && xfree + 30 < x1) Viz.text(ctx, f3(mo.c), xfree, yc, { size: 12.5, weight: 700, color: Viz.color('text'), halo: false }); }
-    else if (crowded && !on) ctx.restore();
-  }
-}
-
-function drawWave(v, s) {
-  v.clear();
-  const ctx = v.ctx, W = v.w, H = v.h; if (W < 200 || H < 70) return;
-  const q = sel(s), m = q.m, short = H < 150, zlo = s.zoom ? ZOOM : -HOC, t = s.t || 0;
-  const P = v.plot({ xlim: [0, 2 * LWAVE / 1e3], ylim: [zlo, -zlo * 0.17], pad: { l: 56, r: 12, t: 8, b: short ? 30 : 36 }, xlabel: W < 620 ? 'distance x [km] (two ' + LWAVE / 1e3 + ' km wavelengths)' : 'distance x [km] — two wavelengths of ' + LWAVE / 1e3 + ' km; the displacements are exaggerated', ylabel: 'depth z [m]' });
-  P.axes({ yticks: short ? [zlo, zlo / 2, 0] : Viz.num.niceTicks(zlo, 0, 4).filter(z => z <= 0), zeroLines: false });
-  LAST.wave = P;
-  const nl = short ? 4 : 6, sp = -zlo / nl, k = 2 * Math.PI / LWAVE, ph = 2 * Math.PI * t, xs = Viz.num.linspace(0, 2 * LWAVE, 97);
-  const rest = [0]; for (let i = 0; i < nl; i++) rest.push(-sp * (i + 0.5));
-  const A = 0.34 * sp, amp = rest.map(z => (m ? A * WAt(m, z) / m.wmax : 0));
-  const lines = rest.map((z, i) => xs.map(x => z + amp[i] * Math.cos(k * x - ph)));
-  const xk = xs.map(x => x / 1e3);
-  P.clip(() => {
-    for (let i = 0; i < rest.length; i++) {
-      const below = i + 1 < rest.length ? lines[i + 1] : xs.map(() => zlo);
-      P.fillBetween(xk, lines[i], below, { color: Viz.color('blue'), alpha: 0.05 + 0.035 * i });
-    }
-    for (let i = 1; i < rest.length; i++) P.line(xk, lines[i], { color: Viz.alpha(Viz.color('blue'), 0.85), width: 1.5 });
-    P.line(xk, lines[0], { color: Viz.color('blue'), width: 2.4 });
   });
-  if (!m) { Viz.card(ctx, W / 2, P.px.y + P.px.h / 2, ['Under a rigid lid there is no barotropic wave.', 'Pick n ≥ 1, or take the lid off.'], { color: Viz.color('orange'), maxWidth: Math.min(W - 16, 360) }); return; }
-  // horizontal flow: arrows ∝ ψ_n(z) cos(kx − ωt), mid-way between the density surfaces
-  const nc = clampv(Math.round(P.px.w / 62), 6, 16), dxw = 2 * LWAVE / nc, pm = s.zoom ? m.maxZoom : m.max;
-  const zarr = [-0.22 * sp]; for (let j = 1; j < nl; j++) zarr.push(-sp * j); zarr.push(-sp * (nl - 0.2));
-  P.clip(() => {
-    for (let c = 0; c < nc; c++) {
-      const x = (c + 0.5) * dxw, cs = Math.cos(k * x - ph);
-      zarr.forEach(z => {
-        const len = 0.44 * dxw * psiAt(m, z) / pm * cs;
-        if (Math.abs(P.sx(len / 1e3)) > 3) P.arrow((x - len / 2) / 1e3, z, len / 1e3, 0, { color: Viz.color('accent'), width: 1.7, head: 6 });
-      });
-    }
-  });
-  // the crest of the mode and the clock
-  const T = LWAVE / m.c, xc = ((t % 1) + 1) % 1 * LWAVE;
-  [xc, xc + LWAVE].forEach(x => { const X = P.X(x / 1e3), Y = P.px.y + 1; ctx.save(); ctx.fillStyle = Viz.color('text'); ctx.beginPath(); ctx.moveTo(X - 6, Y); ctx.lineTo(X + 6, Y); ctx.lineTo(X, Y + 9); ctx.closePath(); ctx.fill(); ctx.restore(); });
-  if (!short) {
-    const right = P.X(xc / 1e3) < P.px.x + P.px.w - 190;
-    Viz.text(ctx, 'crest moves at ' + f3(m.c) + ' m/s', P.X(xc / 1e3) + (right ? 10 : -10), P.px.y + 9, { align: right ? 'left' : 'right', size: 12, weight: 650, bg: true });
-    Viz.text(ctx, 'elapsed ' + Viz.fmtTime(t * T), P.px.x + P.px.w - 6, P.px.y + P.px.h - 11, { align: 'right', size: 12, weight: 650, bg: true });
+  // land and the coastline(s)
+  land(ctx, px.x, y0p, px.w, px.y + px.h - y0p);
+  if (n.walls === 2) land(ctx, px.x, px.y, px.w, y1p - px.y);
+  ctx.save(); ctx.strokeStyle = txt; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px.x, y0p); ctx.lineTo(px.x + px.w, y0p);
+  if (n.walls === 2) { ctx.moveTo(px.x, y1p); ctx.lineTo(px.x + px.w, y1p); }
+  ctx.stroke(); ctx.restore();
+  // which way each wave travels, written on its own coast
+  if (!tiny) {
+    const say = (d, ok, Y) => {
+      const a = d > 0 ? 'wave →' : '← wave';
+      const str = ok ? (px.w >= 250 ? a + ' · this coast on its ' + n.side : a + ' · coast on ' + n.side) : (px.w >= 270 ? '✕ ' + a + ' would grow offshore' : '✕ ' + a);
+      Viz.text(ctx, str, px.x + px.w / 2, Y, { size: 12, weight: 700, color: ok ? txt : rose, align: 'center', bg: true, maxWidth: px.w - 8 });
+    };
+    const Yn = (y0p + px.y + px.h) / 2, Yf = (px.y + y1p) / 2;
+    if (n.kind === 'near' || n.kind === 'both') say(n.d1, true, Yn);
+    if (n.kind === 'far' || n.kind === 'both') say(-n.d1, true, Yf);
+    if (rej) say(n.d, false, Yn);
+    if (n.kind === 'far' && px.w >= 250) Viz.text(ctx, 'no wave on this coast', px.x + px.w / 2, Yn, { size: 12, weight: 600, color: soft, align: 'center', bg: true });
   }
+  // the cursor and the section line through it
+  const F = at(s, n), Xc = P.X(F.x / ux.div), Yc = P.Y(F.y / uy.div);
+  ctx.save(); ctx.strokeStyle = Viz.alpha(txt, 0.7); ctx.lineWidth = 1.2; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(Xc, y0p); ctx.lineTo(Xc, y1p); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.fillStyle = txt; ctx.strokeStyle = card; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(Xc, Yc, 5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore();
+  if (rej) Viz.card(ctx, px.x + px.w / 2, y1p + 0.4 * (y0p - y1p), small ? ['✕ not a solution'] : ['✕ not a solution on an open sea:', 'the height would rise without limit offshore'], { color: rose, maxWidth: px.w - 12 });
+  PLAN = { P, ux, uy };
 }
 
-/* ---- texts shared by Explain, notes and the derivation ---- */
-function lidGap(q) {   // relative change of the selected baroclinic speed between the lids
-  const p = q.pr.p, a = modesOf(p, 'free')[q.n], b = modesOf(p, 'rigid')[q.n];
-  return a && b ? (a.c - b.c) / b.c : NaN;
-}
-function reading(s) {
-  const q = sel(s), m = q.m, n = q.n;
-  if (!m) return TX`With a lid the sea surface cannot rise at all, so nothing is left to push the whole column back: the barotropic mode has $\psi_0 = 1$ at every depth and an infinite speed. That is why the Python list of rigid-lid modes starts at baroclinic mode 1 (its index 0). Pick $n \ge 1$, or take the lid off to get the barotropic mode back.`;
-  if (n === 0) return TX`All levels move together (the <b class="c-accent">purple</b> line stays near 1 from top to bottom), so the whole depth acts as one layer: $c_0 = ${tn(m.c, 4)}$ m/s against $\sqrt{gH} = ${tn(Math.sqrt(G0 * HOC), 4)}$ m/s. This is the mode of the tide and of the tsunami. It hardly notices the stratification: reshape $N(z)$ and its bar does not move.`;
-  const ratio = Math.abs(m.W[NZ - 1]) / m.wmax, z1 = m.zeros.length ? m.zeros[m.zeros.length - 1] : 0;
-  let t = TX`The <b class="c-accent">purple</b> shape changes sign ${n === 1 ? 'once' : n + ' times'}: layers above and below a crossing move in opposite directions, and at the ${n === 1 ? 'crossing' : 'crossings'} the water does not move horizontally at all. In the horizontal this mode behaves exactly like a homogeneous layer only ${heTxt(m.He)} deep, so it crawls at ${f3(m.c)} m/s. `;
-  if (q.lid) t += TX`The lid makes almost no difference to it: its speed is ${Viz.fmt(Math.abs(lidGap(q)) * 100, { sig: 2 })} % ${lidGap(q) < 0 ? 'higher' : 'lower'} than with a free surface. `;
-  else t += TX`The sea surface moves only ${Viz.fmt(ratio * 100, { sig: 2 })} % as much as the largest displacement inside. `;
-  if (!q.uni) t += TX`The highest crossing sits at $z = ${tn(z1)}$ m, with the thermocline centred at $-${s.zt}$ m: a deeper or thicker thermocline puts more of the stratified water to work and the mode runs faster — the signal that El Niño forecasts track.`;
-  else t += TX`With uniform $N$ the shapes are the cosines $\cos(n\pi z/H)$ and the speeds fall as $1/n$.`;
-  return t;
+/** a cut across the shore through the cursor: the surface, its envelope, and the two forces on the water there */
+function drawSect(v, s, n) {
+  v.clear(); SECT = null;
+  const ctx = v.ctx, W = v.w, Hh = v.h; if (W < 60 || Hh < 60) return;
+  const small = W < 300 || Hh < 150;
+  const or = Viz.color('orange'), blue = Viz.color('blue'), teal = Viz.color('teal'), mut = Viz.color('muted'), txt = Viz.color('text'), card = Viz.color('card'), rose = Viz.color('rose'), acc = Viz.color('accent');
+  const uy = axUnit(n.ymax), ymax = n.ymax / uy.div, A = n.eta0, rej = n.kind === 'rejected';
+  const band = small ? 10 : 16, pw = W - 60, q = band / Math.max(30, pw - band * n.walls);
+  const xlim = [-q * ymax, (1 + (n.walls === 2 ? q : 0)) * ymax], ylim = rej ? [-2.6 * A, 6.5 * A] : [-1.3 * A, 1.45 * A], padB = small ? 30 : 36;
+  const P = vplot(v, { xlim, ylim, xlabel: small ? 'y [' + uy.name + ']' : 'y, distance offshore [' + uy.name + ']', ylabel: Hh < 125 ? 'η [m]' : (n.internal ? (small ? 'thickening η [m]' : 'layer thickening η [m]') : 'surface η [m]'), pad: { l: 50, r: 10, t: 8, b: padB } },
+    { xticks: ticksIn(ymax, Math.max(2, Math.round(pw / 90))) });
+  const px = P.px, F = at(s, n), ys = Viz.num.linspace(0, n.ymax, 160), yk = ys.map(y => y / uy.div), et = ys.map(y => n.field(F.x, y, F.t).eta);
+  const waves = n.kind === 'both' ? [0, 1] : n.kind === 'far' ? [1] : [0];
+  const envOf = w => ys.map(y => (rej ? A * Math.exp(y / n.Lam) : A * Math.exp(-(w ? n.Wc - y : y) / n.Lam)));
+  P.clip(() => {
+    if (!n.internal) P.fillBetween(yk, et, ylim[0], { color: blue, alpha: 0.13 });
+    waves.forEach(w => { const e = envOf(w); P.line(yk, e, { color: rej ? Viz.alpha(rose, 0.6) : mut, width: 1.3, dash: [5, 4] }); P.line(yk, e.map(q2 => -q2), { color: rej ? Viz.alpha(rose, 0.6) : mut, width: 1.3, dash: [5, 4] }); });
+    if (rej) { const e0 = ys.map(y => A * Math.exp(-y / n.Lam)); P.line(yk, e0, { color: mut, width: 1.3, dash: [2, 4] }); P.line(yk, e0.map(q2 => -q2), { color: mut, width: 1.3, dash: [2, 4] }); }
+    P.line(yk, et, { color: rej ? rose : txt, width: 2.8 });
+    // the slope at the cursor
+    const dy = 0.28 * n.Lam;
+    P.line([(F.y - dy) / uy.div, (F.y + dy) / uy.div], [F.eta - F.ey * dy, F.eta + F.ey * dy], { color: or, width: 3.2 });
+  });
+  // the walls
+  land(ctx, px.x, px.y, P.X(0) - px.x, px.h);
+  if (n.walls === 2) land(ctx, P.X(ymax), px.y, px.x + px.w - P.X(ymax), px.h);
+  ctx.save(); ctx.strokeStyle = txt; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(P.X(0), px.y); ctx.lineTo(P.X(0), px.y + px.h);
+  if (n.walls === 2) { ctx.moveTo(P.X(ymax), px.y); ctx.lineTo(P.X(ymax), px.y + px.h); }
+  ctx.stroke(); ctx.restore();
+  // the e-folding distance of each wave
+  if (!rej) waves.forEach(w => {
+    const yL = (w ? n.Wc - n.Lam : n.Lam) / uy.div, X = P.X(yL);
+    ctx.save(); ctx.strokeStyle = acc; ctx.lineWidth = 1.3; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(X, P.Y(A / Math.E)); ctx.lineTo(X, px.y + px.h); ctx.stroke(); ctx.restore();
+    P.dot(yL, A / Math.E, 3.5, { color: acc, stroke: card, strokeWidth: 1 });
+    Viz.text(ctx, 'Λ', X, px.y + px.h - 9, { size: 12, weight: 800, color: acc, align: 'center', bg: true });
+    if (!small && n.kind !== 'both') Viz.text(ctx, 'η₀/e', X + (w ? -8 : 8), P.Y(A / Math.E) - 9, { size: 12, weight: 600, color: acc, align: w ? 'right' : 'left' });
+  });
+  if (!small && !rej) Viz.text(ctx, 'η₀', (waves[0] ? P.X(ymax) - 7 : P.X(0) + 7), P.Y(A) - 10, { size: 12, weight: 600, color: mut, align: waves[0] ? 'right' : 'left' });
+  // the two forces across the shore on the water at the cursor (per unit mass): Coriolis −fu and the slope −g ∂η/∂y
+  const Xc = P.X(F.y / uy.div), Yc = P.Y(Viz.clamp(F.eta, ylim[0], ylim[1])), Lmax = Math.min(0.24 * px.w, 70), sc = n.fa * n.U0;
+  const Lc = Viz.clamp(-F.fu / sc, -1, 1) * Lmax, Lp = Viz.clamp(F.pg / sc, -1, 1) * Lmax, Yb = Math.min(Yc + 15, px.y + px.h - 16);
+  arrow2(ctx, [Xc, Yb], [Xc + Lc, Yb], teal, 3, 9); arrow2(ctx, [Xc, Yb + 14], [Xc + Lp, Yb + 14], or, 3, 9);
+  ctx.save(); ctx.fillStyle = txt; ctx.strokeStyle = card; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(Xc, Yc, 5, 0, 2 * PI); ctx.fill(); ctx.stroke(); ctx.restore();
+  if (!small && Math.abs(Lc) > 18 && Yb + 40 < px.y + px.h) {
+    const rt = Xc < px.x + 0.62 * px.w;   // labels on the offshore side while there is room
+    Viz.text(ctx, 'Coriolis', rt ? Math.max(Xc, Xc + Lc) + 7 : Math.min(Xc, Xc + Lc) - 7, Yb, { size: 12, weight: 700, color: teal, align: rt ? 'left' : 'right' });
+    Viz.text(ctx, 'slope', rt ? Math.max(Xc, Xc + Lp) + 7 : Math.min(Xc, Xc + Lp) - 7, Yb + 14, { size: 12, weight: 700, color: or, align: rt ? 'left' : 'right' });
+  }
+  if (rej && !small) Viz.text(ctx, 'dotted: the allowed shape', px.x + px.w - 6, P.Y(0) + 13, { size: 12, weight: 500, color: mut, align: 'right' });
+  if (rej) Viz.text(ctx, small ? '✕ grows' : '✕ grows offshore', px.x + px.w - 6, px.y + 12, { size: 12, weight: 700, color: rose, align: 'right', bg: true });
+  SECT = { P, uy };
 }
 
-function explainHtml(s) {
-  const W = Viz.work, q = sel(s), m = q.m, n = q.n, pr = q.pr, sub = SUBS[n], pb = probe(s);
-  let o = W.step(0, 'What the views show') +
-    W.say(`<b>Shape:</b> <b class="c-blue">blue</b> = the buoyancy frequency $N(z)$ (its own small axis along the top); <b class="c-accent">purple</b> = the shape $\\psi_n(z)$ shared by the horizontal velocity and the pressure of the selected mode; <b class="c-teal">teal</b> = the shape of its vertical velocity, the running integral of the purple curve (scaled to fit); grey = the other modes; ○ = zero crossings.`) +
-    W.say(`<b>Stack:</b> one bar per mode — its speed, with the equivalent depth along the top; ◇ = a quick estimate. <b>Wave:</b> the selected mode travelling.`) +
-    W.hint('On phones the wave view is hidden: its numbers are in section 7. Turn the phone sideways for a wider picture.');
-  o += W.step(1, 'The eigenvalue for your profile');
-  o += W.say(TX`The page integrates $\dfrac{d}{dz}\Big(\dfrac1{N^2}\dfrac{d\psi_n}{dz}\Big)+\dfrac1{c_n^2}\psi_n=0$ (13.56) upward from the flat bottom, where $\dfrac{d\psi_n}{dz}=0$ (13.64), and searches for the values of $1/c_n^2$ that also meet the surface condition — ${q.lid ? 'here the rigid lid, $d\\psi_n/dz=0$ at $z=0$' : TX`here the free surface, $\dfrac{d\psi_n}{dz}+\dfrac{N^2}{g}\psi_n=0$ at $z=0$ (13.65)`}. The $n$-th such value has $n$ zero crossings.`);
-  if (m) {
-    o += W.line(TX`Root number ${q.lid ? n : n + 1} of the search: $1/c_${n}^2$`, Viz.fmt(m.lam, { sig: 4 }) + ' s²/m²', 'found by bisection on the surface condition') +
-      W.box(TX`$c_${n} = \dfrac{1}{\sqrt{${tn(m.lam, 4)}}} = \mathbf{${tn(m.c, 4)}}$ m/s — the ${modeName(n)}, ${m.zeros.length} zero crossing${m.zeros.length === 1 ? '' : 's'}`);
-  } else o += W.box('No root: under a rigid lid the barotropic mode has no finite speed. The stack shows its row as removed.');
-  o += W.step(2, 'The uniform-N check');
-  if (q.uni && !m) o += W.say(TX`Under a lid the uniform-$N$ speeds are $c_n=\dfrac{NH}{n\pi}$ (13.71) with $n = 1, 2, 3, \ldots$; putting $n=0$ into it gives an infinite speed.`);
-  else if (q.uni) {
-    const X = uniformRoot(N_UNI, HOC, n);
-    if (n === 0) o += W.line(TX`Barotropic estimate $c_0=\sqrt{gH}$ (13.70) $= \sqrt{${tn(G0, 4)}\times${HOC}}$`, f4(Math.sqrt(G0 * HOC)) + ' m/s', 'as if the ocean had one density') +
-      W.say(TX`The exact uniform-$N$ speeds are the roots of $\tan\dfrac{NH}{c_n}=\dfrac{c_nN}{g}$ (13.69); the first is at $NH/c_0 = ${tn(X, 3)}$, which gives $c_0 = ${tn(N_UNI * HOC / X, 6)}$ m/s. ⚠️ slip #6 — the book prints that this first root is at $NH/c_n = 1$; the correct form is $NH/c_0 \ll 1$ (here ${tn(X, 3)}).`);
-    else o += W.line(TX`Rigid-lid formula $c_n=\dfrac{NH}{n\pi}$ (13.71) $= \dfrac{${tb(N_UNI)}\times${HOC}}{${n}\pi}$`, Viz.fmt(cRigid(N_UNI, HOC, n), { sig: 5 }) + ' m/s', 'exact with a lid') +
-      W.line(TX`Free surface: root of $\tan\dfrac{NH}{c_n}=\dfrac{c_nN}{g}$ (13.69) at $NH/c_${n} = ${tn(X, 6)}$`, Viz.fmt(N_UNI * HOC / X, { sig: 5 }) + ' m/s', 'just above nπ') +
-      W.box(TX`The free surface lowers $c_${n}$ by ${Viz.fmt(Math.abs(n * Math.PI / X - 1) * 1e4, { sig: 2 })} parts in 10⁴; the page's own search gives ${m ? Viz.fmt(m.c, { sig: 5 }) + ' m/s' : 'no mode 0 under the lid'}`);
-  } else o += W.say(TX`The closed forms $c_n=\dfrac{NH}{n\pi}$ (13.71) and $\tan\dfrac{NH}{c_n}=\dfrac{c_nN}{g}$ (13.69) need one value of $N$ at every depth; the thermocline has none. Press the “uniform N” chip to check the search against them — or see the estimate of section 5.`);
-  o += W.step(3, 'Equivalent depth');
-  if (m) o += W.line(TX`From $c_n^2\equiv gH_e$ (13.62): $H_e = \dfrac{c_${n}^2}{g} = \dfrac{${tb(m.c, 4)}^{2}}{${tn(G0, 4)}}$`, heTxt(m.He), 'the depth of the homogeneous layer with the same long-wave speed') +
-    W.box(TX`In the horizontal, the ${modeName(n)} moves exactly like a one-density layer <b class="c-amber">${heTxt(m.He)}</b> deep` + (n === 0 ? ' — the whole ocean' : TX` — in an ocean ${HOC} m deep`));
-  else o += W.say('No finite speed, so no equivalent depth: the row is marked “removed”.');
-  o += W.step(4, 'Its Rossby radius') +
-    W.line(TX`Coriolis parameter $f=2\Omega\sin\theta$ (13.8) $= 2\times${tb(OMEGA, 4)}\times\sin ${s.lat}^\circ$`, Viz.fmt(q.f) + ' s⁻¹');
-  if (m) o += W.box(TX`$\Lambda_${n} = \dfrac{c_${n}}{|f|} = \dfrac{${tn(m.c, 4)}}{${tn(q.f)}} = \mathbf{${tn(q.Lam / 1e3)}}$ km at ${s.lat}° — the distance this mode travels in a time $1/f$`) +
-    W.say(TX`Other explainers of this chapter quote the first radius from $c_1=\dfrac{NH}{\pi}$ (13.71), the rigid-lid formula: ${Viz.fmt(cRigid(N_UNI, HOC, 1) / Math.abs(q.f) / 1e3, { sig: 3 })} km here. The page's uniform-$N$ mode 1 with a free surface gives ${Viz.fmt(U[1].c / Math.abs(q.f) / 1e3, { sig: 3 })} km — the same radius, three parts in 10⁴ apart.`);
-  o += W.step(5, 'A quick estimate (ours, not in the book)');
-  if (n >= 1) o += W.line(TX`WKB: $c_n \approx \dfrac{1}{n\pi}\displaystyle\int_{-H}^{0}N\,dz = \dfrac{${tn(pr.I, 4)}}{${n}\pi}$`, f3(q.wkb) + ' m/s', 'the ◇ on each bar; exact for uniform N with a lid') +
-    W.say(m ? TX`Against the true ${f3(m.c)} m/s that is ${Viz.fmt((q.wkb / m.c - 1) * 100, { sig: 2, plus: true })} %. ` + (q.uni ? 'For uniform N the estimate is the rigid-lid formula itself.' : 'The estimate assumes $N$ changes slowly over one wiggle of the mode — not true of the gravest modes of a sharp thermocline.') : 'There is no mode to compare with.');
-  else o += W.say(TX`For the barotropic mode the quick estimate is $c_0=\sqrt{gH}$ (13.70) $= ${tn(Math.sqrt(G0 * HOC), 4)}$ m/s` + (m ? TX`, against the true ${f4(m.c)} m/s.` : '; under the lid there is no such mode.'));
-  o += W.step(6, 'Lid or free surface, and orthogonality');
-  const a1 = q.ms[1], a2 = q.ms[2], ov = overlap(a1, a2), ovo = overlap(modesOf(pr.p, q.lid ? 'free' : 'rigid')[1], modesOf(pr.p, q.lid ? 'free' : 'rigid')[2]);
-  if (n >= 1) o += W.line(TX`Speed of mode ${n} with a free surface ${f4(modesOf(pr.p, 'free')[n].c)} m/s, with a lid ${f4(modesOf(pr.p, 'rigid')[n].c)} m/s: difference`, Viz.fmt(lidGap(q) * 100, { sig: 2 }) + ' %', 'the baroclinic modes hardly feel the lid');
-  o += W.line(TX`Overlap of modes 1 and 2, $\displaystyle\int_{-H}^{0}\psi_1\psi_2\,dz\Big/\sqrt{\textstyle\int\psi_1^2\,dz\int\psi_2^2\,dz}$, ${q.lid ? 'lid' : 'free surface'}`, ovTxt(ov), 'weight 1, no surface term') +
-    W.line(q.lid ? 'The same overlap with a free surface' : 'The same overlap with a rigid lid', ovTxt(ovo), 'zero for both lids, to the accuracy of the integration') +
-    W.say('Different modes are orthogonal with weight 1 whichever lid is chosen; that is what lets any profile be split into modes, each handled as its own shallow-water layer.');
-  o += W.step(7, 'The wave view');
-  if (m) {
-    const Tn = LWAVE / m.c;
-    o += W.line(TX`A wave ${LWAVE / 1e3} km long (ours) moves at $c_${n}$: one wavelength passes every $\dfrac{${tn(LWAVE)}}{${tn(m.c, 4)}}$ s`, Viz.fmtTime(Tn), 'no rotation in this view: a long gravity wave of the mode') +
-      W.line(TX`Sea-surface displacement ÷ largest displacement inside $= \dfrac{H_e}{\max|\int\psi_n dz|} = \dfrac{${tn(Math.abs(m.W[NZ - 1]))}}{${tn(m.wmax)}}$`, Viz.fmt(Math.abs(m.W[NZ - 1]) / m.wmax, { sig: 2 }), q.lid ? 'zero under a lid' : 'ours: the integral of ψ up to the surface equals Hₑ') +
-      W.line('Elapsed time in the animation', Viz.live('el')) + W.line('Time in periods', Viz.live('t'));
-  } else o += W.say('Nothing travels: pick $n \\ge 1$.');
-  o += W.step(8, 'At the depth cursor');
-  if (!pb.none) o += W.line(TX`At $z = ${tn(pb.z, 5)}$ m: $\psi_${n}$`, Viz.fmt(pb.psi), 'the amber dot') +
-    W.line(TX`First term $\dfrac{d}{dz}\Big(\dfrac1{N^2}\dfrac{d\psi_n}{dz}\Big)$, by a difference over two grid steps`, Viz.fmt(pb.t1, { sig: 6 }) + ' s²/m²') +
-    W.line(TX`Second term $\dfrac{\psi_n}{c_n^2} = \dfrac{${tn(pb.psi)}}{${tb(m.c, 4)}^{2}}$`, Viz.fmt(pb.t2, { sig: 6 }) + ' s²/m²') +
-    W.box(TX`sum $= ${tn(pb.sum, 2)}$ s²/m² — zero to ${Viz.fmt(Math.abs(pb.sum) / Math.max(Math.abs(pb.t2), 1e-300), { sig: 1 })} of either term: the mode equation holds here`);
-  else o += W.say('No mode is selected.');
-  o += W.interpret(reading(s), 'Reading the current setting');
-  return o;
+/** the three equations (13.84) at the cursor as three pairs of equal bars, and the frequency against the wavenumber */
+function drawBal(v, s, n) {
+  v.clear(); DISP = null;
+  const ctx = v.ctx, W = v.w, Hh = v.h; if (W < 60 || Hh < 60) return;
+  const or = Viz.color('orange'), blue = Viz.color('blue'), teal = Viz.color('teal'), mut = Viz.color('muted'), soft = Viz.color('text-soft'), txt = Viz.color('text'), card = Viz.color('card'), acc = Viz.color('accent');
+  const two = W >= 560, wb = two ? Math.floor(W * 0.6) : W, F = at(s, n);
+  const lab = (str, x, y, o) => Viz.text(ctx, str, x, y, Object.assign({ size: 12, weight: 500, halo: false }, o || {}));
+  const rows = [
+    { name: 'across the shore', eq: 'fu = −g ∂η/∂y', a: ['fu', F.fu, teal], b: ['−g ∂η/∂y', F.pg, or], sc: n.fa * n.U0, unit: 'm/s²' },
+    { name: 'along the shore', eq: '∂u/∂t = −g ∂η/∂x', a: ['∂u/∂t', F.ut, acc], b: ['−g ∂η/∂x', -n.g * F.ex, or], sc: n.g * n.k * n.eta0, unit: 'm/s²' },
+    { name: 'mass', eq: '∂η/∂t = −H ∂u/∂x', a: ['∂η/∂t', F.et, blue], b: ['−H ∂u/∂x', -n.H * F.ux, soft], sc: n.k * n.c * n.eta0, unit: 'm/s' }
+  ];
+  const foot = Hh >= 170 ? 18 : 0, top = 2, rowH = (Hh - top - foot) / 3, head = rowH >= 52 ? 17 : 0;
+  const labW = 76, valW = wb >= 400 ? 118 : 0, x0 = labW, x1 = wb - valW - 10, xc = 0.5 * (x0 + x1), hw = 0.5 * (x1 - x0);
+  const bh = Viz.clamp((rowH - head - 8) / 2 - 2, 5, 14);
+  rows.forEach((r, j) => {
+    const yT = top + j * rowH;
+    if (head) lab(r.name + (wb >= 330 ? ' · ' + r.eq : ''), 6, yT + 9, { color: soft, weight: 650 });
+    [r.a, r.b].forEach((t, i) => {
+      const yc = yT + head + 4 + (i + 0.5) * (bh + 3), L = hw * Viz.clamp(t[1] / r.sc, -1, 1);
+      lab(t[0], labW - 6, yc, { align: 'right', color: t[2], weight: 700 });
+      ctx.save(); ctx.fillStyle = Viz.alpha(t[2], 0.12); ctx.fillRect(x0, yc - bh / 2, x1 - x0, bh);
+      ctx.fillStyle = t[2]; ctx.fillRect(Math.min(xc, xc + L), yc - bh / 2, Math.abs(L), bh); ctx.restore();
+      if (valW) lab(f3(t[1]) + ' ' + r.unit, wb - 6, yc, { align: 'right', color: soft });
+    });
+    ctx.save(); ctx.strokeStyle = Viz.alpha(txt, 0.7); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(Math.round(xc) + 0.5, yT + head + 2); ctx.lineTo(Math.round(xc) + 0.5, yT + head + 8 + 2 * (bh + 3) - 2); ctx.stroke(); ctx.restore();
+  });
+  if (foot) lab(wb >= 430 ? 'v = 0 everywhere, so ∂v/∂t = 0: nothing is left over across the shore' : 'v = 0, so ∂v/∂t = 0', wb / 2, Hh - 9, { align: 'center', color: mut });
+  if (!two) return;
+  // frequency against wavenumber: the Kelvin wave is a straight line through the origin, also below |f|
+  const kL = n.k * n.Lam, xm = Math.max(4, 1.3 * kL), tall = Hh >= 150;
+  const P = v.plot({ rect: { x: wb + 6, y: 0, w: W - wb - 6, h: Hh }, pad: { l: 48, r: 10, t: 8, b: tall ? 36 : 30 }, xlim: [0, xm], ylim: [0, xm], xlabel: 'wavenumber kΛ', ylabel: 'frequency ω/|f|' }).axes();
+  P.clip(() => {
+    P.fillBetween([0, xm], [0, 0], [1, 1], { color: teal, alpha: 0.1 });
+    P.line([0, xm], [1, 1], { color: mut, width: 1, dash: [4, 4] });
+    P.fn(x => poincareOmega(x / n.Lam, n.f, n.c) / n.fa, { color: Viz.alpha(soft, 0.6), width: 1.6, dash: [6, 4] });
+    P.line([0, xm], [0, xm], { color: acc, width: 2.6 });
+  });
+  if (tall && P.px.w >= 150) {
+    P.text(0.62 * xm, 0.62 * xm, 'Kelvin: ω = ck', { dx: 8, dy: 9, size: 12, weight: 700, color: acc });
+    P.text(0.3 * xm, Math.sqrt(1 + 0.09 * xm * xm), 'Poincaré', { dx: -4, dy: -10, size: 12, weight: 600, color: soft, align: 'right' });
+    P.text(xm, 1, 'ω = |f|', { dx: -4, dy: -8, size: 12, weight: 600, color: mut, align: 'right' });
+  }
+  P.dot(kL, kL, 5, { color: txt, stroke: card, strokeWidth: 1.5 });
+  DISP = { P, x0: wb + 6 };
+}
+
+/* ---- text ------------------------------------------------------------------------------------------------------------ */
+function statusOf(s) {
+  const n = N(s), lay = layout(), nums = 'Λ = ' + km(n.Lam) + ' · c = ' + f3(n.c) + ' m/s';
+  if (n.kind === 'rejected') {
+    if (lay !== 'wide') return { text: '✕ ' + arrowOf(n.d) + ' would grow offshore: not a solution', tone: 'bad' };
+    return { text: '✕ this direction would grow offshore: not a solution in the ' + n.hemiName + ' hemisphere · turn the wave round', tone: 'bad' };
+  }
+  if (n.kind === 'both') {
+    if (lay !== 'wide') return { text: '🌀 two walls, two waves · each wall on the ' + n.side, tone: 'info' };
+    return { text: '🌀 two walls, two waves, each with its own wall on its ' + n.side + ' · between them the tide turns about points of no rise · ' + nums, tone: 'info' };
+  }
+  if (n.kind === 'far') {
+    if (lay !== 'wide') return { text: '↔ ' + arrowOf(n.d) + ' leans on the far wall, on its ' + n.side, tone: 'warn' };
+    return { text: '↔ in a channel the wave going ' + dirWord(n.d) + ' leans on the far wall: again the wall is on its ' + n.side + ' · ' + nums, tone: 'warn' };
+  }
+  if (lay !== 'wide') return { text: '✅ trapped · coast on the ' + n.side + ' · Λ = ' + km(n.Lam), tone: 'good' };
+  return { text: '✅ trapped: coast on the ' + n.side + ' of the direction of travel · ' + nums + (n.sub ? ' · period longer than the inertial ' + fT(n.Ti) : ''), tone: 'good' };
+}
+
+function readingText(s) {
+  const n = N(s), out = [], other = n.side === 'right' ? 'left' : 'right';
+  if (n.kind === 'rejected') out.push(R`For travel ` + dirWord(n.d) + R` in the ` + n.hemiName + R` hemisphere the cross-shore balance $fu=-g\,\partial\eta/\partial y$ needs a surface that <i>rises</i> offshore, as $e^{+y/\Lambda}$, without limit. On an open sea that is not a solution. In a channel it is the wave on the opposite wall.`);
+  else if (n.kind === 'far') out.push('This direction of travel cannot lean on the coast at $y=0$, but it can lean on the far wall, which lies on its ' + n.side + '. Seen from that wall it is the same wave turned by 180°.');
+  else if (n.kind === 'both') out.push(R`Two walls, two waves, each with its own wall on its ` + n.side + R`. On the centre line they cancel wherever $\cos kx=0$: at those points the level never changes, and the high water runs round them ` + (n.sg > 0 ? 'counter-clockwise' : 'clockwise') + ' once per period. Tides in a gulf look like this.');
+  else if (n.sg > 0) out.push(R`Under a crest the <b class="c-teal">current</b> runs with the wave. The <b class="c-teal">Coriolis force</b> on it points to its right, toward the coast, and is held by the <b class="c-orange">surface sloping down offshore</b>. So the coast must be on the right.`);
+  else out.push(R`With $f<0$ the <b class="c-teal">Coriolis force</b> on the current points to its left. The <b class="c-orange">slope</b> that holds it must again face the coast, so the coast must be on the left: the wave travels the other way along the same shore.`);
+  if (n.kind === 'near') out.push('Round a closed basin this wave keeps the shore on its ' + n.side + ', so it circles ' + (n.sg > 0 ? 'counter-clockwise' : 'clockwise') + ' (with the coast on the ' + other + ' it would be rejected).');
+  if (n.internal) out.push(R`Here $\eta$ is the thickening of the upper layer: under an <b class="c-orange">orange</b> patch the thermocline is pushed down, and the sea surface rises by a far smaller amount. The thermocline's wave is far slower (` + f3(n.c) + R` m/s) and far narrower ($\Lambda=` + t3(n.Lam / 1e3) + R`$ km) than the surface wave: it hugs the coast, and carries the signal of coastal upwelling or of an El Niño along the shore.`);
+  if (n.sub) out.push(R`With $\lambda>2\pi\Lambda$ the period, ` + fT(n.T) + R`, is longer than the inertial period $2\pi/|f|=$ ` + fT(n.Ti) + R`. No Poincaré wave can be this slow; the Kelvin wave can, because the coast removes the cross-shore flow.`);
+  else out.push(R`With $\lambda<2\pi\Lambda$ the period, ` + fT(n.T) + R`, is shorter than the inertial period $2\pi/|f|=$ ` + fT(n.Ti) + '; lengthen the wave past $2\\pi\\Lambda$ and nothing special happens.');
+  if (s.lat < 15) out.push('At ' + s.lat + R`° the Coriolis parameter is small, so $\Lambda=c/|f|$ is very large: the trapping weakens toward the equator, where this $f$-plane picture stops being valid.`);
+  return out.join(' ');
 }
 
 function inspectHtml(s) {
-  const pb = probe(s), q = pb.q, n = q.n;
-  if (pb.none) return 'Under a rigid lid there is no barotropic mode to inspect: pick $n \\ge 1$.';
-  const m = q.m;
-  const row = h => '<div style="margin:7px 0">' + h + '</div>';
-  return TX`At $z = ${tn(pb.z, 5)}$ m (the amber dot), ${modeName(n)}: $\psi_${n} = ${tn(pb.psi)}$` +
-    row(TX`first term $\dfrac{d}{dz}\Big(\dfrac1{N^2}\dfrac{d\psi_${n}}{dz}\Big) = ${tn(pb.t1, 6)}$ s²/m²`) +
-    row(TX`second term $\dfrac{\psi_${n}}{c_${n}^2} = \dfrac{${tn(pb.psi)}}{${tb(m.c, 4)}^{2}} = ${tn(pb.t2, 6)}$ s²/m²`) +
-    TX`sum $= \mathbf{${tn(pb.sum, 2)}}$ s²/m² ≈ 0: the mode equation holds here`;
+  const n = N(s), F = at(s, n);
+  const head = R`At the cursor, $x=` + t3(F.x / 1e3) + R`$ km, $y=` + t3(F.yr) + R`\,\Lambda=` + t3(F.y / 1e3) + R`$ km, $t=` + fT(F.t).replace(' ', R`\ \text{`) + '}$:<br>';
+  if (n.kind === 'near') {
+    const e = Math.exp(-F.yr), cs = Math.cos(n.k * (F.x - n.d1 * n.c * F.t));
+    return head + R`$\eta=\eta_0e^{-y/\Lambda}\cos k(x` + (n.d1 > 0 ? '-' : '+') + R`ct)=` + t3(n.eta0) + R`\times` + t3(e) + R`\times` + par(cs) + R`=\mathbf{` + t3(F.eta) + R`}$ m<br>` +
+      R`$u=` + (n.d1 > 0 ? '' : '-') + R`\sqrt{g/H}\,\eta=` + (n.d1 > 0 ? '' : '-') + t3(Math.sqrt(n.g / n.H)) + R`\times` + par(F.eta) + R`=\mathbf{` + t3(F.u) + R`}$ m/s<br>` +
+      R`$fu=` + par(n.f) + R`\times` + par(F.u) + '=' + t3(F.fu) + R`$ m/s², $-g\,\partial\eta/\partial y=g\eta/\Lambda=` + t3(F.pg) + R`$ m/s²`;
+  }
+  return head + R`$\eta=\mathbf{` + t3(F.eta) + R`}$ m, $u=\mathbf{` + t3(F.u) + R`}$ m/s<br>$fu=` + t3(F.fu) + R`$ m/s², $-g\,\partial\eta/\partial y=` + t3(F.pg) + R`$ m/s²` + (n.kind === 'rejected' ? '<br>The equations are met, but the height grows offshore.' : '');
 }
 
-const BASE = { prof: 'uni', zt: 300, wd: 150, n: 1, lid: false, lat: 35, zoom: false, zc: -1000 };
-const pyN2 = s => (s.prof === 'thermo' ? `ch13.thermocline_N2(z, z_t=${(-s.zt).toFixed(1)}, width=${s.wd.toFixed(1)})` : 'np.full_like(z, 2.7e-3**2)');
-const pyFn = s => (s.prof === 'thermo' ? `lambda q: ch13.thermocline_N2(q, z_t=${(-s.zt).toFixed(1)}, width=${s.wd.toFixed(1)})` : 'lambda q: 2.7e-3**2');
+const EQ84 = R`\dfrac{\partial\eta}{\partial t}+H\dfrac{\partial u}{\partial x}=0,\ \dfrac{\partial u}{\partial t}=-g\dfrac{\partial\eta}{\partial x},\ fu=-g\dfrac{\partial\eta}{\partial y}`;
+const EQ87 = R`\eta=\eta_0e^{-fy/c}\cos k(x-ct),\ u=\eta_0\sqrt{g/H}\,e^{-fy/c}\cos k(x-ct)`;
+const EQ45 = R`\begin{aligned}&\tfrac{\partial\eta}{\partial t}+H\big(\tfrac{\partial u}{\partial x}+\tfrac{\partial v}{\partial y}\big)=0\\&\tfrac{\partial u}{\partial t}-fv=-g\tfrac{\partial\eta}{\partial x}\\&\tfrac{\partial v}{\partial t}+fu=-g\tfrac{\partial\eta}{\partial y}\end{aligned}`;
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), S = s.hemi === 'S', F = at(s, n), gs = n.internal ? "g'" : 'g';
+  let o = W.step(0, 'What the views show') +
+    W.say('From above: <b class="c-orange">orange</b> is ' + (n.internal ? 'a thicker upper layer (the thermocline pushed down), <b class="c-blue">blue</b> a thinner one (the thermocline lifted)' : 'a raised surface, <b class="c-blue">blue</b> a lowered one') + '; the <b class="c-teal">teal</b> arrows are the current, and every one of them is parallel to the coast. The section is ' + (n.internal ? 'that thickening' : 'the surface') + ' along the dashed line running offshore through the cursor, between its dashed envelopes; the short <b class="c-orange">orange</b> stroke is the slope at the cursor and the two arrows are the forces across the shore there, <b class="c-teal">Coriolis</b> and <b class="c-orange">slope</b>.') +
+    W.hint('The coast is the line $y=0$ at the bottom of the plan view and the sea is $y>0$. On a phone the bars of the three equations and the frequency plot are hidden; the cross-shore balance is in the readouts. Trap T5: the printed formulas assume $f>0$.');
+  o += W.step(1, 'Speed');
+  if (n.internal) o += W.line(R`$g'=g\,\dfrac{\rho_2-\rho_1}{\rho_2}=` + t4(G) + R`\times\dfrac{` + t3(RHO2 - RHO1) + '}{' + t4(RHO2) + '}$', f4(n.g) + ' m/s²', 'reduced gravity of our two-layer ocean (the densities are ours)') +
+    W.line(R`$c=\sqrt{g'H}=\sqrt{` + t4(n.g) + R`\times` + t3(n.H) + '}$', f4(n.c) + ' m/s', R`the internal twin of $c=\sqrt{gH}$ (13.86); $H$ is the upper-layer thickness, ` + H1 + ' m (ours)');
+  else o += W.line(R`$c=\sqrt{gH}=\sqrt{` + t4(G) + R`\times` + t4(n.H) + '}$', f4(n.c) + ' m/s', R`$c=\sqrt{gH}$ (13.86): the long-wave speed of Chapter 7; rotation is not in it`);
+  o += W.box(R`The wave moves along the coast at $\mathbf{` + t3(n.c) + R`}$ m/s (` + f3(n.c * 3.6) + ' km/h), the same at every wavelength: it is non-dispersive.');
+  o += W.step(2, 'Trapping width') +
+    W.line(R`$f=2\Omega\sin\theta=2\times` + t4(OMEGA) + R`\times\sin(` + (S ? '-' : '') + s.lat + R`^\circ)$`, '<span style="white-space:nowrap">' + f4(n.f) + ' 1/s</span>', 'the Coriolis parameter at ' + s.lat + '° ' + s.hemi + (S ? ': negative' : '')) +
+    W.line(R`$\Lambda=\dfrac{c}{|f|}=\dfrac{` + t4(n.c) + '}{' + t4(n.fa) + '}$', km(n.Lam), R`the Rossby radius $\Lambda\equiv c/f$ (§13.12), written with $|f|$ so that it holds in both hemispheres`) +
+    W.table([R`$y/\Lambda$`, R`$y$ [km]`, R`height left, $e^{-y/\Lambda}$`], [0, 1, 2, 3].map(q => [String(q), f3(q * n.Lam / 1e3), (100 * Math.exp(-q)).toFixed(1) + ' %']), n.kind === 'near' && Math.abs(F.yr - Math.round(F.yr)) < 0.12 && F.yr < 3.2 ? Math.round(F.yr) : -1) +
+    W.box(R`The height falls by a factor $e$ every $\mathbf{` + t4(n.Lam / 1e3) + R`}$ km offshore` + (n.walls === 2 ? R`; the channel is $` + WCH + R`\Lambda=` + t4(n.Wc / 1e3) + '$ km wide.' : '.'));
+  o += W.step(3, 'Wavelength, period and the inertial period') +
+    W.line(R`$\lambda=` + t3(s.lam) + R`\,\Lambda$`, km(n.lambda), 'your wavelength, set in Rossby radii') +
+    W.line(R`$T=\dfrac\lambda c=\dfrac{` + t4(n.lambda) + '}{' + t4(n.c) + '}$', fT(n.T), R`$\omega=ck$: one wavelength passes in one period`) +
+    W.line(R`$\dfrac{\omega}{|f|}=k\Lambda=\dfrac{2\pi}{` + t3(s.lam) + '}$', f3(n.wf), R`against the inertial period $2\pi/|f|=$ ` + fT(n.Ti)) +
+    W.box(n.sub ? 'The frequency is <b>below</b> $|f|$: a wave that a sea without a coast cannot carry.' : 'The frequency is above $|f|$ here. Make $\\lambda>2\\pi\\Lambda$ and it drops below $|f|$; the wave does not mind.');
+  o += W.step(4, 'Current under the crest') +
+    W.line(R`$\eta_0\sqrt{` + gs + R`/H}=` + t3(n.eta0) + R`\times\sqrt{` + t4(n.g) + '/' + t4(n.H) + '}$', f3(n.U0) + ' m/s', R`the amplitude of $u$ at the coast in $` + EQ87 + R`$ (13.87); $\eta_0=` + t3(n.eta0) + '$ m is ours') +
+    W.say(R`The water moves ` + f2(n.c / n.U0) + R` times more slowly than the wave: $u/c=\eta/H$. Under a crest it flows in the direction of travel, under a trough against it.`);
+  o += W.step(5, 'The balance across the shore, at the cursor') +
+    W.line(R`<b class="c-teal">Coriolis</b> $fu$`, '(' + f3(n.f) + ') × ' + Viz.live('u') + ' = ' + Viz.live('fu') + ' m/s²', 'on the alongshore current') +
+    W.line(R`<b class="c-orange">slope</b> $-g\,\dfrac{\partial\eta}{\partial y}$`, Viz.live('pg') + ' m/s²', n.kind === 'near' ? R`here $\partial\eta/\partial y=-\eta/\Lambda$` : 'from the closed-form derivative') +
+    W.box(R`The two are equal at every point and every time: $fu=-g\dfrac{\partial\eta}{\partial y}$, the third of (13.84). The coast forbids a cross-shore flow, so a pressure slope has to do its job.`);
+  const cur = (S ? 2 : 0) + (n.d > 0 ? 0 : 1);
+  o += W.step(6, 'Which way may it travel?') +
+    W.say(R`For travel direction $d=\pm1$ along $x$ the offshore shape is $e^{-d\,fy/c}$. It decays into the sea only if $d\times\operatorname{sign}(f)>0$.`) +
+    W.table(['hemisphere', 'travel', 'shape', 'verdict'], [['N, $f>0$', '+x →', R`$e^{-y/\Lambda}$`, 'trapped, coast on the right'], ['N, $f>0$', '−x ←', R`$e^{+y/\Lambda}$`, 'grows: rejected'], ['S, $f<0$', '+x →', R`$e^{+y/\Lambda}$`, 'grows: rejected'], ['S, $f<0$', '−x ←', R`$e^{-y/\Lambda}$`, 'trapped, coast on the left']], cur) +
+    W.box(n.kind === 'rejected' ? 'Your choice is a rejected row: turn the wave round, or change hemisphere.' : n.kind === 'near' ? 'Your wave is trapped, with the coast on its <b>' + n.side + '</b>.' : 'In a channel the “growing” shape is simply the wave of the far wall, which has that wall on its <b>' + n.side + '</b>.');
+  o += W.step(7, 'The other two equations, and the frequency plot') +
+    W.line(R`$\dfrac{\partial u}{\partial t}$ and $-g\dfrac{\partial\eta}{\partial x}$`, Viz.live('ut') + ' and ' + Viz.live('pgx') + ' m/s²', 'along the shore: a plain gravity wave') +
+    W.line(R`$\dfrac{\partial\eta}{\partial t}$ and $-H\dfrac{\partial u}{\partial x}$`, Viz.live('et') + ' and ' + Viz.live('hux') + ' m/s', 'mass: the level rises where the current converges') +
+    W.hint(R`On a wide screen the lower view draws these as three pairs of equal bars, and beside them the frequency $\omega/|f|$ against $k\Lambda$: the Kelvin wave is the straight line through the origin; the dashed Poincaré curve, $\omega=\sqrt{f^2+c^2K^2}$, never comes below $|f|$. Click or drag in that plot to change the wavelength.`);
+  o += W.step(8, 'At the current time') +
+    W.line('time $t$', Viz.live('tt') + ' = ' + Viz.live('tp') + ' periods', 'the clock under the pictures') +
+    W.line(R`$\eta$ at the cursor`, Viz.live('eta') + ' m', R`at $x=` + t3(F.x / 1e3) + R`$ km, $y=` + t3(F.yr) + R`\,\Lambda$`) +
+    W.line(R`$u$ at the cursor`, Viz.live('u') + ' m/s', 'positive toward $+x$; $v=0$');
+  o += W.step(9, 'Reading the current setting') + W.interpret(readingText(s), 'Now:');
+  return o;
+}
+function explainLive(s) {
+  const n = N(s), F = at(s, n);
+  return { u: sgn3(F.u), fu: sgn3(F.fu), pg: sgn3(F.pg), ut: sgn3(F.ut), pgx: sgn3(-n.g * F.ex), et: sgn3(F.et), hux: sgn3(-n.H * F.ux), eta: sgn3(F.eta), tt: fT(F.t), tp: Number(s.t).toFixed(2) };
+}
+
+/* ---- numbers of the reference cases, for texts that quote them (the steps set these cases) -------------------------- */
+const ND = Object.assign({}, N(DEF)), NI = Object.assign({}, N(st8({ mode: 'internal' })));
+
+/* ---- derivation (design Part F: D15 — same moves, same order) ------------------------------------------------------- */
+const DERIV = [
+  { id: 'D15', title: 'The Kelvin wave: its speed, its shape and its trapping width', short: 'D15 · Kelvin wave', ref: 'Eq. (13.84), (13.86), (13.87)', view: 'sect',
+    goal: 'Find the wave that can run along a straight coast with no flow across the shore, its speed, and how it fades offshore.',
+    start: { tex: EQ45,
+      plain: R`Shallow water next to a coast: the linear shallow-water set (13.45), with a wall along $y=0$ and the sea in $y>0$.` },
+    plan: ['Set $v=0$ everywhere.', 'Look for a wave along the coast with an unknown offshore shape.', 'Get the speed from two equations and the shape from the third.', 'Keep the shape that decays.'],
+    uses: ['a plane wave with an unknown structure function', 'first-order linear ODE: $y\'=ay$ gives $y=y_0e^{ax}$', 'trapped (decaying) solutions', 'assumptions: $f$-plane, straight vertical wall, $v\\equiv0$ (checked at the end)'],
+    set: st8(),
+    steps: [
+      { did: 'Set v = 0 everywhere', tex: R`\begin{aligned}&\frac{\partial\eta}{\partial t}+H\frac{\partial u}{\partial x}=0\\&\frac{\partial u}{\partial t}=-g\frac{\partial\eta}{\partial x}\\&fu=-g\frac{\partial\eta}{\partial y}\end{aligned}`,
+        why: R`The wall forces $v=0$ at $y=0$. We try the simplest possibility, $v=0$ for all $y$, and must check at the end that all three equations can still be met. The book numbers this set (13.84).`,
+        plain: 'Along the shore a plain gravity wave; across it, geostrophic balance.', set: st8(), play: false,
+        watch: 'In the plan view every teal arrow is parallel to the coast.' },
+      { did: 'Try a wave along the coast', tex: R`[u,\eta]=[\hat u(y),\hat\eta(y)]\,e^{i(kx-\omega t)}`,
+        why: 'The coefficients do not depend on $x$ or $t$, so exponentials in $x$ and $t$ work; the dependence on $y$ is left open.',
+        plain: 'A travelling wave whose strength may vary offshore.' },
+      { did: 'Substitute', tex: R`\begin{aligned}&-i\omega\hat\eta+iHk\hat u=0\\&-i\omega\hat u=-igk\hat\eta\\&f\hat u=-g\frac{d\hat\eta}{dy}\end{aligned}`,
+        why: R`A time derivative becomes a factor $-i\omega$ and an $x$ derivative a factor $ik$; the $y$ derivative stays. The book numbers this set (13.85).`,
+        plain: 'Two algebraic relations and one differential equation.' },
+      { did: 'Eliminate û between the first two', tex: R`\begin{aligned}&\hat\eta\,\big[\omega^2-gHk^2\big]=0\\&\Rightarrow\ \omega=\pm ck,\quad c=\sqrt{gH}\end{aligned}`,
+        why: R`The second gives $\hat u=(gk/\omega)\hat\eta$; insert it into the first and multiply by $\omega$. For a wave to exist the bracket must vanish. The speed $c=\sqrt{gH}$ is (13.86).`,
+        plain: 'The wave moves at the ordinary long-wave speed: rotation does not appear.',
+        live: s => { const n = N(s); return R`c=\sqrt{` + t4(n.g) + R`\times` + t4(n.H) + '}=' + t4(n.c) + R`\ \text{m/s}`; }, highlight: ['readout:c'] },
+      { did: 'Use the cross-shore equation', tex: R`\frac{d\hat\eta}{dy}=-\frac{fk}{\omega}\hat\eta=\mp\frac fc\hat\eta`,
+        why: R`Insert $\hat u=(gk/\omega)\hat\eta$ into $f\hat u=-g\,d\hat\eta/dy$; the upper sign goes with $\omega=+ck$, travel toward $+x$.`,
+        plain: 'The offshore shape obeys the simplest possible ODE.',
+        live: s => { const n = N(s); return R`\frac{|f|}{c}=\frac{` + t3(n.fa) + '}{' + t3(n.c) + '}=' + t3(n.fa / n.c) + R`\ \text{m}^{-1}`; } },
+      { did: 'Solve and keep the decaying solution', tex: R`\begin{aligned}&\hat\eta=\eta_0\,e^{\mp fy/c}\\&f>0\ \Rightarrow\ \text{upper sign}\end{aligned}`,
+        why: 'A first-order linear ODE has an exponential solution; in the half-plane $y>0$ only the decaying one has finite energy. For $f>0$ that is the wave travelling toward $+x$.',
+        plain: 'The wave must travel with the coast on its right ($f>0$).', set: st8({ dir: 'neg' }), play: false,
+        watch: 'The picture shows the lower sign: the profile grows offshore, and the status rejects it.' },
+      { did: 'Take real parts', tex: R`\begin{aligned}\eta&=\eta_0e^{-fy/c}\cos k(x-ct)\\u&=\eta_0\sqrt{\frac gH}\,e^{-fy/c}\cos k(x-ct)\end{aligned}`,
+        why: R`Take the real part of the complex wave, and use $\hat u=(gk/\omega)\hat\eta=(g/c)\hat\eta=\sqrt{g/H}\,\hat\eta$. This pair is the book's (13.87).`,
+        plain: 'Under a crest the current flows in the direction of travel; both fade offshore.', set: st8(), play: false,
+        live: s => { const n = N(s); return R`\Lambda=\frac{c}{|f|}=\frac{` + t4(n.c) + '}{' + t3(n.fa) + '}=' + t4(n.Lam / 1e3) + R`\ \text{km}`; }, highlight: ['readout:Lam'] },
+      { did: 'Read off the width and the general rule', tex: R`\begin{aligned}&\Lambda\equiv\frac{c}{\lvert f\rvert}\\&\text{trapped}\iff\operatorname{sgn}(f)\times d>0\end{aligned}`,
+        why: R`The exponent is $-y/\Lambda$. Here $d=\pm1$ is the direction of travel along $x$. For $f<0$, or a coast on the other side, the decaying root of step 6 is the other one, and the direction reverses.`,
+        plain: 'The wave hugs the coast within one Rossby radius, keeping it on the right in the northern hemisphere and on the left in the southern.',
+        watch: 'On a wide screen the two bars of the cross-shore balance are equal at every y; on a phone see the readout fu = −g ∂η/∂y.' }
+    ],
+    result: { tex: R`\begin{aligned}\eta&=\eta_0e^{-fy/c}\cos k(x-ct)\\u&=\eta_0\sqrt{g/H}\,e^{-fy/c}\cos k(x-ct)\\c&=\sqrt{gH}\end{aligned}`, set: st8(),
+      plain: R`A non-dispersive wave trapped within $\Lambda=c/f$ of the coast: the pair $` + EQ87 + R`$ (13.87) with $c=\sqrt{gH}$ (13.86).` },
+    interpret: s => { const n = N(s); return 'With your settings the wave runs at $' + t3(n.c) + '$ m/s and is trapped within $\\Lambda=' + t4(n.Lam / 1e3) + '$ km of the coast, which it keeps on its ' + n.side + ' (' + n.hemiName + ' hemisphere). It is the only shallow-water wave that exists below the frequency $|f|$; it carries tides round basins and thermocline signals along coasts. It fails when the coast curves on a scale shorter than $\\Lambda$, or when the wave is so long that the change of $f$ with latitude matters.'; },
+    check: R`Units: $\eta_0\sqrt{g/H}$ is m × s⁻¹, a speed. Consistency of $v\equiv0$: the $y$-equation becomes exact geostrophy, met by step 5, so there is no contradiction. Limit $f\to0$: $\Lambda\to\infty$, a plane wave along the wall. Numbers (ours): $H=` + t4(DEF.H) + '$ m at ' + DEF.lat + R`° N give $c=` + t3(ND.c) + R`$ m/s and $\Lambda=` + t4(ND.Lam / 1e3) + R`$ km; the internal two-layer mode gives $c=` + t3(NI.c) + R`$ m/s and $\Lambda=` + t3(NI.Lam / 1e3) + R`$ km. Traps: which sign of the exponent goes with which direction; for $f<0$ everything mirrors (trap T5); $v\equiv0$ is an assumption that must be checked against the cross-shore equation, where it leaves exact geostrophy.` }
+];
+
+/* ---- code ----------------------------------------------------------------------------------------------------------- */
+const num7 = v => String(Number(v.toPrecision(7)));
+const CODE = [
+  { id: 'kw', title: 'The wave at the cursor in Python', ref: 'Eq. (13.86), (13.87)',
+    src: `
+import numpy as np
+from fluidpy import (
+    ch13_geophysical_fluid_dynamics as ch13)
+
+lat = np.deg2rad({{kwlat}})
+f = ch13.coriolis_parameter(lat)
+# f = {{kwf}} 1/s
+g, H = {{kwg}}, {{kwH}}  # SI units
+c = ch13.long_wave_speed(H, g)
+# c = sqrt(g H) = {{kwc}} m/s
+Lam = ch13.rossby_radius(c, f)
+# trapping width c/|f| = {{kwLam}} km
+k = 2 * np.pi / ({{kwlam}} * Lam)
+T = 2 * np.pi / ch13.kelvin_omega(k, c)
+# period: {{kwT}} h
+d = {{kwd}}       # travel: +1 is toward +x
+side = ch13.kelvin_decay_side(f, d)
+# trapped: {{kwtrap}}; coast on the {{kwcoast}}
+x, y = {{kwx}}, {{kwy}}   # cursor [m]
+t = {{kwt}}       # [s]
+eta, u = ch13.kelvin_wave(
+    x, y, t, {{kweta0}}, k, H, f, g, direction=d)
+# {{kwout}}`,
+    live: s => { const n = N(s), F = at(s, n), r = kelvin(F.x, F.y, F.t, n.eta0, n.k, n.H, n.f, n.d, n.g);
+      return { kwlat: (s.hemi === 'S' ? -s.lat : s.lat).toFixed(1), kwf: n.f.toExponential(4), kwg: num7(n.g), kwH: n.H.toFixed(1), kwc: n.c.toFixed(3), kwLam: (n.Lam / 1e3).toFixed(2), kwlam: num7(s.lam), kwT: (n.T / 3600).toFixed(3),
+        kwd: n.d > 0 ? '1' : '-1', kwtrap: n.trapped ? 'True' : 'False', kwcoast: n.side, kwx: num7(F.x), kwy: num7(F.y), kwt: num7(F.t), kweta0: n.eta0.toFixed(1),
+        kwout: r ? 'eta = ' + r[0].toPrecision(4) + ' m, u = ' + r[1].toExponential(3) + ' m/s' : 'ValueError: it would grow offshore' }; },
+    note: 'The function refuses the direction that grows offshore: <code>kelvin_wave</code> raises a <code>ValueError</code> when <code>d * sign(f) &lt; 0</code>. In the internal mode <code>g</code> is the reduced gravity, <code>H</code> the upper-layer thickness and <code>eta</code> the thickening of that layer.' },
+  { id: 'far', title: 'The wave on the opposite wall of a channel', ref: 'Eq. (13.87)',
+    src: `
+W = {{fwW}} * Lam         # channel width [m]
+e2, u2 = ch13.kelvin_wave(
+    -x, W - y, t, {{fweta0}}, k, H, f, g)
+u2 = -u2    # the picture turned by 180 deg
+# eta = {{fweta}} m, u = {{fwu}} m/s`,
+    live: s => { const n = N(s), F = at(s, n), yy = Math.min(F.y, n.Wc), r = kelvinFar(F.x, yy, F.t, n.eta0, n.k, n.H, n.f, n.Wc, n.g);
+      return { fwW: WCH.toFixed(1), fweta0: n.eta0.toFixed(1), fweta: r[0].toPrecision(4), fwu: r[1].toExponential(3) }; },
+    note: 'Continues the block above (same <code>x, y, t, k, H, f, g</code>; the cursor must lie inside the channel, $y\\le W$). A rotation by 180° keeps $f$, so the far wall carries the same wave travelling the other way, again with its wall on the same side.' },
+  { id: 'int', title: 'The internal mode: a thermocline instead of the surface', ref: '§13.12',
+    src: `
+rho1, rho2, H1 = {{inr1}}, {{inr2}}, {{inH1}}
+gp = ch13.G0 * (rho2 - rho1) / rho2
+# reduced gravity: {{ingp}} m/s^2
+ci = ch13.long_wave_speed(H1, gp)
+# ci = sqrt(g' H1) = {{inci}} m/s
+Li = ch13.rossby_radius_two_layer(
+    H1, rho1, rho2, f)
+# Li = {{inLi}} km`,
+    live: s => { const n = N(s), gp = gPrime(RHO1, RHO2);
+      return { inr1: RHO1.toFixed(1), inr2: RHO2.toFixed(1), inH1: H1.toFixed(1), ingp: gp.toFixed(5), inci: cLong(H1, gp).toFixed(4), inLi: (LamTwoLayer(H1, RHO1, RHO2, n.f) / 1e3).toFixed(3) }; },
+    note: 'Continues the first block (same <code>f</code>). The layer thickness and the two densities are our illustrative values.' }
+];
+
+/* ---- walkthrough ---------------------------------------------------------------------------------------------------- */
+const TOUR = [
+  { title: 'Leaning on the coast', text: 'This wave runs along a coast and fades out to sea. Press ▶ and watch which way the crests go.', set: st8({ t: 0 }), play: true },
+  { title: 'No flow across the shore', text: R`Every <b class="c-teal">arrow</b> is parallel to the coast: $v=0$. Then the <b class="c-teal">Coriolis force</b> on that current can only be held by a <b class="c-orange">surface slope</b>: $fu=-g\,\dfrac{\partial\eta}{\partial y}$, the third of (13.84).`, set: st8({ t: 0 }), play: false, eq: 'eqs', derive: { id: 'D15', step: 1 } },
+  { title: 'The same speed', text: R`The other two equations are a plain gravity wave, so $c=\sqrt{gH}$ (13.86) $=` + t3(ND.c) + R`$ m/s whatever the wavelength. Even a period longer than the inertial one is allowed.`, set: st8({ t: 0 }), play: false, readouts: ['c', 'T'], eq: 'c' },
+  { title: 'How far offshore', text: R`The slope must match the current everywhere, which forces $\eta=\eta_0e^{-fy/c}\cos k(x-ct)$ (13.87). The height falls by $e$ every $\Lambda=c/f=` + t4(ND.Lam / 1e3) + R`$ km: the Rossby radius.`, set: st8({ t: 0, yc: 1 }), play: false, eq: 'sol', code: { id: 'kw', lines: [9, 12] } },
+  { title: 'Wrong way', text: R`Send the wave toward $-x$. The same balance now needs a surface that rises offshore as $e^{+y/\Lambda}$, without limit. That is not allowed on an open sea.`, set: st8({ dir: 'neg', t: 0 }), play: false, derive: { id: 'D15', step: 6 } },
+  { title: 'Your turn', text: 'Predict first: at 35° S, on this same coast, which way does the trapped wave travel? Then switch the hemisphere, and turn the wave round until the status says “trapped”.', set: st8({ t: 0 }), play: false, controls: ['hemi', 'dir'], callout: { kind: 'key', html: 'The coast takes away the cross-shore flow and puts a pressure slope in its place. The Coriolis force decides on which side that slope, and so the coast, must be.' } }
+];
+
+/* ---- equations ------------------------------------------------------------------------------------------------------ */
+const EQS = [
+  { id: 'eqs', title: 'Kelvin-wave equations', ref: 'Eq. (13.84)', tex: R`\begin{aligned}&\frac{\partial\eta}{\partial t}+H\frac{\partial u}{\partial x}=0,\qquad\frac{\partial u}{\partial t}=-g\frac{\partial\eta}{\partial x}\\&fu=-g\frac{\partial\eta}{\partial y}\end{aligned}`,
+    live: s => { const n = N(s), F = at(s, n); return R`\begin{aligned}fu&=` + t3(F.fu) + R`\ \text{m/s}^{2}\\-g\,\partial\eta/\partial y&=` + t3(F.pg) + R`\ \text{m/s}^{2}\end{aligned}`; },
+    note: 'Live values at the cursor. The shallow-water equations with $v=0$: a gravity wave along the shore, geostrophic balance across it.',
+    symbols: [['\\eta', 'surface displacement (internal wave: thickening of the upper layer)', 'm'], ['u', 'alongshore velocity; $v=0$', 'm/s'], ['H', 'depth (upper-layer thickness for the internal wave)', 'm'], ['f', 'Coriolis parameter $2\\Omega\\sin\\theta$', '1/s']] },
+  { id: 'c', title: 'Speed', ref: 'Eq. (13.86)', tex: R`c=\sqrt{gH}`,
+    live: s => { const n = N(s); return R`c=\sqrt{` + t4(n.g) + R`\times` + t4(n.H) + '}=' + t4(n.c) + R`\ \text{m/s}`; },
+    note: 'The speed of long gravity waves without rotation; it does not depend on the wavelength, so the wave keeps its shape.',
+    symbols: [['c', 'speed along the coast', 'm/s'], ['g', 'gravity ($g\'$ for the internal wave)', 'm/s²']] },
+  { id: 'sol', title: 'The wave', ref: 'Eq. (13.87)', tex: R`\begin{aligned}\eta&=\eta_0e^{-fy/c}\cos k(x-ct)\\u&=\eta_0\sqrt{\frac gH}\,e^{-fy/c}\cos k(x-ct)\end{aligned}`,
+    live: s => { const n = N(s), F = at(s, n); return R`\begin{aligned}\eta&=` + t3(F.eta) + R`\ \text{m}\\u&=` + t3(F.u) + R`\ \text{m/s at the cursor}\end{aligned}`; },
+    note: R`Trap T5: printed for $f>0$ and travel toward $+x$. In general $\eta=\eta_0e^{-y/\Lambda}\cos k(x-d\,ct)$ and $u=d\sqrt{g/H}\,\eta$ with $d=\operatorname{sign}(f)$.`,
+    symbols: [['\\eta_0', 'amplitude at the coast', 'm'], ['k', 'alongshore wavenumber $2\\pi/\\lambda$', 'rad/m'], ['y', 'distance from the coast', 'm']] },
+  { id: 'lam', title: 'Rossby radius', ref: '§13.12, unnumbered', tex: R`\Lambda\equiv\frac cf`,
+    live: s => { const n = N(s); return R`\Lambda=\frac{` + t4(n.c) + '}{' + t3(n.fa) + '}=' + t4(n.Lam / 1e3) + R`\ \text{km}`; },
+    note: 'The offshore e-folding distance of the wave. Our code uses $c/|f|$ so that it is positive in both hemispheres.',
+    symbols: [['\\Lambda', 'Rossby radius of deformation', 'm']] },
+  { id: 'int', title: 'Internal Kelvin wave', ref: '§13.12, unnumbered', tex: R`c=\sqrt{g'H}`,
+    live: s => { const gp = gPrime(RHO1, RHO2), n = N(s); return R`\begin{aligned}c&=\sqrt{` + t3(gp) + R`\times` + H1 + '}=' + t3(cLong(H1, gp)) + R`\ \text{m/s}\\ \Lambda&=` + t3(LamTwoLayer(H1, RHO1, RHO2, n.f) / 1e3) + R`\ \text{km}\end{aligned}`; },
+    note: R`A thin upper layer over a deep lower one, with reduced gravity $g'=g(\rho_2-\rho_1)/\rho_2$. Live values for our layer (` + H1 + ' m, ' + RHO1 + ' and ' + RHO2 + ' kg/m³).',
+    symbols: [["g'", 'reduced gravity', 'm/s²']] }
+];
+
+/* ---- check yourself ------------------------------------------------------------------------------------------------- */
+const QUIZ = [
+  { q: 'Halve the depth. What happens to $c$ and to $\\Lambda$?',
+    a: R`Both fall by $\sqrt2$: $c=\sqrt{gH}$ (13.86) goes from ` + f3(ND.c) + ' to ' + f3(cLong(DEF.H / 2)) + R` m/s, and $\Lambda=c/|f|$ follows it, from ` + f4(ND.Lam / 1e3) + ' to ' + f4(Lam(cLong(DEF.H / 2), ND.f) / 1e3) + ' km.', set: st8({ H: DEF.H / 2 }) },
+  { q: 'At 35° S, with the coast at $y=0$ and the sea at $y>0$, which way does the trapped wave travel?',
+    a: R`Toward $-x$: with $f<0$ the shape $e^{-d\,fy/c}$ decays only for $d=-1$, so the coast must be on the left of the direction of travel.`, set: st8({ hemi: 'S', dir: 'neg' }) },
+  { q: 'How wide is the internal wave compared with the surface wave?',
+    a: R`About ` + f3(NI.Lam / 1e3) + ' km against ' + f4(ND.Lam / 1e3) + R` km: $\Lambda=c/|f|$, and the internal speed $c=\sqrt{g'H}$ is only ` + f3(NI.c) + ' m/s.', set: st8({ mode: 'internal' }) },
+  { q: 'Can a Kelvin wave have a period longer than the inertial period?',
+    a: R`Yes, any period. Its frequency is $\omega=ck$, a straight line through the origin; at $\lambda=9\Lambda$ the period is ` + fT(N(st8({ lam: 9 })).T) + ' against an inertial period of ' + fT(ND.Ti) + R`. That is what distinguishes it from a Poincaré wave, which needs $\omega>|f|$.`, set: st8({ lam: 9 }) }
+];
+
+/* ---- selftest: JS ↔ fluidpy ---------------------------------------------------------------------------------------- */
+function selftestRows() {
+  const fN = fCor(35, 'N'), fS = fCor(35, 'S'), f60S = fCor(60, 'S');
+  const F = 'ch13.coriolis_parameter(np.deg2rad(35.0))', FS = 'ch13.coriolis_parameter(np.deg2rad(-35.0))', F60S = 'ch13.coriolis_parameter(np.deg2rad(-60.0))';
+  const K = 2 * PI / 3.1e6, KP = '2*np.pi/3.1e6', A = '1.0e5, 1.0e6, 600.0, 0.5, ' + KP + ', 4200.0, ';
+  const gp = gPrime(RHO1, RHO2), GP = '9.80665*(-1023.9 + 1027.0)/1027.0', Wc = 2 * Lam(cLong(4200), fN), WP = '2*ch13.rossby_radius(ch13.long_wave_speed(4200.0), ' + F + ')';
+  const rN = residuals(1e5, 1e6, 600, 0.5, K, 4200, fN), rS = residuals(1e5, 1e6, 600, 0.5, K, 4200, fS), wN = formal(1e5, 1e6, 600, 0.5, K, 4200, fN, 1), wS = formal(1e5, 1e6, 600, 0.5, K, 4200, fS, -1);
+  const nB = N(st8({ geo: 'both' })), nF = N(st8({ geo: 'channel', dir: 'neg' })), nR = N(st8({ dir: 'neg' }));
+  const wF = nF.field(3e5, 1.2e6, 900), wB = nB.field(3e5, 1.2e6, 900), wR = nR.field(3e5, 1.2e6, 900);
+  const kN = [kelvin(3e5, 1.2e6, 900, 0.5, ND.k, 4200, fN, 1), kelvinFar(3e5, 1.2e6, 900, 0.5, ND.k, 4200, fN, ND.Wc)];
+  return [
+    { name: 'f at 35 N', js: fN, py: F, rtol: 1e-13 },
+    { name: 'f at 35 S', js: fS, py: FS, rtol: 1e-13 },
+    { name: 'c = sqrt(g H)', js: cLong(4200), py: 'ch13.long_wave_speed(4200.0)', rtol: 1e-13 },
+    { name: 'c internal = sqrt(g\' H1)', js: cLong(120, gp), py: 'ch13.long_wave_speed(120.0, ' + GP + ')', rtol: 1e-13 },
+    { name: 'radius', js: Lam(cLong(4200), fN), py: 'ch13.rossby_radius(ch13.long_wave_speed(4200.0), ' + F + ')', rtol: 1e-12 },
+    { name: 'radius S (|f|)', js: Lam(cLong(4200), fS), py: 'ch13.rossby_radius(ch13.long_wave_speed(4200.0), ' + FS + ')', rtol: 1e-12 },
+    { name: 'two-layer radius', js: LamTwoLayer(120, 1023.9, 1027, fN), py: 'ch13.rossby_radius_two_layer(120.0, 1023.9, 1027.0, ' + F + ')', rtol: 1e-12 },
+    { name: 'two-layer radius, 60 S', js: LamTwoLayer(120, 1023.9, 1027, f60S), py: 'ch13.rossby_radius_two_layer(120.0, 1023.9, 1027.0, ' + F60S + ')', rtol: 1e-12 },
+    { name: 'omega = c k', js: omegaK(K, cLong(4200)), py: 'ch13.kelvin_omega(' + KP + ', ch13.long_wave_speed(4200.0))', rtol: 1e-13 },
+    { name: 'inertial period', js: inertialPeriod(fS), py: 'ch13.inertial_period(' + FS + ')', rtol: 1e-13 },
+    { name: 'Poincare ghost curve', js: poincareOmega(K, fN, cLong(4200)), py: 'ch13.poincare_omega(' + KP + ', ' + F + ', ch13.long_wave_speed(4200.0))', rtol: 1e-12 },
+    { name: 'eta N', js: kelvin(1e5, 1e6, 600, 0.5, K, 4200, fN, 1)[0], py: 'ch13.kelvin_wave(' + A + F + ', direction=1)[0]', rtol: 1e-10 },
+    { name: 'u N', js: kelvin(1e5, 1e6, 600, 0.5, K, 4200, fN, 1)[1], py: 'ch13.kelvin_wave(' + A + F + ', direction=1)[1]', rtol: 1e-10 },
+    { name: 'eta S (travel toward -x)', js: kelvin(1e5, 1e6, 600, 0.5, K, 4200, fS, -1)[0], py: 'ch13.kelvin_wave(' + A + FS + ', direction=-1)[0]', rtol: 1e-10 },
+    { name: 'u S (travel toward -x)', js: kelvin(1e5, 1e6, 600, 0.5, K, 4200, fS, -1)[1], py: 'ch13.kelvin_wave(' + A + FS + ', direction=-1)[1]', rtol: 1e-10 },
+    { name: 'eta S, default direction', js: kelvin(1e5, 1e6, 600, 0.5, K, 4200, fS)[0], py: 'ch13.kelvin_wave(' + A + FS + ')[0]', rtol: 1e-10 },
+    { name: 'u internal, 60 S', js: kelvin(4e4, 3e4, 7200, 10, 2 * PI / 6e4, 120, f60S, -1, gp)[1], py: 'ch13.kelvin_wave(4.0e4, 3.0e4, 7200.0, 10.0, 2*np.pi/6.0e4, 120.0, ' + F60S + ', ' + GP + ', direction=-1)[1]', rtol: 1e-10 },
+    { name: 'eta internal, 60 S', js: kelvin(4e4, 3e4, 7200, 10, 2 * PI / 6e4, 120, f60S, -1, gp)[0], py: 'ch13.kelvin_wave(4.0e4, 3.0e4, 7200.0, 10.0, 2*np.pi/6.0e4, 120.0, ' + F60S + ', ' + GP + ', direction=-1)[0]', rtol: 1e-10 },
+    { name: 'far-wall wave, eta (py: the wave turned by 180 deg)', js: kelvinFar(1e5, 1e6, 600, 0.5, K, 4200, fN, Wc)[0], py: 'ch13.kelvin_wave(-1.0e5, ' + WP + ' - 1.0e6, 600.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[0]', rtol: 1e-10 },
+    { name: 'far-wall wave, u', js: kelvinFar(1e5, 1e6, 600, 0.5, K, 4200, fN, Wc)[1], py: '-ch13.kelvin_wave(-1.0e5, ' + WP + ' - 1.0e6, 600.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[1]', rtol: 1e-10 },
+    { name: 'far-wall wave, u, 35 S', js: kelvinFar(1e5, 1e6, 600, 0.5, K, 4200, fS, Wc)[1], py: '-ch13.kelvin_wave(-1.0e5, ' + WP + ' - 1.0e6, 600.0, 0.5, ' + KP + ', 4200.0, ' + FS + ')[1]', rtol: 1e-10 },
+    { name: 'land side is NaN in both', js: isNaN(kelvin(0, -1, 0, 0.5, K, 4200, fN, 1)[0]) ? 1 : 0, py: '1.0*np.isnan(ch13.kelvin_wave(0.0, -1.0, 0.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[0])', rtol: 1e-12 },
+    { name: 'trapped flag N, +x', js: decaySide(fN, 1).trapped ? 1 : 0, py: '1.0*ch13.kelvin_decay_side(' + F + ', 1)["trapped"]', rtol: 1e-12 },
+    { name: 'trapped flag N, -x', js: decaySide(fN, -1).trapped ? 1 : 0, py: '1.0*ch13.kelvin_decay_side(' + F + ', -1)["trapped"]', atol: 1e-12 },
+    { name: 'trapped flag S, +x', js: decaySide(fS, 1).trapped ? 1 : 0, py: '1.0*ch13.kelvin_decay_side(' + FS + ', 1)["trapped"]', atol: 1e-12 },
+    { name: 'trapped flag S, -x', js: decaySide(fS, -1).trapped ? 1 : 0, py: '1.0*ch13.kelvin_decay_side(' + FS + ', -1)["trapped"]', rtol: 1e-12 },
+    { name: 'coast on the right (N) and on the left (S)', js: (side(fN) === 'right' && side(fS) === 'left') ? 1 : 0, py: '1.0 if (ch13.kelvin_decay_side(' + F + ', 1)["coast_on"] == "right" and ch13.kelvin_decay_side(' + FS + ', -1)["coast_on"] == "left") else 0.0', rtol: 1e-12 },
+    { name: 'side(f) = the side the Coriolis force turns to', js: (side(fN) === 'right' && side(fS) === 'left') ? 1 : 0, py: '1.0 if (ch13.hemisphere(np.deg2rad(35.0))["turns"] == "right" and ch13.hemisphere(np.deg2rad(-35.0))["turns"] == "left") else 0.0', rtol: 1e-12 },
+    { name: 'residual, continuity (py: central differences)', js: rN.continuity, py: 'ch13.kelvin_residuals(' + A + F + ')["continuity"]', atol: 1e-7 },
+    { name: 'residual, x-momentum', js: rN.x_momentum, py: 'ch13.kelvin_residuals(' + A + F + ')["x_momentum"]', atol: 1e-7 },
+    { name: 'residual, geostrophy', js: rN.y_geostrophy, py: 'ch13.kelvin_residuals(' + A + F + ')["y_geostrophy"]', atol: 1e-7 },
+    { name: 'residual, geostrophy, 35 S', js: rS.y_geostrophy, py: 'ch13.kelvin_residuals(' + A + FS + ')["y_geostrophy"]', atol: 1e-7 },
+    { name: 'Coriolis bar f u', js: fN * wN.u, py: F + '*ch13.kelvin_wave(' + A + F + ')[1]', rtol: 1e-10 },
+    { name: 'slope bar -g d(eta)/dy (py: central difference)', js: -G * wN.ey, py: '-9.80665*(ch13.kelvin_wave(1.0e5, 1.0e6+1.0, 600.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[0] - ch13.kelvin_wave(1.0e5, 1.0e6-1.0, 600.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[0])/2.0', rtol: 1e-6 },
+    { name: 'slope bar, 35 S', js: -G * wS.ey, py: '-9.80665*(ch13.kelvin_wave(1.0e5, 1.0e6+1.0, 600.0, 0.5, ' + KP + ', 4200.0, ' + FS + ')[0] - ch13.kelvin_wave(1.0e5, 1.0e6-1.0, 600.0, 0.5, ' + KP + ', 4200.0, ' + FS + ')[0])/2.0', rtol: 1e-6 },
+    { name: 'du/dt bar (py: central difference)', js: wN.ut, py: '(ch13.kelvin_wave(1.0e5, 1.0e6, 601.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[1] - ch13.kelvin_wave(1.0e5, 1.0e6, 599.0, 0.5, ' + KP + ', 4200.0, ' + F + ')[1])/2.0', rtol: 1e-6 },
+    { name: 'd(eta)/dt bar, 35 S', js: wS.et, py: '(ch13.kelvin_wave(1.0e5, 1.0e6, 601.0, 0.5, ' + KP + ', 4200.0, ' + FS + ')[0] - ch13.kelvin_wave(1.0e5, 1.0e6, 599.0, 0.5, ' + KP + ', 4200.0, ' + FS + ')[0])/2.0', rtol: 1e-6 },
+    // invariants
+    { name: 'closed-form residual, continuity', js: rN.continuity, expect: 0, atol: 1e-12 },
+    { name: 'closed-form residual, x-momentum', js: rN.x_momentum, expect: 0, atol: 1e-12 },
+    { name: 'closed-form residual, geostrophy', js: rN.y_geostrophy, expect: 0, atol: 1e-12 },
+    { name: 'closed-form residual, geostrophy, S', js: rS.y_geostrophy, expect: 0, atol: 1e-12 },
+    { name: 'the wrong direction is refused (null where Python raises)', js: (kelvin(0, 1e5, 0, 0.5, K, 4200, fN, -1) === null && kelvin(0, 1e5, 0, 0.5, K, 4200, fS, 1) === null) ? 1 : 0, expect: 1, rtol: 1e-12 },
+    { name: 'e-folding at y = Lambda', js: kelvin(0, Lam(cLong(4200), fN), 0, 0.5, K, 4200, fN, 1)[0] / 0.5, expect: Math.exp(-1), rtol: 1e-12 },
+    { name: 'u = sqrt(g/H) eta under the crest, N', js: wN.u / wN.eta, expect: Math.sqrt(G / 4200), rtol: 1e-12 },
+    { name: 'u = -sqrt(g/H) eta, S', js: wS.u / wS.eta, expect: -Math.sqrt(G / 4200), rtol: 1e-12 },
+    { name: 'channel picture, far wave = the turned Python wave (eta)', js: wF.eta, expect: kN[1][0], rtol: 1e-12 },
+    { name: 'channel picture, far wave (u)', js: wF.u, expect: kN[1][1], rtol: 1e-12 },
+    { name: 'both waves = near + far (eta)', js: wB.eta, expect: kN[0][0] + kN[1][0], rtol: 1e-12 },
+    { name: 'both waves: geostrophy still closes', js: (nB.f * wB.u + nB.g * wB.ey) / (nB.fa * nB.U0), expect: 0, atol: 1e-12 },
+    { name: 'rejected shape grows as exp(+y/Lambda)', js: Math.abs(nR.field(0, 2 * nR.Lam, 0).eta / nR.field(0, nR.Lam, 0).eta), expect: Math.E, rtol: 1e-12 },
+    { name: 'rejected shape still meets geostrophy', js: (nR.f * wR.u + nR.g * wR.ey) / (nR.fa * nR.U0), expect: 0, atol: 1e-12 }
+  ];
+}
+
+/* ---- the app -------------------------------------------------------------------------------------------------------- */
 const app = Viz.app({
-  title: 'How can one layer stand for a stratified ocean?',
-  subtitle: 'A mode shape, the stack of shallow-water layers it belongs to, and the mode travelling as a wave',
-  autoplay: true,
+  title: 'Why does this wave run only one way along a coast?',
+  subtitle: 'A Kelvin wave seen from above and in a cut across the shore, with the three equations it obeys as pairs of equal bars: turn the wave or the hemisphere round and the offshore profile grows instead of decaying',
   params: {
-    prof: { type: 'select', label: 'Stratification $N(z)$', options: [['uni', 'uniform N'], ['thermo', 'thermocline']], value: 'uni', display: 'chips' },
-    n:    { label: 'Mode number $n$', min: 0, max: 4, step: 1, value: 1, help: '0: barotropic, all levels together · 4: four zero crossings' },
-    zt:   { label: 'Thermocline depth', min: 100, max: 800, step: 10, value: 300, unit: 'm', help: '100: just under the surface · 800: a deep thermocline' },
-    wd:   { label: 'Thermocline thickness', min: 60, max: 400, step: 10, value: 150, unit: 'm', help: '60: a sharp step · 400: nearly smooth' },
-    lid:  { type: 'toggle', label: 'Rigid lid (no surface motion)', value: false },
-    zoom: { type: 'toggle', label: 'Zoom on the upper 1200 m', value: false, optional: true },
-    lat:  { label: 'Latitude $\\theta$', min: 5, max: 70, step: 1, value: 35, unit: '°', optional: true, help: '5: f small, a huge radius · 70: f near its maximum (only the radius uses it)' },
-    zc:   { label: 'Depth cursor $z$', min: -4200, max: 0, step: 10, value: -1000, unit: 'm', optional: true, help: '−4200: the bottom · 0: the surface' }
+    H: { label: 'Depth $H$', min: 100, max: 6000, step: 100, value: DEF.H, unit: 'm', help: '100 m: a shelf sea, slow and narrow · 6000 m: the abyss (surface mode only)' },
+    lat: { label: 'Latitude', min: 5, max: 80, step: 1, value: DEF.lat, fmt: v => v + '°', help: '5°: Λ is huge · 80°: Λ is smallest' },
+    hemi: { type: 'select', label: 'Hemisphere', options: [['N', 'N · f > 0'], ['S', 'S · f < 0']], value: DEF.hemi, display: 'chips' },
+    dir: { type: 'select', label: 'Direction of travel', options: [['pos', '→ toward +x'], ['neg', '← toward −x']], value: DEF.dir, display: 'chips' },
+    geo: { type: 'select', label: 'Geometry', options: [['coast', 'one coast'], ['channel', 'channel 2Λ'], ['both', 'channel, both waves']], value: DEF.geo, display: 'chips' },
+    lam: { label: R`Wavelength $\lambda/\Lambda$`, min: 0.3, max: 10, step: 0.01, value: DEF.lam, optional: true, fmt: v => Number(v).toFixed(2) + ' Λ', help: '0.3 Λ: a short, fast-beating wave · above 2π Λ the period exceeds the inertial period' },
+    xc: { label: R`cursor $x/\lambda$`, min: 0, max: NW, step: 'any', value: DEF.xc, optional: true, fmt: v => Number(v).toFixed(2) + ' λ' },
+    yc: { label: R`cursor $y/\Lambda$`, min: 0, max: 4, step: 'any', value: DEF.yc, optional: true, fmt: v => Number(v).toFixed(2) + ' Λ' }
   },
-  transport: { param: 't', min: 0, max: 2, rate: 0.22, end: 'loop', unit: 'periods', label: 'time' },
+  transport: { param: 't', label: 'time $t/T$', min: 0, max: 2, rate: 0.2, end: 'loop', unit: 'periods', step: 0.05 },
+  modes: { param: 'mode', label: 'Wave', options: [['external', 'surface wave (depth H)'], ['internal', 'internal, on the thermocline']] },
   presets: [
-    { label: 'uniform N', set: { prof: 'uni', zoom: false }, title: 'exact cosines: c_n = NH/(nπ)' },
-    { label: 'sharp shallow thermocline', set: { prof: 'thermo', zt: 150, wd: 80, zoom: true }, title: 'a thin thermocline 150 m down' },
-    { label: 'deep broad thermocline', set: { prof: 'thermo', zt: 600, wd: 300, zoom: true }, title: 'a thick thermocline 600 m down' },
-    { label: 'rigid lid', set: { lid: true, n: 1 }, title: 'no surface motion: the barotropic mode disappears' },
-    { label: 'barotropic', set: { lid: false, n: 0 }, title: 'mode 0: all levels together' }
+    { label: 'deep-ocean tide', set: st8(), title: 'surface wave, H = 4200 m, 35° N (our values)' },
+    { label: 'thermocline', set: st8({ mode: 'internal' }), title: 'internal wave on a 120 m upper layer: a hundred times slower and narrower' },
+    { label: '35° S', set: st8({ hemi: 'S', dir: 'neg' }), title: 'southern hemisphere: the trapped wave travels the other way, coast on its left' },
+    { label: 'wrong way', set: st8({ dir: 'neg' }), title: 'northern hemisphere, travel toward −x: the profile would grow offshore' },
+    { label: 'channel', set: st8({ geo: 'both' }), title: 'two walls 2Λ apart, one wave on each: the tide turns about points of no rise' },
+    { label: 'slower than inertial', set: st8({ lam: 9 }), title: 'λ = 9 Λ: the period is longer than the inertial period' }
   ],
-  status: s => {
-    const q = sel(s), m = q.m, ph = isPhone();
-    if (!m) return { text: ph ? 'the lid removes mode 0 (c → ∞): pick n ≥ 1' : 'the rigid lid removes the barotropic mode (c → ∞): pick n ≥ 1', tone: 'warn' };
-    if (q.n === 0) return { text: 'barotropic: c = ' + f3(m.c) + ' m/s ≈ √(gH)' + (ph ? '' : ' · Hₑ = ' + heTxt(m.He) + ' · Λ = ' + kmTxt(q.Lam)), tone: 'info' };
-    return { text: 'mode ' + q.n + ': c = ' + f3(m.c) + ' m/s · Hₑ = ' + heTxt(m.He) + ' · Λ = ' + kmTxt(q.Lam) + (ph ? '' : ' at ' + s.lat + '°' + (q.lid ? ' · rigid lid' : '')), tone: 'good' };
-  },
+  status: s => statusOf(s),
   readouts: [
-    { id: 'c', label: 'Speed $c_n$', value: s => sel(s).c, fmt: v => (isFinite(v) ? f4(v) + ' m/s' : '∞ (removed)') },
-    { id: 'He', label: 'Equivalent depth $H_e$', value: s => sel(s).He, fmt: v => (isFinite(v) ? heTxt(v) : '∞ (removed)') },
-    { id: 'Lam', label: 'Rossby radius $\\Lambda_n$', value: s => sel(s).Lam, fmt: v => (isFinite(v) ? kmTxt(v) : '∞ (removed)') },
-    { id: 'zeros', label: 'Zero crossings', value: s => { const q = sel(s); return q.m ? q.m.zeros.length : 0; }, fmt: (v, s) => (sel(s).m ? String(v) : '0 (ψ₀ = 1)') },
-    { id: 'wkb', label: 'Quick estimate ◇', value: s => sel(s).wkb, fmt: (v, s) => (sel(s).m ? f3(v) + ' m/s' : '— (no mode 0)'), optional: true }
+    { id: 'c', label: 'Speed $c$', value: s => N(s).c, fmt: v => f3(v) + ' m/s' },
+    { id: 'Lam', label: R`Rossby radius $\Lambda$`, value: s => N(s).Lam, fmt: v => km(v) },
+    { id: 'T', label: 'Period', value: s => N(s).T, fmt: (v, s) => fT(v) + (N(s || DEF).sub ? ' (> inertial)' : '') },
+    { id: 'U0', label: 'Current at the coast', value: s => N(s).U0, fmt: v => f3(v) + ' m/s' },
+    { id: 'bal', label: R`$fu=-g\,\partial\eta/\partial y$`, value: s => at(s).fu, fmt: (v, s) => sgn3(v) + ' = ' + sgn3(at(s || DEF).pg) + ' m/s²' }
   ],
   stage: {
-    animate: true,
-    rows: [1.25, 1],
+    rows: [1.3, 1],
     views: [
-      { id: 'shape', row: 0, flex: 1.2, title: s => {
-        const q = sel(s), nm = modeShort(q.n);
-        if (isPhone() || window.innerWidth < 1000) return `<b>${nm}</b> · <b class="c-accent">ψ</b> · <b class="c-teal">∫ψ dz</b> · <b class="c-blue">N</b>`;
-        const ov = ' · ∫ψ₁ψ₂ dz = ' + ovTxt(overlap(q.ms[1], q.ms[2]));
-        return `<b>N(z) and ${q.n === 0 ? 'the barotropic mode' : nm}</b> · <b class="c-accent">ψₙ</b> · <b class="c-teal">∫ψₙ dz</b> · <b class="c-blue">N</b>` + (window.innerWidth >= 1500 ? ' · ○ zero crossings' : '') + (window.innerWidth >= 1250 ? ov : '');
-      } },
-      { id: 'stack', row: 0, flex: 0.9, title: s => {
-        const q = sel(s), m = q.m;
-        if (isPhone() || window.innerWidth < 1000) return m ? `<b>${f3(m.c)} m/s</b> · Hₑ ${heTxt(m.He)} · Λ ${kmTxt(q.Lam)}` : '<b>no mode 0</b> under a lid';
-        return '<b>The stack</b> · one shallow-water layer per mode' + (window.innerWidth >= 1500 ? ' · ◇ quick estimate' : '');
-      } },
-      { id: 'wave', row: 1, flex: 1, hidePortrait: true, title: s => {
-        const q = sel(s), m = q.m;
-        if (!m) return '<b>The selected mode as a wave</b> · none under the lid';
-        return `<b>${q.n === 0 ? 'The barotropic mode' : 'Mode ' + q.n} as a wave</b> · one ${LWAVE / 1e3} km wavelength every ${Viz.fmtTime(LWAVE / m.c)} · <b class="c-blue">density surfaces</b> (top: the sea surface) · <b class="c-accent">arrows</b> = horizontal flow`;
-      } }
+      { id: 'plan', row: 0, flex: 1.4, title: s => { const n = N(s); return roomy() ? (n.internal ? '<b>Upper-layer thickness from above</b> · <b class="c-orange">thicker</b>, <b class="c-blue">thinner</b>' : '<b>Surface height from above</b> · <b class="c-orange">raised</b>, <b class="c-blue">lowered</b>') + ', <b class="c-teal">current</b> · c = ' + f3(n.c) + ' m/s' : '<b>From above</b> · c = ' + f3(n.c) + ' m/s'; } },
+      { id: 'sect', row: 0, flex: 1, title: s => { const n = N(s); return roomy() ? '<b>Across the shore</b> · Λ = ' + km(n.Lam) + (window.innerWidth >= 1600 ? ' · <b class="c-teal">Coriolis</b> against <b class="c-orange">slope</b>' : '') : (layout() === 'wide' ? '<b>Offshore</b> · Λ = ' + km(n.Lam) : 'Λ = ' + km(n.Lam)); } },
+      { id: 'bal', row: 1, flex: 1, hidePortrait: true, title: () => (roomy() ? '<b>The three equations at the cursor</b> · each pair of bars is equal · right: ω against k' : '<b>The three equations at the cursor</b> · each pair is equal') }
     ],
-    setup(g, s) { markMode(s, g.app); },
-    draw(g, s) {
-      drawShape(g.view('shape'), s);
-      drawStack(g.view('stack'), s);
-      drawWave(g.view('wave'), s);
-    },
+    draw(g, s) { const n = N(s); drawPlan(g.view('plan'), s, n); drawSect(g.view('sect'), s, n); drawBal(g.view('bal'), s, n); },
     onPointer(g, ev, s) {
-      const v = ev.vizView, id = ev.viewId;
-      if (!v) return false;
-      if (id === 'stack') {
-        if (ev.type !== 'pointerdown' || !LAST.stack) return false;
-        const k = Math.floor((v.pointer.y - LAST.stack.top) / LAST.stack.rh);
-        if (k < 0 || k > NMAX) return false;
-        g.app.set({ n: k }); return true;
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      const p = v.pointer;
+      if (!(ev.type === 'pointerdown' || (ev.type === 'pointermove' && p.down))) return false;
+      const n = N(s);
+      if (ev.viewId === 'plan' && PLAN) {
+        g.app.set({ xc: Viz.clamp(PLAN.P.ix(p.x) * PLAN.ux.div / n.lambda, 0, NW), yc: Viz.clamp(PLAN.P.iy(p.y) * PLAN.uy.div / n.Lam, 0, n.ymax / n.Lam) }); return true;
       }
-      const P = LAST[id];
-      if (!P || (id !== 'shape' && id !== 'wave')) return false;
-      if (ev.type === 'pointerdown') DRAG = id === 'shape' && LAST.handle && Math.hypot(v.pointer.x - LAST.handle.x, v.pointer.y - LAST.handle.y) < 22 ? 'zt' : 'zc';
-      if (!(ev.type === 'pointerdown' || (ev.type === 'pointermove' && v.pointer.down))) return false;
-      const z = clampv(P.iy(v.pointer.y), P.ylim[0], 0);
-      if (DRAG === 'zt') g.app.set({ zt: clampv(Math.round(-z / 10) * 10, 100, 800) });
-      else g.app.set({ zc: Math.round(z / 10) * 10 });
-      return true;
+      if (ev.viewId === 'sect' && SECT) { g.app.set({ yc: Viz.clamp(SECT.P.ix(p.x) * SECT.uy.div / n.Lam, 0, n.ymax / n.Lam) }); return true; }
+      if (ev.viewId === 'bal' && DISP && p.x >= DISP.x0) { g.app.set({ lam: Viz.clamp(2 * PI / Math.max(DISP.P.ix(p.x), 1e-6), 0.3, 10) }); return true; }
+      return false;
     }
   },
-  onChange(s, key, app) { if (key === 'prof') markMode(s, app); },
-  explore: {
-    intro: 'Click a bar to pick a mode; click the shape view to move the depth cursor; with the thermocline on, drag its blue handle. Then try the lid.',
-    controls: ['prof', 'n', 'zt', 'wd', 'lid', 'zoom', 'lat', 'zc'],
-    readouts: ['c', 'He', 'Lam', 'zeros', 'wkb'],
-    callouts: [
-      { kind: 'try', html: 'Switch to the thermocline and drag it from 150 m down to 600 m. Predict first: does mode 1 speed up or slow down?' },
-      { kind: 'watch', html: 'Toggle the lid: only the <b>barotropic</b> row changes. The other bars move by less than their own thickness.' }
-    ]
+  terms: {
+    title: 'Across the shore, at the cursor (per unit mass)', unit: 'µm/s²',
+    items: [
+      { id: 'cor', label: R`Coriolis: $fu$`, color: '#0fa39c', value: s => at(s).fu * 1e6 },
+      { id: 'slope', label: R`slope: $g\,\partial\eta/\partial y$`, color: '#f97316', value: s => -at(s).pg * 1e6 }
+    ],
+    total: { label: R`sum $=-\partial v/\partial t$`, value: s => { const F = at(s), r = (F.fu - F.pg) * 1e6; return Math.abs(r) < 1e-9 * (Math.abs(F.fu) * 1e6 + 1e-30) ? 0 : r; } }
   },
   inspect: s => inspectHtml(s),
-  inspectHint: 'Click the shape view to trace the two terms of the mode equation at that depth.',
-  notes: s => '<p>' + reading(s) + '</p>',
-  explain: {
-    html: s => explainHtml(s),
-    live: s => { const q = sel(s); return { t: (s.t || 0).toFixed(2), el: q.m ? Viz.fmtTime((s.t || 0) * LWAVE / q.m.c) : '—' }; }
+  inspectHint: 'Click the plan view or the section to move the cursor.',
+  notes: s => '<p>' + readingText(s) + '</p>',
+  explore: {
+    intro: 'Press ▶ to let the wave run. Click the plan view to move the cursor; the section and the bars follow it.',
+    controls: ['dir', 'hemi', 'geo', 'H', 'lat', 'lam'],
+    readouts: ['c', 'Lam', 'T', 'U0', 'bal'],
+    callouts: [{ kind: 'try', html: R`Flip the hemisphere and leave the direction alone: the wave is rejected. Then choose “channel 2Λ”: the rejected shape turns out to be the wave of the opposite wall.` }]
   },
-  derivations: [
-    { id: 'D11', title: 'Why a stratified layer splits into shallow-water modes', short: 'Normal modes', ref: 'Eq. (13.56)',
-      goal: 'Show that a continuously stratified, hydrostatic layer splits into independent modes, each with a fixed vertical shape and each obeying the shallow-water equations with its own speed.',
-      start: { tex: TX`\begin{aligned}&\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}+\frac{\partial w}{\partial z}=0\\ &\frac{\partial u}{\partial t}-fv=-\frac1{\rho_0}\frac{\partial p}{\partial x}\\ &\frac{\partial v}{\partial t}+fu=-\frac1{\rho_0}\frac{\partial p}{\partial y}\\ &0=-\frac{\partial p}{\partial z}-g\rho\\ &\frac{\partial\rho}{\partial t}-\frac{\rho_0N^2}{g}w=0\end{aligned}`,
-        plain: TX`Mass, $\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}+\frac{\partial w}{\partial z}=0$ (13.47); two momentum balances, $\frac{\partial u}{\partial t}-fv=-\frac1{\rho_0}\frac{\partial p}{\partial x}$ (13.48) and $\frac{\partial v}{\partial t}+fu=-\frac1{\rho_0}\frac{\partial p}{\partial y}$ (13.49); hydrostatics, $0=-\frac{\partial p}{\partial z}-g\rho$ (13.50); and density carried up and down, $\frac{\partial\rho}{\partial t}-\frac{\rho_0N^2}{g}w=0$ (13.51). Here $p$ and $\rho$ are perturbations.` },
-      plan: ['Give $u$, $v$ and $p$ one common vertical shape.', 'Let continuity and hydrostatics fix the shapes of $w$ and $\\rho$.', 'Separate the density equation into a $z$-part and an $(x, y, t)$-part.', 'Read off the vertical eigenproblem and the horizontal equations.', 'Prove orthogonality (weight 1, for a rigid lid and for a free surface).'],
-      uses: ['separation of variables', 'Sturm–Liouville problems', 'integration by parts', 'assumed: linear; hydrostatic (frequencies far below $N$); flat bottom at $z=-H$; no mean shear; $N=N(z)$ only'],
-      view: 'shape',
-      set: { prof: 'uni', n: 1, lid: false, zoom: false, zc: -1000 },
-      steps: [
-        { did: 'Give u, v and p one vertical shape', tex: TX`[u,v,p/\rho_0]=\sum_{n=0}^{\infty}[u_n,v_n,p_n]\,\psi_n(z)\quad(13.52)`,
-          why: 'The two momentum equations contain no z-derivative, so if p has the shape ψ_n(z), so must u and v; the amplitudes depend on x, y, t only.',
-          plain: 'In each mode the horizontal flow and the pressure rise and fall together with depth.' },
-        { did: 'Find the shape of w from continuity', tex: TX`\begin{aligned}w&=\sum_{n=0}^{\infty}w_n\int_{-H}^{z}\psi_n\,dz\quad(13.53)\\ w_n&=-\Big(\frac{\partial u_n}{\partial x}+\frac{\partial v_n}{\partial y}\Big)\end{aligned}`,
-          why: 'Continuity gives ∂w/∂z = −(∂u/∂x + ∂v/∂y); integrate upward from the flat bottom, where w = 0.',
-          plain: 'The vertical velocity’s shape is the running integral of the horizontal one’s.',
-          watch: 'Teal is the running integral of purple: it is largest where purple crosses zero.' },
-        { did: 'Find the shape of ρ from hydrostatics', tex: TX`\begin{aligned}\rho&=\sum_{n=0}^{\infty}\rho_n\frac{d\psi_n}{dz}\quad(13.54)\\ \rho_n&=-\frac{\rho_0}{g}\,p_n\end{aligned}`,
-          why: 'Hydrostatic balance gives ρ = −(1/g) ∂p/∂z; differentiate the pressure of step 1 in z.',
-          plain: 'The density’s shape is the slope of the pressure’s shape.' },
-        { did: 'Substitute into the density equation', tex: TX`\sum_{n=0}^{\infty}\Big[\frac{\partial\rho_n}{\partial t}\frac{d\psi_n}{dz}-\frac{\rho_0N^2}{g}\,w_n\!\int_{-H}^{z}\!\psi_n\,dz\Big]=0`,
-          why: 'Insert steps 2 and 3 into the fifth starting equation; it is the only one not yet used.',
-          plain: 'One condition is left to tie everything together.' },
-        { did: 'Separate the variables', tex: TX`\frac{d\psi_n/dz}{N^2\int_{-H}^{z}\psi_n\,dz}=\frac{\rho_0}{g}\frac{w_n}{\partial\rho_n/\partial t}\equiv-\frac1{c_n^2}\quad(13.55)`,
-          why: 'For independent modes each bracket vanishes; dividing puts everything that depends on z on the left and on (x, y, t) on the right, so both equal a constant.',
-          plain: 'The constant, named $-1/c_n^2$, will turn out to be a speed.',
-          live: s => {
-            const pb = probe(s);
-            if (pb.none) return TX`\text{no barotropic mode under the lid: pick } n\ge1`;
-            if (Math.abs(pb.W) < 1e-3 * pb.q.m.wmax) return TX`\text{both sides vanish at this depth: move the cursor}`;
-            return TX`\begin{aligned}\frac{\psi_n'/N^2}{\int\psi_n\,dz}&=\frac{${tn(pb.P)}}{${tn(pb.W)}}=${tn(pb.P / pb.W, 4)}\\ -\frac1{c_n^2}&=-\frac1{${tb(pb.q.m.c, 4)}^{2}}=${tn(-pb.q.m.lam, 4)}\ \mathrm{s^{2}/m^{2}}\end{aligned}`;
-          } },
-        { did: 'Differentiate the z-part', tex: TX`\frac{d}{dz}\Big(\frac1{N^2}\frac{d\psi_n}{dz}\Big)+\frac1{c_n^2}\psi_n=0\quad(13.56)`,
-          why: 'The z-side of step 5 reads (1/N²) ψ′ = −(1/c²) ∫ψ dz; one z-derivative removes the integral.',
-          plain: 'An eigenvalue problem: only special values of $c_n$ allow a shape that fits top and bottom.',
-          set: { n: 2 }, highlight: ['readout:c'] },
-        { did: 'Read the (x, y, t)-part', tex: TX`w_n=-\frac{g}{\rho_0c_n^2}\frac{\partial\rho_n}{\partial t}=\frac1{c_n^2}\frac{\partial p_n}{\partial t}\quad(13.61)`,
-          why: 'This is the other side of step 5; then use ρ_n = −ρ₀ p_n/g from step 3 to replace the density by the pressure.',
-          plain: 'The mode’s vertical velocity follows the rate of change of its pressure.' },
-        { did: 'Combine with step 2', tex: TX`\frac{\partial u_n}{\partial x}+\frac{\partial v_n}{\partial y}+\frac1{c_n^2}\frac{\partial p_n}{\partial t}=0\quad(13.57)`,
-          why: 'Step 2 says w_n = −(∂u_n/∂x + ∂v_n/∂y); set it equal to step 7.',
-          plain: 'A continuity equation for the mode, with $p_n$ in the role of surface height.' },
-        { did: 'Substitute the shapes into the momentum equations', tex: TX`\begin{aligned}\frac{\partial u_n}{\partial t}-fv_n&=-\frac{\partial p_n}{\partial x}\quad(13.58)\\ \frac{\partial v_n}{\partial t}+fu_n&=-\frac{\partial p_n}{\partial y}\quad(13.59)\end{aligned}`,
-          why: 'Every term carries the same ψ_n(z); for independent modes the coefficient of each ψ_n must vanish.',
-          plain: 'Each mode has its own pair of momentum equations.' },
-        { did: 'Compare with shallow water', tex: TX`\begin{aligned}p_n&\leftrightarrow g\eta,\qquad c_n^2\leftrightarrow gH\\ c_n^2&\equiv gH_e\quad(13.62)\end{aligned}`,
-          why: 'With these two replacements steps 8 and 9 are exactly the three equations of one shallow homogeneous layer.',
-          plain: 'Each mode is a shallow-water layer of “equivalent depth” $H_e$.',
-          set: { n: 1 }, highlight: ['readout:He'],
-          live: s => { const q = sel(s); return q.m ? TX`H_e=\frac{c_${q.n}^2}{g}=\frac{${tb(q.m.c, 4)}^{2}}{${tn(G0, 4)}}=${tn(q.m.He)}\ \mathrm{m}` : TX`\text{no barotropic mode under the lid: pick } n\ge1`; } },
-        { did: 'Write the structure equation for two modes and cross-multiply', tex: TX`\begin{aligned}&\psi_n\Big(\frac{\psi_m'}{N^2}\Big)'-\psi_m\Big(\frac{\psi_n'}{N^2}\Big)'\\ &\quad+\Big(\frac1{c_m^2}-\frac1{c_n^2}\Big)\psi_m\psi_n=0\end{aligned}`,
-          why: 'Multiply the equation of mode m by ψ_n and that of mode n by ψ_m, then subtract (a prime is d/dz); the aim is to isolate the product ψ_m ψ_n.',
-          plain: 'A relation between any two modes.' },
-        { did: 'Integrate over the depth by parts', tex: TX`\begin{aligned}&\Big[\frac{\psi_n\psi_m'-\psi_m\psi_n'}{N^2}\Big]_{-H}^{0}\\ &\quad+\Big(\frac1{c_m^2}-\frac1{c_n^2}\Big)\int_{-H}^{0}\psi_m\psi_n\,dz=0\end{aligned}`,
-          why: 'The first two terms are the derivative of the bracket (the cross terms ψ_n′ψ_m′/N² cancel), so their integral is its end values.',
-          plain: 'Everything reduces to values at the top and the bottom.' },
-        { did: 'Use the boundary conditions', tex: TX`\int_{-H}^{0}\psi_m\psi_n\,dz=0\qquad(m\neq n,\ \text{either lid})`,
-          why: 'At the bottom ψ′ = 0. At the top either ψ′ = 0 (lid) or ψ′ = −(N²/g)ψ for both modes (free surface), so the bracket cancels; with c_m ≠ c_n the integral vanishes.',
-          plain: 'Different modes are orthogonal, with weight 1, lid or no lid.',
-          watch: 'Toggle the rigid lid in Explore: the overlap of modes 1 and 2 below stays zero.',
-          live: s => { const ms = modesFor(s); return TX`\frac{\int\psi_1\psi_2\,dz}{\sqrt{\int\psi_1^2\,dz\int\psi_2^2\,dz}}=${ovTxt(overlap(ms[1], ms[2]))}\quad\text{(${s.lid ? 'rigid lid' : 'free surface'})}`; } }
-      ],
-      result: { tex: TX`\begin{aligned}&\frac{d}{dz}\Big(\frac1{N^2}\frac{d\psi_n}{dz}\Big)+\frac1{c_n^2}\psi_n=0,\quad c_n^2\equiv gH_e\\ &\frac{\partial u_n}{\partial x}+\frac{\partial v_n}{\partial y}+\frac1{c_n^2}\frac{\partial p_n}{\partial t}=0\\ &\frac{\partial u_n}{\partial t}-fv_n=-\frac{\partial p_n}{\partial x}\\ &\frac{\partial v_n}{\partial t}+fu_n=-\frac{\partial p_n}{\partial y}\end{aligned}`,
-        plain: TX`The structure equation $\frac{d}{dz}\big(\frac1{N^2}\frac{d\psi_n}{dz}\big)+\frac1{c_n^2}\psi_n=0$ (13.56) with $c_n^2\equiv gH_e$ (13.62) sets the shapes and speeds; for each $n$ the three lines below it, $\frac{\partial u_n}{\partial x}+\frac{\partial v_n}{\partial y}+\frac1{c_n^2}\frac{\partial p_n}{\partial t}=0$ (13.57) and the momentum pair (13.58), (13.59) printed above, are one shallow-water system. A stratified layer is a stack of shallow-water systems.` },
-      interpret: s => {
-        const q = sel(s), m = q.m;
-        if (!m) return 'With the lid on there is no barotropic member of the stack; every other mode is still its own shallow-water system. Pick n ≥ 1.';
-        return `With your settings the ${modeName(q.n)} is a shallow-water layer ${heTxt(m.He)} deep moving at ${f3(m.c)} m/s, with a Rossby radius of ${kmTxt(q.Lam)} at ${s.lat}°. Every wave result for one shallow layer — Poincaré, Kelvin and Rossby waves — holds for each mode with its own speed; mode 1 sets the internal Rossby radius and the speed of thermocline signals. The split fails when the bottom is not flat or the mean current is sheared (the modes then couple), and when the motion is not hydrostatic.`;
-      },
-      check: TX`Units: $\psi_n$ is dimensionless, so $\frac1{N^2}\psi_n''$ and $\psi_n/c_n^2$ are both in s²/m². Known case: uniform $N$ under a lid gives $\psi_n=\cos(n\pi z/H)$ and $c_n=\frac{NH}{n\pi}$ (13.71), ${Viz.fmt(cRigid(N_UNI, HOC, 1), { sig: 4 })} m/s for $H=${HOC}$ m and $N=${tn(N_UNI)}\ \mathrm{s^{-1}}$ (ours). Free surface: the bracket of step 12 also vanishes at $z=0$, because $\frac{d\psi_n}{dz}+\frac{N^2}{g}\psi_n=0$ (13.65) holds for both modes — so the weight is 1 for both lids; the surface term $\psi_m(0)\psi_n(0)/g$ belongs to the energy relation only. Numbers: the overlap of modes 1 and 2 on the default thermocline is ${ovTxt(overlap(T[1], T[2]))}; the selftest rows compare the speeds with fluidpy.` }
-  ],
-  code: [
-    { id: 'vm', title: 'All modes at once (matrix route)', ref: 'Eq. (13.56)',
-      src: `import numpy as np
-from fluidpy import ch13_geophysical_fluid_dynamics as ch13
-
-z = np.linspace(-4200.0, 0.0, 401)   # nodes [m], bottom first
-N2 = {{n2}}
-modes = ch13.vertical_modes(   # structure equation + BCs
-    z, N2, n_modes=5, lid="{{lid}}")
-c = modes[0][{{idx}}]   # {{name}}: {{cfd}} m/s
-He = ch13.equivalent_depth(c)   # c^2/g = {{Hefd}} m
-f = ch13.coriolis_parameter(np.deg2rad({{lat}}))
-Lam = ch13.rossby_radius(c, f)   # {{Lamfd}} km
-G = ch13.orthogonality_matrix(modes)   # weight 1, either lid
-print(np.abs(G - np.eye(5)).max())   # of order 1e-16`,
-      live: s => {
-        const lid = lidOf(s), n = s.lid ? Math.max(1, Math.round(s.n)) : Math.round(s.n), c = fdSpeeds(profOf(s), lid)[n];
-        return { n2: pyN2(s), lid, idx: s.lid ? n - 1 : n, name: modeName(n) + (s.lid ? ' (no mode 0)' : ''), cfd: c.toFixed(5), Hefd: He(c).toPrecision(5), lat: s.lat.toFixed(1), Lamfd: (Lam(c, fCor(s.lat)) / 1e3).toPrecision(5) };
-      } },
-    { id: 'sh', title: 'One mode by shooting (this page’s method)', ref: 'Eq. (13.56)',
-      src: `N2f = {{fn}}
-cs, psi = ch13.vertical_modes_shooting(   # RK4 from the bottom
-    z, N2f, n={{sn}}, lid="{{slid}}")   # cs = {{sc}} m/s
-Hes = ch13.equivalent_depth(cs)   # {{sHe}} m
-Lams = ch13.rossby_radius(cs, f)   # {{sLam}} km
-est = ch13.wkb_mode_speed(   # quick estimate (ours)
-    z, np.sqrt(N2), {{swn}})   # {{swkb}} m/s
-print(psi[{{sj}}])   # psi at z = {{sz}} m: {{spsi}}`,
-      live: s => {
-        const lid = lidOf(s), n = s.lid ? Math.max(1, Math.round(s.n)) : Math.round(s.n), p = profOf(s), m = modesOf(p, lid)[n], j = clampv(Math.round((s.zc + HOC) / DZ), 1, NZ - 2);
-        return { fn: pyFn(s), sn: n, slid: lid, sc: m.c.toFixed(5), sHe: m.He.toPrecision(5), sLam: (Lam(m.c, fCor(s.lat)) / 1e3).toPrecision(5), swn: Math.max(1, n), swkb: cWKB(profile(p), Math.max(1, n)).toFixed(4), sj: j, sz: ZN[j].toFixed(1), spsi: m.psi[j].toFixed(5) };
-      } }
-  ],
-  tour: [
-    { title: 'One layer?', text: 'The ocean’s density changes all the way down. <b>Can a single layer describe it?</b> Step the mode number and watch.',
-      set: Object.assign({}, BASE), controls: ['n'] },
-    { title: 'Shapes', text: 'Each mode has a fixed vertical shape: <b class="c-accent">purple</b> for the horizontal flow and the pressure, <b class="c-teal">teal</b> (its running integral) for the vertical motion. Mode $n$ crosses zero $n$ times — count the circles.',
-      set: Object.assign({}, BASE, { n: 2 }), readouts: ['zeros'] },
-    { title: 'An eigenvalue problem', text: TX`Shape and speed come together: $\frac{d}{dz}\big(\frac1{N^2}\frac{d\psi_n}{dz}\big)+\frac{\psi_n}{c_n^2}=0$ (13.56) fits both the bottom and the surface only for special speeds $c_n$.`,
-      set: Object.assign({}, BASE, { n: 2 }), eq: isPhone() ? undefined : 'sl', derive: { id: 'D11', step: 6 } },
-    { title: 'A metre deep', text: TX`Mode 1 travels at ${f3(U[1].c)} m/s — exactly like a one-density layer only ${heTxt(U[1].He)} deep, because $c_n^2\equiv gH_e$ (13.62). The barotropic mode needs all ${HOC} m.`,
-      set: Object.assign({}, BASE), play: false, readouts: ['c', 'He'], eq: 'he' },
-    { title: 'A stack of layers', text: 'So the stratified ocean is a <b>stack of shallow-water systems</b>, one bar per mode, each with its own speed. Click a bar, then watch that mode travel below: surface against deep ocean.',
-      set: Object.assign({}, BASE), play: true, eq: 'sw' },
-    { title: 'The thermocline decides', text: `Real oceans keep their stratification in a thin thermocline. Mode 1 now changes sign there and slows to ${f3(T[1].c)} m/s. Deepen the thermocline: the mode speeds up.`,
-      set: Object.assign({}, BASE, { prof: 'thermo', zoom: true }), play: false, controls: ['zt'], code: { id: 'vm', lines: [5, 7] } },
-    { title: 'Your turn', text: 'Predict what a rigid lid does to modes 0 and 1. Then toggle it, and click the bars.',
-      set: Object.assign({}, BASE, { prof: 'thermo', zoom: true }), controls: ['lid', 'n'], notes: true }
-  ],
-  equations: [
-    { id: 'sl', title: 'Vertical structure', ref: 'Eq. (13.56)', tex: TX`\frac{d}{dz}\Big(\frac1{N^2}\frac{d\psi_n}{dz}\Big)+\frac1{c_n^2}\psi_n=0`,
-      live: s => { const pb = probe(s); return pb.none ? TX`\text{no barotropic mode under the lid}` : TX`${tb(pb.t1, 5)}+${tb(pb.t2, 5)}\approx0`; },
-      note: 'An eigenvalue problem: only special speeds $c_n$ give a shape that fits both boundaries. The live line is the two terms at the depth cursor, in s²/m².',
-      symbols: [['\\psi_n', 'vertical shape of $u$, $v$ and $p$ in mode $n$ (1 at the surface)', '—'], ['N', 'buoyancy frequency', '1/s'], ['c_n', 'long-wave speed of mode $n$', 'm/s'], ['z', 'height, 0 at the surface, $-H$ at the bottom', 'm']] },
-    { id: 'bc', title: 'Bottom and surface', ref: 'Eqs. (13.64), (13.65)', tex: TX`\begin{aligned}\frac{d\psi_n}{dz}&=0\quad\text{at}\ z=-H\\ \frac{d\psi_n}{dz}+\frac{N^2}{g}\psi_n&=0\quad\text{at}\ z=0\end{aligned}`,
-      live: s => { const q = sel(s), m = q.m; if (!m) return TX`\text{no barotropic mode under the lid}`; const d = q.pr.N2n[NZ - 1] * m.P[NZ - 1]; return TX`\begin{aligned}\frac{d\psi_n}{dz}\Big|_0&=${tn(d)}\ \mathrm{m^{-1}}\\ \frac{N^2}{g}\psi_n(0)&=${tn(q.pr.N2n[NZ - 1] / G0)}\ \mathrm{m^{-1}}\end{aligned}`; },
-      note: 'No flow through the flat bottom; at the free surface the pressure is the weight of the raised water. A rigid lid replaces the second line by $d\\psi_n/dz=0$ at $z=0$.',
-      symbols: [['H', 'depth of the layer', 'm'], ['g', 'gravity', 'm/s²']] },
-    { id: 'he', title: 'Equivalent depth', ref: 'Eq. (13.62)', tex: TX`c_n^2\equiv gH_e`,
-      live: s => { const q = sel(s); return q.m ? TX`H_e=\frac{${tb(q.m.c, 4)}^{2}}{${tn(G0, 4)}}=${tn(q.m.He)}\ \mathrm{m}` : TX`\text{no barotropic mode under the lid}`; },
-      note: 'The depth of the homogeneous layer whose long waves travel at the speed of mode $n$.',
-      symbols: [['H_e', 'equivalent depth', 'm']] },
-    { id: 'sw', title: 'One shallow-water system per mode', ref: 'Eqs. (13.57), (13.58), (13.59)', tex: TX`\begin{aligned}\frac{\partial u_n}{\partial x}+\frac{\partial v_n}{\partial y}+\frac1{c_n^2}\frac{\partial p_n}{\partial t}&=0\\ \frac{\partial u_n}{\partial t}-fv_n&=-\frac{\partial p_n}{\partial x}\\ \frac{\partial v_n}{\partial t}+fu_n&=-\frac{\partial p_n}{\partial y}\end{aligned}`,
-      note: 'Identical to the equations of one homogeneous layer when $p_n$ is read as $g\\eta$ and $c_n^2$ as $gH$.',
-      symbols: [['u_n, v_n', 'modal velocity amplitudes, functions of $x$, $y$, $t$', 'm/s'], ['p_n', 'modal amplitude of $p/\\rho_0$', 'm²/s²'], ['f', 'Coriolis parameter', '1/s']] },
-    { id: 'tan', title: 'Uniform N: the roots', ref: 'Eq. (13.69)', tex: TX`\tan\frac{NH}{c_n}=\frac{c_nN}{g}`,
-      live: s => { const n = Math.round(s.n), X = uniformRoot(N_UNI, HOC, n), c = N_UNI * HOC / X; return TX`\begin{aligned}\tan(${tn(X, 6)})&=${tn(Math.tan(X))}\\ \frac{${tb(c, 4)}\times${tb(N_UNI)}}{${tn(G0, 4)}}&=${tn(c * N_UNI / G0)}\end{aligned}`; },
-      note: 'For uniform $N = 2.7\\times10^{-3}\\ \\mathrm{s^{-1}}$ and $H = 4200$ m (ours); the live line is root $n$ of your mode number, with a free surface.',
-      symbols: [['N', 'uniform buoyancy frequency', '1/s']] },
-    { id: 'c0', title: 'Barotropic speed', ref: 'Eq. (13.70)', tex: TX`c_0=\sqrt{gH}`,
-      live: () => TX`\sqrt{${tn(G0, 4)}\times${HOC}}=${tn(Math.sqrt(G0 * HOC), 5)}\ \mathrm{m/s}`,
-      note: 'The first root, where both sides of the tangent relation are small. The exact uniform-N value is ' + Viz.fmt(cUniform(N_UNI, HOC, 0), { sig: 6 }) + ' m/s.' },
-    { id: 'cn', title: 'Baroclinic speeds', ref: 'Eq. (13.71)', tex: TX`c_n=\frac{NH}{n\pi},\qquad n=1,2,3,\ldots`,
-      live: s => { const n = Math.max(1, Math.round(s.n)); return TX`c_${n}=\frac{${tb(N_UNI)}\times${HOC}}{${n}\pi}=${tn(cRigid(N_UNI, HOC, n), 5)}\ \mathrm{m/s}`; },
-      note: 'Uniform $N$ under a rigid lid; with a free surface the speeds are a few parts in 10⁴ lower.' }
-  ],
-  check: [
-    { q: 'How many times does mode 3 cross zero, and how many levels of no horizontal motion does it have?', a: 'Three and three: every zero crossing of the purple shape is a level where the horizontal velocity of that mode vanishes. Mode $n$ always has $n$ of them.', set: Object.assign({}, BASE, { n: 3 }) },
-    { q: 'With a thermocline 150 m thick, move it from 150 m down to 600 m. What happens to the speed of mode 1?', a: `It doubles, ${f3(modesOf({ uni: false, zt: 150, wd: 150 }, 'free')[1].c)} → ${f3(modesOf({ uni: false, zt: 600, wd: 150 }, 'free')[1].c)} m/s: more of the stratified water lies above the zero crossing, as a thicker upper layer would.`, set: Object.assign({}, BASE, { prof: 'thermo', zt: 600, wd: 150, zoom: true }) },
-    { q: 'Toggle the rigid lid. Which row of the stack disappears, and do the remaining shapes stay orthogonal?', a: TX`Only the barotropic one (its speed would be infinite). And yes: the plain overlap $\int_{-H}^{0}\psi_m\psi_n\,dz$ is zero for both lids — see section 6 of Explain.`, set: Object.assign({}, BASE, { lid: true }) },
-    { q: 'Why is the equivalent depth of mode 1 only about a metre in an ocean 4200 m deep?', a: TX`Because its restoring force is buoyancy, not the full weight of the water: inside the ocean a displaced parcel is only slightly heavier or lighter than its surroundings, so the mode is as slow as surface waves on a layer ${heTxt(U[1].He)} deep, $c_n^2\equiv gH_e$ (13.62).`, set: Object.assign({}, BASE) }
-  ],
-  selftest: () => {
-    const Z = 'np.linspace(-4200.0, 0.0, 401)', TH = 'ch13.thermocline_N2';
-    const SH = (n, lid, fn) => `ch13.vertical_modes_shooting(${Z}, ${fn || TH}, n=${n}, lid="${lid || 'free'}")`;
-    const T6 = { uni: false, zt: 600, wd: 300 }, FN6 = '(lambda q, F=ch13.thermocline_N2: F(q, z_t=-600.0, width=300.0))';
-    const Tr = modesOf(THERMO, 'rigid'), PYF = 'ch13.coriolis_parameter(np.deg2rad(35.0))';
-    const pyOv = lid => `np.trapezoid(${SH(1, lid)}[1]*${SH(2, lid)}[1], ${Z})/np.sqrt(np.trapezoid(${SH(1, lid)}[1]**2, ${Z})*np.trapezoid(${SH(2, lid)}[1]**2, ${Z}))`;
-    const FDT = lid => `ch13.vertical_modes(${Z}, ${TH}(${Z}), n_modes=5, lid="${lid}")[0]`;
-    const zerosOK = ['free', 'rigid'].every(lid => [UNI, THERMO, T6, { uni: false, zt: 100, wd: 60 }, { uni: false, zt: 800, wd: 400 }].every(p => modesOf(p, lid).every((m, n) => (m ? m.zeros.length === n : lid === 'rigid' && n === 0))));
-    const rows = [
-      { name: 'c1 uniform (shooting vs exact root)', js: shootMode(1, UNI, 'free').c, py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][1]', rtol: 1e-6 },
-      { name: 'c0 uniform (shooting vs exact root)', js: shootMode(0, UNI, 'free').c, py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][0]', rtol: 1e-6 },
-      { name: 'c1 thermocline vs matrix route, 801 nodes (two discretisations: 1e-3)', js: shootMode(1, THERMO, 'free').c, py: `ch13.vertical_modes(np.linspace(-4200.0, 0.0, 801), ${TH}(np.linspace(-4200.0, 0.0, 801)))[0][1]`, rtol: 1e-3 },
-      { name: 'c1 thermocline vs shooting', js: shootMode(1, THERMO, 'free').c, py: SH(1) + '[0]', rtol: 1e-9 },
-      { name: 'c0 thermocline vs shooting', js: T[0].c, py: SH(0) + '[0]', rtol: 1e-9 },
-      { name: 'c2 thermocline vs shooting', js: T[2].c, py: SH(2) + '[0]', rtol: 1e-9 },
-      { name: 'c4 thermocline vs shooting', js: T[4].c, py: SH(4) + '[0]', rtol: 1e-9 },
-      { name: 'rigid lid: baroclinic 1, thermocline (shooting)', js: Tr[1].c, py: SH(1, 'rigid') + '[0]', rtol: 1e-9 },
-      { name: 'rigid lid: baroclinic 3, thermocline (shooting)', js: Tr[3].c, py: SH(3, 'rigid') + '[0]', rtol: 1e-9 },
-      { name: 'c1, thermocline 600 m / 300 m (shooting)', js: shootMode(1, T6, 'free').c, py: SH(1, 'free', FN6) + '[0]', rtol: 1e-9 },
-      { name: 'c3, thermocline 600 m / 300 m, rigid (shooting)', js: shootMode(3, T6, 'rigid').c, py: SH(3, 'rigid', FN6) + '[0]', rtol: 1e-9 },
-      { name: 'psi_1 at node 300 (thermocline)', js: T[1].psi[300], py: SH(1) + '[1][300]', rtol: 1e-7 },
-      { name: 'psi_2 at node 380 (thermocline, rigid)', js: Tr[2].psi[380], py: SH(2, 'rigid') + '[1][380]', rtol: 1e-7 },
-      { name: 'matrix route mirror: c1 thermocline, free', js: fdSpeeds(THERMO, 'free')[1], py: FDT('free') + '[1]', rtol: 1e-8 },
-      { name: 'matrix route mirror: c3 thermocline, free', js: fdSpeeds(THERMO, 'free')[3], py: FDT('free') + '[3]', rtol: 1e-8 },
-      { name: 'matrix route mirror: c0 thermocline, free', js: fdSpeeds(THERMO, 'free')[0], py: FDT('free') + '[0]', rtol: 1e-6 },
-      { name: 'matrix route mirror: rigid index 0 = baroclinic 1', js: fdSpeeds(THERMO, 'rigid')[1], py: FDT('rigid') + '[0]', rtol: 1e-8 },
-      { name: 'matrix route mirror: rigid index 1 = baroclinic 2', js: fdSpeeds(THERMO, 'rigid')[2], py: FDT('rigid') + '[1]', rtol: 1e-8 },
-      { name: 'matrix route mirror: c2 uniform, free', js: fdSpeeds(UNI, 'free')[2], py: `ch13.vertical_modes(${Z}, np.full_like(${Z}, 2.7e-3**2), n_modes=5)[0][2]`, rtol: 1e-8 },
-      { name: 'uniform root n = 0', js: cUniform(N_UNI, HOC, 0), py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][0]', rtol: 1e-11 },
-      { name: 'uniform root n = 2', js: cUniform(N_UNI, HOC, 2), py: 'ch13.modes_uniform_N(2.7e-3, 4200.0)[0][2]', rtol: 1e-11 },
-      { name: 'uniform root n = 4', js: cUniform(N_UNI, HOC, 4), py: 'ch13.modes_uniform_N(2.7e-3, 4200.0, n_modes=5)[0][4]', rtol: 1e-11 },
-      { name: 'uniform, rigid: index 0 = baroclinic 1', js: cRigid(N_UNI, HOC, 1), py: 'ch13.modes_uniform_N(2.7e-3, 4200.0, lid="rigid")[0][0]', rtol: 1e-12 },
-      { name: 'rigid', js: cRigid(2.7e-3, 4200, 1), py: 'ch13.baroclinic_mode_speed(2.7e-3, 4200.0, 1)', rtol: 1e-12 },
-      { name: 'rigid n = 3', js: cRigid(2.7e-3, 4200, 3), py: 'ch13.baroclinic_mode_speed(2.7e-3, 4200.0, 3)', rtol: 1e-12 },
-      { name: 'He', js: He(3.6096), py: 'ch13.equivalent_depth(3.6096)', rtol: 1e-12 },
-      { name: 'radius', js: Lam(3.6096, F35), py: `ch13.rossby_radius(3.6096, ${PYF})`, rtol: 1e-12 },
-      { name: 'f at 35 N', js: F35, py: PYF, rtol: 1e-12 },
-      { name: 'thermocline N2 at -250 m (defaults)', js: thermoN2(-250, 300, 150), py: 'ch13.thermocline_N2(-250.0)', rtol: 1e-12 },
-      { name: 'thermocline N2 at -450 m (600 m, 300 m)', js: thermoN2(-450, 600, 300), py: 'ch13.thermocline_N2(-450.0, z_t=-600.0, width=300.0)', rtol: 1e-12 },
-      { name: 'WKB estimate n = 1 (thermocline)', js: cWKB(profile(THERMO), 1), py: `ch13.wkb_mode_speed(${Z}, np.sqrt(${TH}(${Z})), 1)`, rtol: 1e-11 },
-      { name: 'WKB estimate n = 3 (600 m, 300 m)', js: cWKB(profile(T6), 3), py: `ch13.wkb_mode_speed(${Z}, np.sqrt(${TH}(${Z}, z_t=-600.0, width=300.0)), 3)`, rtol: 1e-11 },
-      { name: 'rigid-lid change of c1, uniform N', js: cUniform(N_UNI, HOC, 1) / cRigid(N_UNI, HOC, 1) - 1, py: 'ch13.rigid_lid_error(2.7e-3, 4200.0, n=1)', rtol: 1e-8 },
-      { name: 'overlap of modes 1, 2, free surface (a round-off-sized number: atol 1e-10)', js: overlap(T[1], T[2]), py: pyOv('free'), rtol: 1e-3, atol: 1e-10 },
-      { name: 'overlap of modes 1, 2, rigid lid (a round-off-sized number: atol 1e-10)', js: overlap(Tr[1], Tr[2]), py: pyOv('rigid'), rtol: 1e-3, atol: 1e-10 },
-      { name: 'page state: default mode (uniform, n = 1)', js: sel(DEF).c, py: `ch13.vertical_modes_shooting(${Z}, (lambda q: 2.7e-3**2), n=1)[0]`, rtol: 1e-9 },
-      { name: 'page state: default radius at 35 N', js: sel(DEF).Lam, py: `ch13.rossby_radius(ch13.vertical_modes_shooting(${Z}, (lambda q: 2.7e-3**2), n=1)[0], ${PYF})`, rtol: 1e-9 },
-      { name: 'page state: default equivalent depth', js: sel(DEF).He, py: `ch13.equivalent_depth(ch13.vertical_modes_shooting(${Z}, (lambda q: 2.7e-3**2), n=1)[0])`, rtol: 1e-9 },
-      { name: 'g used by the page', js: G0, py: 'ch13.G0', rtol: 0 },
-      { name: 'mode n has n zero crossings (5 profiles, both lids)', js: zerosOK ? 1 : 0, expect: 1, atol: 0 },
-      { name: 'orthogonal with weight 1, free surface: |overlap(1,2)|', js: Math.abs(overlap(T[1], T[2])), expect: 0, atol: 1e-5 },
-      { name: 'orthogonal with weight 1, rigid lid: |overlap(1,3)|', js: Math.abs(overlap(Tr[1], Tr[3])), expect: 0, atol: 1e-5 },
-      { name: 'orthogonal with weight 1, free surface: |overlap(0,1)|', js: Math.abs(overlap(T[0], T[1])), expect: 0, atol: 1e-5 },
-      { name: 'integral of psi up to the surface = H_e (free)', js: T[1].W[NZ - 1] / T[1].He, expect: 1, rtol: 1e-5 },
-      { name: 'integral of psi up to the surface = 0 (lid)', js: Tr[1].W[NZ - 1] / Tr[1].wmax, expect: 0, atol: 1e-6 },
-      { name: 'two terms of the mode equation cancel (central difference on a 10.5 m grid: 1e-3)', js: probe(Object.assign({}, DEF, { prof: 'thermo', zc: -310 })).sum / probe(Object.assign({}, DEF, { prof: 'thermo', zc: -310 })).t2, expect: 0, atol: 1e-3 },
-      { name: 'rigid lid has no mode 0', js: modesOf(THERMO, 'rigid')[0] === null ? 1 : 0, expect: 1, atol: 0 },
-      { name: 'shooting vs matrix mirror, c1 thermocline (second-order grid error at 401 nodes)', js: T[1].c / fdSpeeds(THERMO, 'free')[1], expect: 1, rtol: 3e-3 }
-    ];
-    return rows;
-  }
+  explain: { html: s => explainHtml(s), live: s => explainLive(s) },
+  derivations: DERIV,
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
 });
 </script>
 </body>

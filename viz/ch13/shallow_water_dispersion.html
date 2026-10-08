@@ -498,6 +498,8 @@ button, input, select { font: inherit; color: inherit; }
   @media (max-height: 700px) {
     .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
   }
+  /* portrait phones, Explain tab: the diagram alone (its title carries the selected root), so the text gets the room */
+  .viz-app[data-layout="portrait"][data-tab="explain"] .viz-view[data-view="terms"] { display: none !important; }
 </style>
 </head>
 <body>
@@ -2737,7 +2739,7 @@ function drawPlan(v, s, n) {
   if (box.h >= 110) {
     const row = (y, d, color, text) => { const L = 15, o = [box.x + 24, y]; if (d) arrow2(ctx, [o[0] - d[0] * L, o[1] + d[1] * L], [o[0] + d[0] * L, o[1] - d[1] * L], color, 2.4, 8); else { ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(o[0], o[1], 3.5, 0, 2 * PI); ctx.fill(); ctx.restore(); } lab(text, box.x + 46, y, { color }); };
     row(box.y + 15, sg !== 0 ? [sg * n.k / n.K, sg * n.l / n.K] : null, col, sg !== 0 ? 'crests ' + f3(n.cK) + ' m/s ' + compass(sg * n.k, sg * n.l) : 'crests at rest');
-    row(box.y + 37, n.cgm > 0 ? [n.cg[0] / n.cgm, n.cg[1] / n.cgm] : null, Viz.color('text'), n.cgm > 0 ? 'energy ' + f3(n.cgm) + ' m/s ' + compass(n.cg[0], n.cg[1]) : 'energy at rest');
+    row(box.y + 37, n.cgm > 0 ? [n.cg[0] / n.cgm, n.cg[1] / n.cgm] : null, Viz.color('text'), n.cgm > 0 ? 'energy (ours) ' + f3(n.cgm) + ' m/s ' + compass(n.cg[0], n.cg[1]) : 'energy (ours) at rest');
     // one wavelength as a scale bar
     const xa = Math.max(box.x + 8, box.x + box.w - pxl - 14), yb = box.y + box.h - 10;
     ctx.save(); ctx.strokeStyle = soft; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(xa, yb - 4); ctx.lineTo(xa, yb + 4); ctx.moveTo(xa, yb); ctx.lineTo(xa + pxl, yb); ctx.moveTo(xa + pxl, yb - 4); ctx.lineTo(xa + pxl, yb + 4); ctx.stroke(); ctx.restore();
@@ -2789,7 +2791,7 @@ function readingText(s) {
     if (n.w === 0) out.push(R`Without $\beta$ the slow root sits at $\omega=0$: a steady geostrophic flow that neither propagates nor decays, which is what geostrophic adjustment leaves behind. Switch $\beta$ back on and this motionless pattern starts to drift west.`);
     else {
       out.push('The <b class="c-amber">slow root</b> is ' + f3(1 / n.slowfast) + ' times slower than the fast pair: one period takes ' + fT(n.period) + R`. With $|\omega|=` + t3(n.ratio) + R`\,|f_0|` + (n.ratio < 0.3 ? R`\ll|f_0|` : R`<|f_0|`) + R`$ the $\omega^3$ bar is ` + Viz.fmt(Math.abs(n.T.omega3) / n.vmax, { sig: 2, keepTiny: true }) + R` of the largest: drop it and what remains is the Rossby wave, $\omega=-\dfrac{\beta k}{k^2+l^2+f_0^2/c^2}$ (13.118).`);
-      out.push(n.KLam < 1 ? R`This wave is longer than $2\pi\Lambda=` + t3(2 * PI * n.Lam / 1e3) + R`$ km ($K\Lambda=` + t3(n.KLam) + R`<1$): crests and energy both go west.` : R`This wave is shorter than $2\pi\Lambda=` + t3(2 * PI * n.Lam / 1e3) + R`$ km ($K\Lambda=` + t3(n.KLam) + R`>1$): the crests go west` + (n.cg[0] > 0 ? ' while the energy goes east.' : '.'));
+      out.push(n.KLam < 1 ? R`This wave is longer than $2\pi\Lambda=` + t3(2 * PI * n.Lam / 1e3) + R`$ km ($K\Lambda=` + t3(n.KLam) + R`<1$): crests and energy both go west (energy speed: ours — not in the book).` : R`This wave is shorter than $2\pi\Lambda=` + t3(2 * PI * n.Lam / 1e3) + R`$ km ($K\Lambda=` + t3(n.KLam) + R`>1$): the crests go west` + (n.cg[0] > 0 ? ' while the energy goes east (energy speed: ours — not in the book).' : '.'));
     }
   } else {
     if (n.ratio < 1.05) out.push(R`Near the inertial limit, $|\omega|=` + t3(n.ratio) + R`\,|f_0|$: the wave is so long ($K\Lambda=` + t3(n.KLam) + R`$) that gravity hardly acts. The water moves in near-circles once every ` + fT(n.period) + ' and the surface hardly moves.' + (n.ratio < 1 ? R` The ratio is even a little below 1: $\beta$ splits the fast pair, and the westward root dips under $|f_0|$.` : ''));
@@ -2832,8 +2834,9 @@ function slipHtml(s, n) {
 function explainHtml(s) {
   const W = Viz.work, n = N(s), cv = curves(s.lat, s.ln || 0, s.mode, s.betaOn), bk = bandsKm(cv);
   const latTxt = (s.hemi === 'S' ? '-' : '') + s.lat + R`^\circ`;
-  let o = W.step(0, 'What the views show') +
-    W.say('<b class="c-accent">Purple</b> = the two fast roots of the cubic (gravity waves with rotation, one travelling each way). <b class="c-amber">Amber</b> = the slow root (the planetary wave). Dashed <b class="c-teal">teal</b> = the Kelvin wave of a coast, which is not a root of the cubic: it needs a wall. The orange line is your wavelength; its three dots are the three roots, the ringed one is selected. Thin grey curves: the other vertical mode, for comparison. Bars: the four terms of the cubic for the selected root.') +
+  let o = '<div>' + W.step(0, 'What the views show') + W.say('<b class="c-accent">Purple</b> = the two fast roots of the cubic: gravity waves with rotation.') + '</div>' +
+    W.say('<b class="c-amber">Amber</b> = the slow root, the planetary wave. Dashed <b class="c-teal">teal</b> = the Kelvin wave of a coast, not a root of the cubic: it needs a wall.') +
+    W.say('The orange line is your wavelength; its three dots are the three roots, the ringed one is selected. Thin grey curves: the other vertical mode. Bars: the four terms of the cubic for the selected root.') +
     W.hint('On a phone the wave seen from above is hidden; the period and $|\\omega/f_0|$ of the selected root are in the diagram’s title.');
   o += W.step(1, 'The parameters') +
     W.line(R`$f_0=2\Omega\sin\theta_0=2\times` + t4(OMEGA) + R`\times\sin(` + latTxt + ')$', '<span style="white-space:nowrap">' + f4(n.f0) + ' 1/s</span>', 'the Coriolis parameter; inertial period $2\\pi/|f_0|$ = ' + fT(n.Tin)) +
@@ -2875,13 +2878,27 @@ function explainHtml(s) {
     W.say(n.beta === 0 ? 'With β off the second part is zero: the discriminant is positive at every wavelength.'
       : (n.bcf < 1 ? R`It stays positive at every wavelength whenever $\beta c<f_0^2$; here $\beta c/f_0^2=` + t3(n.bcf) + '$.'
         : R`Here $\beta c/f_0^2=` + t3(n.bcf) + R`\ge1$, so that guarantee is lost: ` + (bk.length ? 'the grey band (' + bk.map(b => (b[2] ? 'above ' + fmtKm(b[0]) : fmtKm(b[0]) + ' to ' + fmtKm(b[1]))).join(', ') + ') has no three real roots; each branch ends there with a ◆.' : 'yet no band appears on this diagram.')));
-  o += W.step(7, 'The wave from above, at the current time') +
+  // (ours — not in the book) the group velocity of a root, by differentiating the cubic implicitly
+  const den = 3 * n.w * n.w - n.P, numk = n.c * n.c * (2 * n.w * n.k + n.beta), numl = 2 * n.c * n.c * n.w * n.l;
+  const sgw = Math.sign(n.w), crestDir = n.w !== 0 ? compass(sgw * n.k, sgw * n.l) : '', cgDir = n.cgm > 0 ? compass(n.cg[0], n.cg[1]) : '';
+  o += W.step(7, 'Crest speed and energy speed (ours — not in the book)') +
+    W.say(R`The book gives no formula for the speed at which a group of these waves carries energy, the group velocity $(\partial\omega/\partial k,\ \partial\omega/\partial l)$. It follows from $` + CUBIC + R`$ (13.76): differentiate with respect to $k$ at fixed $l$, treating $\omega$ as a function of $k$ (and $K^2=k^2+l^2$, so $\partial K^2/\partial k=2k$).`) +
+    W.line(R`$\begin{aligned}&\big(3\omega^2-c^2K^2-f_0^2\big)\dfrac{\partial\omega}{\partial k}\\&\quad-2c^2\omega k-c^2\beta=0\end{aligned}$`, '', 'the chain rule on every term; then solve for the derivative (the same with $l$, where the β term has no $l$)') +
+    W.line(R`$\dfrac{\partial\omega}{\partial k}=\dfrac{2c^2\omega k+c^2\beta}{3\omega^2-c^2K^2-f_0^2}=\dfrac{` + t3(numk) + '}{' + t3(den) + '}$', '<span style="white-space:nowrap">' + f3(n.cg[0]) + ' m/s</span>', 'eastward part of the energy speed') +
+    W.line(R`$\dfrac{\partial\omega}{\partial l}=\dfrac{2c^2\omega l}{3\omega^2-c^2K^2-f_0^2}=\dfrac{` + t3(numl) + '}{' + t3(den) + '}$', '<span style="white-space:nowrap">' + f3(n.cg[1]) + ' m/s</span>', 'northward part' + (n.l === 0 ? ': zero, because $l=0$' : '')) +
+    W.line(R`crests: $\dfrac{|\omega|}{K}=\dfrac{` + t3(Math.abs(n.w)) + '}{' + t3(n.K) + '}$', '<span style="white-space:nowrap">' + f3(n.cK) + ' m/s</span>', n.w !== 0 ? 'toward the ' + crestDir + ': the phase speed' : 'the pattern is at rest') +
+    W.box(n.cgm > 0 ? R`Energy: $\mathbf{` + t3(n.cgm) + '}$ m/s toward the <b>' + cgDir + R`</b>. Crests: $\mathbf{` + t3(n.cK) + '}$ m/s toward the <b>' + crestDir + '</b>. ' +
+        (cgDir === crestDir ? 'Both go the same way' + (n.i !== 1 ? R`, and their product is $` + t3(n.cgm * n.cK) + R`$ m²/s² against $c^2=` + t3(n.c * n.c) + R`$ m²/s²: a fast wave obeys $c_{crest}\,c_{energy}\approx c^2$.` : R`: a slow wave longer than $2\pi\Lambda$ ($K\Lambda=` + t3(n.KLam) + '$).')
+          : 'They go <b>different ways</b>' + (n.i === 1 ? R`: this slow wave is shorter than $2\pi\Lambda$ ($K\Lambda=` + t3(n.KLam) + '$), so its crests run west while its energy leaks east.' : '.'))
+      : 'Energy at rest: with $\\omega=0$ and $\\beta=0$ both numerators vanish.') +
+    W.say('Checks (selftest): with β = 0 this equals the fluidpy Poincaré group velocity exactly; on the slow root it equals the quasi-geostrophic Rossby group velocity to within $(\\omega/f_0)^2$; and it matches a finite difference of the roots.');
+  o += W.step(8, 'The wave from above, at the current time') +
     W.line('time', Viz.live('tp') + ' periods = ' + Viz.live('treal'), 'the animation plays one period in 4 s, whatever the real period') +
     (n.w !== 0 ? W.line('parcel velocity $(u,v)/|V|_{max}$', '(' + Viz.live('uu') + ', ' + Viz.live('vv') + ')', R`from $\hat u=\dfrac{g\hat\eta}{\omega^2-f^2}(\omega k+ifl)$, $\hat v=\dfrac{g\hat\eta}{\omega^2-f^2}(-ifk+\omega l)$ (13.80)`) +
-      W.say('The velocity arrow turns <b>' + senseWord(n.turn) + '</b> (' + (n.f0 > 0 ? '$f_0>0$' : '$f_0<0$') + R`) and its ellipse has axis ratio $` + (n.ratio >= 1 ? R`|\omega/f_0|` : R`|f_0/\omega|`) + '=' + t3(n.ratio >= 1 ? n.ratio : 1 / n.ratio) + '$, the long axis ' + (n.ratio >= 1 ? 'along the direction of travel.' : 'along the crests: the water slides to and fro almost geostrophically.') + ' Crests: ' + f3(n.cK) + ' m/s toward the ' + compass(Math.sign(n.w) * n.k, Math.sign(n.w) * n.l) + '. Energy (group velocity): ' + f3(n.cgm) + ' m/s toward the ' + compass(n.cg[0], n.cg[1]) + '.')
+      W.say('The velocity arrow turns <b>' + senseWord(n.turn) + '</b> (' + (n.f0 > 0 ? '$f_0>0$' : '$f_0<0$') + R`) and its ellipse has axis ratio $` + (n.ratio >= 1 ? R`|\omega/f_0|` : R`|f_0/\omega|`) + '=' + t3(n.ratio >= 1 ? n.ratio : 1 / n.ratio) + '$, the long axis ' + (n.ratio >= 1 ? 'along the direction of travel.' : 'along the crests: the water slides to and fro almost geostrophically.') + ' Crests: ' + f3(n.cK) + ' m/s toward the ' + compass(Math.sign(n.w) * n.k, Math.sign(n.w) * n.l) + '. Energy (group velocity, ours — worked out in section 7): ' + f3(n.cgm) + ' m/s' + (n.cgm > 0 ? ' toward the ' + compass(n.cg[0], n.cg[1]) : '') + '.')
       : W.say('Nothing moves: the pattern is a steady geostrophic current along the crests.')) +
     W.hint('The view from above is on wide screens only (turn a tablet sideways): blue bands are the crests, the orange dot is one parcel on its orbit, drawn far too large.');
-  o += W.step(8, 'Reading the current setting') + W.interpret(readingText(s), 'Now:');
+  o += W.step(9, 'Reading the current setting') + W.interpret(readingText(s), 'Now:');
   return o;
 }
 function explainLive(s) {
@@ -3038,7 +3055,7 @@ slow = ch13.rossby_omega(k, l, beta, f0, c)
 /* ---- walkthrough ---------------------------------------------------------------------------------------------------- */
 const TOUR = [
   { title: 'Three names', text: 'Poincaré, Kelvin, Rossby: three theories, or one? Drag the orange cursor along the diagram and watch its three dots.', set: st8({}), play: true },
-  { title: 'One cubic', text: R`Eliminate $u$ and $\eta$ from the shallow-water equations, try a plane wave, and one cubic in $\omega$ is left: $` + CUBIC + R`$ (13.76). Its three roots are the three dots on the cursor.`, set: st8({}), play: false, eq: 'cubic', derive: { id: 'D13', step: 2 } },
+  { title: 'One cubic', text: R`Eliminate $u$ and $\eta$ from the shallow-water equations, try a plane wave, and one cubic in $\omega$ is left: $` + CUBIC + R`$ (13.76). Its three roots are the three dots on the cursor.`, set: st8({}), play: false, derive: { id: 'D13', step: 2 } },
   { title: 'The fast pair', text: R`Two roots are gravity waves bent by rotation; $` + EQ82 + R`$ (13.82) keeps them near or above $|f_0|$, the grey dashed line. Here $|\omega|=` + t3(NP.ratio) + R`\,|f_0|$: <b class="c-accent">ω³</b> balances <b class="c-orange">gravity</b>, and the <b class="c-amber">β</b> bar is tiny.`, set: st8({ root: 'plus' }), play: false, terms: true },
   { title: 'The slow one', text: 'The third root is ' + f2(1 / NS.slowfast) + ' times slower here: one period takes ' + fT(NS.period) + ' instead of ' + fT(NP.period) + '. Now <b class="c-accent">ω³</b> is the smallest term, ' + f2(Math.abs(NS.T.omega3) / NS.vmax) + ' of the largest, and <b class="c-amber">β</b> balances <b class="c-orange">gravity</b> and <b class="c-teal">rotation</b>.', set: st8({ root: 'slow' }), play: true, terms: true },
   { title: 'Switch β off', text: R`With $\beta=0$ the slow root drops to $\omega=0$: a steady geostrophic flow that goes nowhere. Without β there is no planetary wave. The fast pair hardly notices.`, set: st8({ root: 'slow', betaOn: false }), play: false, controls: ['betaOn'] },
@@ -3096,6 +3113,9 @@ function selftestRows() {
   const ob = orbit(1000, k, 0.5, 4200, f35), obS = orbit(0, k, 0.5, 4200, f35S);
   const OB = 'ch13.poincare_orbit(1000.0, ' + KS + ', 0.5, 4200.0, ' + F + ')', OBS = 'ch13.poincare_orbit(0.0, ' + KS + ', 0.5, 4200.0, ' + FS + ')';
   const r0 = cubicRoots(k, 0.7 * k, 202.95, f35, 0), gv0 = groupVel(k, 0.7 * k, 202.95, f35, 0, r0[2]), gvs = groupVel(k, 0, 202.95, f35, b35, r[1]);
+  const rl = cubicRoots(k, 0.7 * k, 202.95, f35, b35), gvl = groupVel(k, 0.7 * k, 202.95, f35, b35, rl[1]);
+  const gvb = groupVel(k, 0, 3.6096, f35S, b35, cubicRoots(k, 0, 3.6096, f35S, b35)[1]), gvm = groupVel(k, 0.7 * k, 202.95, f35, 0, r0[0]);
+  const fd = j => { const h = 1e-4 * k; return (cubicRoots(k + h, 0, 202.95, f35, b35)[j] - cubicRoots(k - h, 0, 202.95, f35, b35)[j]) / (2 * h); };
   const res = (kk, ll, c, f, b, w) => { const t = termSizes(kk, ll, c, f, b, w); return t.sum / Math.max(Math.abs(t.omega3), Math.abs(t.gravity), Math.abs(t.rotation), Math.abs(t.beta)); };
   const reg = (w, word) => ({ name: 'regime word at ' + w + ' 1/s: ' + word, js: regime(w, f35).regime === word ? 1 : 0, py: '1.0 if ch13.shallow_water_regime(' + w.toExponential(1) + ', ' + F + ')["regime"] == "' + word + '" else 0.0', rtol: 0, atol: 0 });
   return [
@@ -3139,8 +3159,14 @@ function selftestRows() {
     { name: 'group velocity x, beta = 0, fast + root', js: gv0[0], py: 'ch13.poincare_group_velocity(' + KS + ', 0.7*' + KS + ', ' + F + ', 202.95)[0]', rtol: 1e-10 },
     { name: 'group velocity y, beta = 0, fast + root', js: gv0[1], py: 'ch13.poincare_group_velocity(' + KS + ', 0.7*' + KS + ', ' + F + ', 202.95)[1]', rtol: 1e-10 },
     { name: 'group velocity x, slow root vs quasi-geostrophic formula (approximation, O((w/f)^2))', js: gvs[0], py: 'ch13.rossby_group_velocity(' + KS + ', 0.0, ' + B + ', ' + F + ', 202.95)[0]', rtol: 5e-3 },
+    { name: 'group velocity x, slow root, l = 0.7 k vs quasi-geostrophic formula (approximation, O((w/f)^2))', js: gvl[0], py: 'ch13.rossby_group_velocity(' + KS + ', 0.7*' + KS + ', ' + B + ', ' + F + ', 202.95)[0]', rtol: 5e-3 },
+    { name: 'group velocity y, slow root, l = 0.7 k vs quasi-geostrophic formula (approximation, O((w/f)^2))', js: gvl[1], py: 'ch13.rossby_group_velocity(' + KS + ', 0.7*' + KS + ', ' + B + ', ' + F + ', 202.95)[1]', rtol: 5e-3 },
+    { name: 'group velocity x, baroclinic slow root, 35 S vs quasi-geostrophic formula (approximation, O((w/f)^2))', js: gvb[0], py: 'ch13.rossby_group_velocity(' + KS + ', 0.0, ' + B + ', ' + FS + ', 3.6096)[0]', rtol: 1e-4 },
+    { name: 'group velocity x, beta = 0, fast - root = minus the Poincare value', js: -gvm[0], py: 'ch13.poincare_group_velocity(' + KS + ', 0.7*' + KS + ', ' + F + ', 202.95)[0]', rtol: 1e-10 },
     { name: 'slow root vs the Rossby formula (approximation, O((w/f)^2))', js: r[1], py: 'ch13.rossby_omega(' + KS + ', 0.0, ' + B + ', ' + F + ', 202.95)', rtol: 2e-3 },
     // invariants
+    { name: 'group velocity x = centred difference of the slow root (step 1e-4 k)', js: gvs[0] / fd(1), expect: 1, rtol: 1e-6 },
+    { name: 'group velocity x = centred difference of the fast + root (step 1e-4 k)', js: groupVel(k, 0, 202.95, f35, b35, r[2])[0] / fd(2), expect: 1, rtol: 1e-6 },
     { name: 'roots sum to 0', js: (r[0] + r[1] + r[2]) / r[2], expect: 0, atol: 1e-12 },
     { name: 'product of the roots = c^2 beta k', js: r[0] * r[1] * r[2] / (202.95 * 202.95 * b35 * k), expect: 1, rtol: 1e-12 },
     { name: 'cubic residual, fast - root', js: res(k, 0, 202.95, f35, b35, r[0]), expect: 0, atol: 1e-12 },
@@ -3186,7 +3212,7 @@ const app = Viz.app({
     { id: 'wf', label: R`$\omega/|f_0|$`, value: s => { const n = N(s); return n.ok ? n.w / n.fa : NaN; }, fmt: v => (isFinite(v) ? f3(v) : dash) },
     { id: 'T', label: 'Period', value: s => { const n = N(s); return n.ok ? n.period : NaN; }, fmt: v => (v === Infinity ? 'steady (ω = 0)' : isFinite(v) ? Viz.fmtTime(v) : dash) },
     { id: 'cph', label: 'Crest speed', value: s => { const n = N(s); return n.ok ? n.cK : NaN; }, fmt: (v, s) => { const n = N(s || DEF); return !isFinite(v) ? dash : (n.w === 0 ? 'at rest' : f3(v) + ' m/s ' + compass(Math.sign(n.w) * n.k, Math.sign(n.w) * n.l)); } },
-    { id: 'cg', label: 'Energy speed', value: s => { const n = N(s); return n.ok ? n.cgm : NaN; }, fmt: (v, s) => { const n = N(s || DEF); return !isFinite(v) ? dash : (v === 0 ? 'at rest' : f3(v) + ' m/s ' + compass(n.cg[0], n.cg[1])); } },
+    { id: 'cg', label: 'Energy speed (ours)', value: s => { const n = N(s); return n.ok ? n.cgm : NaN; }, fmt: (v, s) => { const n = N(s || DEF); return !isFinite(v) ? dash : (v === 0 ? 'at rest' : f3(v) + ' m/s ' + compass(n.cg[0], n.cg[1])); } },
     { id: 'sf', label: 'Slow / fast', value: s => { const n = N(s); return n.ok ? n.slowfast : NaN; }, fmt: v => (isFinite(v) ? Viz.fmt(v, { sig: 3, keepTiny: true }) : dash) },
     { id: 'disc', label: 'Discriminant', value: s => N(s).Dn, fmt: v => (v >= 0 ? '> 0 · three real roots' : '< 0 · no three real roots') },
     { id: 'Lam', label: R`Rossby radius $c/|f_0|$`, value: s => N(s).Lam / 1e3, fmt: v => fmtKm(v) }
@@ -3197,7 +3223,7 @@ const app = Viz.app({
       { id: 'disp', row: 0, flex: 1.5, title: s => { const n = N(s), sel = n.ok ? '<b class="' + ROOT_CLS[n.i] + '">' + ROOT_NAME[n.i] + '</b> · ' + (n.w === 0 ? 'ω = 0' : fT(n.period) + ' · |ω| = ' + f3(n.ratio) + ' |f₀|') : 'no three real roots here';
         return layout() === 'wide' ? '<b>Frequency against wavenumber</b> · <b class="c-accent">fast ±</b> · <b class="c-amber">slow</b> · <b class="c-teal">Kelvin</b> · ' + sel : sel; } },
       { id: 'terms', row: 0, flex: 0.9, title: s => { const n = N(s); return layout() === 'wide' ? '<b>The four terms of the cubic</b> [1/s³]' + (n.ok ? ' · ' + ROOT_NAME[n.i] + ' root' : '') : '<b>Four terms</b> [1/s³], log bars'; } },
-      { id: 'plan', row: 1, flex: 1, hidePortrait: true, title: s => { const n = N(s); return '<b>The selected wave from above</b> · blue = crests' + (n.ok ? ' · ' + (n.w === 0 ? 'steady' : 'real period ' + fT(n.period) + ' (4 s here)') + ' · orbit not to scale' : ''); } }
+      { id: 'plan', row: 1, flex: 1, hidePortrait: true, title: s => { const n = N(s); return '<b>The selected wave from above</b> · blue = crests' + (n.ok ? ' · ' + (n.w === 0 ? 'steady' : 'real period ' + fT(n.period) + ' (4 s here)') + ' · orbit not to scale · energy arrow: ours, not in the book' : ''); } }
     ],
     draw(g, s) { const n = N(s); drawDisp(g.view('disp'), s, n); drawTerms(g.view('terms'), s, n); drawPlan(g.view('plan'), s, n); },
     onPointer(g, ev, s) {
@@ -3230,7 +3256,7 @@ const app = Viz.app({
     intro: 'Drag the orange cursor in the diagram, or click one of its dots to select that root. The bars show which terms of the cubic carry the balance.',
     controls: ['lam', 'lat', 'mode', 'root', 'betaOn', 'hemi', 'ln'],
     readouts: ['wf', 'T', 'cph', 'cg', 'sf', 'disc', 'Lam'],
-    callouts: [{ kind: 'try', html: R`Select the slow root and sweep the wavelength through $2\pi\Lambda$: the crests always go west, but the energy turns from west to east.` }]
+    callouts: [{ kind: 'try', html: R`Select the slow root and sweep the wavelength through $2\pi\Lambda$: the crests always go west, but the energy turns from west to east. The energy speed is ours — not in the book; the Explain tab works it out.` }]
   },
   explain: { html: s => explainHtml(s), live: s => explainLive(s) },
   derivations: DERIV,

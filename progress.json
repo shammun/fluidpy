@@ -360,14 +360,25 @@
       "design": "pass",
       "implement": "pass",
       "verify": "pass",
-      "review": "running",
-      "viz": "running",
-      "notebook": "running",
-      "knowledge": "todo",
-      "publish": "todo",
-      "explainers": [],
-      "notes": "analyze: 218 inventory rows, 145 numbered equations (13.1)-(13.145) each once (115 own-line + 30 in grouped labels), 119 CODE / 28 DEMO / 71 SKIP, 177 NEW / 39 SEEN, 42 derivations (8/24/10 by stars), 12 load-bearing clusters, 13 suspected slips + 17 traps, all 70 pages rendered; curate: 17 CORE (A) / 168 NOTE / 31 RECAP / 2 SKIP = 218 rows, 29 derivations written out (2/18/9 by stars), 12 demoted, 6 not-in-the-book items (ours), 29 primers P307-P335, 10 explainers + backup inertia_gravity_beams, 13 slips + 17 traps tabled; design: 17 CORE blocks, 29 derivations (253 steps), E1-E10 + B1, 231 ledger rows; correction pass after implement in progress; implement: gfd/vertical_modes/shallow_water cores + ch13 module; 188/188 Part C; 14 scripts exit 0; stability.rayleigh_eigs_contour gained beta kw; verify: PASS first round, 89 tests (V1 25/V2 31/V3 8/V4 4/V5 2/V6 4/V7 15), 34/34 mutants killed, orders 2.0 space / 3.0 time, westward-step statement in 13.13 judged a slip (~90%)",
-      "updated": "2026-10-07"
+      "review": "pass",
+      "viz": "pass",
+      "notebook": "pass",
+      "knowledge": "running",
+      "publish": "running",
+      "explainers": [
+        "geostrophic_balance",
+        "thermal_wind",
+        "ekman_spiral",
+        "ekman_force_balance",
+        "vertical_modes",
+        "shallow_water_dispersion",
+        "kelvin_wave",
+        "geostrophic_adjustment",
+        "rossby_waves",
+        "eady_instability"
+      ],
+      "notes": "analyze: 218 inventory rows, 145 numbered equations (13.1)-(13.145) each once (115 own-line + 30 in grouped labels), 119 CODE / 28 DEMO / 71 SKIP, 177 NEW / 39 SEEN, 42 derivations (8/24/10 by stars), 12 load-bearing clusters, 13 suspected slips + 17 traps, all 70 pages rendered; curate: 17 CORE (A) / 168 NOTE / 31 RECAP / 2 SKIP = 218 rows, 29 derivations written out (2/18/9 by stars), 12 demoted, 6 not-in-the-book items (ours), 29 primers P307-P335, 10 explainers + backup inertia_gravity_beams, 13 slips + 17 traps tabled; design: 17 CORE blocks, 29 derivations (253 steps), E1-E10 + B1, 231 ledger rows; correction pass after implement in progress; implement: gfd/vertical_modes/shallow_water cores + ch13 module; 188/188 Part C; 14 scripts exit 0; stability.rayleigh_eigs_contour gained beta kw; verify: PASS first round, 89 tests (V1 25/V2 31/V3 8/V4 4/V5 2/V6 4/V7 15), 34/34 mutants killed, orders 2.0 space / 3.0 time, westward-step statement in 13.13 judged a slip (~90%); review: 2 must-fix closed, slips 14 / traps 18; viz: 10 explainers, review PASS round 2, 482 selftest rows; notebook: 821 cells, lesson review PASS round 3; gate: 1884 tests pass, coverage 0/0, embed OK, shot quick 10/10",
+      "updated": "2026-10-08"
     },
     "ch14": {
       "title": "Aerodynamics",

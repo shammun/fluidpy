@@ -491,6 +491,8 @@ button, input, select { font: inherit; color: inherit; }
   @media (max-height: 700px) {
     .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
   }
+  /* portrait phones: Explore keeps the four main controls (direction, interior flow and coast come from the presets and the quiz) */
+  .viz-app[data-layout="portrait"][data-tab="explore"] .viz-side .viz-optional { display: none !important; }
 </style>
 </head>
 <body>
@@ -2664,7 +2666,8 @@ function explainHtml(s) {
   const W = Viz.work, n = N(s), fa = Math.abs(n.f), sd = n.side;
   const latTxt = s.lat + R`^\circ` + (s.hemi === 'S' ? R`\,\text{S}` : R`\,\text{N}`);
   let o = W.step(0, 'What the views show') +
-    W.say('The grey arrow is the <b>wind</b>, blowing toward the ' + compass(s.dir) + '. <b class="c-teal">Teal</b> arrows are the current at each depth, joined at their tips by the spiral. The <b class="c-accent">purple</b> arrow is the transport: all the currents above the depth cursor added up (dashed purple = the final value). <b class="c-rose">Rose</b> bars are friction, the pull of the layers above and below; <b class="c-teal">teal</b> bars the Coriolis force. Axes: $x$ east, $y$ north, $z$ up with the sea surface at $z=0$ and the water below it.') +
+    W.say('The grey arrow is the <b>wind</b>, blowing toward the ' + compass(s.dir) + '. <b class="c-teal">Teal</b> arrows are the current at each depth, joined at their tips by the spiral.') +
+    W.say('The <b class="c-accent">purple</b> arrow is the transport: all the currents above the depth cursor added up (dashed purple = the final value). <b class="c-rose">Rose</b> bars are friction, the pull of the layers above and below; <b class="c-teal">teal</b> bars the Coriolis force. Axes: $x$ east, $y$ north, $z$ up with the sea surface at $z=0$ and the water below it.') +
     W.hint('On a phone the profile view is hidden; its key numbers (the sum so far and its angle) are in the hodograph title and the readouts.');
   o += W.step(1, 'How deep the layer is') +
     W.line(R`$f=2\Omega\sin\theta=2\times` + t4(OMEGA) + R`\times\sin(` + (s.hemi === 'S' ? '-' : '') + s.lat + R`^\circ)$`, '<span style="white-space:nowrap">' + f4(n.f) + ' 1/s</span>', 'the Coriolis parameter at ' + s.lat + '° ' + s.hemi + (n.sgn < 0 ? ': negative' : '')) +
@@ -2818,36 +2821,41 @@ const DERIV = [
 ];
 
 /* ---- code ----------------------------------------------------------------------------------------------------------- */
+const sg = v => String(Number(snap0(v).toPrecision(3)));   // three significant figures, a valid Python literal
 const CODE = [
   { id: 'ek', title: 'The spiral and its transport in Python', ref: 'Eq. (13.29), (13.30)',
     src: `
 import numpy as np
-import fluidpy.ch13_geophysical_fluid_dynamics as ch13
+from fluidpy import (
+    ch13_geophysical_fluid_dynamics as ch13)
 
-f = ch13.coriolis_parameter(np.deg2rad({{lat}}))   # {{f}} 1/s
-tx, ty = {{tx}}, {{ty}}   # wind stress toward east, north [N/m^2]
-nu = {{nu}}               # vertical eddy viscosity [m^2/s]
-delta = ch13.ekman_depth(nu, f)        # sqrt(2 nu_v/|f|) = {{delta}} m
-z = -{{zc}} * delta                  # the depth cursor: {{z}} m
-u, v = ch13.ekman_surface(z, tx, ty, 1027.0, nu, f, U_g={{Ug}})
-# current at the cursor: ({{u}}, {{v}}) m/s
-Mx, My = ch13.ekman_transport(tx, ty, 1027.0, f)   # no nu here
-# whole layer: ({{Mx}}, {{My}}) m^2/s = tau/(rho f), turned 90 deg
-mx, my = ch13.ekman_transport_partial(z, tx, ty, 1027.0, nu, f)
-# summed from the cursor up: ({{mx}}, {{my}}) m^2/s`,
-    live: s => { const n = N(s); return { lat: (s.hemi === 'S' ? -s.lat : s.lat).toFixed(1), f: n.f.toExponential(4), tx: n.tx.toFixed(4), ty: n.ty.toFixed(4), nu: String(Number(s.nu.toPrecision(6))), delta: n.delta.toFixed(2), zc: n.zeta.toFixed(4), z: n.z.toFixed(2), Ug: n.Ug.toFixed(2),
-      u: n.Vc[0].toFixed(4), v: n.Vc[1].toFixed(4), Mx: n.M[0].toFixed(4), My: n.M[1].toFixed(4), mx: n.part[0].toFixed(4), my: n.part[1].toFixed(4) }; },
+lat = np.deg2rad({{lat}})         # f below: [1/s]
+f = ch13.coriolis_parameter(lat)  # {{f}}
+tx, ty = {{tx}}, {{ty}}   # E, N [N/m^2]
+nu, rho = {{nu}}, 1027.0   # [m^2/s], [kg/m^3]
+delta = ch13.ekman_depth(nu, f)    # {{delta}} m
+z = -{{zc}} * delta       # cursor: {{z}} m
+u, v = ch13.ekman_surface(
+    z, tx, ty, rho, nu, f, U_g={{Ug}})
+# at the cursor [m/s]: ({{u}}, {{v}})
+Mx, My = ch13.ekman_transport(tx, ty, rho, f)
+# layer [m^2/s]: ({{Mx}}, {{My}}), no nu
+mx, my = ch13.ekman_transport_partial(
+    z, tx, ty, rho, nu, f)
+# cursor to top [m^2/s]: ({{mx}}, {{my}})`,
+    live: s => { const n = N(s); return { lat: (s.hemi === 'S' ? -s.lat : s.lat).toFixed(1), f: n.f.toExponential(3), tx: n.tx.toFixed(4), ty: n.ty.toFixed(4), nu: String(Number(s.nu.toPrecision(6))), delta: n.delta.toFixed(2), zc: n.zeta.toFixed(4), z: n.z.toFixed(2), Ug: n.Ug.toFixed(2),
+      u: sg(n.Vc[0]), v: sg(n.Vc[1]), Mx: sg(n.M[0]), My: sg(n.M[1]), mx: sg(n.part[0]), my: sg(n.part[1]) }; },
     note: 'The eddy viscosity appears in <code>ekman_depth</code> and <code>ekman_surface</code> but not in <code>ekman_transport</code>.' }
 ];
 
 /* ---- walkthrough ---------------------------------------------------------------------------------------------------- */
 const TOUR = [
   { title: 'Downwind?', text: 'The wind blows east over the sea. Which way does the water go? Drag the 3-D view to look around.', set: st8({}), play: false },
-  { title: 'Turning with depth', text: 'Each layer is dragged by the one above and turned by the Coriolis force, so the <b class="c-teal">current arrows</b> rotate and shrink going down. At every depth <b class="c-teal">Coriolis</b> and <b class="c-rose">friction</b> cancel.', set: st8({ zc: 0 }), play: true, eq: 'bal' },
-  { title: 'One complex equation', text: R`Write $V=u+iv$. Coriolis against friction, $-fv=\nu_v u''$ and $fu=\nu_v v''$ (13.22), (13.23), becomes one line: $\dfrac{d^2V}{dz^2}=\dfrac{if}{\nu_v}V$ (13.27).`, set: st8({ zc: 1 }), play: false, eq: 'cplx', derive: { id: 'D06', step: 2 } },
-  { title: 'How deep', text: R`The solution fades and turns over one length, $\delta=\sqrt{2\nu_v/f}$ (13.29) $=` + t3(ND.delta) + R`$ m. At the surface the current is $` + t3(ND.V0) + R`$ m/s, 45° to the right of the wind.`, set: st8({ zc: 1 }), play: false, readouts: ['delta', 'V0'], eq: 'sol' },
+  { title: 'Turning with depth', text: 'Each layer is dragged by the one above and turned by the Coriolis force, so the <b class="c-teal">current arrows</b> rotate and shrink going down. At every depth <b class="c-teal">Coriolis</b> and <b class="c-rose">friction</b> cancel.', set: st8({ zc: 0 }), play: true },
+  { title: 'One complex equation', text: R`Write $V=u+iv$. Coriolis against friction, $-fv=\nu_v u''$ and $fu=\nu_v v''$ (13.22), (13.23), becomes one line: $\dfrac{d^2V}{dz^2}=\dfrac{if}{\nu_v}V$ (13.27).`, set: st8({ zc: 1 }), play: false, derive: { id: 'D06', step: 2 } },
+  { title: 'How deep', text: R`The solution fades and turns over one length, $\delta=\sqrt{2\nu_v/f}$ (13.29) $=` + t3(ND.delta) + R`$ m. At the surface the current is $` + t3(ND.V0) + R`$ m/s, 45° to the right of the wind.`, set: st8({ zc: 1 }), play: false, readouts: ['delta', 'pid', 'V0'] },
   { title: 'Add them up', text: 'Press ▶. The <b class="c-accent">purple</b> arrow is the sum of every current above the cursor. It starts along the surface current, swings round, and settles at 90° from the wind.', set: st8({ zc: 0 }), play: true, readouts: ['msum', 'ang'] },
-  { title: 'What viscosity does', text: R`Four times the eddy viscosity: twice as deep, half as fast. Yet the transport, $\int_{-\infty}^0v\,dz=-\dfrac{\tau}{\rho f}$ (13.30) $=` + t3(ND4.M[1]) + R`$ m²/s, has not moved. Viscosity sets the depth, not the transport.`, set: st8({ nu: 4 * DEF.nu }), play: false, readouts: ['delta', 'V0', 'M'], code: { id: 'ek', lines: [11, 12] } },
+  { title: 'What viscosity does', text: R`Four times the eddy viscosity: twice as deep, half as fast. Yet the transport, $\int_{-\infty}^0v\,dz=-\dfrac{\tau}{\rho f}$ (13.30) $=` + t3(ND4.M[1]) + R`$ m²/s, has not moved. Viscosity sets the depth, not the transport.`, set: st8({ nu: 4 * DEF.nu }), play: false, readouts: ['delta', 'V0', 'M'], code: { id: 'ek', lines: [14, 15] } },
   { title: 'Your turn', text: 'Predict the direction of the transport at 35° S for a wind toward the north. Then set it with the chips and sliders, and try a coast.', set: st8({}), play: false, controls: ['hemi', 'lat', 'dir'], callout: { kind: 'key', html: R`The stress and $f$ fix the transport, $\tau/(\rho|f|)$; the eddy viscosity only fixes how deep it is spread.` } }
 ];
 
@@ -3011,7 +3019,7 @@ const app = Viz.app({
   explore: {
     intro: 'Press ▶ to send the depth cursor down, or click the hodograph. Then change the eddy viscosity and watch what does <i>not</i> change.',
     controls: ['tau', 'nu', 'lat', 'hemi', 'dir', 'Ug', 'coast'],
-    readouts: ['delta', 'pid', 'V0', 'M', 'msum', 'ang'],
+    readouts: ['delta', 'V0', 'M', 'msum'],
     callouts: [{ kind: 'try', html: R`Slide $\nu_v$ from end to end with the cursor at the bottom: the spiral deepens tenfold, the <b class="c-accent">purple</b> arrow stays put.` }]
   },
   explain: { html: s => explainHtml(s), live: s => explainLive(s) },

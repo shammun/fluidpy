@@ -1169,7 +1169,7 @@ motion. Finally, why weather exists at all (baroclinic instability) and why its 
     ],
 )
 nb.explainer_index([
-    ("geostrophic_balance", "Why doesn't air flow straight from high to low pressure?", "the Coriolis force turns it until the only motion left runs along the isobars"),
+    ("geostrophic_balance", "Why doesn't air flow straight from high to low pressure?", "the Coriolis force keeps turning the moving air, so that on average it runs along the isobars; only with drag does it settle"),
     ("thermal_wind", "Why is there a jet stream, and why is it westerly in both hemispheres?", "a horizontal temperature gradient sets the change of wind with height"),
     ("ekman_spiral", "The wind blows east — why does the water go south?", "the eddy viscosity sets how deep the spiral reaches, not how much water it carries"),
     ("ekman_force_balance", "Why does air spiral into a low?", "friction weakens the Coriolis force near the ground and the pressure force wins"),
@@ -1488,7 +1488,7 @@ axes[2].set(xlabel="$N$ [10$^{-3}$ s$^{-1}$]", title="$N$ peaks in the thermocli
 for ax in axes:                                                # name the three layers in every panel
     ax.axhspan(-50, 0, color=COLORS["grid"], alpha=0.7)        # the mixed layer (top 50 m)
     ax.axhspan(-450, -50, color=COLORS["amber"], alpha=0.12)   # the thermocline
-axes[0].text(4, -250, "thermocline", fontsize=9)               # label
+axes[0].text(6, -800, "thermocline\n(amber band, above)", fontsize=8)   # label, placed below the band so that it can be read
 axes[0].text(4, -2500, "abyss", fontsize=9)                    # label
 plt.show()
 """,
@@ -1893,9 +1893,10 @@ core("C02", r"Geostrophic balance: $-fv=-\dfrac1{\rho_0}\dfrac{\partial p}{\part
 problem(r"""
 Open any weather map. The wind arrows run *along* the isobars, with low pressure on their left in the northern hemisphere. A
 ball on a hill rolls downhill; air on a pressure "hill" goes round it. The reason is that on a turning earth anything that
-moves is pushed sideways, and the push grows with speed. The air speeds up toward low pressure, is turned, overshoots and loops; averaged
-over a loop it moves along the isobars, at the one speed for which the sideways push cancels the pressure force. Friction, or
-the radiation of waves (`C12`), removes the loops and leaves that steady drift. Oceanographers use
+moves is pushed sideways, and the push grows with speed. The air speeds up toward low pressure, is turned, overshoots and is turned
+back: released from rest, a frictionless parcel traces a row of arches along the isobar. Averaged over an arch it moves along
+the isobars, at the one speed for which the sideways push cancels the pressure force. Friction, or the radiation of waves
+(`C12`), removes the arches and leaves that steady drift. Oceanographers use
 the same balance backwards: an altimeter measures the slope of the sea surface, and the slope gives the current.""")
 idea(r"""
   (1) at rest             (2) moving, being turned           (3) on average: along the isobar
@@ -1907,8 +1908,9 @@ idea(r"""
 """, r"""
 In the northern hemisphere ($f>0$); mirror for $f<0$. The Coriolis force is always at right angles to the motion, so it can
 cancel the pressure force only when the motion is at right angles to the pressure force — along the isobars. A parcel
-released from rest does not stop there: it overshoots (at its fastest it moves at twice the balanced speed) and loops about
-the balanced drift for ever, unless something damps the loops. Panel (3) is the *average* over a loop.""")
+released from rest does not stop there: it overshoots (at its fastest it moves at twice the balanced speed), and its
+*velocity* circles the balanced value once per inertial period for ever, unless something damps it. Its *path* is then a row
+of cycloid arches with cusps — no closed loops — drifting along the isobar. Panel (3) is the *average* over an arch.""")
 remind("C02")
 P("P309", "reading a pressure map: isobars, the pressure-gradient force points from high to low, tight spacing = strong force", r"""
 An isobar joins points of equal pressure, like a height contour on a hiking map. The pressure-gradient force per unit mass is
@@ -2019,7 +2021,7 @@ nb.md(r"""
 (The verbal part of note **N19**; its quantitative part is the adjustment problem of `C12`.) Geostrophy fails near the equator
 ($f\to0$), where friction matters ($E$ not small), and when the flow changes in less than about a day (the acceleration is not
 small). And how is the balance reached? Release a parcel from rest in a uniform pressure gradient and it does not go to the
-low — it circles. `GFD.parcel_adjust` is the exact solution of $dV/dt+(r+if)V=-G$ for the complex velocity $V=u+iv$, with $G$
+low — it swings from side to side of the isobar in arches. `GFD.parcel_adjust` is the exact solution of $dV/dt+(r+if)V=-G$ for the complex velocity $V=u+iv$, with $G$
 the pressure-gradient acceleration and $r$ a linear drag (ours).""")
 fig(r"""
 G = (0.0 + 1j*400.0/3.0e5)/1.2                                 # complex pressure-gradient acceleration (1/rho0)(dp/dx + i dp/dy) [m/s^2]
@@ -2050,7 +2052,7 @@ print(f"mean drift of the frictionless parcel = {drift.real:+.2f} {drift.imag:+.
     change="…$f<0$ (right panel)? The parcel is turned to the left instead: the arches and the drift go east instead of west.")
 explainer("geostrophic_balance", "Why doesn't air flow straight from high to low pressure?",
           "releasing a parcel and watching the Coriolis arrow grow and turn with the velocity shows how the balance is approached — "
-          "the parcel overshoots and loops about it, and only with drag do the bars settle; a static map shows only the end state.",
+          "the parcel overshoots and swings about it in arches, and only with drag do the bars settle; a static map shows only the end state.",
           ["Press play with the default low and watch the teal Coriolis arrow swing round and overshoot; with drag switched on it settles opposite the orange pressure arrow.",
            "Switch to S: the circulation reverses at once.",
            "Drag the latitude toward 5°: Ro climbs past 1 and the parcel cuts across the isobars.",
@@ -4684,7 +4686,9 @@ print("circle of constant omega = 1e-6 1/s (external):", {k_: (v_ if isinstance(
 4. `GFD.rossby_long_wave_speed` is the long-wave limit $-\beta\Lambda^2$: centimetres per second, nine times faster at 12° than
    at 35°.
 5. `ch13.basin_crossing_time`: a year at 12° N, nine years at 35° N — how long the ocean takes to hear about a change of wind.
-6. `GFD.stationary_rossby_wavelength` is the wave that a westerly wind holds still: about 6000 km in a 17 m/s wind.""")
+6. `GFD.stationary_rossby_wavelength` is the wave that a westerly wind holds still, $2\pi\sqrt{U/\beta}$: about 6000 km in a
+   17 m/s wind. This is the rigid-lid (barotropic) value; with a finite Rossby radius the condition is $U=\beta/(k^2+f_0^2/c^2)$
+   and the stationary wave is slightly longer — the explainer below shows both.""")
 note("N135 [B]", r"""
 **Long waves:** $c_x\simeq-\dfrac{\beta c^2}{f_0^2}=-\beta\Lambda^2$ — non-dispersive and westward (the pair of numbers in the cell
 above).""")
