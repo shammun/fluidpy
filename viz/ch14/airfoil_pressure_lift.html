@@ -495,6 +495,7 @@ button, input, select { font: inherit; color: inherit; }
 .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views { flex-direction: row; }
 .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row { flex: 1 1 0 !important; min-width: 0; }
 .viz-app[data-layout="landscape"] .viz-view[data-view="bars"] { display: none !important; }
+.viz-app[data-layout="landscape"] .viz-transport .viz-control-label,
 .viz-app[data-layout="landscape"] .viz-transport .viz-optional,
 .viz-app[data-layout="landscape"] .viz-transport .viz-speed { display: none !important; }
 </style>
@@ -2412,8 +2413,9 @@ function surfacePoint(U, b, e, beta, alpha, t) {
   const edge = Math.abs(wrapPi(t + beta)) < 1e-13;                // the trailing-edge point B, ζ = b
   const zeta = edge ? [b, 0] : [mu[0] + a * Math.cos(t), mu[1] + a * Math.sin(t)];
   const z = joukowski(zeta, b), z2 = cx.mul(zeta, zeta), den = cx.abs([z2[0] - b * b, z2[1]]);
-  const dw = dwdzeta(U, a, mu, alpha, G, zeta), dwAbs = cx.abs(dw), mapF = den > 0 ? cx.abs(z2) / den : Infinity;
-  const speed = edge ? Math.abs(trailingEdgeSpeed(U, a, b, alpha, beta)) : (den > 0 ? dwAbs * mapF : Infinity);   // Eq. (14.9)
+  const dw = dwdzeta(U, a, mu, alpha, G, zeta), dwAbs = cx.abs(dw), sing = den < 1e-12 * b * b;   // ζ² = b²: the map factor is unbounded
+  const mapF = sing ? Infinity : cx.abs(z2) / den;
+  const speed = edge ? Math.abs(trailingEdgeSpeed(U, a, b, alpha, beta)) : (sing ? (dwAbs > 1e-12 * U ? Infinity : NaN) : dwAbs * mapF);   // Eq. (14.9)
   return { t, edge, zeta_re: zeta[0], zeta_im: zeta[1], x: z[0], y: z[1], dwdzeta_abs: dwAbs, map_factor_abs: mapF, speed, cp: 1 - (speed / U) * (speed / U), a, mu, Gamma_cw: G };
 }
 
@@ -2590,12 +2592,12 @@ function crossPx(ctx, x, y, r, color) {
 }
 
 /* ---- the three views (the plots are also used by the pointer handler, so the mapping is the same) ---------- */
-const CPCLIP = 3, LC = 0.4;                                        // arrows: length LC·|C_p| [b], clipped at |C_p| = 3
+const CPCLIP = 3, LC0 = 0.4;                                        // arrows: length LC·|C_p| [b], clipped at |C_p| = 3
 const YBOT = -1.35, YTOP = 3.45;                                   // the graph's −C_p axis
-function foilPlot(v) { return v.plot({ xlim: [-2.85, 2.85], ylim: [-1.25, 1.7], equal: true, pad: { l: 6, r: 6, t: 4, b: 4 } }); }
+function foilPlot(v) { const short = v.h < 150; return v.plot({ xlim: short ? [-2.6, 2.3] : [-2.85, 2.85], ylim: short ? [-0.62, 1.12] : [-1.25, 1.7], equal: true, pad: { l: 6, r: 6, t: 4, b: 4 } }); }
 function cpPlot(v) {
   const small = v.w < 420;
-  return v.plot({ xlim: [-0.04, 1.04], ylim: [YBOT, YTOP], pad: { l: small ? 30 : 50, r: 10, t: 8, b: 34 }, xlabel: small ? 'x/c (from the leading edge)' : 'x/c — fraction of the chord, from the leading edge', ylabel: small ? '' : '−C_p  (suction upward)' });
+  return v.plot({ xlim: [-0.04, 1.04], ylim: [YBOT, YTOP], pad: { l: small ? 30 : 50, r: 10, t: 8, b: 34 }, xlabel: small ? 'x/c (from the leading edge)' : 'x/c — fraction of the chord, from the leading edge', ylabel: small ? '' : '−C_p  (suction up · 0 = ambient)' });
 }
 /** Section axes → picture axes: the picture is turned by −α so that the stream is horizontal and the nose pitches up. */
 function toPic(q, x, y) { const c = Math.cos(q.alpha), sn = Math.sin(q.alpha); return [x * c + y * sn, -x * sn + y * c]; }
@@ -2608,7 +2610,7 @@ function normalPic(q, k) {                                          // outward u
 function drawFoil(v, s, q, cur) {
   v.clear();
   if (v.h < 50 || v.w < 60) return;
-  const ctx = v.ctx, P = foilPlot(v), S = q.S, n = S.n, small = v.w < 420, short = v.h < 150;
+  const ctx = v.ctx, P = foilPlot(v), S = q.S, n = S.n, small = v.w < 420, short = v.h < 150, LC = short ? 0.26 : LC0;
   const orange = C('orange'), blue = C('blue'), amber = C('amber'), teal = C('teal'), rose = C('rose'), muted = C('muted'), text = C('text');
   const px = k => { const p = nodePic(q, k); return [P.X(p[0]), P.Y(p[1])]; };
   const tipOf = k => { const p = nodePic(q, k), nn = normalPic(q, k), m = Math.min(CPCLIP, Math.abs(S.cp[k])) * LC; return [P.X(p[0] + nn[0] * m), P.Y(p[1] + nn[1] * m)]; };
@@ -2618,10 +2620,11 @@ function drawFoil(v, s, q, cur) {
   ctx.beginPath(); ctx.moveTo(P.X(ax0[0]), P.Y(ax0[1])); ctx.lineTo(P.X(te[0]), P.Y(te[1])); ctx.stroke();
   if (!short) { ctx.beginPath(); ctx.moveTo(P.X(te[0] - 4.55), P.Y(te[1])); ctx.lineTo(P.X(te[0]), P.Y(te[1])); ctx.stroke(); }
   ctx.restore();
+  let alphaLabel = null;
   if (!short && !small && Math.abs(s.alphaDeg) >= 0.5) {
     const r = P.sx(3.6), a0 = Math.PI, a1 = Math.PI + q.alpha;      // canvas angles (y down): the chord axis is at π + α
     ctx.save(); ctx.strokeStyle = muted; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(P.X(te[0]), P.Y(te[1]), r, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke(); ctx.restore();
-    Viz.text(ctx, 'α = ' + dg(s.alphaDeg) + '°', P.X(te[0]) - r - 6, P.Y(te[1]) - (q.alpha > 0 ? 9 : -11), { color: muted, align: 'right', bg: true });
+    alphaLabel = () => Viz.text(ctx, 'α = ' + dg(s.alphaDeg) + '°', P.X(te[0]) - r - 8, P.Y(te[1]) + (q.alpha > 0 ? 12 : -11), { color: muted, align: 'right', bg: true });
   }
   // the pressure lobes: a faint envelope through the tips of all arrows
   ctx.save();
@@ -2643,10 +2646,11 @@ function drawFoil(v, s, q, cur) {
   };
   q.stations(small || short ? 26 : 42).forEach(k => drawArrow(k, 1.5));
   drawArrow(S.k_min, 2.6);
+  if (alphaLabel) alphaLabel();
   // the stream
-  const xs0 = P.xlim[0] + 0.12, len = small ? 0.5 : 0.75, ys = short ? [0.75] : [1.15, 0.55, -0.75];
+  const xs0 = P.xlim[0] + 0.12, len = small ? 0.5 : 0.75, ys = short ? [0.8] : small ? [1.15, -0.75] : [1.15, 0.55, -0.75];
   ys.forEach(yy => arrowPx(ctx, P.X(xs0), P.Y(yy), P.X(xs0 + len), P.Y(yy), blue, 2.2, 8));
-  if (!short) Viz.text(ctx, 'stream U', P.X(xs0), P.Y(1.15) - 12, { color: blue, size: 12.5 });
+  if (!short) Viz.text(ctx, 'stream U', P.X(xs0), small ? P.Y(-0.75) + 13 : P.Y(1.15) - 12, { color: blue, size: 12.5 });
   // the resultant: lift across the stream, acting where the line of action crosses the chord axis
   const xcpOn = isFinite(q.F.x_cp) && Math.abs(q.F.x_cp) < 2.05 && Math.abs(q.CL) > 0.05;
   if (xcpOn && s.focus !== 'up' && s.focus !== 'low') {
@@ -2667,8 +2671,8 @@ function drawFoil(v, s, q, cur) {
   // the suction peak
   if (!short) {
     const tp = tipOf(S.k_min), a = px(S.k_min), up = tp[1] <= a[1];
-    Viz.text(ctx, (small ? 'peak ' : 'suction peak C_p = ') + f2(S.cp_min), Math.max(P.px.x + 4, Math.min(P.px.x + P.px.w - (small ? 80 : 170), tp[0] + 8)), tp[1] + (up ? -10 : 12), { color: orange, bg: true });
-    if (!small) Viz.text(ctx, 'stagnation: C_p = 1', P.X(zf[0]) - 10, P.Y(zf[1]) + (q.lifting >= 0 ? 15 : -15), { color: amber, bg: true, align: 'right' });
+    Viz.text(ctx, (small ? 'peak ' : 'suction peak C_p = ') + f2(S.cp_min), Math.max(P.px.x + 4, Math.min(P.px.x + P.px.w - (small ? 80 : 170), tp[0] + 8)), Math.min(P.px.y + P.px.h - 36, tp[1] + (up ? -10 : 12)), { color: orange, bg: true });
+    if (!small) Viz.text(ctx, 'stagnation: C_p = 1', P.X(zf[0]) - 10, P.Y(zf[1]) + (q.lifting >= 0 ? 6 : -6), { color: amber, bg: true, align: 'right' });
   }
   // the cursor
   const c = px(cur.k), ct = tipOf(cur.k);
@@ -2679,7 +2683,7 @@ function drawFoil(v, s, q, cur) {
   if (!short) {
     const kx = P.px.x + P.px.w - 12, ky = P.px.y + P.px.h - 14, Lpx = P.sx(LC);
     arrowPx(ctx, kx - Lpx, ky, kx, ky, muted, 1.6, 6);
-    Viz.text(ctx, small ? '|C_p| = 1' : 'arrow length for |C_p| = 1  (× = cut off at 3)', kx - Lpx - 6, ky, { color: muted, align: 'right' });
+    Viz.text(ctx, v.w < 660 ? '|C_p| = 1' : 'arrow length for |C_p| = 1  (× = cut off at 3)', kx - Lpx - 6, ky, { color: muted, align: 'right' });
     if (!small) Viz.text(ctx, 'chord c = ' + f2(S.chord_x) + ' b · speeds in units of U', P.px.x + 8, ky, { color: muted });
   }
 }
@@ -2720,27 +2724,28 @@ function drawCp(v, s, q, cur, barsHidden) {
   ctx.save(); ctx.beginPath(); ctx.arc(P.X(cur.xc), P.Y(cy), 6, 0, TAU); ctx.fillStyle = ccol; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
   if (tiny) return;
   const xr = P.px.x + P.px.w - 6, xl = P.px.x + 6;
-  // labels
-  if (-S.cp_min > YTOP) Viz.text(ctx, '▲ peak ' + f2(S.cp_min) + ' (off the scale)', Math.min(xr - 150, P.X(S.xc_cp_min) + 10), P.px.y + 11, { color: q.peakUpper ? orange : blue, bg: true });
-  if (s.plate && !low) Viz.text(ctx, small ? 'dashed: flat plate, peak unbounded ↑' : 'dashed: flat plate at the same α — its peak is unbounded ↑', xr, P.px.y + (-S.cp_min > YTOP ? 31 : 11), { color: muted, bg: true, align: 'right' });
+  // labels (rows at the top of the plot are handed out in order, so they never share a line)
+  let row = 0; const topY = () => P.px.y + 11 + 19 * row++;
+  const curAtPeak = off && Math.abs(cur.xc - S.xc_cp_min) < 0.08;
+  if (-S.cp_min > YTOP && !curAtPeak) { const yy = small ? topY() : P.px.y + 11; Viz.text(ctx, '▲ peak ' + f2(S.cp_min) + ' (off the scale)', Math.min(xr - 150, P.X(S.xc_cp_min) + 10), yy, { color: q.peakUpper ? orange : blue, bg: true }); }
+  else if (curAtPeak) row++;
+  if (barsHidden && !low) Viz.text(ctx, 'C_L: loop ' + z3(q.CL) + ' · Γ ' + z3(q.CLg) + ' · 2π rule ' + z3(q.CLr), xr, topY(), { color: teal, bg: true, align: 'right', maxWidth: P.px.w - 12 });
+  if (s.plate && !low) Viz.text(ctx, small ? 'dashed: flat plate ↑' : 'dashed: flat plate at the same α — its peak is unbounded ↑', xr, topY(), { color: muted, bg: true, align: 'right' });
   if (!low) {
     Viz.text(ctx, small ? 'C_p = +1: stagnation' : 'C_p = +1: stagnation (the air is at rest)', xr, P.Y(-1) - 10, { color: amber, bg: true, align: 'right' });
-    Viz.text(ctx, small ? 'C_p = 0' : 'C_p = 0: ambient pressure', xr, P.Y(0) - 10, { color: muted, bg: true, align: 'right' });
-    const i5 = Math.round(0.56 * (M - 1)), yu = gu[i5], yl2 = gl[i5];
+    const i5 = Math.round(0.5 * (M - 1)), yu = gu[i5], yl2 = gl[i5];
     if (s.focus === 'up') Viz.text(ctx, 'upper-surface suction = ' + f3(q.LA.upper), P.X(xg[i5]), P.Y(yu / 2), { color: orange, bg: true, align: 'center' });
     else if (s.focus === 'low') Viz.text(ctx, 'lower-surface pressure = ' + f3(q.LA.lower), P.X(xg[i5]), P.Y(yl2 / 2), { color: blue, bg: true, align: 'center' });
     else if (Math.abs(P.Y(yu) - P.Y(yl2)) > 26) Viz.text(ctx, (small ? 'area = C_y = ' : 'loop area = C_y = ') + z3(q.LA.Cy), P.X(xg[i5]), (P.Y(yu) + P.Y(yl2)) / 2, { color: teal, bg: true, align: 'center' });
     if (!small) {
-      const i3 = Math.round(0.36 * (M - 1));
-      Viz.text(ctx, 'upper surface', P.X(xg[i3]), P.Y(Math.min(YTOP - 0.3, gu[i3])) - 12, { color: orange, bg: true, align: 'center' });
-      Viz.text(ctx, 'lower surface', P.X(xg[i3]), P.Y(Math.max(YBOT + 0.25, gl[i3])) + 13, { color: blue, bg: true, align: 'center' });
+      const i3 = Math.round(0.36 * (M - 1)), nearCur = Math.abs(cur.xc - xg[i3]) < 0.2;
+      if (!(nearCur && cur.upper)) Viz.text(ctx, 'upper surface', P.X(xg[i3]), P.Y(Math.min(YTOP - 0.3, gu[i3])) - 12, { color: orange, bg: true, align: 'center' });
+      if (!(nearCur && !cur.upper && P.Y(gl[i3]) - P.Y(-1) < 44)) Viz.text(ctx, 'lower surface', P.X(xg[i3]), P.Y(Math.max(YBOT + 0.25, gl[i3])) + 13, { color: blue, bg: true, align: 'center' });
     }
-    if (q.sep && q.sep.separated) Viz.text(ctx, small ? 'separation (model)' : 'laminar separation (model)', Math.min(xr - 4, P.X(q.sep.x_sep_over_c) + 6 + (small ? 118 : 160)), P.px.y + P.px.h - 12, { color: rose, bg: true, align: 'right' });
+    if (q.sep && q.sep.separated && !small) Viz.text(ctx, 'laminar separation (model)', Math.min(xr - 4, P.X(q.sep.x_sep_over_c) + 166), P.px.y + P.px.h - 12, { color: rose, bg: true, align: 'right' });
   }
   // the cursor's numbers at the axes
-  Viz.text(ctx, 'C_p ' + (off ? unb(cur.cp) + ' ▲' : unb(cur.cp)), Math.max(xl + 2, Math.min(xr - 70, P.X(cur.xc) + 10)), Math.max(P.px.y + 11, P.Y(cy) - (low ? 0 : 13)), { color: ccol, bg: true });
-  // on phones the bars are hidden: their three numbers sit here
-  if (barsHidden && !low) Viz.text(ctx, 'C_L: loop ' + f3(q.CL) + ' · Γ ' + f3(q.CLg) + ' · 2π rule ' + f3(q.CLr), xr, P.px.y + P.px.h - (q.sep && q.sep.separated ? 32 : 12), { color: teal, bg: true, align: 'right', maxWidth: P.px.w - 12 });
+  Viz.text(ctx, 'C_p ' + (off ? unb(cur.cp) + ' ▲ off the scale' : unb(cur.cp)), Math.max(xl + 2, Math.min(xr - 70, P.X(cur.xc) + 10)), Math.max(P.px.y + 11, P.Y(cy) - (low ? 0 : 13)), { color: ccol, bg: true });
 }
 
 function drawBars(v, s, q) {
@@ -2751,9 +2756,9 @@ function drawBars(v, s, q) {
   P.axes({ yticks: [] });
   const teal = C('teal'), amber = C('amber'), muted = C('muted'), rowH = P.px.h / 3, bh = Math.max(8, Math.min(18, rowH * 0.34)), tall = rowH >= 34;
   const rows = [
-    { v: q.CL, col: teal, label: 'pressure loop:  C_y / cos α = ' + f3(q.CL), fill: true },
-    { v: q.CLg, col: amber, label: 'circulation:  2Γ / (U c) = ' + f3(q.CLg), fill: true },
-    { v: q.CLr, col: muted, label: 'thin-airfoil rule:  2π(α + β) = ' + f3(q.CLr), fill: false }
+    { v: q.CL, col: teal, label: 'pressure loop:  C_y / cos α = ' + z3(q.CL), fill: true },
+    { v: q.CLg, col: amber, label: 'circulation:  2Γ / (U c) = ' + z3(q.CLg), fill: true },
+    { v: q.CLr, col: muted, label: 'thin-airfoil rule:  2π(α + β) = ' + z3(q.CLr), fill: false }
   ];
   rows.forEach((r, i) => {
     const yc = P.px.y + rowH * (i + 0.5), yb = tall ? yc + 3 : yc - bh / 2, X0 = P.X(0), X1 = P.X(r.v), x = Math.min(X0, X1), w = Math.max(1.5, Math.abs(X1 - X0));
@@ -2762,7 +2767,7 @@ function drawBars(v, s, q) {
     else { ctx.strokeStyle = r.col; ctx.lineWidth = 1.8; ctx.setLineDash([5, 3]); Viz.roundRect(ctx, x + 1, yb + 1, Math.max(1, w - 2), bh - 2, 3); ctx.stroke(); }
     ctx.restore();
     if (tall) Viz.text(ctx, r.label, P.px.x + 8, yb - 10, { color: r.col, bg: true, maxWidth: P.px.w - 16 });
-    else Viz.text(ctx, f3(r.v), Math.min(P.px.x + P.px.w - 44, Math.max(X0, X1) + 6), yc, { color: r.col, bg: true });
+    else Viz.text(ctx, z3(r.v), Math.min(P.px.x + P.px.w - 44, Math.max(X0, X1) + 6), yc, { color: r.col, bg: true });
   });
   if (tall && P.px.h > 150 && !q.zero) {
     const gap = 100 * (q.CL / q.CLr - 1);
@@ -2813,7 +2818,7 @@ const app = Viz.app({
     sep: { type: 'toggle', label: 'Laminar separation estimate (qualitative)', value: false, optional: true },
     plate: { type: 'toggle', label: 'Ghost: flat plate at the same α', value: false, optional: true }
   },
-  transport: { param: 'cur', min: 0, max: 1, value: 0.42, rate: 0.12, end: 'loop', step: 0.005, label: 'Surface cursor (tail → over the top → nose → back)', unit: 'of the contour' },
+  transport: { param: 'cur', min: 0, max: 1, value: 0.42, rate: 0.12, end: 'loop', step: 0.005, label: 'Surface cursor', unit: 'of contour' },
   presets: [
     { label: 'zero lift', set: { alphaDeg: -4, betaDeg: 4, e: 0.08, plate: false }, title: 'α = −β: the loop\'s two halves cancel' },
     { label: 'cruise', set: { alphaDeg: 2, betaDeg: 4, e: 0.08, plate: false }, title: 'a modest peak and a long gentle recovery' },
@@ -2845,7 +2850,7 @@ const app = Viz.app({
     rows: [1, 1.1],
     views: [
       { id: 'foil', row: 0, flex: 1, title: s => '<b>Pressure on the skin</b> · <span class="c-orange">arrow away = suction</span> · <span class="c-blue">arrow onto the skin = push</span> · <span class="c-amber">●</span> stagnation · <span class="c-teal">lift</span> at the centre of pressure · ○ cursor (click the surface)' },
-      { id: 'cp', row: 1, flex: 1.5, title: s => { const q = quantities(s); return '<b>$-C_p$ along the chord</b> · <span class="c-orange">upper</span> · <span class="c-blue">lower</span> · <span class="c-teal">loop area $C_y$ = ' + z3(q.LA.Cy) + '</span> · $C_L$: loop ' + f3(q.CL) + ' · Γ ' + f3(q.CLg) + ' · 2π rule ' + f3(q.CLr); } },
+      { id: 'cp', row: 1, flex: 1.5, title: s => { const q = quantities(s); return '<b>$-C_p$ along the chord</b> · <span class="c-orange">upper</span> · <span class="c-blue">lower</span> · <span class="c-teal">loop area $C_y$ = ' + z3(q.LA.Cy) + '</span>' + (layoutOf() === 'wide' ? '' : ' · $C_L$: loop ' + z3(q.CL) + ' · Γ ' + z3(q.CLg) + ' · 2π rule ' + z3(q.CLr)); } },
       { id: 'bars', row: 1, flex: 1, hidePortrait: true, title: '<b>Three ways to the lift</b> · <span class="c-teal">loop</span> · <span class="c-amber">circulation</span> · <span class="c-muted">2π rule</span>' }
     ],
     draw(g, s) {
@@ -2874,7 +2879,7 @@ const app = Viz.app({
     }
   },
   explore: {
-    intro: 'Arrows show the pressure on the skin; the graph plots the same numbers upside down. Click the surface or a curve to move the cursor.',
+    intro: 'Arrows show the pressure on the skin; the graph plots the same numbers upside down. Click the surface or a curve to move the cursor; its slider is the fraction of the contour walked from the tail, over the top, round the nose and back.',
     controls: ['alphaDeg', 'betaDeg', 'e', 'sep', 'plate'],
     readouts: ['cpc', 'qc', 'peak', 'cy', 'cl', 'gam', 'xcp'],
     callouts: [{ kind: 'try', html: 'Predict the angle at which the loop\'s net area vanishes, then find it with the $\\alpha$ slider.' }]
@@ -3060,7 +3065,7 @@ print(sep["x_sep_over_c"])        # {{xsep}} of the chord`,
     const xi = 0.3, plateU = 1 - Math.pow(Math.cos(a5) + Math.sin(a5) * Math.sqrt((1 - xi) / xi), 2), tPl = Math.acos(2 * xi - 1);
     return [
       { name: 'circle radius a', js: circle(1, 0.08, b4).a, py: 'ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[1]', rtol: 1e-12 },
-      { name: 'Kutta circulation (14.11)', js: S.Gamma_cw, py: 'ch14.kutta_circulation(U=1.0, a=ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[1], alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0))', rtol: 1e-12 },
+      { name: 'Kutta circulation',js: S.Gamma_cw, py: 'ch14.kutta_circulation(U=1.0, a=ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[1], alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0))', rtol: 1e-12 },
       { name: 'cp min', js: S.cp_min, py: SURF_PY + '["cp_min"]', rtol: 1e-9 },
       { name: 'x/c of the peak', js: S.xc_cp_min, py: SURF_PY + '["xc_cp_min"]', rtol: 1e-9 },
       { name: 'chord along x', js: S.chord_x, py: SURF_PY + '["chord_x"]', rtol: 1e-12 },
@@ -3082,7 +3087,7 @@ print(sep["x_sep_over_c"])        # {{xsep}} of the chord`,
       { name: 'centre of pressure x/c', js: F.xcp_over_c, py: FORCE_PY + '["xcp_over_c"]', rtol: 1e-5 },
       { name: 'thick symmetric: CL', js: F2.CL, py: 'ch14.zhukhovsky_force(U=1.0, b=1.0, e=0.15, beta=0.0, alpha=np.deg2rad(8.0), rho=1.0, method="pressure")["CL"]', rtol: 1e-5 },
       { name: 'thick symmetric: cp min', js: S2.cp_min, py: 'ch14.zhukhovsky_surface(U=1.0, b=1.0, e=0.15, beta=0.0, alpha=np.deg2rad(8.0), n=2000)["cp_min"]', rtol: 1e-9 },
-      { name: '2π of the thin rule (14.12)', js: clRule(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(alpha=1.0, beta=0.0)', rtol: 1e-12 },
+      { name: '2π of the thin rule',js: clRule(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(alpha=1.0, beta=0.0)', rtol: 1e-12 },
       { name: 'lambda_sep', js: LAMBDA_SEP, py: 'core.boundary_layer.LAMBDA_SEP_FS', rtol: 1e-9 },
       { name: 'separation (qualitative), α = 6°', js: sepPoint(rad(6), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(6.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 2e-2 },
       { name: 'separation (qualitative), α = 2°', js: sepPoint(rad(2), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(2.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 2e-2 },

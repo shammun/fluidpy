@@ -476,7 +476,29 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+/* chapter CSS — lift_curve_stall. Colours (one meaning each, in text, curves and bars): lift from theory teal; the
+   drawn MODEL of a measured curve and the separated flow rose; the stream and speeds blue; references and ghosts grey.
+   Row 1: the lift curve | the section at the current angle; row 2: the stall-speed bars — hidden on phones (portrait
+   and landscape), whose number is repeated in the section view's title, a readout and Explain section 6. */
+.c-amber { color: var(--viz-amber); font-weight: 650; }
+.c-muted { color: var(--viz-muted); font-weight: 650; }
+.viz-stage-top .viz-presets { flex-wrap: wrap; }
+.viz-seg { flex-wrap: wrap; }
+.viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2),
+.viz-app[data-layout="landscape"] .viz-views > .viz-row:nth-child(2) { display: none !important; }
+.viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+/* phones held upright: the lift curve above the section (two stacked views, never three) */
+.viz-app[data-layout="portrait"] .viz-views > .viz-row:first-child { flex-direction: column; }
+.viz-app[data-layout="portrait"] .viz-view[data-view="curve"] { flex: 1.5 1 0 !important; }
+.viz-app[data-layout="portrait"] .viz-view[data-view="section"] { flex: 1 1 0 !important; }
+.viz-app[data-layout="portrait"]:not([data-tab="explore"]) .viz-presets { display: none !important; }
+/* upright tablets: the stage is a narrow column, so the curve goes above the section there too */
+@media (max-aspect-ratio: 1/1) {
+  .viz-app[data-layout="wide"] .viz-views > .viz-row:first-child { flex-direction: column; }
+}
+@media (max-height: 720px) {
+  .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
+}
 </style>
 </head>
 <body>
@@ -2334,95 +2356,666 @@ button, input, select { font: inherit; color: inherit; }
 </script>
 <script>
 'use strict';
-/* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch14.zhukhovsky_lift_coefficient ch14.zero_lift_angle ch14.generic_lift_curve ch14.stall_regime ch14.stall_speed ch14.finite_wing_lift_slope ch14.zhukhovsky_airfoil ch14.kutta_circulation ch14.chord_reynolds (same symbols, same equation numbers, SI units).
-   --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+/* =====================================================================================================================
+   PHYSICS — mirrors fluidpy.core.airfoils / core.lifting_line (imported as ch14.*) and ch14_aerodynamics, same symbols.
+     zhukhovsky_lift_coefficient   C_L ≃ 2π(α + β)  (14.12);  exact=True: 8π(a/c) sin(α + β), chord measured on the contour
+     zero_lift_angle               α_{L=0} = −β = −2 camber/chord   (§14.5, with camber ≃ ½βc of (14.8))
+     kutta_circulation             Γ = 4πUa sin(α + β)   (14.11), CLOCKWISE (the book's convention)
+     zhukhovsky_circle / _airfoil  μ = b − a e^{−iβ}, a = b(1 + e)/cos β;  z = ζ + b²/ζ  (14.3)
+     finite_wing_lift_slope        K/(1 + K/(πΛ))   (§14.6, from (14.16) on an elliptic wing)
+     generic_lift_curve            (1 − σ) K(α + β) + σ C_L,post, σ = smoothstep((α − α_stall)/width)
+                                   — A DRAWN MODEL of a measured curve, qualitative, every constant ours
+     chord_reynolds, stall_regime  Re_c = Uc/ν; a two-threshold label (thresholds ours)
+     stall_speed                   U_min = √(2W/(ρ A C_L,max))   (ours: L = W at the maximum lift coefficient)
+   Angles in radians inside the functions; degrees only at the interface.  Lengths of the section sketch in units of
+   the map constant b (b = 1, chord ≈ 4b), speeds there in units of U.
+   Local helpers (not in assets/viz_lib.js yet): cx (complex arithmetic), buildNet (streamlines by marching squares),
+   arrowPx, gutterPlot — copied from the sibling explainer kutta_condition.
+   ===================================================================================================================== */
+/* PHYSICS:BEGIN */
+const PI = Math.PI, D2R = PI / 180, R2D = 180 / PI;
+const rad = d => d * D2R;
+function cx(re, im) { return { re: re, im: im || 0 }; }
+cx.add = (p, q) => cx(p.re + q.re, p.im + q.im);
+cx.div = (p, q) => { const d = q.re * q.re + q.im * q.im; return cx((p.re * q.re + p.im * q.im) / d, (p.im * q.re - p.re * q.im) / d); };
+/** ch14.zhukhovsky_circle(b, e, beta): centre μ = b − a e^{−iβ} and radius a = b(1 + e)/cos β. */
+function circle(b, e, beta) { const a = b * (1 + e) / Math.cos(beta); return { a: a, mu: cx(b - a * Math.cos(beta), a * Math.sin(beta)) }; }
+/** Eq. (14.3): z = ζ + b²/ζ. */
+function jk(zeta, b) { return cx.add(zeta, cx.div(cx(b * b, 0), zeta)); }
+/** ch14.zhukhovsky_airfoil(b, e, beta, n): the contour, index 0 = trailing edge, counterclockwise (upper surface first). */
+function contour(b, e, beta, n) {
+  const C = circle(b, e, beta), x = [], y = [];
+  for (let k = 0; k < n; k++) { const t = -beta + 2 * PI * k / n, z = jk(cx(C.mu.re + C.a * Math.cos(t), C.mu.im + C.a * Math.sin(t)), b); x.push(z.re); y.push(z.im); }
+  return { x: x, y: y, a: C.a, mu: C.mu };
+}
+/** Eq. (14.12): C_L ≃ 2π(α + β). */
+function clLine(alpha, beta) { return 2 * PI * (alpha + beta); }
+/** Chord measured on the contour: the largest distance from the tail z = 2b (as ch14.zhukhovsky_shape(exact=True)). */
+const CHORD = {};
+function chordOf(b, e, beta) {
+  const key = b + '|' + e + '|' + beta; if (CHORD[key] !== undefined) return CHORD[key];
+  const C = circle(b, e, beta);
+  const d = t => { const z = jk(cx(C.mu.re + C.a * Math.cos(t), C.mu.im + C.a * Math.sin(t)), b); return Math.hypot(z.re - 2 * b, z.im); };
+  const n = 720; let best = -1, tb = 0;
+  for (let i = 0; i < n; i++) { const t = -beta + 2 * PI * i / n, v = d(t); if (v > best) { best = v; tb = t; } }
+  let lo = tb - 2 * PI / n, hi = tb + 2 * PI / n; const gr = (Math.sqrt(5) - 1) / 2;
+  for (let i = 0; i < 80; i++) { const m1 = hi - gr * (hi - lo), m2 = lo + gr * (hi - lo); if (d(m1) > d(m2)) hi = m2; else lo = m1; }
+  return (CHORD[key] = d(0.5 * (lo + hi)));
+}
+/** ch14.zhukhovsky_lift_coefficient(alpha, beta, e, exact=True): 8π(a/c) sin(α + β), b = 1. */
+function clExact(alpha, beta, e) { return 8 * PI * circle(1, e, beta).a / chordOf(1, e, beta) * Math.sin(alpha + beta); }
+/** ch14.zero_lift_angle(camber_ratio): α_{L=0} = −2 camber/chord [rad]. */
+function zeroLift(camberRatio) { return -2 * camberRatio; }
+/** Eq. (14.11): the clockwise circulation the Kutta condition asks for. */
+function gammaK(U, a, alpha, beta) { return 4 * PI * U * a * Math.sin(alpha + beta); }
+/** The smoothstep stall fraction σ of ch14.generic_lift_curve: 0 below α_stall, 1 above α_stall + width. */
+function stallSigma(alpha, alphaStall, width) { const x = Math.min(1, Math.max(0, (alpha - alphaStall) / width)); return x * x * (3 - 2 * x); }
+/** ch14.generic_lift_curve(alpha, K=, beta=, alpha_stall=, CL_post=, width=): a DRAWN MODEL, qualitative. */
+function clModel(alpha, K, beta, alphaStall, CLpost, width) { const sig = stallSigma(alpha, alphaStall, width); return (1 - sig) * K * (alpha + beta) + sig * CLpost; }
+/** ch14.chord_reynolds(U, c, nu): Re_c = Uc/ν. */
+function chordRe(U, c, nu) { return U * c / nu; }
+/** ch14.stall_regime(Re_c, Re_laminar=, Re_turbulent=): a labelled two-threshold classifier. */
+const REGIMES = ['laminar separation first', 'mixed', 'transition first'];
+function regime(Re, ReLam, ReTurb) { return Re < ReLam ? REGIMES[0] : Re > ReTurb ? REGIMES[2] : REGIMES[1]; }
+/** ch14.stall_speed(W, rho, A, CL_max): U_min = √(2W/(ρ A C_L,max)) [m/s]. */
+function uStall(W, rho, A, CLmax) { return Math.sqrt(2 * W / (rho * A * CLmax)); }
+/** ch14.finite_wing_lift_slope(K, AR): K/(1 + K/(πΛ)) [1/rad]. */
+function slope3D(K, AR) { return K / (1 + K / (PI * AR)); }
+/** ψ = Im w of the flow round the off-centre circle (stream at the angle α, clockwise Γ): zero on the circle. */
+function psiFast(x, y, F) {
+  const sx = x - F.mx, sy = y - F.my, r2 = sx * sx + sy * sy;
+  return F.U * (sy * F.ca - sx * F.sa) * (1 - F.a * F.a / r2) + F.G / (4 * PI) * Math.log(r2 / (F.a * F.a));
+}
+/* PHYSICS:END */
+
+/* ---- the constants of the page (all ours, illustrative; none is a measured value) -------------------------------- */
+const K_MODEL = 5.7, WIDTH = rad(2), FLAP_CAMBER = 0.03, RE_LAM = 5e5, RE_TURB = 3e6, NU_AIR = 1.5e-5;
+const PLANE = { W: 9000, rho: 1.225, A: 15, AR: 9.6 };
+const CASES = {
+  lam: { U: 10, c: 0.3, astall: 11, post: 0.7 },       // a small, slow wing
+  turb: { U: 60, c: 1.5, astall: 15, post: 1.0 }       // a full-size wing
+};
+const MODEL_OF = { 'laminar separation first': CASES.lam, 'transition first': CASES.turb, 'mixed': CASES.turb };
+const A_MIN = -8, A_MAX = 20;
+/** Maximum of the model curve (golden section on the blend interval, where the curve rises, then falls). */
+function modelMax(beta, astall, post) {
+  const f = a => clModel(a, K_MODEL, beta, astall, post, WIDTH), gr = (Math.sqrt(5) - 1) / 2;
+  let lo = astall, hi = astall + WIDTH;
+  for (let i = 0; i < 70; i++) { const m1 = hi - gr * (hi - lo), m2 = lo + gr * (hi - lo); if (f(m1) > f(m2)) hi = m2; else lo = m1; }
+  const a = 0.5 * (lo + hi); return { alpha: a, CL: f(a) };
 }
 
-/* ---------------------------------------------------------------------------------------------------
-   APP
-   --------------------------------------------------------------------------------------------------- */
-const app = Viz.app({
+/* ---- the explainer's state → every number on the screen (memoised) ------------------------------------------------ */
+let MEMO = { key: '', v: null };
+function N(s) {
+  const key = [s.alphaDeg, s.camber, s.regime, s.flap, s.e].join('|');
+  if (MEMO.key === key) return MEMO.v;
+  const al = rad(s.alphaDeg), camEff = s.camber + (s.flap ? FLAP_CAMBER : 0), be = 2 * camEff, beClean = 2 * s.camber, beFlap = 2 * (s.camber + FLAP_CAMBER);
+  const cs = CASES[s.regime] || CASES.turb, Re = chordRe(cs.U, cs.c, NU_AIR), kind = regime(Re, RE_LAM, RE_TURB), md = MODEL_OF[kind];
+  const as = rad(md.astall), C = circle(1, s.e, be), chord = chordOf(1, s.e, be);
+  const CLr = clLine(al, be), CLe = clExact(al, be, s.e), CLm = clModel(al, K_MODEL, be, as, md.post, WIDTH), sig = stallSigma(al, as, WIDTH);
+  const s3 = slope3D(2 * PI, PLANE.AR), mx = modelMax(be, as, md.post), mxClean = modelMax(beClean, as, md.post), mxFlap = modelMax(beFlap, as, md.post);
+  const GK = gammaK(1, C.a, al, be);
+  let state = 'linear';
+  if (Math.abs(s.alphaDeg + be * R2D) < 0.13) state = 'zero';
+  else if (al > mx.alpha) state = 'stalled';
+  else if (s.alphaDeg >= md.astall - 2) state = 'near';
+  const v = { al, be, beClean, camEff, cs, Re, kind, md, as, a: C.a, mu: C.mu, chord, CLr, CLe, CLm, sig, s3, CL3: s3 * (al + be), mx, mxClean, mxFlap, GK, state,
+    deficit: CLr > 1e-9 ? 1 - CLm / CLr : 0,
+    Umin: uStall(PLANE.W, PLANE.rho, PLANE.A, mx.CL), UminClean: uStall(PLANE.W, PLANE.rho, PLANE.A, mxClean.CL), UminFlap: uStall(PLANE.W, PLANE.rho, PLANE.A, mxFlap.CL),
+    Gsk: GK * (1 - sig) + sig * 0.5 * md.post * chord, e: s.e };
+  MEMO = { key, v };
+  return v;
+}
+const DEF = { alphaDeg: 5, camber: 0.035, regime: 'turb', flap: false, e: 0.08 };
+const ND = o => N(Object.assign({}, DEF, o || {}));
+
+/* ---- formatting --------------------------------------------------------------------------------------------------- */
+const f2 = v => Viz.fmt(v, { sig: 2 });
+const f3 = v => Viz.fmt(v, { sig: 3 });
+const f4 = v => Viz.fmt(v, { sig: 4 });
+const t3 = v => Viz.tnum(v, 3);
+const t4 = v => Viz.tnum(v, 4);
+const r2 = v => Math.round(v * 100) / 100;
+const dg = v => String(r2(v)).replace('-', '−');            // degrees as text
+const dt = v => String(r2(v));                               // degrees inside TeX
+const d1 = v => (Math.round(v * 10) / 10).toFixed(1).replace('-', '−');
+const pn = (v, k) => (Math.abs(v) < 1e-12 ? 0 : Number(v.toPrecision(k || 4)));
+const pct = v => String(Math.round(100 * v));
+const kmh = u => Math.round(u * 3.6);
+const c2 = v => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2).replace('-', '−');   // a lift coefficient as text
+const cam3 = v => String(Math.round(v * 1000) / 1000);
+function narrow() { return (window.innerWidth || 1000) < 560 || (window.innerHeight || 800) < 500; }
+const isSmall = v => v.w < 330 || v.h < 200;
+const isTiny = v => v.w < 250 || v.h < 140;
+
+/* ---- pixel helpers ------------------------------------------------------------------------------------------------ */
+function arrowPx(ctx, x0, y0, x1, y1, color, width, head, dash) {
+  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 1) return;
+  const ang = Math.atan2(y1 - y0, x1 - x0), hd = Math.min(head || 8, L * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width || 2; ctx.lineCap = 'round'; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - hd * 0.7 * Math.cos(ang), y1 - hd * 0.7 * Math.sin(ang)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hd * Math.cos(ang - 0.42), y1 - hd * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - hd * Math.cos(ang + 0.42), y1 - hd * Math.sin(ang + 0.42)); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function dotPx(ctx, X, Y, r, fill, stroke, sw) { ctx.save(); ctx.beginPath(); ctx.arc(X, Y, r, 0, 2 * PI); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw || 1.5; ctx.stroke(); } ctx.restore(); }
+function linePx(ctx, x0, y0, x1, y1, color, w, dash) { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w || 1.4; if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.restore(); }
+/** Plot with the rotated y title in its own 18 px strip on views narrower than 420 px. */
+function gutterPlot(v, opt, axOpt) {
+  const narrowV = v.w < 420, yl = opt.ylabel, base = opt.rect || { x: 0, y: 0, w: v.w, h: v.h };
+  const o = Object.assign({}, opt, narrowV ? { rect: { x: base.x + 18, y: base.y, w: base.w - 18, h: base.h }, ylabel: '' } : {});
+  const P = v.plot(o).axes(Object.assign({}, axOpt || {}, narrowV ? { ylabel: '' } : {}));
+  if (narrowV && yl) { const c = v.ctx; c.save(); c.font = Viz.font(12, 500); c.fillStyle = Viz.color('text-soft'); c.translate(base.x + 9, P.px.y + P.px.h / 2); c.rotate(-PI / 2); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(yl, 0, 0); c.restore(); }
+  return P;
+}
+
+/* ---- streamlines: contours of ψ = Im w on a ζ-grid, clipped at the circle, then mapped to z by (14.3) -------------- */
+function buildNet(F, xl, yl, nx, ny, dpsi) {
+  const xs = new Float64Array(nx), ys = new Float64Array(ny), v = new Float64Array(nx * ny), a = F.a, core2 = 0.04 * a * a;
+  for (let i = 0; i < nx; i++) xs[i] = xl[0] + (xl[1] - xl[0]) * i / (nx - 1);
+  for (let j = 0; j < ny; j++) ys[j] = yl[0] + (yl[1] - yl[0]) * j / (ny - 1);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const sx = xs[i] - F.mx, sy = ys[j] - F.my;
+    v[j * nx + i] = sx * sx + sy * sy < core2 ? NaN : psiFast(xs[i], ys[j], F);
+  }
+  const segs = [], bold = [], tol = 0.75 * Math.max(xs[1] - xs[0], ys[1] - ys[0]);
+  const emit = (px, py, qx, qy, k) => {
+    let r0 = Math.hypot(px - F.mx, py - F.my) - a, r1 = Math.hypot(qx - F.mx, qy - F.my) - a;
+    if (r0 < 0 && r1 < 0) return;
+    if (k === 0 && Math.abs(r0) < tol && Math.abs(r1) < tol) return;               // the circle itself is ψ = 0
+    if (r0 < 0) { const t = r0 / (r0 - r1); px += t * (qx - px); py += t * (qy - py); }
+    else if (r1 < 0) { const t = r1 / (r1 - r0); qx += t * (px - qx); qy += t * (py - qy); }
+    (k === 0 ? bold : segs).push(px, py, qx, qy);
+  };
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const A = v[j * nx + i], B = v[j * nx + i + 1], C = v[(j + 1) * nx + i + 1], D = v[(j + 1) * nx + i];
+    if (!(A === A && B === B && C === C && D === D)) continue;
+    const lo = Math.min(A, B, C, D), hi = Math.max(A, B, C, D);
+    if (hi - lo > 40 * dpsi) continue;
+    const x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1];
+    for (let k = Math.ceil(lo / dpsi); k * dpsi <= hi; k++) {
+      const L = k * dpsi, idx = (A > L ? 1 : 0) | (B > L ? 2 : 0) | (C > L ? 4 : 0) | (D > L ? 8 : 0);
+      if (idx === 0 || idx === 15) continue;
+      const bx = x0 + (L - A) / (B - A) * (x1 - x0), ry = y0 + (L - B) / (C - B) * (y1 - y0), tx = x0 + (L - D) / (C - D) * (x1 - x0), ly = y0 + (L - A) / (D - A) * (y1 - y0);
+      switch (idx) {
+        case 1: case 14: emit(bx, y0, x0, ly, k); break;
+        case 2: case 13: emit(bx, y0, x1, ry, k); break;
+        case 3: case 12: emit(x0, ly, x1, ry, k); break;
+        case 4: case 11: emit(x1, ry, tx, y1, k); break;
+        case 6: case 9: emit(bx, y0, tx, y1, k); break;
+        case 7: case 8: emit(x0, ly, tx, y1, k); break;
+        case 5: emit(bx, y0, x1, ry, k); emit(x0, ly, tx, y1, k); break;
+        default: emit(bx, y0, x0, ly, k); emit(x1, ry, tx, y1, k);
+      }
+    }
+  }
+  const toZ = q => { const o = new Array(q.length); for (let i = 0; i < q.length; i += 2) { const x = q[i], y = q[i + 1], rr = x * x + y * y; o[i] = x + x / rr; o[i + 1] = y - y / rr; } return o; };
+  return { zsegs: toZ(segs), zbold: toZ(bold) };
+}
+let NET = { key: '' };
+function netFor(F, R, nn, dpsi) {
+  const key = [F.a, F.mx, F.my, F.ca, F.G, R.toFixed(1), nn, dpsi].join('|');
+  if (NET.key !== key) { NET = buildNet(F, [-R, R], [-R, R], nn, nn, dpsi); NET.key = key; }
+  return NET;
+}
+/** The section's contour (z-plane, b = 1), clustered at the tail; and the mean height of the section at x = −b. */
+const BODY = {};
+function bodyOf(e, be) {
+  const key = e + '|' + be; if (BODY[key]) return BODY[key];
+  const C = circle(1, e, be), m = 220, z = [];
+  for (let k = 0; k <= m; k++) { const u = k / m, t = -be + 2 * PI * u - Math.sin(2 * PI * u), p = jk(cx(C.mu.re + C.a * Math.cos(t), C.mu.im + C.a * Math.sin(t)), 1); z.push([p.re, p.im]); }
+  const ys = []; for (let k = 0; k < m; k++) { const p = z[k], q = z[k + 1]; if ((p[0] + 1) * (q[0] + 1) <= 0 && p[0] !== q[0]) ys.push(p[1] + (-1 - p[0]) / (q[0] - p[0]) * (q[1] - p[1])); }
+  let xmin = 1e9, ile = 0; z.forEach((p, i) => { if (p[0] < xmin) { xmin = p[0]; ile = i; } });
+  const keys = Object.keys(BODY); if (keys.length > 40) keys.forEach(k => delete BODY[k]);
+  return (BODY[key] = { z, yq: ys.length ? ys.reduce((q, w) => q + w, 0) / ys.length : 0, le: z[ile] });
+}
+
+/* ---- view 1: the lift curve --------------------------------------------------------------------------------------- */
+let VW = { curve: null };
+const XL = [-10, 22], YL = [-0.6, 2.8];
+function drawCurve(v, s, n, app) {
+  v.clear(); VW.curve = null;
+  if (v.w < 80 || v.h < 60) return;
+  const ctx = v.ctx, small = v.w < 470 || v.h < 235, tiny = isTiny(v);
+  const TE = Viz.color('teal'), RO = Viz.color('rose'), MU = Viz.color('muted'), TX = Viz.color('text');
+  const P = gutterPlot(v, { xlim: XL, ylim: YL, xlabel: tiny ? '' : 'angle of attack α [°]', ylabel: v.h < 110 ? '' : 'lift coefficient C_L [–]', pad: { l: 44, r: 10, t: 8, b: tiny ? 20 : 36 } });
+  VW.curve = P;
+  const be = n.be, md = n.md, asD = md.astall, mxD = n.mx.alpha * R2D;
+  const fLine = a => clLine(rad(a), be), fEx = a => clExact(rad(a), be, s.e), fMod = a => clModel(rad(a), K_MODEL, be, n.as, md.post, WIDTH), f3D = a => n.s3 * (rad(a) + be);
+  P.clip(() => {
+    // beyond the model's stall angle the theory no longer applies: a faint rose band
+    ctx.save(); ctx.fillStyle = Viz.alpha(RO, 0.07); ctx.fillRect(P.X(asD), P.px.y, P.X(XL[1]) - P.X(asD), P.px.h); ctx.restore();
+    linePx(ctx, P.X(asD), P.px.y, P.X(asD), P.px.y + P.px.h, Viz.alpha(RO, 0.55), 1.2, [4, 4]);
+    // the finite wing (grey ghost)
+    P.fn(f3D, { color: MU, width: 1.6, dash: [7, 5], n: 2 });
+    // theory: bold up to the stall angle, faint beyond it
+    P.fn(fLine, { x0: XL[0], x1: asD, color: TE, width: 2.8, n: 2 });
+    P.fn(fLine, { x0: asD, x1: XL[1], color: TE, width: 2, alpha: 0.32, n: 2 });
+    P.fn(fEx, { x0: XL[0], x1: asD, color: TE, width: 1.6, dash: [6, 4], n: 60 });
+    P.fn(fEx, { x0: asD, x1: XL[1], color: TE, width: 1.4, dash: [6, 4], alpha: 0.32, n: 30 });
+    // the drawn model: faint whole curve, bold up to your angle
+    P.fn(fMod, { color: RO, width: 2, alpha: 0.4, n: 320 });
+    P.fn(fMod, { x0: XL[0], x1: s.alphaDeg, color: RO, width: 3.2, n: 320 });
+  });
+  // the zero-lift angle on the axis
+  const X0 = P.X(-be * R2D), Y0 = P.Y(0);
+  ctx.save(); ctx.fillStyle = TE; ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X0 - 6, Y0 + 10); ctx.lineTo(X0 + 6, Y0 + 10); ctx.closePath(); ctx.fill(); ctx.restore();
+  const Xc = P.X(s.alphaDeg), yl = fLine(s.alphaDeg), ye = fEx(s.alphaDeg), ym = n.CLm, past = n.sig > 0.001;
+  if (!tiny && Math.abs(Xc - X0) >= (small ? 46 : 120)) Viz.text(ctx, small ? `−β` : `zero lift: α = −β = ${dg(-be * R2D)}°`, Math.max(X0, P.px.x + (small ? 12 : 88)), Y0 + 20, { size: 12, weight: 650, color: TE, align: 'center', bg: true, pad: 2 });
+  if (be > 0.02 && !small) { arrowPx(ctx, P.X(0), Y0, X0 + 3, Y0, Viz.alpha(TX, 0.75), 1.6, 7); }
+  // the model's maximum (the stall point)
+  const Xm = P.X(mxD), Ym = P.Y(n.mx.CL), stallY = Math.max(Ym - 15, P.px.y + 11);
+  ctx.save(); ctx.translate(Xm, Ym); ctx.rotate(PI / 4); ctx.fillStyle = RO; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.fillRect(-5, -5, 10, 10); ctx.strokeRect(-5, -5, 10, 10); ctx.restore();
+  if (!tiny) Viz.text(ctx, small ? `max ${c2(n.mx.CL)}` : `stall: C_L,max = ${c2(n.mx.CL)} at ${d1(mxD)}° (model)`, Math.min(Xm - 8, P.px.x + P.px.w - 4), stallY, { size: 12, weight: 700, color: RO, align: 'right', bg: true, pad: 2 });
+  if (!small) {
+    Viz.text(ctx, 'rose: a drawn model, not data', P.px.x + P.px.w - 6, P.px.y + P.px.h - 11, { size: 12, weight: 650, color: RO, align: 'right', bg: true, pad: 2 });
+    if (stallY > P.px.y + 34 || Xm - 8 < P.px.x + P.px.w - 170) Viz.text(ctx, 'theory no longer applies', P.px.x + P.px.w - 6, P.px.y + 12, { size: 12, weight: 650, color: Viz.alpha(TE, 0.9), align: 'right', bg: true, pad: 2 });
+  }
+  // the cursor: your angle of attack, a dot on each curve
+  linePx(ctx, Xc, P.px.y, Xc, P.px.y + P.px.h, Viz.alpha(TX, 0.5), 1.2, [3, 3]);
+  P.clip(() => {
+    if (past && yl - ym > 0.06) arrowPx(ctx, Xc, P.Y(Math.min(yl, YL[1] + 0.2)) + 6, Xc, P.Y(ym) - 8, RO, 2, 8);
+    dotPx(ctx, Xc, P.Y(ye), 4, past ? Viz.color('card') : '#fff', Viz.alpha(TE, past ? 0.45 : 1), 2);
+    dotPx(ctx, Xc, P.Y(yl), 5, past ? Viz.color('card') : TE, past ? Viz.alpha(TE, 0.45) : '#fff', past ? 2 : 1.5);
+  });
+  dotPx(ctx, Xc, P.Y(ym), tiny ? 5.5 : 7, RO, '#fff', 2);
+  if (!tiny && !(small && app && app.holding)) {
+    const lab = past ? `${c2(ym)} · ${pct(n.deficit)} % below the line` : small ? `C_L ${c2(yl)}` : `2π rule ${c2(yl)} · model ${c2(ym)}`;
+    const right = Xc < P.px.x + P.px.w * 0.5, nearMax = Math.abs(Xc - Xm) < 70 && Math.abs(P.Y(ym) - Ym) < 44;
+    const Yl = Math.min(Math.max(P.Y(ym) + (past ? (nearMax ? 22 : 0) : 20), P.px.y + 12), P.px.y + P.px.h - 30);
+    Viz.text(ctx, lab, Xc + (right ? 12 : -12), Yl, { size: 12.5, weight: 700, color: past ? RO : TX, align: right ? 'left' : 'right', bg: true, pad: 3 });
+  }
+  if (app && app.holding) Viz.card(ctx, P.X(7), P.Y(-0.05), small ? [`theory ${c2(yl)} · model ${c2(ym)}`] : [`at ${d1(s.alphaDeg)}°: theory says C_L = ${c2(yl)}`, `the model gives ${c2(ym)} — ${pct(n.deficit)} % of the lift is gone`], { color: RO, colors: [small ? RO : TE, RO], maxWidth: Math.max(150, Math.min(0.6 * P.px.w, 360)) });
+}
+function curveTitle(s) {
+  const n = N(s);
+  if (narrow()) return `<b>C_L(α)</b> · <span class="c-teal">theory ${c2(n.CLr)}</span> · <span class="c-rose">model ${c2(n.CLm)}</span>`;
+  return `<b>Lift curve</b> · <span class="c-rose">rose: a drawn model</span> · <span class="c-teal">teal: theory 2π(α + β)</span>, dashed exact · <span class="c-muted">grey: wing, Λ = 9.6</span>`;
+}
+
+/* ---- view 2: the section at this angle (stream horizontal) -------------------------------------------------------- */
+function drawSection(v, s, n) {
+  v.clear();
+  if (v.w < 60 || v.h < 50) return;
+  const ctx = v.ctx, small = isSmall(v), tiny = isTiny(v);
+  const TE = Viz.color('teal'), RO = Viz.color('rose'), MU = Viz.color('muted'), TX = Viz.color('text'), BL = Viz.color('blue'), CARD = Viz.color('card');
+  const P = v.plot({ xlim: [-2.9, 3.5], ylim: [-1.45, 1.95], equal: true, pad: { l: 3, r: 3, t: 3, b: 3 } });
+  const ca = Math.cos(n.al), sa = Math.sin(n.al);
+  const DX = (x, y) => P.X(x * ca + y * sa), DY = (x, y) => P.Y(-x * sa + y * ca);
+  const stalledLook = n.sig > 0.02;
+  const R = Math.hypot(Math.max(-P.xlim[0], P.xlim[1]), Math.max(-P.ylim[0], P.ylim[1])) + 0.6;
+  const F = { U: 1, a: n.a, mx: n.mu.re, my: n.mu.im, ca: ca, sa: sa, G: n.Gsk };
+  const net = netFor(F, R, small ? 130 : 180, small ? 0.36 : 0.28);
+  const body = bodyOf(s.e, n.be);
+  const seg = (q, col, w) => { ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); for (let i = 0; i < q.length; i += 4) { ctx.moveTo(DX(q[i], q[i + 1]), DY(q[i], q[i + 1])); ctx.lineTo(DX(q[i + 2], q[i + 3]), DY(q[i + 2], q[i + 3])); } ctx.stroke(); ctx.restore(); };
+  let wakeLabel = null;
+  P.clip(() => {
+    const fade = 0.5 - 0.22 * n.sig;
+    seg(net.zsegs, Viz.alpha(BL, fade), 1.1);
+    seg(net.zbold, Viz.alpha(BL, stalledLook ? fade : 0.95), stalledLook ? 1.1 : 1.8);
+    if (stalledLook) {
+      // the separated region (a SKETCH driven by the model's stalled fraction σ): the separation point creeps forward
+      // along the upper surface from the tail to about 30 % of the chord, and a little further at larger angles
+      const beyond = Math.min(1, Math.max(0, (s.alphaDeg - n.md.astall - 2) / 6));
+      const tsep = -n.be + rad(118) * Math.pow(n.sig, 0.7) + rad(18) * beyond, m = 40, surf = [];
+      for (let i = 0; i <= m; i++) { const t = -n.be + (tsep + n.be) * i / m, p = jk(cx(n.mu.re + n.a * Math.cos(t), n.mu.im + n.a * Math.sin(t)), 1); surf.push([DX(p.re, p.im), DY(p.re, p.im)]); }
+      const T0 = surf[0], S = surf[m], S1 = surf[m - 1], xr = P.px.x + P.px.w + 4;
+      const tl = Math.hypot(S1[0] - S[0], S1[1] - S[1]) || 1, L = 0.35 * Math.hypot(T0[0] - S[0], T0[1] - S[1]);
+      const c1 = [S[0] + (S1[0] - S[0]) / tl * L, S[1] + (S1[1] - S[1]) / tl * L - 0.12 * L];
+      const yTop = Math.min(S[1] + 0.12 * (T0[1] - S[1]), T0[1] - P.sy(0.12 + 0.2 * n.sig)), yBot = T0[1] + P.sy(0.1 + 0.15 * n.sig);
+      const path = () => { ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.quadraticCurveTo(c1[0], c1[1], xr, yTop); ctx.lineTo(xr, yBot); ctx.lineTo(T0[0], T0[1]); for (let i = 1; i <= m; i++) ctx.lineTo(surf[i][0], surf[i][1]); ctx.closePath(); };
+      ctx.save(); path(); ctx.fillStyle = Viz.alpha(CARD, 0.93); ctx.fill(); ctx.fillStyle = Viz.alpha(RO, 0.08); ctx.fill(); ctx.clip();
+      ctx.strokeStyle = Viz.alpha(RO, 0.5); ctx.lineWidth = 1; ctx.beginPath();
+      for (let x = P.px.x - P.px.h; x < xr; x += 8) { ctx.moveTo(x, P.px.y + P.px.h); ctx.lineTo(x + P.px.h, P.px.y); }
+      ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.strokeStyle = RO; ctx.lineWidth = 1.8; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(S[0], S[1]); ctx.quadraticCurveTo(c1[0], c1[1], xr, yTop); ctx.moveTo(T0[0], T0[1]); ctx.lineTo(xr, yBot); ctx.stroke(); ctx.restore();
+      // two slow eddies
+      if (!tiny && n.sig > 0.3) {
+        const eddy = (X, Y, rr) => { if (rr < 5) return; ctx.save(); ctx.strokeStyle = RO; ctx.lineWidth = 1.7; ctx.beginPath(); ctx.arc(X, Y, rr, 0.3, 0.3 + 1.55 * PI); ctx.stroke(); ctx.restore();
+          const a1 = 0.3 + 1.55 * PI; arrowPx(ctx, X + rr * Math.cos(a1 - 0.3), Y + rr * Math.sin(a1 - 0.3), X + rr * Math.cos(a1 + 0.12), Y + rr * Math.sin(a1 + 0.12), RO, 1.7, 7); };
+        const xa = S[0] + 0.62 * (T0[0] - S[0]), ysurf = S[1] + 0.62 * (T0[1] - S[1]), ytopA = S[1] + 0.45 * (yTop - S[1]), gapA = ysurf - ytopA;
+        eddy(xa, ytopA + 0.55 * gapA, Math.min(0.3 * gapA, 16));
+        eddy(T0[0] + 0.5 * (xr - T0[0]), 0.5 * (yTop + yBot), Math.min(0.3 * (yBot - yTop), 18));
+      }
+      dotPx(ctx, S[0], S[1], tiny ? 3 : 4.5, RO, '#fff', 1.5);
+      wakeLabel = { x: Math.min(P.px.x + P.px.w - 6, xr - 10), y: Math.min(yBot + 14, P.px.y + P.px.h - 10) };
+    }
+    // a ghost of the clean section when the flap is down
+    if (s.flap) { const g = bodyOf(s.e, n.beClean); ctx.save(); ctx.strokeStyle = Viz.alpha(MU, 0.95); ctx.lineWidth = 1.3; ctx.setLineDash([4, 3]); ctx.beginPath(); g.z.forEach((p, i) => { const X = DX(p[0], p[1]), Y = DY(p[0], p[1]); if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.stroke(); ctx.restore(); }
+    // the body
+    ctx.save(); ctx.beginPath(); body.z.forEach((p, i) => { const X = DX(p[0], p[1]), Y = DY(p[0], p[1]); if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.closePath();
+    ctx.fillStyle = CARD; ctx.fill(); ctx.fillStyle = Viz.alpha(MU, 0.24); ctx.fill(); ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.strokeStyle = TX; ctx.stroke(); ctx.restore();
+  });
+  // the chord line and the angle of attack at the nose
+  const le = body.le, Lx = DX(le[0], le[1]), Ly = DY(le[0], le[1]);
+  if (!tiny) {
+    const ext = P.sx(0.95);
+    linePx(ctx, Lx, Ly, Lx - ext * ca, Ly - ext * sa, Viz.alpha(TX, 0.7), 1.2, [4, 3]);
+    linePx(ctx, Lx, Ly, Lx - ext, Ly, Viz.alpha(BL, 0.8), 1.2, [4, 3]);
+    if (Math.abs(n.al) > 0.03) { ctx.save(); ctx.strokeStyle = TX; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(Lx, Ly, 0.7 * ext, PI, PI + n.al, n.al < 0); ctx.stroke(); ctx.restore(); }
+    if (!small) Viz.text(ctx, `α = ${dg(s.alphaDeg)}°`, Math.max(Lx - 0.75 * ext, P.px.x + 40), Ly + (n.al >= 0 ? 16 : -16), { size: 12.5, weight: 700, color: TX, align: 'center', bg: true, pad: 2 });
+  }
+  // the stream (blue), and the lift (teal) at right angles to it
+  const ux = P.px.x + (tiny ? 6 : 10), uy = P.px.y + (tiny ? 12 : 16), UL = tiny ? 24 : 42;
+  arrowPx(ctx, ux, uy, ux + UL, uy, BL, 2.4, 8);
+  if (!tiny) Viz.text(ctx, 'stream U', ux + UL + 6, uy, { size: 12.5, weight: 700, color: BL, bg: true, pad: 2 });
+  const bx = DX(-1, body.yq), by = DY(-1, body.yq), room = Math.max(10, by - P.px.y - (tiny ? 22 : 36)), roomDn = Math.max(10, P.px.y + P.px.h - by - 16);
+  const scale = Math.min(P.sy(0.8), room / 2.3), cap = (cl) => (cl >= 0 ? Math.min(cl * scale, room) : -Math.min(-cl * scale, roomDn));
+  const Lm = cap(n.CLm), Lr = cap(n.CLr);
+  if (n.sig > 0.001 && n.deficit > 0.08) { arrowPx(ctx, bx - 9, by, bx - 9, by - Lr, Viz.alpha(TE, 0.45), 2, 9, [5, 4]); if (!small) Viz.text(ctx, 'theory', bx - 16, by - Lr + 8, { size: 12, weight: 650, color: Viz.alpha(TE, 0.75), align: 'right', bg: true, pad: 2 }); }
+  if (Math.abs(Lm) > 3) {
+    arrowPx(ctx, bx, by, bx, by - Lm, TE, 3.2, 11);
+    if (!tiny) Viz.text(ctx, small ? `C_L ${c2(n.CLm)}` : `lift: C_L = ${c2(n.CLm)}${n.sig > 0.001 ? ' (model)' : ''}`, bx + 9, by - Lm + (Lm > 0 ? 9 : -9), { size: 12.5, weight: 700, color: TE, bg: true, pad: 2 });
+  } else if (!tiny) Viz.text(ctx, 'no lift', bx, by - 18, { size: 12.5, weight: 700, color: TE, align: 'center', bg: true, pad: 2 });
+  if (wakeLabel && !tiny) Viz.text(ctx, small ? 'separated — sketch' : 'separated flow — a sketch, not a computation', wakeLabel.x, wakeLabel.y, { size: 12, weight: 700, color: RO, align: 'right', bg: true, pad: 2 });
+  else if (!small && !wakeLabel) Viz.text(ctx, 'attached: ideal flow with the Kutta condition', P.px.x + P.px.w - 6, P.px.y + P.px.h - 11, { size: 12, weight: 650, color: BL, align: 'right', bg: true, pad: 2 });
+  if (s.flap && !small) Viz.text(ctx, 'flap down = extra camber (dashed: clean)', P.px.x + 6, P.px.y + P.px.h - 11, { size: 12, weight: 650, color: MU, bg: true, pad: 2 });
+  P.frame();
+}
+function sectionTitle(s) {
+  const n = N(s), st = n.sig > 0.02 ? '<span class="c-rose">separated (sketch)</span>' : '<span class="c-blue">attached</span>';
+  if (narrow()) return `<b>Section</b> · U_min ${f3(n.Umin)} m/s · ${st}`;
+  return `<b>The section at α = ${dg(s.alphaDeg)}°</b> · ${st} · <span class="c-teal">lift</span> ⟂ <span class="c-blue">stream</span>`;
+}
+
+/* ---- view 3: slowest level flight --------------------------------------------------------------------------------- */
+function drawSpeed(v, s, n) {
+  v.clear();
+  if (v.w < 120 || v.h < 60) return;
+  const ctx = v.ctx, BL = Viz.color('blue'), TX = Viz.color('text'), MU = Viz.color('muted'), SOFT = Viz.color('text-soft');
+  const split = v.w >= 600 && v.h >= 110, bw = split ? Math.round(v.w * 0.56) : v.w;
+  const rows = [{ label: 'clean', U: n.UminClean, CL: n.mxClean.CL, on: !s.flap }, { label: 'flap down', U: n.UminFlap, CL: n.mxFlap.CL, on: !!s.flap }];
+  const left = 84, right = bw - 14, top = 8, bot = v.h - 30, UMAX = 40;
+  const bh = Math.max(14, Math.min(30, (bot - top) / 2 - 8)), gap = Math.max(6, ((bot - top) - 2 * bh) / 3);
+  const X = u => left + (right - left) * u / UMAX;
+  ctx.save(); ctx.strokeStyle = Viz.color('grid'); ctx.lineWidth = 1; ctx.font = Viz.font(12, 500); ctx.fillStyle = Viz.color('axis'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  [0, 10, 20, 30, 40].forEach(u => { ctx.beginPath(); ctx.moveTo(Math.round(X(u)) + 0.5, top); ctx.lineTo(Math.round(X(u)) + 0.5, bot); ctx.stroke(); ctx.fillText(String(u), X(u), bot + 3); });
+  ctx.fillStyle = SOFT; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('stall speed U_min [m/s]', right, v.h - 1);
+  ctx.restore();
+  rows.forEach((r, i) => {
+    const y = top + gap + i * (bh + gap), w = X(r.U) - left;
+    ctx.save(); Viz.roundRect(ctx, left, y, w, bh, 4); ctx.fillStyle = Viz.alpha(BL, r.on ? 0.85 : 0.3); ctx.fill(); if (r.on) { ctx.strokeStyle = TX; ctx.lineWidth = 1.5; ctx.stroke(); } ctx.restore();
+    Viz.text(ctx, r.label, left - 8, y + bh / 2, { size: 12.5, weight: r.on ? 750 : 600, color: r.on ? TX : MU, align: 'right', halo: false });
+    const base = `${f3(r.U)} m/s`, opts = [`${base} · ${kmh(r.U)} km/h · C_L,max ${c2(r.CL)}${r.on ? '  ◀ now' : ''}`, `${base} · ${kmh(r.U)} km/h · C_L,max ${c2(r.CL)}`, `${base} · C_L,max ${c2(r.CL)}`, base];
+    ctx.save(); ctx.font = Viz.font(12.5, 700); const lab = opts.find(t => ctx.measureText(t).width <= w - 14) || base; ctx.restore();
+    Viz.text(ctx, lab, left + 8, y + bh / 2, { size: 12.5, weight: 700, color: r.on ? '#fff' : TX, halo: !r.on });
+  });
+  if (!split) return;
+  const P = v.plot({ rect: { x: bw, y: 0, w: v.w - bw, h: v.h }, xlim: [0.9, 3.1], ylim: [16, 36], xlabel: 'maximum lift coefficient C_L,max [–]', ylabel: 'U_min [m/s]', pad: { l: 50, r: 12, t: 8, b: 36 } }).axes();
+  P.clip(() => {
+    P.fn(c => uStall(PLANE.W, PLANE.rho, PLANE.A, c), { color: BL, width: 2.4, n: 80 });
+    rows.forEach(r => { linePx(ctx, P.X(r.CL), P.Y(r.U), P.X(r.CL), P.px.y + P.px.h, Viz.alpha(BL, 0.5), 1, [3, 3]); });
+  });
+  rows.forEach(r => { dotPx(ctx, P.X(r.CL), P.Y(r.U), r.on ? 6.5 : 5, r.on ? BL : Viz.color('card'), r.on ? '#fff' : BL, 2);
+    Viz.text(ctx, r.label, P.X(r.CL) + 9, P.Y(r.U) - 11, { size: 12, weight: r.on ? 750 : 600, color: r.on ? TX : MU, bg: true, pad: 2 }); });
+}
+function speedTitle(s) {
+  const n = N(s);
+  return `<b>Slowest level flight</b> of our example aircraft (W = 9000 N, A = 15 m², ρ = 1.225 kg/m³) · <span class="c-blue">U_min = √(2W/(ρ A C_L,max))</span> · now ${f3(n.Umin)} m/s · the flap buys ${f2(n.UminClean - n.UminFlap)} m/s`;
+}
+
+/* ---- status, notes ------------------------------------------------------------------------------------------------ */
+function statusOf(s) {
+  const n = N(s), sm = narrow();
+  if (n.state === 'zero') return { text: sm ? '⚖️ zero lift: α = −β' : `⚖️ zero lift: α = −β = ${dg(-n.be * R2D)}° — no circulation is needed`, tone: 'info' };
+  if (n.state === 'stalled') return { text: sm ? `⚠️ stalled: ${pct(n.deficit)} % below the line — model` : `⚠️ stalled: lift ${pct(n.deficit)} % below the line — model · more angle now means less lift`, tone: 'bad' };
+  if (n.state === 'near') return { text: sm ? '≈ near maximum lift (model)' : '≈ near maximum lift: the boundary layer is close to separating (model)', tone: 'warn' };
+  if (n.CLr < 0) return { text: sm ? `✅ linear range · C_L = ${c2(n.CLr)} (downward)` : `✅ linear range, below the zero-lift angle: the lift points down · C_L = ${c2(n.CLr)} (2π rule)`, tone: 'good' };
+  return { text: sm ? `✅ linear range · C_L = ${c2(n.CLr)} (2π rule)` : `✅ linear range: the Kutta condition holds · C_L = ${c2(n.CLr)} (2π rule)`, tone: 'good' };
+}
+function interpText(s) {
+  const n = N(s), flap = s.flap ? ' <b>Flap down:</b> a flap is camber on demand — the whole line has shifted left by the extra $\\beta$, so the same angle gives more lift and the wing can fly slower.' : '';
+  const lim = `(Model thresholds in this regime: near maximum from ${dg(n.md.astall - 2)}°, the curve leaves the line at ${dg(n.md.astall)}°, maximum at ${d1(n.mx.alpha * R2D)}°.)`;
+  if (n.state === 'zero') return `<b>Zero lift</b> ($|\\alpha+\\beta|<0.13^\\circ$). The stream runs along the line from the circle's centre to the tail point; no circulation is needed, and $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) is zero although the wing is not edge-on to the stream.${flap}`;
+  if (n.state === 'stalled') return `<b>Stalled</b> (past the model's maximum). The flow has left the upper surface. The Kutta condition no longer describes it, the circulation collapses, and the teal line is fiction here: more angle now means <i>less</i> lift — ${pct(n.deficit)} % below $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) in this model.${flap} ${lim}`;
+  if (n.state === 'near') return `<b>Near maximum lift.</b> The suction peak near the nose (see the pressure explainer) is now so sharp that the boundary layer behind it is close to giving up. A measured curve bends away from the line about here; where exactly is not something $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) can tell.${flap} ${lim}`;
+  return `<b>Linear range.</b> Every extra degree buys ${f3(2 * PI * D2R)} of lift coefficient, whatever the camber: $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12). Camber only decides where the line crosses zero${n.CLr < 0 ? ' — and here you are below that angle, so the lift points down' : ''}.${flap} ${lim}`;
+}
+function notesHtml(s) {
+  const n = N(s), cur = n.kind === REGIMES[0] ? 0 : 1;
+  return '<p><b class="c-teal">Teal is theory</b>: $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) and its exact form for this family of sections. <b class="c-rose">Rose is a drawn model</b> of what a measurement looks like — a straight part with a slope a little under 2π, a maximum, a drop. Its stall angle and post-stall level are our own illustrative constants; the book\'s measured values are not reproduced. Nothing in this chapter <i>predicts</i> the stall angle.</p>' +
+    Viz.work.table(['regime', 'what happens first', 'model stall'], [
+      ['low Re', 'the layer separates while still laminar: early stall, low maximum', `${CASES.lam.astall}°`],
+      ['high Re', 'the layer turns turbulent first and stays attached longer', `${CASES.turb.astall}°`]], cur);
+}
+
+/* ---- Explain: every number on the screen, worked out ---------------------------------------------------------------- */
+function explainHtml(s) {
+  const W = Viz.work, n = N(s), A = s.alphaDeg, Bd = n.be * R2D, ab = A + Bd, abr = n.al + n.be, cs = n.cs;
+  const x = Math.min(1, Math.max(0, (n.al - n.as) / WIDTH));
+  let o = W.step(0, 'What the views show') +
+    W.say('<b class="c-teal">Teal</b>: ideal-flow theory with the Kutta condition — solid $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12), dashed its exact form for this section. <b class="c-rose">Rose</b>: a <b>drawn model</b> of a measured curve (our constants, not data). <b class="c-muted">Grey</b>: the same section on a wing of aspect ratio 9.6. The dot is your angle of attack; the section beside the curve is drawn at that angle, with the <b class="c-blue">stream</b> horizontal.') +
+    W.say('The book counts circulation clockwise: a wing with positive lift has $\\Gamma>0$.') +
+    W.hint('On phones the stall-speed bars are hidden: the speed is in the title of the section view and in section 6.');
+  o += W.step(1, 'Camber as an angle') +
+    W.line(`$\\beta=2\\times\\dfrac{\\text{camber}}{c}=2\\times${s.flap ? `(${cam3(s.camber)}+${FLAP_CAMBER})` : cam3(n.camEff)}$`, `${f3(n.be)} rad = ${dg(Bd)}°`, 'from $\\text{camber}\\simeq\\tfrac12\\beta c$ (14.8)' + (s.flap ? '; the flap is modelled as 0.03 of extra camber' : '')) +
+    W.box(`the lift vanishes at $\\alpha_{L=0}=-\\beta=\\mathbf{${dt(-Bd)}^\\circ}$ — the triangle on the axis`);
+  o += W.step(2, 'The lift from the 2π rule') +
+    W.line(`$\\alpha+\\beta=${dt(A)}^\\circ+${dt(Bd)}^\\circ=${dt(ab)}^\\circ$`, `${f4(abr)} rad`, 'degrees × π/180: the rule needs radians') +
+    W.line(`$C_L\\simeq2\\pi(\\alpha+\\beta)=${t4(2 * PI)}\\times${t4(abr)}$`, f3(n.CLr), 'the book\'s $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12): thin section, small angle') +
+    W.box(`<b class="c-teal">$C_L\\simeq\\mathbf{${t3(n.CLr)}}$</b> · slope $2\\pi$ per radian $=${t3(2 * PI * D2R)}$ per degree, whatever the camber`);
+  o += W.step(3, 'The exact value for this section') +
+    W.line(`$a=\\dfrac{b(1+e)}{\\cos\\beta}=\\dfrac{1+${dt(s.e)}}{\\cos ${dt(Bd)}^\\circ}$`, `${f4(n.a)} b`, 'radius of the circle that maps to the section') +
+    W.line('chord $c$ measured on the contour', `${f4(n.chord)} b`, 'a little more than $4b$') +
+    W.line(`$8\\pi\\dfrac ac\\sin(\\alpha+\\beta)=8\\pi\\times\\dfrac{${t4(n.a)}}{${t4(n.chord)}}\\times\\sin ${dt(ab)}^\\circ$`, f4(n.CLe), 'from $\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)$ (14.11) and $L=\\rho U\\Gamma$ (6.62), no approximation') +
+    W.box(Math.abs(n.CLr) > 1e-6 ? `<b class="c-teal">exact $C_L=\\mathbf{${t4(n.CLe)}}$</b> (dashed) — ${f2(100 * (n.CLe / n.CLr - 1))} % ${n.CLe / n.CLr >= 1 ? 'more' : 'less'} than the rule: thickness makes $a/c=${t3(n.a / n.chord)}$ instead of ¼` : '<b class="c-teal">exact $C_L=0$</b> too: both forms vanish at $\\alpha=-\\beta$');
+  o += W.step(4, 'The model of a measurement') +
+    W.line(`$Re_c=\\dfrac{Uc}{\\nu}=\\dfrac{${cs.U}\\times${cs.c}}{1.5\\times10^{-5}}$`, Viz.fmt(n.Re), `→ "${n.kind}" (our thresholds: below $5\\times10^{5}$ / above $3\\times10^{6}$)`) +
+    W.line(`below stall: $K(\\alpha+\\beta)=${K_MODEL}\\times${t4(abr)}$`, f3(K_MODEL * abr), 'a slope a little under $2\\pi$: boundary layers thicken the section') +
+    W.line(`$\\sigma=x^2(3-2x),\\ x=\\dfrac{\\alpha-\\alpha_s}{2^\\circ}=\\dfrac{${dt(A)}-${n.md.astall}}{2}$ clipped to [0, 1]`, `σ = ${f3(n.sig)}`, 'the stalled fraction: 0 on the line, 1 on the plateau') +
+    W.line(`$C_L=(1-\\sigma)K(\\alpha+\\beta)+\\sigma\\,C_{L,\\text{post}}=${t3(1 - n.sig)}\\times${t3(K_MODEL * abr)}+${t3(n.sig)}\\times${n.md.post}$`, f3(n.CLm), `the rose curve; x = ${f3(x)}`) +
+    W.box(`<b class="c-rose">model $C_L=\\mathbf{${t3(n.CLm)}}$</b> · its maximum is $C_{L,\\max}=${t3(n.mx.CL)}$ at ${d1(n.mx.alpha * R2D)}° (the diamond). A drawing, not a prediction.`);
+  o += W.step(5, 'A wing instead of a section') +
+    W.say('On a wing each section meets air that the trailing vortices have tilted down, so it works at a reduced angle: $C_L=K\\Big[\\alpha-\\dfrac{w}{U}+\\beta\\Big]$ (14.16). For an elliptic wing that lowers the slope:') +
+    W.line(`$\\dfrac{K}{1+K/(\\pi\\Lambda)}=\\dfrac{${t4(2 * PI)}}{1+${t4(2 * PI)}/(\\pi\\times9.6)}$`, `${f3(n.s3)} per rad`, '$K=2\\pi$, aspect ratio $\\Lambda=9.6$') +
+    W.box(`<b class="c-muted">on the wing: $C_L=${t3(n.s3)}\\times${t4(abr)}=\\mathbf{${t3(n.CL3)}}$</b> (the grey line) against ${f3(n.CLr)} for the section alone`);
+  o += W.step(6, 'The slowest flight') +
+    W.say('Level flight needs lift = weight. The slowest speed is the one at the largest lift coefficient the wing can reach (here the model\'s maximum, used for the whole wing — an illustration):') +
+    W.line(`clean: $U_{\\min}=\\sqrt{\\dfrac{2W}{\\rho A\\,C_{L,\\max}}}=\\sqrt{\\dfrac{2\\times9000}{1.225\\times15\\times${t3(n.mxClean.CL)}}}$`, `${f3(n.UminClean)} m/s`, `${kmh(n.UminClean)} km/h`) +
+    W.line(`flap down: $\\sqrt{\\dfrac{2\\times9000}{1.225\\times15\\times${t3(n.mxFlap.CL)}}}$`, `${f3(n.UminFlap)} m/s`, `${kmh(n.UminFlap)} km/h; the flap adds $K\\times2\\times0.03=${t3(K_MODEL * 2 * FLAP_CAMBER)}$ to $C_{L,\\max}$`) +
+    W.box(`<b class="c-blue">now (${s.flap ? 'flap down' : 'clean'}): $U_{\\min}=\\mathbf{${t3(n.Umin)}}$ m/s</b> · the flap buys ${f2(n.UminClean - n.UminFlap)} m/s, because $U_{\\min}\\propto1/\\sqrt{C_{L,\\max}}$`);
+  o += W.step(7, 'Right now') +
+    W.line('$\\alpha$', Viz.live('a') + '°', 'press ▶ to sweep the angle from −8° to 20°') +
+    W.line('$C_L$: rule · exact · model', Viz.live('cl'), 'teal · teal dashed · rose') +
+    W.line('lift lost against the line', Viz.live('def'), 'the model sits 9 % under the line even before stall ($K=5.7$ against $2\\pi$)');
+  o += W.interpret(interpText(s), 'Reading the current setting');
+  return o;
+}
+
+/* ---- code, walkthrough, equations, quiz --------------------------------------------------------------------------- */
+const CODE = [
+  { id: 'curve', title: 'The lift law in fluidpy', ref: 'Eqs. (14.11), (14.12)',
+    src: `import numpy as np
+import fluidpy.ch14_aerodynamics as ch14
+al = np.deg2rad({{alpha}})  # angle of attack
+beta = 2 * {{camber}}  # {{betadeg}} deg
+# rule (14.12), 2 pi (al+beta): {{CLr}}
+CLr = ch14.zhukhovsky_lift_coefficient(
+    alpha=al, beta=beta)
+# exact 8 pi (a/c) sin(al+beta): {{CLe}}
+CLe = ch14.zhukhovsky_lift_coefficient(
+    alpha=al, beta=beta, e={{e}},
+    exact=True)
+# zero-lift angle, -beta: {{a0}} deg
+a0 = ch14.zero_lift_angle(
+    camber_ratio={{camber}})
+# wing, aspect ratio 9.6: {{s3}} per rad
+K3 = ch14.finite_wing_lift_slope(
+    K=2 * np.pi, AR=9.6)`,
+    live: s => { const n = N(s); return { alpha: pn(s.alphaDeg), camber: pn(n.camEff), betadeg: pn(n.be * R2D), CLr: pn(n.CLr), CLe: pn(n.CLe), e: pn(s.e), a0: pn(-n.be * R2D), s3: pn(n.s3) }; },
+    note: 'camber is camber/chord (the flap adds 0.03); every angle inside the functions is in radians.' },
+  { id: 'model', title: 'The drawn model of stall, and the stall speed', ref: '§14.7 (model: ours)',
+    src: `# which stall behaviour? Re_c = {{Re}}
+Re = ch14.chord_reynolds(
+    U={{U}}, c={{c}}, nu=1.5e-5)
+# -> "{{kind}}"
+kind = ch14.stall_regime(
+    Re, Re_laminar=5e5,
+    Re_turbulent=3e6)
+# a DRAWN MODEL, constants ours: {{CLm}}
+CLm = ch14.generic_lift_curve(
+    al, K=5.7, beta=beta,
+    alpha_stall=np.deg2rad({{astall}}),
+    CL_post={{post}},
+    width=np.deg2rad(2.0))
+# slowest level flight: {{Umin}} m/s
+U_min = ch14.stall_speed(
+    W=9000.0, rho=1.225, A=15.0,
+    CL_max={{CLmax}})`,
+    live: s => { const n = N(s); return { Re: n.Re.toExponential(0).replace('+', ''), U: n.cs.U.toFixed(1), c: n.cs.c, kind: n.kind, CLm: pn(n.CLm), astall: n.md.astall.toFixed(1), post: n.md.post.toFixed(1), Umin: pn(n.Umin), CLmax: pn(n.mx.CL) }; },
+    note: 'generic_lift_curve is labelled qualitative in fluidpy: it draws the shape of a measured curve and predicts nothing.' }
+];
+const Z0 = ND({ camber: 0 }), C0 = ND({}), S0 = ND({ alphaDeg: 16.5 });
+const TOUR = [
+  { title: 'More angle, more lift?', text: 'Tilt a wing more and it lifts more. Press ▶ or drag the dot up the curve: does the lift keep growing?',
+    set: Object.assign({}, DEF, { alphaDeg: -6 }), play: true },
+  { title: 'A straight line', text: `In theory $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12): 2π for every radian, ${f2(2 * PI * D2R)} for every degree. With no camber ($\\beta=0$) the teal line starts at the origin; at 5° it reads ${f3(Z0.CLr)}.`,
+    set: Object.assign({}, DEF, { camber: 0 }), play: false, eq: 'cl', readouts: ['CLr'] },
+  { title: 'Camber slides it', text: 'Add camber. The line moves left by $\\beta=2\\times$ camber/chord and its slope does not change. Lift at zero angle is the gift of camber; it vanishes at $\\alpha=-\\beta$.',
+    set: Object.assign({}, DEF), play: false, controls: ['camber'], eq: 'zero' },
+  { title: 'Where the line comes from', text: 'The sharp tail fixes the circulation, $\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)$ (14.11), and lift is $L=\\rho U\\Gamma$ (6.62). Thin section, small angle: $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12). The Kutta-condition explainer derives it step by step.',
+    set: Object.assign({}, DEF), play: false, eq: 'kutta', code: { id: 'curve', lines: [5, 11] } },
+  { title: 'Where it ends', text: `Past the stall angle the flow leaves the upper surface and the lift drops: more angle, less lift. The rose curve is a drawn model, not a prediction — $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) knows nothing of stall.`,
+    set: Object.assign({}, DEF, { alphaDeg: 16.5 }), play: false, notes: true },
+  { title: 'Two ways to stall', text: 'At low Reynolds number the boundary layer separates while still laminar: early stall, low maximum. At high Reynolds number it turns turbulent first and holds on longer. Switch the regime and watch the diamond move.',
+    set: Object.assign({}, DEF, { alphaDeg: 13 }), play: false, controls: ['regime'], readouts: ['CLm'] },
+  { title: 'Your turn', text: 'Predict how much slower the aircraft can fly with the flap down, from $U_{\\min}=\\sqrt{2W/(\\rho A\\,C_{L,\\max})}$. Then switch the flap on and read the stall speed.',
+    set: Object.assign({}, DEF), play: false, controls: ['flap'], readouts: ['Umin'] }
+];
+const EQS = [
+  { id: 'cl', title: 'Lift coefficient', ref: 'Eq. (14.12)', tex: 'C_L=\\frac{L}{\\tfrac12\\rho U^2c}\\simeq2\\pi(\\alpha+\\beta)',
+    live: s => { const n = N(s); return `2\\pi\\times${t4(n.al + n.be)}=${t3(n.CLr)}\\quad(\\alpha+\\beta=${dt(s.alphaDeg + n.be * R2D)}^\\circ)`; },
+    note: 'Angles in radians. Valid while the flow stays attached: thin section, small angle, Kutta condition.', symbols: [['C_L', 'lift coefficient', '–'], ['\\alpha', 'angle of attack', 'rad'], ['\\beta', 'camber angle', 'rad'], ['c', 'chord', 'm']] },
+  { id: 'zero', title: 'Zero-lift angle', ref: '§14.5 (no number)', tex: '\\alpha_{L=0}=-\\beta,\\qquad\\beta=2\\,\\frac{\\text{camber}}{c}',
+    live: s => { const n = N(s); return `\\beta=2\\times${cam3(n.camEff)}=${t3(n.be)}\\ \\text{rad}=${dt(n.be * R2D)}^\\circ`; },
+    note: 'Camber shifts the whole line sideways; it does not change the slope. The angle comes from $\\text{camber}\\simeq\\tfrac12\\beta c$ (14.8).' },
+  { id: 'kutta', title: 'Kutta circulation', ref: 'Eq. (14.11)', tex: '\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)',
+    live: s => { const n = N(s); return `4\\pi\\times${t4(n.a)}\\times\\sin ${dt(s.alphaDeg + n.be * R2D)}^\\circ=${t4(n.GK)}\\ Ub`; },
+    note: 'Clockwise; with $L=\\rho U\\Gamma$ (6.62) it gives the lift. Derived step by step in the Kutta-condition explainer.', symbols: [['\\Gamma', 'clockwise circulation', 'm²/s'], ['a', 'radius of the mapped circle', 'm'], ['U', 'stream speed', 'm/s']] },
+  { id: 'exact', title: 'Exact lift of a Zhukhovsky section', ref: 'ours (exact form)', tex: 'C_L=8\\pi\\,\\frac ac\\,\\sin(\\alpha+\\beta)',
+    live: s => { const n = N(s); return `8\\pi\\times${t4(n.a / n.chord)}\\times${t4(Math.sin(n.al + n.be))}=${t4(n.CLe)}`; },
+    note: 'From $\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)$ (14.11) and $L=\\rho U\\Gamma$ (6.62), divided by $\\tfrac12\\rho U^2c$. No small-angle or thin-section step; thickness makes $a/c>\\tfrac14$, so the slope is a little above 2π.' },
+  { id: 'wing', title: 'A section on a wing', ref: 'Eq. (14.16)', tex: 'C_L=K\\Big[\\alpha-\\frac{w(y)}{U}+\\beta(y)\\Big]',
+    live: s => { const n = N(s); return `\\frac{K}{1+K/(\\pi\\Lambda)}=${t3(n.s3)}\\ \\text{per rad}\\ \\Rightarrow\\ C_L=${t3(n.CL3)}`; },
+    note: '$K$ per radian (2π for a thin section); $w$ is the downwash of the trailing vortices. The slope shown is for an elliptic wing of aspect ratio 9.6.', symbols: [['K', 'section lift-curve slope', '1/rad'], ['w', 'downwash', 'm/s']] },
+  { id: 'umin', title: 'Stall speed', ref: 'ours (lift = weight)', tex: 'U_{\\min}=\\sqrt{\\frac{2W}{\\rho A\\,C_{L,\\max}}}',
+    live: s => { const n = N(s); return `\\sqrt{\\frac{2\\times9000}{1.225\\times15\\times${t3(n.mx.CL)}}}=${t3(n.Umin)}\\ \\text{m/s}`; },
+    note: '$C_{L,\\max}$ here is the maximum of the drawn model — an illustration.', symbols: [['W', 'weight', 'N'], ['A', 'planform area', 'm²'], ['\\rho', 'air density', 'kg/m³']] }
+];
+const QUIZ = [
+  { q: 'Double the camber. By how much does the slope of the teal line change?', a: 'Not at all. In $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) camber enters only through $\\beta$, which is added to the angle: the line shifts left by the extra $\\beta$ and keeps its slope of 2π per radian.', set: { camber: 0.07, flap: false } },
+  { q: 'At which angle of attack does a section with 3.5 % camber give no lift?', a: 'About −4°: $\\alpha_{L=0}=-\\beta=-2\\times0.035$ rad $=-0.07$ rad $=-4.01^\\circ$. Then $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12) is zero.', set: { alphaDeg: -4, camber: 0.035, flap: false } },
+  { q: 'In the model, is the lift at 18° larger or smaller than at 14°?', a: `Smaller: ${c2(ND({ alphaDeg: 18 }).CLm)} against ${c2(ND({ alphaDeg: 14 }).CLm)} (high-Re regime, 3.5 % camber). Past stall the flow has separated, and $C_L\\simeq2\\pi(\\alpha+\\beta)$ (14.12), which keeps rising, no longer applies.`, set: { alphaDeg: 18, regime: 'turb', camber: 0.035, flap: false } },
+  { q: 'Why can an aircraft land slower with flaps down?', a: 'More camber raises $C_{L,\\max}$, and $U_{\\min}=\\sqrt{2W/(\\rho A\\,C_{L,\\max})}\\propto1/\\sqrt{C_{L,\\max}}$. Switch the flap on and off and compare the two bars (or the stall-speed readout).', set: { flap: true } }
+];
+
+/* ---- selftest: parity with fluidpy (py) and invariants (expect) ---------------------------------------------------- */
+function selftestRows() {
+  const C8 = contour(1, 0.08, 0.07, 8), GEN = a => `ch14.generic_lift_curve(np.deg2rad(${a}), K=5.7, beta=0.07, alpha_stall=np.deg2rad(14.0), CL_post=0.9, width=np.deg2rad(2.0))`;
+  const AFP = 'ch14.zhukhovsky_airfoil(b=1.0, e=0.08, beta=0.07, n=8)', RG = '["laminar separation first", "mixed", "transition first"].index';
+  const mx = modelMax(0.07, rad(15), 1.0), h = 1e-6;
+  return [
+    { name: '2 pi, computed', js: clLine(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(alpha=1.0, beta=0.0)', rtol: 1e-14 },
+    { name: 'CL rule at 5 deg, beta 0.07', js: clLine(rad(5), 0.07), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(5.0), beta=0.07)', rtol: 1e-14 },
+    { name: 'CL exact at 5 deg, beta 0.07, e 0.08', js: clExact(rad(5), 0.07, 0.08), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(5.0), beta=0.07, e=0.08, exact=True)', rtol: 1e-6 },
+    { name: 'CL exact, fat cambered section', js: clExact(rad(12), 0.22, 0.16), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(12.0), beta=0.22, e=0.16, exact=True)', rtol: 1e-6 },
+    { name: 'chord measured on the contour', js: chordOf(1, 0.08, 0.07), py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=0.07)["chord"]', rtol: 1e-6 },
+    { name: 'zero-lift angle', js: zeroLift(0.035), py: 'ch14.zero_lift_angle(camber_ratio=0.035)', rtol: 1e-14 },
+    { name: 'model below stall (4 deg)', js: clModel(rad(4), 5.7, 0.07, rad(14), 0.9, rad(2)), py: GEN('4.0'), rtol: 1e-12 },
+    { name: 'model in the drop (15 deg)', js: clModel(rad(15), 5.7, 0.07, rad(14), 0.9, rad(2)), py: GEN('15.0'), rtol: 1e-12 },
+    { name: 'model on the plateau (17 deg)', js: clModel(rad(17), 5.7, 0.07, rad(14), 0.9, rad(2)), py: GEN('17.0'), rtol: 1e-12 },
+    { name: 'stall speed', js: uStall(9000, 1.225, 15, 1.4), py: 'ch14.stall_speed(W=9000.0, rho=1.225, A=15.0, CL_max=1.4)', rtol: 1e-12 },
+    { name: 'wing slope, aspect ratio 9.6', js: slope3D(2 * PI, 9.6), py: 'ch14.finite_wing_lift_slope(K=2*np.pi, AR=9.6)', rtol: 1e-12 },
+    { name: 'chord Reynolds number', js: chordRe(60, 1.5, 1.5e-5), py: 'ch14.chord_reynolds(U=60.0, c=1.5, nu=1.5e-5)', rtol: 1e-12 },
+    { name: 'regime label, Re 2e5 (index)', js: REGIMES.indexOf(regime(2e5, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(2e5, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'regime label, Re 1e6 (index)', js: REGIMES.indexOf(regime(1e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(1e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'regime label, Re 6e6 (index)', js: REGIMES.indexOf(regime(6e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(6e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'Kutta circulation', js: gammaK(1, circle(1, 0.08, 0.07).a, rad(5), 0.07), py: 'ch14.kutta_circulation(U=1.0, a=ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=0.07)[1], alpha=np.deg2rad(5.0), beta=0.07)', rtol: 1e-12 },
+    { name: 'contour point 3, x', js: C8.x[3], py: `${AFP}["x"][3]`, rtol: 1e-12 },
+    { name: 'contour point 3, y', js: C8.y[3], py: `${AFP}["y"][3]`, rtol: 1e-12 },
+    { name: 'contour: trailing edge at z = 2b', js: C8.x[0], py: `${AFP}["x"][0]`, rtol: 1e-12 },
+    { name: 'invariant: model = K(alpha + beta) below stall', js: clModel(rad(10), 5.7, 0.07, rad(14), 0.9, rad(2)) / (5.7 * (rad(10) + 0.07)), expect: 1, rtol: 1e-14 },
+    { name: 'invariant: model maximum is a maximum', js: Math.max(clModel(mx.alpha - h, 5.7, 0.07, rad(15), 1, rad(2)), clModel(mx.alpha + h, 5.7, 0.07, rad(15), 1, rad(2))) <= mx.CL ? 1 : 0, expect: 1, atol: 0 },
+    { name: 'invariant: flat plate CL = 2 pi sin(alpha)', js: clExact(rad(5), 0, 0) / (2 * PI * Math.sin(rad(5))), expect: 1, rtol: 1e-9 },
+    { name: 'invariant: exact tends to the rule (thin, small angle)', js: clExact(rad(0.5), 0.005, 0.001) / clLine(rad(0.5), 0.005), expect: 1, rtol: 2e-3 },
+    { name: 'invariant: U_min scales as 1/sqrt(CL_max)', js: uStall(9000, 1.225, 15, 1.0) / uStall(9000, 1.225, 15, 4.0), expect: 2, rtol: 1e-14 },
+    { name: 'invariant: wing slope tends to K for a long wing', js: slope3D(2 * PI, 1e9) / (2 * PI), expect: 1, rtol: 1e-8 },
+    { name: 'invariant: psi = 0 on the circle', js: (() => { const C = circle(1, 0.08, 0.07); return psiFast(C.mu.re + C.a * Math.cos(0.7), C.mu.im + C.a * Math.sin(0.7), { U: 1, a: C.a, mx: C.mu.re, my: C.mu.im, ca: Math.cos(0.1), sa: Math.sin(0.1), G: 1.3 }); })(), expect: 0, atol: 1e-12 }
+  ];
+}
+
+/* ---- the app ------------------------------------------------------------------------------------------------------ */
+let DRAG = false;
+const CFG = {
   title: 'Does more angle always mean more lift?',
   subtitle: 'Drag the angle of attack along the lift curve: camber shifts the line, the slope stays 2π, and stall ends it.',
+  autoplay: false,
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    alphaDeg: { label: 'Angle of attack $\\alpha$', min: A_MIN, max: A_MAX, step: 0.25, value: DEF.alphaDeg, unit: '°', fmt: v => `${d1(v)}°`, help: '−8°: nose down · 20°: far beyond any stall' },
+    camber: { label: 'Camber / chord', min: 0, max: 0.08, step: 0.005, value: DEF.camber, unit: '', fmt: v => Number(v).toFixed(3), help: '0: symmetric · 0.08: strongly cambered ($\\beta=2\\times$ camber/chord)' },
+    regime: { type: 'select', display: 'chips', label: 'Reynolds-number regime', options: [['lam', 'low Re: laminar separation first'], ['turb', 'high Re: transition first']], value: DEF.regime },
+    flap: { type: 'toggle', label: 'Flap down', value: false, help: 'adds 0.03 to camber/chord' },
+    e: { label: 'Thickness $e$', min: 0.04, max: 0.16, step: 0.01, value: DEF.e, unit: '', optional: true, help: '0.04: slim · 0.16: fat (thickness ≈ 1.3 e chords)' }
   },
-  readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+  transport: { param: 'alphaDeg', rate: 3.2, end: 'hold', hold: 2.5, step: 0.5, unit: '°' },
+  presets: [
+    { label: 'symmetric', set: { camber: 0, alphaDeg: 5, flap: false }, title: 'no camber: the line passes through the origin' },
+    { label: 'cambered', set: { camber: 0.035, alphaDeg: 5, flap: false }, title: 'camber/chord 0.035: β = 4°' },
+    { label: 'flap down', set: { flap: true, alphaDeg: 5 }, title: 'the flap adds 0.03 of camber' },
+    { label: 'zero-lift angle', set: { alphaDeg: -4, camber: 0.035, flap: false }, title: 'α = −β: no lift' },
+    { label: 'just past stall', set: { alphaDeg: 16.5, regime: 'turb' }, title: 'the model has left the line' }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
+  status: s => statusOf(s),
+  readouts: [
+    { id: 'ab', label: 'Angle $\\alpha+\\beta$', unit: '°', value: s => s.alphaDeg + N(s).be * R2D },
+    { id: 'CLr', label: '$C_L$ (2π rule)', unit: '', value: s => N(s).CLr, fmt: v => c2(v) },
+    { id: 'CLe', label: '$C_L$ (exact)', unit: '', value: s => N(s).CLe, fmt: v => c2(v) },
+    { id: 'CLm', label: '$C_L$ (model)', unit: '', value: s => N(s).CLm, fmt: v => c2(v), tone: (x, s) => (s && N(s).state === 'stalled' ? 'neg' : '') },
+    { id: 'Umin', label: 'Stall speed', unit: 'm/s', value: s => N(s).Umin }
+  ],
+  notes: s => notesHtml(s),
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    rows: [1.75, 1],
+    views: [
+      { id: 'curve', row: 0, flex: 1.6, title: s => curveTitle(s) },
+      { id: 'section', row: 0, flex: 1, title: s => sectionTitle(s) },
+      { id: 'speed', row: 1, flex: 1, hidePortrait: true, title: s => speedTitle(s) }
+    ],
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
+      const n = N(s);
+      drawCurve(g.view('curve'), s, n, g.app);
+      drawSection(g.view('section'), s, n);
+      drawSpeed(g.view('speed'), s, n);
+    },
+    onPointer(g, ev, s) {
+      const v = ev.vizView; if (!v || !v.pointer) return false;
+      if (ev.type === 'pointerup' || ev.type === 'pointercancel' || ev.type === 'pointerleave') { const was = DRAG; DRAG = false; return was; }
+      if (ev.viewId !== 'curve' || !VW.curve) return false;
+      const P = VW.curve, X = v.pointer.x, Y = v.pointer.y;
+      if (ev.type === 'pointerdown') { if (!P.inside(X, Y)) return false; DRAG = true; }
+      else if (ev.type !== 'pointermove' || !DRAG) return false;
+      g.app.play(false);
+      g.app.set({ alphaDeg: Math.max(A_MIN, Math.min(A_MAX, Math.round(P.ix(X) * 4) / 4)) });
+      return true;
     }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Drag the dot along the curve (or press ▶ to sweep the angle). <b class="c-teal">Teal</b> is theory, <b class="c-rose">rose</b> a drawn model of a measurement. Then change the camber, the regime and the flap.',
+    controls: ['alphaDeg', 'camber', 'regime', 'flap', 'e'],
+    readouts: ['ab', 'CLr', 'CLe', 'CLm', 'Umin'],
+    callouts: [{ kind: 'try', html: 'Preset <b>zero-lift angle</b>: the nose points down by $\\beta$ and the lift arrow vanishes, although the section is not edge-on to the stream.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => explainHtml(s),
+    live: s => { const n = N(s); return { a: d1(s.alphaDeg), cl: `${c2(n.CLr)} · ${c2(n.CLe)} · ${c2(n.CLm)}`, def: n.CLr > 1e-6 ? `${pct(n.deficit)} %` : '—' }; }
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
-  code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
-      src: `
-from fluidpy import ch14 as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
-  ],
-  tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
-  ],
-  equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
-  ],
-  check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
-  ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
-});
+  code: CODE,
+  tour: TOUR,
+  equations: EQS,
+  check: QUIZ,
+  selftest: selftestRows
+};
+const app = Viz.app(CFG);
 </script>
 </body>
 </html>

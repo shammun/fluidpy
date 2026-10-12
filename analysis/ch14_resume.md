@@ -1,65 +1,43 @@
-# Chapter 14 — resume note (written 2026-10-12, session stopped by the user mid-phase)
+# Chapter 14 — resume note (rewritten 2026-10-12 ~16:50, after the computer shut off at ~16:04 mid-review)
 
-When the user writes **resume**: continue `/do-chapter 14` from phases **7 (viz) ∥ 8 (notebook)**, following
-`.claude/skills/do-chapter/SKILL.md` §6∥7∥8 onward. Delete this file once ch14 has `publish: pass`.
+When the user writes **resume**: continue `/do-chapter 14` at the **review gates of phases 7 (viz) and 8 (notebook)**,
+following `.claude/skills/do-chapter/SKILL.md` §6∥7∥8 onward. Delete this file once ch14 has `publish: pass`.
 
 ## Where things stand
 | Phase | Status | Evidence |
 |---|---|---|
-| analyze, curate, design, implement, verify | pass | commits up to `42d930d` |
-| 6 review | **pass**, committed `42472dc` | `reports/ch14_review.md` (1 must-fix + 15 should-fix, all resolved); `tests/test_ch14.py` 95 passed |
-| 7 viz | **running — 3 of 9 built** | see table below |
-| 8 notebook | **running — builder stopped mid-work** | `notebooks/build_ch14.py` (3470 lines), unfinished |
+| analyze … review | pass | commits up to `42472dc` |
+| 7 viz | **all 9 built, lint + shot PASS; viz-reviewer verdict missing** | `reports/viz/ch14/*/audit.json` all `PASS` (15:54–16:04); `reports/ch14_viz.md` does not exist until the reviewer finishes |
+| 8 notebook | **built and executed clean; lesson re-review verdict missing** | `outputs/ch14/executed.ipynb` 549 cells, 150 code cells executed, 0 errors (15:58); `notebooks/build_ch14.py` 3757 lines |
 | 9 knowledge, 10 publish | todo | — |
 
-The full test suite has NOT been re-run since the review fixes (only `tests/test_ch14.py`); it runs at the merge gate.
+Check first: does `reports/ch14_viz.md` exist, and does `reports/ch14_lesson.md` start with "re-review"? If not, the
+reviewer that should have written it was interrupted again — launch it again (briefs below).
 
-## Explainers (storyboards: `analysis/ch14_design.md` `### E<k> · <slug>`; summaries: `analysis/ch14_curation.md` §5)
-| # | slug | State on disk | Next action |
-|---|---|---|---|
-| E1 | `zhukhovsky_airfoil_builder` | **built**: lint ok, shot PASS 8 sizes, 35/35 selftest rows | viz-reviewer |
-| E2 | `kutta_condition` | **built**: lint ok, shot PASS 8 sizes, 38/38 rows | viz-reviewer (uses internal `app._fromLoop` for the 0→1 ramp — fragile spot) |
-| E3 | `starting_vortex` | **built**: lint ok, shot PASS 8 sizes, 20/20 rows | viz-reviewer; its text says "90 % after 6.2 chords" — the verified value is 6.1 at dt = 0.05 c/U (6.2 is dt = 0.1): check whether the page computes it or has it typed, fix if typed |
-| E4 | `airfoil_pressure_lift` | **partial** (3104 lines, builder stopped mid-build; it was about to apply small fixes — ghost NaN, quiz Q1, a `float` builtin in a py: row — from a scratch script and splice them in) | re-brief a `viz-builder`: "file is an unfinished build, continue it; run lint + shot until PASS" |
-| E5 | `lift_curve_stall` | **scaffold only** (new_viz.py template, TODO marker) | brief a `viz-builder` from the start |
-| E6 | `downwash_induced_drag` | **scaffold only** | brief a `viz-builder` from the start |
-| E7 | `lifting_line_solver` | not started | brief a `viz-builder` (new_viz.py scaffold first) |
-| E8 | `elliptic_loading_aspect_ratio` | not started | same |
-| E9 | `thrust_from_lift` | not started | same |
-| B1 | `wake_rollup` (backup) | not built | only if an explainer fails review |
+## Explainers (storyboards: `analysis/ch14_design.md` `### E<k> · <slug>`)
+E1 `zhukhovsky_airfoil_builder` · E2 `kutta_condition` · E3 `starting_vortex` · E4 `airfoil_pressure_lift` ·
+E5 `lift_curve_stall` · E6 `downwash_induced_drag` · E7 `lifting_line_solver` · E8 `elliptic_loading_aspect_ratio` ·
+E9 `thrust_from_lift` — all built; backup B1 `wake_rollup` not built (only if an explainer fails review).
 
-At most 3 viz-builders at a time (`book.yaml → project.max_parallel_viz`). After all nine: `viz-reviewer` →
-`reports/ch14_viz.md`.
+**The viz-reviewer brief must say**: re-run lint + shot itself; probe every tab for `.katex-error` (shot.py does not);
+E3 "90 % after 6.1 chords" at dt = 0.05 c/U (6.2 is dt = 0.1) — computed or typed?; Wagner's function is a lift ratio,
+never on a circulation axis; E2 uses internal `app._fromLoop` (fragile); E5 curve and stall are a labelled MODEL, no
+book numbers; E6 staircase converges at order 1.5 (uniform) / 2.0 (cosine), 3-D view falls back to 2-D without WebGL;
+fluidpy calls by keyword in Code tabs and `py:` rows. Must-fix → re-brief that `viz-builder` (max 2 rounds each;
+builders must not edit sibling explainers or `assets/viz_lib.js`; `np` is not visible inside a lambda in `py:` rows).
 
-**Things every remaining viz brief must say** (learned this session):
-- call fluidpy functions **by keyword** in Code tabs and `py:` parity rows (sibling functions have different positional
-  orders — review item 11);
-- `tools/shot.py` does not detect KaTeX errors: the builder checks for `.katex-error` on every tab itself (an
-  under-escaped `\beta` in a JS string becomes a backspace);
-- `shot.py`'s evaluator does not expose `np` inside a lambda body in `py:` expressions (bind it as a default argument);
-- finished siblings to copy local helpers from (`cx` complex arithmetic, `measure(contour)`, `arrowPx`, `spinArrow`,
-  phone layouts): E1, E2, E3; do not edit them or `assets/viz_lib.js`;
-- E6: staircase of horseshoes converges at order 1.5 (uniform panels) / 2.0 (cosine) — never "first order"; 3-D view
-  must fall back to the oblique 2-D drawing without WebGL;
-- E5: the measured-looking curve and stall are a drawn MODEL, labelled so; no book numbers.
-
-## Notebook (phase 8)
-`notebooks/build_ch14.py` and `notebooks/ch14_aerodynamics.ipynb` exist but the builder was stopped before it reported:
-treat them as **inputs, not results**. Re-brief the `notebook-builder`: "an unfinished builder exists — read it, finish
-it against `analysis/ch14_design.md` Parts A/C/D/E/F, then loop build → `tools/run_notebook.py ch14 --save` →
-`tools/coverage_check.py ch14 --nb outputs/ch14/executed.ipynb` until clean". The brief must repeat the two corrections
-the builder was sent (it may or may not have applied them — have it check):
-1. **Wagner's function is a lift ratio** (circulatory lift / steady lift, starts at ½); the exact bound circulation
-   starts at 0. In C03 it is plotted only against `lift_circulatory/(ρUΓ_steady)` on a lift panel, never on the
-   circulation axis. `scripts/ch14_starting_vortex.py`'s figure now has 4 panels (was 3). Say "the model reaches 90 % of
-   the steady value after about 6.1 chords" (dt = 0.05 c/U).
-2. **Keyword calls** for all fluidpy functions.
-Explainer slugs to embed once each: the nine above (CORE attachment in curation §5).
-Then `lesson-reviewer` → `reports/ch14_lesson.md` (max 2 fix rounds).
+## Notebook
+`reports/ch14_lesson.md` round 1 (14:27, 541 cells) had 15 must-fix + 23 should-fix. The notebook-builder then changed
+`notebooks/build_ch14.py` (14:51) and `scripts/ch14_drawings.py` (14:53); nobody confirmed which items were fixed
+(two later review runs left only image folders `outputs/ch14/lesson_review2`, `…3`). **The lesson-reviewer brief must
+say**: re-review; mark every round-1 item FIXED / PARTLY / NOT FIXED by content (cell numbers shifted); look at the
+regenerated figures; Wagner = lift ratio starting at ½, 90 % after about 6.1 chords; keyword calls; overwrite the report.
+Remaining must-fix → re-brief the `notebook-builder` with the report (this is fix round 2 of max 2), then review again.
 
 ## Then
-Merge gate (SKILL.md): full `pytest -q` · `tools/shot.py --chapter ch14 --quick` · `tools/run_notebook.py ch14 --save` ·
-`tools/coverage_check.py` · `tools/embed_check.py ch14` · both reports PASS → `viz: pass`, `notebook: pass`, commit →
+Merge gate (SKILL.md): full `pytest -q` (≈ 40 min; not re-run since the review fixes unless noted in `progress.json`) ·
+`tools/shot.py --chapter ch14 --quick` · `tools/run_notebook.py ch14 --save` · `tools/coverage_check.py ch14 --nb
+outputs/ch14/executed.ipynb` · `tools/embed_check.py ch14` · both reports PASS → `viz: pass`, `notebook: pass`, commit →
 phases 9 ∥ 10 (knowledge-keeper ∥ site-publisher) → publish gate (push needs the user's go-ahead as usual).
 
 ## Carry into the knowledge phase (promotion candidates and tool gaps reported by builders)
@@ -72,7 +50,8 @@ phases 9 ∥ 10 (knowledge-keeper ∥ site-publisher) → publish gate (push nee
   overlaid (the Wagner mislabel passed verify because lift ratio = circulation ratio numerically in the model).
 - The exact-circulation numbers quoted in docstrings (0 at start, 0.55 after one chord, 90 % at 7.1 chords) are the
   reviewer's own computation — attributed, not independently tested.
+- The reports of the E4–E9 builders were lost in the shutdown; anything they flagged for promotion has to be re-read
+  from the explainer files themselves.
 
 ## Scratch files
-The stopped agents' scratch work (E4 splice scripts, notebook part files) was copied to the git-ignored
-`outputs/ch14/_resume_scratch/` — optional input for the re-briefed builders, safe to delete.
+`outputs/ch14/_resume_scratch/`, `outputs/ch14/lesson_review*/` — git-ignored, safe to delete.

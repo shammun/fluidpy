@@ -476,7 +476,29 @@ button, input, select { font: inherit; color: inherit; }
 /* VIZ_BASE_CSS:END */
 </style>
 <style>
-  /* chapter-specific styles (keep small; prefer the viz_base.css tokens: var(--viz-accent) etc.) */
+  /* chapter-specific styles (downwash_induced_drag) — small, tokens only. Colours, one meaning each: vortices and
+     circulation amber; downwash, the tilted stream and its angle blue; upwash orange; lift teal; induced drag rose;
+     ghosts and the ground grey. */
+  .c-amber { color: var(--viz-amber); font-weight: 650; }
+  .viz-stage-top .viz-presets { flex-wrap: wrap; }
+  .viz-status { white-space: normal; border-radius: 12px; }
+  .viz-seg { flex-wrap: wrap; }
+  /* phones: the preset chips live in Explore only (the walkthrough sets the cases; the status names the state) */
+  .viz-app[data-layout="landscape"] .viz-presets { display: none !important; }
+  .viz-app[data-layout="portrait"]:not([data-tab="explore"]) .viz-presets { display: none !important; }
+  @media (max-height: 700px) {
+    .viz-app[data-layout="portrait"] .viz-presets { display: none !important; }
+  }
+  /* the short landscape frame: the 3-D scene beside the span graph, one row; the force triangle goes (its numbers
+     are in the span graph's title and the status line) */
+  .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views { flex-direction: row; }
+  .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row { flex: 1 1 0 !important; min-width: 0; }
+  .viz-app[data-layout="landscape"] .viz-view[data-view="tri"] { display: none !important; }
+  .viz-app[data-layout="landscape"] .viz-transport .viz-optional,
+  .viz-app[data-layout="landscape"] .viz-transport .viz-speed { display: none !important; }
+  /* phones held upright: the span graph gets a little more of the stage than the 3-D scene */
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row:first-child { flex: 0.85 1 0 !important; }
+  .viz-app[data-layout="portrait"] .viz-views > .viz-row:nth-child(2) { flex: 1 1 0 !important; }
 </style>
 </head>
 <body>
@@ -2335,11 +2357,549 @@ button, input, select { font: inherit; color: inherit; }
 <script>
 'use strict';
 /* ---------------------------------------------------------------------------------------------------
-   PHYSICS — mirrors fluidpy.ch14.staircase_from_loading ch14.staircase_downwash ch14.downwash ch14.downwash_series ch14.horseshoe_velocity ch14.horseshoe_downwash ch14.segment_speed ch14.strip_forces ch14.lift_and_induced_drag ch14.ground_effect_factor ch14.trailing_sheet_strength ch14.solve_lifting_line ch14.induced_angle (same symbols, same equation numbers, SI units).
+   PHYSICS — mirrors fluidpy.core.lifting_line (re-exported as fluidpy.ch14_aerodynamics), same symbols and signs:
+     halfLine(d, G)                 <-> ch14.segment_speed(d=, theta_a=0, theta_b=pi/2, Gamma=)   Γ/(4πd)    ((5.17) integrated)
+     horseDown(x, y, G, s)          <-> ch14.horseshoe_downwash(x=, y=, Gamma=, s=)               one horseshoe, bound + legs
+     stair(shape, s, N)             <-> ch14.staircase_from_loading(Gamma_fn=, s=, N=)            N panels of constant Γ
+     stairDown(y1, edges, steps)    <-> ch14.staircase_downwash(y1=, y_edges=, Gamma_steps=, parts=True)
+     seriesDown(Gn, gamma1, s)      <-> ch14.downwash_series(Gn=, gamma1=, s=)                    (14.19), last member
+     seriesGamma(Gn, gamma)         <-> ch14.circulation_series(Gn=, gamma=)                      (14.18)
+     sheetStrength(Gn, gamma, s)    <-> ch14.trailing_sheet_strength(Gn=, gamma=, s=)             −dΓ/dy
+     limitDown(shape, y1, s, x, h)  <-> ch14.downwash(y1=, Gamma_fn=, s=)  (x = 0, no ground)     (14.13)
+                                    <-> ch14.downwash_along_x(x=, Gn=, s=, y1=)                   sheet only, behind/ahead
+     strip(G, w, U, rho, dy)        <-> ch14.strip_forces(Gamma=, w=, U=, rho=, dy=, exact=True)
+     inducedAngle(w, U, small)      <-> ch14.induced_angle(w=, U=, small=)
+     ground(h, s)                   <-> ch14.ground_effect_factor(h=, s=)
+     solveRect()                    <-> ch14.solve_lifting_line(c=1/6, s=1, U=1, alpha=1, K=2π, N=8)["Gn"]
+     liftSeries / dragSeries        <-> ch14.lift_from_series, ch14.induced_drag_from_series      (14.21), (14.22)
+   Axes: x downstream, y along the span (−s/2 port tip … +s/2 starboard tip), z up. w is the DOWNWASH, positive
+   downward. Γ is the bound circulation with the book's sense (lift ρUΓ per unit span upward). The filament that
+   leaves at a panel edge carries Γ_left − Γ_right about +x. On the page s = 1 and U = 1, so Γ is in units of Us
+   and w in units of U; the control `load` is Γ₀/(Us).
    --------------------------------------------------------------------------------------------------- */
-function physics(s) {
-  // TODO: return the quantities the stage and the readouts need, e.g. { omega, c, cg }
-  return {};
+const PI = Math.PI, FOUR_PI = 4 * Math.PI;
+const SPAN = 1, HALF = 0.5, CHORD = 1 / 6, KSEC = 2 * Math.PI, NREF = 201, HFAR = 2;
+
+function halfLine(d, G) { return G / (FOUR_PI * d); }                                   // (Γ/4πd)(cos 0 − cos 90°)
+function inducedAngle(w, U, small) { return small ? w / U : Math.atan(w / U); }          // ε = tan⁻¹(w/U) ≃ w/U
+function ground(h, s) { return 1 - 1 / (1 + (4 * h / s) * (4 * h / s)); }
+function strip(G, w, U, rho, dy) {                                                       // force ρU_eΓ dy normal to U_e
+  const Ue = Math.hypot(U, w);
+  return { dL: rho * U * G * dy, dDi: rho * w * G * dy, dLe: rho * Ue * G * dy, eps: Math.atan(w / U), Ue };
+}
+/** Downwash of ONE horseshoe (bound vortex on the y-axis from −s/2 to s/2, legs along +x) at (x, y, 0). */
+function horseDown(x, y, G, s, bound) {
+  const a = 0.5 * s, d1 = a - y, d2 = a + y;
+  const leg = d => (d === 0 ? 0 : (1 + (x === 0 ? 0 : x / Math.hypot(x, d))) / (FOUR_PI * d));
+  let w = G * (leg(d1) + leg(d2));
+  if (bound !== false && x !== 0) w += G / (FOUR_PI * x) * (d2 / Math.hypot(x, d2) + d1 / Math.hypot(x, d1));
+  return w;
+}
+const spanAngle = (y, s) => Math.acos(Math.max(-1, Math.min(1, -2 * y / s)));           // y = −(s/2) cos γ
+const spanPos = (g, s) => -0.5 * s * Math.cos(g);
+function seriesGamma(Gn, g) { let q = 0; for (let n = 1; n <= Gn.length; n++) q += Gn[n - 1] * Math.sin(n * g); return q; }   // (14.18)
+function seriesDown(Gn, g1, s) {                                                         // (14.19), last member
+  const sg = Math.sin(g1); let q = 0;
+  for (let n = 1; n <= Gn.length; n++) {
+    const r = Math.abs(sg) < 1e-12 ? (Math.cos(g1) > 0 ? n : n * Math.pow(-1, n + 1)) : Math.sin(n * g1) / sg;
+    q += n * Gn[n - 1] * r;
+  }
+  return q / (2 * s);
+}
+/** Ours: the same series OUTSIDE the span (|y1| > s/2), from ∫₀^π cos nγ dγ/(cos γ + η) = π qⁿ/√(η² − 1), q = √(η² − 1) − η. */
+function seriesDownOut(Gn, y1, s) {
+  const eta = Math.abs(2 * y1 / s), r = Math.sqrt(eta * eta - 1), q = r - eta, sgn = y1 < 0 ? -1 : 1; let sum = 0;
+  for (let n = 1; n <= Gn.length; n++) sum += n * Gn[n - 1] * Math.pow(q, n) * (sgn < 0 ? Math.pow(-1, n + 1) : 1);
+  return sum / (2 * s * r);
+}
+function sheetStrength(Gn, g, s) { let q = 0; for (let n = 1; n <= Gn.length; n++) q += n * Gn[n - 1] * Math.cos(n * g); return -q / (0.5 * s * Math.sin(g)); }
+const liftSeries = (Gn, s, rho, U) => 0.25 * PI * s * rho * U * Gn[0];                   // (14.21)
+const dragSeries = (Gn, rho) => { let q = 0; for (let n = 1; n <= Gn.length; n++) q += n * Gn[n - 1] * Gn[n - 1]; return PI / 8 * rho * q; };   // (14.22)
+
+/** Dense solve by Gaussian elimination with partial pivoting (the page's numpy.linalg.solve). */
+function linSolve(M, r) {
+  const n = r.length, A = M.map((row, i) => row.concat([r[i]]));
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let i = c + 1; i < n; i++) if (Math.abs(A[i][c]) > Math.abs(A[p][c])) p = i;
+    const t = A[c]; A[c] = A[p]; A[p] = t;
+    for (let i = c + 1; i < n; i++) { const f = A[i][c] / A[c][c]; for (let k = c; k <= n; k++) A[i][k] -= f * A[c][k]; }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) { let q = A[i][n]; for (let k = i + 1; k < n; k++) q -= A[i][k] * x[k]; x[i] = q / A[i][i]; }
+  return x;
+}
+/** The rectangular wing (aspect ratio 6): eight sine coefficients of (14.20) by collocation at γ_j = jπ/9. */
+function solveRect(c, s, U, alpha, K, N) {
+  const M = [], r = [];
+  for (let j = 1; j <= N; j++) {
+    const g = j * PI / (N + 1), row = [];
+    for (let n = 1; n <= N; n++) row.push((1 + n * K * c / (4 * s * Math.sin(g))) * Math.sin(n * g));
+    M.push(row); r.push(0.5 * K * U * c * alpha);
+  }
+  return linSolve(M, r);
+}
+const GnRect = solveRect(CHORD, SPAN, 1, 1, KSEC, 8);
+const GN = { elliptic: [1], rect: GnRect.map(g => g / seriesGamma(GnRect, PI / 2)) };    // Γ/Γ₀ as a sine series
+
+/** Γ(y)/Γ₀ of the four loadings (zero outside the span). */
+function loading(shape, y, s) {
+  const e = 2 * y / s;
+  if (Math.abs(e) > 1) return 0;
+  if (shape === 'constant') return 1;
+  if (shape === 'parabolic') return 1 - e * e;
+  if (shape === 'elliptic') return Math.sqrt(Math.max(0, 1 - e * e));
+  return seriesGamma(GN.rect, spanAngle(y, s));
+}
+/** dΓ/dγ (per Γ₀) of the smooth loadings: the shed strength per unit span angle is minus this. */
+function dLoading(shape, g) {
+  if (shape === 'elliptic') return Math.cos(g);
+  if (shape === 'parabolic') return 2 * Math.sin(g) * Math.cos(g);
+  let q = 0; const G = GN.rect; for (let n = 1; n <= G.length; n++) q += n * G[n - 1] * Math.cos(n * g); return q;
+}
+/** N panels of constant circulation = N horseshoes side by side: edges (N + 1) and Γ at the panel mid-points (N). */
+function stair(shape, s, N) {
+  const edges = [], steps = [];
+  for (let k = 0; k <= N; k++) edges.push(-0.5 * s + s * k / N);
+  for (let k = 0; k < N; k++) steps.push(loading(shape, 0.5 * (edges[k] + edges[k + 1]), s));
+  return { edges, steps };
+}
+/** Downwash of the staircase at (x, y1, 0): one half-line term per trailing filament (and its mirror image when the
+    ground is h below). The filament at y_k carries Γ_left − Γ_right; x ≠ 0 multiplies by 1 + x/√(x² + d²). */
+function stairDown(y1, edges, steps, x, h) {
+  x = x || 0; const parts = []; let w = 0, wImg = 0;
+  for (let k = 0; k < edges.length; k++) {
+    const jump = (k > 0 ? steps[k - 1] : 0) - (k < steps.length ? steps[k] : 0), d = edges[k] - y1;
+    const real = jump / (FOUR_PI * d) * (1 + (x === 0 ? 0 : x / Math.hypot(x, d)));
+    let img = 0;
+    if (h !== undefined && isFinite(h)) { const r2 = d * d + 4 * h * h; img = -jump * d / (FOUR_PI * r2) * (1 + (x === 0 ? 0 : x / Math.sqrt(x * x + r2))); }
+    parts.push({ k, y: edges[k], jump, d, w: real, img });
+    w += real; wImg += img;
+  }
+  return { w: w + wImg, wReal: w, wImg, parts };
+}
+/** The smooth limit ON the lifting line, closed forms of (14.13) per Γ₀ (valid outside the span too). */
+function smoothDown(shape, y1, s) {
+  const a = 0.5 * s;
+  if (shape === 'constant') return (1 / (a - y1) + 1 / (a + y1)) / FOUR_PI;
+  if (shape === 'parabolic') return 2 / (PI * s * s) * (s - y1 * Math.log(Math.abs((a + y1) / (a - y1))));
+  return Math.abs(y1) < a ? seriesDown(GN[shape], spanAngle(y1, s), s) : seriesDownOut(GN[shape], y1, s);
+}
+const GL_X = [0.1834346424956498, 0.5255324099163290, 0.7966664774136267, 0.9602898564975363];
+const GL_W = [0.3626837833783620, 0.3137066458778873, 0.2223810344533745, 0.1012285362903763];
+/** ∫_a^b f by an 8-point Gauss rule on m equal panels. */
+function gauss(f, a, b, m) {
+  let q = 0; const hh = (b - a) / m;
+  for (let i = 0; i < m; i++) {
+    const c = a + (i + 0.5) * hh;
+    for (let k = 0; k < 4; k++) q += GL_W[k] * (f(c - 0.5 * hh * GL_X[k]) + f(c + 0.5 * hh * GL_X[k]));
+  }
+  return 0.5 * hh * q;
+}
+/** The smooth limit at (x, y1, 0) with the ground h below (per Γ₀): the trailing sheet only, as (14.13) — its value on
+    the line, plus the regular remainder for x ≠ 0, plus the mirror-image sheet. */
+function limitDown(shape, y1, s, x, h) {
+  x = x || 0; const hasG = h !== undefined && isFinite(h);
+  if (shape === 'constant') return stairDown(y1, [-0.5 * s, 0.5 * s], [1], x, h).w;
+  let w = smoothDown(shape, y1, s) * (1 + Math.sign(x));
+  if (x === 0 && !hasG) return w;
+  const cuts = [0, PI]; if (Math.abs(y1) < 0.5 * s) cuts.splice(1, 0, spanAngle(y1, s));
+  const f = g => {
+    const d = y1 - spanPos(g, s), gg = dLoading(shape, g); let q = 0;      // d = y₁ − y
+    if (x !== 0 && Math.abs(d) > 1e-13) q += gg / d * (x / Math.hypot(x, d) - Math.sign(x));
+    if (hasG) { const r2 = d * d + 4 * h * h; q -= gg * d / r2 * (1 + (x === 0 ? 0 : x / Math.sqrt(x * x + r2))); }
+    return q;
+  };
+  for (let i = 0; i + 1 < cuts.length; i++) w += gauss(f, cuts[i], cuts[i + 1], 12) / FOUR_PI;
+  return w;
+}
+/** Whole-wing sums per (ρUΓ₀s) and (ρΓ₀²): L = ∫ρUΓ dy and D_i = ∫ρwΓ dy (14.15) — panel sums for a staircase. */
+function totals(shape, N, s, h) {
+  if (N > 0) {
+    const S = stair(shape, s, N); let L = 0, D = 0;
+    for (let k = 0; k < N; k++) {
+      const ym = 0.5 * (S.edges[k] + S.edges[k + 1]), dy = S.edges[k + 1] - S.edges[k];
+      L += S.steps[k] * dy; D += S.steps[k] * stairDown(ym, S.edges, S.steps, 0, h).w * dy;
+    }
+    return { L, D, finite: true };
+  }
+  if (shape === 'constant') return { L: s, D: Infinity, finite: false };
+  const fl = g => loading(shape, spanPos(g, s), s) * 0.5 * s * Math.sin(g);
+  const fd = g => loading(shape, spanPos(g, s), s) * limitDown(shape, spanPos(g, s), s, 0, h) * 0.5 * s * Math.sin(g);
+  return { L: gauss(fl, 0, PI, 8), D: gauss(fd, 0, PI / 2, 6) + gauss(fd, PI / 2, PI, 6), finite: true };
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   PAGE MODEL — the wing for the current controls (cached) and everything at the station
+   --------------------------------------------------------------------------------------------------- */
+let LW = 1.5;                                                 // length of wake drawn [spans] (set by the camera)
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const hOf = s => (s.h >= HFAR ? Infinity : s.h);
+const nOf = s => (s.N === 'inf' ? 0 : +s.N);
+const isHorse = W => W.N === 1 || W.shape === 'constant';     // one horseshoe, whatever N says
+const WINGS = new Map();
+function filamentsOf(S) {
+  const out = [];
+  for (let k = 0; k < S.edges.length; k++) {
+    const jump = (k > 0 ? S.steps[k - 1] : 0) - (k < S.steps.length ? S.steps[k] : 0);
+    if (Math.abs(jump) > 1e-12) out.push({ k, y: S.edges[k], jump });
+  }
+  return out;
+}
+function wingOf(s) {
+  const N = nOf(s), h = hOf(s), x = s.xs, shape = s.shape, key = shape + '|' + N + '|' + h + '|' + x;
+  if (WINGS.has(key)) return WINGS.get(key);
+  const S = stair(shape, SPAN, N || NREF), W = { key, shape, N, h, x, S, mids: [], wMid: [] };
+  for (let k = 0; k < S.steps.length; k++) { const ym = 0.5 * (S.edges[k] + S.edges[k + 1]); W.mids.push(ym); W.wMid.push(stairDown(ym, S.edges, S.steps, x, h).w); }
+  W.fil = filamentsOf(S);
+  // what the 3-D view draws: the staircase itself, or 41 thin panels standing in for the continuous sheet
+  W.disp = N > 0 ? S : stair(shape, SPAN, 41);
+  W.dfil = filamentsOf(W.disp);
+  // the smooth limit on a grid that never hits a tip
+  W.yg = []; W.gs = []; W.ws = [];
+  for (let i = 0; i <= 265; i++) { const y = -0.6625 + 0.005 * i; W.yg.push(y); W.gs.push(loading(shape, y, SPAN)); W.ws.push(limitDown(shape, y, SPAN, x, h)); }
+  // the staircase's own w(y): finite between the filaments, unbounded at each of them
+  W.raw = { xs: [], ys: [] };
+  if (N > 0) {
+    const cuts = [-0.6625].concat(W.fil.map(f => f.y), [0.6625]);
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const a = cuts[i], b = cuts[i + 1], m = Math.max(6, Math.round((b - a) / 0.004));
+      for (let j = 0; j <= m; j++) { const y = a + (b - a) * (0.004 + 0.992 * j / m); W.raw.xs.push(y); W.raw.ys.push(stairDown(y, S.edges, S.steps, x, h).w); }
+      W.raw.xs.push(b); W.raw.ys.push(NaN);
+    }
+  }
+  // downwash arrows along the line through the station
+  const ya = [];
+  if (N > 1 && N <= 21 && shape !== 'constant') W.mids.forEach(y => ya.push(y)); else for (let k = 0; k < 15; k++) ya.push((k + 0.5) / 15 - 0.5);
+  [-0.62, -0.56, 0.56, 0.62].forEach(y => ya.push(y));
+  W.arrows = ya.map(y => ({ y, w: N > 0 ? stairDown(y, S.edges, S.steps, x, h).w : limitDown(shape, y, SPAN, x, h) }));
+  W.tot = totals(shape, N, SPAN, h);
+  if (WINGS.size > 40) WINGS.delete(WINGS.keys().next().value);
+  WINGS.set(key, W);
+  return W;
+}
+/** Where the station really is: on a staircase it sits at the middle of its panel (between two filaments). */
+function stationY(y1, W) {
+  const inside = Math.abs(y1) < HALF;
+  if (inside && W.N > 1 && W.shape !== 'constant') { const k = clamp(Math.floor((y1 + HALF) * W.N), 0, W.N - 1); return { y: W.mids[k], inside, snapped: true, k }; }
+  let y = y1;
+  if (Math.abs(Math.abs(y) - HALF) < 2e-3) y = Math.sign(y) * (HALF + (inside ? -2e-3 : 2e-3));
+  return { y, inside, snapped: false, k: -1 };
+}
+let LAST = null;
+function stationOf(s) {
+  const W = wingOf(s), key = W.key + '|' + s.y1 + '|' + s.load;
+  if (LAST && LAST.key === key) return LAST;
+  const q = stationY(s.y1, W), y = q.y, N = W.N, S = W.S, x = W.x, h = W.h, load = s.load;
+  // the filaments behind the bars: the staircase's own, or 201 panels standing in for the sheet (N = ∞)
+  let yb = y;
+  if (N === 0 && q.inside && W.shape !== 'constant') yb = W.mids[clamp(Math.floor((y + HALF) * NREF), 0, NREF - 1)];
+  const R = stairDown(yb, S.edges, S.steps, x, h), parts = R.parts.filter(p => Math.abs(p.jump) > 1e-12);
+  const G = !q.inside ? 0 : N > 0 ? S.steps[clamp(Math.floor((y + HALF) * N), 0, N - 1)] : loading(W.shape, y, SPAN);
+  const wt = N > 0 ? R.w : limitDown(W.shape, y, SPAN, x, h);                       // per Γ₀
+  const wNoG = N > 0 ? R.wReal : (isFinite(h) ? limitDown(W.shape, y, SPAN, x) : wt);
+  const wLim = limitDown(W.shape, y, SPAN, x, h);
+  const wLine = x === 0 ? wt : (N > 0 ? stairDown(y, S.edges, S.steps, 0, h).w : limitDown(W.shape, y, SPAN, 0, h));
+  const byD = (a, b) => Math.abs(a.d) - Math.abs(b.d);
+  const port = parts.filter(p => p.d < 0).sort(byD), star = parts.filter(p => p.d > 0).sort(byD);
+  const bar = (list, i) => (list[i] ? list[i].w * load : 0);
+  const B = { p1: bar(port, 0), p2: bar(port, 1), s1: bar(star, 0), s2: bar(star, 1), img: (wt - wNoG) * load };
+  B.others = wt * load - B.p1 - B.p2 - B.s1 - B.s2 - B.img;
+  const near = parts.slice().sort(byD)[0];
+  const w = wt * load, eps = Math.atan(w), hasStrip = x === 0 && G > 0;
+  const F = strip(G * load, w, 1, 1, 0.01);
+  LAST = { key, W, y, y1: s.y1, inside: q.inside, snapped: q.snapped, G: G * load, Gn: G, w, wLim: wLim * load, wNoG: wNoG * load, wLine: wLine * load, eps,
+    parts, port, star, near, B, hasStrip, F, load, nFil: W.fil.length };
+  return LAST;
+}
+function regimeOf(s, st) {
+  const W = st.W;
+  if (W.x !== 0) return 'x';
+  if (!st.inside) return 'out';
+  if (isHorse(W) && Math.abs(st.y) > 0.4) return 'tip1';
+  if (st.w < 0) return 'up';
+  if (isFinite(W.h)) return 'gnd';
+  if (isHorse(W)) return 'one';
+  if (W.shape === 'elliptic' && (W.N === 0 || W.N === 21)) return 'ell';
+  return W.N > 0 ? 'stair' : 'smooth';
+}
+
+/* ---- formatting ------------------------------------------------------------------------------------------- */
+const f3 = v => Viz.fmt(v, { sig: 3 });
+const f2 = v => v.toFixed(2);
+const sg3 = v => (Math.abs(v) < 5e-7 ? '0' : (v > 0 ? '+' : '−') + Viz.fmt(Math.abs(v), { sig: 3 }));
+const pc = v => (!isFinite(v) ? '—' : (100 * v).toFixed(Math.abs(v) < 0.1 ? 1 : 0).replace('-', '−') + ' %');
+const dg = e => { const d = e * 180 / Math.PI; return d.toFixed(Math.abs(d) < 10 ? 1 : 0).replace('-', '−') + '°'; };
+const narrow = () => window.innerWidth < 560;
+const SHAPE_NAME = { constant: 'constant', elliptic: 'elliptic', parabolic: 'parabolic', rect: 'rectangular wing' };
+const nName = W => (W.N === 0 ? '∞' : String(W.N));
+const side = st => (st.y < 0 ? 'port' : 'starboard');
+
+function statusOf(s) {
+  const st = stationOf(s), W = st.W, nar = narrow(), r = regimeOf(s, st);
+  if (r === 'x') {
+    const k = st.wLine !== 0 ? st.w / st.wLine : NaN, where = f2(Math.abs(W.x)) + ' s ' + (W.x > 0 ? 'behind' : 'ahead of') + ' the wing';
+    return { text: nar ? where + ': ' + f3(st.w) + ' U = ' + f2(k) + ' × w at the wing' : where + ': the sheet\'s downwash is ' + f3(st.w) + ' U = ' + f2(k) + ' × its value at the wing (0 far ahead · 1 at the wing · 2 far behind)', tone: 'info' };
+  }
+  if (r === 'out') return { text: nar ? '⬆ upwash ' + f3(-st.w) + ' U outboard of the tip' : '⬆ upwash ' + f3(-st.w) + ' U outboard of the ' + side(st) + ' tip — where a following bird flies', tone: 'warn' };
+  if (r === 'tip1') return { text: nar ? '⚠️ one horseshoe: w = ' + f3(st.w) + ' U, no limit at the tip' : '⚠️ one horseshoe: the downwash grows without limit toward the tip (here ' + f3(st.w) + ' U, tilt ' + dg(st.eps) + ')', tone: 'bad' };
+  if (r === 'up') return { text: nar ? '⬆ upwash ' + f3(-st.w) + ' U at this station' : '⬆ upwash ' + f3(-st.w) + ' U at this station: this loading ends too abruptly at the tip, and the lift leans forward here', tone: 'warn' };
+  const base = nar ? 'w = ' + f3(st.w) + ' U · tilt ' + dg(st.eps) + ' · drag ' + pc(st.w) + ' of lift'
+    : 'downwash ' + f3(st.w) + ' U · stream tilted ' + dg(st.eps) + ' down · induced drag ' + pc(st.w) + ' of the strip\'s lift';
+  if (r === 'gnd') return { text: (nar ? 'ground: w × ' : 'ground effect: downwash × ') + f2(st.w / st.wNoG) + ' · ' + base, tone: 'good' };
+  return { text: base, tone: 'info' };
+}
+function reading(s) {
+  const st = stationOf(s), W = st.W, r = regimeOf(s, st);
+  switch (r) {
+    case 'x': return 'You have moved off the wing, ' + f2(Math.abs(W.x)) + ' spans ' + (W.x > 0 ? 'downstream' : 'upstream') + '. Each trailing filament now shows ' + (W.x > 0 ? 'more' : 'less') + ' of its length to the point: far behind it looks like an endless line (twice the push), far ahead it has all but vanished. (Sheet only: the bound vortex is left out here.)';
+    case 'out': return 'Out here every filament of the nearer half-wing pushes the same way: up. A wing (or a goose) flying at this place gets its lift tilted forward: lift for less.';
+    case 'tip1': return 'The crudest wing breaks down here. One tip leg is ' + f3(Math.abs(st.near.d)) + ' spans away and its push $\\Gamma/(4\\pi d)$ has no limit as $d \\to 0$. A real wing lets its circulation fall smoothly to zero at the tip.';
+    case 'up': return 'An upwash inside the span: all the vorticity shed inboard of this station pushes it up and too little is shed outboard to push back.' + (W.shape === 'parabolic' ? ' The parabolic loading pays for its blunt end with a (logarithmic) infinity at the tip.' : '');
+    case 'gnd': return 'The wake\'s mirror images below the ground push the air at the wing up. They cancel ' + pc(1 - st.w / st.wNoG) + ' of the downwash here: less tilt, less induced drag — the cushion a pilot feels just before touchdown.';
+    case 'one': return 'The crudest wing: constant circulation, two tip vortices. Fine near mid-span ($w = \\Gamma/\\pi s$ at the centre), absurd near the tips, where the downwash has no limit.';
+    case 'ell': return 'The downwash is ' + (W.N === 0 ? 'exactly' : 'nearly') + ' the same at every station: no strip works in worse air than any other. This is the loading with the least induced drag for its lift.';
+    case 'stair': return 'Each step of the staircase sheds one filament. The more steps, the closer the sum at the panel centres comes to the faint curve: that limit is the integral. (The error falls roughly as $N^{-1.5}$ here.)';
+    default: return 'A smooth loading sheds a continuous sheet of vorticity, strongest where $\\Gamma$ falls fastest. Unlike the elliptic loading, this one gives a downwash that changes along the span, and so more induced drag for the same lift.';
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------------
+   DRAWING — a 3-D line scene on the 2-D canvas (orthographic camera, drag to orbit: no WebGL, so no fallback is
+   ever needed), the span graph, and the force triangle
+   --------------------------------------------------------------------------------------------------- */
+const ORB = { yaw: 0.52, pitch: 0.5, drag: null, user: false };
+/** Until the reader turns the scene, the camera suits the frame: from the side in a wide frame, from behind in a tall one. */
+function aimCamera(v) {
+  const wide = v.w / v.h > 2.1;
+  LW = wide ? 2.1 : 1.5;                                      // a wide frame has room for more wake
+  if (ORB.user) return;
+  ORB.yaw = wide ? -0.98 : 0.52; ORB.pitch = wide ? 0.42 : 0.5;
+}
+/** Viz.text on a card-coloured box, moved sideways if needed so that the whole label stays inside the W × H canvas. */
+function labelIn(ctx, W, H, str, x, y, o) {
+  o = Object.assign({ size: 12.5, bg: true }, o);
+  ctx.save(); ctx.font = Viz.font(o.size, o.weight || 600); const tw = ctx.measureText(str).width; ctx.restore();
+  const al = o.align || 'left', x0 = clamp(al === 'center' ? x - tw / 2 : al === 'right' ? x - tw : x, 6, Math.max(6, W - 6 - tw));
+  return Viz.text(ctx, str, al === 'center' ? x0 + tw / 2 : al === 'right' ? x0 + tw : x0, clamp(y, 10, H - 10), o);
+}
+function arrowPx(ctx, x0, y0, x1, y1, color, lw) {
+  const L = Math.hypot(x1 - x0, y1 - y0); if (L < 2) return;
+  const ux = (x1 - x0) / L, uy = (y1 - y0) / L, hd = Math.min(9, L * 0.6);
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw || 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux * hd * 0.7, y1 - uy * hd * 0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - ux * hd - uy * hd * 0.5, y1 - uy * hd + ux * hd * 0.5); ctx.lineTo(x1 - ux * hd + uy * hd * 0.5, y1 - uy * hd - ux * hd * 0.5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+/** Orthographic camera at azimuth yaw (from +x, the downstream side) and elevation pitch, fitted to the scene box. */
+function makeCam(v, pts, pad) {
+  const cy = Math.cos(ORB.yaw), sy = Math.sin(ORB.yaw), cp = Math.cos(ORB.pitch), sp = Math.sin(ORB.pitch);
+  const raw = p => [-p[0] * sy + p[1] * cy, -p[0] * sp * cy - p[1] * sp * sy + p[2] * cp];
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  pts.forEach(p => { const q = raw(p); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+  const sc = Math.min((v.w - 2 * pad) / (x1 - x0), (v.h - 2 * pad) / (y1 - y0)), mx = 0.5 * (x0 + x1), my = 0.5 * (y0 + y1);
+  return { sc, P: p => { const q = raw(p); return [v.w / 2 + (q[0] - mx) * sc, v.h / 2 - (q[1] - my) * sc]; } };
+}
+const wakeLen = wU => clamp(wU * 6, -0.3, 0.3);             // length of a downwash arrow [spans] for w/U
+
+function drawWing(v, s, st, app) {
+  v.clear();
+  if (v.w < 60 || v.h < 50) return;
+  const ctx = v.ctx, W = st.W, C = k => Viz.color(k), amber = C('amber'), blue = C('blue'), orange = C('orange'), muted = C('muted'), text = C('text');
+  const tiny = v.h < 120, small = v.w < 430 || v.h < 200, h = W.h, gOn = isFinite(h), planeOn = gOn && h <= 1.0, imgOn = gOn && h <= 0.6;
+  aimCamera(v);
+  // fit the camera to what is drawn: the wing, the wake, the arrows (down inside the span, up outside), the ground
+  const box = [[-0.42, 0, 0], [LW, -HALF, 0], [LW, HALF, 0], [W.x, -HALF, -0.3], [W.x, HALF, -0.3], [W.x, -0.62, 0.3], [W.x, 0.62, 0.3], [0, -0.62, 0], [0, 0.62, 0]];
+  if (planeOn) [-0.42, LW].forEach(x => [-0.64, 0.64].forEach(y => box.push([x, y, -h])));
+  if (imgOn) [-HALF, HALF].forEach(y => box.push([0, y, -2 * h], [LW, y, -2 * h]));
+  const cam = makeCam(v, box, tiny ? 8 : small ? 16 : 24), P = cam.P, load = st.load;
+  const seg = (a, b, color, lw, dash, al) => { const p = P(a), q = P(b); ctx.save(); ctx.globalAlpha = al === undefined ? 1 : al; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.setLineDash(dash || []); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.restore(); };
+  const poly = (pts, fill, stroke, lw) => { ctx.save(); ctx.beginPath(); pts.forEach((p, i) => { const q = P(p); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); } ctx.restore(); };
+  const lwOf = j => 1 + 6.5 * Math.min(1, Math.abs(j)), alOf = j => 0.32 + 0.68 * Math.min(1, Math.abs(j) * 4);
+  const D = W.disp, fil = W.dfil;
+
+  // the ground and the mirrored vortex system below it
+  if (planeOn) {
+    poly([[-0.42, -0.64, -h], [LW, -0.64, -h], [LW, 0.64, -h], [-0.42, 0.64, -h]], Viz.alpha(muted, 0.10), Viz.alpha(muted, 0.5), 1);
+    for (let x = 0; x <= LW; x += 0.5) seg([x, -0.64, -h], [x, 0.64, -h], Viz.alpha(muted, 0.25), 1);
+    [-0.32, 0, 0.32].forEach(y => seg([-0.42, y, -h], [LW, y, -h], Viz.alpha(muted, 0.25), 1));
+  }
+  if (imgOn) {
+    fil.forEach(f => seg([0, f.y, -2 * h], [LW, f.y, -2 * h], muted, Math.max(1, 0.6 * lwOf(f.jump)), [5, 4], 0.3 + 0.5 * Math.min(1, Math.abs(f.jump) * 4)));
+    seg([0, -HALF, -2 * h], [0, HALF, -2 * h], muted, 2, [5, 4], 0.8);
+  }
+  // the wing (a schematic planform under the lifting line)
+  const chord = y => (W.shape === 'elliptic' || W.shape === 'parabolic' ? Math.max(0.02, loading(W.shape, y, SPAN)) : 1) * CHORD;
+  const lead = [], trail = [];
+  for (let i = 0; i <= 24; i++) { const y = -HALF + i / 24; lead.push([-0.25 * chord(y), y, 0]); trail.push([0.75 * chord(y), y, 0]); }
+  poly(lead.concat(trail.reverse()), Viz.alpha(text, 0.07), Viz.alpha(muted, 0.55), 1);
+  // the trailing sheet (N = ∞) and the trailing filaments: thickness and opacity ∝ strength
+  if (W.N === 0 && !isHorse(W)) poly([[0, -HALF, 0], [LW, -HALF, 0], [LW, HALF, 0], [0, HALF, 0]], Viz.alpha(amber, 0.10));
+  const focusY = { p1: st.port[0], p2: st.port[1], s1: st.star[0], s2: st.star[1] }[s.focus];
+  fil.forEach(f => {
+    const lw = lwOf(f.jump), al = alOf(f.jump);
+    seg([0, f.y, 0], [0.6 * LW, f.y, 0], amber, lw, null, al); seg([0.6 * LW, f.y, 0], [0.85 * LW, f.y, 0], amber, lw, null, al * 0.6); seg([0.85 * LW, f.y, 0], [LW, f.y, 0], amber, lw, null, al * 0.28);
+  });
+  if (focusY) seg([0, focusY.y, 0], [LW, focusY.y, 0], blue, 2.2, [3, 4]);
+  // the sense of rotation of the strongest filaments (opposite on the two half-wings)
+  if (!tiny) {
+    const few = fil.length <= 8, ring = few ? fil : [fil[0], fil[fil.length - 1]];
+    ring.forEach((f, i) => {
+      if (Math.abs(f.jump) < 0.04) return;
+      const rr = few ? clamp(0.04 + 0.05 * Math.abs(f.jump), 0.04, 0.085) : 0.075, x0 = LW * (few ? 0.3 + 0.12 * (f.k % 2) : 0.4), sgn = f.jump > 0 ? 1 : -1, pts = [];
+      for (let k = 0; k <= 22; k++) { const th = sgn * (-0.3 + 1.5 * Math.PI * k / 22); pts.push(P([x0, f.y + rr * Math.cos(th), rr * Math.sin(th)])); }
+      ctx.save(); ctx.strokeStyle = amber; ctx.lineWidth = 1.6; ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke(); ctx.restore();
+      const a = pts[pts.length - 3], b = pts[pts.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      arrowPx(ctx, b[0] - (b[0] - a[0]) / L * 3, b[1] - (b[1] - a[1]) / L * 3, b[0] + (b[0] - a[0]) / L * 6, b[1] + (b[1] - a[1]) / L * 6, amber, 1.6);
+    });
+  }
+  // the bound vortex: thickness ∝ Γ on each panel
+  for (let k = 0; k < D.steps.length; k++) seg([0, D.edges[k], 0], [0, D.edges[k + 1], 0], amber, 1.5 + 6.5 * D.steps[k], null, 1);
+  // the oncoming stream
+  const u0 = P([-0.42, 0, 0]), u1 = P([-0.1, 0, 0]);
+  arrowPx(ctx, u0[0], u0[1], u1[0], u1[1], text, 2.2);
+  // downwash arrows along the line through the station (blue = down, orange = up)
+  W.arrows.forEach(a => {
+    const len = wakeLen(a.w * load); if (Math.abs(len) < 0.012) return;
+    const p = P([W.x, a.y, 0]), q = P([W.x, a.y, -len]);
+    arrowPx(ctx, p[0], p[1], q[0], q[1], Viz.alpha(len > 0 ? blue : orange, 0.6), 1.5);
+  });
+  // the station: a ring round the line, its own arrow, and the number
+  const sp = P([W.x, st.y, 0]), sl = wakeLen(st.w), sq = P([W.x, st.y, -sl]), scol = st.w >= 0 ? blue : orange;
+  if (planeOn) seg([W.x, st.y, 0], [W.x, st.y, -h], Viz.alpha(muted, 0.7), 1, [2, 3]);
+  ctx.save(); ctx.strokeStyle = scol; ctx.lineWidth = 2.5; ctx.fillStyle = C('card'); ctx.beginPath(); ctx.arc(sp[0], sp[1], tiny ? 5 : 7, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.restore();
+  arrowPx(ctx, sp[0], sp[1], sq[0], sq[1], scol, 3.2);
+  if (tiny) return;
+  // labels
+  const T = (str, p, dx, dy, o) => labelIn(ctx, v.w, v.h, str, p[0] + dx, p[1] + dy, o);
+  const right = sp[0] < v.w - 130;
+  T((st.w >= 0 ? 'w = ' : 'upwash ') + f3(Math.abs(st.w)) + ' U ' + (st.w >= 0 ? '↓' : '↑'), sq, right ? 10 : -10, sl >= 0 ? 8 : -8, { color: scol, align: right ? 'left' : 'right' });
+  T('U', u0, 0, -12, { color: text, align: 'left' });
+  if (!small) {
+    T(isHorse(W) ? 'bound vortex, Γ constant' : 'bound vortex Γ(y)', P([-0.1, -0.34, 0]), -6, -12, { color: amber, align: 'right' });
+    T(isHorse(W) ? 'two tip vortices' : W.N === 0 ? 'trailing vortex sheet' : fil.length + ' trailing filaments', P([LW * 0.82, 0.5, 0]), 8, 14, { color: amber, align: 'right' });
+    if (planeOn) T('ground, ' + f2(h) + ' s below', P([LW, -0.64, -h]), 6, -10, { color: muted, align: 'left' });
+    if (imgOn) T('mirror images', P([LW * 0.5, -HALF, -2 * h]), 0, 12, { color: muted, align: 'center' });
+    if (gOn && !planeOn) T('ground ' + f2(h) + ' s below (off the picture)', [v.w / 2, v.h - 12], 0, 0, { color: muted, align: 'center' });
+    if (W.x !== 0) T('point ' + f2(Math.abs(W.x)) + ' s ' + (W.x > 0 ? 'behind' : 'ahead'), sp, right ? 12 : -12, -14, { color: blue, align: right ? 'left' : 'right' });
+    Viz.text(ctx, 'drag to turn', v.w - 8, v.h - 11, { color: muted, align: 'right', size: 12.5 });
+  }
+}
+
+function spanPlot(v, s) {
+  const ymax = s.load <= 0.03 ? 0.04 : s.load <= 0.07 ? 0.08 : 0.125, sm = v.w < 420;
+  return v.plot({ xlim: [-0.68, 0.68], ylim: [-0.6 * ymax, 1.25 * ymax], pad: { l: sm ? 38 : 50, r: 10, t: 8, b: 34 },
+    xlabel: sm ? 'position along the span y/s' : 'position along the span y/s  (port tip −0.5 · starboard tip +0.5)', ylabel: sm ? '' : 'Γ/Us  ·  w/U (down +)' });
+}
+function drawSpan(v, s, st) {
+  v.clear();
+  if (v.w < 60 || v.h < 50) return;
+  const W = st.W, P = spanPlot(v, s), ctx = v.ctx, C = k => Viz.color(k), amber = C('amber'), blue = C('blue'), orange = C('orange'), muted = C('muted');
+  const load = st.load, lo = P.ylim[0] * 3, hi = P.ylim[1] * 3, cl = q => (isFinite(q) ? clamp(q * load, lo, hi) : NaN);
+  const tiny = P.px.h < 70, short = P.px.h < 130, sm = v.w < 420, horse = isHorse(W);
+  P.axes({ xticks: sm ? [-0.5, 0, 0.5] : [-0.5, -0.25, 0, 0.25, 0.5], yticks: tiny ? [0] : null });
+  const ws = W.ws.map(cl), gs = W.gs.map(q => q * load);
+  P.clip(() => {
+    P.fillBetween(W.yg, ws.map(q => Math.min(0, q)), 0, { color: orange, alpha: 0.2 });               // upwash
+    [-HALF, HALF].forEach(y => P.line([y, y], [P.ylim[0], P.ylim[1]], { color: Viz.alpha(muted, 0.8), width: 1.2, dash: [2, 4] }));
+    if (!horse) P.line([-HALF, HALF], [load / 2, load / 2], { color: Viz.alpha(muted, 0.9), width: 1.3, dash: [6, 4] });   // ghost: Γ₀/2s
+    // circulation: the smooth loading (faint) and the staircase of horseshoes (bold)
+    const gx = [-HALF].concat(W.yg.filter(y => Math.abs(y) < HALF), [HALF]), gy = [W.shape === 'constant' ? load : 0].concat(gs.filter((q, i) => Math.abs(W.yg[i]) < HALF), [W.shape === 'constant' ? load : 0]);
+    if (W.shape === 'constant') { gx.unshift(-HALF); gy.unshift(0); gx.push(HALF); gy.push(0); }
+    P.line(gx, gy, { color: W.N === 0 ? amber : Viz.alpha(amber, 0.4), width: W.N === 0 ? 2.8 : 1.5 });
+    if (W.N > 0) {
+      const sx = [-HALF], sy = [0];
+      W.S.steps.forEach((q, k) => { sx.push(W.S.edges[k], W.S.edges[k + 1]); sy.push(q * load, q * load); });
+      sx.push(HALF); sy.push(0);
+      P.line(sx, sy, { color: amber, width: 2.8 });
+    }
+    // downwash: the limit (faint), the staircase's own w(y) with its poles (thin), the panel centres (dots)
+    P.line(W.yg, ws, { color: W.N === 0 ? blue : Viz.alpha(blue, 0.4), width: W.N === 0 ? 2.8 : 1.6 });
+    if (W.N > 0) {
+      // (with many panels the poles would hide everything: inside the span they are drawn for N ≤ 7 only)
+      const keep = horse || W.N <= 7, rx = keep ? W.raw.xs : W.raw.xs.map(y => (Math.abs(y) < HALF ? NaN : y));
+      P.line(rx, W.raw.ys.map(cl), { color: Viz.alpha(blue, horse ? 1 : 0.45), width: horse ? 2.8 : 1.2 });
+      if (!horse) W.mids.forEach((y, k) => P.dot(y, W.wMid[k] * load, W.N > 12 ? 3 : 4, { color: blue }));
+    }
+    // the station
+    P.line([st.y, st.y], [P.ylim[0], P.ylim[1]], { color: Viz.alpha(muted, 0.6), width: 1 });
+    if (st.inside) P.dot(st.y, st.G, 4.5, { color: amber, stroke: '#fff', strokeWidth: 1.5 });
+    P.dot(st.y, clamp(st.w, P.ylim[0], P.ylim[1]), 5.5, { color: st.w >= 0 ? blue : orange, stroke: '#fff', strokeWidth: 2 });
+  });
+  if (tiny) return;
+  const o = (c, al) => ({ color: c, bg: true, size: 12.5, align: al || 'left' });
+  if (!short) {
+    Viz.text(ctx, sm ? 'Γ' : (W.N > 0 && !horse ? 'Γ: ' + W.N + ' horseshoes' : 'Γ(y)'), P.X(-0.2), P.Y(loading(W.shape, -0.2, SPAN) * load) - 13, o(amber, 'center'));
+    if (!horse && !sm) Viz.text(ctx, 'Γ₀/2s', P.X(HALF) - 4, P.Y(load / 2) - 11, o(muted, 'right'));
+    Viz.text(ctx, 'upwash', P.X(0.59), P.Y(0) + 13, o(orange, 'center'));
+    if (!sm) Viz.text(ctx, 'tip', P.X(-HALF) + 5, P.px.y + 11, o(muted));
+  }
+  const lx = P.X(st.y), rightSide = lx < P.px.x + P.px.w - 110;
+  labelIn(ctx, v.w, v.h, (sm ? '' : 'w = ') + f3(st.w) + ' U', lx + (rightSide ? 9 : -9), clamp(P.Y(st.w), P.px.y + 10, P.px.y + P.px.h - 10) + (st.w >= 0 ? 13 : -13), o(st.w >= 0 ? blue : orange, rightSide ? 'left' : 'right'));
+}
+
+function drawTri(v, s, st) {
+  v.clear();
+  if (v.w < 150 || v.h < 110) return;
+  const ctx = v.ctx, w = v.w, h = v.h, C = k => Viz.color(k), blue = C('blue'), teal = C('teal'), rose = C('rose'), muted = C('muted'), text = C('text'), accent = C('accent');
+  const K = 5, raw = K * st.eps, ed = clamp(raw, -0.8, 0.8), capped = Math.abs(raw) > 0.8;
+  const T = (str, x, y, o) => labelIn(ctx, w, h, str, x, y, o), nar = w < 260;
+  // the velocity triangle: U along the flight path, w at right angles, U_e the air the strip meets
+  const x0 = 14, LU = Math.min(w * 0.45, h * 0.42, 220), yU = ed >= 0 ? 30 : 30 + LU * Math.tan(-ed), ex = x0 + LU, ey = yU + LU * Math.tan(ed);
+  arrowPx(ctx, x0, yU, ex, yU, text, 2.2);
+  if (Math.abs(ey - yU) > 3) arrowPx(ctx, ex, yU, ex, ey, st.w >= 0 ? blue : C('orange'), 2.6);
+  arrowPx(ctx, x0, yU, ex, ey, blue, 3);
+  T('U', x0 + LU * 0.5, yU + (ed >= 0 ? -12 : 13), { color: text, align: 'center' });
+  T('w', ex + 8, (yU + ey) / 2, { color: st.w >= 0 ? blue : C('orange') });
+  T('Uₑ', x0 + LU * 0.45, yU + LU * 0.45 * Math.tan(ed) + (ed >= 0 ? 15 : -15), { color: blue, align: 'center' });
+  T('ε = ' + dg(st.eps) + (capped ? ' (capped)' : nar ? ' (×' + K + ')' : ' (drawn ×' + K + ')'), x0, Math.max(yU, ey) + 34, { color: blue });
+  // the strip and its force: at right angles to U_e, split across and along the flight path
+  const cx = w * (nar ? 0.6 : 0.68), cy = h - 34, LF = Math.min(h * 0.46, w * 0.42), Lc = Math.min(w * 0.3, 96);
+  if (!st.hasStrip) {
+    Viz.card(ctx, w / 2, h - 44, st.W.x !== 0 ? ['this point is off the wing:', 'no strip, so no force here'] : ['no wing out here', 'a wing here would meet rising air'], { maxWidth: w - 12, color: muted });
+    return;
+  }
+  ctx.save(); ctx.strokeStyle = Viz.alpha(muted, 0.8); ctx.lineWidth = 1; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(cx - Lc, cy); ctx.lineTo(Math.min(w - 6, cx + Lc), cy); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(0.16); ctx.fillStyle = Viz.alpha(text, 0.14); ctx.strokeStyle = Viz.alpha(text, 0.75); ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(-0.3 * Lc, 0); ctx.bezierCurveTo(-0.3 * Lc, -0.13 * Lc, 0.1 * Lc, -0.1 * Lc, 0.7 * Lc, 0); ctx.bezierCurveTo(0.1 * Lc, 0.05 * Lc, -0.3 * Lc, 0.08 * Lc, -0.3 * Lc, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  const lx = cx, ly = cy - LF * Math.cos(ed), dx = cx + LF * Math.sin(ed);
+  arrowPx(ctx, cx, cy, lx, ly, teal, 3);
+  arrowPx(ctx, cx, cy, dx, ly, accent, 2.2);
+  if (Math.abs(dx - lx) > 3) arrowPx(ctx, lx, ly, dx, ly, rose, 3);
+  T('dL', lx - 8, (cy + ly) / 2, { color: teal, align: 'right' });
+  T(nar ? 'dLₑ' : 'dLₑ ⟂ Uₑ', (cx + dx) / 2 + (ed >= 0 ? 10 : -10), (cy + ly) / 2 + 16, { color: accent, align: ed >= 0 ? 'left' : 'right' });
+  T('dDᵢ = ' + pc(st.w) + (nar ? '' : ' of dL'), ed >= 0 ? lx - 4 : lx + 4, ly - 13, { color: rose, align: ed >= 0 ? 'left' : 'right' });
+  if (h > 190 && w > 270) {
+    T('lift dL = ρUΓ dy', 8, h - 30, { color: teal });
+    T('drag dDᵢ = ρwΓ dy', 8, h - 12, { color: rose });
+  }
+}
+
+/* ---- the book's equations, written once (TeX) --------------------------------------------------------------- */
+const EQ_BS = 'd\\mathbf u=\\dfrac{\\Gamma\\,dl}{4\\pi}\\,\\mathbf e_\\omega\\times\\dfrac{\\mathbf x-\\mathbf x\'}{\\lvert\\mathbf x-\\mathbf x\'\\rvert^3}';
+const EQ_SHED = 'd\\Gamma_{\\text{trail}}=-\\dfrac{d\\Gamma}{dy}\\,dy';
+const EQ_W = 'w(y_1)=\\dfrac{1}{4\\pi}\\displaystyle\\int_{-s/2}^{s/2}\\dfrac{d\\Gamma}{dy}\\,\\dfrac{dy}{(y_1-y)}';
+const EQ_AE = '\\alpha_e=\\alpha-\\varepsilon=\\alpha-\\dfrac wU';
+const EQ_L = 'L=\\displaystyle\\int_{-s/2}^{s/2}\\rho U\\Gamma\\,dy';
+const EQ_D = 'D_i=\\displaystyle\\int_{-s/2}^{s/2}\\rho w\\Gamma\\,dy';
+const EQ_KZ = 'L=\\rho U\\Gamma';
+const BASE = { h: 2, xs: 0, load: 0.07 };
+const tn = (v, n) => Viz.tnum(v, n || 3);
+const BLUE = Viz.color('blue'), MUTED = Viz.color('muted');
+
+function liveOf(s) {
+  const st = stationOf(s), W = st.W, nr = st.near, S = W.S, load = st.load;
+  const Gl = nr.k > 0 ? S.steps[nr.k - 1] : 0, Gr = nr.k < S.steps.length ? S.steps[nr.k] : 0;
+  let sheet = 0;
+  if (st.inside) sheet = W.shape === 'parabolic' ? 8 * st.y : W.shape === 'constant' ? 0 : sheetStrength(GN[W.shape], spanAngle(st.y, SPAN), SPAN);
+  const B = st.B, wNear = nr.w * load;
+  return {
+    y: sg3(st.y), ye: sg3(nr.y), Gl: f3(Gl), Gr: f3(Gr), jump: sg3(nr.jump), sheet: sg3(sheet),
+    nearExpr: '(' + sg3(nr.jump * load) + ') / (4π × (' + sg3(nr.d) + ')) = ' + sg3(wNear) + ' U',
+    bars: sg3(B.p2) + ' ' + sg3(B.p1) + ' ' + sg3(B.s1) + ' ' + sg3(B.s2) + ' ' + sg3(B.others) + (isFinite(W.h) ? ' ' + sg3(B.img) : '') + ' = ' + sg3(st.w) + ' U',
+    w: sg3(st.w), wLim: sg3(st.wLim), epsRad: sg3(st.eps), epsDeg: dg(st.eps), G: f3(st.G),
+    dL: st.hasStrip ? Viz.fmt(st.F.dL, { sig: 3 }) : '0 (no strip here)', dDi: st.hasStrip ? Viz.fmt(st.F.dDi, { sig: 3 }) : '0 (no strip here)',
+    dLe: st.hasStrip ? Viz.fmt(st.F.dLe, { sig: 4 }) : '0', ratio: pc(st.w), gf: f3(st.w / st.wNoG), wNoG: sg3(st.wNoG), xr: f3(st.w / st.wLine), wLine: sg3(st.wLine)
+  };
 }
 
 /* ---------------------------------------------------------------------------------------------------
@@ -2348,80 +2908,427 @@ function physics(s) {
 const app = Viz.app({
   title: 'How can there be drag without friction?',
   subtitle: 'Build a wing from nested horseshoe vortices, add up their downwash at one station, and watch the lift lean back.',
+  autoplay: false,
   params: {
-    // a: { label: 'Amplitude $a$', min: 0, max: 1, step: 0.01, value: 0.5, unit: 'm', help: 'one short sentence' },
+    N: { type: 'select', label: 'Horseshoes $N$', options: [['1', '1'], ['3', '3'], ['7', '7'], ['21', '21'], ['inf', '∞']], value: '7', display: 'chips', help: 'how many panels of constant circulation build the wing · ∞: the smooth limit' },
+    shape: { type: 'select', label: 'Loading $\\Gamma(y)$', options: [['constant', 'constant'], ['elliptic', 'elliptic'], ['parabolic', 'parabolic'], ['rect', 'rect. wing']], value: 'elliptic', display: 'chips', help: 'rect. wing: the lifting-line solution for a rectangular wing of aspect ratio 6' },
+    load: { label: 'Loading $\\Gamma_0/(Us)$', min: 0.02, max: 0.12, step: 0.005, value: 0.07, help: '0.02: fast cruise · 0.12: slow flight', optional: true },
+    h: { label: 'Height above ground $h/s$', min: 0.05, max: 2, step: 0.05, value: 2, help: '2 = far: no ground · below 0.3 the ground is felt strongly', optional: true, fmt: v => (v >= HFAR ? 'far' : v.toFixed(2) + ' s') },
+    xs: { label: 'Behind the wing $x/s$', min: -3, max: 3, step: 0.1, value: 0, help: '0: on the lifting line · + behind · − ahead (trailing sheet only)', optional: true, fmt: v => (Math.abs(v) < 1e-9 ? 'at the wing' : v.toFixed(1).replace('-', '−') + ' s') }
   },
-  readouts: [
-    // { id: 'c', label: 'Phase speed $c$', unit: 'm/s', value: s => physics(s).c },
+  transport: { param: 'y1', min: -0.62, max: 0.62, value: 0.14, rate: 0.12, end: 'loop', step: 0.02, label: 'station $y_1/s$', unit: 's' },
+  presets: [
+    { label: 'one horseshoe', set: Object.assign({}, BASE, { N: '1', shape: 'constant', y1: 0 }), title: 'constant circulation, two tip vortices' },
+    { label: 'elliptic', set: Object.assign({}, BASE, { N: '21', shape: 'elliptic', y1: 0.14 }), title: '21 horseshoes on the elliptic loading' },
+    { label: 'the limit', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic' }), title: 'N → ∞: the sum has become the downwash integral' },
+    { label: 'outboard: upwash', set: Object.assign({}, BASE, { N: '7', y1: 0.58 }), title: 'just outside the starboard tip' },
+    { label: 'in ground effect', set: { h: 0.15, xs: 0 }, title: 'the wing 0.15 spans above the ground' },
+    { label: 'behind the wing', set: { xs: 1.5, h: 2, N: 'inf' }, title: '1.5 spans downstream: almost twice the downwash' }
   ],
-  // ---- depth features: use at least 2 (tools/shot.py checks). See templates/viz_example.html for all of them. ----
-  // transport: { param: 't', min: 0, max: 10, rate: 1, end: 'hold', unit: 's' },
-  // presets:   [{ label: 'deep water', set: { H: 100 } }, { label: 'shallow', set: { H: 1 } }],
-  // status:    s => ({ text: '🌊 deep-water regime', tone: 'info' }),
-  // terms:     { title: 'Term by term', items: [{ id: 'a', label: 'gravity', color: '#0fa39c', value: s => 1 }] },
-  // inspect:   s => s.probe ? `exact arithmetic at the probe …` : null,
-  // notes:     s => '<p>Regime-dependent interpretation of the current setting.</p>',
-  // modes:     { param: 'system', options: [['a', 'System A'], ['b', 'System B']] },
+  status: statusOf,
+  readouts: [
+    { id: 'G', label: '$\\Gamma$ at the station', unit: 'Us', value: s => stationOf(s).G, fmt: v => f3(v) + ' Us' },
+    { id: 'w', label: 'Downwash $w/U$', unit: '', value: s => stationOf(s).w, fmt: v => sg3(v) },
+    { id: 'eps', label: 'Tilt $\\varepsilon$', unit: '°', value: s => stationOf(s).eps, fmt: v => dg(v) },
+    { id: 'ratio', label: '$dD_i/dL$', unit: '%', value: s => { const st = stationOf(s); return st.hasStrip ? st.w : NaN; }, fmt: v => (isFinite(v) ? pc(v) : '— (no strip)') },
+    { id: 'near', label: 'Nearest filament', unit: 's', value: s => { const st = stationOf(s); return st.W.N === 0 && !isHorse(st.W) ? NaN : Math.abs(st.near.d); }, fmt: v => (isFinite(v) ? f3(v) + ' s away' : 'a sheet') }
+  ],
+  terms: {
+    title: 'Downwash at the station, filament by filament', unit: 'U', sig: 3,
+    items: [
+      { id: 'p2', label: 'port side: 2nd nearest', color: Viz.alpha(BLUE, 0.6), value: s => stationOf(s).B.p2, help: 'the second filament on the port side of the station' },
+      { id: 'p1', label: 'port side: nearest', color: BLUE, value: s => stationOf(s).B.p1, help: 'the filament next to the station on its port side' },
+      { id: 's1', label: 'starboard side: nearest', color: BLUE, value: s => stationOf(s).B.s1, help: 'the filament next to the station on its starboard side' },
+      { id: 's2', label: 'starboard side: 2nd nearest', color: Viz.alpha(BLUE, 0.6), value: s => stationOf(s).B.s2, help: 'the second filament on the starboard side' },
+      { id: 'others', label: 'all the others', color: Viz.alpha(BLUE, 0.4), value: s => stationOf(s).B.others, help: 'every filament further away' },
+      { id: 'img', label: 'mirror images (ground)', color: MUTED, value: s => stationOf(s).B.img, help: 'the image vortices below the ground: an upwash' }
+    ],
+    total: { label: 'sum = $w/U$ at the station', value: s => stationOf(s).w }
+  },
   stage: {
-    animate: false,
-    // views: [ { id: 'phenomenon', row: 0, title: '<b>The flow</b>' }, { id: 'graph', row: 1, title: s => '<b>The curve</b>' } ],
+    rows: [1.3, 1],
+    views: [
+      { id: 'wing', row: 0, flex: 1.3, title: '<b>The lifting line and its trailing vortices</b> · <span class="c-amber">amber</span> = vortices (thicker = stronger) · <span class="c-blue">blue</span> = downwash · <span class="c-orange">orange</span> = upwash' },
+      { id: 'span', row: 1, flex: 1.4, title: s => { const st = stationOf(s); return '<b>Along the span</b> · <span class="c-amber">Γ/Us</span> · <span class="c-blue">w/U</span> · ' + (st.hasStrip ? 'at the station: ε ' + dg(st.eps) + ' · $dD_i/dL$ ' + pc(st.w) : (st.W.x !== 0 ? 'off the wing' : 'outboard of the tip') + ': w = ' + sg3(st.w) + ' U'); } },
+      { id: 'tri', row: 1, flex: 1, hidePortrait: true, title: '<b>Forces on the strip</b> · <span class="c-teal">lift</span> · <span class="c-rose">induced drag</span>' }
+    ],
     draw(g, s) {
-      g.clear();                                   // with views: const v = g.view('graph'); v.clear(); v.plot({...})
-      const P = g.plot({ xlim: [0, 1], ylim: [0, 1], xlabel: 'x [m]', ylabel: 'y [m]' }).axes();
-      // P.fn(x => ..., { color: Viz.color('accent') });
+      const st = stationOf(s);
+      drawWing(g.view('wing'), s, st, g.app);
+      drawSpan(g.view('span'), s, st);
+      drawTri(g.view('tri'), s, st);
+      // while the station moves on its own, refresh the regime-dependent texts when the regime changes
+      const r = regimeOf(s, st);
+      if (g.app.playing && s.regime !== undefined && s.regime !== r) setTimeout(() => { if (g.app.state.regime !== r) g.app.set('regime', r); }, 0);
+      else if (s.regime === undefined) s.regime = r;
+    },
+    onPointer(g, ev, s) {
+      const v = ev.vizView || g.view(ev.viewId);
+      if (!v) return false;
+      if (ev.viewId === 'wing') {
+        if (ev.type === 'pointerdown') { ORB.drag = { x: v.pointer.x, y: v.pointer.y, yaw: ORB.yaw, pitch: ORB.pitch }; return false; }
+        if (ev.type === 'pointermove' && v.pointer.down && ORB.drag) {
+          ORB.user = true; ORB.yaw = ORB.drag.yaw - (v.pointer.x - ORB.drag.x) * 0.009;
+          ORB.pitch = clamp(ORB.drag.pitch + (v.pointer.y - ORB.drag.y) * 0.009, 0.06, 1.5);
+          return true;
+        }
+        if (ev.type !== 'pointermove') ORB.drag = null;
+        return false;
+      }
+      if (ev.viewId === 'span' && (ev.type === 'pointerdown' || (ev.type === 'pointermove' && v.pointer.down))) {
+        const P = spanPlot(v, s);
+        g.app.set('y1', clamp(Math.round(P.ix(v.pointer.x) * 200) / 200, -0.62, 0.62));
+        return true;
+      }
+      return false;
     }
   },
   explore: {
-    intro: 'One or two sentences: what you are looking at and what to drag first.',
-    callouts: [{ kind: 'try', html: 'A concrete experiment with a predicted outcome.' }]
+    intro: 'Drag in the span graph to move the station; drag the 3-D view to turn it. Press ▶ to ride along the span.',
+    controls: ['N', 'shape', 'load', 'h', 'xs'],
+    readouts: ['G', 'w', 'eps', 'ratio', 'near'],
+    callouts: [{ kind: 'try', html: 'Choose "constant" and move the station toward a tip. Then choose "elliptic" and do the same.' }]
   },
-  // REQUIRED: Explanation & interpretation (pattern: forced_damped_vibrations.html) — ≥ 3 numbered sections that compute
-  // every number on the picture with the reader's settings (formula = substitution = result + a short why), colour words
-  // matching the curves, a hint for any view hidden on phones, the values at the current time, and an interpretation.
+  notes: s => {
+    const st = stationOf(s), W = st.W;
+    return '<p><b>Right now.</b> ' + reading(s) + '</p>' +
+      '<p>' + (W.N > 0 && !isHorse(W) ? 'On a staircase the station sits at the middle of its panel, between two filaments; the thin blue line shows that the staircase\'s own downwash has no limit at each filament.' : 'The station is at $y_1 = ' + tn(st.y) + '\\,s$.') + '</p>';
+  },
   explain: {
-    html: s => Viz.work.step(0, 'What you are looking at') + Viz.work.say('<span class="c-teal">Teal</span> = …; <span class="c-orange">orange</span> = …') +
-      Viz.work.step(1, 'From the controls to the first quantity') + Viz.work.line('$a = b \\times c = 2 \\times 3$', '6', 'why this step') +
-      Viz.work.box('result in a box: $a = \\mathbf{6}$') +
-      Viz.work.step(2, 'The next quantity') + Viz.work.line('$d = a/2$', '3', 'why') +
-      Viz.work.step(3, 'At the current time') + Viz.work.line('$x(t)$', Viz.live('x')) +
-      Viz.work.interpret('Regime-dependent: what the current setting means and what to try next.', 'Reading the current setting'),
-    live: s => ({ x: '…' })
+    html: s => {
+      const K = Viz.work, st = stationOf(s), W = st.W, horse = isHorse(W), inf = W.N === 0 && !horse, load = s.load, r = regimeOf(s, st), L = Viz.live;
+      const nF = W.fil.length, G0 = Math.max.apply(null, W.S.steps);
+      let o = K.step(0, 'What the views show') +
+        K.say('The <b class="c-amber">amber</b> lines are vortices: one along the wing (the bound vortex), the others trailing downstream. Where the bound vortex gets weaker, the difference leaves as a trailing leg. <b class="c-blue">Blue</b> is the downwash they cause at the wing, <b class="c-orange">orange</b> an upwash.') +
+        K.say('<b>Units and signs.</b> Span $s = 1$, speed $U = 1$, density $\\rho = 1$: $\\Gamma$ is in units of $Us$, $w$ in units of $U$, forces in $\\rho U^2s^2$. $\\Gamma$ is counted so that the lift $' + EQ_KZ + '$ (6.62) is upward; $w$ is positive <b>downward</b>; $y$ runs from the port tip ($-s/2$) to the starboard tip ($+s/2$).') +
+        K.hint('On phones the force triangle is hidden: $\\varepsilon$ and $dD_i/dL$ are in the span graph\'s title and in the status line.');
+      o += K.step(1, 'What leaves the wing');
+      if (inf) {
+        o += K.say('A smooth loading sheds a continuous sheet. Per unit span it carries $' + EQ_SHED.replace('\\,dy', '').replace('d\\Gamma_{\\text{trail}}', '\\dfrac{d\\Gamma_{\\text{trail}}}{dy}') + '$:') +
+          K.line('$-\\dfrac{d\\Gamma}{dy}$ at your station ($y_1/s$ = ' + L('y') + ')', L('sheet') + ' Γ₀/s', 'positive on the starboard half, negative on the port half') +
+          K.box('each half-wing sheds $\\Gamma_0 = \\mathbf{' + tn(load) + '}\\ Us$ in total, with opposite senses');
+      } else {
+        o += K.say('Helmholtz: a vortex cannot end in the fluid. Where the bound strength drops, a filament of strength $' + EQ_SHED + '$ leaves; on a staircase that is the height of the step.') +
+          K.line('nearest filament, at $y = $ ' + L('ye') + ' s: $\\Gamma_{\\text{left}}-\\Gamma_{\\text{right}}$ = ' + L('Gl') + ' − ' + L('Gr'), L('jump') + ' Γ₀', 'what the bound vortex loses there (Γ₀ = ' + f3(load) + ' Us)') +
+          K.box('$' + nF + '$ filaments in all; each half-wing sheds $' + tn(G0) + '\\,\\Gamma_0 = \\mathbf{' + tn(G0 * load) + '}\\ Us$, with opposite senses: the sum is 0');
+      }
+      o += K.step(2, 'One filament\'s push') +
+        K.say('The filament law $' + EQ_BS + '$ (5.17), added up along a straight line that starts abreast of the point and never ends, gives $\\dfrac{\\Gamma}{4\\pi d}$: half the $\\dfrac{\\Gamma}{2\\pi d}$ of an endless line vortex.') +
+        K.line((inf ? 'nearest of the 201 stand-in filaments' : 'the nearest filament') + ': $\\dfrac{\\Delta\\Gamma}{4\\pi\\,(y-y_1)}$', L('nearExpr'), 'down if the filament is outboard of the station and of positive strength') +
+        (W.x !== 0 ? K.hint('Off the wing each term is multiplied by $1 + x/\\sqrt{x^2+d^2}$: from 0 far ahead to 2 far behind.') : '');
+      o += K.step(3, 'The sum: the downwash') +
+        K.line('the <b class="c-blue">bars</b> (2nd and 1st to port, 1st and 2nd to starboard, the others' + (isFinite(W.h) ? ', the images' : '') + ')', L('bars'), 'velocities add: the filament law is linear') +
+        K.say('Letting the panels shrink turns the sum into the integral $' + EQ_W + '$ (14.13), a principal value:') +
+        K.box((W.N > 0 ? 'your ' + W.N + ' horseshoe' + (W.N > 1 ? 's' : '') + ': $w/U$ = ' : '$w/U$ = ') + L('w') + ' · the smooth limit: ' + L('wLim')) +
+        (W.shape === 'elliptic' ? K.line('elliptic loading: $w = \\dfrac{\\Gamma_0}{2s} = \\dfrac{' + tn(load) + '}{2}$', f3(load / 2) + ' U', 'the same at every station inside the span: the dashed grey line') : '') +
+        (horse ? K.line('one horseshoe at mid-span: $w(0) = \\dfrac{\\Gamma}{\\pi s} = \\dfrac{' + tn(load) + '}{\\pi}$', f3(load / Math.PI) + ' U', 'two half-lines, each at the distance $s/2$') : '');
+      o += K.step(4, 'The tilt of the stream') +
+        K.line('$\\varepsilon = \\tan^{-1}\\dfrac wU$ = tan⁻¹(' + L('w') + ')', L('epsRad') + ' rad = ' + L('epsDeg'), 'U and w are the legs of a right triangle') +
+        K.say('Effective angle $' + EQ_AE + '$ (14.14): the strip works at ' + L('epsDeg') + ' less than the wing is set at.');
+      o += K.step(5, 'The strip\'s forces') +
+        K.say('A strip of width $dy = 0.01\\,s$ carries $\\Gamma$ = ' + L('G') + ' Us. Its force $\\rho U_e\\Gamma\\,dy$ = ' + L('dLe') + ' is at right angles to the tilted stream $U_e$.') +
+        K.line('<b class="c-teal">lift</b> $dL = \\rho U\\Gamma\\,dy$', L('dL') + ' ρU²s²', 'the part across the flight path') +
+        K.line('<b class="c-rose">induced drag</b> $dD_i = \\rho w\\Gamma\\,dy$', L('dDi') + ' ρU²s²', 'the part along the flight path') +
+        K.box('$\\dfrac{dD_i}{dL} = \\dfrac wU$ = ' + L('ratio') + ' — no friction anywhere');
+      const tot = W.tot;
+      o += K.step(6, 'The whole wing') +
+        K.say('Adding the strips: $' + EQ_L + '$ and $' + EQ_D + '$ (14.15).');
+      if (tot.finite && !(W.N === 1)) {
+        const Lw = tot.L * load, Dw = tot.D * load * load, ell = 2 / Math.PI * tot.L * tot.L;
+        o += K.line('$L/(\\rho U^2s^2) = ' + tn(tot.L) + '\\times' + tn(load) + '$', f3(Lw), W.N > 0 ? 'sum over the panels' : 'the area under Γ(y)') +
+          K.line('$D_i/(\\rho U^2s^2) = ' + tn(tot.D) + '\\times' + tn(load) + '^2$', f3(Dw), 'sum of $w\\,\\Gamma\\,dy$' + (isFinite(W.h) ? ', with the ground' : '')) +
+          K.box('$D_i/L = \\mathbf{' + tn(Dw / Lw) + '}$ · ' + (Math.abs(tot.D / ell - 1) < 5e-4 ? 'exactly the elliptic value $2L^2/(\\pi\\rho U^2s^2)$' : tn(100 * Math.abs(tot.D / ell - 1), 2) + ' % ' + (tot.D > ell ? 'more' : 'less') + ' than an elliptic loading of the same lift' + (tot.D < ell ? (isFinite(W.h) ? ' (the ground helps)' : ' (a coarse staircase underestimates it)') : '')));
+      } else {
+        o += K.box('one horseshoe: $L = \\rho U\\Gamma s = ' + tn(load) + '\\ \\rho U^2s^2$, but $\\int\\rho w\\Gamma\\,dy$ does not converge: $w$ has no limit at the tips');
+      }
+      o += K.step(7, 'The force triangle') +
+        K.say('Right-hand view: $U$ and <b class="c-blue">$w$</b> make the tilted stream <b class="c-blue">$U_e$</b>; the force is at right angles to it and splits into <b class="c-teal">lift</b> and <b class="c-rose">induced drag</b>. The angle is drawn five times too large; the true $\\varepsilon$ is ' + L('epsDeg') + '.');
+      let n = 8;
+      if (isFinite(W.h)) {
+        o += K.step(n++, 'With the ground') +
+          K.say('The ground lets no air through. Mirror-image vortices of opposite strength, $2h$ below the wing, do the same job, and they push <b>up</b> at the wing.') +
+          K.line('one horseshoe at mid-span: $1-\\dfrac{1}{1+(4h/s)^2} = 1-\\dfrac{1}{1+(4\\times' + tn(W.h) + ')^2}$', f3(ground(W.h, SPAN)), 'the factor on its downwash') +
+          K.box('at your station: ' + L('w') + ' / ' + L('wNoG') + ' = × ' + L('gf'));
+      }
+      if (W.x !== 0) {
+        o += K.step(n++, 'Ahead of and behind the wing') +
+          K.box('at $x = ' + tn(W.x) + '\\,s$: ' + L('w') + ' / ' + L('wLine') + ' = ' + L('xr') + ' × the value at the wing') +
+          K.say('Far behind, every filament looks endless in both directions: twice the downwash. Far ahead it is gone. (The bound vortex is left out of this number.)');
+      }
+      o += K.interpret(reading(s), 'Reading the current setting');
+      return o;
+    },
+    live: liveOf
   },
-  // REQUIRED when viz:derivations lists ids (the curation's D-rows for this concept): one small move per step.
-  // Each step: tex (the new line, short enough for a phone), did (the move), why (why it is allowed — name the rule),
-  // plain (what the line says in words), optional live (the line with the reader's numbers), set/highlight/watch.
-  // derivations: [
-  //   { id: 'D03', title: 'Where … comes from', short: '…', ref: 'Eq. (N.M)', goal: 'What we want to show, in plain words.',
-  //     start: { tex: '…', plain: '…' }, plan: ['…', '…'], uses: ['chain rule (primer)'],
-  //     steps: [ { did: 'Multiply by …', tex: '…', why: 'Allowed because …; we choose it because …', plain: '…' } ],
-  //     result: { tex: '…', plain: '…' }, interpret: s => 'With your numbers …', check: 'units · a limit · the selftest row' } ],
-  // REQUIRED: the Python behind the picture (mirrors the fluidpy function); {{name}} placeholders show live values
+  derivations: [
+    { id: 'D11', title: 'The strength of a shed filament', short: 'shed filament', ref: '§14.6 (no number)',
+      goal: 'Find how much vorticity leaves the wing where the bound circulation changes along the span.',
+      start: { tex: '\\Gamma_{\\text{tube}}=\\text{const along the tube}', plain: 'Helmholtz\'s theorem: the strength of a vortex tube is the same all along it; a tube cannot end in the fluid.' },
+      plan: ['Balance the strength at a junction.', 'Expand the bound strength one step along the span.', 'Subtract.', 'Read the sign on each half-wing.'],
+      uses: ['Helmholtz\'s vortex theorem (Ch. 5)', 'a first-order Taylor step', 'assumption: the shed filament leaves straight back'],
+      view: 'wing', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }),
+      steps: [
+        { did: 'Balance the strength at a junction', tex: '\\Gamma(y)=\\Gamma(y+dy)+d\\Gamma_{\\text{trail}}',
+          why: 'Between y and y + dy the bound vortex splits into the part that goes on along the wing and the part that turns downstream; the total strength is conserved (Helmholtz).',
+          plain: 'What arrives equals what goes on plus what leaves.', set: Object.assign({}, BASE, { N: '3', shape: 'elliptic', y1: 0 }),
+          watch: 'Three panels: at each step of the bound vortex one amber leg turns downstream.' },
+        { did: 'Expand the bound strength', tex: '\\Gamma(y+dy)=\\Gamma(y)+\\dfrac{d\\Gamma}{dy}\\,dy',
+          why: 'First-order Taylor step for a small dy: value plus slope times step.',
+          plain: 'The bound vortex a little further out differs by its slope times dy.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }) },
+        { did: 'Subtract', tex: EQ_SHED,
+          why: 'Insert step 2 into step 1 and cancel Γ(y).',
+          plain: 'A filament leaves with the strength the bound vortex has lost.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }),
+          live: s => { const l = liveOf(s); return '\\begin{aligned}&\\text{at } y=' + l.ye.replace('−', '-') + '\\,s:\\\\ &\\Gamma_{\\text{left}}-\\Gamma_{\\text{right}}=' + l.Gl + '-' + l.Gr + '=' + l.jump.replace('−', '-') + '\\ \\Gamma_0\\end{aligned}'; },
+          watch: 'The legs are thickest near the tips, where the amber staircase drops fastest.' },
+        { did: 'Read the sign on each half', tex: '\\begin{aligned}y>0:\\ \\dfrac{d\\Gamma}{dy}<0\\ &\\Rightarrow\\ d\\Gamma_{\\text{trail}}>0\\\\ \\displaystyle\\int_{-s/2}^{s/2}\\!\\!-\\dfrac{d\\Gamma}{dy}\\,dy&=\\Gamma(-\\tfrac s2)-\\Gamma(\\tfrac s2)=0\\end{aligned}',
+          why: 'Γ falls toward the starboard tip and rises from the port tip; the integral is exact because Γ vanishes at both tips.',
+          plain: 'The two half-wings shed vorticity of opposite sense, and equal amounts.', set: Object.assign({}, BASE, { N: '21', shape: 'elliptic', y1: 0.14 }),
+          watch: 'The little arrows round the legs turn opposite ways on the two half-wings.' }
+      ],
+      result: { tex: EQ_SHED, plain: 'Every drop in the bound circulation trails off as a vortex.', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }) },
+      interpret: s => { const st = stationOf(s), W = st.W; return 'Your wing sheds ' + (W.N === 0 && !isHorse(W) ? 'a continuous sheet' : W.fil.length + ' filaments') + '; each half carries $\\Gamma_0 = ' + tn(s.load) + '\\ Us$ in total. <b>What it means:</b> the trailing vorticity is strongest where $\\Gamma$ changes fastest, near the tips. <b>Fails when:</b> nothing here says the filaments stay straight; in reality the sheet rolls up into two tip vortices. <b>Traps:</b> the sign ($d\\Gamma < 0$ for $dy > 0$ on the starboard half gives a positive shed strength); the two half-sheets turn in opposite senses.'; },
+      check: 'Units: (m²/s per m) × m = m²/s. Number: a staircase 10, 8, 5, 0 m²/s sheds 2, 3 and 5 m²/s: together 10, the root value. Limit: a constant $\\Gamma$ sheds nothing except at the tips (the horseshoe). Code: selftest row "Helmholtz: the jumps add to zero".' },
+    { id: 'D12', title: 'The downwash at the lifting line', short: 'downwash', ref: 'Eq. (14.13)',
+      goal: 'Add up the velocity that all the trailing filaments induce at one point of the wing.',
+      start: { tex: 'q=\\dfrac{\\Gamma}{4\\pi d}\\,(\\cos\\theta_a-\\cos\\theta_b)', plain: 'The speed induced by a straight vortex segment: the filament law $' + EQ_BS + '$ (5.17) added up along a straight line; $d$ is the distance to the line, $\\theta_a$ and $\\theta_b$ the angles to its two ends.' },
+      plan: ['Specialise to a half-infinite line.', 'Insert the shed strength.', 'Fix the direction and the sign.', 'Add all the filaments.', 'Say what the singular integral means.'],
+      uses: ['the straight-segment formula (Ch. 5)', 'the shed strength $' + EQ_SHED + '$', 'principal value of an integral', 'assumptions: straight bound vortex; straight, parallel trailing filaments that do not move each other'],
+      view: 'span', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }),
+      steps: [
+        { did: 'Take a filament that starts at the wing', tex: '\\theta_a=0,\\ \\theta_b=90^\\circ:\\quad q=\\dfrac{\\Gamma}{4\\pi d}',
+          why: 'Seen from a point on the lifting line, one end of the filament is infinitely far downstream (angle 0) and the other is abreast of the point (90°); cos 0 − cos 90° = 1.',
+          plain: 'A half-infinite line induces half of what an infinite line would, Γ/2πd.', set: Object.assign({}, BASE, { N: '1', shape: 'constant', y1: 0 }),
+          live: s => '\\dfrac{\\Gamma}{4\\pi d}=\\dfrac{' + tn(s.load) + '}{4\\pi\\times0.5}=' + tn(halfLine(0.5, s.load)) + '\\ U\\ \\text{per leg}', watch: 'One horseshoe, the station at mid-span: each tip leg is half a span away.' },
+        { did: 'Insert the distance and the strength', tex: '\\lvert dw\\rvert=\\dfrac{\\lvert d\\Gamma/dy\\rvert\\,dy}{4\\pi\\,\\lvert y-y_1\\rvert}',
+          why: 'The filament leaves at y and the point is at y₁, so d is the distance between them; its strength is minus the slope of Γ times dy (the shed-filament result).',
+          plain: 'The size of one filament\'s contribution.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }),
+          live: s => { const st = stationOf(s), nr = st.near; return '\\dfrac{\\lvert\\Delta\\Gamma\\rvert}{4\\pi d}=\\dfrac{' + tn(Math.abs(nr.jump) * s.load) + '}{4\\pi\\times' + tn(Math.abs(nr.d)) + '}=' + tn(Math.abs(nr.w) * s.load) + '\\ U'; },
+          highlight: ['readout:near'], watch: 'The nearest filament is the next step of the amber staircase.' },
+        { did: 'Fix the direction', tex: 'dw(y_1)=\\dfrac{-(d\\Gamma/dy)\\,dy}{4\\pi\\,(y-y_1)}',
+          why: 'A starboard filament (positive strength) turns so that the air inboard of it moves down: positive for y > y₁, with w counted positive downward. The signed denominator keeps the formula right on the other side.',
+          plain: 'Filaments outboard of the point push it down.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }) },
+        { did: 'Check the other side', tex: 'y<y_1,\\ -\\dfrac{d\\Gamma}{dy}>0:\\quad dw<0',
+          why: 'The point is now outboard of that starboard filament, where its swirl is upward. The velocity is the one induced at y₁, wherever the filament is.',
+          plain: 'A filament pushes down on one side of itself and up on the other.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.36 }),
+          live: s => { const st = stationOf(s); return '\\begin{aligned}\\text{nearest to port: }&' + tn(st.B.p1) + '\\ U\\\\ \\text{nearest to starboard: }&' + tn(st.B.s1) + '\\ U\\end{aligned}'; },
+          watch: 'Station near the starboard tip: the filament just inboard of it pushes up, the one outboard down.' },
+        { did: 'Absorb the minus sign', tex: 'dw(y_1)=\\dfrac{1}{4\\pi}\\,\\dfrac{d\\Gamma}{dy}\\,\\dfrac{dy}{(y_1-y)}',
+          why: 'Minus one over (y − y₁) equals one over (y₁ − y).',
+          plain: 'The same contribution, written as the book does.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.36 }) },
+        { did: 'Add all the filaments', tex: EQ_W + '\\quad(14.13)',
+          why: 'Velocities add because the filament law is linear; filaments leave from every y between the tips. The straight bound vortex induces no velocity on its own line.',
+          plain: 'The downwash is the sum of all the half-line contributions.', set: Object.assign({}, BASE, { N: '21', shape: 'elliptic', y1: 0.14 }),
+          live: s => { const st = stationOf(s); return '\\text{' + nName(st.W) + ' horseshoes: }' + tn(st.w) + '\\ U\\qquad\\text{limit: }' + tn(st.wLim) + '\\ U'; },
+          watch: 'The blue dots settle onto the faint curve.' },
+        { did: 'Say what the integral means at y = y₁', tex: '\\begin{aligned}w(y_1)=\\dfrac1{4\\pi}\\lim_{\\epsilon\\to0}\\Big[&\\int_{-s/2}^{y_1-\\epsilon}+\\int_{y_1+\\epsilon}^{s/2}\\Big]\\\\ &\\dfrac{d\\Gamma}{dy}\\,\\dfrac{dy}{(y_1-y)}\\end{aligned}',
+          why: 'The integrand is infinite at y = y₁ with opposite signs on the two sides; the filaments just inboard and just outboard cancel, and the symmetric limit (the principal value) is finite.',
+          plain: 'The singularity is harmless if we approach it evenly from both sides.', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }),
+          live: s => { const st = stationOf(s); return '\\begin{aligned}&\\text{the nearest pair:}\\\\ &' + tn(st.B.p1) + '+(' + tn(st.B.s1) + ')=' + tn(st.B.p1 + st.B.s1) + '\\ U\\end{aligned}'; },
+          watch: 'N = ∞: the bold blue line is the integral itself.' }
+      ],
+      result: { tex: EQ_W, plain: 'The air at the wing sinks at a speed set by how the circulation falls off along the whole span (a principal value).', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }) },
+      interpret: s => { const st = stationOf(s); return 'At your station the sum is ' + sg3(st.w) + ' U and the smooth limit ' + sg3(st.wLim) + ' U. <b>What it means:</b> the downwash at a station depends on the whole loading, most strongly on how $\\Gamma$ changes nearby. <b>Fails when:</b> the wake rolls up or is not flat; near the tip of a wing whose $\\Gamma$ does not fall smoothly to zero the integral has no finite value (the horseshoe). <b>Traps:</b> the minus sign hidden in $(y_1-y)$; $w$ is positive downward; the bound vortex contributes nothing on its own line.'; },
+      check: 'Units: (m/s) × m / m = m/s. Limits: one horseshoe gives $w(0) = 2\\times\\Gamma/(4\\pi\\,s/2) = \\Gamma/(\\pi s)$; the elliptic loading gives $\\Gamma_0/2s$ at every station. Number: $\\Gamma = 4\\pi$ m²/s, $s = 2$ m: 2 m/s at mid-span. Code: selftest rows "horseshoe centre", "staircase N = 7", "limit = quadrature of the downwash integral".' },
+    { id: 'D13', title: 'Effective angle, the strip\'s forces, lift and induced drag', short: 'induced drag', ref: 'Eq. (14.14), (14.15)',
+      goal: 'Find what the downwash does to the force on each strip of the wing, and add the strips up.',
+      start: { tex: '\\mathbf U_e=\\mathbf U+\\mathbf w', plain: 'The velocity triangle at a strip: the stream U along the flight path and the downwash w at right angles to it make the air the strip really meets.' },
+      plan: ['Find the tilt angle.', 'Write the effective angle.', 'Apply the lift theorem in the tilted stream.', 'Resolve the force across and along the flight path.', 'Add the strips along the span.'],
+      uses: ['relative velocity', 'small angles', 'resolving a force', 'the lift theorem per unit span, $' + EQ_KZ + '$ (6.62)', 'assumptions: $w \\ll U$ (step 2); each strip acts as a two-dimensional section (step 4)'],
+      view: 'span', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }),
+      steps: [
+        { did: 'Find the tilt of the local stream', tex: '\\tan\\varepsilon=\\dfrac wU\\ \\Rightarrow\\ \\varepsilon=\\tan^{-1}\\dfrac wU',
+          why: 'U and w are the two legs of a right triangle; ε is the angle between the resultant and the flight path. (The book prints "tan" where the inverse tangent is meant.)',
+          plain: 'The air arrives tilted downward by ε.', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }),
+          live: s => { const st = stationOf(s); return '\\varepsilon=\\tan^{-1}(' + tn(st.w) + ')=' + tn(st.eps) + '\\ \\text{rad}=' + tn(st.eps * 180 / Math.PI) + '^\\circ'; }, highlight: ['readout:eps'] },
+        { did: 'Use w ≪ U', tex: '\\begin{aligned}\\varepsilon&\\simeq\\dfrac wU\\\\ \\alpha_e&=\\alpha-\\varepsilon=\\alpha-\\dfrac wU\\quad(14.14)\\end{aligned}',
+          why: 'For small angles the inverse tangent of x is nearly x; the chord makes the angle α with the flight path, so only α − ε with the air it meets.',
+          plain: 'The strip works at a smaller angle of attack than the wing is set at.',
+          live: s => { const st = stationOf(s); return '\\tan^{-1}(' + tn(st.w) + ')-' + tn(st.w) + '=' + Viz.tnum(st.eps - st.w, 2) + '\\ \\text{rad}'; } },
+        { did: 'Write the resultant speed', tex: '\\begin{aligned}U_e&=\\sqrt{U^2+w^2}\\\\ U_e\\cos\\varepsilon&=U,\\qquad U_e\\sin\\varepsilon=w\\end{aligned}',
+          why: 'Pythagoras and the definitions of cosine and sine in the same triangle: exact, no approximation.',
+          plain: 'The tilted stream\'s two components are exactly U and w.',
+          live: s => { const st = stationOf(s); return 'U_e=\\sqrt{1+' + tn(st.w) + '^2}=' + Viz.tnum(Math.hypot(1, st.w), 5) + '\\ U'; } },
+        { did: 'Apply the lift theorem to the strip', tex: 'dL_e=\\rho U_e\\Gamma\\,dy,\\quad\\perp U_e',
+          why: 'A two-dimensional section in a stream U_e with circulation Γ feels ρU_eΓ per unit span, at right angles to that stream (the lift theorem).',
+          plain: 'The force on the strip is perpendicular to the tilted stream, not to the flight path.' },
+        { did: 'Resolve across the flight path', tex: '\\begin{aligned}dL&=dL_e\\cos\\varepsilon=\\rho\\,U_e\\cos\\varepsilon\\;\\Gamma\\,dy\\\\ &=\\rho U\\Gamma\\,dy\\end{aligned}',
+          why: 'The force leans back by ε; its part at right angles to the flight path is what we call lift. Use step 3.',
+          plain: 'The strip\'s lift is ρUΓ dy, as if there were no downwash.',
+          live: s => { const st = stationOf(s); return 'dL=1\\times1\\times' + tn(st.G) + '\\times0.01=' + tn(st.F.dL) + '\\ \\rho U^2s^2'; } },
+        { did: 'Resolve along the flight path', tex: '\\begin{aligned}dD_i&=dL_e\\sin\\varepsilon=\\rho\\,U_e\\sin\\varepsilon\\;\\Gamma\\,dy\\\\ &=\\rho w\\Gamma\\,dy\\end{aligned}',
+          why: 'The other part points backward: a drag. Use step 3 again.',
+          plain: 'The strip\'s induced drag is ρwΓ dy.',
+          live: s => { const st = stationOf(s); return '\\dfrac{dD_i}{dL}=\\dfrac wU=' + tn(st.w) + '\\quad(' + tn(100 * st.w) + '\\ \\%)'; }, highlight: ['readout:ratio'],
+          watch: 'Ride along the span: for the elliptic loading the ratio does not change.' },
+        { did: 'Add the lift of all strips', tex: EQ_L + '\\quad(14.15)',
+          why: 'Γ varies along the span, so the sum over strips is an integral.',
+          plain: 'The wing\'s lift is ρU times the area under Γ(y).',
+          live: s => { const W = wingOf(s); return 'L=' + tn(W.tot.L) + '\\times' + tn(s.load) + '=' + tn(W.tot.L * s.load) + '\\ \\rho U^2s^2'; } },
+        { did: 'Add the induced drag of all strips', tex: EQ_D + '\\quad(14.15)',
+          why: 'Both w and Γ vary with y, so their product is integrated along the span.',
+          plain: 'The wing\'s induced drag is ρ times the span integral of downwash × circulation.',
+          live: s => { const W = wingOf(s); return W.tot.finite ? 'D_i=' + tn(W.tot.D) + '\\times' + tn(s.load) + '^2=' + tn(W.tot.D * s.load * s.load) + '\\ \\rho U^2s^2' : 'D_i\\to\\infty\\ \\text{(one horseshoe)}'; } }
+      ],
+      result: { tex: '\\begin{aligned}\\alpha_e&=\\alpha-\\dfrac wU\\\\ L&=\\displaystyle\\int\\rho U\\Gamma\\,dy,\\quad D_i=\\displaystyle\\int\\rho w\\Gamma\\,dy\\end{aligned}', plain: 'U with Γ gives lift; w with Γ gives drag.' },
+      interpret: s => { const st = stationOf(s); return 'At this station the air ' + (st.w >= 0 ? 'sinks' : 'rises') + ' at ' + f3(Math.abs(st.w)) + ' U, the lift leans ' + (st.w >= 0 ? 'back' : 'forward') + ' by ' + dg(Math.abs(st.eps)) + ', and ' + pc(Math.abs(st.w)) + ' of it is ' + (st.w >= 0 ? 'drag' : 'thrust') + '. <b>What it means:</b> induced drag is the lift vector leaning back; it exists in a fluid with no friction, and its work rate $D_iU$ is the kinetic energy left in the lengthening wake. <b>Fails when:</b> $w$ is not small compared with $U$, or the strip is not nearly two-dimensional (low aspect ratio, near the tips). <b>Traps:</b> $\\varepsilon$ is $\\tan^{-1}(w/U)$, not $\\tan(w/U)$; $U_e\\sin\\varepsilon = w$ and $U_e\\cos\\varepsilon = U$ are exact; this drag is not friction.'; },
+      check: 'Units: (kg/m³)(m/s)(m²/s)(m) = N. Limit: infinite span has no trailing vortices, so $w = 0$ and $D_i = 0$. Number: $U = 50$ m/s, $w = 1$ m/s, $\\Gamma = 20$ m²/s, $\\rho = 1.2$ kg/m³, $dy = 1$ m: $dL = 1200$ N, $dD_i = 24$ N, ratio $0.02 = \\varepsilon$. Code: selftest rows "strip drag", "strip: dL² + dD_i² = dL_e²".' }
+  ],
   code: [
-    { id: 'main', title: 'The same computation in Python', ref: 'Eq. (N.M)',
+    { id: 'down', title: 'The downwash at the station, in Python', ref: 'Eq. (14.13), (14.15)',
       src: `
-from fluidpy import ch14 as chapter      # (write the real module import)
-value = chapter.function(1.0, 2.0)            # = {{value}}`,
-      live: s => ({ value: '…' }) }
+import numpy as np
+import fluidpy.ch14_aerodynamics as ch14
+
+# the loading, Gamma / Gamma_0: {{shape}}
+G = {{fn}}
+ye, Gs = ch14.staircase_from_loading(
+    Gamma_fn=G, s=1.0, N={{N}})   # {{N}} horseshoes
+w, parts = ch14.staircase_downwash(
+    y1={{y1}}, y_edges=ye,    # half-lines,
+    Gamma_steps=Gs, parts=True)  # summed
+w = {{load}} * w             # w/U = {{w}}
+eps = ch14.induced_angle(
+    w=w, U=1.0, small=False)  # {{eps}} rad
+f = ch14.strip_forces(
+    Gamma={{G}}, w=w, U=1.0,
+    rho=1.0, dy=0.01, exact=True)
+print(f["dDi"] / f["dL"])  # = w/U: {{ratio}}`,
+      live: s => {
+        const st = stationOf(s), W = st.W, S = W.S, yb = W.N === 0 && st.inside && W.shape !== 'constant' ? W.mids[clamp(Math.floor((st.y + HALF) * NREF), 0, NREF - 1)] : st.y;
+        const w = stairDown(yb, S.edges, S.steps).w * s.load;
+        return { shape: SHAPE_NAME[W.shape], fn: { constant: 'lambda y: 1.0 + 0.0*y', elliptic: 'lambda y: np.sqrt(1 - (2*y)**2)', parabolic: 'lambda y: 1 - (2*y)**2', rect: 'rect_loading   # the third block' }[W.shape],
+          N: W.N || NREF, y1: yb.toFixed(4), load: s.load.toFixed(3), w: w.toFixed(5), eps: Math.atan(w).toFixed(5), G: st.G.toFixed(4), ratio: w.toFixed(5) };
+      },
+      note: 'For N = ∞ the page shows 201 panels here. The ground (image vortices) and x/s (the factor 1 + x/√(x² + d²)) are the page\'s additions to this sum.' },
+    { id: 'limit', title: 'The smooth limit and the special cases', ref: 'Eq. (14.13)',
+      src: `
+# the downwash integral by quadrature
+# (a station inside the span)
+w_lim = {{load}} * ch14.downwash(
+    y1={{yq}}, Gamma_fn=G, s=1.0)
+print(w_lim)               # {{wl}}
+# elliptic loading: one sine term,
+# w = Gamma_0 / (2 s) at every station
+w_ell = {{load}} * ch14.downwash_series(
+    Gn=np.array([1.0]),
+    gamma1=np.pi/3, s=1.0)   # {{we}}
+# one horseshoe, mid-span: Gamma/(pi s)
+w_one = {{load}} * ch14.horseshoe_downwash(
+    x=0.0, y=0.0, Gamma=1.0, s=1.0)
+print(w_one)               # {{wh}}
+k = ch14.ground_effect_factor(
+    h={{h}}, s=1.0)          # {{k}}`,
+      live: s => { const st = stationOf(s), W = st.W, ok = st.inside && W.shape !== 'constant'; return { yq: (ok ? st.y : 0.14).toFixed(4), wl: (limitDown(W.shape === 'constant' ? 'elliptic' : W.shape, ok ? st.y : 0.14, SPAN) * s.load).toFixed(5), we: (s.load / 2).toFixed(5), wh: (s.load / Math.PI).toFixed(5), h: Math.min(s.h, 2).toFixed(2), k: ground(s.h, SPAN).toFixed(4) }; },
+      note: 'ch14.downwash needs a loading that vanishes at the tips and a station inside the span.' },
+    { id: 'rect', title: 'The rectangular wing\'s loading', ref: 'Eq. (14.18), (14.20)',
+      src: `
+Gn = ch14.solve_lifting_line(
+    c=1/6, s=1.0, U=1.0, alpha=1.0,
+    K=2*np.pi, N=8)["Gn"]  # 8 sine terms
+G0 = ch14.circulation_series(
+    Gn=Gn, gamma=np.pi/2)  # mid-span
+def rect_loading(y):       # Gamma/Gamma_0
+    g = ch14.span_angle(y=y, s=1.0)
+    return ch14.circulation_series(
+        Gn=Gn, gamma=g) / G0
+print(Gn[2] / Gn[0])       # {{g31}}`,
+      live: () => ({ g31: (GnRect[2] / GnRect[0]).toFixed(5) }) }
   ],
   tour: [
-    { title: 'The question', text: 'Plain words first: the problem this concept solves.', set: {} },
-    { title: 'The idea', text: 'The one idea that makes it click.', set: {} },
-    { title: 'The equation', text: 'Now the maths, symbol by symbol.', eq: 'main', set: {} },   // or derive: { id: 'D03', step: 2 }
-    { title: 'The code', text: 'The same idea in Python — watch the live values.', code: { id: 'main', lines: [2, 2] }, set: {} },
-    { title: 'Try it', text: 'Drag the slider and predict before you look.', controls: [], set: {} },
-    { title: 'What it means', text: 'What would change if…; how this feeds the next section.', set: {} }
+    { title: 'Drag in a perfect fluid?', text: 'This wing flies through air with no friction at all, and still something pulls it back. The <b class="c-amber">amber</b> lines trailing behind it are the reason. Where do they come from?',
+      set: Object.assign({}, BASE, { N: '21', shape: 'elliptic', y1: 0.14 }), play: false },
+    { title: 'The simplest wing', text: 'One vortex along the wing gives the lift $' + EQ_KZ + '$ (6.62). It cannot end in the fluid: at each tip it turns downstream, a <b>horseshoe</b>.',
+      set: Object.assign({}, BASE, { N: '1', shape: 'constant', y1: 0 }), play: false },
+    { title: 'Half a line vortex', text: 'Each trailing leg pushes the air at the wing <b class="c-blue">down</b>, half as hard as an endless vortex would: $\\Gamma/(4\\pi d)$. Two legs at $d = s/2$ add up to $\\Gamma/(\\pi s)$.',
+      set: Object.assign({}, BASE, { N: '1', shape: 'constant', y1: 0 }), play: false, terms: true, derive: { id: 'D12', step: 1 } },
+    { title: 'Many horseshoes', text: 'A real wing\'s circulation falls toward the tips. Wherever it drops, the difference trails off: $' + EQ_SHED + '$. Raise $N$ and watch the staircase smooth out.',
+      set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.14 }), play: false, controls: ['N'] },
+    { title: 'Add them up', text: 'Add every filament\'s push and let $N$ grow: the sum becomes an integral, the downwash. The <b class="c-blue">blue dots</b> settle onto the faint curve.',
+      set: Object.assign({}, BASE, { N: '21', shape: 'elliptic', y1: 0.14 }), play: false, eq: 'w' },
+    { title: 'The lift leans back', text: 'The strip meets air tilted down by $\\varepsilon$. Its force is at right angles to that air, so a part of it points backward: <b class="c-rose">induced drag</b>, with no friction anywhere.',
+      set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.14 }), play: false, eq: 'forces', derive: { id: 'D13', step: 6 } },
+    { title: 'Along the span', text: 'Press ▶ and ride along the wing. For the elliptic loading the tilt is the same at every station inside the span.',
+      set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: -0.46 }), play: true, code: { id: 'down', lines: [8, 11] } },
+    { title: 'Your turn', text: 'Predict the sign of the vertical velocity just outboard of a tip. Then move the station there. And what happens near the tip of a "constant" loading?',
+      set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.36 }), play: false, controls: ['shape', 'N'], notes: true }
   ],
   equations: [
-    // { id: 'main', title: 'Name of the relation', ref: 'Eq. (N.M)', tex: 'a = b', live: s => `a = ${Viz.tnum(1.23)}`,
-    //   note: 'when it holds', symbols: [['a', 'what a is', 'm']] },
+    { id: 'shed', title: 'Shed filament', ref: '§14.6 (no number)', tex: EQ_SHED,
+      live: s => { const l = liveOf(s); return '\\begin{aligned}&\\text{at } y=' + l.ye.replace('−', '-') + '\\,s:\\\\ &\\Gamma_{\\text{left}}-\\Gamma_{\\text{right}}=' + l.Gl + '-' + l.Gr + '=' + l.jump.replace('−', '-') + '\\ \\Gamma_0\\end{aligned}'; },
+      note: 'Helmholtz: what the bound vortex loses leaves as a trailing filament; opposite senses on the two half-wings',
+      symbols: [['\\Gamma(y)', 'bound circulation at the spanwise position y', 'm²/s'], ['d\\Gamma_{\\text{trail}}', 'strength of the filament shed between y and y + dy', 'm²/s']] },
+    { id: 'bs', title: 'The filament law (Biot–Savart)', ref: 'Eq. (5.17)', tex: EQ_BS,
+      live: s => '\\begin{aligned}&\\text{half-line at } d=0.5\\,s:\\\\ &\\dfrac{\\Gamma}{4\\pi d}=\\dfrac{' + tn(s.load) + '}{4\\pi\\times0.5}=' + tn(halfLine(0.5, s.load)) + '\\ U\\end{aligned}',
+      note: 'added up along a straight half-infinite filament it gives $\\Gamma/(4\\pi d)$',
+      symbols: [['d\\mathbf u', 'velocity induced at $\\mathbf x$ by the element $dl$ at $\\mathbf x\'$', 'm/s'], ['\\mathbf e_\\omega', 'unit vector along the filament', '–'], ['d', 'distance from the point to the filament\'s line', 'm']] },
+    { id: 'w', title: 'Downwash', ref: 'Eq. (14.13)', tex: EQ_W,
+      live: s => { const st = stationOf(s); return 'w(' + tn(st.y) + '\\,s)=' + tn(st.w) + '\\ U\\quad(\\text{limit: }' + tn(st.wLim) + '\\ U)'; },
+      note: 'a principal value; $w$ is positive downward',
+      symbols: [['w', 'downwash at the lifting line', 'm/s'], ['y_1', 'the station where it is evaluated', 'm'], ['s', 'span', 'm']] },
+    { id: 'ae', title: 'Effective angle', ref: 'Eq. (14.14)', tex: EQ_AE,
+      live: s => { const st = stationOf(s); return '\\varepsilon=\\tan^{-1}(' + tn(st.w) + ')=' + tn(st.eps * 180 / Math.PI) + '^\\circ'; },
+      note: 'for $w \\ll U$; exactly $\\varepsilon = \\tan^{-1}(w/U)$',
+      symbols: [['\\alpha', 'geometric angle of attack', 'rad'], ['\\varepsilon', 'tilt of the local stream', 'rad'], ['\\alpha_e', 'angle of attack the strip really works at', 'rad']] },
+    { id: 'forces', title: 'Lift and induced drag', ref: 'Eq. (14.15)', tex: '\\begin{aligned}L&=\\displaystyle\\int_{-s/2}^{s/2}\\rho U\\Gamma\\,dy\\\\ D_i&=\\displaystyle\\int_{-s/2}^{s/2}\\rho w\\Gamma\\,dy\\end{aligned}',
+      live: s => { const st = stationOf(s); return '\\text{strip: }\\dfrac{dD_i}{dL}=\\dfrac{\\rho w\\Gamma\\,dy}{\\rho U\\Gamma\\,dy}=\\dfrac wU=' + tn(st.w); },
+      note: 'strip by strip: $dL \\simeq \\rho U\\Gamma\\,dy$, $dD_i \\simeq \\rho w\\Gamma\\,dy$',
+      symbols: [['L', 'lift of the wing', 'N'], ['D_i', 'induced drag of the wing', 'N'], ['\\rho', 'air density', 'kg/m³']] },
+    { id: 'horse', title: 'One horseshoe, mid-span', ref: 'ours', tex: 'w(0)=2\\times\\dfrac{\\Gamma}{4\\pi\\,(s/2)}=\\dfrac{\\Gamma}{\\pi s}',
+      live: s => 'w(0)=\\dfrac{' + tn(s.load) + '}{\\pi}=' + tn(s.load / Math.PI) + '\\ U',
+      note: 'two tip legs, each half a span away',
+      symbols: [['\\Gamma', 'the horseshoe\'s constant circulation', 'm²/s']] }
   ],
   check: [
-    // at least 3: questions answerable by experimenting with the picture
-    // { q: 'A question answerable by experimenting with the picture', a: 'The answer, and why', set: {} },
+    { q: 'With one horseshoe, what is the downwash at mid-span in units of $\\Gamma/s$?', a: '$1/\\pi \\approx 0.318$: two half-lines at the distance $s/2$, each $\\Gamma/(4\\pi\\,s/2)$.', set: Object.assign({}, BASE, { N: '1', shape: 'constant', y1: 0 }) },
+    { q: 'For the elliptic loading, how does the downwash change along the span?', a: 'It does not: $\\Gamma_0/2s$ at every station inside the span.', set: Object.assign({}, BASE, { N: 'inf', shape: 'elliptic', y1: 0.3 }) },
+    { q: 'Which way does the air move just outside a wing tip?', a: 'Up. Every filament of the nearer half-wing is inboard of the point and swirls upward there.', set: Object.assign({}, BASE, { N: '7', shape: 'elliptic', y1: 0.58 }) },
+    { q: 'Halve the downwash (try the loading slider). What happens to the induced drag of a strip with the same circulation?', a: 'It halves: $dD_i = \\rho w\\Gamma\\,dy$. (Halving the loading halves both $w$ and $\\Gamma$, so the drag falls to a quarter.)' }
   ],
-  selftest: () => [
-    // { name: 'c at k = 1', js: physics({ k: 1 }).c, py: 'chNN.phase_speed(1.0)', rtol: 1e-9 },
-  ]
+  selftest: () => {
+    const S7 = stair('elliptic', 1, 7), ell = 'lambda y, np=np: np.sqrt(1 - (2*y)**2)', LLs = 'ch14.solve_lifting_line(c=1/6, s=1.0, U=1.0, alpha=1.0, K=2*np.pi, N=8)["Gn"]';
+    const st = stationOf({ N: '7', shape: 'rect', load: 0.07, h: 0.3, xs: 0, y1: 0.3 }), B = st.B;
+    const stI = stationOf({ N: 'inf', shape: 'parabolic', load: 0.09, h: 2, xs: 0, y1: -0.2 }), BI = stI.B;
+    const err = N => { const S = stair('elliptic', 1, N); return Math.abs(stairDown(0, S.edges, S.steps).w - 0.5); };
+    const fine = stair('rect', 1, 20001);
+    return [
+      { name: 'half line', js: halfLine(0.5, 1), py: 'ch14.segment_speed(d=0.5, theta_a=0.0, theta_b=np.pi/2, Gamma=1.0)', rtol: 1e-12 },
+      { name: 'horseshoe centre', js: horseDown(0, 0, 1, 1), py: 'ch14.horseshoe_downwash(x=0.0, y=0.0, Gamma=1.0, s=1.0)', rtol: 1e-12 },
+      { name: 'horseshoe outboard (an upwash)', js: horseDown(0, 0.6, 1, 1), py: 'ch14.horseshoe_downwash(x=0.0, y=0.6, Gamma=1.0, s=1.0)', rtol: 1e-12 },
+      { name: 'horseshoe behind the wing', js: horseDown(0.4, 0.2, 1, 1), py: 'ch14.horseshoe_downwash(x=0.4, y=0.2, Gamma=1.0, s=1.0)', rtol: 1e-11 },
+      { name: 'staircase: a panel strength', js: stair('parabolic', 1, 7).steps[2], py: 'ch14.staircase_from_loading(Gamma_fn=lambda y: 1 - (2*y)**2, s=1.0, N=7)[1][2]', rtol: 1e-12 },
+      { name: 'staircase N = 7', js: stairDown(0, S7.edges, S7.steps).w, py: 'ch14.staircase_downwash(y1=0.0, y_edges=ch14.staircase_from_loading(Gamma_fn=' + ell + ', s=1.0, N=7)[0], Gamma_steps=ch14.staircase_from_loading(Gamma_fn=' + ell + ', s=1.0, N=7)[1])', rtol: 1e-10 },
+      { name: 'staircase N = 7: one filament', js: stairDown(0.1, S7.edges, S7.steps).parts[5].w, py: 'ch14.staircase_downwash(y1=0.1, y_edges=ch14.staircase_from_loading(Gamma_fn=' + ell + ', s=1.0, N=7)[0], Gamma_steps=ch14.staircase_from_loading(Gamma_fn=' + ell + ', s=1.0, N=7)[1], parts=True)[1][5]', rtol: 1e-10 },
+      { name: 'series downwash, elliptic loading', js: seriesDown([1], Math.PI / 3, 1), py: 'ch14.downwash_series(Gn=np.array([1.0]), gamma1=np.pi/3, s=1.0)', rtol: 1e-12 },
+      { name: 'rect coefficients: Γ₁', js: GnRect[0], py: LLs + '[0]', rtol: 1e-9 },
+      { name: 'rect coefficients: Γ₃/Γ₁', js: GnRect[2] / GnRect[0], py: LLs + '[2]/' + LLs + '[0]', rtol: 1e-8 },
+      { name: 'rect wing: series downwash', js: seriesDown(GnRect, spanAngle(0.3, 1), 1), py: 'ch14.downwash_series(Gn=' + LLs + ', gamma1=ch14.span_angle(y=0.3, s=1.0), s=1.0)', rtol: 1e-9 },
+      { name: 'rect wing: Γ from its sine series', js: seriesGamma(GnRect, 1.1), py: 'ch14.circulation_series(Gn=' + LLs + ', gamma=1.1)', rtol: 1e-9 },
+      { name: 'sheet strength −dΓ/dy', js: sheetStrength([1, 0, 0.2], 2.0, 1), py: 'ch14.trailing_sheet_strength(Gn=np.array([1.0, 0.0, 0.2]), gamma=2.0, s=1.0)', rtol: 1e-12 },
+      { name: 'limit = quadrature of the downwash integral', js: limitDown('parabolic', 0.2, 1), py: 'ch14.downwash(y1=0.2, Gamma_fn=lambda y: 1 - (2*y)**2, s=1.0)', rtol: 1e-8 },
+      { name: 'sheet downwash behind the wing', js: limitDown('elliptic', 0.2, 1, 0.5), py: 'ch14.downwash_along_x(x=0.5, Gn=np.array([1.0]), s=1.0, y1=0.2)', rtol: 1e-9 },
+      { name: 'sheet downwash ahead (rect wing)', js: limitDown('rect', -0.1, 1, -0.5) * seriesGamma(GnRect, Math.PI / 2), py: 'ch14.downwash_along_x(x=-0.5, Gn=' + LLs + ', s=1.0, y1=-0.1)', rtol: 1e-8 },
+      { name: 'induced angle (exact)', js: inducedAngle(0.035, 1, false), py: 'ch14.induced_angle(w=0.035, U=1.0, small=False)', rtol: 1e-12 },
+      { name: 'strip drag', js: strip(1, 0.035, 1, 1, 0.01).dDi, py: 'ch14.strip_forces(Gamma=1.0, w=0.035, U=1.0, rho=1.0, dy=0.01, exact=True)["dDi"]', rtol: 1e-12 },
+      { name: 'strip force normal to U_e', js: strip(0.07, 0.035, 1, 1.2, 0.01).dLe, py: 'ch14.strip_forces(Gamma=0.07, w=0.035, U=1.0, rho=1.2, dy=0.01, exact=True)["dLe"]', rtol: 1e-12 },
+      { name: 'strip tilt', js: strip(1, 0.035, 1, 1, 0.01).eps, py: 'ch14.strip_forces(Gamma=1.0, w=0.035, U=1.0, rho=1.0, dy=0.01, exact=True)["eps"]', rtol: 1e-12 },
+      { name: 'ground factor', js: ground(0.25, 1), py: 'ch14.ground_effect_factor(h=0.25, s=1.0)', rtol: 1e-12 },
+      { name: 'lift from the series', js: liftSeries(GnRect, 1, 1, 1), py: 'ch14.lift_from_series(Gn=' + LLs + ', s=1.0, rho=1.0, U=1.0)', rtol: 1e-9 },
+      { name: 'induced drag from the series', js: dragSeries(GnRect, 1), py: 'ch14.induced_drag_from_series(Gn=' + LLs + ', rho=1.0)', rtol: 1e-9 },
+      { name: 'whole wing, rect: ∫ρwΓ dy = (π/8)ρΣnΓₙ²', js: totals('rect', 0, 1).D, expect: dragSeries(GN.rect, 1), rtol: 1e-9 },
+      { name: 'whole wing, elliptic: D_i/L = Γ₀/2Us', js: totals('elliptic', 0, 1).D / totals('elliptic', 0, 1).L, expect: 0.5, rtol: 1e-10 },
+      { name: 'elliptic limit is uniform', js: limitDown('elliptic', 0.37, 1), expect: 0.5, rtol: 1e-12 },
+      { name: 'N = 1 staircase = one horseshoe', js: stairDown(0.3, [-0.5, 0.5], [1]).w, expect: horseDown(0, 0.3, 1, 1), rtol: 1e-12 },
+      { name: 'ground images, horseshoe centre', js: stairDown(0, [-0.5, 0.5], [1], 0, 0.25).w / stairDown(0, [-0.5, 0.5], [1]).w, expect: ground(0.25, 1), rtol: 1e-12 },
+      { name: 'far behind: twice the downwash', js: limitDown('elliptic', 0.1, 1, 200), expect: 1.0, rtol: 1e-4 },
+      { name: 'far ahead: none', js: limitDown('elliptic', 0.1, 1, -200), expect: 0, atol: 1e-4 },
+      { name: 'outside the span: closed form = fine staircase', js: smoothDown('rect', 0.58, 1), expect: stairDown(0.58, fine.edges, fine.steps).w, rtol: 1e-5 },
+      { name: 'Helmholtz: the jumps add to zero', js: stationOf({ N: '21', shape: 'rect', load: 0.07, h: 2, xs: 0, y1: 0.1 }).parts.reduce((a, p) => a + p.jump, 0), expect: 0, atol: 1e-12 },
+      { name: 'bars add up to w (staircase, ground)', js: B.p1 + B.p2 + B.s1 + B.s2 + B.others + B.img, expect: st.w, rtol: 1e-12 },
+      { name: 'bars add up to w (N = ∞)', js: BI.p1 + BI.p2 + BI.s1 + BI.s2 + BI.others + BI.img, expect: stI.w, rtol: 1e-12 },
+      { name: 'strip: dL² + dD_i² = dL_e²', js: Math.hypot(st.F.dL, st.F.dDi), expect: st.F.dLe, rtol: 1e-12 },
+      { name: 'staircase order (uniform panels) ≈ 1.5', js: Math.log(err(41) / err(161)) / Math.log(161 / 41), expect: 1.5, atol: 0.1 }
+    ];
+  }
 });
 </script>
 </body>

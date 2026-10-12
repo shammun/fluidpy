@@ -113,13 +113,14 @@ def draw_three_axes(ax=None):
     ax.fill([-1.8, -2.2, -2.35, -2.0], [-0.1, -0.8, -0.8, -0.1], color="#d5d9e4", ec=INK)
     _arrow(ax, (-2.8, 0), (3.0, 0), C_LIFT, 1.8)
     ax.text(3.05, 0.12, "roll axis\n(nose to tail)", color=C_LIFT, fontsize=8)
-    _arrow(ax, (0, -2.8), (0, 2.9), C_DRIVE, 1.8)
+    _arrow(ax, (0, -2.6), (0, 2.9), C_DRIVE, 1.8)
     ax.text(0.12, 2.75, "pitch axis (tip to tip)", color=C_DRIVE, fontsize=8)
     ax.plot([0], [0], "o", color=C_CIRC, ms=9)
     ax.plot([0], [0], "o", color="white", ms=3)
-    ax.text(0.18, -0.45, "yaw axis\n(out of the page)", color=C_CIRC, fontsize=8)
-    ax.text(-2.7, -2.6, "ailerons roll · elevator pitches · rudder yaws", fontsize=8, color=C_REF)
-    _bare(ax, (-3.1, 4.6), (-3.0, 3.2), "three aircraft-fixed axes")
+    ax.plot([0.1, 0.74], [-0.1, -0.66], color=C_CIRC, lw=0.8)                                             # leader to the label
+    ax.text(0.78, -1.05, "yaw axis\n(out of the page)", color=C_CIRC, fontsize=8)
+    ax.text(-3.0, -2.75, "ailerons roll · elevator pitches · rudder yaws", fontsize=8, color=C_REF, ha="left", va="top", bbox=dict(fc="white", ec="none", pad=1.5))
+    _bare(ax, (-3.1, 4.6), (-3.2, 3.2), "three aircraft-fixed axes")
     return fig
 
 
@@ -150,7 +151,9 @@ def draw_section_labelled(x=None, y=None, geom=None, ax=None):
     _arrow(ax, (pl.real, pl.imag), (pu.real, pu.imag), C_DRIVE, 1.2, "<->")
     ax.text(pu.real - 0.02 * c, pu.imag + 0.03 * c, r"thickness $t_{\max}$", color=C_DRIVE, fontsize=8, ha="center")
     ax.text(0.5 * (le.real + te.real) + 0.18 * c, le.imag - 0.07 * c, "chord line (length c)", color=C_REF, fontsize=8)
-    ax.text(zc[k].real - 0.3 * c, zc[k].imag + 0.045 * c, "camber line", color=C_CIRC, fontsize=8)
+    kc = int(np.argmin(np.abs(xc - 0.22)))
+    ax.annotate("camber line", (zc[kc].real, zc[kc].imag), (zc[kc].real - 0.02 * c, le.imag - 0.12 * c), color=C_CIRC, fontsize=8,
+                ha="center", arrowprops=dict(arrowstyle="-", color=C_CIRC, lw=0.8, shrinkA=1, shrinkB=0))
     al = np.deg2rad(12.0)
     p0 = le - 0.42 * c * np.exp(1j * al)
     _arrow(ax, (p0.real, p0.imag), (le.real - 0.05 * c, le.imag - 0.05 * c * np.tan(al)), C_FLOW, 1.8)
@@ -178,19 +181,19 @@ def draw_axes_conventions(ax=None):
     _arrow(ax, (-1.6, -0.75), (-1.6 + 0.8 * np.cos(al), -0.75 + 0.8 * np.sin(al)), C_FLOW, 2)
     ax.text(-1.55, -0.95, "stream U at angle α", color=C_FLOW, fontsize=8)
     _arrow(ax, (0.1, 0.15), (0.1 - 0.9 * np.sin(al), 0.15 + 0.9 * np.cos(al)), C_LIFT, 2)
-    ax.text(-0.75, 1.0, "lift normal to the\nstream (not along y)", color=C_LIFT, fontsize=8)
+    ax.text(-0.3, 0.72, "lift normal to the\nstream (not along y)", color=C_LIFT, fontsize=8, ha="right")
     ax.text(-0.2, -1.25, "§14.3–§14.5: section plane", fontsize=9, ha="center")
     ox = 4.2
     ax.plot([ox - 1.4, ox + 1.4], [0, 0], color=INK, lw=4)
     _arrow(ax, (ox - 1.7, 0), (ox + 1.8, 0), INK, 1.0)
-    ax.text(ox + 1.8, 0.08, "y (span)", fontsize=8, ha="right")
+    ax.text(ox + 1.85, -0.1, "y (span)", fontsize=8, ha="right", va="top")
     _arrow(ax, (ox, 0.0), (ox, 1.2), INK, 1.0)
     ax.text(ox + 0.06, 1.15, "z (up)", fontsize=8)
     for yy in (-1.0, -0.5, 0.0, 0.5, 1.0):
         _arrow(ax, (ox + yy, -0.08), (ox + yy, -0.55), C_FLOW, 1.4)
     ax.text(ox, -0.8, "downwash w (positive down)", color=C_FLOW, fontsize=8, ha="center")
     ax.text(ox - 1.4, 0.15, "−s/2 port", fontsize=7, ha="center", color=C_REF)
-    ax.text(ox + 1.4, 0.15, "+s/2 starboard", fontsize=7, ha="center", color=C_REF)
+    ax.text(ox + 1.45, 0.15, "+s/2 starboard", fontsize=7, ha="right", color=C_REF)
     ax.text(ox, -1.25, "§14.6: wing seen from behind (stream into the page)", fontsize=9, ha="center")
     _bare(ax, (-1.9, 6.2), (-1.45, 1.5), "axes change between sections")
     return fig
@@ -236,17 +239,20 @@ def draw_triangle_OQP(ax=None, beta: float = 0.35, theta: float = 1.1):
     ax.axvline(0, color=C_REF, lw=0.8)
     for lab, p, off in (("O", 0j, (-0.13, -0.16)), ("Q", mu, (-0.17, 0.02)), ("P", P, (0.05, 0.05)), ("A (−b)", -b + 0j, (-0.3, -0.17)), ("B (b)", b + 0j, (0.02, -0.17))):
         ax.text(p.real + off[0], p.imag + off[1], lab, fontsize=9)
-    ax.text(0.5 * P.real + 0.06, 0.5 * P.imag - 0.08, "R", color=C_CIRC, fontsize=10)
+    ax.text(0.66 * P.real + 0.07, 0.66 * P.imag - 0.06, "OP = R", color=C_CIRC, fontsize=9)
     m = 0.5 * (mu + P)
-    ax.text(m.real - 0.02, m.imag + 0.08, "a = b/cos β", color=C_CIRC, fontsize=8)
-    ax.text(0.04, 0.5 * mu.imag - 0.03, "b tan β", color=C_CIRC, fontsize=7)
+    ax.text(m.real - 0.07, m.imag + 0.05, "QP = a = b/cos β", color=C_CIRC, fontsize=8, ha="right")
+    ax.annotate("OQ = b tan β", (0.0, 0.5 * mu.imag), (-0.62, 0.66), color=C_CIRC, fontsize=8, ha="center",
+                arrowprops=dict(arrowstyle="-", color=C_CIRC, lw=0.8, shrinkA=1, shrinkB=1))
     _arc(ax, (0, 0), 0.3, 0, theta, INK)
     ax.text(0.33, 0.12, "θ", fontsize=10)
     _arc(ax, (-b, 0), 0.45, 0, beta, INK)
     ax.text(-b + 0.5, 0.05, "β", fontsize=10)
     _arc(ax, (0, 0), 0.18, theta, np.pi / 2, C_DRAG)
-    ax.text(0.03, 0.24, "90° − θ", color=C_DRAG, fontsize=7)
-    _bare(ax, (-1.5, 1.5), (-0.95, 1.75), "triangle OQP: QP² = OP² + OQ² − 2·OQ·OP·cos(90° − θ)")
+    am = 0.5 * (theta + np.pi / 2)
+    ax.annotate("90° − θ", (0.18 * np.cos(am), 0.18 * np.sin(am)), (0.62, 0.36), color=C_DRAG, fontsize=8, va="center",
+                arrowprops=dict(arrowstyle="-", color=C_DRAG, lw=0.8, shrinkA=1, shrinkB=0))
+    _bare(ax, (-1.5, 1.5), (-0.95, 1.75), "triangle OQP:\nQP² = OP² + OQ² − 2·OQ·OP·cos(90° − θ)")
     return fig
 
 
@@ -413,10 +419,16 @@ def draw_stalled_section(ax=None, alpha_deg: float = 20.0):
     return fig
 
 
-def draw_velocity_triangle(kind: str = "fish", ax=None):
+def draw_velocity_triangle(kind: str = "fish", ax=None, *, U: float | None = None, V: float | None = None):
     """Velocity triangle of a foil that moves across a stream, with the lift normal to the relative velocity and its
     thrust part.  kind: "fish" (tail moving sideways, top view), "bird_down" / "bird_up" (wing stroke, side view),
-    "sail" (true wind, boat velocity, apparent wind)."""
+    "sail" (true wind, boat velocity, apparent wind).  ``U``, ``V`` (keywords, optional): forward speed and the size of the
+    foil's cross-stream speed [m/s] for the three stroke sketches (defaults: the illustrative fish; 10 and 4 m/s for the bird).
+
+    The drawn V arrow is the cross-stream part of the *relative flow* (opposite to the foil's own motion).  Fish and
+    downstroke: ``ch14.oscillating_foil`` with V > 0, the lift leans forward (thrust).  Upstroke: the wing moves up, the
+    relative wind comes from above-ahead (V < 0 in ``ch14.oscillating_foil``) and a positive lift leans *backward*; a bird
+    feathers the wing there (nearly parallel to U_r), so the force is small."""
     fig, ax = _ax(ax, (5.6, 4.2))
     I = ch14.illustrative_inputs()
     if kind == "sail":
@@ -438,40 +450,51 @@ def draw_velocity_triangle(kind: str = "fish", ax=None):
         _bare(ax, (-1.2, 1.6), (-0.8, 1.5), "apparent wind: the wind the boat feels")
         return fig
     if kind == "fish":
-        U, V, L, D, names = I["U_fish"], I["V_tail"], 1.0, 0.0, ("U (water past the fish)", "V (tail moving sideways)", "thrust", "side force")
-        title = "fish tail (top view): lift normal to U_r has a forward part"
+        U0, V0, Ldraw, sgn = I["U_fish"], I["V_tail"], 1.0, 1.0
+        names = ("U (water past the fish)", "V: water across the tail\n(the tail moves the other way)", "thrust", "side force")
+        title = "fish tail (top view):\nthe lift normal to $U_r$ has a forward part"
+        tail_note = "thrust power = sideways power (no drag)"
     elif kind == "bird_down":
-        U, V, L, D, names = 1.0, 0.5, 1.0, 0.0, ("U (flight speed)", "V (wing moving down)", "thrust", "upward force")
-        title = "bird, downstroke (side view): lift gives weight support and thrust"
+        U0, V0, Ldraw, sgn = 10.0, 4.0, 1.0, 1.0
+        names = ("U (flight speed)", "V: relative wind upward\n(the wing moves down)", "thrust", "upward force")
+        title = "bird, downstroke (side view):\nthe lift leans forward — weight support and thrust"
+        tail_note = "the forward part of the lift is thrust"
     elif kind == "bird_up":
-        U, V, L, D, names = 1.0, 0.8, 0.25, 0.0, ("U (flight speed)", "V (wing moving up)", "thrust", "vertical force")
-        title = "bird, upstroke: wing nearly feathered, small lift"
+        U0, V0, Ldraw, sgn = 10.0, 4.0, 0.45, -1.0
+        names = ("U (flight speed)", "V: relative wind downward\n(the wing moves up)", "backward part", "upward force")
+        title = "bird, upstroke (side view):\na positive lift leans backward — so the wing is feathered"
+        tail_note = "small lift (drawn enlarged) leaning backward"
     else:
         raise ValueError('kind must be "fish", "bird_down", "bird_up" or "sail"')
-    r = ch14.oscillating_foil(U, V, L, D)
-    th = r["theta"]
+    U = U0 if U is None else float(U)
+    V = V0 if V is None else abs(float(V))
+    r = ch14.oscillating_foil(U=U, V=sgn * V, L=1.0, D=0.0)     # V < 0: the upstroke (relative wind from above-ahead)
+    th = float(r["theta"])                                     # signed: negative on the upstroke
     sc = 1.3 / max(U, V)
-    o = np.array([0.0, 0.0])
+    o = np.array([0.0, 0.0 if sgn > 0 else 0.95])
     u = np.array([U, 0.0]) * sc
-    v = np.array([0.0, V]) * sc
+    v = np.array([0.0, sgn * V]) * sc
     _arrow(ax, o, o + u, C_FLOW, 2.2)
     _arrow(ax, o + u, o + u + v, C_FLOW, 1.6)
     _arrow(ax, o, o + u + v, C_DRIVE, 2.2)
-    ax.text(0.5 * u[0], -0.16, names[0], color=C_FLOW, fontsize=8, ha="center")
-    ax.text(u[0] + 0.05, 0.5 * v[1], names[1], color=C_FLOW, fontsize=8)
-    ax.text(0.32 * u[0] - 0.1, 0.5 * v[1] + 0.12, r"$U_r$", color=C_DRIVE, fontsize=11)
-    _arc(ax, o, 0.45, 0, th, INK)
-    ax.text(0.5, 0.1, "θ", fontsize=10)
-    f0 = np.array([-1.3, 0.2])
-    Lv = 1.2 * L * np.array([-np.sin(th), np.cos(th)])
+    ax.text(o[0] + 0.5 * u[0], o[1] - sgn * 0.1, names[0], color=C_FLOW, fontsize=8, ha="center", va="top" if sgn > 0 else "bottom")
+    ax.text(o[0] + u[0] + 0.06, o[1] + 0.5 * v[1], names[1], color=C_FLOW, fontsize=8, va="center")
+    ax.text(o[0] + 0.4 * u[0] - 0.12, o[1] + 0.4 * v[1] + sgn * 0.17, r"$U_r$", color=C_DRIVE, fontsize=11, va="center")
+    _arc(ax, o, 0.5, 0, th, INK)
+    ax.text(o[0] + 0.56, o[1] + 0.56 * np.tan(0.5 * th), "θ", fontsize=10, va="center")
+    f0 = np.array([-1.3 if sgn > 0 else -2.0, 0.2])
+    Lv = 1.2 * Ldraw * np.array([-np.sin(th), np.cos(th)])       # normal to U_r: forward (−x) for θ > 0, backward (+x) for θ < 0
+    part_col = COLORS["accent"] if sgn > 0 else C_DRAG
     _arrow(ax, f0, f0 + Lv, C_LIFT, 2.4)
-    _arrow(ax, f0, f0 + np.array([Lv[0], 0.0]), COLORS["accent"], 2.0)
+    _arrow(ax, f0, f0 + np.array([Lv[0], 0.0]), part_col, 2.0)
     _arrow(ax, f0 + np.array([Lv[0], 0.0]), f0 + Lv, C_REF, 1.4)
-    ax.text(*(f0 + Lv + np.array([-0.05, 0.08])), "lift L", color=C_LIFT, fontsize=9, ha="center")
-    ax.text(f0[0] + 0.5 * Lv[0], f0[1] - 0.15, f"{names[2]} = L sin θ", color=COLORS["accent"], fontsize=8, ha="center")
-    ax.text(f0[0] + Lv[0] - 0.08, f0[1] + 0.5 * Lv[1], f"{names[3]}\n= L cos θ", color=C_REF, fontsize=7, ha="right")
-    ax.text(-0.4, -0.55, f"V/U = tan θ = {V / U:.2f} → θ = {np.rad2deg(th):.1f}°; thrust power = sideways power (no drag)", fontsize=8, ha="center")
-    _bare(ax, (-2.9, 2.3), (-0.75, 1.75), title)
+    ax.text(*(f0 + Lv + np.array([0.0, 0.08])), "lift L", color=C_LIFT, fontsize=9, ha="center")
+    ax.text(f0[0] + 0.5 * Lv[0], f0[1] - 0.08, f"{names[2]}\n= L sin {'θ' if sgn > 0 else '|θ|'}", color=part_col, fontsize=8, ha="center", va="top")
+    ax.text(f0[0] + Lv[0] - sgn * 0.08, f0[1] + 0.5 * Lv[1], f"{names[3]}\n= L cos θ", color=C_REF, fontsize=7,
+            ha="right" if sgn > 0 else "left", va="center")
+    ax.text(0.0, -0.66, f"V/U = tan|θ| = {V / U:.2f} → |θ| = {np.rad2deg(abs(th)):.1f}°; {tail_note}", fontsize=8, ha="center")
+    ax.text(-2.8, -0.42, "← forward (the body moves this way)", fontsize=7, color=C_REF)
+    _bare(ax, (-2.9, 2.9), (-0.85, 1.75), title)
     return fig
 
 
@@ -497,15 +520,19 @@ def draw_sail_polygon(sf: dict | None = None, ax=None):
     _arrow(ax, o, o + Lv + Dv, INK, 1.4)
     _arrow(ax, o, (float(sf["drive"]) * sc, 0.0), C_DRIVE, 2.8)
     _arrow(ax, (float(sf["drive"]) * sc, 0.0), (float(sf["drive"]) * sc, -float(sf["lateral"]) * sc), COLORS["amber"], 2.0)
-    ax.text(*(0.5 * Lv + np.array([0.12, 0.05])), "lift", color=C_LIFT, fontsize=9)
-    ax.text(*(Lv + 0.5 * Dv + np.array([0.0, -0.12])), "drag", color=C_DRAG, fontsize=9, ha="center")
+    ax.text(*(0.86 * Lv + np.array([0.09, 0.0])), "lift (normal to the apparent wind)", color=C_LIFT, fontsize=8, va="center")
+    ax.text(*(Lv + 0.5 * Dv + np.array([0.06, -0.13])), "drag (along the apparent wind)", color=C_DRAG, fontsize=8, ha="left")
     ax.text(0.5 * float(sf["drive"]) * sc, 0.07, "drive", color=C_DRIVE, fontsize=9, ha="center")
-    ax.text(float(sf["drive"]) * sc + 0.04, -0.5 * float(sf["lateral"]) * sc, "lateral\n(the keel resists it)", color=COLORS["amber"], fontsize=8)
+    ax.text(float(sf["drive"]) * sc + 0.05, -0.27 * float(sf["lateral"]) * sc, "lateral, to leeward\n(the keel resists it)", color=COLORS["amber"], fontsize=8, va="center")
+    ax.text(*(0.6 * (Lv + Dv) + np.array([-0.05, 0.0])), "resultant F", color=INK, fontsize=8, ha="right", va="center")
+    ax.text(0.68, -0.01, "bow →", color=INK, fontsize=8, va="center")
+    ax.text(-1.42, 0.42, "windward side\n(the wind comes from here)", color=C_REF, fontsize=7)
+    ax.text(-1.42, -0.5, "leeward side\n(the wind blows toward here)", color=C_REF, fontsize=7)
     _arc(ax, o, 0.5, 0, ba, INK)
     ax.text(0.55, 0.12, r"$\beta_a$", fontsize=10)
     ax.text(-0.1, -1.25, f"drive = L sin β_a − D cos β_a = {float(sf['drive']):.0f} N;  lateral = {float(sf['lateral']):.0f} N;  β_a = {np.rad2deg(ba):.1f}°",
             fontsize=8, ha="center")
-    _bare(ax, (-1.5, 1.5), (-1.4, 1.2), "sail forces on a course along +x")
+    _bare(ax, (-1.5, 1.5), (-1.4, 1.2), "sail forces seen from above (course along +x)")
     return fig
 
 

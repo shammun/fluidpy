@@ -249,6 +249,13 @@ assert len(PF) == 22, len(PF)
 N_STEPS = sum(len(d["steps"]) for d in PF.values())
 assert N_STEPS == 169, N_STEPS                              # the 169 steps of Part F, none lost by the parser
 assert [k for k, d in PF.items() if d["check_src"]] == ["D03", "D04", "D15", "D18"]
+# Part F leaves two assert lines of the D15 listing without a comment; every line of a check cell is commented.
+for _old, _new in (("assert sp.simplify(sp.expand_trig(ident)) == 0",
+                    "assert sp.simplify(sp.expand_trig(ident)) == 0                  # the identity holds for every n and gamma"),
+                   ("assert sp.simplify(sp.expand_trig(rec)) == 0",
+                    "assert sp.simplify(sp.expand_trig(rec)) == 0                    # yes: the closed form satisfies the recursion")):
+    assert PF["D15"]["check_src"].count(_old) == 1, _old
+    PF["D15"]["check_src"] = PF["D15"]["check_src"].replace(_old, _new)
 
 # Starts that Part F gives mostly in words: the same statement as one display line (the words stay in "In words").
 START_TEX = {
@@ -270,6 +277,102 @@ START_WORDS = {
 for _k in START_TEX:
     PF[_k]["start"] = (START_TEX[_k], START_WORDS[_k])
 
+
+# Lesson review round 1: two steps of Part F each made several moves at once.  They are split here (one move per step), and
+# every "step N" pointer inside that derivation is renumbered by the same rule.
+_STEP_REF = re.compile(r"\b(steps?) (\d+)(?:(\s?(?:[-–]|and)\s?)(\d+))?")
+
+
+def _renumber(key: str, new_of) -> None:
+    """Rewrite every "step N" / "steps N–M" in derivation ``key`` (all text fields and the check listing) with new_of(N)."""
+    def fix(m):
+        out = f"{m.group(1)} {new_of(int(m.group(2)))}"
+        if m.group(4):
+            out += f"{m.group(3)}{new_of(int(m.group(4)))}"
+        return out
+
+    d = PF[key]
+    for f in ("goal", "assumptions", "check", "meaning", "traps"):
+        d[f] = _STEP_REF.sub(fix, d[f])
+    d["plan"] = [_STEP_REF.sub(fix, x) for x in d["plan"]]
+    d["tools"] = [_STEP_REF.sub(fix, x) for x in d["tools"]]
+    d["start"] = (d["start"][0], _STEP_REF.sub(fix, d["start"][1]))
+    d["result"] = (d["result"][0], _STEP_REF.sub(fix, d["result"][1]))
+    for st in d["steps"]:
+        for f in ("did", "why", "plain"):
+            st[f] = _STEP_REF.sub(fix, st[f])
+    if d["check_src"]:
+        d["check_src"] = _STEP_REF.sub(fix, d["check_src"])
+
+
+# --- D03: old step 12 (two substitutions and a collection) becomes steps 12 and 13; old 13–15 become 14–16.
+assert PF["D03"]["steps"][11]["did"].startswith("Substitute step 10"), PF["D03"]["steps"][11]["did"]
+_renumber("D03", lambda n: n + 1 if n >= 13 else n)
+_old12 = PF["D03"]["steps"][11]
+PF["D03"]["steps"][11:12] = [
+    dict(did="Substitute step 10 into the two terms that still contain θ",
+         tex=r"x^2-y\,(2b\tan\beta-y)=4b^2-2by\cot\beta",
+         why="From step 10, cot²θ = cos²θ/sin²θ = (2b tan β − y)/y, so y² cot²θ = y(2b tan β − y); and 4b² cos²θ = "
+             "4b²(2b tan β − y)/(2b tan β) = 4b² − 2by cot β. Putting both into step 11 removes θ, which is the aim: a relation "
+             "between x and y alone.",
+         plain="The angle θ is gone; only x, y and the two constants b and β are left."),
+    dict(did="Multiply out and collect the terms in y",
+         tex=_old12["tex"],
+         why="Expand −y(2b tan β − y) = −2by tan β + y², then move −2by cot β to the left-hand side, where it changes sign; "
+             "the two terms proportional to by are grouped in one bracket.",
+         plain=_old12["plain"]),
+]
+PF["D03"]["check_src"] = PF["D03"]["check_src"].replace("steps 12-14", "steps 12-15")
+assert len(PF["D03"]["steps"]) == 16
+
+# --- D05: the second-order expansion of step 4 uses the geometric series, which Tools did not name.
+PF["D05"]["tools"].append("the geometric series $\\dfrac{1}{1+x}=1-x+x^2-\\dots$ for |x| < 1 (kept to second order in step 4; "
+                          "it is the Taylor expansion of 1/(1 + x) carried one term further)")
+
+# --- D15: old step 1 ("differentiate the right side", three moves in one sentence) becomes steps 1–4; old 2–11 become 5–14.
+assert PF["D15"]["steps"][0]["did"].startswith("Find an antiderivative"), PF["D15"]["steps"][0]["did"]
+_renumber("D15", lambda n: n + 3 if n >= 2 else n)
+_old1 = PF["D15"]["steps"][0]
+PF["D15"]["steps"][0:1] = [
+    dict(did="Propose an antiderivative for n = 0",
+         tex=r"F(\gamma)\equiv\dfrac{1}{\sin\gamma_1}\ln\left\lvert\dfrac{\sin A}{\sin B}\right\rvert,\qquad A\equiv\dfrac{\gamma_1+\gamma}2,\quad B\equiv\dfrac{\gamma_1-\gamma}2",
+         why="A candidate only: steps 2–4 differentiate it and show that its slope is the integrand. A logarithm is the natural "
+             "guess because the integrand behaves like 1/(γ − γ₁) near the singular point, and the integral of 1/x is ln|x|.",
+         plain=_old1["plain"]),
+    dict(did="Differentiate the logarithm",
+         tex=r"\dfrac{dF}{d\gamma}=\dfrac{1}{\sin\gamma_1}\Big[\tfrac12\cot A+\tfrac12\cot B\Big]",
+         why="ln|sin A / sin B| = ln|sin A| − ln|sin B|, and by the chain rule d/dγ ln|sin u| = u′·cos u/sin u = u′ cot u. Here "
+             "dA/dγ = +½ and dB/dγ = −½; the second logarithm carries a minus sign of its own, so both cotangents enter with +½.",
+         plain="The slope of the candidate is half the sum of two cotangents."),
+    dict(did="Add the two cotangents",
+         tex=r"\cot A+\cot B=\dfrac{\cos A\sin B+\cos B\sin A}{\sin A\,\sin B}=\dfrac{\sin(A+B)}{\sin A\,\sin B}=\dfrac{\sin\gamma_1}{\sin A\,\sin B}",
+         why="Put the two fractions over the common denominator sin A sin B; the numerator is the addition formula for "
+             "sin(A + B), and A + B = γ₁ (primer P352 above).",
+         plain="The sum carries sin γ₁ on top — the same factor the candidate has underneath, so the two will cancel."),
+    dict(did="Turn the product of sines into a difference of cosines",
+         tex=r"2\sin A\sin B=\cos(A-B)-\cos(A+B)=\cos\gamma-\cos\gamma_1\ \ \Longrightarrow\ \ \dfrac{dF}{d\gamma}=\dfrac{1}{2\sin A\sin B}=\dfrac{1}{\cos\gamma-\cos\gamma_1}",
+         why="The product-to-sum identity for two sines (primer P352 above) with A − B = γ and A + B = γ₁; in step 2 the factor "
+             "sin γ₁ of step 3 cancels the 1/sin γ₁ in front. The slope of F is the integrand, so F is an antiderivative: "
+             + r"$\displaystyle\int\dfrac{d\gamma}{\cos\gamma-\cos\gamma_1}=F(\gamma)$.",
+         plain="The guess is confirmed: differentiating it gives back exactly the integrand."),
+]
+assert len(PF["D15"]["steps"]) == 14
+PF["D15"]["tools"] += ["the derivative of ln|sin u| by the chain rule (P49, reminder)",
+                       "the sum of two cotangents and the product of two sines (P352)"]
+_d15_add = """F_left = sp.log(sp.sin((g1 + g)/2)/sp.sin((g1 - g)/2))/sp.sin(g1)         # steps 1-4: the antiderivative for n = 0 on the left of the singular point (gamma < gamma_1)
+F_right = sp.log(sp.sin((g1 + g)/2)/sp.sin((g - g1)/2))/sp.sin(g1)        # the same on the right (gamma > gamma_1), where the absolute value flips the sign inside the second sine
+for F0 in (F_left, F_right):                                    # on both sides …
+    assert sp.simplify(sp.diff(F0, g) - 1/(sp.cos(g) - sp.cos(g1))) == 0   # … its slope is the integrand (sp.diff differentiates)
+eps = sp.symbols("epsilon", positive=True)                      # half-width of the gap cut out round gamma_1 (step 5)
+I0_gap = (F_left.subs(g, g1 - eps) - F_left.subs(g, 0)) + (F_right.subs(g, sp.pi) - F_right.subs(g, g1 + eps))   # step 6: the two pieces of I_0 with the gap left open
+assert sp.simplify(sp.limit(I0_gap, eps, 0)) == 0               # closing the gap evenly gives I_0 = 0
+"""
+_anchor = "X, X1 = sp.symbols("
+assert PF["D15"]["check_src"].count(_anchor) == 1
+PF["D15"]["check_src"] = PF["D15"]["check_src"].replace(_anchor, _d15_add + _anchor)
+N_STEPS = sum(len(d["steps"]) for d in PF.values())
+assert N_STEPS == 173, N_STEPS                              # 169 of Part F + 1 (D03) + 3 (D15)
+
 if "--dump" in sys.argv:
     for _k, _d in PF.items():
         print(_k, _d["stars"], len(_d["steps"]), _d["title"])
@@ -281,7 +384,7 @@ if "--dump" in sys.argv:
 
 NOTES_IN: dict[str, str] = {
     "D01": r"**N03 [B]** the mean chord $\bar c=A/s$ (14.2) (step 1) · **N05 [B]** steady level flight, $L=W$ and thrust = drag (steps 3–4) · the stall speed of **N73** (step 5; used in C15)",
-    "D03": r"**N19 [B]** a point of the circle in polar form from the origin (the Start) · **N20 [B]** $x=(R+b^2/R)\cos\theta$, $y=(R-b^2/R)\sin\theta$ (14.4) (step 2) · **N21 [B]** $x^2\sin^2\theta-y^2\cos^2\theta=4b^2\sin^2\theta\cos^2\theta$ (14.5) (steps 3–5) · **N22 [B]** the cosine rule in the triangle OQP (steps 6–7) · **N23 [B]** $2b\tan\beta\,\sin\theta=R-b^2/R=y/\sin\theta$ (14.6) (steps 8–9) · **N24 [B]** the circular arc $x^2+(y+2b\cot2\beta)^2=(2b\csc2\beta)^2$ (steps 10–14) · the camber rule of **N26** (step 15)",
+    "D03": r"**N19 [B]** a point of the circle in polar form from the origin (the Start) · **N20 [B]** $x=(R+b^2/R)\cos\theta$, $y=(R-b^2/R)\sin\theta$ (14.4) (step 2) · **N21 [B]** $x^2\sin^2\theta-y^2\cos^2\theta=4b^2\sin^2\theta\cos^2\theta$ (14.5) (steps 3–5) · **N22 [B]** the cosine rule in the triangle OQP (steps 6–7) · **N23 [B]** $2b\tan\beta\,\sin\theta=R-b^2/R=y/\sin\theta$ (14.6) (steps 8–9) · **N24 [B]** the circular arc $x^2+(y+2b\cot2\beta)^2=(2b\csc2\beta)^2$ (steps 10–15) · the camber rule of **N26** (step 16)",
     "D05": r"**N27 [B]** the trailing edge of a Zhukhovsky section is a cusp; an edge of finite angle would carry a stagnation point",
     "D06": r"**N28 [B]** the flow past the off-centre circle at incidence, $w=U\Big[(\zeta-\mu)e^{-i\alpha}+\dfrac{a^2e^{i\alpha}}{\zeta-\mu}\Big]+\dfrac{i\Gamma}{2\pi}\ln\dfrac{\zeta-\mu}{a}$ (not in the book — ours: the book writes only the centred case)",
     "D09": r"**N30 [B]** the Kutta circulation $\Gamma=4\pi Ua\sin(\alpha+\beta)$ (14.11) (step 6), clockwise",
@@ -452,7 +555,50 @@ REMIND: dict[str, str] = {        # our own sentence where the way the tool is u
     "`slider_figure`, `animate` / `show_animation`, `show_viz`, `live`": "`slider_figure(fn, name, values)` draws a plotly figure with every slider position precomputed (works on the web page); `animate` + `show_animation` play a matplotlib animation inline; `show_viz` embeds an explainer; `live` makes kernel-only sliders.",
     "sympy (`symbols`, `simplify`, `series`, `limit`, `integrate`)": "sympy does algebra with symbols: `sp.symbols` names them, `sp.simplify(a - b) == 0` proves two expressions equal, `sp.series` expands in a small parameter, `sp.limit` takes a limit, `sp.integrate` integrates.",
     "`lambda`": "`lambda y: expr` is a one-line function without a name, handy for handing a loading Γ(y) or a twist α(y) to a solver.",
+    # --- lesson review round 1: every reminder is one whole sentence about the tool's use in THIS chapter
+    "trapezoid rule; `np.trapezoid`": "an integral estimated from samples by adding the areas of the trapezoids between neighbours (`np.trapezoid(y, x)`); here it adds up the chord along the span to get the planform area.",
+    "`assert np.allclose` / `np.isclose`": "`assert np.allclose(a, b)` stops with an error if two results differ by more than a tiny tolerance; here it is the proof that each from-scratch cell matches the tested function.",
+    "`np.interp`": "`np.interp(x_new, x, y)` reads a sampled curve between its samples along straight lines (x must increase); here it reads the upper and the lower surface of a section at the same chordwise stations.",
+    "f-strings": "`f\"{x:.3f} m\"` writes the value of `x` with three decimals inside a piece of text; every printed result below is made this way.",
+    "root finding by bisection; `brentq`": "bisection halves a bracket [a, b] in which a function changes sign until the root is pinned down (`brentq` is a faster version of the same idea); here the function is the surface speed at the trailing edge and the root is the Kutta circulation.",
+    "complex numbers in numpy (`1j`, `np.exp(1j*t)`, `.real`, `.imag`, `np.abs`)": "a point of the plane is one number z = x + iy = r·e^(iθ) (`1j` is i in Python, `.real` and `.imag` are x and y, `np.abs` is r); multiplying two of them multiplies the lengths and adds the angles; here circles, sections and velocities are all arrays of complex numbers.",
+    "Euler's formula": "e^(iθ) = cos θ + i sin θ is the point of the unit circle at the angle θ; here it writes the points of the circle that the map turns into a wing section.",
+    "completing the square into a circle": "x² + y² + 2ky = c is the same as x² + (y + k)² = c + k², a circle centred at (0, −k); here it shows that the image of the raised circle is an arc of a circle.",
+    "small-angle approximation": "for an angle ε measured in radians, sin ε ≈ tan ε ≈ ε and cos ε ≈ 1 when ε is much smaller than 1; here it turns the small camber angle β into the camber rule.",
+    "orders of smallness (\"first order in e\")": "\"to first order in e\" means keeping the terms proportional to e and dropping e², e³, …, which are much smaller when e is small; here e ≈ 0.1 is the thickness parameter of the section.",
+    "Taylor expansion": "close to a point, f(z + δ) ≈ f(z) + f′(z)·δ, with an error that shrinks like δ²; here it is applied to the map near the trailing edge.",
+    "parametric curves": "a curve given as (x(t), y(t)) for a parameter t; here the outline of a section is traced by letting the angle round the circle run from 0 to 2π.",
+    "complex logarithm and its branch": "ln z = ln r + iθ, and the angle θ must jump by 2π somewhere (numpy puts the jump on the negative real axis); here the vortex term of the complex potential is a logarithm, so the functions below measure the angle from the circle's centre in a way that keeps the jump out of the fluid.",
+    "chain rule": "if w depends on ζ and ζ depends on z, then dw/dz = (dw/dζ)·(dζ/dz); here it carries the velocity from the circle plane to the airfoil plane.",
+    "closed-loop integral of a multi-valued function": "after one trip round a closed loop a single-valued function returns to its starting value, but an angle or a logarithm comes back changed by 2π; here that change is exactly the circulation.",
+    "periodic trapezoid rule on a closed loop": "on a smooth closed loop sampled at equal steps of its parameter, the plain sum of the samples is an extremely accurate integral; here it measures the circulation round the circle and round the section.",
+    "the outside root of the inverse map; `AF.zhukhovsky_inverse`": "undoing the map means solving a quadratic for ζ; its two roots multiply to b², so one lies inside the circle of radius b and one outside, and the flow needs the outside one — `AF.zhukhovsky_inverse` picks it.",
+    "closed line integral round a contour": "the symbol ∮ means: walk once round a closed curve and add up the integrand times each small step; here the curve is the outline of the section and the integrand is the pressure.",
+    "derivative as a difference; first-order Taylor step": "over a small step dy a function changes by (df/dy)·dy; here the bound circulation changes by (dΓ/dy)·dy between two neighbouring stations, and that much is shed into the wake.",
+    "point-vortex dynamics and invariants": "each point vortex moves with the velocity all the others induce where it sits, while the total circulation and the impulse ΣΓy stay constant (which checks the time stepping); here the vortices are pieces of the wing's trailing sheet.",
+    "improper integral as a limit": "an integral that runs out to infinity is the limit of integrals to a finite end; here a trailing filament runs from the wing to infinity downstream, and its effect at the wing is that limit.",
+    "`scipy.integrate.quad` (with `weight=\"cauchy\"`, `points=`)": "`quad(f, a, b)` integrates a function numerically and returns the value and an error estimate; the option `weight=\"cauchy\"` treats a factor 1/(x − x₀) as a principal value (primer P344 below), which is exactly the form of the downwash integral.",
+    "`np.arctan2`, `np.hypot`": "`np.hypot(x, y)` is the length of the vector (x, y) and `np.arctan2(y, x)` is its angle in the correct quadrant; here they give the speed and the tilt of the air a strip of the wing meets.",
+    "power of a force": "power is force times the speed in the direction of the force; here the induced drag times the flight speed is the rate at which energy is left behind in the wake.",
+    "integrals of sines over a full period; Galerkin truncation": "the product of two different sine shapes integrates to zero over the full range and the square of one gives half the range, so an unknown curve written as a sum of a few fixed sine shapes can be found one amplitude at a time; here the curve is the loading Γ along the span.",
+    "even and odd functions": "an even function has the same value at −y and y, an odd one changes sign; here a symmetric wing has an even loading, which keeps only the odd-numbered sine terms.",
+    "substitution in an integral (change of variable)": "replace the integration variable by a new one and convert the differential and the limits as well; here y = −(s/2) cos γ turns integrals along the span into integrals over the span angle γ, with dy = (s/2) sin γ dγ.",
+    "proof by induction; linear recurrences": "to prove a statement for every n, show it for the first cases and show that it carries over from the cases before n to n; a rule that gives each term from the two before it is a three-term recursion; here both are used on the family of integrals behind the downwash.",
+    "`np.linalg.solve`; `np.eye`, `@`": "`np.linalg.solve(A, r)` returns the vector x with A·x = r for a square matrix A (`@` is the matrix product, `np.eye(N)` the unit matrix); here x holds the sine coefficients of the loading.",
+    "collocation; condition number; `np.linalg.cond`": "collocation finds N unknowns by demanding that an equation holds at N chosen points; the condition number `np.linalg.cond(A)` says how much the solve can amplify small errors (a few tens is harmless); here the points are stations along the span.",
+    "quotient rule; `minimize_scalar`": "the quotient rule (f/g)′ = (f′g − fg′)/g² finds where a ratio is largest, and `minimize_scalar` finds the minimum of a function of one variable numerically inside a bracket; here they locate the best glide and the speed of least drag.",
 }
+
+
+def _norm(c: str) -> str:
+    return re.sub(r"[`*$\\\"“”]", "", c).lower().strip()
+
+
+REMIND_N = {_norm(k): v for k, v in REMIND.items()}
+
+
+_NO_ROW = sorted(k for k in REMIND_N if k not in {_norm(r[0]) for r in LEDGER})
+assert not _NO_ROW, f"REMIND keys that match no Part E row: {_NO_ROW}"
 
 
 def remind(cid: str, lead: str = "") -> None:
@@ -466,9 +612,10 @@ def remind(cid: str, lead: str = "") -> None:
         chs = re.findall(r"ch(\d\d)", by)
         pids = re.findall(r"P\d+a?", by)
         where = ", ".join(([f"Ch. {int(chs[0])}"] if chs else ["this chapter"]) + pids)
-        if concept in REMIND:
-            text = REMIND[concept]
+        if _norm(concept) in REMIND_N:
+            text = REMIND_N[_norm(concept)]
         else:
+            print("REMINDER built from knowledge/primers.md (check its wording):", concept)
             text = " ".join(g for g in (_gist(p) for p in pids) if g) or "used here exactly as in the chapter named."
         lines.append(f"- **{concept}** — {text} *({where})*")
         nb.primers.append(re.sub(r"[`*$\\]", "", concept) + " (reminder)")
@@ -510,16 +657,16 @@ a sail all move a wing *across* the stream so that its lift leans forward and be
     prerequisites=[
         r"the complex potential, the cylinder with circulation, the lift theorem $L=\rho U\Gamma$ (6.62) and the map $z=\zeta+\dfrac{b^2}{\zeta}$ (6.65) (Ch. 6)",
         r"Kelvin's theorem $\dfrac{D\Gamma}{Dt}=0$ (5.8), Helmholtz's theorems and the filament law $d\mathbf u=\dfrac{\Gamma\,d\mathbf l}{4\pi}\times\dfrac{\mathbf x-\mathbf x'}{\lvert\mathbf x-\mathbf x'\rvert^3}$ (5.17) (Ch. 5)",
-        r"the coefficients $C_L\equiv\dfrac{L}{\tfrac12\rho U^2A}$ and $C_D\equiv\dfrac{D}{\tfrac12\rho U^2A}$ (4.107), (4.108) (Ch. 4)",
+        r"the coefficients $C_D\equiv\dfrac{D}{\tfrac12\rho U^2A}$ (4.107) and $C_L\equiv\dfrac{L}{\tfrac12\rho U^2A}$ (4.108) (Ch. 4)",
         "boundary layers and separation (Ch. 9)",
     ],
 )
 nb.explainer_index([
+    ("starting_vortex", "Where does a wing's circulation come from?", "it sheds an equal and opposite vortex and flies away from it"),
     ("zhukhovsky_airfoil_builder", "Where do camber and thickness come from?", "drag the circle's centre: up bends the plate, back fattens the nose"),
     ("kutta_condition", "Which circulation does a wing choose?", "only one puts the rear stagnation point on the sharp edge"),
-    ("starting_vortex", "Where does a wing's circulation come from?", "it sheds an equal and opposite vortex and flies away from it"),
-    ("airfoil_pressure_lift", "Is a wing pushed up or pulled up?", "the lift is the area between two pressure curves, mostly suction near the nose"),
     ("lift_curve_stall", "Does more angle always mean more lift?", "camber shifts the line, the angle buys 2π per radian, stall ends it"),
+    ("airfoil_pressure_lift", "Is a wing pushed up or pulled up?", "the lift is the area between two pressure curves, mostly suction near the nose"),
     ("downwash_induced_drag", "How can there be drag without friction?", "the wing flies in its own sinking air, and its lift leans back"),
     ("lifting_line_solver", "What makes one wing better than another?", "lift lives in the first sine; every other one is pure drag"),
     ("elliptic_loading_aspect_ratio", "Why are glider wings so long and thin?", "the price of lift is set by the span you spread it over"),
@@ -570,7 +717,9 @@ pd.Series(ch14.illustrative_inputs()).to_frame("the module's own illustrative se
    (vortex filaments, Ch. 5), `SIM` (force coefficients, Ch. 4), `BL` (boundary layers, Ch. 9), `VORT` (Ch. 3) and `ch06`.
 3. `from ch14_drawings import *` loads sketch helpers (`draw_…`, `fig_…`): pure matplotlib on top of the tested functions.
 4. The five dictionaries are the inputs of every worked number below. Angles are **stored in radians** (`np.deg2rad`) and
-   **quoted in degrees** in the text.
+   **quoted in degrees** in the text. One entry needs a word now: `e_span` is the **span efficiency**, a number between 0
+   and 1 that says how close a wing's lift-dependent drag comes to the least possible for its span (1 = the least
+   possible); C12 uses it and C13 derives it.
 5. `mu, a` is the circle that will become our wing section: centre −0.0200 + 0.0189i m, radius 0.2707 m.
 6. The last line shows the module's own illustrative set once. It overlaps with ours; both are ours, neither is the book's.""")
 
@@ -615,8 +764,8 @@ display(ch14.conventions_table())                           # the letter table: 
 1. `draw_axes_conventions()` draws the two coordinate systems of the chapter side by side.
 2. `ch14.conventions_table()` is a pandas table (`pd.DataFrame`: rows and named columns) of the overloaded letters.""")
 nb.figure_notes(
-    see="Left: a wing section with $x$ along its chord and the stream arriving at the angle $\\alpha$. Right: a wing from "
-        "above with $y$ along the span and the downwash $w$ pointing down.",
+    see="Left: a wing section with $x$ along its chord and the stream arriving at the angle $\\alpha$. Right: a wing seen from "
+        "behind (the stream goes into the page), with $y$ along the span, $z$ up and the downwash $w$ pointing down.",
     read="The left axes belong to §14.3–§14.5 (one section, forces per metre of span), the right ones to §14.6 (a whole wing). "
          "Because the stream is tilted on the left, the lift — which is across the *stream* — is not the $y$-force.",
     change="…you tilted the drawing instead of the stream? Then lift would be $F_y$ — but the map of §14.4 needs the chord "
@@ -987,34 +1136,51 @@ al15 = np.deg2rad(15.0)                                      # a larger angle of
 GK15 = AF.kutta_circulation_root(U=U, b=b, e=0.0, beta=0.0, alpha=al15)   # the Kutta circulation of the plate at 15° [m²/s], clockwise
 nx, ny = (120, 80) if not FAST else (80, 54)                 # grid for the stream function (smaller when FAST)
 X, Y = np.meshgrid(np.linspace(-0.9, 0.9, nx), np.linspace(-0.6, 0.6, ny))   # points of the x–y plane [m]
+Xz, Yz = np.meshgrid(np.linspace(0.41, 0.53, nx), np.linspace(-0.04, 0.04, ny))   # a second, fine grid on the last 18 % of the plate (the zoom panel) [m]
 levels = np.linspace(-0.55*U, 0.55*U, 23)                    # fixed stream-function levels [m²/s]; ψ = 0 is the plate itself
+levels_z = np.linspace(-0.045*U, 0.045*U, 19)                # finer levels for the zoom [m²/s]
 fractions = np.linspace(0.0, 1.2, 13) if not FAST else np.linspace(0.0, 1.2, 7)   # Γ/Γ_K of each frame: 0, 0.1, … 1.2
-fig, ax = plt.subplots(figsize=(5.6, 3.6))                   # one panel
+fig, (ax, axz) = plt.subplots(1, 2, figsize=(9.2, 3.4))      # left: the whole plate; right: a zoom on its trailing edge
+ax.set(xlim=(-0.9, 0.9), ylim=(-0.6, 0.6), xlabel="x [m]", ylabel="y [m]", title="Γ/Γ_K = 0.00 (Γ clockwise)")   # the axes of every frame, so the layout can be fixed now
+ax.set_aspect("equal")                                       # true proportions
+axz.set(xlim=(0.41, 0.53), ylim=(-0.04, 0.04), xlabel="x [m]", ylabel="y [m]", title="zoom: dot 17.0 mm from the edge")   # the zoom window
+axz.set_aspect("equal")                                      # true proportions here too
+fig.canvas.draw(); fig.set_layout_engine("none")             # lay the figure out once, then freeze it: frames render much faster
 def update(i):                                               # draw frame i
     f = fractions[i]                                         # Γ/Γ_K of this frame
     Fp = AF.flat_plate_flow(U=U, b=b, alpha=al15, Gamma_cw=f*GK15)     # the plate's flow with this circulation
     st = AF.stagnation_points(U=U, b=b, e=0.0, beta=0.0, alpha=al15, Gamma_cw=f*GK15)   # where the two stagnation points are
-    ax.clear()                                               # wipe the previous frame
-    ax.contour(X, Y, Fp.stream(x=X, y=Y), levels=levels, colors=COLORS["blue"], linewidths=0.8)   # streamlines = lines of constant ψ
-    ax.plot([-2*b, 2*b], [0, 0], color="k", lw=3)            # the plate: from x = −2b to x = +2b
-    ax.plot(st["z_rear"].real, st["z_rear"].imag, "o", color=COLORS["orange"], ms=9, zorder=5)   # rear stagnation point (amber dot)
-    ax.set(xlim=(-0.9, 0.9), ylim=(-0.6, 0.6), xlabel="x [m]", ylabel="y [m]", title=f"Γ/Γ_K = {f:4.2f} (Γ clockwise)")   # fixed axes
-    ax.set_aspect("equal")                                   # true proportions
-show_animation(animate(update, frames=len(fractions), fig=fig, interval=400), player="frames")   # a frame player: step through, stop at 0, 0.5, 1.0
+    for a_, Xa, Ya, lev, lim in ((ax, X, Y, levels, (-0.9, 0.9, -0.6, 0.6)), (axz, Xz, Yz, levels_z, (0.41, 0.53, -0.04, 0.04))):   # the same drawing in both panels
+        a_.clear()                                           # wipe the previous frame
+        a_.contour(Xa, Ya, Fp.stream(x=Xa, y=Ya), levels=lev, colors=COLORS["blue"], linewidths=0.8, linestyles="solid")   # streamlines = lines of constant ψ (all drawn solid, whatever the sign of ψ)
+        a_.plot([-2*b, 2*b], [0, 0], color="k", lw=3)        # the plate: from x = −2b to x = +2b
+        a_.plot(st["z_rear"].real, st["z_rear"].imag, "o", color=COLORS["orange"], ms=9, zorder=5)   # rear stagnation point (amber dot)
+        a_.set(xlim=lim[:2], ylim=lim[2:], xlabel="x [m]", ylabel="y [m]")   # fixed axes
+        a_.set_aspect("equal")                               # true proportions
+        a_.grid(False)                                       # no background grid under the streamlines
+    ax.set_title(f"Γ/Γ_K = {f:4.2f} (Γ clockwise)")          # the circulation of this frame
+    axz.set_title(f"zoom: dot {1e3*(2*b - st['z_rear'].real):.1f} mm from the edge")   # how far the dot still is from x = 2b
+with plt.rc_context({"savefig.dpi": 100}):                   # the frame player stores one picture per frame at this resolution (100 dots per inch keeps the 13 pictures small)
+    show_animation(animate(update, frames=len(fractions), fig=fig, interval=400), player="frames")   # a frame player: step through, stop at 0, 0.5, 1.0
 """, explain=r"""
 1. The plate is set at 15° so that the stagnation point starts well away from the edge.
-2. `update(i)` builds the flow for one value of Γ/Γ_K (0, 0.1, … 1.2), draws its streamlines (contours of the stream
-   function `Fp.stream`), the plate and the rear stagnation point.
-3. `show_animation(..., player="frames")` gives ◀ ▮▮ ▶ buttons, so you can stop at Γ/Γ_K = 0, 0.5 and 1.""")
+2. `update(i)` builds the flow for one value of Γ/Γ_K (0, 0.1, … 1.2) and draws it twice: the whole plate on the left, and
+   the last part of the plate, magnified fifteen times, on the right. Each panel shows the streamlines (contours of the
+   stream function `Fp.stream`), the plate and the rear stagnation point.
+3. All contour lines are drawn solid (`linestyles="solid"`); by default matplotlib would dash the lines on which the stream
+   function is negative, which means nothing here.
+4. `show_animation(..., player="frames")` gives ◀ ▮▮ ▶ buttons, so you can stop at Γ/Γ_K = 0, 0.5 and 1.""")
 nb.figure_notes(
     see="Streamlines round a flat plate at 15° while the clockwise circulation grows from zero through the Kutta value to "
-        "1.2 times it. The amber dot is the rear stagnation point.",
-    read="At Γ = 0 the dot sits on the upper surface ahead of the edge and the streamlines wrap round the trailing edge — the "
-         "flow turns a knife-sharp corner. As Γ grows the dot slides back. At Γ/Γ_K = 1 it is on the edge and the streamline "
+        "1.2 times it. The amber dot is the rear stagnation point. Left: the whole plate. Right: its last few centimetres, "
+        "magnified — on the whole plate the dot moves by less than its own width (17 mm on a chord of 1 m).",
+    read="Use the right panel for the dot. At Γ = 0 it sits on the upper surface 17 mm ahead of the edge and the streamlines "
+         "wrap round the trailing edge — the flow turns a knife-sharp corner. As Γ grows the dot slides back (the title "
+         "counts the millimetres). At Γ/Γ_K = 1 it is on the edge and the streamline "
          "from it leaves smoothly, straight off the plate. Watch also the streamlines far upstream: they are deflected "
          "upward more and more — that is the lift appearing.",
-    change="…Γ goes past the Kutta value (the last two frames)? The dot passes the edge onto the lower side and the corner "
-           "flow returns, the other way round.")
+    change="…Γ goes past the Kutta value (the last two frames)? The dot passes the edge onto the lower side (the plate has "
+           "no thickness, so it is drawn on the same line, moving forward again) and the corner flow returns, the other way round.")
 nb.figure(r"""
 fr = np.linspace(0.0, 2.0, 201)                              # trial circulations as fractions of the Kutta value
 fig, ax = plt.subplots(figsize=(6.4, 3.4))                   # one panel
@@ -1046,12 +1212,12 @@ Stir a spoon sideways through coffee and stop: a little whirl is left spinning w
 first moments of its motion it throws off a vortex from its trailing edge, and the air round the wing is left circulating the
 other way. Nothing was created — the two cancel — but the wing flies away from one half of the pair and keeps the other.""")
 idea(r"""
-     A ─────────────────────────B───────────────────────── (far away)
+     A ─────────────────────────B─────────────────────────┐ (far away)
      │                          ┊                         │
      │      ↻ foil              ┊        ↺ starting       │      total circulation round the big box  = 0
      │   (moving left)          ┊          vortex         │      = (+Γ round the foil) + (−Γ round the starting vortex)
      │                          ┊                         │
-     D ─────────────────────────┴───────────────────────── C
+     └──────────────────────────D───────────────────────── C
                               cut BD
 """, r"""
 A big closed curve that surrounds everything had zero circulation before the start, so it has zero circulation for ever.
@@ -1064,7 +1230,9 @@ Cut a circuit in two with a line: the two circulations add up to the original, b
 its two contributions cancel, $\Gamma_{\text{whole}}=\Gamma_{\text{left}}+\Gamma_{\text{right}}$.""")
 note("N14 [B]", r"""
 An impulsively started foil at three times: $\Gamma=0\ \to\ 0<\Gamma<\Gamma_{\text{Kutta}}\ \to\ \Gamma=\Gamma_{\text{Kutta}}$ for $t>c/U$ — the steady
-pattern is reached after the foil has moved a chord or two.""")
+pattern is approached once the foil has moved a distance of the order of its chord. That is an order of magnitude, not a
+stopwatch reading: in the lumped-vortex model below the circulation is at 65 % of its steady value after one chord of travel
+and at 90 % only after about six.""")
 nb.figure(r"""
 fig = fig_three_stages(**SEC)   # streamlines of our section at Γ/Γ_K = 0, ½, 1 with both stagnation points
 plt.show()                                                   # display
@@ -1144,7 +1312,7 @@ print(f"bound circulation after 1 and 10 chords: {G_mine[19]:.3f}, {G_mine[199]:
 3. The assert confirms the tested function is this loop.""")
 nb.animation(r"""
 hist = ch14.impulsive_start_lumped_vortex(U=sec["U"], c=1.0, alpha=np.deg2rad(10.0), t_end=6/sec["U"], dt=0.1/sec["U"], history=True)   # a shorter run at 10° (0.175 rad) with the wake positions kept at every step
-n_frames = 60 if not FAST else 30                            # number of frames
+n_frames = 40 if not FAST else 20                            # number of frames (fewer when FAST)
 idx = np.linspace(0, len(hist["t"]) - 1, n_frames).astype(int)   # which steps to show
 Gs = hist["Gamma_steady"][0]                                 # the steady (Kutta) circulation [m²/s], clockwise
 sizes = 4 + 60*np.abs(hist["wake_Gamma_cw"])/np.abs(hist["wake_Gamma_cw"]).max()   # dot size of each wake vortex ∝ its strength
@@ -1155,12 +1323,16 @@ ring = plt.Circle((0.25, 0), 0.12, fill=False, color=COLORS["teal"], lw=1)   # t
 axL.add_patch(ring)                                          # put the ring on the panel
 axL.set(xlim=(-0.5, 7.5), ylim=(-1.2, 1.6), xlabel="x [chords]", ylabel="y [chords]")   # fixed axes
 axL.set_aspect("equal")                                      # true proportions
-(lb,) = axR.plot([], [], color=COLORS["teal"], label="bound Γ (clockwise)")            # the wing's circulation
-(lw_,) = axR.plot([], [], color=COLORS["rose"], label="total shed (clockwise-positive, so negative)")   # everything in the wake
-(lt,) = axR.plot([], [], color=COLORS["orange"], label="their sum")                    # flat at zero
+(lb,) = axR.plot([], [], color=COLORS["teal"])               # the wing's (bound) circulation
+(lw_,) = axR.plot([], [], color=COLORS["rose"])              # everything in the wake
+(lt,) = axR.plot([], [], color=COLORS["orange"])             # their sum: flat at zero
 axR.axhline(Gs, color="0.6", ls="--", lw=1)                  # the steady value
 axR.set(xlim=(0, 6), ylim=(-1.15*Gs, 1.15*Gs), xlabel="chords travelled", ylabel="circulation [m²/s]")   # fixed axes
-axR.legend(loc="center right", fontsize=7)                   # which curve is which
+axR.text(1.9, 0.42*Gs, "bound Γ (clockwise)", color=COLORS["teal"], fontsize=8)                      # the curves are named where there is room, not in a legend box
+axR.text(1.9, -0.48*Gs, "total shed (counterclockwise, so negative)", color=COLORS["rose"], fontsize=8)   # the wake's total
+axR.text(1.9, 0.05*Gs, "their sum: zero at every instant", color=COLORS["orange"], fontsize=8)       # Kelvin's theorem
+axR.text(5.9, 1.02*Gs, "steady (Kutta) value", color="0.4", fontsize=7, ha="right")                  # the dashed line
+axL.set_title("0.0 chords travelled")                        # a first title, so that the frozen layout leaves room for it
 fig.canvas.draw(); fig.set_layout_engine("none")             # lay the figure out once, then freeze it: frames render much faster
 def update(j):                                               # draw frame j
     k = idx[j]                                               # step shown in this frame
@@ -1195,14 +1367,14 @@ axG.plot(s_ch, run["Gamma_wake_cw"], color=COLORS["rose"], label="total shed cir
 axG.plot(s_ch, run["total"], color=COLORS["orange"], label="their sum (Kelvin: zero)")            # the invariant
 axG.axhline(run["Gamma_steady"][0], color="0.6", ls="--", lw=1, label="steady Kutta value πUc sin α")   # the only reference on this panel
 axG.set(xlabel="distance travelled [chords]", ylabel="circulation [m²/s]", title="The wing's circulation is paid for by the wake")   # labels
-axG.legend(fontsize=7)                                       # which curve is which
+axG.legend(fontsize=7, loc="upper right", bbox_to_anchor=(1.0, 0.82))   # which curve is which — placed in the empty band between the bound curve and the zero line
 axL.plot(s_ch, lift_ratio, color=COLORS["teal"], label="model: ρUΓ_bound / steady lift (quasi-steady part only)")   # our model's lift ratio
 axL.plot(s_ch, ch14.wagner_function(s=2*s_ch), color="0.45", ls=":", lw=2, label="Wagner's function — circulatory lift / steady lift (Jones' fit)")   # the argument is in semi-chords = 2 × chords
 axL.axhline(1.0, color="0.6", ls="--", lw=1)                 # the steady lift
 axL.set(xlabel="distance travelled [chords]", ylabel="lift / steady lift [–]", ylim=(0, 1.08), title="Lift builds up over several chords")   # labels
 axL.legend(fontsize=7, loc="lower right"); plt.show()      # legend and display
 s90 = np.interp(0.9, run["ratio"], s_ch)                      # distance at which the bound circulation reaches 90 % of the steady value (the ratio rises steadily, so it can be read backwards)
-print(f"first value of Γ_bound/Γ_steady = {run['ratio'][0]:.3f}; 90 % reached after {s90:.2f} chords")   # about 1/3 (0.344 with this step) and about 6.2 chords
+print(f"first value of Γ_bound/Γ_steady = {run['ratio'][0]:.3f}; 90 % reached after {s90:.2f} chords")   # about 1/3 (0.344 with this step) and about 6.1 chords
 print(f"model lift ratio minus Wagner's function at 1, 2, 5, 10 chords: {np.round((lift_ratio - ch14.wagner_function(s=2*s_ch))[[19, 39, 99, 199]], 3)}")   # the gap closes after two chords
 """,
     see="The 20-chord run of the code cell. Left: bound circulation, shed circulation, their sum, and the steady Kutta value "
@@ -1213,8 +1385,10 @@ print(f"model lift ratio minus Wagner's function at 1, 2, 5, 10 chords: {np.roun
          "model's first $\\Gamma_{\\text{bound}}$ is 1/3 of the steady value (0.34 with this time step); in the exact thin-airfoil solution the circulation "
          "starts from zero and it is the circulatory lift that starts at one half; this model's $\\rho U\\Gamma_{\\text{bound}}$ "
          "follows Wagner's lift function to about 1 % after two chords and runs above the exact circulation (0.65 against "
-         "0.55 after one chord). `lift_circulatory` is the quasi-steady part $\\rho U\\Gamma_{\\text{bound}}$ only — the "
-         "$\\rho\\,d\\Gamma/dt$ term is omitted. The model reaches 90 % of the steady value after about 6.2 chords.",
+         "0.55 after one chord). Two words: the **circulatory lift** is the part of the lift that the circulation carries (the "
+         "rest, present only while the flow is changing, comes from accelerating the air next to the plate); **quasi-steady** "
+         "means that each instant is treated as if the flow were steady with the circulation it has at that instant. `lift_circulatory` is the quasi-steady part $\\rho U\\Gamma_{\\text{bound}}$ only — the "
+         "$\\rho\\,d\\Gamma/dt$ term is omitted. The model reaches 90 % of the steady value after about 6.1 chords (with this step of 0.05 chords).",
     change="…the plate were ten times longer? Both panels are the same in chords: the transient lasts ten times longer in metres.")
 note("N16 [B]", r"""
 **Viscosity is responsible for the drag — and for the lift.** Without the boundary layer at the edge no vortex would be shed,
@@ -1412,26 +1586,38 @@ D("D05", "The trailing edge is a cusp; a finite edge angle would need a stagnati
 nb.figure(r"""
 S_fine = AF.zhukhovsky_airfoil(b=sec["b"], e=sec["e"], beta=sec["beta"], n=4000)   # our section with many points, to zoom on the tail
 print(f"included angle at the tail measured on 400 and 4000 points: {np.degrees(AF.trailing_edge_angle(x=S['x'], y=S['y'])):.2f}°, {np.degrees(AF.trailing_edge_angle(x=S_fine['x'], y=S_fine['y'])):.2f}°")   # tends to 0: a cusp
-fig, axes = plt.subplots(1, 3, figsize=(11.0, 3.2))          # zoom on the tail; an edge of finite angle; a cusp
-axes[0].plot(S_fine["x"], S_fine["y"], color="k")            # the outline
-axes[0].set(xlim=(0.48, 0.5005), ylim=(-0.004, 0.004), xlabel="x [m]", ylabel="y [m]", title="Last 2 % of our section:\nthe two surfaces become tangent")   # zoom window (the tail is at x = 2b = 0.5 m)
+geo = AF.section_geometry(x=S_fine["x"], y=S_fine["y"])     # upper and lower surface of the fine outline on common chordwise stations (in chords)
+dist = 1.0 - geo["xc"]                                       # distance ahead of the tail [chords]
+thick = geo["y_upper"] - geo["y_lower"]                      # thickness of the section there [chords]
+keep = (dist > 2e-3) & (dist < 0.3)                          # from 0.2 % to 30 % of the chord ahead of the tail
+k_ref = np.argmin(np.abs(dist - 0.1))                        # anchor the two reference lines at 10 % of the chord
+fig, axes = plt.subplots(1, 3, figsize=(11.6, 3.7))          # thickness near the tail; an edge of finite angle; a cusp
+axes[0].loglog(dist[keep], thick[keep], color="k", lw=2.2, label="our section")   # both axes logarithmic: a power law is a straight line whose slope is the power
+axes[0].loglog(dist[keep], thick[k_ref]*(dist[keep]/dist[k_ref])**1.5, color=COLORS["teal"], ls="--", label="slope 3/2: a cusp")   # thickness ∝ distance^1.5
+axes[0].loglog(dist[keep], thick[k_ref]*(dist[keep]/dist[k_ref])**1.0, color=COLORS["rose"], ls=":", label="slope 1: a wedge")     # what an edge of finite angle would give
+axes[0].set(xlabel="distance ahead of the tail [chords]", ylabel="thickness [chords]", title="Our section near its tail:\nthickness ∝ distance$^{3/2}$")   # labels
+axes[0].legend(fontsize=7)                                   # which line is which
 rr, tt = np.meshgrid(np.linspace(0.01, 1.0, 80), np.linspace(-np.pi, np.pi, 361))   # polar grid round the edge: radius r/d and angle θ
 for ax, n_ in zip(axes[1:], (1.05, 1.0)):                    # exponent 1.05 (a 17° edge) and 1 (a cusp)
     psi = np.where(np.abs(tt) < np.pi/n_, rr**n_*np.sin(n_*tt), np.nan)   # stream function r^n sin(nθ) in the fluid; the body fills |θ| > π/n
-    ax.contour(rr*np.cos(tt), rr*np.sin(tt), psi, levels=np.linspace(-0.9, 0.9, 13), colors=COLORS["blue"], linewidths=0.8)   # streamlines leaving the edge to the right
+    ax.contour(rr*np.cos(tt), rr*np.sin(tt), psi, levels=np.linspace(-0.9, 0.9, 13), colors=COLORS["blue"], linewidths=0.8, linestyles="solid")   # streamlines leaving the edge to the right (all solid, whatever the sign of ψ)
     ax.fill([0, -np.cos(np.pi*(1 - 1/n_)), -np.cos(np.pi*(1 - 1/n_))], [0, np.sin(np.pi*(1 - 1/n_)), -np.sin(np.pi*(1 - 1/n_))], color="0.3")   # the solid edge (a wedge; a line for the cusp)
-    ax.set(xlabel="x/d", ylabel="y/d", title=("edge of 17°: speed ∝ r^0.05 → 0 at the edge" if n_ > 1 else "cusp: speed = U at the edge"))   # labels
+    ax.set(xlabel="x/d", ylabel="y/d", title=("Edge of 17°:\nspeed ∝ $r^{0.05}$ → 0 at the edge" if n_ > 1 else "Cusp:\nspeed = U at the edge"))   # labels, on two lines so that neighbours do not collide
     ax.set_aspect("equal")                                   # true proportions
+    ax.grid(False)                                           # no background grid under the streamlines
 plt.show()                                                   # display
 """,
-    see="Left: the last 2 % of our section, strongly magnified — upper and lower surface meet tangent to each other. Middle: "
-        "streamlines leaving an edge with a 17° included angle. Right: streamlines leaving a cusp.",
-    read="At an edge of finite angle the streamlines spread apart as they approach the edge: the fluid slows to rest there "
-         "(a stagnation point). At a cusp they stay evenly spaced: the fluid leaves at a finite speed. The printed angles "
-         "show the measured tail angle shrinking toward zero as the outline is resolved more finely.",
+    see="Left: the thickness of our section against the distance ahead of its tail, on two logarithmic axes, with two "
+        "reference slopes. Middle: streamlines leaving an edge with a 17° included angle. Right: streamlines leaving a cusp.",
+    read="On logarithmic axes a power law is a straight line and its slope is the power. The section follows the dashed "
+         "slope 3/2, not the dotted slope 1 of a wedge: halve the distance to the tail and the thickness falls by 2.8, not "
+         "by 2, so the two surfaces close *tangent* to each other — a cusp. At an edge of finite angle (middle) the "
+         "streamlines spread apart as they approach the edge: the fluid slows to rest there "
+         "(a stagnation point). At a cusp (right) they stay evenly spaced: the fluid leaves at a finite speed. The printed "
+         "angles show the measured tail angle shrinking toward zero as the outline is resolved more finely.",
     change="…the edge were blunter (larger $n$)? The speed would vanish faster, like $r^{n-1}$.")
 nb.animation(r"""
-n_frames = 60 if not FAST else 30                            # number of frames
+n_frames = 40 if not FAST else 20                            # number of frames (fewer when FAST)
 half = n_frames//2                                           # first half: raise the centre; second half: move it back
 tt = np.linspace(0, 2*np.pi, 241)                            # angle round the circle
 fig, (axZ, axz) = plt.subplots(1, 2, figsize=(9.0, 3.3))     # left: the ζ-plane (circle); right: the z-plane (section)
@@ -1443,6 +1629,8 @@ axZ.plot([sec["b"]], [0], "o", color=COLORS["orange"])       # the point ζ = b,
 axZ.set(xlim=(-0.4, 0.4), ylim=(-0.36, 0.4), xlabel="ξ [m]", ylabel="η [m]")   # fixed axes
 axZ.set_aspect("equal")                                      # a circle looks like a circle
 axz.set(xlim=(-0.6, 0.6), ylim=(-0.2, 0.25), xlabel="x [m]", ylabel="y [m]")   # fixed axes
+axZ.set_title("β = 0.0° (0.000 rad), e = 0.000", fontsize=10)   # a first read-out, so that the frozen layout leaves room for the titles
+axz.set_title("flat plate → arc → cambered airfoil", fontsize=10)   # what the right panel shows
 axz.set_aspect("equal")                                      # true proportions
 fig.canvas.draw(); fig.set_layout_engine("none")             # lay the figure out once, then freeze it: frames render much faster
 def update(i):                                               # draw frame i
@@ -1452,8 +1640,7 @@ def update(i):                                               # draw frame i
     circ.set_data(Sx["zeta"].real, Sx["zeta"].imag)          # the circle
     cen.set_data([Sx["mu"].real], [Sx["mu"].imag])           # its centre
     outline.set_data(Sx["x"], Sx["y"])                       # its image
-    axZ.set_title(f"circle: β = {np.degrees(beta_):.1f}° ({beta_:.3f} rad), e = {e_:.3f}")   # the two knobs, angle in both units
-    axz.set_title("flat plate → arc → cambered airfoil")     # what the right panel shows
+    axZ.set_title(f"β = {np.degrees(beta_):.1f}° ({beta_:.3f} rad), e = {e_:.3f}", fontsize=10)   # the two knobs of the circle, angle in both units
 show_animation(animate(update, frames=n_frames, fig=fig, interval=80), player="video")   # a smooth video
 """, explain=r"""
 1. The first half of the frames raises the circle's centre (β: 0 → 8°) at zero thickness; the second half moves it back
@@ -1599,11 +1786,11 @@ psi_zeta[np.abs(XZ + 1j*YZ - mu) < a] = np.nan               # no fluid inside t
 psi_z = F.stream(x=XZ, y=YZ)                                 # stream function in the airfoil plane (NaN inside the section)
 levels = np.linspace(-14.0, 14.0, 15)                        # the same 15 streamlines in both panels [m²/s]; 0 is the body
 fig, (axa, axb) = plt.subplots(1, 2, figsize=(10.0, 3.6))    # left: ζ-plane; right: z-plane
-axa.contour(XZ, YZ, psi_zeta, levels=levels, colors=COLORS["blue"], linewidths=0.8)   # streamlines round the circle
+axa.contour(XZ, YZ, psi_zeta, levels=levels, colors=COLORS["blue"], linewidths=0.8, linestyles="solid")   # streamlines round the circle
 axa.plot((mu + a*np.exp(1j*tcirc)).real, (mu + a*np.exp(1j*tcirc)).imag, color="k")   # the circle
 axa.plot([st["zeta_front"].real, st["zeta_rear"].real], [st["zeta_front"].imag, st["zeta_rear"].imag], "o", color=COLORS["orange"])   # its stagnation points
 axa.set(xlabel="ξ [m]", ylabel="η [m]", title="ζ-plane: the circle's flow")   # labels
-axb.contour(XZ, YZ, psi_z, levels=levels, colors=COLORS["blue"], linewidths=0.8)      # streamlines round the airfoil
+axb.contour(XZ, YZ, psi_z, levels=levels, colors=COLORS["blue"], linewidths=0.8, linestyles="solid")      # streamlines round the airfoil
 axb.fill(S["x"], S["y"], color="0.3")                        # the section
 axb.plot([st["z_front"].real, st["z_rear"].real], [st["z_front"].imag, st["z_rear"].imag], "o", color=COLORS["orange"])   # its stagnation points
 axb.set(xlabel="x [m]", ylabel="y [m]", title="z-plane: the same streamlines, mapped")   # labels
@@ -1635,7 +1822,8 @@ nb.figure_notes(
     read="At 1.00 the curve runs flat into the edge at a value a little below zero (a speed just under $U$). At every other "
          "slider position it turns upward at the right-hand end — the closer to the edge, the faster — because the map's "
          "factor $\\zeta^2/(\\zeta^2-b^2)$ is infinite there and the circle's flow no longer vanishes to cancel it.",
-    change="…we *demand* a finite speed at the tail? That fixes Γ: C06.")
+    change="…you looked ten times closer to the edge? At 1.00 nothing changes; at every other position the upturn would be "
+           "about three times higher (√10: the inverse-square-root law of C02).")
 whatif(r"""…we *demand* a finite speed at the tail? That single demand fixes Γ, and with it the lift: C06.""")
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1811,7 +1999,7 @@ def show_section(alpha_deg=5.0, beta_deg=4.0, e=0.08):       # redraw for the sl
     streamlines(ax=ax, flow=Fl, xlim=(-0.9, 0.9), ylim=(-0.5, 0.5), n=(120, 80), levels=21)   # streamlines and the filled section
     ax.set(xlabel="x [m]", ylabel="y [m]", title=f"α = {alpha_deg:.0f}°, β = {beta_deg:.0f}°, e = {e:.2f}: C_L = {AF.zhukhovsky_lift_coefficient(alpha=A_, beta=B_, e=e, exact=True):.3f} (rule {AF.zhukhovsky_lift_coefficient(alpha=A_, beta=B_):.3f}), Γ_K = {Fl.Gamma_kutta:.2f} m²/s clockwise")   # three numbers
     plt.show()                                               # display
-live(show_section, alpha_deg=(-5.0, 15.0, 1.0), beta_deg=(0.0, 10.0, 1.0), e=(0.0, 0.2, 0.02))   # three sliders (kernel only)
+_ = live(show_section, alpha_deg=(-5.0, 15.0, 1.0), beta_deg=(0.0, 10.0, 1.0), e=(0.0, 0.2, 0.02))   # three sliders (kernel only)
 """, explain=r"""
 **What does the code above do?** Three sliders — angle of attack, camber angle (both in degrees) and thickness parameter —
 redraw the section with its streamlines and print the exact lift coefficient, the rule and the Kutta circulation. The slider
@@ -1871,7 +2059,7 @@ maths(r"""
 4. Speed: $q=\lvert dw/dz\rvert$.
 5. Pressure coefficient: $C_p=1-q^2/U^2$ (Bernoulli).
 6. At $t=-\beta$ the 0/0 is replaced by its limit $U(b/a)\cos(\alpha+\beta)$ (N29, trap T8).""")
-D("D10", "The normal-force coefficient is the area of the pressure loop", ref="14.12")
+D("D10", r"The normal-force coefficient is the area of the pressure loop, $C_y=\displaystyle\oint C_p\,d\Big(\dfrac xc\Big)$")
 nb.worked_example("pressure by hand", r"""
 $U$ = 30 m/s, ρ = 1.225 kg/m³: dynamic pressure 551 Pa.
 
@@ -2059,10 +2247,21 @@ note("N39 [B]", r"""
    about to watch.""")
 note("N40 [B]", r"""
 The **bound vortex** moves with the wing, is strongest at mid-span and vanishes at the tips, $\Gamma(\pm s/2)=0$.""")
+P("P351", "elliptic loading and the sine coefficients `Gn` (first look)", r"""
+Two things that later blocks teach properly are needed already. **The sine coefficients.** A loading $\Gamma(y)$ is written as
+a sum of sine shapes in the *span angle* γ, which runs from 0 at the port tip through π/2 at mid-span to π at the starboard tip,
+$y=-(s/2)\cos\gamma$: $\Gamma=\displaystyle\sum_{n=1}^{\infty}\Gamma_n\sin(n\gamma)$ (14.18). In code the list of amplitudes is
+`Gn=[Γ₁, Γ₂, …]` [m²/s]; C11 says why sines. **The elliptic loading** is the first sine alone, `Gn=[Γ₁]`:
+$\Gamma=\Gamma_1\sin(\gamma)=\Gamma_1\sqrt{1-(2y/s)^2}$ (14.23) — a half-ellipse over the span, equal to Γ₁ at mid-span and zero at
+both tips. It is the standard example from here on because it turns out to be the loading with the least induced drag (C14).""", r"""
+s, G1 = 12.0, 14.17                                   # span [m] and mid-span circulation [m²/s]
+y = np.array([-6.0, -3.0, 0.0, 3.0, 6.0])             # five stations along the span [m]
+print((G1*np.sqrt(1 - (2*y/s)**2)).round(2))          # the half-ellipse: 0, 12.27, 14.17, 12.27, 0
+""")
 nb.code(r"""
 print(LL.circulation_series(Gn=np.array([12.0, 0.0, 1.0]), gamma=np.array([0.0, np.pi/2, np.pi])))   # a loading made of two sine shapes (C11), at port tip, mid-span, starboard tip: 0, 11, 0 m²/s
 """)
-D("D11", "The strength of a shed filament", ref="14.13")
+D("D11", r"The strength of a shed filament, $d\Gamma_{\text{trail}}=-\dfrac{d\Gamma}{dy}\,dy$")
 nb.worked_example("a staircase of circulation", r"""
 On the starboard half the bound circulation is 10 m²/s at the root, then 8, then 5, then 0 at the tip.
 
@@ -2085,7 +2284,8 @@ print(f"Γ0 = {tv['Gamma0']:.2f} m²/s, spacing of the two tip vortices = {tv['s
    (negative on the port half, positive on the starboard half), zero at mid-span and largest toward the tips.
 2. `ch14.tip_vortex_estimate` (ours) gives the mid-span circulation our aircraft needs at cruise, 14.17 m²/s clockwise, and what
    the sheet rolls up into (N37 below): two vortices 9.42 m apart sinking at 0.24 m/s.
-3. The span angle γ is a convenient way to place stations; C11 introduces it properly.""")
+3. The span angle γ and the list `Gn` are those of the primer above (P351): `Gn=np.array([14.17])` is an elliptic loading
+   whose mid-span circulation is 14.17 m²/s. C11 introduces both properly.""")
 scratch(r"""
 s = ac["s"]                                                  # span [m]
 gf = np.linspace(0.05, np.pi - 0.05, 2001)                   # a fine set of span angles
@@ -2127,14 +2327,14 @@ stops = [0, 5, 10, 20, 40]                                   # five stop-frames 
 fig, ax = plt.subplots(figsize=(6.4, 3.6))                   # rear view
 sc = ax.scatter(roll["y"][0], roll["z"][0], s=6, c=np.where(roll["sigma"] > 0, COLORS["blue"], COLORS["rose"]))   # one dot per vortex, coloured by its sense of rotation
 (cen,) = ax.plot([], [], "k+", ms=12)                        # the centroid of each half
-ax.set(xlim=(-8, 8), ylim=(-4.5, 1.5), xlabel="spanwise position $y$ [m]", ylabel="height $z$ [m]")   # fixed axes
+ax.set(xlim=(-8, 8), ylim=(-6.5, 1.5), xlabel="spanwise position $y$ [m]", ylabel="height $z$ [m]", title="t = 0.0 s · centroids 9.42 m apart · 0.00 m down")   # fixed axes
 ax.set_aspect("equal")                                       # true proportions
 fig.canvas.draw(); fig.set_layout_engine("none")             # lay the figure out once, then freeze it
 def update(j):                                               # draw stop-frame j
     k = stops[j]                                             # index of the saved time
     sc.set_offsets(np.c_[roll["y"][k], roll["z"][k]])        # move the vortices
     cen.set_data([-roll["centroid_y"][k], roll["centroid_y"][k]], [roll["centroid_z"][k], roll["centroid_z"][k]])   # the two centroids
-    ax.set_title(f"Qualitative past the first turn — t = {roll['t'][k]:.1f} s: centroids {2*roll['centroid_y'][k]:.2f} m apart, {-roll['centroid_z'][k]:.2f} m down")   # readout
+    ax.set_title(f"t = {roll['t'][k]:.1f} s · centroids {2*roll['centroid_y'][k]:.2f} m apart · {-roll['centroid_z'][k]:.2f} m down")   # readout (short enough to fit the panel)
 show_animation(animate(update, frames=len(stops), fig=fig, interval=900), player="frames")   # a frame player: stop at each of the five times
 print(f"theory (ours): spacing b' = {roll['spacing_theory']:.2f} m, descent speed = {roll['descent_speed_theory']:.3f} m/s; impulse drift over the run = {np.ptp(roll['impulse'])/abs(roll['impulse'][0]):.1e}")   # the invariants
 """, explain=r"""
@@ -2145,7 +2345,8 @@ print(f"theory (ours): spacing b' = {roll['spacing_theory']:.2f} m, descent spee
 3. The printed line gives the theoretical spacing $b'=\tfrac\pi4s$ = 9.42 m and descent speed, and how little the impulse
    $\sum\Gamma_ky_k$ drifted.""")
 nb.figure_notes(
-    see="The wake seen from behind at five times. A flat row of vortices curls up at both ends into two spirals that sink.",
+    see="The wake seen from behind at five times. A flat row of vortices curls up at both ends into two spirals that sink. "
+        "**The picture is qualitative past the first turn of each spiral.**",
     read="The centroids (+) stay the same distance apart — 9.42 m, the invariant $b'$ — while they move down. **The turns of "
          "the spiral are qualitative**: their number depends on how many vortices and what core size the computation uses. "
          "What is robust is the spacing, the total circulation of each half and the sinking.",
@@ -2285,23 +2486,29 @@ Outboard of the tips the trailing vortices push the air **up**. A bird flying ju
 flies in rising air — the reason for formation flight.""")
 slip(10, "the “Λ-pattern” of migrating birds", "a V formation — the letter there is a shape, not the aspect ratio $\\Lambda$.")
 nb.figure(r"""
-Xg, Yg = np.meshgrid(np.linspace(-6.0, 24.0, 121), np.linspace(-14.0, 14.0, 141))   # a patch of the wing's plane: x downstream, y along the span [m]
+Xg, Yg = np.meshgrid(np.linspace(-6.0, 24.0, 121), np.linspace(-14.0, 14.0, 140))   # a patch of the wing's plane: x downstream, y along the span [m] (140 rows, so that no row lies exactly on a leg, where the formula is singular)
 wmap = LL.horseshoe_downwash(x=Xg, y=Yg, Gamma=10.0, s=12.0) # downwash (positive down) of one horseshoe of span 12 m, Γ = 10 m²/s
-fig, ax = plt.subplots(figsize=(6.6, 3.8))                   # one panel
-pc = ax.pcolormesh(Xg, Yg, np.clip(wmap, -0.6, 0.6), cmap="RdBu", shading="auto")   # blue = air going down, red = air going up (cut at ±0.6 m/s)
+from matplotlib.colors import SymLogNorm                    # a colour scale that is linear near zero and logarithmic beyond
+fig, ax = plt.subplots(figsize=(6.8, 3.9))                   # one panel
+norm = SymLogNorm(linthresh=0.1, vmin=-3.0, vmax=3.0)        # linear between ±0.1 m/s, logarithmic out to ±3 m/s: weak far field and strong field near the legs both keep some colour
+pc = ax.pcolormesh(Xg, Yg, np.clip(wmap, -3.0, 3.0), cmap="RdBu", norm=norm, shading="auto")   # blue = air going down, red = air going up (values beyond ±3 m/s, right at the legs, are drawn as ±3)
 ax.plot([0, 0], [-6, 6], color="k", lw=3)                    # the bound vortex (the wing)
 for yt in (-6, 6): ax.plot([0, 24], [yt, yt], color="k", lw=1)   # the two trailing legs
-fig.colorbar(pc, ax=ax, label="downwash $w$ [m/s] (positive down)")   # colour scale
+fig.colorbar(pc, ax=ax, label="downwash $w$ [m/s] (positive down)", ticks=[-3, -1, -0.3, -0.1, 0, 0.1, 0.3, 1, 3], format="%g")   # colour scale with readable ticks
 ax.set(xlabel="distance behind the wing $x$ [m]", ylabel="spanwise position $y$ [m]", title="Down between the tips, up outboard of them")   # labels
+ax.grid(False)                                               # no grid lines over the colour map
 plt.show()                                                   # display
 print(f"beside the wing, 2 m outboard of the tip (x = 0, y = 8 m): w = {float(LL.horseshoe_downwash(x=0.0, y=8.0, Gamma=10.0, s=12.0)):.3f} m/s")   # −0.341: an upwash
+print(f"on the centre line: w = {float(LL.horseshoe_downwash(x=0.0, y=0.0, Gamma=10.0, s=12.0)):.3f} m/s at the wing, {float(LL.horseshoe_downwash(x=24.0, y=0.0, Gamma=10.0, s=12.0)):.3f} m/s two spans behind it")   # the downwash roughly doubles downstream
 """,
     see="A map of the vertical air motion in the plane of a horseshoe vortex, seen from above: the wing is the thick line on "
-        "the left, the two legs trail to the right.",
-    read="Blue (sinking air) fills the lane between the legs; red (rising air) lies outside them. The printed value, −0.341 "
+        "the left, the two legs trail to the right. The colour scale is stretched (linear within ±0.1 m/s, logarithmic "
+        "beyond), so that the weak motion far from the vortex and the strong motion next to the legs are both visible.",
+    read="Blue (sinking air) fills the lane between the legs; red (rising air) lies outside them; the colour deepens toward "
+         "the legs, where the speed grows like one over the distance. The printed value, −0.341 "
          "m/s two metres outboard of the tip, is an *upwash*: free lift for whoever flies there.",
     change="…the neighbour flew directly behind instead? It would sit in the blue lane, in air sinking at up to twice the "
-           "leader's own downwash.")
+           "leader's own downwash (the second printed line).")
 note("N66 [B]", r"""
 **Ground effect.** A wall can be replaced by a mirror vortex of opposite strength (the method of images, Ch. 5 §5.7 and Ch. 6).
 An image horseshoe below the ground reduces the downwash at the wing's centre to
@@ -2401,21 +2608,32 @@ Both resolutions are **exact**: $U_e\sin\varepsilon=w$ and $U_e\cos\varepsilon=U
 path, with a section law at the reduced angle, is approximate.""")
 nb.figure(r"""
 rect = LL.solve_lifting_line(c=1.25, s=12.0, U=30.0, alpha=0.1, K=2*np.pi, N=32, rho=1.225)   # a rectangular wing (chord 1.25 m, span 12 m) at α = 0.1 rad = 5.7°; the solver is taught in C12
-fig, axes = plt.subplots(1, 3, figsize=(10.0, 3.0))          # one force triangle per station
+fig, axes = plt.subplots(1, 3, figsize=(11.0, 4.0))          # one force triangle per station
+arrow = lambda ax, tail, head, col, lw=2.0: ax.annotate("", xy=head, xytext=tail, arrowprops=dict(arrowstyle="->", color=col, lw=lw, shrinkA=0, shrinkB=0))   # a helper: one arrow from tail to head
 for ax, y1 in zip(axes, (0.0, 3.0, 5.5)):                    # mid-span, half-way out, near the tip [m]
     w1 = np.interp(y1, rect["y"], rect["w"])                 # downwash at this station [m/s]
-    e5 = 5*w1/30.0                                           # the tilt ε = w/U, exaggerated five times for the drawing [rad]
-    ax.annotate("", xy=(1, 0), xytext=(0, 0), arrowprops=dict(arrowstyle="->", color=COLORS["blue"]))              # the stream U
-    ax.annotate("", xy=(1, -np.tan(e5)), xytext=(1, 0), arrowprops=dict(arrowstyle="->", color=COLORS["blue"]))    # the downwash w (×5)
-    ax.annotate("", xy=(0.5 + 0.8*np.sin(e5), 0.8*np.cos(e5)), xytext=(0.5, 0), arrowprops=dict(arrowstyle="->", color="k"))   # the force, normal to the tilted stream
-    ax.annotate("", xy=(0.5, 0.8*np.cos(e5)), xytext=(0.5, 0), arrowprops=dict(arrowstyle="->", color=COLORS["teal"]))         # its lift part
-    ax.annotate("", xy=(0.5 + 0.8*np.sin(e5), 0.8*np.cos(e5)), xytext=(0.5, 0.8*np.cos(e5)), arrowprops=dict(arrowstyle="->", color=COLORS["rose"]))   # its induced-drag part
-    ax.set(xlim=(-0.05, 1.15), ylim=(-0.45, 0.95), title=f"y = {y1} m: w = {w1:.2f} m/s, ε = {np.degrees(w1/30.0):.2f}° (drawn ×5)")   # readout
+    e10 = 10*w1/30.0                                         # the tilt ε = w/U, exaggerated ten times for the drawing [rad]
+    tip = (0.5 + 0.8*np.sin(e10), 0.8*np.cos(e10))           # head of the force arrow: normal to the tilted stream
+    arrow(ax, (0, 0), (1, 0), COLORS["blue"])                # the stream U
+    arrow(ax, (1, 0), (1, -np.tan(e10)), COLORS["blue"])     # the downwash w (×10)
+    arrow(ax, (0.5, 0), tip, "k")                            # the force on the strip, normal to the tilted stream
+    arrow(ax, (0.5, 0), (0.5, tip[1]), COLORS["teal"])       # its lift part (normal to the flight path)
+    arrow(ax, (0.5, tip[1]), tip, COLORS["rose"], 2.6)       # its induced-drag part (along the flight path)
+    ax.set(xlim=(-0.35, 1.6), ylim=(-0.6, 1.0))              # the same window in the three panels
+    ax.set_title(f"y = {y1:g} m\nw = {w1:.2f} m/s, ε = {np.degrees(w1/30.0):.2f}°", fontsize=10)   # readout on two lines
     ax.set_aspect("equal"); ax.axis("off")                   # true proportions, no axes
+axl = axes[2]                                                # name the arrows once, in the panel where they are largest
+axl.text(0.2, 0.04, "U", color=COLORS["blue"], fontsize=9)                                  # the stream
+axl.text(1.04, -0.2, "w (×10)", color=COLORS["blue"], fontsize=9)                           # the downwash
+axl.text(0.46, 0.4, "lift\npart", color=COLORS["teal"], fontsize=9, ha="right")             # the teal arrow
+axl.text(0.66, 0.86, "induced drag part", color=COLORS["rose"], fontsize=9)                 # the rose arrow
+axl.text(0.80, 0.35, "force on\nthe strip", color="k", fontsize=9)                          # the black arrow
+fig.suptitle("The force leans back most where the downwash is largest (tilt drawn ×10)", fontsize=11)   # the message
 plt.show()                                                   # display
 """,
     see="The force triangle at three stations of a rectangular wing: stream and downwash (blue), the force on the strip "
-        "(black), its lift part (teal) and its induced-drag part (rose). The tilt is drawn five times too large.",
+        "(black), its lift part (teal) and its induced-drag part (rose). The tilt is drawn ten times too large; the "
+        "arrows are named in the right-hand panel.",
     read="On a rectangular wing the downwash is not uniform: it is larger near the tip than at mid-span, so the force leans "
          "back more there. The rose arrow is the induced drag of that strip.",
     change="…the loading were elliptic? All three triangles would be identical: the downwash would be the same everywhere (C14).")
@@ -2426,7 +2644,12 @@ is the largest part of a wing's drag is tested in C15, N75.)""")
 note("N38 [B]", r"""
 A second reading: the tip vortices get longer every second, so kinetic energy is fed into the wake at the rate
 $D_iU=\dfrac{d}{dt}(\text{wake kinetic energy})$ (stated, not derived). Power is force times speed (primed in Ch. 4, P127), so the induced drag
-equals the kinetic energy left behind *per metre flown*.""")
+equals the kinetic energy left behind *per metre flown*.
+
+**A link backward (the book's own analogy).** Induced drag is to a wing what wave drag is to a ship (Ch. 7): the ship keeps
+lengthening a wave train behind it, the wing keeps lengthening a pair of vortices, and in both cases the energy fed into that
+pattern per metre travelled is a drag that needs no friction. The same bookkeeping — drag × speed = energy carried away —
+is how the drag of mountains on the atmosphere is counted when the air flowing over them radiates internal gravity waves.""")
 nb.code(r"""
 Gn_r = rect["Gn"]                                            # the sine coefficients of the rectangular wing's loading [m²/s] (C11–C12 explain them)
 print(f"wake kinetic energy per metre = {LL.wake_kinetic_energy_per_length(Gn=Gn_r, s=12.0, rho=1.225):.3f} J/m; induced drag = {LL.induced_drag_from_series(Gn=Gn_r, rho=1.225):.3f} N")   # equal: 1 J/m = 1 N
@@ -2522,7 +2745,22 @@ cg, I = np.cos(1.0), [0.0, np.pi]                     # cg = cos(gamma_1) with g
 for n in range(1, 4): I.append(2*cg*I[n] - I[n-1])    # the recursion
 print(I[3], np.pi*np.sin(3*1.0)/np.sin(1.0))          # both 0.5269
 """)
-D("D15", "Glauert's integral, and the downwash of the series", ref="14.19")
+P("P352", "the sum of two cotangents and the product of two sines", r"""
+Two identities the next derivation uses once each. Over a common denominator,
+$\cot A+\cot B=\dfrac{\cos A\sin B+\cos B\sin A}{\sin A\sin B}=\dfrac{\sin(A+B)}{\sin A\,\sin B}$ (the numerator is the addition formula
+for the sine). And subtracting $\cos(A+B)=\cos A\cos B-\sin A\sin B$ from $\cos(A-B)=\cos A\cos B+\sin A\sin B$ gives
+$2\sin A\sin B=\cos(A-B)-\cos(A+B)$. One more reminder: $\dfrac{d}{d\gamma}\ln\lvert\sin u\rvert=\dfrac{du}{d\gamma}\cot u$, the chain
+rule applied to a logarithm (Ch. 1, P49).""", r"""
+A, B = 0.7, 0.2                                                          # two angles [rad]
+print(1/np.tan(A) + 1/np.tan(B), np.sin(A + B)/(np.sin(A)*np.sin(B)))    # both 6.120: cot A + cot B = sin(A + B)/(sin A sin B)
+print(2*np.sin(A)*np.sin(B), np.cos(A - B) - np.cos(A + B))              # both 0.256: 2 sin A sin B = cos(A − B) − cos(A + B)
+""")
+D("D15", "Glauert's integral, and the downwash of the series", ref="14.19", after=r"""
+**Five sympy functions in the check above.** `sp.diff(F, g)` differentiates and `sp.limit(expr, eps, 0)` takes a limit.
+`sp.chebyshevt(k, X)` is the polynomial $T_k$ for which $\cos k\gamma=T_k(\cos\gamma)$ — for example $T_2(X)=2X^2-1$, the
+double-angle formula. `sp.chebyshevu(k-1, X)` is its companion $U_{k-1}$, for which $\dfrac{\sin k\gamma}{\sin\gamma}=U_{k-1}(\cos\gamma)$.
+`sp.cancel` divides a fraction of polynomials out exactly. Writing the numerator as a polynomial in $X=\cos\gamma$ lets the
+factor $X-X_1$ cancel, so that what is left is an ordinary integral with no singular point.""")
 nb.worked_example("two sines by hand", r"""
 Γ₁ = 12 and Γ₃ = 1 m²/s on a span $s$ = 12 m.
 
@@ -2565,6 +2803,7 @@ axm.set(xlabel="spanwise position $y/s$ [–]", ylabel="downwash $w$ [m/s]", yli
 axm.legend(fontsize=8)                                       # which curve is which
 axb.bar(["last member\n(correct)", "direct\nintegral", "middle member\nas printed"], [w_last, w_quad, w_printed], color=[COLORS["teal"], COLORS["blue"], COLORS["rose"]])   # the three numbers of the slip check
 axb.axhline(0, color="k", lw=0.8)                            # zero line
+axb.grid(False)                                              # no grid lines across the bars
 axb.set(ylabel="mid-span downwash [m/s]", title="slip #1: the printed sign is wrong")   # labels
 plt.show()                                                   # display
 """,
@@ -2638,7 +2877,9 @@ print(f"section alone: C_L = {wd['K']*wd['alpha']:.4f}; the finite wing delivers
 1. `LL.solve_lifting_line` builds the matrix and right-hand side for N = 32, solves for the $\Gamma_n$ and returns the loading,
    the downwash and the coefficients.
 2. The wing's lift coefficient is 0.3954 at α = 5° (0.0873 rad): a slope of 4.530 per radian, 72 % of the section's 2π.
-3. The induced drag coefficient is 0.00869 and the span efficiency 0.954 (both explained in C13).
+3. The induced drag coefficient is 0.00869 and the **span efficiency** 0.954. Its definition, ahead of the derivation in
+   C13: $e_{\text{span}}\equiv\dfrac{\Gamma_1^2}{\sum n\Gamma_n^2}\le1$ — the share of the first sine in the sum that sets the induced
+   drag. It equals 1 for the loading with the least induced drag (one sine only) and is smaller for every other loading.
 4. The *condition number* (how much the solve amplifies small errors — collocation, Ch. 6 P162) is modest.
 5. The even coefficients vanish: a symmetric wing has a symmetric loading. Γ₃ is 12 % of Γ₁.""")
 scratch(r"""
@@ -2653,7 +2894,7 @@ for j in range(N4):                                          # one row per stati
 Gn4 = np.linalg.solve(A4, r4)                                # the four coefficients [m²/s]
 assert np.allclose(A4, LL.lifting_line_matrix(c=c_, s=s_, K=K_, N=4)[0])                       # same matrix → the library does exactly this
 assert np.allclose(Gn4, LL.solve_lifting_line(c=c_, s=s_, U=U_, alpha=al_, K=K_, N=4)["Gn"])   # and the same solution
-print("Γ_n (N = 4):", Gn4.round(4), "m²/s")                  # Γ1 = 0.2474, Γ3 = 0.0297; the even ones are zero
+print("Γ_n (N = 4):", Gn4.round(4), "m²/s")                  # Γ1 = 0.2505, Γ3 = 0.0276; the even ones are zero
 """, r"""
 1. Two nested loops fill the matrix entry by entry from $\dfrac K2\,Uc(\alpha+\beta)=\sum\Big(1+\dfrac{nKc}{4s\sin\gamma}\Big)\Gamma_n\sin(n\gamma)$ (14.20).
 2. `np.linalg.solve` returns the four coefficients.
@@ -2693,11 +2934,30 @@ for tp in (1.0, 0.8, 0.6, 0.4, 0.2, 0.1):                    # six taper ratios
 2. The printed lines list the span efficiency for six taper ratios.""")
 nb.figure_notes(
     see="Loading (first curve) against its elliptic ghost, and downwash (third curve) against its uniform ghost, as the taper "
-        "ratio goes from a nearly pointed tip (0.1) to a rectangle (1.0).",
+        "ratio goes from 0.1, a nearly pointed tip, to 1.0, a rectangle.",
     read="A rectangle carries too much toward the tips: its loading is fuller than the ellipse and its downwash rises "
          "outboard. A sharply tapered wing does the opposite. Near a taper ratio of 0.4 the two curves nearly coincide and "
          "the downwash is nearly flat — the printed span efficiency peaks there at 0.99.",
     change="…you twisted the tips down a little (washout)? The loading would move inboard, as taper does (the live cell and N63).")
+nb.figure(r"""
+fig, (axg, axw) = plt.subplots(1, 2, figsize=(9.6, 3.5))     # left: loadings; right: downwash — the slider figure above at three fixed positions
+for tp, col in zip((1.0, 0.4, 0.1), (COLORS["blue"], COLORS["teal"], COLORS["rose"])):   # a rectangle, the near-elliptic taper, a nearly pointed tip
+    st = LL.solve_lifting_line(c=LL.planform(kind="tapered", s=6.0, c_root=2*6.0/(6.0*(1 + tp)), taper=tp), s=6.0, U=1.0, alpha=wd["alpha"], K=2*np.pi, N=24)   # same span (6 m) and area (6 m²), one taper ratio
+    axg.plot(st["y"], st["Gamma"], color=col, label=f"taper {tp:g}: e_span = {st['e_span']:.3f}")   # the loading Γ(y)
+    axg.plot(st["y"], LL.elliptic_circulation(y=st["y"], s=6.0, Gamma1=st["Gn"][0]), color=col, ls=":", lw=1)   # the elliptic loading with the same lift (dotted)
+    axw.plot(st["y"], st["w"], color=col, label=f"taper {tp:g}")   # the downwash w(y) [m/s] at U = 1 m/s
+axg.set(xlabel="spanwise position $y$ [m]", ylabel="Γ [m²/s] (clockwise)", ylim=(0, 0.34), title="Loading (solid) against its ellipse (dotted)")   # labels
+axw.set(xlabel="spanwise position $y$ [m]", ylabel="downwash $w$ [m/s]", ylim=(0, 0.12), title="Downwash: flattest near taper 0.4")   # labels
+axg.legend(fontsize=7, loc="lower center"); axw.legend(fontsize=7, loc="upper center", ncol=3)   # which curve is which, placed clear of the curves
+plt.show()                                                   # display
+""",
+    see="The slider figure above frozen at three taper ratios, for a page without JavaScript: the loading of each wing with "
+        "the elliptic loading of the same lift (dotted), and its downwash.",
+    read="The rectangle (blue) is fuller than its ellipse toward the tips and its downwash climbs outboard; the nearly "
+         "pointed wing (rose) is the opposite — too peaked in the middle; the taper of 0.4 (teal) lies almost on its ellipse "
+         "and its downwash is nearly flat over the inner three quarters of the span. The span efficiencies in the legend rank them.",
+    change="…the aspect ratio were larger? All three loadings would move toward the shape of their chord distribution: on a "
+           "very slender wing each strip behaves like a section on its own.")
 nb.live(r"""
 def show_wing(taper=0.6, tip_twist_deg=0.0, AR=6.0, N=12):   # redraw for the slider values
     s_ = np.sqrt(AR*6.0)                                     # span for this aspect ratio at a fixed area of 6 m², from Λ = s²/A [m]
@@ -2713,7 +2973,7 @@ def show_wing(taper=0.6, tip_twist_deg=0.0, AR=6.0, N=12):   # redraw for the sl
     axr.bar(nn, nn*st["Gn"]**2, color=[COLORS["teal"]] + [COLORS["rose"]]*(len(nn) - 1))   # n Γ_n²: the first bar carries the lift, the others only cost drag
     axr.set(xlabel="n", ylabel="n Γ_n² [m⁴/s²]", title="what each sine adds to the induced drag")   # labels
     plt.show()                                               # display
-live(show_wing, taper=(0.1, 1.0, 0.1), tip_twist_deg=(-5.0, 5.0, 0.5), AR=(3.0, 20.0, 1.0), N=(1, 24, 1))   # four sliders (kernel only)
+_ = live(show_wing, taper=(0.1, 1.0, 0.1), tip_twist_deg=(-5.0, 5.0, 0.5), AR=(3.0, 20.0, 1.0), N=(1, 24, 1))   # four sliders (kernel only)
 """, explain=r"""
 **What does the code above do?** Four sliders — taper ratio, twist at the tip (degrees), aspect ratio and number of terms —
 re-solve the lifting-line equation and redraw the loading with its elliptic ghost and the bars $n\Gamma_n^2$. The slider figure
@@ -2784,14 +3044,15 @@ s12 = LL.solve_lifting_line(c=wd["c"], s=wd["s"], U=wd["U"], alpha=wd["alpha"], 
 nn = np.arange(1, 13)                                        # mode numbers 1…12
 terms = nn*s12["Gn"]**2                                      # n Γ_n²: what each sine adds to the induced drag [m⁴/s²]
 fig, ax = plt.subplots(figsize=(6.2, 3.3))                   # one panel
+ax.grid(False)                                               # no grid lines across the bars
 ax.bar(nn, 100*terms/terms.sum(), color=[COLORS["teal"]] + [COLORS["rose"]]*11)   # the first bar (teal) carries the lift; the others (rose) only cost drag
-ax.set(xlabel="sine term $n$", ylabel=r"share of the induced drag, $n\Gamma_n^2/\sum n\Gamma_n^2$ [%]", yscale="log", title="Lift lives in the first sine; the others are pure drag")   # logarithmic axis
+ax.set(xlabel="sine term $n$", ylabel=r"share of the induced drag, $n\Gamma_n^2/\sum n\Gamma_n^2$ [%]", yscale="log", ylim=(1e-4, 200), title="Lift lives in the first sine; the others are pure drag")   # logarithmic axis from 0.0001 % up: the even terms (zero to round-off, about 1e-30 %) fall below it and show no bar
 plt.show()                                                   # display
 print("shares for n = 1, 3, 5 [%]:", (100*terms[[0, 2, 4]]/terms.sum()).round(1), "; e_span =", round(LL.span_efficiency(Gn=s12["Gn"]), 3))   # 95.4, 4.2, 0.3; 0.954
 """,
     see="One bar per sine term of the rectangular wing's loading: its share of the induced drag, on a logarithmic axis.",
     read="The teal bar ($n$ = 1) is 95.4 % of the drag and *all* of the lift. The rose bars — 4.2 % from $n$ = 3, 0.3 % from "
-         "$n$ = 5 — buy no lift at all. The even terms are zero for a symmetric wing. The span efficiency is the teal share: "
+         "$n$ = 5 — buy no lift at all. The even terms are zero for a symmetric wing, so the places $n$ = 2, 4, 6, … are empty. The span efficiency is the teal share: "
          "0.954.",
     change="…the wing were tapered to 0.4? The rose bars would shrink to under 1 % in total (the explainer below shows it).")
 nb.worked_example("two sines again", r"""
@@ -2874,7 +3135,7 @@ nb.code(r"""
 Di_slow = LL.elliptic_induced_drag(L=ac["W"], rho=1.225, U=ac["U_slow"], s=ac["s"])       # Eq. (14.25): induced drag of our aircraft at 30 m/s [N]
 Di_fast = LL.elliptic_induced_drag(L=ac["W"], rho=1.225, U=ac["U_cruise"], s=ac["s"])     # the same at 55 m/s [N]
 print(f"D_i = {Di_slow:.1f} N at 30 m/s, {Di_fast:.1f} N at 55 m/s (ratio {Di_slow/Di_fast:.2f})")   # 324.8 and 96.6: it falls as 1/U²
-print(f"C_Di at C_L = 1.088, Λ = 9.6: {LL.induced_drag_coefficient(CL=1.088, AR=9.6):.4f}")           # Eq. (14.26): 0.0393
+print(f"C_Di at C_L = 1.088, Λ = 9.6: {LL.induced_drag_coefficient(CL=1.088, AR=9.6):.4f}")           # Eq. (14.26): 0.0392
 print(f"lift slope: {LL.finite_wing_lift_slope(K=2*np.pi, AR=9.6):.3f} per radian at Λ = 9.6, {LL.finite_wing_lift_slope(K=2*np.pi, AR=6.0):.3f} at Λ = 6 (section: {2*np.pi:.3f})")   # 5.200 and 4.712
 ew = LL.elliptic_wing(alpha=wd["alpha"], AR=6.0, K=2*np.pi)  # an untwisted elliptic wing of aspect ratio 6 at α = 5°
 print(f"elliptic wing, Λ = 6, α = 5° ({wd['alpha']:.4f} rad): C_L = {ew['CL']:.4f}, C_Di = {ew['CDi']:.5f}, w/U = {ew['w_over_U']:.4f}")   # 0.4112, 0.00897, 0.0218
@@ -2902,7 +3163,7 @@ plt.show()                                                   # display
     see="Three wings of the same span and area — a rectangle, a tapered wing and an ellipse — each with the loading and the "
         "downwash the lifting-line solver gives it.",
     read="Only the ellipse has a flat downwash, and its span efficiency is 1.000. The rectangle's downwash rises toward the "
-         "tips (0.954); the tapered wing is close to the ellipse (0.991).",
+         "tips and its efficiency is 0.954; the tapered wing, at 0.991, is close to the ellipse.",
     change="…the rectangle were twisted as in N63? Its downwash would flatten and its efficiency would reach 1 as well.")
 nb.plotly(r"""
 CLs = np.linspace(0.0, 1.5, 151)                             # lift coefficients on the horizontal axis
@@ -2920,7 +3181,8 @@ nb.figure_notes(
     see="A parabola — induced drag coefficient against lift coefficient — that flattens as the aspect-ratio slider moves up.",
     read="At a fixed lift coefficient the induced drag is inversely proportional to Λ: at $C_L$ = 1 it is 0.106 for a stubby "
          "Λ = 3 and 0.016 for a glider's Λ = 20. The same slenderness also raises the lift slope toward the section's 2π.",
-    change="…we add the drag that has nothing to do with lift — friction and form drag? Then there is a best speed to fly: C15.")
+    change="…the span were doubled at the same area? Λ quadruples and, at the same $C_L$, the induced drag coefficient "
+           "falls to a quarter.")
 whatif(r"""…we add the drag that has nothing to do with lift — friction and form drag? Then there is a best speed to fly: C15.""")
 
 
@@ -2945,8 +3207,8 @@ idea(r"""
 """, r"""Friction and form drag were Chapter 9 (§9.8) and recap R02 in C01; the induced part is C10–C14.""")
 note("N70 [B]", r"""
 **Measured section curves.** A straight range $C_L\simeq K(\alpha+\beta)$, lift at α = 0 from the camber, a maximum, a drop at stall; the
-drag is small and nearly flat at first, then rises roughly as α² and jumps at stall. The figure is a **qualitative model**
-whose every constant is ours.""")
+drag of a *section* is small and nearly flat until the stall, where it jumps (on a finite wing an induced part growing as
+$C_L^2$, that is as α², is added: the polar below). The figure is a **qualitative model** whose every constant is ours.""")
 nb.figure(r"""
 al = np.deg2rad(np.linspace(-6.0, 20.0, 261))                # angles of attack [rad] (−6° … 20°)
 stall = dict(K=5.7, beta=sec["beta"], alpha_stall=np.deg2rad(14.0), CL_post=0.9, width=np.deg2rad(2.0))   # our illustrative constants: slope 5.7/rad, stall at 14°, plateau 0.9, blended over 2°
@@ -3149,19 +3411,32 @@ confusion(r"""(trap T18) the perfect score is an identity of the triangle, not a
 and no wake, and treats each instant as steady.""")
 note("N79 [B]", r"""
 **Bird flight.** On the downstroke the wing moves down and forward through the air; the lift, normal to the relative wind,
-points up *and* forward: weight support and thrust at once. On the upstroke the wing is feathered — nearly edge-on to its
-relative wind — and does little.""")
+points up *and* forward: weight support and thrust at once. On the upstroke the wing moves up, so its relative wind comes
+from above-ahead and a positive lift would lean *backward*; the bird therefore feathers the wing — sets it nearly edge-on to
+that relative wind — and the wing does little.""")
 nb.code(r"""
-fig = draw_velocity_triangle(kind="bird_down")               # downstroke: the wing moves down, the relative wind comes from below-ahead, the lift leans forward
-fig = draw_velocity_triangle(kind="bird_up")                 # upstroke: the wing is feathered, the lift is small
+Ub, Vb = 10.0, 4.0                                           # flight speed and the wing's vertical speed in mid-stroke [m/s] (ours, arbitrary)
+fig = draw_velocity_triangle(kind="bird_down", U=Ub, V=Vb)   # downstroke: the wing moves down, so the relative wind comes from below-ahead and the lift leans forward
+fig = draw_velocity_triangle(kind="bird_up", U=Ub, V=Vb)     # upstroke: the wing moves up, so the relative wind comes from above-ahead and a positive lift leans backward
 plt.show()                                                   # display both sketches
-down = ch14.oscillating_foil(U=10.0, V=4.0, L=2.0)           # downstroke: flight speed 10 m/s, wing moving down at 4 m/s, lift 2 N
-up = ch14.oscillating_foil(U=10.0, V=4.0, L=0.2)             # upstroke: a tenth of the lift
-print(f"thrust: {down['thrust']:.3f} N on the downstroke, {up['thrust']:.3f} N on the upstroke; mean over the cycle {0.5*(down['thrust'] + up['thrust']):.2f} N")   # 0.743, 0.074, 0.41 (inputs ours, arbitrary)
+down = ch14.oscillating_foil(U=Ub, V=Vb, L=2.0)              # downstroke: V > 0 means the wing moves against its own lift (here: down); lift 2 N
+up = ch14.oscillating_foil(U=Ub, V=-Vb, L=0.2)               # upstroke: V < 0 means the wing moves the way its lift points (up); a feathered wing keeps, say, a tenth of the lift
+print(f"downstroke: θ = {np.degrees(down['theta']):+.1f}°, forward force {down['thrust']:+.3f} N, power the bird puts in {down['power_in']:+.2f} W")   # +21.8°, +0.743 N, +7.43 W
+print(f"upstroke:   θ = {np.degrees(up['theta']):+.1f}°, forward force {up['thrust']:+.3f} N, power the bird puts in {up['power_in']:+.2f} W")       # −21.8°, −0.074 N (backward), −0.74 W (the air pushes the wing up)
+print(f"mean forward force over the two half-strokes: {0.5*(down['thrust'] + up['thrust']):.2f} N")   # 0.33 N (inputs ours, arbitrary)
 """, tags=["figure"], explain=r"""
 **What does this show?** The same triangle as the fish tail turned on its side: with a wing speed of 4 m/s at a flight speed
-of 10 m/s (θ = 21.8°), 2 N of lift gives 0.74 N of thrust on the downstroke; the feathered upstroke adds little. The inputs
-are ours and arbitrary — the point is the direction of the force.""")
+of 10 m/s (θ = 21.8° = 0.381 rad), 2 N of lift gives 0.74 N of thrust on the downstroke. On the upstroke the triangle is
+mirrored — the relative wind comes from above — and whatever positive lift is left on the wing leans backward: a tenth of the
+lift gives −0.074 N, a small drag, while the air does 0.74 W of work *on* the wing. That is why the wing is feathered on the
+way up: set nearly parallel to its relative wind, it carries almost no force. The upstroke is therefore "≈ 0", and its sign
+depends on how the bird feathers the wing (a slightly negative lift would even give a little thrust, at the price of weight
+support). With our numbers the mean over the two half-strokes is 0.33 N. The inputs are ours and arbitrary — the point is the
+direction of the force.
+
+> ⚠️ **Common confusion:** the fish tail gives thrust on *both* half-strokes because its lift changes sides with the stroke
+> (a symmetric section meeting the water from the other side). A bird's wing must keep lifting upward, so only the downstroke
+> can lean its lift forward.""")
 note("N78 [C] · N80 [C]", r"""
 - **N78 [C]** Whales and dolphins move a horizontal tail up and down — the same triangle turned on its side; bumps on a
   humpback's flipper delay separation (N13, N72); flexible fins change camber within a stroke. Biological flows are Ch. 16.
@@ -3184,21 +3459,30 @@ the boat's own velocity, so it always comes from further ahead than the true win
 perpendicular to a wind from ahead-and-to-the-side points partly forward. The sideways rest of the force would shove the boat
 downwind, were it not for a second wing under the water: the keel.""")
 idea(r"""
-   plan view, the boat heading up the page
+   plan view, the boat heading up the page; the wind comes from ahead-right, so LEEWARD IS TO THE LEFT
 
                 true wind U  ↙  (from ahead and to the right, at θ off the bow)
         apparent wind U_r = U − V  ↓↙  (closer to the bow, at β_a < θ, and stronger)
 
                       ▲  V (boat velocity)
-                     ╱█╲
-        L  ◄────────  █      lift ⟂ U_r : points forward-and-left
-     (teal)           █  ↘ D drag ∥ U_r
+     L  ↖            ╱█╲
+   (teal) ╲───────    █      lift ⟂ U_r : points forward-and-left (to leeward)
+                      █
+           D  ↙ ──    █      drag ∥ U_r : points back-and-left, the way the apparent wind blows
                      ╲█╱
         drive  =  forward part of L  −  backward part of D
 """, r"""In this block θ is the **course angle** off the true wind, and $\beta_a$ the angle of the apparent wind off the bow (not
 the camber angle).""")
 remind("C16")
-D("D22", "Sailing: the apparent wind, the drive, and the closest course", ref="14.15")
+P("P353", "sailing vocabulary: bow, windward, leeward, abeam, run, tack, heel", r"""
+Seven words, with the sketch above in mind (boat heading up the page, wind from ahead-right). The **bow** is the front of the
+boat. The **windward** side is the side the wind comes from (the right in the sketch); the **leeward** side is the one it
+blows toward (the left). A wind from **abeam** arrives at 90° to the course, and sailing so is a **beam reach**; "forward of
+the beam" means from further ahead than that. A **run** is sailing with the wind from behind. To **tack** is to turn the bow
+through the wind so that it arrives over the other side; each straight leg of the zig-zag that results is also called a
+tack. The boat **heels** when the sideways force on the sail tips it toward leeward — ignored here: all forces are taken in
+the horizontal plane.""")
+D("D22", r"Sailing: the apparent wind, the drive $L\sin\beta_a-D\cos\beta_a$, and the closest course $\beta_a=\varepsilon_A+\varepsilon_H$")
 nb.worked_example("a beam reach by hand", r"""
 True wind $U$ = 4 m/s from exactly abeam (course angle 90°), boat speed $V$ = 3 m/s.
 
@@ -3235,7 +3519,7 @@ print(f"velocity made good toward the wind at 3 m/s on this course: {ch14.veloci
 scratch(r"""
 Uw, V_, th = boat["U_wind"], boat["V_boat"], boat["theta"]   # true wind speed [m/s], boat speed [m/s], course angle off the wind [rad]
 t_hat = np.array([np.cos(th), np.sin(th)])                   # unit vector along the course (axes: the wind blows toward −x)
-n_hat = np.array([np.sin(th), -np.cos(th)])                  # unit vector across the course, to leeward
+n_hat = np.array([-np.sin(th), np.cos(th)])                  # unit vector across the course, to leeward (the side the wind blows toward: its x-part is negative)
 U_vec = np.array([-Uw, 0.0])                                 # the true wind as a vector
 Ur = U_vec - V_*t_hat                                        # the apparent wind: true wind minus the boat's velocity
 ur = Ur/np.hypot(*Ur)                                        # its direction: the drag points along it
@@ -3247,7 +3531,8 @@ assert np.allclose([drive, lateral], [sf["drive"], sf["lateral"]])   # same numb
 print(f"drive = {drive:.1f} N, side force = {lateral:.1f} N; apparent wind {np.hypot(*Ur):.2f} m/s")   # 374.6, 980.9, 8.39
 """, r"""
 1. Everything is done with two-component vectors: the course direction, the leeward direction, the true wind and the boat's
-   velocity.
+   velocity. The axes of this cell: the true wind blows toward −x, and the course makes the angle θ with the upwind
+   direction +x (a third orientation, after the sketch with the bow up the page; the figure below turns the course along +x).
 2. The apparent wind is their difference; drag points along it and lift at right angles, on the side that faces the bow.
 3. Dot products (`@`) with the course direction and the leeward direction give drive and side force — the same numbers as
    `ch14.sail_forces`.""")
@@ -3257,7 +3542,9 @@ plt.show()                                                   # display
 """,
     see="The force diagram of our sail: the apparent wind (blue), the lift at right angles to it (teal), the drag along it "
         "(rose), and their resultant split into drive (along the course) and side force (across it).",
-    read="The resultant leans forward of the beam by $\\beta_a-\\varepsilon_A$: the apparent-wind angle minus the sail's drag angle. "
+    read="The diagram is turned so that the boat sails to the right (course along +x); the apparent wind arrives from ahead "
+         "and from the top of the page, so the top is the windward side and the bottom the leeward side. "
+         "The resultant leans forward of the beam (the direction square to the course) by $\\beta_a-\\varepsilon_A$: the apparent-wind angle minus the sail's drag angle. "
          "That lean is the drive. The much larger side force is what the keel must cancel.",
     change="…the sail were baggy, with L/D = 3? Its drag angle would open from 9.5° to 18.4° and the boat could not point as high.")
 note("N82 [B]", r"""
@@ -3289,7 +3576,7 @@ print(f"the drive vanishes at θ = {th_zero:.1f}° off the true wind (at V = 3 m
     change="…the boat were faster? The apparent wind would swing further ahead and the wedge would widen: fast boats tack "
            "through wider angles.")
 nb.animation(r"""
-n_frames = 60 if not FAST else 30                            # number of frames
+n_frames = 40 if not FAST else 20                            # number of frames (fewer when FAST)
 fig, (axf, axs) = plt.subplots(1, 2, figsize=(9.2, 3.6))     # left: a fish tail through one stroke; right: a boat tacking upwind
 axf.set(xlim=(-1.6, 1.6), ylim=(-1.3, 1.3), title="fish tail: thrust forward on both half-strokes", xlabel="swimming direction ←", ylabel="sideways")   # fixed axes
 axf.set_aspect("equal")                                      # true proportions
