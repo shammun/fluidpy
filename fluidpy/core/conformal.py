@@ -178,22 +178,27 @@ def joukowski_inverse_derivative(z, b: float = 1.0, branch: str = "outside"):
 
 
 def circle_flow_zeta(U: float, a: float, *, Gamma_cw: float | None = None, Gamma_ccw: float | None = None,
-                     alpha: float = 0.0) -> tuple[Callable, Callable]:
+                     alpha: float = 0.0, center: complex = 0j) -> tuple[Callable, Callable]:
     """Complex potential of the ζ-plane flow round a circle of radius a with clockwise circulation Γ (6.68), optionally
-    with the stream at angle α to the real axis: w(ζ) = U(ζe^{−iα} + a²e^{iα}/ζ) + (iΓ_cw/2π) ln(ζ/a).
-    Returns (w(ζ), dw/dζ). Book: §6.6 (6.68) (α = 0). Label: analytic."""
+    with the stream at angle α to the real axis and the circle centred at ``center`` = μ (Ch. 14, Fig. 14.16):
+    w(ζ) = U[(ζ − μ)e^{−iα} + a²e^{iα}/(ζ − μ)] + (iΓ_cw/2π) ln((ζ − μ)/a).
+    U [m/s]; a [m]; Γ [m²/s] by keyword (``Gamma_cw`` book, clockwise; ``Gamma_ccw`` project); α [rad]; μ [m] (complex,
+    default 0 — the ch06 form, unchanged). Returns (w(ζ), dw/dζ); dw/dζ = u − iv.
+    Book: §6.6 (6.68) (α = 0, μ = 0); §14.5 (the off-centre circle at incidence, obtained by replacing ζ with
+    (ζ − μ)e^{−iα} — shift, then rotate the stream). Label: analytic."""
     U, a, al = float(U), float(a), float(alpha)
     G = gamma_ccw_from(Gamma_cw, Gamma_ccw)
     Gcw = -G
     em, ep = np.exp(-1j * al), np.exp(1j * al)
+    mu = complex(center)
 
     def w(zeta):
-        s = _C(zeta)
+        s = _C(zeta) - mu
         with np.errstate(divide="ignore", invalid="ignore"):
             return U * (s * em + a ** 2 * ep / s) + 1j * Gcw / (2 * np.pi) * np.log(s / a)  # Eq. (6.68)
 
     def dw(zeta):
-        s = _C(zeta)
+        s = _C(zeta) - mu
         with np.errstate(divide="ignore", invalid="ignore"):
             return U * (em - a ** 2 * ep / s ** 2) + 1j * Gcw / (2 * np.pi * s)
 
