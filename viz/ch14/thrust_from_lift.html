@@ -509,6 +509,9 @@ button, input, select { font: inherit; color: inherit; }
   .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views { flex-direction: row; }
   .viz-app[data-layout="landscape"]:not([data-tab="derive"]) .viz-views > .viz-row { flex: 1 1 0 !important; min-width: 0; }
   .viz-app[data-layout="landscape"] .viz-view[data-view="power"] { display: none !important; }
+  /* Derivation tab on the short landscape frame (844x345 in a published page): the picture column is narrow and the
+     views are stacked, so only the derivation's own view stays, as on portrait phones (the engine marks the rest) */
+  .viz-app[data-layout="landscape"][data-tab="derive"] .viz-der-off { display: none !important; }
   .viz-app[data-layout="landscape"] .viz-transport .viz-optional,
   .viz-app[data-layout="landscape"] .viz-transport .viz-speed { display: none !important; }
 </style>
@@ -2535,7 +2538,13 @@ function statusOf(s) {
   const F = foilModel(s), r = F.r, eta = isFinite(F.etaNow) ? ' · efficiency ' + hm(F.etaNow, 2) : '';
   if (!F.bird) return { text: '🐟 tail sweeping ' + (F.down ? 'one way' : 'back') + ' · thrust ' + sgn(r.thrust, 1) + ' N' + eta + (nar ? '' : ' · the sideways force flips with the stroke, the thrust does not'), tone: r.thrust >= 0 ? 'good' : 'warn' };
   const up = r.side_force, word = F.down ? 'downstroke' : 'upstroke' + (s.upLift === 'feather' ? ' (feathered)' : s.upLift === 'lift' ? ' (still lifting)' : ' (lift reversed)');
-  return { text: '🪶 ' + word + ' · thrust ' + sgn(r.thrust, 1) + ' N · upward force ' + sgn(up, 1) + ' N' + (nar ? '' : F.down ? ' · the lift leans forward' : r.thrust < 0 ? ' · the lift leans backward' : ''), tone: r.thrust >= 0 ? 'good' : 'warn' };
+  // the phrase follows the signs shown: the lift's forward part L sin θ, and the thrust as printed (one decimal)
+  const fwd = F.L * Math.sin(r.theta), tr = +r.thrust.toFixed(1);
+  const lean = Math.abs(F.L) < 0.05 ? ' · the wing is turning round: almost no lift'
+    : tr > 0 ? ' · the lift leans forward'
+      : tr < 0 ? (fwd >= 0.05 ? ' · the lift leans forward too little: drag wins' : fwd <= -0.05 ? ' · the lift leans backward' : ' · the lift does not lean: only drag acts along the flight')
+        : ' · the lift\'s forward part just cancels the drag';
+  return { text: '🪶 ' + word + ' · thrust ' + sgn(r.thrust, 1) + ' N · upward force ' + sgn(up, 1) + ' N' + (nar ? '' : lean), tone: tr >= 0 ? 'good' : 'warn' };
 }
 function reading(s) {
   if (isSail(s)) {
@@ -2640,7 +2649,15 @@ function drawSail(v, s) {
   S.poly(hullA.concat(hullB.reverse()), Viz.alpha(C('card'), 0.85), Viz.alpha(text, 0.8), 1.6);
   S.seg(G.mix(-0.26, 0), G.mix(0.04, 0), Viz.alpha(muted, 0.9), 1.6, [3, 3]);
   // the angles: θ at the boat (course off the true wind), β_a at the bow (felt wind off the bow)
-  if (!tiny && s.thetaDeg >= 8) { const q = S.arc(O, [0, 1], t, Math.min(0.7 * cam.sc, 110), Viz.alpha(text, 0.6), 1.2); labelIn(ctx, W, H, 'θ', q[0], q[1], { align: 'center', color: text, size: 12.5, bg: false, halo: true }); }
+  let thetaAt = null;
+  if (!tiny && s.thetaDeg >= 8) {
+    const rp = Math.min(0.7 * cam.sc, 110), q = S.arc(O, [0, 1], t, rp, Viz.alpha(text, 0.6), 1.2), o = P(O);
+    // the label 'Uᵣ' (drawn below) sits beside the felt-wind arrow; where the θ label would land on it, θ goes inside
+    // its arc, next to the wind line
+    const sd = (tip[0] - A[0] <= 0 ? 1 : -1), pu = P([0.6 * A[0] + 0.4 * tip[0], 0.6 * A[1] + 0.4 * tip[1]]);
+    const hit = Math.abs(q[0] - (pu[0] - sd * 15)) < 24 && Math.abs(q[1] - pu[1]) < 18;
+    thetaAt = hit ? [o[0] + m * 9, o[1] - (rp - 10)] : q;                       // written last, on top of the force labels
+  }
   // the velocity triangle arriving at the bow
   S.arrow(A, B, blue, 2); S.arrow(B, tip, Viz.alpha(blue, 0.75), 1.5, [5, 3]); S.arrow(A, tip, blue, 3.4);
   if (!tiny && M.ba > rad(5) && r.Ur > 0.3) { const q = S.arc(tip, t, add(O, urv, -1), Math.min(0.34 * cam.sc, 40), blue, 1.6); if (!small) labelIn(ctx, W, H, 'βₐ', q[0], q[1], { align: 'center', color: blue, size: 12.5, bg: false, halo: true }); }
@@ -2674,6 +2691,7 @@ function drawSail(v, s) {
     S.label('U', A, [side, 0.5], Object.assign({ color: blue, off: 12 }, lo));
     if (s.VU > 0.12) S.label('−V', [0.5 * (B[0] + tip[0]), 0.5 * (B[1] + tip[1])], [side * 0.8, -0.8], Object.assign({ color: blue, off: 15, weight: 500 }, lo));
     S.label('Uᵣ', [0.6 * A[0] + 0.4 * tip[0], 0.6 * A[1] + 0.4 * tip[1]], [-side, 0], Object.assign({ color: blue, off: 15, weight: 700 }, lo));
+    if (thetaAt) labelIn(ctx, W, H, 'θ', thetaAt[0], thetaAt[1], { align: 'center', color: text, size: 12.5, bg: false, halo: true });
   }
   // the key with every arrow's value (wide frames; elsewhere the numbers are in the status line and the readouts)
   if (legend) {
@@ -2826,7 +2844,7 @@ function drawBars(v, s) {
   } else {
     const F = foilModel(s), r = F.r;
     rows = [[F.bird ? 'power in: V × upward force' : 'power in: V × side force', r.power_in, orange, 'W', 2], ['useful power out: U × thrust', r.power_out, purple, 'W', 2]];
-    foot = [isFinite(F.etaNow) ? 'efficiency now = out / in = ' + hm(F.etaNow, 2) : r.power_in < 0 ? 'the air is driving the wing: no efficiency to speak of' : 'no thrust at this instant', 'at mid-stroke: ' + (F.mid.thrust > 0 ? hm(F.mid.efficiency, 2) : '—') + ' · without drag: 1'];
+    foot = [isFinite(F.etaNow) ? 'efficiency now = out / in = ' + hm(F.etaNow, 2) : r.power_in < 0 ? 'the air is driving the wing: no efficiency to speak of' : 'no thrust at this instant', 'at mid-stroke: ' + (F.mid.thrust > 0 ? hm(F.mid.efficiency, 2) : 'none, no thrust (V/U < D/L)') + ' · without drag: 1'];
   }
   const maxA = Math.max(1e-9, Math.max.apply(null, rows.map(q => Math.abs(q[1])))), neg = rows.some(q => q[1] < 0);
   const x0 = 12 + (neg ? (W - 24) * 0.38 : 0), room = (W - 24) - (x0 - 12) - 4, bh = clamp((H - 20 - 17 * foot.length) / rows.length - 22, 10, 30);
@@ -2886,12 +2904,13 @@ function explainSail(s) {
   o += K.step(6, 'Progress to windward') +
     K.line('<b class="c-teal">speed made good</b> $V\\cos\\theta = ' + tx(M.V, 2) + '\\times' + (c < 0 ? '(' + tx(c, 3) + ')' : tx(c, 3)) + '$', hm(M.vmg, 2) + ' m/s = ' + hm(M.vmg / UW, 2) + ' U', 'how fast the boat gains ground straight upwind') +
     (e.sails ? K.line('steady speed on this course (drive = hull drag, hull drag area 0.05 m² in water)', hm(e.V, 2) + ' m/s = ' + hm(e.V / UW, 2) + ' U', 'the ring on the dashed curve; it gives ' + hm(e.vmg, 2) + ' m/s made good') : K.say('On this course the sail has no drive even at rest, so there is no steady speed: no ring on the dashed curve.')) +
+    K.say('Two hull models are in use, and they are not tied together. The steady speed takes the hull\'s drag from a fixed drag area (0.05 m² in water). The closest course in section 5 and the bars in section 7 use the hull-and-keel lift-to-drag slider (' + hm(s.LDh, 1) + ' now). Moving that slider does not change the steady speed, only which courses can be held.') +
     (isFinite(bc.thDeg) ? K.box('best course to windward for this sail and hull: about $\\mathbf{' + bc.thDeg + '^\\circ}$ off the true wind, ' + hm(bc.vmg, 2) + ' m/s made good — then tack and do the same on the other side') : '');
   o += K.step(7, 'The bars: what the hull must do') +
     (isFinite(M.need) ? K.line('side force / drive $= \\dfrac{' + tx(r.lateral, 0) + '}{' + tx(r.drive, 0) + '}$', hm(M.need, 2), 'in steady sailing the keel\'s lift over the hull\'s drag must equal this') +
       K.box('the hull and keel need $L/D \\ge ' + tx(M.need, 1) + '$; yours is $' + tx(s.LDh, 1) + '$: ' + (M.need <= s.LDh ? 'the course can be held' : 'too close, the boat slows')) : K.say('There is no forward drive here, so the hull has nothing to balance: the boat slows down.'));
   o += K.step(8, 'Fish tail and bird wing: the same triangle') +
-    K.say('Switch the system (chips above the picture). A fin moves sideways at $V$ while the fish advances at $U$, so the flow meets it at $\\tan\\theta=V/U = ' + tx(s.VS, 2) + '$. With 10 N of lift and $L/D = ' + tx(s.LDf, 1) + '$ at mid-stroke: thrust $L\\sin\\theta-D\\cos\\theta$ = <b>' + hm(F.mid.thrust, 2) + ' N</b>, efficiency <b>' + (F.mid.thrust > 0 ? hm(F.mid.efficiency, 2) : '—') + '</b>; without drag the efficiency is exactly 1.');
+    K.say('Switch the system (chips above the picture). A fin moves sideways at $V$ while the fish advances at $U$, so the flow meets it at $\\tan\\theta=V/U = ' + tx(s.VS, 2) + '$. With 10 N of lift and $L/D = ' + tx(s.LDf, 1) + '$ at mid-stroke: thrust $L\\sin\\theta-D\\cos\\theta$ = <b>' + hm(F.mid.thrust, 2) + ' N</b>, efficiency <b>' + (F.mid.thrust > 0 ? hm(F.mid.efficiency, 2) : 'none (no thrust: $V/U<D/L$)') + '</b>; without drag the efficiency is exactly 1.');
   o += K.interpret(reading(s), 'Reading the current setting');
   return o;
 }
@@ -2982,7 +3001,7 @@ const app = Viz.app({
     { id: 'th', label: 'Flow angle $\\theta$ now', unit: '°', value: s => foilModel(s).r.theta, fmt: v => dg(v) },
     { id: 'thr', label: 'Thrust now', unit: 'N', value: s => foilModel(s).r.thrust, fmt: v => sgn(v, 2) + ' N', tone: v => (v > 0 ? 'pos' : v < 0 ? 'neg' : '') },
     { id: 'sdf', label: 'Force across now', unit: 'N', value: s => foilModel(s).r.side_force, fmt: v => sgn(v, 2) + ' N' },
-    { id: 'eta', label: 'Efficiency (mid-stroke)', unit: '', value: s => { const F = foilModel(s); return F.mid.thrust > 0 ? F.mid.efficiency : NaN; }, fmt: v => hm(v, 3) }
+    { id: 'eta', label: 'Efficiency (mid-stroke)', unit: '', value: s => { const F = foilModel(s); return F.mid.thrust > 0 ? F.mid.efficiency : NaN; }, fmt: v => (isFinite(v) ? hm(v, 3) : 'none: no thrust') }
   ],
   terms: {
     title: 'The force along the course (sail) or along the swimming direction (fin, wing)', unit: 'N', sig: 3,
@@ -2995,7 +3014,8 @@ const app = Viz.app({
   stage: {
     rows: [1.5, 1],
     views: [
-      { id: 'plan', row: 0, flex: 1.4, title: s => { if (isSail(s)) { const M = sailModel(s); return '<b>From above</b> · drive/L ' + sgn(M.dl, 2) + ' · closest $\\beta_a$ ' + dg(M.lim) + ' · <span class="c-blue">velocities</span> · <span class="c-teal">lift</span> · <span class="c-rose">drag</span> · <span class="c-accent">drive</span>'; } const F = foilModel(s); return (F.bird ? '<b>The wing, from the side</b>' : '<b>The tail fin, from above</b>') + ' · thrust ' + sgn(F.r.thrust, 1) + ' N · <span class="c-blue">velocities</span> · <span class="c-teal">lift</span> · <span class="c-rose">drag</span> · <span class="c-accent">thrust</span>'; } },
+      { id: 'plan', row: 0, flex: 1.4, title: s => { const lowWide = window.innerHeight < 520 && !narrow();   /* landscape phone: a narrow view, so a title that fits whole */
+        if (isSail(s)) { const M = sailModel(s); if (lowWide) return '<b>From above</b> · drive/L ' + sgn(M.dl, 2); return '<b>From above</b> · drive/L ' + sgn(M.dl, 2) + ' · closest $\\beta_a$ ' + dg(M.lim) + ' · <span class="c-blue">velocities</span> · <span class="c-teal">lift</span> · <span class="c-rose">drag</span> · <span class="c-accent">drive</span>'; } const F = foilModel(s); if (lowWide) return (F.bird ? '<b>Wing, side view</b>' : '<b>Tail fin, top view</b>') + ' · thrust ' + sgn(F.r.thrust, 1) + ' N'; return (F.bird ? '<b>The wing, from the side</b>' : '<b>The tail fin, from above</b>') + ' · thrust ' + sgn(F.r.thrust, 1) + ' N · <span class="c-blue">velocities</span> · <span class="c-teal">lift</span> · <span class="c-rose">drag</span> · <span class="c-accent">thrust</span>'; } },
       { id: 'curve', row: 1, flex: 1.3, title: s => (isSail(s) ? '<b>Against the course angle</b> · <span class="c-accent">drive/L</span> · <span class="c-teal">speed made good/U</span> · dashed: at the steady speed' : '<b>Against the stroke speed</b> (mid-stroke) · <span class="c-accent">thrust/L</span> · <span class="c-teal">efficiency</span> · dashed: no drag') },
       { id: 'power', row: 1, flex: 1, hidePortrait: true, title: s => (isSail(s) ? '<b>Drive against side force</b>' : '<b>Power in, power out</b> · now') }
     ],

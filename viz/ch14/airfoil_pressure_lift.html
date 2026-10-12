@@ -2693,7 +2693,22 @@ function drawCp(v, s, q, cur, barsHidden) {
   if (v.h < 50 || v.w < 60) return;
   const ctx = v.ctx, P = cpPlot(v), S = q.S, small = v.w < 420, tiny = P.px.h < 80, low = P.px.h < 150;
   const orange = C('orange'), blue = C('blue'), amber = C('amber'), teal = C('teal'), rose = C('rose'), muted = C('muted'), text = C('text');
-  P.axes({ yticks: tiny ? [0] : (low ? [-1, 0, 2] : [-1, 0, 1, 2, 3]), xticks: small ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1] });
+  // the bar chart's three lift numbers, when that view is hidden: never squeezed — the longest wording that fits, else two rows
+  const liftRows = maxW => {
+    const a = z3(q.CL), b = z3(q.CLg), c = z3(q.CLr);
+    ctx.save(); ctx.font = Viz.font(12.5, 600);
+    const fits = t => ctx.measureText(t).width <= maxW;
+    const one = ['C_L: loop ' + a + ' · Γ ' + b + ' · 2π rule ' + c, 'C_L: loop ' + a + ' · Γ ' + b + ' · 2π ' + c].filter(fits)[0];
+    ctx.restore();
+    return one ? [one] : ['C_L: loop ' + a + ' · Γ ' + b, '2π rule ' + c];
+  };
+  const under = barsHidden && low && liftRows(P.px.w - 34).length === 1;      // short plot: the numbers go under the x-axis, clear of the curves
+  P.axes(Object.assign({ yticks: tiny ? [0] : (low ? [-1, 0, 2] : [-1, 0, 1, 2, 3]), xticks: small ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1] }, under ? { xlabel: '' } : {}));
+  if (under) {
+    const yb = v.h - 9;
+    Viz.text(ctx, 'x/c', P.px.x, yb, { color: muted, halo: false });
+    Viz.text(ctx, liftRows(P.px.w - 34)[0], P.px.x + P.px.w, yb, { color: teal, weight: 600, align: 'right', halo: false });
+  }
   const xg = q.xg, gu = q.gu, gl = q.gl, M = xg.length, mu = S.upper.cp.map(c => -c), ml = S.lower.cp.map(c => -c);
   P.clip(() => {
     // the loop, strip by strip: teal where the lower curve lies below the upper one (lift), rose where it is the other way round
@@ -2729,8 +2744,9 @@ function drawCp(v, s, q, cur, barsHidden) {
   const curAtPeak = off && Math.abs(cur.xc - S.xc_cp_min) < 0.08;
   if (-S.cp_min > YTOP && !curAtPeak) { const yy = small ? topY() : P.px.y + 11; Viz.text(ctx, '▲ peak ' + f2(S.cp_min) + ' (off the scale)', Math.min(xr - 150, P.X(S.xc_cp_min) + 10), yy, { color: q.peakUpper ? orange : blue, bg: true }); }
   else if (curAtPeak) row++;
-  if (barsHidden && !low) Viz.text(ctx, 'C_L: loop ' + z3(q.CL) + ' · Γ ' + z3(q.CLg) + ' · 2π rule ' + z3(q.CLr), xr, topY(), { color: teal, bg: true, align: 'right', maxWidth: P.px.w - 12 });
-  if (s.plate && !low) Viz.text(ctx, small ? 'dashed: flat plate ↑' : 'dashed: flat plate at the same α — its peak is unbounded ↑', xr, topY(), { color: muted, bg: true, align: 'right' });
+  let rowsLeft = Infinity;                                           // left edge of the right-aligned rows at the top
+  if (barsHidden && !under) liftRows(P.px.w - 20).forEach(t => { rowsLeft = Math.min(rowsLeft, xr - Viz.text(ctx, t, xr, topY(), { color: teal, bg: true, align: 'right' })); });
+  if (s.plate && !low) rowsLeft = Math.min(rowsLeft, xr - Viz.text(ctx, small ? 'dashed: flat plate ↑' : 'dashed: flat plate at the same α — its peak is unbounded ↑', xr, topY(), { color: muted, bg: true, align: 'right' }));
   if (!low) {
     Viz.text(ctx, small ? 'C_p = +1: stagnation' : 'C_p = +1: stagnation (the air is at rest)', xr, P.Y(-1) - 10, { color: amber, bg: true, align: 'right' });
     const i5 = Math.round(0.5 * (M - 1)), yu = gu[i5], yl2 = gl[i5];
@@ -2745,7 +2761,12 @@ function drawCp(v, s, q, cur, barsHidden) {
     if (q.sep && q.sep.separated && !small) Viz.text(ctx, 'laminar separation (model)', Math.min(xr - 4, P.X(q.sep.x_sep_over_c) + 166), P.px.y + P.px.h - 12, { color: rose, bg: true, align: 'right' });
   }
   // the cursor's numbers at the axes
-  Viz.text(ctx, 'C_p ' + (off ? unb(cur.cp) + ' ▲ off the scale' : unb(cur.cp)), Math.max(xl + 2, Math.min(xr - 70, P.X(cur.xc) + 10)), Math.max(P.px.y + 11, P.Y(cy) - (low ? 0 : 13)), { color: ccol, bg: true });
+  const ctxt = 'C_p ' + (off ? unb(cur.cp) + ' ▲ off the scale' : unb(cur.cp)), cx0 = Math.max(xl + 2, Math.min(xr - 70, P.X(cur.xc) + 10));
+  let cy0 = Math.max(P.px.y + 11, P.Y(cy) - (low ? 0 : 13));
+  ctx.save(); ctx.font = Viz.font(12.5, 600); const cw = ctx.measureText(ctxt).width; ctx.restore();
+  const rowsBottom = P.px.y + 11 + 19 * row;                         // first free row under the labels at the top
+  if (!curAtPeak && cx0 + cw + 8 > rowsLeft && cy0 < rowsBottom - 6) cy0 = rowsBottom;   // never on top of the lift numbers
+  Viz.text(ctx, ctxt, cx0, cy0, { color: ccol, bg: true });
 }
 
 function drawBars(v, s, q) {
@@ -2791,7 +2812,7 @@ function statusOf(s) {
   if (r === 'zero') return { text: nar ? 'zero lift: the loop cancels' : '⚖️ zero lift ($\\alpha = -\\beta$): the loop\'s two halves cancel · net area ' + z3(q.LA.Cy), tone: 'info' };
   if (r === 'reversed') return { text: nar ? 'lift reversed: peak ' + pk + ' below' : '🔻 lift reversed: suction on the lower surface · peak ' + pk + ' at ' + at + ' · $C_L$ = ' + f2(q.CL), tone: 'warn' };
   if (q.peak < -6) return { text: nar ? '⚠️ sharp peak ' + f1(q.peak) + ': would stall' : '⚠️ very sharp peak ' + f1(q.peak) + ' at ' + at + ': a real boundary layer would separate — stall', tone: 'warn' };
-  return { text: nar ? 'peak ' + pk + ' at ' + at : '✅ suction peak ' + pk + ' at ' + at + ' · pressure recovers over ' + f1(100 * (1 - q.peakX)) + ' % of the upper surface', tone: 'good' };
+  return { text: nar ? 'peak ' + pk + ' at ' + at : (r === 'high' ? '🔺 tall suction peak ' : '✅ suction peak ') + pk + ' at ' + at + ' · pressure recovers over ' + f1(100 * (1 - q.peakX)) + ' % of the upper surface', tone: r === 'high' ? 'info' : 'good' };
 }
 const E149 = '\\dfrac{dw}{dz}=\\dfrac{dw}{d\\zeta}\\,\\dfrac{\\zeta^2}{\\zeta^2-b^2}', E1411 = '\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)', E1412 = 'C_L\\simeq2\\pi(\\alpha+\\beta)', E662 = 'L=\\rho U\\Gamma';
 const ECP = 'C_p=\\dfrac{p-p_\\infty}{\\tfrac12\\rho U^2}=1-\\dfrac{\\lvert dw/dz\\rvert^2}{U^2}';
@@ -2850,7 +2871,7 @@ const app = Viz.app({
     rows: [1, 1.1],
     views: [
       { id: 'foil', row: 0, flex: 1, title: s => '<b>Pressure on the skin</b> · <span class="c-orange">arrow away = suction</span> · <span class="c-blue">arrow onto the skin = push</span> · <span class="c-amber">●</span> stagnation · <span class="c-teal">lift</span> at the centre of pressure · ○ cursor (click the surface)' },
-      { id: 'cp', row: 1, flex: 1.5, title: s => { const q = quantities(s); return '<b>$-C_p$ along the chord</b> · <span class="c-orange">upper</span> · <span class="c-blue">lower</span> · <span class="c-teal">loop area $C_y$ = ' + z3(q.LA.Cy) + '</span>' + (layoutOf() === 'wide' ? '' : ' · $C_L$: loop ' + z3(q.CL) + ' · Γ ' + z3(q.CLg) + ' · 2π rule ' + z3(q.CLr)); } },
+      { id: 'cp', row: 1, flex: 1.5, title: s => { const q = quantities(s); return '<b>$-C_p$ along the chord</b> · <span class="c-orange">upper</span> · <span class="c-blue">lower</span> · <span class="c-teal">loop area $C_y$ = ' + z3(q.LA.Cy) + '</span>'; } },
       { id: 'bars', row: 1, flex: 1, hidePortrait: true, title: '<b>Three ways to the lift</b> · <span class="c-teal">loop</span> · <span class="c-amber">circulation</span> · <span class="c-muted">2π rule</span>' }
     ],
     draw(g, s) {
@@ -2891,7 +2912,7 @@ const app = Viz.app({
       let out = W.step(0, 'What the views show') +
         W.say('<b>Top:</b> arrows show the pressure on the skin: <b class="c-orange">orange, pointing away</b> = suction (below ambient); <b class="c-blue">blue, pointing onto the skin</b> = push. The picture is turned so that the <b class="c-blue">stream</b> is horizontal. <b>Bottom:</b> the same numbers along the chord, plotted upside down so that suction is up; <b class="c-orange">upper</b> and <b class="c-blue">lower</b> surface enclose a <b class="c-teal">loop</b>.') +
         W.say('<b>Sign.</b> The book counts circulation clockwise: a wing with positive lift has $\\Gamma > 0$. The readout "Γ (clockwise)" uses that sign. The complex velocity is $dw/dz = u - iv$. Lengths are in units of the map constant $b$ (chord ≈ 4$b$), speeds in units of $U$; $x/c$ runs along the $x$-axis from the leading edge\'s $x$.') +
-        W.hint('On phones the bar chart is hidden; its three lift numbers are written inside the graph and worked out in section 6.');
+        W.hint('On phones the bar chart is hidden. Its three lift numbers are the <b class="c-teal">teal line "C_L: loop · Γ · 2π rule"</b>: under the graph\'s $x$-axis on an upright phone, in the graph\'s top right corner on a sideways one. Section 6 works them out.');
       out += W.step(1, 'The circulation') +
         W.line('$\\alpha = ' + A + '^\\circ = ' + t4(al) + '$ rad, $\\beta = ' + B + '^\\circ = ' + t4(be) + '$ rad', '', 'sliders in degrees, arithmetic in radians') +
         W.line('$\\alpha+\\beta = ' + AB + '^\\circ$', t4(sum) + ' rad', 'the absolute angle of attack') +
@@ -3035,11 +3056,11 @@ print(sep["x_sep_over_c"])        # {{xsep}} of the chord`,
     { id: 'vel', title: 'Velocity on the airfoil', ref: 'Eq. (14.9)', tex: E149,
       live: s => { const P = cursorOf(s); return isFinite(P.map_factor_abs) ? '\\Big\\lvert\\dfrac{dw}{dz}\\Big\\rvert = ' + t2(P.dwdzeta_abs) + '\\times' + t2(P.map_factor_abs) + ' = ' + t2(P.speed) + '\\ U' : '\\Big\\lvert\\dfrac{dw}{dz}\\Big\\rvert\\to U\\dfrac ba\\cos(\\alpha+\\beta) = ' + t2(P.speed) + '\\ U'; },
       note: 'the circle flow times the map factor; at the tail it is 0 × ∞ with a finite limit (Kutta)',
-      symbols: [['\\zeta', 'point of the circle plane', 'm'], ['z', 'its image on the section, $z=\\zeta+b^2/\\zeta$', 'm'], ['b', 'map constant (chord ≈ 4b)', 'm']] },
+      symbols: [['\\zeta', 'point of the circle plane', 'm (here: b)'], ['z', 'its image on the section, $z=\\zeta+b^2/\\zeta$', 'm (here: b)'], ['b', 'map constant (chord ≈ 4b); the page\'s length unit', 'm']] },
     { id: 'kutta', title: 'Kutta circulation', ref: 'Eq. (14.11)', tex: E1411,
       live: s => { const q = quantities(s); return '\\Gamma = 4\\pi\\times1\\times' + t4(q.S.a) + '\\times\\sin(' + dg(q.lifting).replace('−', '-') + '^\\circ) = ' + t3(q.S.Gamma_cw) + '\\ Ub'; },
       note: 'clockwise-positive: positive lift needs $\\Gamma > 0$',
-      symbols: [['\\Gamma', 'circulation, clockwise +', 'm²/s'], ['a', 'radius of the circle, $b(1+e)/\\cos\\beta$', 'm'], ['\\alpha', 'angle of attack', 'rad'], ['\\beta', 'camber angle', 'rad']] },
+      symbols: [['\\Gamma', 'circulation, clockwise +', 'm²/s (here: Ub)'], ['a', 'radius of the circle, $b(1+e)/\\cos\\beta$', 'm (here: b)'], ['\\alpha', 'angle of attack', 'rad'], ['\\beta', 'camber angle', 'rad']] },
     { id: 'cy', title: 'Normal force = loop area', ref: 'D10 (no book number)', tex: 'C_y\\equiv\\dfrac{F_y}{\\tfrac12\\rho U^2c}=\\oint C_p\\,d\\Big(\\dfrac xc\\Big)',
       live: s => { const LA = quantities(s).LA; return 'C_y = ' + t3(LA.upper) + ' + (' + t3(LA.lower) + ') = ' + t3(LA.Cy); },
       note: 'upper-surface suction + lower-surface pressure; pressure forces only',
@@ -3081,17 +3102,17 @@ print(sep["x_sep_over_c"])        # {{xsep}} of the chord`,
       { name: 'loop area', js: LA.Cy, py: '(lambda S, f=ch14.normal_force_coefficient: f(' + ARGS + '))(' + SURF_PY + ')', rtol: 1e-9 },
       { name: 'CL from the loop', js: clFromLoop(LA.Cy, a5), py: '(lambda S, f=ch14.lift_from_cp, al=np.deg2rad(5.0): f(' + ARGS + ', alpha=al))(' + SURF_PY + ')', rtol: 1e-9 },
       { name: 'circulation from the surface speed', js: circ(S), py: 'ch14.surface_circulation(surface=' + SURF_PY + ')', rtol: 1e-9 },
-      { name: 'CL pressure route', js: F.CL, py: FORCE_PY + '["CL"]', rtol: 1e-5 },
+      { name: 'CL pressure route', js: F.CL, py: FORCE_PY + '["CL"]', rtol: 1e-9 },
       { name: 'Fy pressure route', js: F.Fy, py: FORCE_PY + '["Fy"]', rtol: 1e-9 },
       { name: 'Fx pressure route (leading-edge suction)', js: F.Fx, py: FORCE_PY + '["Fx"]', rtol: 1e-8 },
-      { name: 'centre of pressure x/c', js: F.xcp_over_c, py: FORCE_PY + '["xcp_over_c"]', rtol: 1e-5 },
-      { name: 'thick symmetric: CL', js: F2.CL, py: 'ch14.zhukhovsky_force(U=1.0, b=1.0, e=0.15, beta=0.0, alpha=np.deg2rad(8.0), rho=1.0, method="pressure")["CL"]', rtol: 1e-5 },
+      { name: 'centre of pressure x/c', js: F.xcp_over_c, py: FORCE_PY + '["xcp_over_c"]', rtol: 1e-9 },
+      { name: 'thick symmetric: CL', js: F2.CL, py: 'ch14.zhukhovsky_force(U=1.0, b=1.0, e=0.15, beta=0.0, alpha=np.deg2rad(8.0), rho=1.0, method="pressure")["CL"]', rtol: 1e-9 },
       { name: 'thick symmetric: cp min', js: S2.cp_min, py: 'ch14.zhukhovsky_surface(U=1.0, b=1.0, e=0.15, beta=0.0, alpha=np.deg2rad(8.0), n=2000)["cp_min"]', rtol: 1e-9 },
       { name: '2π of the thin rule',js: clRule(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(alpha=1.0, beta=0.0)', rtol: 1e-12 },
       { name: 'lambda_sep', js: LAMBDA_SEP, py: 'core.boundary_layer.LAMBDA_SEP_FS', rtol: 1e-9 },
-      { name: 'separation (qualitative), α = 6°', js: sepPoint(rad(6), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(6.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 2e-2 },
-      { name: 'separation (qualitative), α = 2°', js: sepPoint(rad(2), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(2.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 2e-2 },
-      { name: 'separation (qualitative), thick symmetric 8°', js: sepPoint(rad(8), 0.15, 0, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(8.0), e=0.15, beta=0.0, Re_c=1.0e6)["x_sep_over_c"]', rtol: 2e-2 },
+      { name: 'separation (qualitative), α = 6°', js: sepPoint(rad(6), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(6.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 1e-3 },
+      { name: 'separation (qualitative), α = 2°', js: sepPoint(rad(2), 0.08, b4, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(2.0), e=0.08, beta=np.deg2rad(4.0), Re_c=1.0e6)["x_sep_over_c"]', rtol: 1e-3 },
+      { name: 'separation (qualitative), thick symmetric 8°', js: sepPoint(rad(8), 0.15, 0, 1e6).x_sep_over_c, py: 'ch14.suction_side_separation(alpha=np.deg2rad(8.0), e=0.15, beta=0.0, Re_c=1.0e6)["x_sep_over_c"]', rtol: 1e-3 },
       { name: 'flat plate ghost: cp at 30 % chord', js: surfacePoint(1, 1, 0, 0, a5, tPl).cp, py: 'ch14.surface_point(U=1.0, b=1.0, e=0.0, beta=0.0, alpha=np.deg2rad(5.0), t=np.arccos(-0.4))["cp"]', rtol: 1e-9 },
       { name: 'flat plate ghost = closed form', js: surfacePoint(1, 1, 0, 0, a5, tPl).cp, expect: plateU, rtol: 1e-9 },
       { name: 'flat plate: leading-edge speed is unbounded (finite? 0 = no)', js: isFinite(surfacePoint(1, 1, 0, 0, a5, Math.PI).speed) ? 1 : 0, expect: 0, atol: 0 },
