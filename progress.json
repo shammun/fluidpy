@@ -384,9 +384,9 @@
       "title": "Aerodynamics",
       "slug": "aerodynamics",
       "analyze": "pass",
-      "curate": "running",
-      "design": "todo",
-      "implement": "todo",
+      "curate": "pass",
+      "design": "running",
+      "implement": "running",
       "verify": "todo",
       "review": "todo",
       "viz": "todo",
@@ -394,7 +394,7 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "analyze: 113 inventory rows, 27 numbered equations (14.1)-(14.27) each once (23 own-line + 4 in two grouped labels), 83 CODE / 10 DEMO / 20 SKIP, 101 NEW / 12 SEEN, 40 derivations (12/21/7 by stars), 16 load-bearing clusters, 10 suspected slips + 18 traps, all 38 pages rendered",
+      "notes": "analyze: 113 inventory rows, 27 numbered equations (14.1)-(14.27) each once (23 own-line + 4 in two grouped labels), 83 CODE / 10 DEMO / 20 SKIP, 101 NEW / 12 SEEN, 40 derivations (12/21/7 by stars), 16 load-bearing clusters, 10 suspected slips + 18 traps, all 38 pages rendered; curate: 16 CORE (A) / 83 NOTE / 12 RECAP / 2 SKIP = 113 rows, 22 derivations written out (4/14/4 by stars) covering 29 analysis derivations, 11 demoted, 15 primers P336-P350, 9 explainers + backup wake_rollup, 10 slips + 18 traps tabled",
       "updated": "2026-10-12"
     },
     "ch15": {
