@@ -2800,7 +2800,7 @@ function explainHtml(s) {
     W.line(`$8\\pi\\dfrac ac\\sin(\\alpha+\\beta)=8\\pi\\times\\dfrac{${t4(n.a)}}{${t4(n.chord)}}\\times\\sin ${dt(ab)}^\\circ$`, f4(n.CLe), 'from $\\Gamma=4\\pi Ua\\sin(\\alpha+\\beta)$ (14.11) and $L=\\rho U\\Gamma$ (6.62), no approximation') +
     W.box(Math.abs(n.CLr) > 1e-6 ? `<b class="c-teal">exact $C_L=\\mathbf{${t4(n.CLe)}}$</b> (dashed) — ${f2(100 * (n.CLe / n.CLr - 1))} % ${n.CLe / n.CLr >= 1 ? 'more' : 'less'} than the rule: thickness makes $a/c=${t3(n.a / n.chord)}$ instead of ¼` : '<b class="c-teal">exact $C_L=0$</b> too: both forms vanish at $\\alpha=-\\beta$');
   o += W.step(4, 'The model of a measurement') +
-    W.line(`$Re_c=\\dfrac{Uc}{\\nu}=\\dfrac{${cs.U}\\times${cs.c}}{1.5\\times10^{-5}}$`, Viz.fmt(n.Re), `→ "${n.kind}" (our thresholds: below $5\\times10^{5}$ / above $3\\times10^{6}$)`) +
+    W.line(`$Re_c=\\dfrac{Uc}{\\nu}=\\dfrac{${cs.U}\\times${cs.c}}{1.5\\times10^{-5}}$`, Viz.fmt(n.Re), `an illustrative speed and chord, not the example aircraft\'s → "${n.kind}" (our thresholds: below $5\\times10^{5}$ / above $3\\times10^{6}$)`) +
     W.line(`below stall: $K(\\alpha+\\beta)=${K_MODEL}\\times${t4(abr)}$`, f3(K_MODEL * abr), 'a slope a little under $2\\pi$: boundary layers thicken the section') +
     W.line(`$\\sigma=x^2(3-2x),\\ x=\\dfrac{\\alpha-\\alpha_s}{2^\\circ}=\\dfrac{${dt(A)}-${n.md.astall}}{2}$ clipped to [0, 1]`, `σ = ${f3(n.sig)}`, 'the stalled fraction: 0 on the line, 1 on the plateau') +
     W.line(`$C_L=(1-\\sigma)K(\\alpha+\\beta)+\\sigma\\,C_{L,\\text{post}}=${t3(1 - n.sig)}\\times${t3(K_MODEL * abr)}+${t3(n.sig)}\\times${n.md.post}$`, f3(n.CLm), `the rose curve; x = ${f3(x)}`) +
@@ -2811,6 +2811,7 @@ function explainHtml(s) {
     W.box(`<b class="c-muted">on the wing: $C_L=${t3(n.s3)}\\times${t4(abr)}=\\mathbf{${t3(n.CL3)}}$</b> (the grey line) against ${f3(n.CLr)} for the section alone`);
   o += W.step(6, 'The slowest flight') +
     W.say('Level flight needs lift = weight. The slowest speed is the one at the largest lift coefficient the wing can reach (here the model\'s maximum, used for the whole wing — an illustration):') +
+    W.say(`This is the <b>section</b> model\'s maximum applied to the whole wing; a finite wing\'s maximum is lower, and the elliptic-loading explainer gives this same aircraft a wing value of $C_{L,\\max}=1.4$, hence its ${f3(uStall(9000, 1.225, 15, 1.4))} m/s.`) +
     W.line(`clean: $U_{\\min}=\\sqrt{\\dfrac{2W}{\\rho A\\,C_{L,\\max}}}=\\sqrt{\\dfrac{2\\times9000}{1.225\\times15\\times${t3(n.mxClean.CL)}}}$`, `${f3(n.UminClean)} m/s`, `${kmh(n.UminClean)} km/h`) +
     W.line(`flap down: $\\sqrt{\\dfrac{2\\times9000}{1.225\\times15\\times${t3(n.mxFlap.CL)}}}$`, `${f3(n.UminFlap)} m/s`, `${kmh(n.UminFlap)} km/h; the flap adds $K\\times2\\times0.03=${t3(K_MODEL * 2 * FLAP_CAMBER)}$ to $C_{L,\\max}$`) +
     W.box(`<b class="c-blue">now (${s.flap ? 'flap down' : 'clean'}): $U_{\\min}=\\mathbf{${t3(n.Umin)}}$ m/s</b> · the flap buys ${f2(n.UminClean - n.UminFlap)} m/s, because $U_{\\min}\\propto1/\\sqrt{C_{L,\\max}}$`);
@@ -2911,7 +2912,7 @@ const QUIZ = [
 
 /* ---- selftest: parity with fluidpy (py) and invariants (expect) ---------------------------------------------------- */
 function selftestRows() {
-  const C8 = contour(1, 0.08, 0.07, 8), GEN = a => `ch14.generic_lift_curve(np.deg2rad(${a}), K=5.7, beta=0.07, alpha_stall=np.deg2rad(14.0), CL_post=0.9, width=np.deg2rad(2.0))`;
+  const C8 = contour(1, 0.08, 0.07, 8), GEN = a => `ch14.generic_lift_curve(alpha=np.deg2rad(${a}), K=5.7, beta=0.07, alpha_stall=np.deg2rad(14.0), CL_post=0.9, width=np.deg2rad(2.0))`;
   const AFP = 'ch14.zhukhovsky_airfoil(b=1.0, e=0.08, beta=0.07, n=8)', RG = '["laminar separation first", "mixed", "transition first"].index';
   const mx = modelMax(0.07, rad(15), 1.0), h = 1e-6;
   return [
@@ -2927,9 +2928,9 @@ function selftestRows() {
     { name: 'stall speed', js: uStall(9000, 1.225, 15, 1.4), py: 'ch14.stall_speed(W=9000.0, rho=1.225, A=15.0, CL_max=1.4)', rtol: 1e-12 },
     { name: 'wing slope, aspect ratio 9.6', js: slope3D(2 * PI, 9.6), py: 'ch14.finite_wing_lift_slope(K=2*np.pi, AR=9.6)', rtol: 1e-12 },
     { name: 'chord Reynolds number', js: chordRe(60, 1.5, 1.5e-5), py: 'ch14.chord_reynolds(U=60.0, c=1.5, nu=1.5e-5)', rtol: 1e-12 },
-    { name: 'regime label, Re 2e5 (index)', js: REGIMES.indexOf(regime(2e5, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(2e5, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
-    { name: 'regime label, Re 1e6 (index)', js: REGIMES.indexOf(regime(1e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(1e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
-    { name: 'regime label, Re 6e6 (index)', js: REGIMES.indexOf(regime(6e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(6e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'regime label, Re 2e5 (index)', js: REGIMES.indexOf(regime(2e5, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(Re_c=2e5, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'regime label, Re 1e6 (index)', js: REGIMES.indexOf(regime(1e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(Re_c=1e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
+    { name: 'regime label, Re 6e6 (index)', js: REGIMES.indexOf(regime(6e6, 5e5, 3e6)), py: `${RG}(ch14.stall_regime(Re_c=6e6, Re_laminar=5e5, Re_turbulent=3e6))`, atol: 1e-12 },
     { name: 'Kutta circulation', js: gammaK(1, circle(1, 0.08, 0.07).a, rad(5), 0.07), py: 'ch14.kutta_circulation(U=1.0, a=ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=0.07)[1], alpha=np.deg2rad(5.0), beta=0.07)', rtol: 1e-12 },
     { name: 'contour point 3, x', js: C8.x[3], py: `${AFP}["x"][3]`, rtol: 1e-12 },
     { name: 'contour point 3, y', js: C8.y[3], py: `${AFP}["y"][3]`, rtol: 1e-12 },

@@ -2662,6 +2662,10 @@ function ensureParticles(n, count) {
 function stepParticles(n, tau) { if (!PT.list.length) return; for (const p of PT.list) advance(p, tau, n, PT.NL); }
 
 /* ---- the "start-up" ramp: ▶ raises Γ/Γ_K to 1 and holds it there while the particles keep flowing ----------------- */
+/* pin() and CFG.onChange below read/write the library's private flag app._fromLoop (viz_lib.js, inside Viz.app): it is
+   set by setInternal() while the transport loop writes its own parameter, and app.set() tests it three times — it keeps
+   app.holding / holdLeft (so the end-of-run hold survives), skips updateDynamic() + app.draw() (the loop redraws), and
+   saveHash() returns early. Replace both uses when the library offers transport.max / holdAt. */
 const HOLD = { g: null };
 function pin(app, v) { app._fromLoop = true; try { app.set('g', v); } finally { app._fromLoop = false; } }
 
@@ -2725,7 +2729,7 @@ function drawTail(v, s, n, P) {
 }
 function zTitle(s) {
   const n = N(s), ed = n.isK ? `${f3(n.teS)} U` : 'unbounded';
-  if (narrow()) return `<b>Airfoil</b> · edge ${n.isK ? f2(n.teS) + ' U' : 'unbounded'}`;
+  if (narrow()) return `<b>Airfoil</b> · edge ${n.isK ? f3(n.teS) + ' U' : 'unbounded'}`;
   return `<b>z-plane: the airfoil</b> · edge speed <b class="${n.isK ? 'c-teal' : 'c-rose'}">${ed}</b> · Γ/Γ_K ${s.g.toFixed(2)} · <span class="c-amber">amber: fluid at rest</span> · <span class="c-teal">lift</span> ⟂ <span class="c-blue">stream</span>`;
 }
 
@@ -2771,6 +2775,10 @@ function drawZeta(v, s, n, P, net) {
     const mid = 0.5 * (al - be), lx = Qx + (R + 16) * Math.cos(mid), ly = Qy - (R + 16) * Math.sin(mid);
     Viz.text(ctx, `α + β = ${dg(s.alphaDeg + s.betaDeg)}°`, Math.min(Math.max(lx + 4, Bx + 26), P.px.x + P.px.w - 78), ly + (al >= 0 ? 14 : -14), { size: 12.5, weight: 700, color: AM, bg: true, pad: 2 });
     Viz.text(ctx, 'stream', Math.min(Qx + 1.28 * R * Math.cos(al) + 4, P.px.x + P.px.w - 44), Qy - 1.28 * R * Math.sin(al) - 12 * (al >= 0 ? 1 : -1), { size: 12, weight: 650, color: BL, bg: true, pad: 2 });
+  } else if (!tiny && R > 30 && Math.abs(al + be) > 1e-6) {
+    // narrower views (e.g. the Derivation tab) keep the one label the Watch line of D09 points to: the amber arc
+    const mid = 0.5 * (al - be), lx = Qx + (R + 14) * Math.cos(mid), ly = Qy - (R + 14) * Math.sin(mid);
+    Viz.text(ctx, 'α + β', Math.min(Math.max(lx + 4, Bx + 14), P.px.x + P.px.w - 40), ly + (al >= 0 ? 14 : -14), { size: 12.5, weight: 700, color: AM, bg: true, pad: 2 });
   }
 }
 function zetaTitle(s) {
@@ -2838,7 +2846,7 @@ function edgeTitle(s) {
 function statusOf(s) {
   const n = N(s), sm = narrow();
   if (n.zero) return { text: sm ? '⚖️ zero lift: Γ_K = 0' : '⚖️ zero lift: the Kutta circulation is 0 — the stream points straight at B (α = −β)', tone: 'info' };
-  if (n.isK) return { text: sm ? `✅ Kutta: leaves the edge at ${f2(n.teS)} U` : `✅ Kutta: flow leaves the edge smoothly at ${f2(n.teS)} U · Γ (clockwise) = ${f3(n.G)} U·b`, tone: 'good' };
+  if (n.isK) return { text: sm ? `✅ Kutta: leaves the edge at ${f3(n.teS)} U` : `✅ Kutta: flow leaves the edge smoothly at ${f3(n.teS)} U · Γ (clockwise) = ${f3(n.G)} U·b`, tone: 'good' };
   const side = n.upper ? 'upper' : 'lower';
   return { text: sm ? `⚠️ rest point on the ${side} side, ${pctTxt(n.pct)} % c ahead · edge speed unbounded` : `⚠️ rear stagnation point on the ${side} surface, ${pctTxt(n.pct)} % of chord ahead of the edge — edge speed unbounded`, tone: s.g < 1 ? 'warn' : 'bad' };
 }
@@ -2983,38 +2991,39 @@ al = np.deg2rad({{alpha}})  # angle of attack
 be = np.deg2rad({{beta}})  # camber angle
 # circle through zeta = b: a = {{a}} b
 mu, a = ch14.zhukhovsky_circle(
-    1.0, {{e}}, be)
+    b=1.0, e={{e}}, beta=be)
 # Kutta circulation, clockwise: {{GK}}
 GK = ch14.kutta_circulation(
-    1.0, a, al, be)
+    U=1.0, a=a, alpha=al, beta=be)
 # the same by bisection: {{GR}}
 GR = ch14.kutta_circulation_root(
-    1.0, 1.0, {{e}}, be, al)
+    U=1.0, b=1.0, e={{e}}, beta=be, alpha=al)
 # thin rule 2*pi*(al + be): {{CL}}
 CL = ch14.zhukhovsky_lift_coefficient(
-    al, be)
+    alpha=al, beta=be)
 # exact for this thick section: {{CLx}}
 CLx = ch14.zhukhovsky_lift_coefficient(
-    al, be, {{e}}, exact=True)`,
+    alpha=al, beta=be, e={{e}}, exact=True)`,
     live: s => { const n = N(s); return { alpha: pn(s.alphaDeg), beta: pn(s.betaDeg), e: pn(s.e), a: pn(n.a, 5), GK: pn(n.GK, 5), GR: pn(rootOf(s), 5), CL: pn(n.CLthin, 4), CLx: pn(n.CLex, 4) }; },
     note: 'Lengths in units of b and speeds in units of U (both 1.0 here); Γ is clockwise.' },
   { id: 'edge', title: 'Your circulation: rest point, edge speed, lift', ref: 'Eqs. (14.9), (14.10), (6.62)',
     src: `G = {{g}} * GK   # your Gamma: {{G}}
 # rest point: theta = {{thr}} deg
 st = ch14.stagnation_points(
-    1.0, 1.0, {{e}}, be, al, Gamma_cw=G)
+    U=1.0, b=1.0, e={{e}}, beta=be, alpha=al,
+    Gamma_cw=G)
 # 0.001 chord behind the tail: {{q}} U
 q = ch14.edge_speed(
-    1.0, 1.0, {{e}}, be, al, 0.004,
-    Gamma_cw=G)
+    U=1.0, b=1.0, e={{e}}, beta=be, alpha=al,
+    d=0.004, Gamma_cw=G)
 # limit at the tail (Kutta): {{te}} U
 te = ch14.trailing_edge_speed(
-    1.0, a, 1.0, al, be)
+    U=1.0, a=a, b=1.0, alpha=al, beta=be)
 # a wing in air: b = 0.25 m, 30 m/s
 rho, U, b = 1.225, 30.0, 0.25
 # L = rho U Gamma: {{L}} N/m
 L = ch14.lift_per_span(
-    rho, U, Gamma_cw=G * U * b)`,
+    rho=rho, U=U, Gamma_cw=G * U * b)`,
     live: s => { const n = N(s); return { g: pn(s.g), G: pn(n.G, 5), e: pn(s.e), thr: pn(n.st.theta_rear * R2D, 4), thB: pn(-(s.alphaDeg + s.betaDeg), 4), q: pn(n.q3, 4), te: pn(n.teS, 4), L: pn(lift(1.225, 30, n.G * 30 * 0.25), 4) }; },
     note: 'Away from the Kutta value q keeps growing as the distance shrinks; te is its limit only when G = GK.' }
 ];
@@ -3067,41 +3076,41 @@ const QUIZ = [
 /* ---- selftest: parity with fluidpy (py) and invariants (expect) ---------------------------------------------------- */
 function selftestRows() {
   const A5 = rad(5), B4 = rad(4), C = circle(1, 0.08, B4), GK = gammaK(1, C.a, A5, B4);
-  const PC = 'ch14.zhukhovsky_circle(1.0, 0.08, np.deg2rad(4.0))', AB = 'np.deg2rad(4.0), np.deg2rad(5.0)';
-  const FL = 'ch14.zhukhovsky_flow(1.0, 1.0, 0.08, np.deg2rad(4.0), np.deg2rad(5.0), Gamma_cw=1.0)';
-  const CF = `ch14.circle_flow_zeta(1.0, ${PC}[1], Gamma_cw=1.0, alpha=np.deg2rad(5.0), center=${PC}[0])`;
+  const PC = 'ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))', AB = 'beta=np.deg2rad(4.0), alpha=np.deg2rad(5.0)';
+  const FL = 'ch14.zhukhovsky_flow(U=1.0, b=1.0, e=0.08, beta=np.deg2rad(4.0), alpha=np.deg2rad(5.0), Gamma_cw=1.0)';
+  const CF = `ch14.circle_flow_zeta(U=1.0, a=${PC}[1], Gamma_cw=1.0, alpha=np.deg2rad(5.0), center=${PC}[0])`;
   const st = stag(1, 1, 0.08, B4, A5, 1.0), stK = stag(1, 1, 0.08, B4, A5, null), fl = flowAt(1, 1, 0.08, B4, A5, 1.0, cx(0.5, 1.0)), F = flowConst(1, C.mu, C.a, A5, 1.0);
   const vz = velZeta(1.5, 0.5, F), qz = dwdzeta(cx(1.5, 0.5), 1, C.mu, C.a, A5, 1.0), jz = cx.sub(cx(1, 0), cx.div(cx(1, 0), cx.mul(cx(1.5, 0.5), cx(1.5, 0.5)))), m2 = jz.re * jz.re + jz.im * jz.im;
   return [
     { name: 'circle radius a', js: C.a, py: `${PC}[1]`, rtol: 1e-14 },
     { name: 'circle centre Re mu', js: C.mu.re, py: `${PC}[0].real`, rtol: 1e-12 },
     { name: 'circle centre Im mu', js: C.mu.im, py: `${PC}[0].imag`, rtol: 1e-12 },
-    { name: 'Kutta circulation GK', js: GK, py: `ch14.kutta_circulation(1.0, ${PC}[1], np.deg2rad(5.0), np.deg2rad(4.0))`, rtol: 1e-12 },
-    { name: 'Kutta root by bisection', js: gammaRoot(1, 1, 0.08, B4, A5), py: `ch14.kutta_circulation_root(1.0, 1.0, 0.08, ${AB})`, rtol: 1e-9 },
-    { name: 'rear theta (Gamma 1)', js: st.theta_rear, py: `ch14.stagnation_points(1.0, 1.0, 0.08, ${AB}, Gamma_cw=1.0)["theta_rear"]`, rtol: 1e-10 },
-    { name: 'front theta (Gamma 1)', js: st.theta_front, py: `ch14.stagnation_points(1.0, 1.0, 0.08, ${AB}, Gamma_cw=1.0)["theta_front"]`, rtol: 1e-10 },
-    { name: 'rear stagnation image x', js: st.z_rear.re, py: `ch14.stagnation_points(1.0, 1.0, 0.08, ${AB}, Gamma_cw=1.0)["z_rear"].real`, rtol: 1e-10 },
-    { name: 'rear stagnation image y', js: st.z_rear.im, py: `ch14.stagnation_points(1.0, 1.0, 0.08, ${AB}, Gamma_cw=1.0)["z_rear"].imag`, rtol: 1e-8 },
-    { name: 'front stagnation zeta Re', js: st.zeta_front.re, py: `ch14.stagnation_points(1.0, 1.0, 0.08, ${AB}, Gamma_cw=1.0)["zeta_front"].real`, rtol: 1e-10 },
-    { name: 'TE speed (Kutta)', js: teSpeed(1, C.a, 1, A5, B4), py: `ch14.trailing_edge_speed(1.0, ${PC}[1], 1.0, np.deg2rad(5.0), np.deg2rad(4.0))`, rtol: 1e-12 },
-    { name: 'edge speed off-Kutta (d 0.004, Gamma 1)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.004, 1.0), py: `ch14.edge_speed(1.0, 1.0, 0.08, ${AB}, 0.004, Gamma_cw=1.0)`, rtol: 1e-8 },
-    { name: 'edge speed, Gamma 0 (d 0.00004)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.00004, 0.0), py: `ch14.edge_speed(1.0, 1.0, 0.08, ${AB}, 0.00004, Gamma_cw=0.0)`, rtol: 1e-8 },
-    { name: 'edge speed with Kutta (d 0.004)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.004, null), py: `ch14.edge_speed(1.0, 1.0, 0.08, ${AB}, 0.004)`, rtol: 1e-8 },
-    { name: 'inverse map Re', js: invMap(cx(-1.5, 0.4), 1, C.mu, C.a).re, py: `np.real(ch14.zhukhovsky_inverse(-1.5+0.4j, 1.0, ${PC}[0], ${PC}[1]))`, rtol: 1e-10 },
-    { name: 'inverse map Im', js: invMap(cx(-1.5, 0.4), 1, C.mu, C.a).im, py: `np.imag(ch14.zhukhovsky_inverse(-1.5+0.4j, 1.0, ${PC}[0], ${PC}[1]))`, rtol: 1e-10 },
-    { name: 'dw/dzeta Re at 1.5+0.5i', js: qz.re, py: `${CF}[1](1.5+0.5j).real`, rtol: 1e-12 },
-    { name: 'dw/dzeta Im at 1.5+0.5i', js: qz.im, py: `${CF}[1](1.5+0.5j).imag`, rtol: 1e-12 },
-    { name: 'psi = Im w at 1.5+0.5i', js: wOf(cx(1.5, 0.5), 1, C.mu, C.a, A5, 1.0).im, py: `${CF}[0](1.5+0.5j).imag`, rtol: 1e-12 },
-    { name: 'airfoil speed at z = 0.5+i', js: cx.abs(fl.q), py: `${FL}.speed(0.5+1.0j)`, rtol: 1e-10 },
-    { name: 'airfoil u at z = 0.5+i', js: fl.q.re, py: `${FL}.velocity(0.5, 1.0)[0]`, rtol: 1e-10 },
-    { name: 'airfoil v at z = 0.5+i', js: -fl.q.im, py: `${FL}.velocity(0.5, 1.0)[1]`, rtol: 1e-9 },
-    { name: 'airfoil psi at z = 0.5+i', js: fl.psi, py: `${FL}.stream(0.5, 1.0)`, rtol: 1e-10 },
-    { name: 'CL thin section', js: cl(A5, B4), py: 'ch14.zhukhovsky_lift_coefficient(np.deg2rad(5.0), np.deg2rad(4.0))', rtol: 1e-14 },
-    { name: '2 pi, computed', js: cl(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(1.0, 0.0)', rtol: 1e-15 },
-    { name: 'chord measured on the contour', js: chordOf(1, 0.08, B4), py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0))["chord"]', rtol: 1e-7 },
-    { name: 'CL exact', js: clExact(A5, B4, 0.08), py: 'ch14.zhukhovsky_lift_coefficient(np.deg2rad(5.0), np.deg2rad(4.0), 0.08, exact=True)', rtol: 1e-7 },
-    { name: 'CL exact, fat cambered section', js: clExact(rad(10), rad(10), 0.2), py: 'ch14.zhukhovsky_lift_coefficient(np.deg2rad(10.0), np.deg2rad(10.0), 0.2, exact=True)', rtol: 1e-7 },
-    { name: 'lift per span', js: lift(1.225, 30, 15.96), py: 'ch14.lift_per_span(1.225, 30.0, Gamma_cw=15.96)', rtol: 1e-14 },
+    { name: 'Kutta circulation GK', js: GK, py: `ch14.kutta_circulation(U=1.0, a=${PC}[1], alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0))`, rtol: 1e-12 },
+    { name: 'Kutta root by bisection', js: gammaRoot(1, 1, 0.08, B4, A5), py: `ch14.kutta_circulation_root(U=1.0, b=1.0, e=0.08, ${AB})`, rtol: 1e-9 },
+    { name: 'rear theta (Gamma 1)', js: st.theta_rear, py: `ch14.stagnation_points(U=1.0, b=1.0, e=0.08, ${AB}, Gamma_cw=1.0)["theta_rear"]`, rtol: 1e-10 },
+    { name: 'front theta (Gamma 1)', js: st.theta_front, py: `ch14.stagnation_points(U=1.0, b=1.0, e=0.08, ${AB}, Gamma_cw=1.0)["theta_front"]`, rtol: 1e-10 },
+    { name: 'rear stagnation image x', js: st.z_rear.re, py: `ch14.stagnation_points(U=1.0, b=1.0, e=0.08, ${AB}, Gamma_cw=1.0)["z_rear"].real`, rtol: 1e-10 },
+    { name: 'rear stagnation image y', js: st.z_rear.im, py: `ch14.stagnation_points(U=1.0, b=1.0, e=0.08, ${AB}, Gamma_cw=1.0)["z_rear"].imag`, rtol: 1e-8 },
+    { name: 'front stagnation zeta Re', js: st.zeta_front.re, py: `ch14.stagnation_points(U=1.0, b=1.0, e=0.08, ${AB}, Gamma_cw=1.0)["zeta_front"].real`, rtol: 1e-10 },
+    { name: 'TE speed (Kutta)', js: teSpeed(1, C.a, 1, A5, B4), py: `ch14.trailing_edge_speed(U=1.0, a=${PC}[1], b=1.0, alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0))`, rtol: 1e-12 },
+    { name: 'edge speed off-Kutta (d 0.004, Gamma 1)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.004, 1.0), py: `ch14.edge_speed(U=1.0, b=1.0, e=0.08, ${AB}, d=0.004, Gamma_cw=1.0)`, rtol: 1e-8 },
+    { name: 'edge speed, Gamma 0 (d 0.00004)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.00004, 0.0), py: `ch14.edge_speed(U=1.0, b=1.0, e=0.08, ${AB}, d=0.00004, Gamma_cw=0.0)`, rtol: 1e-8 },
+    { name: 'edge speed with Kutta (d 0.004)', js: edgeSpeed(1, 1, 0.08, B4, A5, 0.004, null), py: `ch14.edge_speed(U=1.0, b=1.0, e=0.08, ${AB}, d=0.004)`, rtol: 1e-8 },
+    { name: 'inverse map Re', js: invMap(cx(-1.5, 0.4), 1, C.mu, C.a).re, py: `np.real(ch14.zhukhovsky_inverse(z=-1.5+0.4j, b=1.0, mu=${PC}[0], a=${PC}[1]))`, rtol: 1e-10 },
+    { name: 'inverse map Im', js: invMap(cx(-1.5, 0.4), 1, C.mu, C.a).im, py: `np.imag(ch14.zhukhovsky_inverse(z=-1.5+0.4j, b=1.0, mu=${PC}[0], a=${PC}[1]))`, rtol: 1e-10 },
+    { name: 'dw/dzeta Re at 1.5+0.5i', js: qz.re, py: `${CF}[1](zeta=1.5+0.5j).real`, rtol: 1e-12 },
+    { name: 'dw/dzeta Im at 1.5+0.5i', js: qz.im, py: `${CF}[1](zeta=1.5+0.5j).imag`, rtol: 1e-12 },
+    { name: 'psi = Im w at 1.5+0.5i', js: wOf(cx(1.5, 0.5), 1, C.mu, C.a, A5, 1.0).im, py: `${CF}[0](zeta=1.5+0.5j).imag`, rtol: 1e-12 },
+    { name: 'airfoil speed at z = 0.5+i', js: cx.abs(fl.q), py: `${FL}.speed(z=0.5+1.0j)`, rtol: 1e-10 },
+    { name: 'airfoil u at z = 0.5+i', js: fl.q.re, py: `${FL}.velocity(x=0.5, y=1.0)[0]`, rtol: 1e-10 },
+    { name: 'airfoil v at z = 0.5+i', js: -fl.q.im, py: `${FL}.velocity(x=0.5, y=1.0)[1]`, rtol: 1e-9 },
+    { name: 'airfoil psi at z = 0.5+i', js: fl.psi, py: `${FL}.stream(x=0.5, y=1.0)`, rtol: 1e-10 },
+    { name: 'CL thin section', js: cl(A5, B4), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0))', rtol: 1e-14 },
+    { name: '2 pi, computed', js: cl(1, 0), py: 'ch14.zhukhovsky_lift_coefficient(alpha=1.0, beta=0.0)', rtol: 1e-15 },
+    { name: 'chord measured on the contour', js: chordOf(1, 0.08, B4), py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0))["chord"]', rtol: 1e-7 },
+    { name: 'CL exact', js: clExact(A5, B4, 0.08), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(5.0), beta=np.deg2rad(4.0), e=0.08, exact=True)', rtol: 1e-7 },
+    { name: 'CL exact, fat cambered section', js: clExact(rad(10), rad(10), 0.2), py: 'ch14.zhukhovsky_lift_coefficient(alpha=np.deg2rad(10.0), beta=np.deg2rad(10.0), e=0.2, exact=True)', rtol: 1e-7 },
+    { name: 'lift per span', js: lift(1.225, 30, 15.96), py: 'ch14.lift_per_span(rho=1.225, U=30.0, Gamma_cw=15.96)', rtol: 1e-14 },
     { name: 'invariant: edge slip zero at Kutta', js: edgeSlip(GK, 1, 1, 0.08, B4, A5), expect: 0, atol: 1e-12 },
     { name: 'invariant: bisection = formula', js: gammaRoot(1, 1, 0.08, B4, A5) / GK, expect: 1, rtol: 1e-10 },
     { name: 'invariant: rear stagnation point on B with Kutta', js: cx.abs(cx.sub(stK.zeta_rear, cx(1, 0))), expect: 0, atol: 1e-12 },
@@ -3213,7 +3222,7 @@ const CFG = {
     }
   },
   explore: {
-    intro: 'Drag the slider under the picture (or the amber dot on the circle) to change the circulation; ▶ runs the start-up from $\\Gamma=0$ to the Kutta value. Then change the angle of attack and the camber.',
+    intro: 'Drag the slider under the picture (or the amber dot on the circle) to change the circulation; ▶ from below 1 runs the start-up to the Kutta value (above 1 it only moves the particles). Then change the angle of attack and the camber.',
     controls: ['alphaDeg', 'betaDeg', 'snap', 'e', 'flow'],
     readouts: ['G', 'GK', 'edge', 'CL', 'ab', 'rear'],
     callouts: [{ kind: 'try', html: 'Set $\\alpha=-\\beta$ (preset <b>zero-lift angle</b>): the stream points straight at B, $\\Gamma_K=0$ and the lift arrow vanishes.' }]

@@ -2479,10 +2479,17 @@ function simulate(alphaDeg, event, wake) {
   }
   S.ntar[0] = S.ntar[1];
   S.ymax = 1.18 * Math.max(1, S.GK1 / K * (event === 'step' || event === 'flap' ? 1 : 0));
-  S.s90 = NaN; for (let k = 0; k < NT; k++) if (S.Gb[k] / K >= 0.9) { S.s90 = (k + 1) * DT; break; }
+  // chords travelled when bound/steady crosses 0.9: linear interpolation between the two steps that bracket it
+  // (the tested definition, np.interp(0.9, ratio, s_chords) in tests/test_ch14.py), not the first grid step past it
+  S.s90 = crossing(S.xs.subarray(1), S.nb.subarray(1), 0.9);
   if (SIMS.size > 14) SIMS.delete(SIMS.keys().next().value);
   SIMS.set(key, S);
   return S;
+}
+/** First x at which the rising sequence r(x) reaches `level`, by linear interpolation between samples (NaN if never). */
+function crossing(x, r, level) {
+  for (let k = 0; k < r.length; k++) if (r[k] >= level) return k === 0 ? x[0] : x[k - 1] + (level - r[k - 1]) / (r[k] - r[k - 1]) * (x[k] - x[k - 1]);
+  return NaN;
 }
 const simOf = s => simulate(s.alphaDeg, s.event, s.wake ? 'free' : 'rigid');
 
@@ -2632,7 +2639,7 @@ function drawGamma(v, s, S, st) {
   if (v.h < 50 || v.w < 60) return;
   const P = gammaPlot(v, S), C = k => Viz.color(k), teal = C('teal'), rose = C('rose'), amber = C('amber'), muted = C('muted');
   const tiny = P.px.h < 70;
-  P.axes({ yticks: tiny ? [0] : (P.px.h < 130 ? [-1, 0, 1] : null) });
+  P.axes({ yticks: P.px.h < 32 ? [0] : (P.px.h < 130 ? [-1, 0, 1] : null) });
   const n = st.k + 2, xs = S.xs, sub = a => a.subarray(0, n);
   P.clip(() => {
     S.marks.forEach(m => P.line([m[0], m[0]], [-S.ymax, S.ymax], { color: Viz.alpha(muted, 0.8), width: 1.2, dash: [2, 4] }));
@@ -2687,6 +2694,7 @@ function drawLift(v, s, S, st) {
 /* ---- text blocks shared by several panels ------------------------------------------------------------------- */
 function reading(s, S, st) {
   const K = S.GK0, r = regimeId(s, S), b = f2(st.Gb / K);
+  if (st.k < 0) return 'The foil is at rest. Nothing has been shed, so there is no circulation anywhere: bound 0, shed 0, total 0. Press ▶ to start it.';
   switch (r) {
     case 'start:0': return 'The foil has barely moved. A strong counterclockwise vortex is being wound up just behind the tail, and the foil already carries ' + b + ' of its final circulation.';
     case 'start:1': return 'The starting vortex is ' + f1(st.s) + ' chords behind and still felt: its downwash at the plate holds the bound circulation at ' + b + ' of the Kutta value. Each new shed vortex is weaker than the last. (The model reaches 90 % of the steady value after ' + f1(S.s90) + ' chords.)';
@@ -2815,7 +2823,7 @@ const app = Viz.app({
       out += W.step(3, 'How fast it builds (impulsive start)') +
         W.table(['chords', '<b class="c-teal">bound</b> / $\\Gamma_K$ (model)'], CH.map(row), cur) +
         W.box('the model reaches 90 % of the steady value after <b>' + f1(S0.s90) + '</b> chords') +
-        W.say('The young starting vortex is close, and its downwash at the plate holds the circulation down. The model\'s first value of $\\Gamma_{\\text{foil}}$ is ' + f2(S0.Gb[0] / K) + ' of the steady one. In the exact thin-airfoil solution the circulation starts from <b>zero</b> (nothing has been shed yet, and bound + shed = 0), so the model runs above the exact circulation early on: ' + f2(S0.Gb[kOf(1)] / K) + ' against about 0.55 after one chord.');
+        W.say('The young starting vortex is close, and its downwash at the plate holds the circulation down. The model\'s first value of $\\Gamma_{\\text{foil}}$ is ' + f2(S0.Gb[0] / K) + ' of the steady one. In the exact thin-airfoil solution the circulation starts from <b>zero</b> (nothing has been shed yet, and bound + shed = 0), so the model runs above the exact circulation early on: ' + f2(S0.Gb[kOf(1)] / K) + ' against about 0.55 after one chord. That 0.55 is quoted from the exact solution, not computed here.');
       out += W.step(4, 'The lift') +
         W.line('$' + KZ + '$ (6.62) with $\\rho = 1$ kg/m³, $U = ' + (st.U > 0 ? '1' : '0') + '$ m/s', Viz.live('L') + ' N/m', 'only the bound circulation carries lift') +
         W.box('lift now = <b class="c-teal">' + Viz.live('LK') + '</b> of the steady lift $\\rho U\\Gamma_K = ' + Viz.tnum(lift(1, 1, K), 4) + '$ N/m') +
@@ -2907,7 +2915,7 @@ print(-gb, -gnew)                # clockwise: {{gb}}, {{gn}}`,
       live: s => { const a = rad(s.alphaDeg), xn = 1 + 0.25 * Math.cos(a) * DT, yn = 0.25 * Math.sin(a) * DT, kb = 1 / (2 * Math.PI * 0.5), kn = (0.75 - xn) / (2 * Math.PI * ((0.75 - xn) * (0.75 - xn) + yn * yn)), M = march(1, 1, a, DT, DT); return { alpha: f1(s.alphaDeg), kb: f3(kb), kn: f3(kn).replace('−', '-'), gb: sg(M.Gb[0], 4), gn: sg(M.Gw[0], 4) }; } }
   ],
   tour: [
-    { title: 'From rest', text: 'A foil at rest has no circulation. Press ▶ and watch what it does to get some.', set: { event: 'start', s: 0, circuit: 25, zoom: 'all', wake: false }, play: true },
+    { title: 'From rest', text: 'A foil at rest has no circulation. Press ▶ and watch it fly off. Where does it get its circulation?', set: { event: 'start', s: 0, circuit: 25, zoom: 'all', wake: false }, play: true },
     { title: 'A vortex left behind', text: 'The <b class="c-rose">rose discs</b> are vorticity shed at the tail. They turn counterclockwise; the foil\'s <b class="c-teal">teal ring</b> turns clockwise, the book\'s positive sense.', set: { event: 'start', s: 2, circuit: 25, zoom: 'foil' }, play: false, readouts: ['gb', 'gw'] },
     { title: 'The sum never moves', text: '<b class="c-teal">Bound</b> plus <b class="c-rose">shed</b> is the <b class="c-amber">amber</b> line: zero at every instant. Kelvin\'s theorem says why.', set: { event: 'start', s: 6, circuit: 25, zoom: 'all' }, play: false, eq: 'kelvin', derive: { id: 'D02', step: 5 } },
     { title: 'Cut the circuit', text: 'The cut B–D splits the big circuit in two. Drag it towards the tail until the left part holds only the foil: it reads the foil\'s circulation, and the right part reads the opposite.', set: { event: 'start', s: 10, circuit: 4, zoom: 'all' }, play: false, controls: ['circuit'], readouts: ['enc'] },
@@ -2956,6 +2964,7 @@ print(-gb, -gnew)                # clockwise: {{gb}}, {{gn}}`,
       { name: 'lift (6.62)', js: lift(1.2, 30, 0.8), py: 'ch14.lift_per_span(rho=1.2, U=30.0, Gamma_cw=0.8)', rtol: 1e-12 },
       { name: 'Wagner after 2 chords', js: wagner(4), py: 'ch14.wagner_function(s=4.0)', rtol: 1e-12 },
       { name: 'page run = march (8 chords)', js: st.Gb, py: 'ch14.impulsive_start_lumped_vortex(U=1.0, c=1.0, alpha=np.deg2rad(5.0), t_end=8.0, dt=0.05)["Gamma_bound_cw"][159]', rtol: 1e-9 },
+      { name: '90 % crossing (interpolated)', js: S.s90, py: '(lambda r, np=np: np.interp(0.9, r["ratio"], r["s_chords"]))(ch14.impulsive_start_lumped_vortex(U=1.0, c=1.0, alpha=np.deg2rad(5.0), t_end=20.0, dt=0.05))', rtol: 1e-9 },
       { name: 'Kelvin: max |bound + shed|', js: sumAll(M5), expect: 0, atol: 1e-12 },
       { name: 'big circuit encloses zero', js: enclosed(S, st, CIRC.xr).all, expect: 0, atol: 1e-12 },
       { name: 'cut: two parts add to zero', js: enclosed(S, st, cutXof(st, 2)).all, expect: 0, atol: 1e-12 },

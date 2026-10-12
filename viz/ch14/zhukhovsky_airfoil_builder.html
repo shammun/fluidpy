@@ -2510,6 +2510,7 @@ const cplx = (p, d = 3) => `${fx(p.re, d)} ${z0(Number(p.im.toFixed(d))) < 0 ? '
 const ctex = (p, d = 3) => `${tx(p.re, d)}${z0(Number(p.im.toFixed(d))) < 0 ? '-' : '+'}${tx(Math.abs(p.im), d)}\\,i`;
 const pair = (p, d = 3) => `(${fx(p.re, d)}, ${fx(p.im, d)})`;
 function layoutOf() { const r = document.querySelector('.viz-app'); return (r && r.getAttribute('data-layout')) || 'wide'; }
+function medium() { return (window.innerWidth || 1200) < 1100; }
 function narrow() { return (window.innerWidth || 1000) < 560 || (window.innerHeight || 800) < 500; }
 const hiLo = g => (g >= 0 ? 'high' : 'low');
 
@@ -2529,7 +2530,7 @@ const VW = { zeta: null };
 let DRAG = null;
 
 /* ---- view 1: the ζ-plane ------------------------------------------------------------------------------------------ */
-function drawZeta(v, s, G, m) {
+function drawZeta(v, s, G, m, der) {
   v.clear();
   if (v.w < 40 || v.h < 40) return;
   const ctx = v.ctx, sm = isSmall(v), ti = isTiny(v);
@@ -2556,13 +2557,13 @@ function drawZeta(v, s, G, m) {
   });
   crossPx(ctx, P.X(B), Y0, ti ? 4 : 6, AM); crossPx(ctx, P.X(-B), Y0, ti ? 4 : 6, AM);
   if (!ti) {
-    Viz.text(ctx, sm ? '+b' : '+b: the tail', P.X(B) - 9, Y0 + 14, { size: 12, weight: 650, color: AM, bg: true, pad: 2, align: 'right' });
-    Viz.text(ctx, sm ? '−b' : (G.thin ? '−b: on the circle' : '−b: inside'), P.X(-B) - 9, Y0 + 14, { size: 12, weight: 650, color: AM, bg: true, pad: 2, align: 'right' });
+    Viz.text(ctx, sm || der ? '+b' : '+b: the tail', P.X(B) - 9, Y0 + 14, { size: 12, weight: 650, color: AM, bg: true, pad: 2, align: 'right' });
+    Viz.text(ctx, sm || der ? '−b' : (G.thin ? '−b: on the circle' : '−b: inside'), P.X(-B) - 9, Y0 + 14, { size: 12, weight: 650, color: AM, bg: true, pad: 2, align: 'right' });
   }
   // the draggable centre
   dotPx(ctx, Xm, Ym, ti ? 5 : 7, AC, '#fff', 2);
   if (!sm) {
-    Viz.text(ctx, 'μ · drag me', Xm, Ym - 17, { size: 12, weight: 700, color: AC, align: 'center', bg: true, pad: 2 });
+    if (!der) Viz.text(ctx, 'μ · drag me', Xm, Ym - 17, { size: 12, weight: 700, color: AC, align: 'center', bg: true, pad: 2 });
     if (Math.abs(mu.re) > 0.04) Viz.text(ctx, 'back = be', Xm - 4, Y0 + 30, { size: 12, weight: 650, color: OR, align: 'left', bg: true, pad: 2 });
     if (Y0 - Ym > 26) Viz.text(ctx, 'up = a sin β', Xm - 8, 0.5 * (Y0 + Ym) + 2, { size: 12, weight: 650, color: TE, align: 'right', bg: true, pad: 2 });
     Viz.text(ctx, 'dashed: radius b → plate', P.px.x + 6, P.px.y + P.px.h - 10, { size: 12, weight: 500, color: MU, bg: true, pad: 2 });
@@ -2788,13 +2789,13 @@ const app = Viz.app({
   stage: {
     rows: [1.2, 0.8],
     views: [
-      { id: 'zeta', row: 0, flex: 1, title: s => { const C = N(s).C; return narrow() ? `<b>Circle</b> · μ ${pair(C.mu, 3)} b, a ${fx(C.a, 3)} b` : `<b>ζ-plane: the circle</b> · centre μ = ${cplx(C.mu)}, radius a = ${fx(C.a, 4)} b`; } },
-      { id: 'z', row: 0, flex: 1.4, title: s => { const G = N(s), nums = `c/4b ${fx(G.c4, 3)} · camber ${pc(G.cc)} · t/c ${pc(G.tc)} (rule ${pc(G.Rl.thickness_ratio)})`; return narrow() ? '<b>Section</b> · the image, in units of b' : `<b>z-plane: the section</b> · ${nums}`; } },
+      { id: 'zeta', row: 0, flex: 1, title: s => { const C = N(s).C; return narrow() ? `<b>Circle</b> · μ ${pair(C.mu, 3)} b, a ${fx(C.a, 3)} b` : medium() ? `<b>Circle</b> · μ ${pair(C.mu, 3)} b` : `<b>ζ-plane: the circle</b> · centre μ = ${cplx(C.mu)}, radius a = ${fx(C.a, 4)} b`; } },
+      { id: 'z', row: 0, flex: 1.4, title: s => { const G = N(s), nums = `c/4b ${fx(G.c4, 3)} · camber ${pc(G.cc)} · t/c ${pc(G.tc)} (rule ${pc(G.Rl.thickness_ratio)})`; return narrow() ? '<b>Section</b> · the image, in units of b' : medium() ? `<b>Section</b> · t/c ${pc(G.tc)} (rule ${pc(G.Rl.thickness_ratio)})` : `<b>z-plane: the section</b> · ${nums}`; } },
       { id: 'bars', row: 1, flex: 1, hidePortrait: true, title: '<b>Rule against measured</b> · solid = measured on the contour · hatched / dashed = the first-order rule' }
     ],
     draw(g, s) {
       const G = N(s), m = mark(s);
-      drawZeta(g.view('zeta'), s, G, m);
+      drawZeta(g.view('zeta'), s, G, m, g.app.tab === 'derive' && narrow());
       drawZ(g.view('z'), s, G, m);
       drawBars(g.view('bars'), s, G);
     },
@@ -2931,7 +2932,7 @@ const app = Viz.app({
           watch: 'The marked point is at the top of the circle; its image is the top of the arc, 2b tan β above the chord.' }
       ],
       result: { tex: '\\begin{aligned}&x^2+(y+2b\\cot2\\beta)^2=(2b\\csc2\\beta)^2\\\\ &\\text{with }\\cos\\beta=b/a\\end{aligned}', plain: 'A circular arc through $z=\\pm2b$ of height $2b\\tan\\beta$; camber $\\simeq\\tfrac12\\beta c$ (14.8). Raise the circle and the flat plate bends into an arc.' },
-      interpret: s => { const G = N(s); return (G.sym ? 'With $\\beta=0$ the centre has not been raised: the arc is the flat plate.' : `With your $\\beta=${tx(s.betaDeg, 2)}^\\circ$ the arc is $2b\\tan\\beta=${tx(2 * B * Math.tan(G.beta), 4)}\\,b$ high: ${pc(0.5 * Math.tan(G.beta), 2)} of the chord against the rule's $\\tfrac12\\beta=${pc(0.5 * G.beta, 2)}$.`) + ' Camber is how high the circle\'s centre sits; the two sharp ends are the points $\\pm b$ of the circle, where the map folds. It fails when the circle does not pass through both $\\pm b$: then one end is rounded.'; },
+      interpret: s => { const G = N(s); return (G.sym ? 'With $\\beta=0$ the centre has not been raised: the arc is the flat plate.' : `With your $\\beta=${tx(s.betaDeg, 2)}^\\circ$ the arc is $2b\\tan\\beta=${tx(2 * B * Math.tan(G.beta), 4)}\\,b$ high: ${pc(0.5 * Math.tan(G.beta), 2)} of the chord against the rule's $\\tfrac12\\beta=${tx(50 * G.beta, 2)}\\,\\%$.`) + ' Camber is how high the circle\'s centre sits; the two sharp ends are the points $\\pm b$ of the circle, where the map folds. It fails when the circle does not pass through both $\\pm b$: then one end is rounded.'; },
       check: 'Units: every term is a length squared. Limits: $\\beta\\to0$ sends the centre to $-\\infty$ and the radius to $\\infty$, a straight plate; $y=0$ at $\\theta=0,\\pi$, the ends $z=\\pm2b$. Number: $b=1$, $\\tan\\beta=\\tfrac34$: the top $\\zeta=2i$ maps to $z=1.5i=2b\\tan\\beta$, and $-0.583+2.083=1.5$. Only $0\\le y\\le2b\\tan\\beta$ is covered, and twice. The selftest row "arc: image on the circle" checks every mapped point.' },
     { id: 'D04', title: 'A circle shifted back gives a symmetric section', short: 'Thickness', ref: 'Eqs. (14.7), (14.8)', view: 'z',
       goal: 'Find the shape made by a circle whose centre is moved back along the real axis, and so see where thickness comes from. The book says the rules can be proved; this is the proof.',
@@ -2955,7 +2956,7 @@ const app = Viz.app({
         { did: 'Separate real and imaginary parts', tex: '\\begin{aligned}x&\\approx2b\\cos\\theta-2be\\sin^2\\theta\\\\[2pt] y&\\approx2be\\,\\sin\\theta\\,(1-\\cos\\theta)\\end{aligned}',
           why: 'Insert $\\epsilon=e(1-\\cos\\theta+i\\sin\\theta)$ and multiply out: $2ib\\epsilon\\sin\\theta=2ibe\\sin\\theta(1-\\cos\\theta)-2be\\sin^2\\theta$. The part with $i$ is $y$, the rest joins $x$.',
           plain: 'The outline: $x$ is nearly the plate\'s, $y$ is small and proportional to $e$.',
-          live: s => { const th = s.t * D2R, y1 = 2 * B * s.e * Math.sin(th) * (1 - Math.cos(th)), m = mark(s); return `\\begin{aligned}y&\\approx2\\times${tx(s.e, 3)}\\times\\sin${tx(s.t, 0)}^\\circ(1-\\cos${tx(s.t, 0)}^\\circ)=${tx(y1, 4)}\\\\ &\\text{against the mapped }${tx(m.p.y, 4)}\\end{aligned}`; } },
+          live: s => { const th = s.t * D2R, y1 = 2 * B * s.e * Math.sin(th) * (1 - Math.cos(th)), C0 = circle(B, s.e, 0), y0 = J(cx.of(C0.mu.re + C0.a * Math.cos(th), C0.mu.im + C0.a * Math.sin(th)), B).im; return `\\begin{aligned}y&\\approx2\\times${tx(s.e, 3)}\\times\\sin${tx(s.t, 0)}^\\circ(1-\\cos${tx(s.t, 0)}^\\circ)=${tx(y1, 4)}\\\\ &\\text{mapped exactly }(\\beta=0)\\text{: }${tx(y0, 4)}\\end{aligned}`; } },
         { did: 'Find the chord', tex: 'x(0)=2b,\\quad x(\\pi)=-2b\\ \\Rightarrow\\ c\\simeq4b',
           why: 'The tail is $\\theta=0$, the nose $\\theta=\\pi$; the correction $-2be\\sin^2\\theta$ vanishes at both. (Exactly, $c=4b(1+e^2+\\dots)$: the error is second order.)',
           plain: 'The chord is four times $b$, as for the plate.',
@@ -2989,14 +2990,14 @@ const app = Viz.app({
 import numpy as np
 from fluidpy import ch14_aerodynamics as ch14
 b, e, beta = 1.0, {{e}}, np.deg2rad({{beta}})   # your sliders
-mu, a = ch14.zhukhovsky_circle(b, e, beta)   # a = b(1+e)/cos(beta)
-# centre mu = {{mu}}, radius a = {{a}}
-S = ch14.zhukhovsky_airfoil(b, e, beta)      # z = zeta + b^2/zeta
-sh = ch14.zhukhovsky_shape(b, e, beta)       # measured on S
+mu, a = ch14.zhukhovsky_circle(b=b, e=e, beta=beta)
+# a = b(1+e)/cos(beta) = {{a}}, centre mu = {{mu}}
+S = ch14.zhukhovsky_airfoil(b=b, e=e, beta=beta)  # z=zeta+b^2/zeta
+sh = ch14.zhukhovsky_shape(b=b, e=e, beta=beta)   # measured on S
 # chord {{c}}, t/c {{tc}}, camber/c {{cc}}
-rule = ch14.zhukhovsky_shape(b, e, beta, exact=False)
+rule = ch14.zhukhovsky_shape(b=b, e=e, beta=beta, exact=False)
 # rules: chord 4b, t/c = (3*sqrt(3)/4) e = {{tcr}}, camber/c = beta/2 = {{ccr}}
-p = ch14.map_point({{xi}}, {{eta}}, b)   # the marked point
+p = ch14.map_point(zeta_re={{xi}}, zeta_im={{eta}}, b=b)  # the mark
 # x = (R + b^2/R) cos(theta) = {{x}},  y = (R - b^2/R) sin(theta) = {{y}}`,
       live: s => { const G = N(s), m = mark(s); return { e: fx(s.e, 3).replace('−', '-'), beta: String(s.betaDeg), mu: cplx(G.C.mu, 4).replace(' i', 'j').replace(/ /g, '').replace('−', '-'), a: tx(G.C.a, 4), c: tx(G.M.chord, 4), tc: tx(G.tc, 4), cc: tx(G.cc, 4), tcr: tx(G.Rl.thickness_ratio, 4), ccr: tx(G.Rl.camber_ratio, 4), xi: tx(m.zeta.re, 3), eta: tx(m.zeta.im, 3), x: tx(m.p.x, 3), y: tx(m.p.y, 3) }; } }
   ],
@@ -3044,36 +3045,36 @@ p = ch14.map_point({{xi}}, {{eta}}, b)   # the marked point
     let arcRes = 0; for (let k = 0; k < 400; k++) arcRes = Math.max(arcRes, Math.abs(c8.x[k] * c8.x[k] + (c8.y[k] - A8.centre.im) * (c8.y[k] - A8.centre.im) - A8.radius * A8.radius));
     const M1 = measure(contour(1, 0.08, rad(4), 2000)), M2 = measure(contour(1, 0.25, rad(4), 2000)), M3 = measure(contour(1, 0.1, 0, 2000)), c1 = contour(1, 0.1, rad(8), 400);
     return [
-      { name: 'mu re', js: circle(1, 0.08, rad(4)).mu.re, py: 'np.real(ch14.zhukhovsky_circle(1.0, 0.08, np.deg2rad(4.0))[0])', rtol: 1e-12 },
-      { name: 'mu im', js: circle(1, 0.08, rad(4)).mu.im, py: 'np.imag(ch14.zhukhovsky_circle(1.0, 0.08, np.deg2rad(4.0))[0])', rtol: 1e-12 },
-      { name: 'a', js: circle(1, 0.08, rad(4)).a, py: 'ch14.zhukhovsky_circle(1.0, 0.08, np.deg2rad(4.0))[1]', rtol: 1e-12 },
-      { name: 'inverse e', js: fromCentre(circle(1, 0.12, rad(6)).mu, 1).e, py: 'ch14.zhukhovsky_circle_from_centre(ch14.zhukhovsky_circle(1.0, 0.12, np.deg2rad(6.0))[0], 1.0)[0]', rtol: 1e-10 },
-      { name: 'inverse beta', js: fromCentre(circle(1, 0.12, rad(6)).mu, 1).beta, py: 'ch14.zhukhovsky_circle_from_centre(ch14.zhukhovsky_circle(1.0, 0.12, np.deg2rad(6.0))[0], 1.0)[1]', rtol: 1e-10 },
-      { name: 'inverse a', js: fromCentre(cx.of(-0.2, 0.15), 1).a, py: 'ch14.zhukhovsky_circle_from_centre(-0.2+0.15j, 1.0)[2]', rtol: 1e-12 },
-      { name: 'J re', js: J(cx.of(0.62, 0.95), 1).re, py: 'np.real(ch14.joukowski(0.62+0.95j, 1.0))', rtol: 1e-12 },
-      { name: 'J im', js: J(cx.of(0.62, 0.95), 1).im, py: 'np.imag(ch14.joukowski(0.62+0.95j, 1.0))', rtol: 1e-12 },
-      { name: 'map x', js: mapPoint(0.62, 0.95, 1).x, py: 'ch14.map_point(0.62, 0.95, 1.0)["x"]', rtol: 1e-12 },
-      { name: 'map y', js: mapPoint(0.62, 0.95, 1).y, py: 'ch14.map_point(0.62, 0.95, 1.0)["y"]', rtol: 1e-12 },
-      { name: 'map R', js: mapPoint(0.62, 0.95, 1).R, py: 'ch14.map_point(0.62, 0.95, 1.0)["R"]', rtol: 1e-12 },
-      { name: 'map theta', js: mapPoint(0.62, 0.95, 1).theta, py: 'ch14.map_point(0.62, 0.95, 1.0)["theta"]', rtol: 1e-12 },
-      { name: 'contour x[100]', js: c1.x[100], py: 'ch14.zhukhovsky_airfoil(1.0, 0.1, np.deg2rad(8.0), 400)["x"][100]', rtol: 1e-11 },
-      { name: 'contour y[100]', js: c1.y[100], py: 'ch14.zhukhovsky_airfoil(1.0, 0.1, np.deg2rad(8.0), 400)["y"][100]', rtol: 1e-11 },
-      { name: 'contour y[300]', js: c1.y[300], py: 'ch14.zhukhovsky_airfoil(1.0, 0.1, np.deg2rad(8.0), 400)["y"][300]', rtol: 1e-11 },
-      { name: 't/c measured', js: M1.thickness_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0))["thickness_ratio"]', rtol: 2e-3 },
-      { name: 'camber/c measured', js: M1.camber_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0))["camber_ratio"]', rtol: 2e-3 },
-      { name: 'chord measured', js: M1.chord, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0))["chord"]', rtol: 1e-6 },
-      { name: 'x_tmax/c measured', js: M1.x_tmax_over_c, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0))["x_tmax_over_c"]', rtol: 5e-3 },
-      { name: 't/c measured (same n = 2000)', js: M1.thickness_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0), n=2000)["thickness_ratio"]', rtol: 1e-8 },
-      { name: 'camber measured (same n = 2000)', js: M1.camber, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0), n=2000)["camber"]', rtol: 1e-8 },
-      { name: 't/c measured, e = 0.25', js: M2.thickness_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.25, np.deg2rad(4.0))["thickness_ratio"]', rtol: 2e-3 },
-      { name: 't/c measured, symmetric e = 0.1', js: M3.thickness_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.1, 0.0)["thickness_ratio"]', rtol: 2e-3 },
-      { name: 'chord measured, symmetric e = 0.1', js: M3.chord, py: 'ch14.zhukhovsky_shape(1.0, 0.1, 0.0)["chord"]', rtol: 1e-6 },
-      { name: 't/c rule', js: rules(1, 0.08, rad(4)).thickness_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0), exact=False)["thickness_ratio"]', rtol: 1e-12 },
-      { name: 'camber/c rule', js: rules(1, 0.08, rad(4)).camber_ratio, py: 'ch14.zhukhovsky_shape(1.0, 0.08, np.deg2rad(4.0), exact=False)["camber_ratio"]', rtol: 1e-12 },
-      { name: 'coefficient 3*sqrt(3)/4 (computed, not typed)', js: K_RULE, py: 'ch14.zhukhovsky_shape(1.0, 0.001, 0.0, exact=False)["thickness_ratio"]/0.001', rtol: 1e-12 },
-      { name: 'arc radius', js: arc(1, rad(8)).radius, py: 'ch14.circular_arc(1.0, np.deg2rad(8.0))["radius"]', rtol: 1e-12 },
-      { name: 'arc centre', js: arc(1, rad(8)).centre.im, py: 'np.imag(ch14.circular_arc(1.0, np.deg2rad(8.0))["centre"])', rtol: 1e-12 },
-      { name: 'arc height', js: arc(1, rad(8)).height, py: 'ch14.circular_arc(1.0, np.deg2rad(8.0))["height"]', rtol: 1e-12 },
+      { name: 'mu re', js: circle(1, 0.08, rad(4)).mu.re, py: 'np.real(ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[0])', rtol: 1e-12 },
+      { name: 'mu im', js: circle(1, 0.08, rad(4)).mu.im, py: 'np.imag(ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[0])', rtol: 1e-12 },
+      { name: 'a', js: circle(1, 0.08, rad(4)).a, py: 'ch14.zhukhovsky_circle(b=1.0, e=0.08, beta=np.deg2rad(4.0))[1]', rtol: 1e-12 },
+      { name: 'inverse e', js: fromCentre(circle(1, 0.12, rad(6)).mu, 1).e, py: 'ch14.zhukhovsky_circle_from_centre(mu=ch14.zhukhovsky_circle(b=1.0, e=0.12, beta=np.deg2rad(6.0))[0], b=1.0)[0]', rtol: 1e-10 },
+      { name: 'inverse beta', js: fromCentre(circle(1, 0.12, rad(6)).mu, 1).beta, py: 'ch14.zhukhovsky_circle_from_centre(mu=ch14.zhukhovsky_circle(b=1.0, e=0.12, beta=np.deg2rad(6.0))[0], b=1.0)[1]', rtol: 1e-10 },
+      { name: 'inverse a', js: fromCentre(cx.of(-0.2, 0.15), 1).a, py: 'ch14.zhukhovsky_circle_from_centre(mu=-0.2+0.15j, b=1.0)[2]', rtol: 1e-12 },
+      { name: 'J re', js: J(cx.of(0.62, 0.95), 1).re, py: 'np.real(ch14.joukowski(zeta=0.62+0.95j, b=1.0))', rtol: 1e-12 },
+      { name: 'J im', js: J(cx.of(0.62, 0.95), 1).im, py: 'np.imag(ch14.joukowski(zeta=0.62+0.95j, b=1.0))', rtol: 1e-12 },
+      { name: 'map x', js: mapPoint(0.62, 0.95, 1).x, py: 'ch14.map_point(zeta_re=0.62, zeta_im=0.95, b=1.0)["x"]', rtol: 1e-12 },
+      { name: 'map y', js: mapPoint(0.62, 0.95, 1).y, py: 'ch14.map_point(zeta_re=0.62, zeta_im=0.95, b=1.0)["y"]', rtol: 1e-12 },
+      { name: 'map R', js: mapPoint(0.62, 0.95, 1).R, py: 'ch14.map_point(zeta_re=0.62, zeta_im=0.95, b=1.0)["R"]', rtol: 1e-12 },
+      { name: 'map theta', js: mapPoint(0.62, 0.95, 1).theta, py: 'ch14.map_point(zeta_re=0.62, zeta_im=0.95, b=1.0)["theta"]', rtol: 1e-12 },
+      { name: 'contour x[100]', js: c1.x[100], py: 'ch14.zhukhovsky_airfoil(b=1.0, e=0.1, beta=np.deg2rad(8.0), n=400)["x"][100]', rtol: 1e-11 },
+      { name: 'contour y[100]', js: c1.y[100], py: 'ch14.zhukhovsky_airfoil(b=1.0, e=0.1, beta=np.deg2rad(8.0), n=400)["y"][100]', rtol: 1e-11 },
+      { name: 'contour y[300]', js: c1.y[300], py: 'ch14.zhukhovsky_airfoil(b=1.0, e=0.1, beta=np.deg2rad(8.0), n=400)["y"][300]', rtol: 1e-11 },
+      { name: 't/c measured', js: M1.thickness_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0))["thickness_ratio"]', rtol: 1e-5 },
+      { name: 'camber/c measured', js: M1.camber_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0))["camber_ratio"]', rtol: 1e-5 },
+      { name: 'chord measured', js: M1.chord, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0))["chord"]', rtol: 1e-6 },
+      { name: 'x_tmax/c measured', js: M1.x_tmax_over_c, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0))["x_tmax_over_c"]', rtol: 2e-3 },
+      { name: 't/c measured (same n = 2000)', js: M1.thickness_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0), n=2000)["thickness_ratio"]', rtol: 1e-8 },
+      { name: 'camber measured (same n = 2000)', js: M1.camber, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0), n=2000)["camber"]', rtol: 1e-8 },
+      { name: 't/c measured, e = 0.25', js: M2.thickness_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.25, beta=np.deg2rad(4.0))["thickness_ratio"]', rtol: 1e-5 },
+      { name: 't/c measured, symmetric e = 0.1', js: M3.thickness_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.1, beta=0.0)["thickness_ratio"]', rtol: 1e-5 },
+      { name: 'chord measured, symmetric e = 0.1', js: M3.chord, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.1, beta=0.0)["chord"]', rtol: 1e-6 },
+      { name: 't/c rule', js: rules(1, 0.08, rad(4)).thickness_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0), exact=False)["thickness_ratio"]', rtol: 1e-12 },
+      { name: 'camber/c rule', js: rules(1, 0.08, rad(4)).camber_ratio, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.08, beta=np.deg2rad(4.0), exact=False)["camber_ratio"]', rtol: 1e-12 },
+      { name: 'coefficient 3*sqrt(3)/4 (computed, not typed)', js: K_RULE, py: 'ch14.zhukhovsky_shape(b=1.0, e=0.001, beta=0.0, exact=False)["thickness_ratio"]/0.001', rtol: 1e-12 },
+      { name: 'arc radius', js: arc(1, rad(8)).radius, py: 'ch14.circular_arc(b=1.0, beta=np.deg2rad(8.0))["radius"]', rtol: 1e-12 },
+      { name: 'arc centre', js: arc(1, rad(8)).centre.im, py: 'np.imag(ch14.circular_arc(b=1.0, beta=np.deg2rad(8.0))["centre"])', rtol: 1e-12 },
+      { name: 'arc height', js: arc(1, rad(8)).height, py: 'ch14.circular_arc(b=1.0, beta=np.deg2rad(8.0))["height"]', rtol: 1e-12 },
       { name: 'tail at 2b', js: c1.x[0], expect: 2, rtol: 1e-12 },
       { name: 'arc: image on the circle (max residual)', js: arcRes, expect: 0, atol: 1e-11 },
       { name: 'arc: measured camber = 2b tan(beta)', js: measure(contour(1, 0, rad(8), 2000)).camber, expect: 2 * Math.tan(rad(8)), rtol: 1e-5 },
