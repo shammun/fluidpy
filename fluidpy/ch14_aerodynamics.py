@@ -93,7 +93,9 @@ def illustrative_inputs() -> dict:
     ``LD_hull``, ``CDA_hull`` [m²], ``rho_water`` [kg/m³].
     **Fish**: ``U_fish``, ``V_tail`` [m/s], ``L_tail``, ``D_tail`` [N], ``LD_tail``.
     **Wake encounter**: ``Gamma_v`` [m²/s], ``ell`` [m].
-    Assumptions: none.   Validation: V1 a table.  Label: analytic.
+    Assumptions: none.
+    Validation: V1 a table — tests/test_ch14.py: test_tables_V7_inputs_conventions_slips_traps.
+    Label: analytic.
     """
     s, A = 12.0, 15.0
     return dict(b=0.25, e=0.08, beta=float(np.deg2rad(4.0)), alpha=float(np.deg2rad(5.0)), U_section=30.0,
@@ -112,7 +114,9 @@ def conventions_table():
 
     Book: §14.2–§14.9 (traps T1–T5, T12, T13: Γ clockwise; b, a, β, c, e, Λ, γ, θ change meaning between sections).
     Returns a ``pandas.DataFrame`` with columns "symbol", "meanings", "ours", "code".
-    Assumptions: none.   Validation: V1 a table.  Label: analytic.
+    Assumptions: none.
+    Validation: V1 a table — tests/test_ch14.py: test_tables_V7_inputs_conventions_slips_traps.
+    Label: analytic.
     """
     import pandas as pd
 
@@ -149,11 +153,15 @@ def book_slips() -> dict:
     """The printed slips and loose statements of chapter 14, each with the way to tell the two versions apart.
 
     Book: §14.3–§14.6 (found by reading the page images against the book's own neighbouring equations; slips #1, #2,
-    #4 and #8 were re-read on the rendered pages p732, p734, p739, p741 when this module was written).
+    #4 and #8 were re-read on the rendered pages p732, p734, p739, p741 when this module was written; #9 was confirmed
+    on p753–p754 by the derivation review; #10 was seen in the extracted text only — its page image was not re-read).
     Returns a dict keyed "1" … "10"; each value has ``id``, ``kind`` ("slip" = false as printed, "loose" = an
     inconsistency), ``where``, ``printed``, ``correct`` (alias ``corrected``), ``how_to_tell``, ``coded_in`` and
     ``test`` (the planted wrong variant a test can fail; "—" for wording-only items).
-    Assumptions: none.   Validation: V1 a table; the computable rows are checked by the named variants.
+    Assumptions: none.
+    Validation: V1 a table; the computable rows are checked by the named variants — tests/test_ch14.py:
+    test_tables_V7_inputs_conventions_slips_traps,
+    test_downwash_series_V1_last_member_of_14_19_and_slip_1_the_printed_middle_member_has_the_wrong_sign.
     Label: analytic.
     """
     rows = [
@@ -184,7 +192,8 @@ def book_slips() -> dict:
         ("loose", "Exercises 14.14 and 14.18", "span written b", "s (b is the map constant)", "notation drift inside the exercises",
          "LL (span is always s)", "—"),
         ("loose", "end of §14.6", "the 'Λ-pattern' of migrating birds, printed with the aspect-ratio symbol", "a V formation",
-         "same glyph as the aspect ratio Λ of (14.1)", "LL.horseshoe_velocity (upwash outboard of the tips)", "—"),
+         "same glyph as the aspect ratio Λ of (14.1) (seen in the extracted text only: the page image was not re-read)",
+         "LL.horseshoe_velocity (upwash outboard of the tips)", "—"),
     ]
     out = {}
     for i, (kind, where, printed, correct, how, coded, test) in enumerate(rows, start=1):
@@ -198,7 +207,9 @@ def traps() -> list:
 
     Book: §14.2–§14.9.   Returns a list of 18 dicts (``id`` "T1" … "T18", ``what``, ``where`` — the section, ``code``
     — how the code guards against it).
-    Assumptions: none.   Validation: V1 a table.  Label: analytic.
+    Assumptions: none.
+    Validation: V1 a table — tests/test_ch14.py: test_tables_V7_inputs_conventions_slips_traps.
+    Label: analytic.
     """
     rows = [
         ("Γ is the clockwise circulation; positive lift at positive α needs Γ_cw > 0", "§14.3, §14.5",
@@ -249,7 +260,8 @@ def compressibility_check(U, T: float = 288.15) -> dict:
     Parameters: U speed [m/s]; T air temperature [K] (default 288.15 K, sea level).
     Returns dict: ``Ma`` [–], ``density_change`` ≈ ½Ma² [–], ``incompressible_ok`` (Ma < 0.3; bool or array).
     Assumptions: perfect gas (dry air), isentropic stagnation; leading order in Ma².
-    Validation: V1 against the exact isentropic density ratio (1e-3 at Ma = 0.3: series truncation); V7 Ma → 0.
+    Validation: V1 against the exact isentropic density ratio (1e-3 at Ma = 0.3: series truncation); V7 Ma → 0 —
+    tests/test_ch14.py: test_compressibility_V1_half_mach_squared_against_the_isentropic_density_ratio.
     Label: analytic.
     """
     Ma = _F(mach_number(U, T=T))  # Eq. (4.111)
@@ -264,8 +276,13 @@ def level_flight(W, rho, U, A, CD=None) -> dict:
     L = W ⇒ C_L = W/(½ρU²A); T = D = C_D ½ρU²A; power = D U.
     Parameters: W weight [N]; rho [kg/m³]; U [m/s]; A planform area [m²]; CD drag coefficient [–] or None.
     Returns dict: ``CL`` [–], ``q`` dynamic pressure [Pa], ``D`` [N], ``power`` [W] (None without CD).
+    Call by keyword — the sibling functions :func:`stall_speed` ``(W, rho, A, CL_max)`` and :func:`drag_vs_speed`
+    ``(W, rho, A, AR, CD0, U)`` take these arguments in a different order.
     Assumptions: steady, level, unaccelerated; thrust along the flight path.
-    Validation: V1 L recomputed from C_L equals W (1e-12); V2 dimensions.  Label: analytic.
+    Validation: V1 L recomputed from C_L equals W (1e-12); V2 dimensions — tests/test_ch14.py:
+    test_aspect_ratio_V2_two_forms_and_dimensions, test_level_flight_V1_lift_equals_weight_and_stall_speed_inverts,
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     q = 0.5 * _F(rho) * _F(U) ** 2
     CL = _F(W) / (q * _F(A))  # Eq. (4.108) with L = W
@@ -279,7 +296,13 @@ def stall_speed(W, rho, A, CL_max):
     Book: §14.7 (flaps raise the lift coefficient, so the aircraft can land more slowly — stated).  Ours: L = W with
     (4.108) at C_L = C_L,max.
     Parameters: W [N]; rho [kg/m³]; A planform area [m²]; CL_max [–].   Returns U_min [m/s].
-    Assumptions: steady level flight.   Validation: V1 inverts :func:`level_flight`.  Label: analytic.
+    Call by keyword — the sibling function :func:`level_flight` ``(W, rho, U, A)`` takes these arguments in a
+    different order.
+    Assumptions: steady level flight.
+    Validation: V1 inverts :func:`level_flight` — tests/test_ch14.py: test_aspect_ratio_V2_two_forms_and_dimensions,
+    test_level_flight_V1_lift_equals_weight_and_stall_speed_inverts,
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     return _S(np.sqrt(2.0 * _F(W) / (_F(rho) * _F(A) * _F(CL_max))))
 
@@ -299,7 +322,9 @@ def surface_point(U: float, b: float, e: float, beta: float, alpha: float, t: fl
     ``map_factor_abs`` = |ζ²/(ζ² − b²)| [–] (inf at the edge); ``speed`` [m/s]; ``cp`` [–].  At t = −β the speed is
     the limit U(b/a)cos(α + β) of ``trailing_edge_speed`` with the Kutta circulation and inf otherwise.
     Assumptions: steady ideal flow, attached.
-    Validation: V1 equals ``zhukhovsky_surface`` at its nodes; speed = dwdzeta_abs · map_factor_abs away from the edge.
+    Validation: V1 equals ``zhukhovsky_surface`` at its nodes; speed = dwdzeta_abs · map_factor_abs away from the edge —
+    tests/test_ch14.py: test_surface_pressure_V1_stagnation_points_bernoulli_and_the_edge_value,
+    test_trailing_edge_speed_V1_finite_limit_of_14_9_with_kutta_and_blow_up_without.
     Label: analytic.
     """
     F = AF.zhukhovsky_flow(U, b, e, beta, alpha, Gamma_cw=Gamma_cw)
@@ -324,7 +349,10 @@ def edge_speed(U: float, b: float, e: float, beta: float, alpha: float, d: float
     — a scalar wrapper, no new physics.
     Parameters: U [m/s]; b [m]; e [–]; beta, alpha [rad]; d [m] (> 0); Gamma_cw [m²/s] (None → Kutta).
     Returns the speed [m/s]: → U(b/a)cos(α + β) as d → 0 with the Kutta value, ∝ d^{−1/2} otherwise.
-    Assumptions: steady ideal flow.   Validation: V1 limit against ``trailing_edge_speed``.  Label: analytic.
+    Assumptions: steady ideal flow.
+    Validation: V1 limit against ``trailing_edge_speed`` — tests/test_ch14.py:
+    test_trailing_edge_speed_V1_finite_limit_of_14_9_with_kutta_and_blow_up_without.
+    Label: analytic.
     """
     return float(AF.zhukhovsky_flow(U, b, e, beta, alpha, Gamma_cw=Gamma_cw).speed_near_edge(float(d)))
 
@@ -335,7 +363,10 @@ def map_point(zeta_re: float, zeta_im: float, b: float) -> dict:
     Book: §14.4, Eq. (14.4) x = (R + b²/R) cos θ, y = (R − b²/R) sin θ for ζ = R e^{iθ} (from z = ζ + b²/ζ (14.3)).
     Parameters: zeta_re, zeta_im [m] (not both zero); b [m].
     Returns dict of floats: ``R`` [m], ``theta`` [rad] (polar angle of ζ from the origin), ``x``, ``y`` [m].
-    Assumptions: none (geometry).   Validation: V1 equals ``joukowski(zeta, b)``.  Label: analytic.
+    Assumptions: none (geometry).
+    Validation: V1 equals ``joukowski(zeta, b)`` — tests/test_ch14.py:
+    test_zhukhovsky_airfoil_V1_slit_arc_symmetric_section_and_14_4.
+    Label: analytic.
     """
     R = float(np.hypot(zeta_re, zeta_im))
     th = float(np.arctan2(zeta_im, zeta_re))
@@ -362,7 +393,9 @@ def edge_flow_suction(rho: float, Uo: float, a: float, eps: float = 1e-3, n: int
     For a flat plate of chord c at incidence α the edge flow has U_o²a = U²c sin²α, which gives S = πρU²c sin²α of
     :func:`fluidpy.core.airfoils.flat_plate_forces`.
     Assumptions: steady ideal flow; plate of zero thickness.
-    Validation: V1 quadrature = closed form; V4 independent of ε.  Label: analytic.
+    Validation: V1 quadrature = closed form; V4 independent of ε — tests/test_ch14.py:
+    test_flat_plate_V1_leading_edge_suction_closes_the_force_triangle.
+    Label: analytic.
     """
     th = (np.arange(int(n)) + 0.5) * 2.0 * np.pi / int(n)
     amp = float(Uo) * np.sqrt(float(a) / float(eps))
@@ -389,7 +422,9 @@ def trailing_edge_wedge(n: float, U: float = 1.0, d: float = 1.0) -> dict:
     Returns dict: ``included_angle`` [rad]; ``half_fluid_angle`` = π/n [rad]; ``velocity(r, theta)`` → (u_r, u_θ)
     [m/s]; ``speed(r)`` [m/s]; ``Cp(r)`` = 1 − (r/d)^{2(n−1)} (reference: the speed at r = d); ``Cp_edge``.
     Assumptions: steady ideal flow near the edge.
-    Validation: V1 n = 1 uniform flow, C_p(edge) = 0; n > 1: C_p(edge) = 1; u_θ = 0 on θ = ±π/n.  Label: analytic.
+    Validation: V1 n = 1 uniform flow, C_p(edge) = 0; n > 1: C_p(edge) = 1; u_θ = 0 on θ = ±π/n — tests/test_ch14.py:
+    test_trailing_edge_V7_cusp_angle_tends_to_zero_and_a_wedge_keeps_its_angle.
+    Label: analytic.
     """
     n, U, d = float(n), float(U), float(d)
 
@@ -414,7 +449,12 @@ def chord_reynolds(U, c, nu):
     """Chord Reynolds number Re_c = Uc/ν [–].
 
     Book: §14.7 (the maximum lift coefficient depends on the Reynolds number).
-    Parameters: U [m/s]; c chord [m]; nu kinematic viscosity [m²/s].   Label: analytic.
+    Parameters: U [m/s]; c chord [m]; nu kinematic viscosity [m²/s].   Returns Re_c [–].
+    Assumptions: none (definition).
+    Validation: V1 equals ``core.similarity.reynolds_number`` (4.103) — tests/test_ch14.py:
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so,
+    test_level_flight_V1_lift_equals_weight_and_stall_speed_inverts.
+    Label: analytic.
     """
     return _S(_F(U) * _F(c) / _F(nu))
 
@@ -427,7 +467,9 @@ def stall_regime(Re_c: float, *, Re_laminar: float, Re_turbulent: float) -> str:
     maximum lift — the same physics as the drag crisis of ch09).  The book's ranges are private; the two thresholds
     are required keywords.
     Returns "laminar separation first" (Re_c < Re_laminar), "transition first" (Re_c > Re_turbulent) or "mixed".
-    Assumptions: a two-threshold cartoon of a continuous dependence.   Validation: V7 both sides of each threshold.
+    Assumptions: a two-threshold cartoon of a continuous dependence.
+    Validation: V7 both sides of each threshold — tests/test_ch14.py:
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
     Label: qualitative.
     """
     if Re_c < Re_laminar:
@@ -460,7 +502,9 @@ def suction_side_separation(alpha: float, e: float, beta: float, Re_c: float, n:
     of b = 1]; ``z_sep`` (complex, b = 1); ``xc_peak`` (position of the suction peak on that side); ``theta_sep``
     momentum thickness at separation / chord; ``label`` = "qualitative"; ``side``; ``xc``, ``Ue`` (the path).
     Assumptions: laminar, steady, attached ideal outer flow; b = 1, U = 1 (non-dimensional).
-    Validation: V7 moves forward monotonically with α; symmetric section at α = 0: same on both sides.
+    Validation: V7 moves forward monotonically with α; symmetric section at α = 0: same on both sides —
+    tests/test_ch14.py: test_suction_side_separation_V7_qualitative_trends_only,
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
     Label: qualitative.
     """
     if e <= 0.0:
@@ -511,7 +555,9 @@ def generic_lift_curve(alpha, *, K: float, beta: float, alpha_stall: float, CL_p
     Parameters: alpha [rad]; K [1/rad]; beta [rad]; alpha_stall [rad] (where the curve leaves the line);
     CL_post plateau value [–]; width [rad] of the drop.   Returns C_L [–].
     Assumptions: an empirical cartoon; positive stall only.
-    Validation: V7 equals K(α + β) exactly for α ≤ α_stall; continuous with a continuous slope.  Label: qualitative.
+    Validation: V7 equals K(α + β) exactly for α ≤ α_stall; continuous with a continuous slope — tests/test_ch14.py:
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
+    Label: qualitative.
     """
     al = _F(alpha)
     x = np.clip((al - float(alpha_stall)) / float(width), 0.0, 1.0)
@@ -527,7 +573,10 @@ def generic_drag_curve(alpha, *, CD0: float, AR: float, e_span: float, K: float,
     Ours: C_D = C_D0 + C_L(α)²/(πΛ e_span) + C_D,sep σ(α), with C_L and σ of :func:`generic_lift_curve`.
     Parameters: alpha [rad]; CD0 [–]; AR [–]; e_span [–]; K, beta, alpha_stall, CL_post, width as in
     :func:`generic_lift_curve`; CD_sep extra drag coefficient of the separated flow [–].   Returns C_D [–].
-    Assumptions: an empirical cartoon.   Validation: V7 minimum C_D0 at zero lift (α = −β).  Label: qualitative.
+    Assumptions: an empirical cartoon.
+    Validation: V7 minimum C_D0 at zero lift (α = −β) — tests/test_ch14.py:
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
+    Label: qualitative.
     """
     al = _F(alpha)
     x = np.clip((al - float(alpha_stall)) / float(width), 0.0, 1.0)
@@ -562,14 +611,23 @@ def impulsive_start_lumped_vortex(U, c: float, alpha, t_end: float, dt: float, *
     -------
     dict: ``t`` [s]; ``s_chords`` = ∫U dt/c; ``Gamma_bound_cw`` [m²/s]; ``Gamma_wake_cw`` (sum of the shed vortices);
     ``total`` (their sum: zero to rounding); ``Gamma_steady`` = πU(t)c sin α(t); ``ratio`` = bound/steady;
-    ``lift_circulatory`` = ρUΓ_bound [N/m] (the added-mass part of the unsteady lift is not modelled);
+    ``lift_circulatory`` = ρUΓ_bound [N/m] (the quasi-steady circulatory part only: the unsteady ρ·dΓ/dt term is
+    omitted and the added-mass part of the unsteady lift is not modelled);
     ``wake_x``, ``wake_y`` [m] (plate frame: leading edge at 0, trailing edge at c), ``wake_Gamma_cw`` at the end;
     with ``history``: ``wake_x_hist``, ``wake_y_hist`` (steps × steps).
     Assumptions: ideal flow outside a thin wake; small plate (one bound vortex); a model, not a simulation of the
-    boundary layer — the first value is 1/3 of the steady one where Wagner's exact thin-airfoil result is 1/2.
-    Validation: V4 total = 0 at every step (1e-12); V1 Γ_bound → πUc sin α; V3 first order in dt; V5 growth against
-    :func:`wagner_function` (a few per cent after the first two chords, model).  Label: conserved, analytic (limit);
-    the transient is a model.
+    boundary layer.  Its first value of Γ_bound is 1/3 of the steady one.  In the exact thin-airfoil solution the
+    circulation starts from zero (Kelvin: nothing has been shed yet) and it is the circulatory lift that starts at
+    one half (Wagner).  ρUΓ_bound of this model follows Wagner's lift function (about 1 % after two chords) and runs
+    above the exact circulation (0.65 against 0.55 after one chord).
+    Validation: V4 total = 0 at every step (1e-12); V1 Γ_bound → πUc sin α; V3 first order in dt; V5
+    ``lift_circulatory``/(ρUΓ_steady) against :func:`wagner_function` (a lift ratio) — tests/test_ch14.py:
+    test_starting_vortex_V4_kelvin_total_circulation_is_zero_at_every_step,
+    test_starting_vortex_V1_steady_limit_is_the_kutta_value_and_first_step_is_one_third,
+    test_starting_vortex_V3_first_order_in_the_time_step,
+    test_starting_vortex_V5_circulatory_lift_against_the_cited_fits_of_wagners_function.
+    Label: conserved, analytic
+    (limit); the transient is a model.
     """
     Uf = U if callable(U) else (lambda t: float(U))
     af = alpha if callable(alpha) else (lambda t: float(alpha))
@@ -627,12 +685,18 @@ def wagner_function(s):
     Book: none (§14.3 describes the start-up in words: the steady pattern is reached "after the flow has moved a
     chord or two").  R. T. Jones' two-exponential approximation, φ = 1 − 0.165 e^{−0.0455 s} − 0.335 e^{−0.3 s}, with
     s = Ut/(c/2) the distance travelled in **semi-chords**; φ(0) = ½, φ → 1.
-    Source: BYU FLOW Lab, Aeroelasticity.jl documentation, "Wagner's Function"
-    (https://flow.byu.edu/Aeroelasticity.jl/dev/models/aerodynamics/wagner; coefficients read from the fetched page on
-    2026-10-12 by the implementer — the verifier should confirm first-hand before using it as V5).
+    **φ is a lift ratio, not a circulation ratio**: circulatory lift / steady lift.  The exact bound circulation is a
+    different function that starts from zero (Kelvin: nothing has been shed at t = 0⁺).
+    Source: S. T. M. Dawson & S. L. Brunton, arXiv:2104.15122v2 (2021), Eq. (1) and Table 1 (coefficients, φ(0) = ½,
+    absolute error below 1 %); the same coefficients on the BYU FLOW Lab Aeroelasticity.jl page "Wagner's Function"
+    (https://flow.byu.edu/Aeroelasticity.jl/dev/models/aerodynamics/wagner).  Both read first-hand on 2026-10-12; the
+    primary report (R. T. Jones, NACA, 1938) was not read.
     Parameters: s distance in semi-chords [–] (≥ 0).   Returns φ [–].
     Assumptions: thin airfoil, small incidence, incompressible; an approximation of the exact function (about 1 %).
-    Validation: V7 φ(0) = 0.5, φ(∞) = 1, monotone.  Label: benchmark (cited fit; verifier to confirm the source).
+    Validation: V5 coefficients equal the cited ones (1e-15); within 0.022 of Garrick's fit 1 − 2/(4 + s); V7 φ(0) =
+    0.5, φ(∞) = 1, monotone — tests/test_ch14.py:
+    test_starting_vortex_V5_circulatory_lift_against_the_cited_fits_of_wagners_function.
+    Label: benchmark (cited fit).
     """
     s = _F(s)
     return _S(1.0 - 0.165 * np.exp(-0.0455 * s) - 0.335 * np.exp(-0.3 * s))
@@ -665,7 +729,10 @@ def wake_rollup(Gn, s: float, n: int = 200, t_end: float | None = None, eps: flo
     [m/s]; ``energy`` (n_t,) [m⁴/s²] — the Hamiltonian of the blob dynamics, −(1/4π)Σ_{j<k}σ_jσ_k ln(r_jk² + eps²);
     ``eps``; ``label``.
     Assumptions: two-dimensional unsteady analogy of the steady wake (slender wake); inviscid; planar initial sheet.
-    Validation: V4 impulse and blob Hamiltonian conserved (to the integrator's tolerance); centroid spacing b′.  Label: conserved
+    Validation: V4 impulse and blob Hamiltonian conserved (to the integrator's tolerance); centroid spacing b′ —
+    tests/test_ch14.py: test_wake_rollup_V4_invariants_are_conserved_the_spiral_is_qualitative,
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
+    Label: conserved
     (invariants); qualitative (the spiral).
     """
     g = np.atleast_1d(_F(Gn))
@@ -706,7 +773,9 @@ def tip_vortex_estimate(W: float, rho: float, U: float, s: float) -> dict:
     Returns dict: ``Gamma0`` [m²/s], ``spacing`` [m], ``descent_speed`` [m/s], ``downwash`` [m/s],
     ``induced_drag`` [N] (14.25).
     Assumptions: steady level flight, elliptic loading, complete roll-up.
-    Validation: V1 consistent with ``rolled_up_pair`` and (14.25).  Label: analytic.
+    Validation: V1 consistent with ``rolled_up_pair`` and (14.25) — tests/test_ch14.py:
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse.
+    Label: analytic.
     """
     G0 = 4.0 * float(W) / (np.pi * float(rho) * float(U) * float(s))  # Eq. (14.21) with L = W
     bp = 0.25 * np.pi * float(s)
@@ -723,7 +792,9 @@ def vortex_pair_energy_per_length(Gamma, s, sigma, rho):
     Parameters: Gamma circulation of each vortex [m²/s]; s distance between the two centres [m] (the pair's spacing —
     not the wing span); sigma core radius [m]; rho [kg/m³].   Returns the energy per length [J/m = N].
     Assumptions: σ ≪ s (cores do not deform each other); two-dimensional far wake.
-    Validation: V7 grows as ln(s/σ); V2 dimensions.  Label: analytic (leading order in σ/s).
+    Validation: V7 grows as ln(s/σ); V2 dimensions — tests/test_ch14.py:
+    test_vortex_pair_energy_V1_rankine_cores_and_the_field_outside_them.
+    Label: analytic (leading order in σ/s).
     """
     G = _F(Gamma)
     return _S(_F(rho) * G ** 2 / (2.0 * np.pi) * (np.log(_F(s) / _F(sigma)) + 0.25))
@@ -741,7 +812,9 @@ def wake_vortex_rolling_moment(rho: float, U: float, K: float, s: float, c: floa
     [m]; Gamma_v circulation Γ′ of the large aircraft's vortex [m²/s]; ell core length scale ℓ [m].
     Returns dict: ``M`` [N m] (closed form), ``M_quad`` (quadrature), ``ratio`` to the ℓ → 0 limit ρUKcΓ′s/(4π).
     Assumptions: w ≪ U; lifting-strip theory without the small wing's own downwash (over-estimates the moment).
-    Validation: V1 closed form = quadrature (1e-10); V7 odd in Γ′; ℓ → 0 limit.  Label: analytic.
+    Validation: V1 closed form = quadrature (1e-10); V7 odd in Γ′; ℓ → 0 limit — tests/test_ch14.py:
+    test_rolling_moment_V1_closed_form_quadrature_and_limits.
+    Label: analytic.
     """
     pref = float(rho) * float(U) * float(K) * float(c) * float(Gamma_v) / (2.0 * np.pi)
     M = pref * (0.5 * s - ell * (-np.expm1(-0.5 * s / ell)))
@@ -763,7 +836,10 @@ def drag_polar(CL, *, CD0: float, AR: float, e_span: float = 1.0):
     C_D0 and e_span are ours (the book states the breakdown in words).
     Parameters: CL [–]; CD0 profile-drag coefficient [–]; AR = Λ [–]; e_span [–].   Returns C_D [–].
     Assumptions: profile drag independent of lift (a parabolic polar); below stall.
-    Validation: V1 parts of :func:`drag_breakdown` sum to it.  Label: analytic.
+    Validation: V1 parts of :func:`drag_breakdown` sum to it — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve,
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so.
+    Label: analytic.
     """
     return _S(float(CD0) + _F(CL) ** 2 / (np.pi * float(AR) * float(e_span)))  # Eq. (14.26) + profile drag
 
@@ -774,7 +850,10 @@ def drag_share(CL, *, CD0: float, AR: float, e_span: float = 1.0):
     Book: §14.6–§14.7 ("the induced drag generally makes the largest contribution to the total drag" — trap T9: true
     at high lift coefficient; exactly ½ at the best glide; smaller at cruise).
     Parameters: as :func:`drag_polar`.   Returns the fraction in [0, 1).
-    Assumptions: parabolic polar.   Validation: V1 = ½ at ``best_glide``'s C_L.  Label: analytic.
+    Assumptions: parabolic polar.
+    Validation: V1 = ½ at ``best_glide``'s C_L — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     cdi = _F(CL) ** 2 / (np.pi * float(AR) * float(e_span))
     return _S(cdi / (float(CD0) + cdi))
@@ -790,7 +869,9 @@ def drag_breakdown(CL, *, CD0: float, AR: float, e_span: float = 1.0, friction_f
     Returns dict of coefficients: ``profile``, ``induced``, ``total``, ``induced_share``; with friction_fraction also
     ``friction``, ``form``, ``pressure`` (= form + induced).
     Assumptions: parabolic polar; the friction/form split is an input, not computed.
-    Validation: V1 friction + form + induced = total; profile + induced = total (1e-12).  Label: analytic.
+    Validation: V1 friction + form + induced = total; profile + induced = total (1e-12) — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     cdi = _F(CL) ** 2 / (np.pi * float(AR) * float(e_span))  # Eq. (14.26)
     out = {"profile": float(CD0), "induced": _S(cdi), "total": _S(float(CD0) + cdi), "induced_share": _S(cdi / (float(CD0) + cdi))}
@@ -810,7 +891,10 @@ def profile_drag_estimate(Re_c, t_over_c: float, *, regime: str, form_factor) ->
     Parameters: Re_c [–]; t_over_c thickness ratio [–]; regime "laminar" | "turbulent" | "mixed"; form_factor ≥ 1.
     Returns C_D0 [–] (based on the planform area).
     Assumptions: attached flow, zero-incidence plate friction; no pressure-gradient effect on the friction.
-    Validation: V7 form_factor = 1 → twice the plate value.  Label: approximate (qualitative).
+    Validation: V7 form_factor = 1 → twice the plate value — tests/test_ch14.py:
+    test_stall_models_V7_generic_curves_and_regimes_are_qualitative_and_say_so,
+    test_profile_drag_estimate_V7_twice_the_plate_friction_times_a_stated_form_factor.
+    Label: approximate (qualitative).
     """
     ff = float(form_factor(t_over_c)) if callable(form_factor) else float(form_factor)
     return float(ff * 2.0 * float(plate_drag_coefficient(Re_c, regime=regime, sides=1)))
@@ -824,7 +908,9 @@ def best_glide(CD0: float, AR: float, e_span: float = 1.0) -> dict:
     Parameters: CD0 [–]; AR [–]; e_span [–].
     Returns dict: ``CL``, ``CD`` (= 2C_D0), ``LD_max``, ``induced_share`` (= 0.5), ``glide_angle`` [rad].
     Assumptions: parabolic polar; below stall.
-    Validation: V1 numerical minimisation of C_D/C_L (1e-6).  Label: analytic.
+    Validation: V1 numerical minimisation of C_D/C_L (1e-6) — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     k = np.pi * float(AR) * float(e_span)
     CL = float(np.sqrt(k * float(CD0)))
@@ -838,8 +924,12 @@ def drag_vs_speed(W: float, rho: float, A: float, AR: float, CD0: float, U, e_sp
     Book: §14.6–§14.7 with (14.25): D_i = 2L²/(πρU²s²) (÷ e_span), L = W, s² = ΛA; profile drag ½ρU²A C_D0 (ours).
     Parameters: W [N]; rho [kg/m³]; A [m²]; AR; CD0; U speed(s) [m/s]; e_span.
     Returns dict: ``profile``, ``induced``, ``total`` [N]; ``CL``; ``induced_share``; ``LD``.
+    Call by keyword — the sibling function :func:`level_flight` ``(W, rho, U, A)`` takes these arguments in a
+    different order (here the speed U comes after A, AR and CD0).
     Assumptions: steady level flight; parabolic polar; below stall (check C_L against C_L,max).
-    Validation: V1 minimum of ``total`` at :func:`speed_min_drag` where the two parts are equal.  Label: analytic.
+    Validation: V1 minimum of ``total`` at :func:`speed_min_drag` where the two parts are equal — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     U = _F(U)
     q = 0.5 * float(rho) * U ** 2
@@ -853,7 +943,10 @@ def speed_min_drag(W: float, rho: float, A: float, AR: float, CD0: float, e_span
     """Speed of least drag (best glide) in level flight, U* = √(2W/(ρA C_L*)) with C_L* = √(πΛ e_span C_D0) [m/s].
 
     Book: §14.7 (ours, from :func:`best_glide` and L = W).   Parameters: as :func:`drag_vs_speed`.
-    Assumptions: parabolic polar.   Validation: V1 minimiser of ``drag_vs_speed``.  Label: analytic.
+    Assumptions: parabolic polar.
+    Validation: V1 minimiser of ``drag_vs_speed`` — tests/test_ch14.py:
+    test_drag_polar_V1_parts_sum_best_glide_and_the_u_shaped_drag_curve.
+    Label: analytic.
     """
     return float(np.sqrt(2.0 * float(W) / (float(rho) * float(A) * best_glide(CD0, AR, e_span)["CL"])))
 
@@ -873,7 +966,9 @@ def oscillating_foil(U, V, L, D=0.0) -> dict:
     Returns dict: ``theta`` [rad]; ``Ur`` [m/s]; ``thrust``, ``side_force`` [N]; ``power_out`` = thrust·U,
     ``power_in`` = side force·V [W]; ``efficiency`` [–].
     Assumptions: quasi-steady; the same triangle on both half-strokes; no wake losses beyond D.
-    Validation: V1 D = 0: efficiency 1 for any θ; V7 efficiency → 0 at tan θ = D/L.  Label: analytic.
+    Validation: V1 D = 0: efficiency 1 for any θ; V7 efficiency → 0 at tan θ = D/L — tests/test_ch14.py:
+    test_oscillating_foil_V1_thrust_from_a_sideways_stroke_and_the_power_identity.
+    Label: analytic.
     """
     U_, V_, L_, D_ = _F(U), _F(V), _F(L), _F(D)
     th = np.arctan2(V_, U_)  # V/U = tan θ
@@ -899,7 +994,9 @@ def apparent_wind(U, V, theta) -> dict:
     Returns dict: ``Ur`` apparent wind speed [m/s] = √(U² + V² + 2UV cos θ); ``beta_a`` apparent-wind angle off the
     bow [rad] (≤ θ: the boat's own motion swings the wind forward); ``vector`` (U_rx, U_ry) [m/s].
     Assumptions: steady motion on a straight course; no leeway in this triangle.
-    Validation: V1 V = 0: apparent = true wind; V7 mirror symmetry θ → −θ.  Label: analytic.
+    Validation: V1 V = 0: apparent = true wind; V7 mirror symmetry θ → −θ — tests/test_ch14.py:
+    test_apparent_wind_V1_vector_subtraction_and_sail_forces_resolved_along_the_course.
+    Label: analytic.
     """
     U_, V_, th = _F(U), _F(V), _F(theta)
     urx, ury = -U_ * np.cos(th) - V_, -U_ * np.sin(th)
@@ -917,7 +1014,9 @@ def sail_forces(U, V, theta, *, CL: float, CD: float, rho: float, A: float) -> d
     Returns dict: ``beta_a`` [rad], ``Ur`` [m/s], ``L``, ``D``, ``drive``, ``lateral`` (leeward +), ``F`` [N],
     ``drive_over_L`` [–].
     Assumptions: the sail is trimmed to the same C_L, C_D on every course; forces in the horizontal plane; quasi-steady.
-    Validation: V1 drive = 0 exactly at tan β_a = D/L; drive² + lateral² = L² + D²; V7 port/starboard mirror.
+    Validation: V1 drive = 0 exactly at tan β_a = D/L; drive² + lateral² = L² + D²; V7 port/starboard mirror —
+    tests/test_ch14.py: test_apparent_wind_V1_vector_subtraction_and_sail_forces_resolved_along_the_course,
+    test_sailboat_V1_force_polygon_closes_and_the_course_limit_is_the_sum_of_two_drag_angles.
     Label: analytic.
     """
     aw = apparent_wind(U, V, theta)
@@ -937,7 +1036,11 @@ def sail_drive_curve(theta, *, U: float, V: float, CL: float, CD: float, rho: fl
 
     Book: §14.9 ("the thrust decreases as the angle θ decreases and normally vanishes" below a limiting angle).
     Parameters: theta [rad] (array or scalar); the rest as :func:`sail_forces`.   Returns the drive [N].
-    Assumptions: as :func:`sail_forces` (fixed boat speed V along the curve).   Label: analytic.
+    Assumptions: as :func:`sail_forces` (fixed boat speed V along the curve).
+    Validation: V1 equals the ``drive`` of :func:`sail_forces` course by course (1e-13); V7 rises monotonically with θ
+    above the course of zero drive — tests/test_ch14.py:
+    test_apparent_wind_V1_vector_subtraction_and_sail_forces_resolved_along_the_course.
+    Label: analytic.
     """
     return sail_forces(U, V, theta, CL=CL, CD=CD, rho=rho, A=A)["drive"]
 
@@ -946,7 +1049,11 @@ def velocity_made_good(V, theta):
     """Speed of progress straight upwind on a tack at the angle θ to the wind, V cos θ [m/s].
 
     Book: §14.9 (a zig-zag course at ±θ reaches an upwind destination) — ours.
-    Parameters: V boat speed [m/s]; theta course angle off the true wind [rad].   Label: analytic.
+    Parameters: V boat speed [m/s]; theta course angle off the true wind [rad].   Returns V cos θ [m/s].
+    Assumptions: straight tacks, no leeway.
+    Validation: V1 equals V cos θ on a sweep of courses (1e-14) — tests/test_ch14.py:
+    test_apparent_wind_V1_vector_subtraction_and_sail_forces_resolved_along_the_course.
+    Label: analytic.
     """
     return _S(_F(V) * np.cos(_F(theta)))
 
@@ -961,7 +1068,9 @@ def sailboat_course_limit(LD_sail, LD_hull):
     Parameters: LD_sail lift-to-drag ratio of the sail (and rig) [–]; LD_hull lift-to-drag ratio of hull and keel [–].
     Returns β_a,min [rad] — the angle off the *apparent* wind; the true-wind angle is larger (:func:`apparent_wind`).
     Assumptions: steady, forces in the horizontal plane, no heel.
-    Validation: V1 :func:`sailboat_equilibrium` satisfies it.  Label: analytic.
+    Validation: V1 :func:`sailboat_equilibrium` satisfies it — tests/test_ch14.py:
+    test_sailboat_V1_force_polygon_closes_and_the_course_limit_is_the_sum_of_two_drag_angles.
+    Label: analytic.
     """
     return _S(np.arctan(1.0 / _F(LD_sail)) + np.arctan(1.0 / _F(LD_hull)))
 
@@ -982,7 +1091,9 @@ def sailboat_equilibrium(U: float, theta: float, *, CL: float, CD: float, rho_ai
     ``closure`` = β_a − ε_A − ε_H (zero); ``vmg`` [m/s]; ``keel_holds`` (required |L/D| ≤ ``LD_hull``; True when
     ``LD_hull`` is None) — below the course limit of :func:`sailboat_course_limit` the keel cannot hold the boat.
     Assumptions: steady; hull drag quadratic in speed with a constant drag area; no heel, no waves.
-    Validation: V1 polygon closes (closure 1e-10); drive = hull drag.  Label: analytic.
+    Validation: V1 polygon closes (closure 1e-10); drive = hull drag — tests/test_ch14.py:
+    test_sailboat_V1_force_polygon_closes_and_the_course_limit_is_the_sum_of_two_drag_angles.
+    Label: analytic.
     """
     kw = dict(CL=CL, CD=CD, rho=rho_air, A=A_sail)
     hd = lambda V: 0.5 * float(rho_water) * V ** 2 * float(CDA_hull)  # noqa: E731
@@ -1020,7 +1131,9 @@ def projectile_range_drag(m: float, rho: float, A: float, CD: float, V0: float, 
     Returns the range [m] (float), or with ``numeric`` a dict: ``x_formula``, ``x_numeric``, ``x_vacuum`` [m],
     ``t_flight`` [s].
     Assumptions: V_x² ≫ V_y², mg ≫ D sin θ (shallow trajectory); level ground; no lift.
-    Validation: V7 C_D → 0 limit; V3 the numerical range approaches the formula as θ_o → 0.  Label: analytic.
+    Validation: V7 C_D → 0 limit; V3 the numerical range approaches the formula as θ_o → 0 — tests/test_ch14.py:
+    test_projectile_V7_vacuum_limit_and_V3_shallow_trajectories_approach_the_formula.
+    Label: analytic.
     """
     k = float(rho) * float(A) * float(CD)
     arg = k * V0 ** 2 * np.cos(theta0) * np.sin(theta0) / (m * g)
@@ -1051,7 +1164,9 @@ def circular_arc_sym() -> dict:
     ``res_14_6`` — the cosine rule b²/cos²β = R² + b² tan²β − 2Rb tan β cos(90° − θ) divided by R, minus
     (R − b²/R − 2b tan β sin θ); ``res_arc`` — the circle equation with y = 2b tan β sin²θ (from (14.6)) and x² from
     (14.5); ``ok`` (bool; alias ``all_zero``).  All three residuals simplify to 0.
-    Assumptions: 0 < θ < π, 0 < β < π/4, R, b > 0.   Validation: V2 exact.  Label: symbolic.
+    Assumptions: 0 < θ < π, 0 < β < π/4, R, b > 0.
+    Validation: V2 exact — tests/test_ch14.py: test_circular_arc_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 

@@ -449,7 +449,7 @@ def test_section_geometry_V1_plate_arc_and_symmetric_sections():  # V1 — N07, 
     ge = ch14.section_geometry(1.7 * np.cos(t), 0.2 * np.sin(t))
     assert close(ge["chord"], 3.4, 1e-12) and close(ge["t_max"], 0.4, 1e-6) and abs(ge["camber"]) < 1e-12 and abs(ge["x_tmax"] - 0.5) < 1e-6
     # ... and only first order in the spacing when a ROUNDED trailing edge falls between two vertices (the trailing
-    # edge is the vertex of largest x, not refined; every section of this chapter has its sharp edge at index 0) — report, Open items
+    # edge is the vertex of largest x, not refined; every section of this chapter has its sharp edge at index 0) — the docstring of section_geometry now says so
     for n in (1000, 3000, 6000):
         t = np.linspace(0.3, 0.3 - 2 * PI, n, endpoint=False)
         gr = ch14.section_geometry(1.7 * np.cos(t), 0.2 * np.sin(t))
@@ -673,7 +673,7 @@ def test_starting_vortex_V1_steady_limit_is_the_kutta_value_and_first_step_is_on
     big = s >= 50
     assert np.all(np.abs(gap[big] * s[big] - 0.5) < 0.06)                 # the deficit decays algebraically, as 1/(2 chords), not exponentially
     first = [float(ch14.impulsive_start_lumped_vortex(U, c, al, 2 * dt, dt)["ratio"][0]) for dt in (1e-2, 1e-3, 1e-4)]
-    assert abs(first[-1] - 1 / 3) < 2e-4 and abs(first[0] - 1 / 3) > abs(first[1] - 1 / 3) > abs(first[2] - 1 / 3)   # the model's 1/3 (Wagner: 1/2)
+    assert abs(first[-1] - 1 / 3) < 2e-4 and abs(first[0] - 1 / 3) > abs(first[1] - 1 / 3) > abs(first[2] - 1 / 3)   # the model's Gamma_bound starts at 1/3 (exact circulation: 0; Wagner's 1/2 is a lift ratio)
     # the steady algebra by hand: one bound vortex at c/4, no flow through the plate at 3c/4, wake infinitely far
     Gb = U * math.sin(al) * 2 * PI * (0.75 * c - 0.25 * c)
     assert close(Gb, PI * U * c * math.sin(al)) and close(ch14.flat_plate_forces(1.0, U, c, al)["Gamma_cw"], Gb)
@@ -696,7 +696,14 @@ def test_starting_vortex_V3_first_order_in_the_time_step():  # V3 — C03 (docst
     assert all(abs(p - 1.0) < 0.25 for p in of), (of, rf)
 
 
-def test_starting_vortex_V5_growth_against_the_cited_fits_of_wagners_function():  # V5 — C03 vs Jones' fit (first-hand, two sources)
+def test_starting_vortex_V5_circulatory_lift_against_the_cited_fits_of_wagners_function():  # V5 + V4 — C03 vs Jones' fit (first-hand, two sources)
+    """Wagner's function phi(s) is a LIFT ratio: circulatory lift / steady lift after a step in incidence.
+
+    The quantity compared with it is therefore the model's circulatory lift over the steady lift,
+    ``lift_circulatory / (rho U Gamma_steady)`` — not a circulation ratio.  The bound circulation is a different
+    quantity: by Kelvin's theorem it equals minus what has been shed, so the exact one starts from 0 (review M1), the
+    model's from 1/3, and neither from Wagner's phi(0) = 1/2.
+    """
     j, g = bench()["wagner_jones_fit"], bench()["wagner_garrick_fit"]
     s = np.linspace(0.0, 120.0, 2401)
     phi = ch14.wagner_function(s)
@@ -705,15 +712,36 @@ def test_starting_vortex_V5_growth_against_the_cited_fits_of_wagners_function():
     assert np.all(np.diff(phi) > 0) and close(j["C1"] + j["C2"], 0.5, 1e-15)
     garrick = 1 - 2 / (4 + s)                                             # an independent published approximation
     assert np.max(np.abs(phi - garrick)) < j["max_abs_error_stated"] + g["max_abs_error_stated"]     # each within its stated error of the exact one
-    # the lumped-vortex model against the fit (s in semi-chords = 2 x chords travelled)
-    U, c, al = I["U_section"], 1.0, I["alpha"]
-    r = ch14.impulsive_start_lumped_vortex(U, c, al, 20 * c / U, 0.05 * c / U)
-    assert [round(float(r["ratio"][k]), 4) for k in (19, 59, 99, 199)] == [0.6463, 0.8156, 0.8792, 0.9388]   # design C.6 item 4
-    assert abs(float(np.interp(0.9, r["ratio"], r["s_chords"])) - 6.2) < 0.1                                 # "90 % at about 6.2 chords"
+    # the lumped-vortex model's CIRCULATORY LIFT / STEADY LIFT against the fit (s in semi-chords = 2 x chords travelled);
+    # rho is not 1, so a lift built without the density, or from the steady circulation, cannot pass
+    U, c, al, rho = I["U_section"], 1.0, I["alpha"], I["rho"]
+    r = ch14.impulsive_start_lumped_vortex(U, c, al, 20 * c / U, 0.05 * c / U, rho=rho)
+    lift_steady = rho * U * r["Gamma_steady"]                             # Kutta–Zhukhovsky lift of the steady flow [N/m]
+    assert close(lift_steady, rho * U * PI * U * c * math.sin(al), 1e-13) and rho != 1.0
+    lift_ratio = r["lift_circulatory"] / lift_steady                      # the quantity Wagner's function describes
+    assert close(r["lift_circulatory"], rho * U * r["Gamma_bound_cw"], 1e-14)                                # rho U Gamma_bound, by hand
+    assert [round(float(lift_ratio[k]), 4) for k in (19, 59, 99, 199)] == [0.6463, 0.8156, 0.8792, 0.9388]   # design C.6 item 4
+    # 90 % of the steady lift: 6.13 chords at dt = 0.05 c/U with the rigid wake (linear interpolation between steps;
+    # 6.22, 6.13, 6.09, 6.06 at dt = 0.1, 0.05, 0.025, 0.0125 c/U — first order in dt, toward about 6.04)
+    assert abs(float(np.interp(0.9, lift_ratio, r["s_chords"])) - 6.13) < 0.01
     w = (r["s_chords"] >= 2.0)
-    dev = np.abs(r["ratio"] - ch14.wagner_function(2 * r["s_chords"]))
-    assert np.max(dev[w]) < 0.03, np.max(dev[w])                          # model: 3 % over 2-20 chords (analysis T18)
-    assert 0.02 < np.max(dev[~w]) < 0.17                                  # and visibly below Wagner at the start (1/3 against 1/2)
+    dev = np.abs(lift_ratio - ch14.wagner_function(2 * r["s_chords"]))
+    assert np.max(dev[w]) < 0.012, np.max(dev[w])                         # measured 0.0060 over 2-20 chords at dt = 0.05 c/U (was 0.03)
+    assert 0.15 < np.max(dev[~w]) < 0.17, np.max(dev[~w])                 # measured 0.166: before two chords the model is NOT Wagner's lift
+    # --- what a circulation is not: Wagner's 1/2 at the start.  The model's bound circulation starts well below it ...
+    assert 0.5 - float(r["ratio"][0]) > 0.15 and close(r["ratio"][0], r["Gamma_bound_cw"][0] / (PI * U * c * math.sin(al)), 1e-13)   # 0.344 at this dt
+    first = [float(ch14.impulsive_start_lumped_vortex(U, c, al, 2 * q * c / U, q * c / U)["ratio"][0]) for q in (1e-2, 1e-3, 1e-4)]
+    assert abs(first[-1] - 1 / 3) < 1e-3 and abs(first[0] - 1 / 3) > abs(first[1] - 1 / 3) > abs(first[2] - 1 / 3)   # 0.3938, 0.3399, 0.33400 -> 1/3
+    assert all(0.5 - f > 0.10 for f in first) and abs(float(ch14.wagner_function(0.0)) - first[-1] - 1 / 6) < 1e-3   # 1/2 - 1/3: a different quantity
+    # ... because Kelvin ties it to what has been shed: Gamma_bound + sum(Gamma_wake) = 0 to round-off at EVERY step,
+    # summed here from the individual wake vortices of a run stopped after each of the first steps (not the stored total)
+    assert np.max(np.abs(r["total"])) < 1e-13 * r["Gamma_steady"][-1]                                        # measured 2.2e-16
+    assert np.max(np.abs(r["Gamma_bound_cw"] + r["Gamma_wake_cw"])) < 1e-13 * r["Gamma_steady"][-1]
+    for m in (1, 2, 7, 40):
+        q = ch14.impulsive_start_lumped_vortex(U, c, al, m * 0.05 * c / U, 0.05 * c / U, rho=rho)
+        assert len(q["wake_Gamma_cw"]) == m and abs(q["Gamma_bound_cw"][-1] + q["wake_Gamma_cw"].sum()) < 1e-13 * q["Gamma_steady"][-1]
+        assert close(q["Gamma_bound_cw"][-1], r["Gamma_bound_cw"][m - 1], 1e-12)                             # the same march
+    assert r["wake_Gamma_cw"][0] < 0 < r["Gamma_bound_cw"][0] and close(r["wake_Gamma_cw"][0], -r["Gamma_bound_cw"][0], 1e-13)   # the starting vortex is the opposite of the first bound value
 
 
 # =====================================================================================================================
@@ -1191,7 +1219,7 @@ def test_trailing_edge_speed_V1_finite_limit_of_14_9_with_kutta_and_blow_up_with
     d = np.array([1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8])
     err = np.array([abs(ch14.edge_speed(*SEC, float(q)) / lim - 1) for q in d])
     assert abs(observed_order(d, err) - 0.5) < 0.02                       # the speed approaches its limit like the square root of the distance
-    assert err[-1] < 1e-4 and err[3] < 3e-4                               # 2.2e-4 at 1e-6 (the docstring says 1e-4 there — Open item)
+    assert err[-1] < 1e-4 and err[3] < 3e-4                               # 2.2e-4 at 1e-6 m, 2.2e-5 at 1e-8 m (the docstring states these)
     assert close(ch14.edge_speed(*SEC, 1e-5), F.speed_near_edge(1e-5), 1e-14) and close(F.speed_near_edge(d), [ch14.edge_speed(*SEC, float(q)) for q in d])
     q_edge = complex(F.dwdz_from_zeta(F.b))
     assert close(q_edge, lim * np.exp(2j * F.beta), 1e-13)                # u - iv = q e^{2 i beta}: the stream leaves along e^{-2 i beta}
@@ -1577,8 +1605,10 @@ def test_downwash_V3_a_staircase_of_horseshoes_converges_to_14_13():  # V3 — C
         ec.append(abs(wc[N // 2] - G1 / (2 * s)))                         # mid-span, cosine panels
     h = [1.0 / N for N in Ns]
     pu, pm, pc = observed_order(h, eu), observed_order(h, em), observed_order(h, ec)
-    assert pu > 0.9 and pm > 0.9 and pc > 0.9, (pu, pm, pc)               # docstring: "first order"; measured 1.5, 1.5 and 2.0
-    assert abs(pu - 1.5) < 0.15 and abs(pm - 1.5) < 0.15 and abs(pc - 2.0) < 0.15 and eu[-1] < 1e-5 * 1
+    # measured orders for the elliptic loading (20-320 panels): 1.5 with uniform panels (1.517 at mid-span, 1.473 over the
+    # inner half; successive pairs 1.54 -> 1.50 and 1.44 -> 1.49), 2.0 with cosine panels (2.023; pairs 2.05 -> 2.01)
+    assert abs(pu - 1.5) < 0.05 and abs(pm - 1.5) < 0.05 and abs(pc - 2.0) < 0.05, (pu, pm, pc)
+    assert eu[-1] < 1e-5 and ec[-1] < 5e-6 and ec[-1] < eu[-1]            # 3.9e-6 and 2.3e-6 m/s at 320 panels: cosine panels are the better ones
     # one panel = one horseshoe: two half-lines at the distance s/2 -> Gamma / (pi s) at the centre (design D12: 2 m/s for 4 pi, 2 m)
     assert close(ch14.staircase_downwash(0.0, [-1.0, 1.0], [4 * PI]), 2.0) and close(ch14.horseshoe_downwash(0.0, 0.0, 4 * PI, 2.0), 2.0, 1e-12)
     # the same sum built from Biot–Savart horseshoes (bound segments induce nothing on their own line)
@@ -1988,11 +2018,18 @@ def test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side():  # V1 
     assert close(sol["cond"], np.linalg.cond(A)) and close(sol["gamma"], ga) and close(sol["y"], yst) and list(sol["n"]) == [1, 2, 3, 4, 5]
     assert close(sol["L"], ch14.lift_from_series(sol["Gn"], s, 1.3, U)) and close(sol["Di"], ch14.induced_drag_from_series(sol["Gn"], 1.3))
     assert sol["e"] == sol["e_span"] and sol["Gamma1"] == sol["Gn"][0]
-    # the area of a chord given as a callable is found by a 400-point Gauss rule in the span angle: exact to rounding for a
-    # smooth chord, but only 2e-6 for this tapered one (a kink at mid-span) — a planform dict carries the closed form (Open item)
-    assert close(sol["A"], P["A"], 1e-5) and close(sol["AR"], P["AR"], 1e-5) and abs(sol["A"] / P["A"] - 1) > 1e-7
+    # the area of a chord given as a callable is found by a Gauss rule in the span angle applied to each half-span
+    # separately, so the kink of this tapered chord at mid-span sits on an end point and the area is exact: measured
+    # 5.10000000000001 against the closed form 5.1 (2.0e-15 relative; it was 2.2e-6 with one rule across the kink)
+    assert close(sol["A"], P["A"], 1e-12) and close(sol["AR"], P["AR"], 1e-12)
+    for s2, c2, tp in ((12.0, 1.6, 0.45), (7.0, 2.1, 0.2), (5.0, 3.0, 0.0), (9.0, 0.8, 1.0)):       # other tapers, a pointed tip, no taper: at most 1.5e-14
+        P2 = ch14.planform("tapered", s2, c2, taper=tp)
+        assert close(ch14.solve_lifting_line(P2["chord"], s2, U, al, K=K, N=N)["A"], P2["A"], 1e-12), (s2, c2, tp)
     solP = ch14.solve_lifting_line(P, s, U, al, K=K, beta=0.02, twist=tw, N=N, rho=1.3)
-    assert solP["A"] == P["A"] and close(solP["AR"], P["AR"], 1e-14) and close(solP["Gn"], sol["Gn"], 1e-13, 1e-15) and close(solP["CL"], sol["CL"], 1e-5)
+    assert solP["A"] == P["A"] and close(solP["AR"], P["AR"], 1e-14) and close(solP["Gn"], sol["Gn"], 1e-13, 1e-15)
+    # the two routes (callable chord, planform dict) now give the same coefficients: measured 2.0e-15 relative in C_L and
+    # C_Di (they differed by the area error, 2.2e-6, before); the forces never depended on the area
+    assert close(solP["CL"], sol["CL"], 1e-12) and close(solP["CDi"], sol["CDi"], 1e-12) and close(solP["L"], sol["L"], 1e-14) and close(solP["Di"], sol["Di"], 1e-14)
     smooth = ch14.solve_lifting_line(lambda y: 1.2 * np.sqrt(np.clip(1 - (2 * y / s) ** 2, 0, None)), s, U, al, K=K, N=N)
     assert close(smooth["A"], PI * 1.2 * s / 4, 1e-12) and close(ch14.solve_lifting_line(1.3, s, U, al, K=K, N=N)["A"], 1.3 * s, 1e-15)
     assert close(sol["CL"], sol["L"] / (0.5 * 1.3 * U ** 2 * sol["A"])) and close(sol["CDi"], sol["Di"] / (0.5 * 1.3 * U ** 2 * sol["A"]))

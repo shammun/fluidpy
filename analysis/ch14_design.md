@@ -117,7 +117,7 @@ as written (sympy; each about 1 s) and passed.
     start (C03's code); span efficiency (N54); the finite-wing slope $K/(1+K/\pi\Lambda)$ (N59); roll-up numbers (N37); wake energy
     (N38); the parabolic polar and best glide (C15, N74); the sail's limiting course (C16, N81). (b) **"Qualitative model"** is in
     the title of every figure made with `ch14.suction_side_separation`, `ch14.wake_rollup` past the first turn,
-    `ch14.generic_lift_curve`, `ch14.generic_drag_curve`, `ch14.stall_regime` (trap T16). (c) The Wagner ghost curve (`ch14.wagner_function`, a published two-exponential fit, s in semi-chords) is drawn only if the verification report lists its source as read first-hand; otherwise the ghost is the steady value alone and no cell or explainer text names Wagner.
+    `ch14.generic_lift_curve`, `ch14.generic_drag_curve`, `ch14.stall_regime` (trap T16). (c) The Wagner ghost curve (`ch14.wagner_function`, a published two-exponential fit, s in semi-chords) is drawn only if the verification report lists its source as read first-hand; otherwise the ghost is the steady value alone and no cell or explainer text names Wagner. It is a lift ratio and goes on a lift axis only, never on the circulation graph (review M1).
 11. **Public-repo rule.** No book number is reproduced. **The notebook's worked numbers use the following input set of this design, written out literally in the imports cell as five small dicts (`sec`, `ac`, `wd`, `boat`, `fish`)** — `ch14.illustrative_inputs()` returns the module's own, different illustrative set, which is displayed once beside it (C.5):
     **section** b = 0.25 m (chord ≈ 1 m), e = 0.08, β = 4°, α = 5°, U = 30 m/s, ρ = 1.225 kg/m³ · **aircraft** W = 9000 N, s = 12 m,
     A = 15 m² (Λ = 9.6, $\bar c$ = 1.25 m), slow 30 m/s, cruise 55 m/s, $C_{D0}$ = 0.025, $e_{\text{span}}$ = 0.9, $C_{L,\max}$ = 1.4 clean and
@@ -312,7 +312,7 @@ the *expect* entries — the storyboard does not otherwise depend on the choice.
    (iii) solve the two equations "normal velocity at P is zero" — $U\sin\alpha-\dfrac{\Gamma_b}{\pi c}+v_{\text{new}}+v_{\text{wake}}=0$ — and "total circulation is
    zero" — $\Gamma_b+\Gamma_{\text{new}}+\sum\Gamma_k=0$ — for $\Gamma_b$ and $\Gamma_{\text{new}}$. *expect* (U = 30, c = 1, α = 5°, dt = 0.05 c/U; the designer's own
    loop and the module agree to all printed digits): "ratio" = 0.6463, 0.8156, 0.8792, 0.9388 after 1, 3, 5, 10 chords (indices
-   19, 59, 99, 199); 90 % at about 6.2 chords; "total" zero to round-off.
+   19, 59, 99, 199); 90 % at about 6.1 chords (dt = 0.05 c/U; 6.2 at dt = 0.1 c/U, tending to 6.04 as dt → 0); "total" zero to round-off.
 5. E7's JS matrix equals `ch14.lifting_line_matrix(c, s, K, N)[0][j][n]` entry by entry (rows = stations, columns = modes).
 6. E5's model curve copies the formula of `ch14.generic_lift_curve`: $C_L=(1-\sigma)K(\alpha+\beta)+\sigma\,C_{L,\text{post}}$ with σ the smoothstep of
    $(\alpha-\alpha_{\text{stall}})/\text{width}$ (0 below the stall angle, 1 above it plus the width).
@@ -586,7 +586,7 @@ Bernoulli, Thwaites, the Rankine vortex) are `nb.md` cells in the 🔁 recap for
     drifting downstream, the bound circulation as a ring; a second panel with bound (teal), shed total (rose) and their sum
     (amber, flat at zero) growing with distance travelled. *see / read / change* ("…α is doubled half-way: a second vortex of
     the same sign as the first is shed").
-13. `nb.figure` — the same three curves as a static figure against chords travelled, the steady value dashed (and the curve `ch14.wagner_function(2*s_chords)` as a ghost **only if** the verification report lists its source as read first-hand). *see / read / change.*
+13. `nb.figure` — the same three curves as a static figure against chords travelled, the steady value dashed — the only reference on the circulation axis. Wagner's function `ch14.wagner_function(2*s_chords)` is a **lift** ratio (circulatory lift / steady lift, starting at ½; the exact circulation starts at 0 by Kelvin), so it is drawn only on a separate lift panel against the model's `lift_circulatory`/(ρUΓ_steady), labelled "Wagner's function — circulatory lift / steady lift (Jones' fit)" (review M1, `reports/ch14_review.md`). *see / read / change.*
 14. `nb.note` — **N16 [B]** "**Viscosity is responsible for the drag — and for the lift.** Without the boundary layer at the edge
     no vortex would be shed, no circulation would arise, and the wing would not lift. Once the circulation is set, the rest
     of the flow is nearly ideal." · **N17 [C]** "The idea of circulation as the source of lift goes back to Lanchester, Kutta

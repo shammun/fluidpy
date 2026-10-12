@@ -633,5 +633,5 @@ rank 11 in `knowledge/viz_patterns.md`).
    stall and to Ch. 15's critical Mach number; if only book results may be A, it becomes a B item of C06 and E4 attaches to C06.
 5. **Three ★★★ derivations of the analysis are statements** (d-p finite edge speed, d-s leading-edge suction, d-aj wake energy):
    each is ours, belongs to a B item and is verified numerically instead. Any of them can be promoted to a written derivation.
-6. **Wagner's function** (the ghost curve of the starting-vortex growth) is used only if the verifier reads its source first-hand.
+6. **Wagner's function** (the ghost curve of the growth of the circulatory *lift* after the start — a lift ratio, not a circulation ratio; review M1) is used only if the verifier reads its source first-hand.
 7. **Nine explainers, not ten.** The backup `wake_rollup` is ready to be the tenth if wanted (it would be labelled qualitative).

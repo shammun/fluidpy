@@ -64,7 +64,11 @@ def aspect_ratio(s, A):
     """Aspect ratio of a planform, Λ ≡ s²/A = s/c̄ (14.1) [–].
 
     Book: §14.2, Eq. (14.1).   Parameters: s wingspan [m]; A planform area [m²].   Returns Λ [–].
-    Assumptions: none (definition).   Validation: V1 rectangle Λ = s/c; V2 both forms of (14.1) agree with (14.2).
+    Call by keyword — the sibling function :func:`mean_chord` ``(A, s)`` takes these arguments in a different order.
+    Assumptions: none (definition).
+    Validation: V1 rectangle Λ = s/c; V2 both forms of (14.1) agree with (14.2) — tests/test_ch14.py:
+    test_aspect_ratio_V1_planforms_closed_forms, test_tables_V7_inputs_conventions_slips_traps,
+    test_elliptic_loading_V1_14_23_to_14_26_and_the_cited_forms_V5.
     Label: analytic.
     """
     return _S(_F(s) ** 2 / _F(A))  # Eq. (14.1)
@@ -74,7 +78,12 @@ def mean_chord(A, s):
     """Average chord length, c̄ = A/s (14.2) [m].
 
     Book: §14.2, Eq. (14.2).   Parameters: A planform area [m²]; s wingspan [m].   Returns c̄ [m].
-    Assumptions: none (definition).   Validation: V1 rectangle c̄ = c.  Label: analytic.
+    Call by keyword — the sibling function :func:`aspect_ratio` ``(s, A)`` takes these arguments in a different order
+    (``mean_chord(12, 15)`` returns a plausible 0.8 m where A = 15 m², s = 12 m give 1.25 m).
+    Assumptions: none (definition).
+    Validation: V1 rectangle c̄ = c — tests/test_ch14.py: test_aspect_ratio_V1_planforms_closed_forms,
+    test_tables_V7_inputs_conventions_slips_traps.
+    Label: analytic.
     """
     return _S(_F(A) / _F(s))  # Eq. (14.2)
 
@@ -94,7 +103,10 @@ def planform(kind: str, s: float, c_root: float, taper: float = 1.0, n: int = 20
     (trapezoid rule on the samples), ``AR`` = Λ (14.1), ``c_mean`` (14.2) [m], ``kind``, ``s``, ``c_root``, ``taper``.
     Assumptions: unswept, symmetric about mid-span.
     Validation: V1 rectangle Λ = s/c; ellipse A = πc_root s/4, Λ = 4s/(πc_root); trapezoid → closed form as n grows
-    (order 1.5 for the ellipse: square-root ends).  Label: analytic.
+    (order 1.5 for the ellipse: square-root ends) — tests/test_ch14.py: test_aspect_ratio_V1_planforms_closed_forms,
+    test_planform_V3_trapezoid_area_of_the_ellipse_converges_at_order_three_halves,
+    test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side.
+    Label: analytic.
     """
     s, c0, tp = float(s), float(c_root), float(taper)
     if kind == "rectangular":
@@ -119,7 +131,12 @@ def span_angle(y, s):
     """Span angle γ of a spanwise position, from y = −(s/2) cos γ [rad] (γ = 0 port tip, π starboard tip).
 
     Book: §14.6, unnumbered line before (14.18).   Parameters: y [m] (|y| ≤ s/2); s span [m].   Returns γ [rad].
-    Assumptions: none.   Validation: V7 round trip with :func:`span_position`.  Label: analytic.
+    Assumptions: none.
+    Validation: V7 round trip with :func:`span_position` — tests/test_ch14.py:
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals,
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse,
+    test_downwash_V1_quadrature_of_14_13_against_closed_forms_and_the_series.
+    Label: analytic.
     """
     return _S(np.arccos(np.clip(-2.0 * _F(y) / _F(s), -1.0, 1.0)))
 
@@ -128,7 +145,12 @@ def span_position(gamma, s):
     """Spanwise position of a span angle, y = −(s/2) cos γ [m].
 
     Book: §14.6, unnumbered line before (14.18).   Parameters: gamma [rad]; s [m].   Returns y [m].
-    Assumptions: none.   Validation: V7 round trip.  Label: analytic.
+    Assumptions: none.
+    Validation: V7 round trip — tests/test_ch14.py:
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals,
+    test_induced_drag_V1_quadrature_of_14_15_equals_14_21_and_14_22,
+    test_downwash_series_V1_last_member_of_14_19_and_slip_1_the_printed_middle_member_has_the_wrong_sign.
+    Label: analytic.
     """
     return _S(-0.5 * _F(s) * np.cos(_F(gamma)))
 
@@ -139,7 +161,11 @@ def circulation_series(Gn, gamma):
     Book: §14.6, Eq. (14.18).   Parameters: Gn coefficients (Γ₁, Γ₂, …) [m²/s]; gamma span angle [rad].
     Returns Γ(γ) [m²/s] (shape of gamma).
     Assumptions: Γ vanishes at both tips (every term does).
-    Validation: V1 one term = the ellipse (14.23); V7 zero at γ = 0, π.  Label: analytic.
+    Validation: V1 one term = the ellipse (14.23); V7 zero at γ = 0, π — tests/test_ch14.py:
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals,
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse,
+    test_downwash_V1_quadrature_of_14_13_against_closed_forms_and_the_series.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     ga = _F(gamma)
@@ -153,7 +179,8 @@ def trailing_sheet_strength(Gn, gamma, s):
     With (14.18): −dΓ/dy = −Σ nΓ_n cos nγ / ((s/2) sin γ).
     Parameters: Gn [m²/s]; gamma [rad] (0 < γ < π); s [m].   Returns −dΓ/dy [m/s] (infinite at the tips in general).
     Assumptions: filaments leave straight back (assumption (iii) of the theory).
-    Validation: V1 finite difference of :func:`circulation_series`; V7 odd in y for a symmetric loading.
+    Validation: V1 finite difference of :func:`circulation_series`; V7 odd in y for a symmetric loading —
+    tests/test_ch14.py: test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals.
     Label: analytic.
     """
     g, n = _Gn(Gn)
@@ -167,7 +194,11 @@ def elliptic_circulation(y, s, Gamma1):
 
     Book: §14.6, Eq. (14.23).   Parameters: y [m]; s [m]; Gamma1 mid-span circulation [m²/s].   Returns Γ(y).
     Assumptions: only the first coefficient of (14.18) is non-zero.
-    Validation: V1 equals ``circulation_series([Gamma1], span_angle(y, s))``.  Label: analytic.
+    Validation: V1 equals ``circulation_series([Gamma1], span_angle(y, s))`` — tests/test_ch14.py:
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals,
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly,
+    test_elliptic_loading_V1_14_23_to_14_26_and_the_cited_forms_V5.
+    Label: analytic.
     """
     return _S(_F(Gamma1) * np.sqrt(np.clip(1.0 - (2.0 * _F(y) / _F(s)) ** 2, 0.0, None)))  # Eq. (14.23)
 
@@ -180,8 +211,10 @@ def glauert_integral(n: int, gamma1: float, method: str = "closed") -> float:
     ``method="closed"``: the right-hand side (limit n(±1)^{n+1} at the tips); ``method="quad"``: adaptive quadrature of
     the regular integrand [cos nγ − cos nγ₁]/(cos γ − cos γ₁) (allowed because the n = 0 integral is zero).
     Parameters: n integer ≥ 0; gamma1 [rad] in (0, π).   Returns the value [–].
-    Assumptions: principal value.   Validation: V1 quad = closed for n = 0…6 (1e-8); recursion
-    I_{n+1} + I_{n−1} = 2 cos γ₁ I_n.  Label: analytic.
+    Assumptions: principal value.
+    Validation: V1 quad = closed for n = 0…6 (1e-8); recursion I_{n+1} + I_{n−1} = 2 cos γ₁ I_n — tests/test_ch14.py:
+    test_glauert_integral_V1_quadrature_closed_form_and_recursion, test_glauert_integral_V2_derivation.
+    Label: analytic.
     """
     g1 = float(gamma1)
     if method == "closed":
@@ -231,7 +264,9 @@ def downwash(y1, Gamma_fn: Callable, s: float, method: str = "quad", h: float = 
     Assumptions: lifting-line assumptions (large aspect ratio, straight bound vortex, straight non-interacting
     trailing filaments parallel to the stream).
     Validation: V1 equals :func:`downwash_series` for 1-, 2-, 3-term loadings (1e-8); elliptic loading → Γ₁/2s (14.24)
-    at every station.  Label: analytic, converged.
+    at every station — tests/test_ch14.py: test_downwash_V1_quadrature_of_14_13_against_closed_forms_and_the_series,
+    test_downwash_integral_V2_derivation, test_induced_drag_V1_quadrature_of_14_15_equals_14_21_and_14_22.
+    Label: analytic.
     """
     if method != "quad":
         raise ValueError('method must be "quad"')
@@ -269,7 +304,11 @@ def downwash_series(Gn, gamma1, s, printed_middle: bool = False):
     Parameters: Gn [m²/s]; gamma1 [rad]; s [m]; printed_middle (bool).   Returns w [m/s], positive downward.
     At the tips sin nγ/sin γ → n (γ = 0) and n(−1)^{n+1} (γ = π).
     Assumptions: lifting-line assumptions; series differentiable term by term.
-    Validation: V1 equals :func:`downwash` (quadrature of (14.13)); one term → Γ₁/2s (14.24).  Label: analytic.
+    Validation: V1 equals :func:`downwash` (quadrature of (14.13)); one term → Γ₁/2s (14.24) — tests/test_ch14.py:
+    test_downwash_series_V1_last_member_of_14_19_and_slip_1_the_printed_middle_member_has_the_wrong_sign,
+    test_downwash_V1_quadrature_of_14_13_against_closed_forms_and_the_series,
+    test_downwash_along_x_V7_zero_far_ahead_w_at_the_line_twice_w_far_behind.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     ga = _F(gamma1)
@@ -292,7 +331,12 @@ def elliptic_downwash(Gamma1, s):
     """Downwash of the elliptic loading, w = Γ₁/2s (14.24) [m/s] — the same at every spanwise station.
 
     Book: §14.6, Eq. (14.24).   Parameters: Gamma1 [m²/s]; s [m].   Returns w [m/s] (downward).
-    Assumptions: elliptic loading (14.23).   Validation: V1 quadrature of (14.13).  Label: analytic.
+    Assumptions: elliptic loading (14.23).
+    Validation: V1 quadrature of (14.13) — tests/test_ch14.py:
+    test_elliptic_loading_V1_14_23_to_14_26_and_the_cited_forms_V5,
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse,
+    test_downwash_V1_quadrature_of_14_13_against_closed_forms_and_the_series.
+    Label: analytic.
     """
     return _S(_F(Gamma1) / (2.0 * _F(s)))  # Eq. (14.24)
 
@@ -303,7 +347,9 @@ def induced_angle(w, U, small: bool = True):
     Book: §14.6, unnumbered line before (14.14) and Fig. 14.23.  Slip #2: the page prints "ε = tan(w/U)"; the figure
     shows tan ε = w/U.   Parameters: w downwash [m/s]; U stream speed [m/s]; small → the approximation w/U.
     Returns ε [rad].   Assumptions (small=True): w ≪ U.
-    Validation: V7 the two forms agree to O((w/U)³).  Label: analytic.
+    Validation: V7 the two forms agree to O((w/U)³) — tests/test_ch14.py:
+    test_induced_drag_V1_strip_forces_effective_angle_and_slip_2.
+    Label: analytic.
     """
     r = _F(w) / _F(U)
     return _S(r if small else np.arctan(r))
@@ -313,7 +359,9 @@ def effective_angle(alpha, w, U):
     """Effective angle of attack of a spanwise station, α_e = α − ε = α − w/U (14.14) [rad].
 
     Book: §14.6, Eq. (14.14).   Parameters: alpha geometric angle of attack [rad]; w downwash [m/s]; U [m/s].
-    Returns α_e [rad].   Assumptions: w ≪ U.   Validation: V7 w = 0 → α.  Label: analytic.
+    Returns α_e [rad].   Assumptions: w ≪ U.
+    Validation: V7 w = 0 → α — tests/test_ch14.py: test_induced_drag_V1_strip_forces_effective_angle_and_slip_2.
+    Label: analytic.
     """
     return _S(_F(alpha) - _F(w) / _F(U))  # Eq. (14.14)
 
@@ -331,7 +379,9 @@ def strip_forces(Gamma, w, U, rho, dy, exact: bool = False) -> dict:
     Parameters: Gamma [m²/s]; w downwash [m/s]; U [m/s]; rho [kg/m³]; dy strip width [m].
     Returns dict: ``dL``, ``dDi``, ``dLe`` [N]; ``eps`` [rad]; ``Ue`` [m/s].
     Assumptions: each strip is a two-dimensional section in the resultant stream.
-    Validation: V1 dL² + dDi² = dLe²; V7 w = 0 → no induced drag.  Label: analytic.
+    Validation: V1 dL² + dDi² = dLe²; V7 w = 0 → no induced drag — tests/test_ch14.py:
+    test_induced_drag_V1_strip_forces_effective_angle_and_slip_2, test_strip_forces_V2_derivation.
+    Label: analytic.
     """
     G, w_, U_, r, d = _F(Gamma), _F(w), _F(U), _F(rho), _F(dy)
     Ue = np.hypot(U_, w_)
@@ -345,7 +395,9 @@ def lift_and_induced_drag(y, Gamma, w, rho, U) -> tuple:
     Book: §14.6, Eq. (14.15).   Parameters: y stations [m] (increasing, tip to tip); Gamma [m²/s] and w [m/s] at
     them; rho [kg/m³]; U [m/s].   Returns (L, D_i) [N] (trapezoid rule; use stations uniform in γ for accuracy).
     Assumptions: lifting-line assumptions; w ≪ U.
-    Validation: V1 equals (14.21), (14.22) for a series loading.  Label: analytic, converged.
+    Validation: V1 equals (14.21), (14.22) for a series loading — tests/test_ch14.py:
+    test_induced_drag_V1_quadrature_of_14_15_equals_14_21_and_14_22.
+    Label: analytic, converged.
     """
     y, G, w_ = _F(y), _F(Gamma), _F(w)
     L = float(rho) * float(U) * np.trapezoid(G, y)  # Eq. (14.15)
@@ -357,7 +409,12 @@ def lift_from_series(Gn, s, rho, U):
     """Lift of the wing from the first coefficient only, L = (πs/4) ρUΓ₁ (14.21) [N].
 
     Book: §14.6, Eq. (14.21).   Parameters: Gn [m²/s]; s [m]; rho [kg/m³]; U [m/s].   Returns L [N].
-    Assumptions: lifting-line assumptions.   Validation: V1 quadrature of (14.15).  Label: analytic.
+    Assumptions: lifting-line assumptions.
+    Validation: V1 quadrature of (14.15) — tests/test_ch14.py:
+    test_induced_drag_V1_quadrature_of_14_15_equals_14_21_and_14_22,
+    test_series_forces_V7_every_coefficient_adds_drag_and_span_efficiency_is_at_most_one,
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse.
+    Label: analytic.
     """
     g, _ = _Gn(Gn)
     return float(0.25 * np.pi * float(s) * float(rho) * float(U) * g[0])  # Eq. (14.21)
@@ -369,7 +426,11 @@ def induced_drag_from_series(Gn, rho):
     Book: §14.6, Eq. (14.22) (upper limit N: written for the truncated solution).
     Parameters: Gn [m²/s]; rho [kg/m³].   Returns D_i [N].
     Assumptions: lifting-line assumptions; planar wake.
-    Validation: V1 quadrature of (14.15); V4 equals the wake kinetic energy per unit length.  Label: analytic.
+    Validation: V1 quadrature of (14.15); V4 equals the wake kinetic energy per unit length — tests/test_ch14.py:
+    test_induced_drag_V1_quadrature_of_14_15_equals_14_21_and_14_22,
+    test_series_forces_V7_every_coefficient_adds_drag_and_span_efficiency_is_at_most_one,
+    test_induced_drag_from_series_V2_derivation.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     return float(np.pi / 8.0 * float(rho) * np.sum(n * g ** 2))  # Eq. (14.22)
@@ -381,7 +442,10 @@ def span_efficiency(Gn) -> float:
     Book: §14.6, text after (14.22): the best lift-to-drag ratio has Γ_n = 0 for n > 1.  Ours: the ratio of the
     induced drag of the elliptic loading with the same lift to the actual one, from (14.21), (14.22).
     Parameters: Gn [m²/s].   Returns e_span [–] (1 only for the elliptic loading; NaN if Γ₁ = 0).
-    Assumptions: lifting-line assumptions.   Validation: V7 ≤ 1 with equality for one term.  Label: analytic.
+    Assumptions: lifting-line assumptions.
+    Validation: V7 ≤ 1 with equality for one term — tests/test_ch14.py:
+    test_series_forces_V7_every_coefficient_adds_drag_and_span_efficiency_is_at_most_one.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     den = np.sum(n * g ** 2)
@@ -393,7 +457,10 @@ def section_lift_coefficient(alpha, w, U, beta=0.0, *, K):
 
     Book: §14.6, Eq. (14.16).   Parameters: alpha [rad]; w downwash [m/s]; U [m/s]; beta = −(zero-lift angle) [rad];
     K lift-curve slope [1/rad] (keyword, required).   Returns C_L [–].
-    Assumptions: linear section law (no stall).   Validation: V7 w = 0, K = 2π → (14.12).  Label: analytic.
+    Assumptions: linear section law (no stall).
+    Validation: V7 w = 0, K = 2π → (14.12) — tests/test_ch14.py:
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly.
+    Label: analytic.
     """
     return _S(_F(K) * (_F(alpha) - _F(w) / _F(U) + _F(beta)))  # Eq. (14.16)
 
@@ -418,6 +485,9 @@ def _at(q, y, default=0.0):
 
 
 def _area(c, s, m: int = 400) -> float:
+    """Planform area A = ∫ c(y) dy [m²]: closed form for a planform dict or a scalar chord, otherwise a Gauss–Legendre
+    rule in the span angle γ (y = −(s/2) cos γ) applied separately to each half-span (``m`` nodes each), so that a
+    chord with a kink at mid-span (a tapered wing: c ∝ 1 − k|y|) is integrated exactly."""
     if isinstance(c, dict):
         return float(c["A"])
     if not callable(c):
@@ -426,8 +496,11 @@ def _area(c, s, m: int = 400) -> float:
             return float(c) * float(s)
         raise ValueError("give the chord as a scalar, a callable c(y) or a planform dict (the area is needed)")
     xg, wg = np.polynomial.legendre.leggauss(int(m))
-    ga = 0.5 * np.pi * (xg + 1.0)
-    return float(0.5 * np.pi * np.sum(wg * _F(c(-0.5 * s * np.cos(ga))) * 0.5 * s * np.sin(ga)))
+    total = 0.0
+    for g0 in (0.0, 0.5 * np.pi):  # port half γ ∈ [0, π/2], starboard half γ ∈ [π/2, π]: no node pair straddles y = 0
+        ga = g0 + 0.25 * np.pi * (xg + 1.0)
+        total += 0.25 * np.pi * np.sum(wg * _F(c(-0.5 * s * np.cos(ga))) * 0.5 * s * np.sin(ga))  # A = ∫ c dy
+    return float(total)
 
 
 def lifting_line_modes(N: int, symmetric: bool = False) -> tuple:
@@ -436,7 +509,12 @@ def lifting_line_modes(N: int, symmetric: bool = False) -> tuple:
     Book: §14.6, text after (14.20) ("truncating the sum after N terms, and then requiring its validity at N points").
     Ours: general — n = 1…N at γ_j = jπ/(N + 1); ``symmetric`` (loading even in y) — odd n = 1, 3, …, 2N − 1 at
     γ_j = jπ/(2N), j = 1…N (port half, the last station at mid-span).  The tips, where sin γ = 0, are never stations.
-    Returns (n, gamma).   Label: analytic.
+    Parameters: N number of terms (= number of stations); symmetric (bool).
+    Returns (n, gamma): mode numbers [–] and station angles [rad], each of length N.
+    Assumptions: ``symmetric`` needs chord, twist, K and β even in y.
+    Validation: V1 both sets against their closed forms; V7 0 < γ_j < π (no station at a tip) — tests/test_ch14.py:
+    test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side.
+    Label: analytic.
     """
     N = int(N)
     j = np.arange(1, N + 1, dtype=float)
@@ -451,9 +529,14 @@ def lifting_line_matrix(c, s: float, K, N: int, *, symmetric: bool = False) -> t
     Book: §14.6, Eq. (14.20) (K/2)Uc(α + β) = Σ (1 + nKc/(4s sin γ)) Γ_n sin(nγ) required at N stations.
     Parameters: c chord — scalar [m], callable c(y), planform dict, or array at the stations; s span [m]; K slope
     [1/rad] (scalar, callable K(y) or array at the stations); N number of terms; symmetric (see
-    :func:`lifting_line_modes`).
+    :func:`lifting_line_modes`).  The array form of the chord is accepted here and in :func:`lifting_line_rhs` only:
+    :func:`solve_lifting_line` also needs the planform area and raises ``ValueError`` for a chord array — give it a
+    scalar, a callable c(y) or a :func:`planform` dict.
     Returns (A, gamma): the (N, N) matrix [–] and the station angles [rad].
-    Assumptions: lifting-line assumptions.   Validation: V1 entry by entry against two nested loops.  Label: analytic.
+    Assumptions: lifting-line assumptions.
+    Validation: V1 entry by entry against two nested loops — tests/test_ch14.py:
+    test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side.
+    Label: analytic.
     """
     n, ga = lifting_line_modes(N, symmetric)
     y = -0.5 * float(s) * np.cos(ga)
@@ -468,7 +551,11 @@ def lifting_line_rhs(c, s: float, U: float, alpha: float, K, N: int, *, beta=0.0
 
     Book: §14.6, Eq. (14.20), left member.   Parameters: as :func:`lifting_line_matrix`; U [m/s]; alpha [rad];
     beta (scalar / callable / array) [rad]; twist — geometric twist added to α (same forms) [rad].
-    Returns r (N,) [m²/s].   Label: analytic.
+    Returns r (N,) [m²/s].
+    Assumptions: lifting-line assumptions; linear sections.
+    Validation: V1 entry by entry against (K/2)Uc_j(α + twist_j + β_j) written out (1e-13) — tests/test_ch14.py:
+    test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side.
+    Label: analytic.
     """
     _, ga = lifting_line_modes(N, symmetric)
     y = -0.5 * float(s) * np.cos(ga)
@@ -483,7 +570,9 @@ def lifting_line_residual(Gn, gamma, c, s: float, U: float, alpha: float, *, K, 
     :func:`solve_lifting_line`, small between them once N is large enough.
     Parameters: Gn [m²/s]; gamma [rad]; c, K, beta, twist as in :func:`lifting_line_matrix` (callables of y or
     scalars); s [m]; U [m/s]; alpha [rad].   Returns the residual [m²/s] (shape of gamma).
-    Assumptions: lifting-line assumptions.   Validation: V3 max residual between stations → 0 as N grows.
+    Assumptions: lifting-line assumptions.
+    Validation: V3 max residual between stations → 0 as N grows — tests/test_ch14.py:
+    test_lifting_line_V3_rectangular_wing_converges_and_14_17_holds_between_the_stations.
     Label: converged.
     """
     ga = _F(gamma)
@@ -503,7 +592,9 @@ def solve_lifting_line(c, s: float, U: float, alpha: float, *, K, beta=0.0, twis
     The book leaves N and the stations open — both are arguments here (:func:`lifting_line_modes`).
     Parameters
     ----------
-    c : chord — scalar [m], callable c(y) [m] or a :func:`planform` dict.   s : span [m].   U : speed [m/s].
+    c : chord — scalar [m], callable c(y) [m] or a :func:`planform` dict (not an array: the area is needed; for a
+    callable it is found by a Gauss rule on each half-span, exact for a chord with a kink at mid-span).   s : span [m].
+    U : speed [m/s].
     alpha : geometric angle of attack of the wing [rad].   K : section lift-curve slope [1/rad] (required; scalar or
     callable K(y)).   beta : −(zero-lift angle) [rad] (scalar or callable).   twist : local angle added to α [rad]
     (callable of y or scalar).   N : number of terms/stations (default 20).   symmetric : use odd modes only (inputs
@@ -516,7 +607,11 @@ def solve_lifting_line(c, s: float, U: float, alpha: float, *, K, beta=0.0, twis
     number); ``matrix``, ``rhs``; ``Gamma1``.
     Assumptions: lifting-line assumptions (large aspect ratio, unswept, planar straight wake), linear sections.
     Validation: V1 elliptic planform: Γ_n = 0 for n > 1 and C_L = K(α + β)/(1 + K/πΛ); V3 rectangular wing converges
-    with N; residual of (14.17) between stations → 0; V7 Λ → ∞: C_L → K(α + β).  Label: analytic, converged.
+    with N; residual of (14.17) between stations → 0; V7 Λ → ∞: C_L → K(α + β) — tests/test_ch14.py:
+    test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side,
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly,
+    test_lifting_line_V3_rectangular_wing_converges_and_14_17_holds_between_the_stations.
+    Label: analytic, converged.
     """
     s, U = float(s), float(U)
     n, ga = lifting_line_modes(N, symmetric)
@@ -549,7 +644,11 @@ def elliptic_induced_drag(L, rho, U, s):
 
     Book: §14.6, Eq. (14.25) (second form, with (14.21)).   Parameters: L lift [N]; rho [kg/m³]; U [m/s]; s span [m].
     Returns D_i [N].   Assumptions: elliptic loading; lifting-line assumptions.
-    Validation: V1 both forms of (14.25) agree; V5 cited form L²/(½ρU²πs²).  Label: analytic.
+    Validation: V1 both forms of (14.25) agree; V5 cited form L²/(½ρU²πs²) — tests/test_ch14.py:
+    test_elliptic_loading_V1_14_23_to_14_26_and_the_cited_forms_V5,
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse,
+    test_horseshoe_V1_biot_savart_field_centre_far_wake_and_upwash_outboard.
+    Label: analytic.
     """
     return _S(2.0 * _F(L) ** 2 / (np.pi * _F(rho) * _F(U) ** 2 * _F(s) ** 2))  # Eq. (14.25)
 
@@ -560,7 +659,11 @@ def induced_drag_coefficient(CL, AR, e_span: float = 1.0):
     Book: §14.6, Eq. (14.26) C_Di = D_i/(½ρU²A) = C_L²/(π(s²/A)) = C_L²/(πΛ).
     Parameters: CL [–]; AR = Λ aspect ratio [–]; e_span span efficiency [–] (1 = elliptic loading).
     Returns C_Di [–].   Assumptions: lifting-line assumptions; A is the planform area.
-    Validation: V1 from (14.25); V5 cited form C_L²/(π AR e).  Label: analytic.
+    Validation: V1 from (14.25); V5 cited form C_L²/(π AR e) — tests/test_ch14.py:
+    test_elliptic_loading_V1_14_23_to_14_26_and_the_cited_forms_V5,
+    test_lifting_line_V3_rectangular_wing_converges_and_14_17_holds_between_the_stations,
+    test_series_forces_V7_every_coefficient_adds_drag_and_span_efficiency_is_at_most_one.
+    Label: analytic.
     """
     return _S(_F(CL) ** 2 / (np.pi * _F(AR) * _F(e_span)))  # Eq. (14.26)
 
@@ -571,7 +674,11 @@ def finite_wing_lift_slope(K, AR):
     Book: §14.6, Exercise 14.15 (C_L,3D = C_L,2D/(1 + 2/Λ) for K = 2π), from (14.17) with (14.24) and (14.27).
     Parameters: K section slope [1/rad]; AR = Λ [–].   Returns the wing's slope [1/rad].
     Assumptions: elliptic planform, uniform section, no twist; lifting-line assumptions.
-    Validation: V1 ``solve_lifting_line`` on an elliptic planform; V7 Λ → ∞ → K.  Label: analytic.
+    Validation: V1 ``solve_lifting_line`` on an elliptic planform; V7 Λ → ∞ → K — tests/test_ch14.py:
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly,
+    test_lifting_line_V3_rectangular_wing_converges_and_14_17_holds_between_the_stations,
+    test_lifting_line_V1_twist_gives_an_elliptic_loading_on_a_non_elliptic_planform.
+    Label: analytic.
     """
     return _S(_F(K) / (1.0 + _F(K) / (np.pi * _F(AR))))
 
@@ -583,7 +690,10 @@ def elliptic_wing(alpha, AR, *, K, beta=0.0) -> dict:
     w/U = Γ₁/(2sU) = C_L/(πΛ), C_Di = C_L²/(πΛ).
     Parameters: alpha [rad]; AR = Λ [–]; K [1/rad] (keyword, required); beta [rad].
     Returns dict: ``CL``, ``CDi``, ``slope`` [1/rad], ``w_over_U`` (= induced angle ε [rad]), ``alpha_e`` [rad].
-    Assumptions: as :func:`finite_wing_lift_slope`.   Validation: V1 ``solve_lifting_line``.  Label: analytic.
+    Assumptions: as :func:`finite_wing_lift_slope`.
+    Validation: V1 ``solve_lifting_line`` — tests/test_ch14.py:
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly.
+    Label: analytic.
     """
     sl = finite_wing_lift_slope(K, AR)
     CL = sl * (_F(alpha) + _F(beta))
@@ -603,7 +713,9 @@ def twist_for_elliptic_loading(c, y, s: float, *, K, CL_target: float, A: float 
     Returns dict: ``alpha_local`` = α(y) + β(y) [rad] at ``y``; ``alpha_i`` = Γ₁/(2sU) [rad] (uniform induced angle);
     ``Gamma1_over_U`` [m].
     Assumptions: lifting-line assumptions; linear sections.
-    Validation: V1 ``solve_lifting_line(twist=…)`` returns no coefficient beyond the first.  Label: analytic.
+    Validation: V1 ``solve_lifting_line(twist=…)`` returns no coefficient beyond the first — tests/test_ch14.py:
+    test_lifting_line_V1_twist_gives_an_elliptic_loading_on_a_non_elliptic_planform.
+    Label: analytic.
     """
     y = _F(y)
     s = float(s)
@@ -623,7 +735,9 @@ def elliptic_twist_rectangular(alpha_r: float, c: float, s: float, *, K: float) 
     Parameters: alpha_r root twist [rad]; c chord [m]; s span [m]; K [1/rad] (keyword).
     Returns dict: ``alpha_t`` [rad]; ``Gamma1_over_U`` [m]; ``CL``; ``CDi``; ``AR``.
     Assumptions: uniform uncambered section; lifting-line assumptions.
-    Validation: V1 ``solve_lifting_line`` with this twist and angle has Γ_n = 0 for n > 1.  Label: analytic.
+    Validation: V1 ``solve_lifting_line`` with this twist and angle has Γ_n = 0 for n > 1 — tests/test_ch14.py:
+    test_lifting_line_V1_twist_gives_an_elliptic_loading_on_a_non_elliptic_planform.
+    Label: analytic.
     """
     G1U = 0.5 * float(K) * float(c) * float(alpha_r)
     AR = float(s) / float(c)
@@ -657,7 +771,11 @@ def horseshoe_velocity(x, y, z, Gamma: float, s: float, x_end: float | None = No
     Returns (ux, uy, uz) [m/s] in (x downstream, y span, z up) axes — the downwash is −uz.
     Assumptions: straight filaments of zero core size (infinite speed on them).
     Validation: V1 downwash at the centre Γ/(πs); far downstream on the centre line 2× that, far upstream 0; equals
-    three finite segments as x_end → ∞ (1e-6).  Label: analytic.
+    three finite segments as x_end → ∞ (1e-6) — tests/test_ch14.py:
+    test_horseshoe_V1_biot_savart_field_centre_far_wake_and_upwash_outboard,
+    test_ground_effect_V1_image_horseshoe_cancels_the_normal_velocity_on_the_ground,
+    test_downwash_along_x_V7_zero_far_ahead_w_at_the_line_twice_w_far_behind.
+    Label: analytic.
     """
     x, y, z = np.broadcast_arrays(_F(x), _F(y), _F(z))
     shp = x.shape
@@ -682,7 +800,15 @@ def horseshoe_velocity(x, y, z, Gamma: float, s: float, x_end: float | None = No
 def horseshoe_downwash(x, y, Gamma: float, s: float, z=0.0):
     """Downwash (positive downward) of one horseshoe vortex at (x, y, z) [m/s] = −uz of :func:`horseshoe_velocity`.
 
-    Book: §14.6, Exercises 14.11, 14.17.   Label: analytic.
+    Book: §14.6, Exercises 14.11, 14.17 (results only), Fig. 14.22.
+    Parameters: x, y field point [m] (x downstream, y along the span); Gamma [m²/s]; s span of the horseshoe [m];
+    z height [m] (default 0, the plane of the wing).   Returns w [m/s], positive downward.
+    Assumptions: as :func:`horseshoe_velocity` (straight filaments of zero core size; semi-infinite legs).
+    Validation: V1 centre Γ/(πs), far behind 2Γ/(πs), far ahead 0; equals −uz of :func:`horseshoe_velocity` (1e-14) —
+    tests/test_ch14.py: test_downwash_V3_a_staircase_of_horseshoes_converges_to_14_13,
+    test_horseshoe_V1_biot_savart_field_centre_far_wake_and_upwash_outboard,
+    test_downwash_series_V1_last_member_of_14_19_and_slip_1_the_printed_middle_member_has_the_wrong_sign.
+    Label: analytic.
     """
     return _S(-_F(horseshoe_velocity(x, y, z, Gamma, s)[2]))
 
@@ -698,7 +824,9 @@ def horseshoe_wing(Gamma: float, s: float, rho: float, U: float) -> dict:
     Returns dict: ``L`` [N], ``w0`` [m/s], ``Di_centre`` [N], ``Di_elliptic_same_lift`` [N], ``ratio`` (= ½),
     ``note``.
     Assumptions: constant Γ along the span (unphysical at the tips).
-    Validation: V1 w0 from :func:`horseshoe_velocity`.  Label: analytic.
+    Validation: V1 w0 from :func:`horseshoe_velocity` — tests/test_ch14.py:
+    test_horseshoe_V1_biot_savart_field_centre_far_wake_and_upwash_outboard.
+    Label: analytic.
     """
     L = float(rho) * float(U) * float(Gamma) * float(s)
     w0 = float(Gamma) / (np.pi * float(s))
@@ -716,7 +844,9 @@ def ground_effect_factor(h, s):
     distance √((s/2)² + (2h)²), give an upwash Γ/(πs)·1/(1 + (4h/s)²).
     Parameters: h height of the wing above the ground [m]; s span [m].   Returns the factor in [0, 1).
     Assumptions: single horseshoe; flat ground; image method.
-    Validation: V1 two :func:`horseshoe_velocity` calls; V7 h → ∞ → 1, h → 0 → 0.  Label: analytic.
+    Validation: V1 two :func:`horseshoe_velocity` calls; V7 h → ∞ → 1, h → 0 → 0 — tests/test_ch14.py:
+    test_ground_effect_V1_image_horseshoe_cancels_the_normal_velocity_on_the_ground.
+    Label: analytic.
     """
     return _S(1.0 - 1.0 / (1.0 + (4.0 * _F(h) / _F(s)) ** 2))
 
@@ -733,7 +863,9 @@ def downwash_along_x(x, Gn, s: float, y1: float = 0.0, include_bound: bool = Fal
     Parameters: x [m] (positive downstream; any shape); Gn [m²/s]; s [m]; y1 [m]; include_bound (bool).
     Returns w [m/s] (downward positive).
     Assumptions: straight rigid wake in the plane z = 0.
-    Validation: V7 x → −∞: 0; x = 0: (14.19); x → +∞: 2× (14.19).  Label: analytic.
+    Validation: V7 x → −∞: 0; x = 0: (14.19); x → +∞: 2× (14.19) — tests/test_ch14.py:
+    test_downwash_along_x_V7_zero_far_ahead_w_at_the_line_twice_w_far_behind.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     s = float(s)
@@ -775,7 +907,14 @@ def staircase_from_loading(Gamma_fn: Callable, s: float, N: int, spacing: str = 
     Parameters: Gamma_fn callable Γ(y) [m²/s]; s [m]; N panels; spacing "uniform" (equal widths) or "cosine"
     (equal steps of the span angle).
     Returns (y_edges (N + 1,), Gamma_steps (N,)): panel edges [m] and the circulation on each panel [m²/s] (Γ at the
-    panel mid-point).   Label: analytic.
+    panel mid-point).
+    Assumptions: Γ constant on each panel (a discretisation of ours; the loading itself is smooth).
+    Validation: V1 uniform panels of width s/N with Γ of the ellipse at their mid-points (1e-12); cosine edges at equal
+    steps of the span angle; an unknown spacing raises ``ValueError`` — tests/test_ch14.py:
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals,
+    test_downwash_V3_a_staircase_of_horseshoes_converges_to_14_13,
+    test_downwash_along_x_V7_zero_far_ahead_w_at_the_line_twice_w_far_behind.
+    Label: analytic.
     """
     N = int(N)
     if spacing == "uniform":
@@ -798,7 +937,10 @@ def staircase_downwash(y1, y_edges, Gamma_steps, parts: bool = False):
     return the (…, M + 1) array of each filament's contribution.
     Returns w(y₁) [m/s] (and the parts).
     Assumptions: straight semi-infinite filaments in the plane of the wing.
-    Validation: V1 one panel at its centre: Γ/(πs); V3 → :func:`downwash` as the number of panels grows (first order).
+    Validation: V1 one panel at its centre: Γ/(πs); V3 → (14.24) at panel mid-points for the elliptic loading: order 1.5
+    with uniform panels, 2.0 with cosine panels (20–320 panels) — tests/test_ch14.py:
+    test_downwash_V3_a_staircase_of_horseshoes_converges_to_14_13,
+    test_shed_filament_V1_sheet_strength_is_minus_dGamma_dy_and_V4_helmholtz_totals.
     Label: analytic, converged.
     """
     ye, G = _F(y_edges), _F(Gamma_steps)
@@ -821,7 +963,10 @@ def rolled_up_pair(Gn, s: float) -> dict:
     b′ = (1/Γ₀)∫Γ dy = (πs/4)Γ₁/Γ₀ (πs/4 for the elliptic loading); the pair sinks at Γ₀/(2πb′).
     Parameters: Gn [m²/s]; s [m].   Returns dict: ``Gamma0`` [m²/s], ``spacing`` b′ [m], ``descent_speed`` [m/s].
     Assumptions: complete roll-up of each half into one line vortex; symmetric loading.
-    Validation: V1 elliptic: spacing πs/4; V4 equals the centroid of the half-sheet.  Label: analytic.
+    Validation: V1 elliptic: spacing πs/4; V4 equals the centroid of the half-sheet — tests/test_ch14.py:
+    test_tip_vortices_V1_rolled_up_pair_spacing_is_the_conserved_impulse,
+    test_wake_rollup_V4_invariants_are_conserved_the_spiral_is_qualitative.
+    Label: analytic.
     """
     g, n = _Gn(Gn)
     G0 = float(np.sum(g * np.sin(n * 0.5 * np.pi)))
@@ -838,7 +983,12 @@ def wake_kinetic_energy_per_length(Gn, s: float, rho: float, m: int = 256) -> fl
     unit length is ½ρ∫Γ w_∞ dy = ρ∫Γ w dy — the induced drag of (14.15).  Evaluated by the midpoint rule in the span
     angle (``m`` nodes), not from (14.22).
     Parameters: Gn [m²/s]; s [m]; rho [kg/m³]; m quadrature nodes.   Returns the energy per length [N].
-    Assumptions: straight, rigid, planar wake.   Validation: V4 equals (14.22) to 1e-10.  Label: conserved.
+    Assumptions: straight, rigid, planar wake.
+    Validation: V1 equals (14.22) to 1e-10 — by itself an analytic check only, because the function evaluates ρ∫Γw dy,
+    i.e. (14.15) again; V4 the independent evidence is the verifier's log-kernel double integral of the sheet's energy,
+    −(ρ/4π)∬σσ′ ln|y − y′| dy dy′, in ``test_induced_drag_V4_equals_the_kinetic_energy_left_in_the_wake`` (2.7e-4 at
+    1500 nodes, halving with the step).
+    Label: analytic; conserved (through the independent energy integral).
     """
     ga = (np.arange(int(m)) + 0.5) * np.pi / int(m)
     G = _F(circulation_series(Gn, ga))

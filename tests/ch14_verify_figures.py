@@ -109,8 +109,8 @@ def fig_kutta():
     ax[1, 2].plot(r["s_chords"], r["ratio"], "C0", label="bound Γ / Γ_Kutta (lumped vortex)")
     ax[1, 2].plot(r["s_chords"], r["Gamma_wake_cw"] / r["Gamma_steady"], "C3", label="shed Γ / Γ_Kutta")
     ax[1, 2].plot(r["s_chords"], r["total"] / r["Gamma_steady"], "C1", lw=3, label="total (Kelvin: zero)")
-    ax[1, 2].plot(r["s_chords"], ch14.wagner_function(2 * r["s_chords"]), "k--", label="Wagner's function (Jones' fit)")
-    ax[1, 2].set(xlabel="chords travelled", ylabel="circulation / Γ_Kutta", title="starting vortex")
+    ax[1, 2].plot(r["s_chords"], ch14.wagner_function(2 * r["s_chords"]), "k--", label="Wagner: circulatory LIFT / steady lift (Jones' fit) — not a circulation")
+    ax[1, 2].set(xlabel="chords travelled", ylabel="circulation / Γ_Kutta  (dashed: lift ratio)", title="starting vortex")
     ax[1, 2].legend(fontsize=8)
     save(fig, "fig_kutta")
 

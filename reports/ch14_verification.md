@@ -1,8 +1,13 @@
-# Chapter 14 verification — Aerodynamics                       2026-10-12 · code at commit `4823a8a` (tests, reference and this report uncommitted)
+# Chapter 14 verification — Aerodynamics                       2026-10-12 · phase 5 at commit `4823a8a`; follow-up after the derivation review on the working tree above `42d930d` (uncommitted)
 
-## Verdict: PASS — `tests/test_ch14.py`: 95 passed, 0 failed, 0 skipped (90.4 s with the slow script test; 94 in 36.7 s without it); 82 of 82 planted mutants killed; full suite: 1979 passed, 0 failed, 0 skipped (2446.9 s)
+## Verdict: PASS — `tests/test_ch14.py`: 95 passed, 0 failed, 0 skipped (79.1 s, slow script test included) after the review's fixes; 16 of 16 planted variants killed for the three tests changed in the follow-up (82 of 82 in phase 5); full suite not re-run in the follow-up (phase 5: 1979 passed, 0 failed, 0 skipped, 2446.9 s)
 
-`tests/test_ch14.py`: **95 passed, 0 failed, 0 skipped in 90.4 s**. Full suite: **1979 passed, 0 failed, 0 skipped, 1 warning in 2446.9 s (40 min 47 s), slow tests included**. Mutation check: **82 of 82 planted wrong variants killed (81 in the first pass; see "Mutation check")**.
+`tests/test_ch14.py`, follow-up run on the fixed code: **95 passed, 0 failed, 0 skipped in 79.1 s**. Before the follow-up
+edits the same file gave 1 failed, 94 passed on the fixed code: the one failure was the clause that pinned the old area
+defect (`_area` is now exact), which is what a regression pin should do. Full suite: **not re-run in the follow-up** (it
+runs at the merge gate); the phase-5 run was 1979 passed, 0 failed, 0 skipped, 1 warning in 2446.9 s. Mutation check:
+82 of 82 in phase 5, and **16 of 16** new variants against the three changed tests (see "Follow-up after the derivation
+review").
 
 Every script ran (the nine `scripts/ch14_*.py` and `reference/ch14/make_refs.py` exit 0), every test passes, each of the
 16 CORE rows has at least two independent evidence levels (one of V1 / V2 / V3 / V5 in each), every coded NOTE item and
@@ -10,13 +15,61 @@ every one of the 127 names of design Part C (C.0–C.3), the 14 methods of `Zhuk
 C.4 is called by at least one test (a self-audit test enforces it), all 18 two- and three-star derivations are
 re-derived with sympy independently of the chapter's own engine, the computable printed slips (#1, #2, #4, #8) fail
 their independent checks as printed while the coded forms pass, and nothing is `unverified` without an Open item.
-**No physics defect was found in `fluidpy/`.** Five documentation-level findings are listed under "Open items"; none
-blocks. `wagner_function` **was confirmed first-hand** (two public sources read today; the primary 1938 report was not).
+**No wrong equation was found in `fluidpy/`.** The derivation review (`reports/ch14_review.md`) then found one false
+comparison that this report had repeated — Wagner's function, a *lift* ratio, set against the growth of the bound
+*circulation* (its M1) — and the phase-5 test shared the misreading. That comparison is now made on the lift, the
+five documentation-level findings and the area defect of "Open items" 1–5 are fixed in the code, and the items are
+marked resolved below. `wagner_function` **was confirmed first-hand** (two public sources read today; the primary 1938
+report was not).
+
+## Follow-up after the derivation review (2026-10-12)
+
+Scope: `tests/test_ch14.py` and this report only; the concept-implementer changed `fluidpy/` and `scripts/`.
+
+| # | Test (`tests/test_ch14.py`) | Change | Old → new | Measured |
+|---|---|---|---|---|
+| 1 | `test_lifting_line_matrix_V1_entry_by_entry_and_the_right_hand_side` | the clause that pinned the old defect (`abs(A/A_exact − 1) > 1e-7`) is replaced by an exactness check; four more tapered chords (taper 0.45, 0.2, 0 and 1) added; the callable-chord and planform-dict routes compared on C_L, C_Di, L and D_i | area and Λ: 1e-5 → 1e-12 relative; C_L: 1e-5 → 1e-12; C_Di, L, D_i: new, 1e-12, 1e-14, 1e-14 | area 5.10000000000001 against 5.1 (2.0e-15; it was 2.2e-6); C_L and C_Di 2.0e-15; L, D_i and every Γ_n identical; other tapers at most 1.5e-14 |
+| 2 | `test_starting_vortex_V5_circulatory_lift_against_the_cited_fits_of_wagners_function` (renamed from `test_starting_vortex_V5_growth_against_the_cited_fits_of_wagners_function`) | the quantity compared with Wagner's function is the model's circulatory lift over the steady lift, `lift_circulatory`/(ρUΓ_steady), run with ρ = 1.2 kg/m³; new assertions: `lift_circulatory` = ρUΓ_bound; the bound circulation starts well below Wagner's φ(0) = ½ and tends to ⅓; Kelvin's sum is zero at every step, also summed from the individual wake vortices of runs stopped after 1, 2, 7 and 40 steps | deviation from the fit over 2–20 chords: 0.03 → 0.012; before two chords: (0.02, 0.17) → (0.15, 0.17); 90 % crossing: within 0.1 of 6.2 → within 0.01 of 6.13 chords; Kelvin: new, 1e-13 Γ_steady | 0.0060 over 2–20 chords at dt = 0.05 c/U (0.0109, 0.0064, 0.0065 at dt = 0.1, 0.025, 0.0125; free wake 0.0060); 0.166 before two chords; first value of Γ_bound/Γ_steady 0.3442 at dt = 0.05 c/U and 0.3938, 0.3399, 0.33400 at dt = 1e-2, 1e-3, 1e-4 c/U; Kelvin 2.2e-16 Γ_steady |
+| 3 | `test_downwash_V3_a_staircase_of_horseshoes_converges_to_14_13` | the comment said "first order"; it now states the measured orders, and the redundant `order > 0.9` line is gone | order tolerance ±0.15 → ±0.05 about 1.5, 1.5 and 2.0; new: error at 320 cosine panels < 5e-6 m/s and below the uniform one | 1.517 (uniform panels, mid-span), 1.473 (inner half), 2.023 (cosine panels); successive pairs 1.54 → 1.50, 1.44 → 1.49, 2.05 → 2.01; 3.9e-6 and 2.3e-6 m/s at 320 panels |
+
+Two stale comments were corrected in passing (the `section_geometry` and `trailing_edge_speed` docstrings now state what
+the comments said they did not). Nothing was loosened.
+
+**What the Wagner test can and cannot see.** For a steady stream the model's two ratios are the same number
+(ρUΓ_bound/ρUΓ_steady = Γ_bound/Γ_steady, equal to 2e-16), so no test of the code can tell "lift" from "circulation"
+there: M1 was a mislabelled comparison, not a wrong number. What the test now pins is (i) that `lift_circulatory` is
+ρUΓ_bound with the density in it, (ii) that the model's lift ratio is within 0.012 of the cited lift function after two
+chords, and (iii) that the bound circulation is *not* Wagner's curve at the start (⅓ against ½, a gap of ⅙) and is tied
+by Kelvin's theorem to what has been shed. The exact circulation (0 at the start, 0.55 after one chord, 90 % after 7.1
+chords) is the reviewer's computation; it is not re-derived here and no test uses it.
+
+**"90 % of the steady value": 6.1 chords, not 6.2.** The model's ratio crosses 0.9 after **6.12 chords** at dt = 0.05 c/U
+with the rigid wake (α = 6°, the script's case; 6.13 at α = 5°; 6.13 with the free wake), by linear interpolation
+between steps. The first time step at or above 0.9 is 6.15 chords, which the script prints as "6.1". The crossing moves
+at first order in the time step: 6.37, 6.21, 6.12, 6.08, 6.06, 6.05 chords at dt = 0.2, 0.1, 0.05, 0.025, 0.0125,
+0.00625 c/U, toward about 6.04 (Richardson; 6.05 with the free wake). "6.2" is the value at dt = 0.1 c/U, and it had
+survived in the design and in this report because the phase-5 assertion was "within 0.1 of 6.2", which 6.13 met; the
+script's formula did not change and printed 6.1 before as well. Jones' fit reaches 90 % after 6.4 chords (the first
+step at or above, at the same dt; the reviewer's exact lift also 6.4, exact circulation 7.1).
+
+Mutation check for the changed tests (package copied to the scratchpad, one variant planted at a time, the named test
+run): **16 of 16 killed.** Area test: one Gauss rule across the mid-span kink (the old defect); a 1e-9 relative error in
+the weight; the Jacobian dropped. Wagner test: `lift_circulatory` without the density; with a factor ½; built from the
+steady circulation; Kelvin's condition dropped; Kelvin's condition off by 0.1 %; control point at mid-chord; bound
+vortex at the leading edge; the shed vortex placed half a step behind the edge; a digit swapped in the fit; the fit's
+argument read in chords. Staircase test: circulation taken at the panel's left edge; sign of the jump; cosine edges
+replaced by uniform ones (stopped by the order assertion, 1.52 against 2.0).
+
+Still to be done by others (outside `tests/test_ch14.py` and this report): `analysis/ch14_design.md` line 315 says
+"90 % at about 6.2 chords" (6.1 at the stated time step); the docstring of `wagner_function` cites the old test name and
+the docstring of `impulsive_start_lumped_vortex` names no test for its V5 line; `tests/ch14_verify_figures.py` still
+draws Wagner's fit on the circulation panel of `fig_kutta.png` (see the figure table).
 
 ## Environment
 python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · matplotlib 3.11.2 (Agg) · pytest 9.1.1 · Windows 11.
-`.venv/Scripts/python.exe -m pytest tests/test_ch14.py -q -p no:cacheprovider` → **95 passed, 0 failed, 0 skipped in 90.4 s** (with `-m "not slow"`:
-94 passed, 1 deselected in 36.7 s; without the private `tests/book_values_ch14.json`: 91 passed, 3 skipped — checked in a scratch copy). `tools/check_public.py tests/test_ch14.py tests/ch14_verify_figures.py reference/ch14/SOURCES.md
+Phase 5: `.venv/Scripts/python.exe -m pytest tests/test_ch14.py -q -p no:cacheprovider` → 95 passed, 0 failed, 0 skipped in 90.4 s (with `-m "not slow"`:
+94 passed, 1 deselected in 36.7 s; without the private `tests/book_values_ch14.json`: 91 passed, 3 skipped — checked in a scratch copy).
+Follow-up, on the fixed code: `.venv/Scripts/python.exe -m pytest tests/test_ch14.py -q` → **95 passed, 0 failed, 0 skipped in 79.1 s**; `tools/check_public.py tests/test_ch14.py` → OK. `tools/check_public.py tests/test_ch14.py tests/ch14_verify_figures.py reference/ch14/SOURCES.md
 reference/ch14/make_refs.py reference/ch14/benchmarks.json` → "public-repo check OK (5 files)".
 Pages re-read as images by the verifier before any equation was tested: printed pp. 705 ((14.8)), 707 ((14.9)–(14.12)),
 711 ((14.13) and the line before it), 712 (the line for ε, (14.14)), 714 ((14.18)–(14.24)), 715 ((14.25)–(14.27)).
@@ -27,7 +80,7 @@ Every coded equation agrees with its page.
 | # | Item | Ruling | Measured |
 |---|---|---|---|
 | 1 | `circle_flow_zeta(center=0j)` must reproduce chapter 6 | **Confirmed.** With and without the keyword the arrays are identical bit for bit; both equal $w=U\big(\zeta+\frac{a^2}{\zeta}\big)+\frac{i\Gamma}{2\pi}\ln\frac{\zeta}{a}$ (6.68) to 1e-13 on 377 points; the surface speed equals $u_\theta=-2U\sin\theta-\frac{\Gamma}{2\pi a}$ (6.37) = (14.10) | all of chapter 6's tests pass in the full suite |
-| 2 | `illustrative_inputs()` switched to the design's set | **Confirmed.** The values of header convention 11 are returned (b = 0.25 m, e = 0.08, β = 4°, α = 5°, U = 30 m/s; W = 9000 N, s = 12 m, A = 15 m², Λ = 9.6; demo wing Λ = 6); 32 of the design's worked numbers (Part F "Check" lines, C.6 item 4) are reproduced to every printed digit | Γ_K = 15.96 m²/s, exact C_L = 1.058, rule 0.987; loop area 1.054; lumped-vortex ratios 0.6463, 0.8156, 0.8792, 0.9388; 90 % at 6.2 chords |
+| 2 | `illustrative_inputs()` switched to the design's set | **Confirmed.** The values of header convention 11 are returned (b = 0.25 m, e = 0.08, β = 4°, α = 5°, U = 30 m/s; W = 9000 N, s = 12 m, A = 15 m², Λ = 9.6; demo wing Λ = 6); 32 of the design's worked numbers (Part F "Check" lines, C.6 item 4) are reproduced to every printed digit | Γ_K = 15.96 m²/s, exact C_L = 1.058, rule 0.987; loop area 1.054; lumped-vortex ratios 0.6463, 0.8156, 0.8792, 0.9388; 90 % at 6.1 chords (6.13 at dt = 0.05 c/U, rigid wake; the design's "about 6.2" is the value at dt = 0.1 c/U) |
 | 3 | contour parameter t starts at −β (trailing edge at index 0) | **Confirmed** for `zhukhovsky_airfoil`, `zhukhovsky_surface`, `surface_point`: `t[0] = −β`, `z[0] = 2b` to 1e-14, counterclockwise, upper surface first; every consumer (`section_geometry(te_index=0)`, the force by surface pressure, the separation estimate) agrees with a route that does not use the index | pressure-route force = Blasius force, order 2.000 |
 | 4 | `wagner_function` — first-hand source? | **Confirmed first-hand, as a cited fit (V5).** $\phi(s)=1-0.165e^{-0.0455s}-0.335e^{-0.3s}$, s in semi-chords, read in (a) Dawson & Brunton, arXiv:2104.15122v2, Eq. (1) and Table 1 (PDF text extracted), which also states φ(0) = 0.5, φ → 1 and an absolute error "less than 1 %"; (b) the BYU FLOW Lab `Aeroelasticity.jl` page (C₁ = 0.165, C₂ = 0.335, ε₁ = 0.0455, ε₂ = 0.3, exponent (u/b)t with b the semi-chord). **Not read:** the primary report (R. T. Jones, NACA TN 667, 1938, as Dawson & Brunton cite it; other pages cite NACA Rep. 681 / TN 682) | the coded function equals the cited coefficients to 1e-15; it differs from Garrick's independent fit $1-\frac{2}{4+s}$ (same paper, Eq. (2), error "2 %") by at most 0.0218 < 0.01 + 0.02 |
 | 5 | `thin_airfoil` (not in the book) | **Verified independently, three ways.** (i) the Fourier integrals done exactly with sympy for a cubic (reflexed) camber line: A₀, A₁, A₂, C_L, α_{L=0}, C_{M,c/4} agree to 1e-12; (ii) an independent numerical method — N lumped vortices on the chord with tangency at the three-quarter points — converges to the same C_L and C_{M,c/4} at order 2.00 (3.6e-6 and 6.3e-6 at N = 400); (iii) the cited public results: slope 2π per radian, centre of pressure of a symmetric section at the quarter chord. Parabolic arc: α_{L=0} = −2h/c = −β of the Zhukhovsky arc | label `analytic (ours)`, now with evidence |
@@ -42,7 +95,7 @@ Evidence labels: `analytic` V1 · `symbolic` V2 · `converged` V3 · `conserved`
 |---|---|---|---|---|---|---|
 | C01 the wing in numbers, $\Lambda\equiv s^2/A=s/\bar c$ (14.1), $\bar c=A/s$ (14.2); level flight $C_L=\frac{W}{\frac12\rho U^2A}$ | CORE | `aspect_ratio`, `mean_chord`, `planform`, `level_flight`, `stall_speed`, `compressibility_check`, `section_geometry`, `resolve_lift_drag`, `section_coefficient` | V1, V2 (D01 + dimensions), V3, V7 | three planforms against closed forms 1e-13; ellipse area by trapezoid: order 1.50; ½Ma² against the isentropic ratio: 6.1e-4 at Ma = 0.3, next term (2 − γ)/8 Ma⁴ | analytic, symbolic, converged | `test_aspect_ratio_V1_*`, `test_aspect_ratio_V2_*`, `test_planform_V3_*`, `test_level_flight_V1_*`, `test_compressibility_V1_*`, `test_section_geometry_V1_*`, `test_section_geometry_V3_*`, `test_resolve_lift_drag_V1_*` |
 | C02 the Kutta condition, $\left.\frac{dw}{d\zeta}\right\rvert_{\zeta=b}=0$ | CORE | `kutta_circulation`, `kutta_circulation_root`, `stagnation_points`, `rear_stagnation_point` | V1, V2 (D09), V5, V7 | root-finder = closed form to 1e-12 on 18 (e, β, α) cases; dw/dζ(b) < 1e-13 U; both stagnation points are zeros of dw/dζ for 8 circulations (on and off the surface) and agree with chapter 6; three planted variants fail | analytic, symbolic, benchmark | `test_kutta_condition_V1_*`, `test_kutta_condition_V5_*`, `test_kutta_circulation_V2_derivation`, `test_stagnation_points_V1_*` |
-| C03 the starting vortex, $\Gamma_{ABCD}=0=\Gamma_{\text{foil}}+\Gamma_{\text{starting}}$ | CORE | `impulsive_start_lumped_vortex`, `wagner_function` | V4, V1 (limits), V3, V5 | total circulation ≤ 1.8e-15 at every step (rigid and free wake, steps in speed and incidence); steady limit πUc sin α: deficit 1.3e-3 at 400 chords, decaying as 1/(2 chords); first value → 1/3; order in dt 1.00; against the cited fit: 0.6 % over 2–20 chords | conserved, analytic (limits), converged, benchmark; the transient is a **model** | `test_starting_vortex_V4_*`, `test_starting_vortex_V1_*`, `test_starting_vortex_V3_*`, `test_starting_vortex_V5_*` |
+| C03 the starting vortex, $\Gamma_{ABCD}=0=\Gamma_{\text{foil}}+\Gamma_{\text{starting}}$ | CORE | `impulsive_start_lumped_vortex`, `wagner_function` | V4, V1 (limits), V3, V5 | total circulation ≤ 1.8e-15 at every step (rigid and free wake, steps in speed and incidence); steady limit πUc sin α: deficit 1.3e-3 at 400 chords, decaying as 1/(2 chords); first value of Γ_bound → 1/3 (the exact circulation starts at 0; Wagner's ½ is a lift ratio); order in dt 1.00; **circulatory lift ρUΓ_bound against the cited fit (Wagner's function is a lift ratio)**: `lift_circulatory`/(ρUΓ_steady) within 0.0060 over 2–20 chords at dt = 0.05 c/U (tolerance 0.012), 0.166 below it before two chords; 90 % of the steady value after 6.1 chords at that step | conserved, analytic (limits), converged, benchmark; the transient is a **model** | `test_starting_vortex_V4_*`, `test_starting_vortex_V1_*`, `test_starting_vortex_V3_*`, `test_starting_vortex_V5_*` |
 | C04 the Zhukhovsky airfoil, $z=\zeta+\frac{b^2}{\zeta}$ (14.3), $x=(R+b^2/R)\cos\theta$, $y=(R-b^2/R)\sin\theta$ (14.4), $c\simeq4b$, camber $\simeq\frac12\beta c$, $t_{\max}/c\simeq1.3e$ (14.8) | CORE | `zhukhovsky_circle`, `zhukhovsky_circle_from_centre`, `zhukhovsky_airfoil`, `zhukhovsky_shape`, `circular_arc`, `trailing_edge_angle`, `trailing_edge_wedge`, `map_point`, `circular_arc_sym`, `camber_from_beta` | V1, V2 (D03, D04, D05), V3, V7 | arc: every image point on $x^2+(y+2b\cot2\beta)^2=(2b\csc2\beta)^2$ to 1e-12; exact chord $b\,[3+2e+1/(1+2e)]$ to 1e-9; thickness against our own optimiser to 2e-7; `section_geometry` order 1.98 (thickness), 2.12 (camber); rule error first order in e (0.98) | analytic, symbolic, converged | `test_zhukhovsky_circle_V1_*`, `test_zhukhovsky_airfoil_V1_*`, `test_zhukhovsky_shape_V7_*`, `test_trailing_edge_V7_*`, `test_circular_arc_V2_derivation`, `test_thickness_rule_V2_derivation`, `test_cusp_V2_derivation` |
 | C05 the flow round the airfoil, $\frac{dw}{dz}=\frac{dw}{d\zeta}\frac{\zeta^2}{\zeta^2-b^2}$ (14.9) | CORE | `zhukhovsky_flow` (all 14 methods), `flat_plate_flow`, `zhukhovsky_inverse`, `circle_flow_zeta(center=)` | V1, V2 (D06, D07, D08), V4, V7 | section is a streamline (ψ spread < 1e-12 Ua); far field $Ue^{-i\alpha}$; dw/dz equals centred differences of w(z) in two directions (Cauchy–Riemann) to 2e-6; circulation −Γ on three z-contours and on three pairs of partner contours to 1e-9; e = β = 0 equals the chapter-6 route to 1e-11 | analytic, symbolic, conserved | `test_zhukhovsky_flow_V1_*`, `test_zhukhovsky_flow_V4_*`, `test_zhukhovsky_flow_V7_*`, `test_zhukhovsky_inverse_V1_*`, `test_offcentre_circle_flow_V2_derivation`, `test_circulation_invariance_V2_derivation`, `test_circle_flow_zeta_V7_*`, `test_circle_flow_zeta_V1_*` |
 | C06 lift, $\Gamma=4\pi Ua\sin(\alpha+\beta)$ (14.11), $C_L\simeq2\pi(\alpha+\beta)$ (14.12) | CORE | `zhukhovsky_force`, `zhukhovsky_lift_coefficient`, `trailing_edge_speed`, `edge_speed`, `zero_lift_angle`, `thin_airfoil`, `lift_per_span` | V1, V2 (D09), V3, V5, V7 | Blasius: L = ρUΓ and D = 0 to 1e-10 for 18 sections × 4 circulations, force normal to the stream (lift is not F_y); our own contour integral agrees to 1e-9; surface-pressure route converges to it at order 2.000 (3.7e-7 at n = 4000); flat plate $2\pi\sin\alpha$ exactly, centre of pressure at 0.25 c | analytic, symbolic, converged, benchmark | `test_zhukhovsky_lift_V1_*`, `test_zhukhovsky_lift_V3_*`, `test_zhukhovsky_lift_V5_*`, `test_zhukhovsky_lift_V7_*`, `test_trailing_edge_speed_V1_*`, `test_thin_airfoil_V1_*`, `test_thin_airfoil_V3_*` |
@@ -60,7 +113,8 @@ Evidence labels: `analytic` V1 · `symbolic` V2 · `converged` V3 · `conserved`
 | NOTE: projectile with drag (N83) | NOTE | `projectile_range_drag` | V7, V3 | C_D → 0: vacuum range 1e-6; `solve_ivp` approaches the formula as θ₀ → 0 (7 % → 1.2 %, order 0.86) | analytic | `test_projectile_V7_*` |
 | NOTE: tables | NOTE | `illustrative_inputs`, `conventions_table`, `book_slips`, `traps` | V7 | 10 slips with `kind` ("slip" for #1, #2, #5), 18 traps, 15-row letter table | — | `test_tables_V7_*`, `test_contract_V7_*` (4), `test_public_V7_*`, `test_design_numbers_V7_*` |
 
-Evidence counts. Tests carrying each level (a test can carry two): **V1 41 · V2 21 · V3 11 · V4 12 · V5 5 · V6 3 · V7 28**
+Evidence counts. Tests carrying each level (a test can carry two): **V1 41 · V2 21 · V3 11 · V4 13 · V5 5 · V6 3 · V7 28**
+(V4 was 12 in phase 5; the Wagner lift test now also asserts Kelvin's sum)
 (by the level in the test name: V1 37 · V2 19 · V3 7 · V4 5 · V5 4 · V6 3 · V7 20; 95 tests, 18 of them
 `…_V2_derivation`). CORE rows per validation label: **analytic 16 · symbolic 14** (all but C03 and C08, whose
 derivations are one-star) **· converged 8** (C01, C03, C04, C06, C07, C09, C10, C12) **· conserved 7** (C03, C05, C07,
@@ -105,11 +159,11 @@ found in Part F.**
 | `trailing_edge_angle` of the cusp | n = 100 … 1600 | 1.00 (→ 0) | 1 |
 | `planform("elliptic")` trapezoid area | n = 41 … 641 | 1.50 | 1.5 (square-root ends) |
 | `impulsive_start_lumped_vortex`, time step | dt = 0.2 … 0.0125 c/U at 1 and 4 chords; free wake at 2 chords | 1.00, 1.01, 1.01 (rigid); 1.01, 1.01 (free) | 1 |
-| `staircase_downwash` → (14.13), elliptic loading | 20 … 320 panels | 1.52 (uniform panels, mid-span), 1.47 (inner half), 2.02 (cosine panels, mid-span) | docstring: "first order" (Open item 3) |
+| `staircase_downwash` → (14.13), elliptic loading | 20 … 320 panels | 1.52 (uniform panels, mid-span), 1.47 (inner half), 2.02 (cosine panels, mid-span); asserted to ±0.05 | 1.5 (uniform), 2.0 (cosine) — the docstring now states these (Open item 3, resolved) |
 | `lift_and_induced_drag` (trapezoid, stations uniform in γ) | 201 … 1601 | 2.00 (L), 2.00 (D_i) | 2 |
 | `solve_lifting_line`, rectangular wing Λ = 6 (differences between N and 2N) | N = 4 … 128 | 3.77 (C_L), 3.77 (C_Di); 5.2e-8 between N = 64 and 128; condition number 1.8 → 605 | none stated |
 | `lifting_line_residual` between stations | N = 4 … 128 | 0.38, 0.12, 1.0e-2, 2.1e-3, 1.4e-4, 1.1e-5 of Γ₁ | → 0 |
-| Speed approaching the cusp, `edge_speed` → $U\frac ba\cos(\alpha+\beta)$ | d = 1e-3 … 1e-8 m | 0.497 (error ∝ √d); 2.2e-4 at 1e-6 | docstring: "1e-4 at 1e-6" (Open item 2) |
+| Speed approaching the cusp, `edge_speed` → $U\frac ba\cos(\alpha+\beta)$ | d = 1e-3 … 1e-8 m | 0.497 (error ∝ √d); 2.2e-4 at 1e-6 | ½ — the docstring now states √d and these values (Open item 2, resolved) |
 | Rule $t_{\max}/c\simeq\frac{3\sqrt3}4e$ against the contour | e = 0.1 … 0.005 | 0.98 (first-order rule; 9.3 % high at e = 0.1) | 1 |
 | Discrete-vortex method against `thin_airfoil` (test-only) | N = 25 … 400 | 2.00 (C_L), 2.00 (C_M) | — |
 | `projectile_range_drag`: numerical range → formula as θ₀ → 0 | 0.4 … 0.05 rad | 0.86 | trend only |
@@ -140,7 +194,7 @@ found in Part F.**
 | Γ = 4πV∞R sin(α + sin⁻¹(μ_y/R)), R = √((1 − μ_x)² + μ_y²) | `kutta_circulation` and `kutta_circulation_root` to 1e-12 on 18 cases | Wikipedia, "Joukowsky transform" | secondary (form) |
 | C_D,i = C_L²/(π AR e), e = 1.0 for an elliptic distribution | `induced_drag_coefficient` to 1e-14 | NASA Glenn, Beginner's Guide to Aeronautics, "Induced Drag Coefficient"; Wikipedia, "Lift-induced drag" | two sources (form) |
 | D_i = L²/(½ρV²πb²) | `elliptic_induced_drag` to 1e-14 | Wikipedia, "Lift-induced drag" | secondary (form) |
-| Wagner's function, Jones' fit: 0.165, 0.0455, 0.335, 0.3; φ(0) = 0.5; error < 1 % | coded coefficients identical; lumped-vortex model within 0.6 % of it over 2–20 chords | Dawson & Brunton, arXiv:2104.15122v2, Eq. (1), Table 1; BYU FLOW Lab, Aeroelasticity.jl documentation | two sources, first-hand; primary report not read |
+| Wagner's function, Jones' fit: 0.165, 0.0455, 0.335, 0.3; φ(0) = 0.5; error < 1 % | coded coefficients identical; the lumped-vortex model's circulatory lift over the steady lift within 0.0060 of it over 2–20 chords (a lift ratio compared with a lift ratio) | Dawson & Brunton, arXiv:2104.15122v2, Eq. (1), Table 1; BYU FLOW Lab, Aeroelasticity.jl documentation | two sources, first-hand; primary report not read |
 | Garrick's fit 1 − 2/(4 + s), error 2 % | Jones' fit within 0.022 of it | Dawson & Brunton, Eq. (2) | cross-check |
 | induced share of a wide-body's cruise drag ≈ 37 % | evidence for trap T9 only (ours: 13 % at cruise, 64 % at 30 m/s, 50 % at best glide) | Wikipedia, "Lift-induced drag" | not a test of our code |
 
@@ -207,7 +261,7 @@ variants 56–81 and the two re-runs against the later file; nothing was loosene
 | Figure | Visual verdict |
 |---|---|
 | `fig_shapes.png` | Four circles through ζ = b map to a slit from −2 to 2, an arc that lies exactly on the grey circle with its top at 0.511 b, a symmetric section and a cambered one, all with a cusped tail at x = 2b; the measured thickness ratio leaves the line (3√3/4)e from below, the thickest station stays just behind the quarter chord, chord/4b rises slowly from 1, and the measured camber rises above β/2 as tan β/2. |
-| `fig_kutta.png` | With Γ = 0 the rear stagnation point sits on the upper surface ahead of the edge and the flow turns the edge; with Γ_K it is at the edge and the streamlines leave smoothly; the edge speed is flat at U(b/a)cos(α + β) for Γ_K and rises as d^{−1/2} for 0.8 and 1.2 Γ_K; the lift curves cross zero at α = −β = −4°, the exact one steeper than 2π(α + β), the model curve drops at 14° to a plateau; the bound circulation rises from 1/3 toward 1, the shed circulation mirrors it, their sum is flat at zero, and Wagner's fit (from 1/2) is joined within the line width after about two chords. |
+| `fig_kutta.png` | With Γ = 0 the rear stagnation point sits on the upper surface ahead of the edge and the flow turns the edge; with Γ_K it is at the edge and the streamlines leave smoothly; the edge speed is flat at U(b/a)cos(α + β) for Γ_K and rises as d^{−1/2} for 0.8 and 1.2 Γ_K; the lift curves cross zero at α = −β = −4°, the exact one steeper than 2π(α + β), the model curve drops at 14° to a plateau; the bound circulation rises from 1/3 toward 1, the shed circulation mirrors it, their sum is flat at zero, and Wagner's fit (from 1/2) is joined within the line width after about two chords. **Caveat (review M1):** that dashed curve is a lift ratio drawn on a circulation axis; it is the model's ρUΓ_bound over the steady lift that it describes (the same numbers for this steady stream), and the exact circulation starts from 0. The figure script `tests/ch14_verify_figures.py` was outside the follow-up's scope and still draws it so. |
 | `fig_pressure.png` | Suction peak at the nose growing from −0.6 to −7.5 between α = 0 and 10°, C_p = 1 at the front stagnation point, both curves meeting slightly above 0 at the trailing edge, loop areas 0.472, 1.054, 1.612; the signed surface speed changes sign once (front stagnation point) and is finite at both ends; the laminar separation point moves forward with α and jumps to the nose between 5.5° and 6° (trend only). |
 | `fig_downwash.png` | One horseshoe: downwash Γ/(πs) at the centre growing without bound toward the tips, upwash outboard; staircases of 8, 32, 128 horseshoes lie on Γ₁/2s over a widening part of the span and the quadrature of (14.13) lies on it at every station; along the flight direction the downwash rises from 0 through w at the line to 2w, antisymmetric about the line. |
 | `fig_lifting_line.png` | Rectangular, tapered and elliptic wings of the same span and area: the rectangular loading is the fullest toward the tips (e_span = 0.9539), the tapered one nearly elliptic (0.9902), the elliptic exact (1.0000); the differences between successive solutions fall along N⁻⁴; the polars are parabolas starting at C_D0 with the tangent from the origin touching at C_D = 2C_D0. |
@@ -225,6 +279,23 @@ and shown to have the wrong sign. Γ is clockwise everywhere (`Gamma_cw=` keywor
 `horseshoe_velocity` returns uz upward and `horseshoe_downwash` its negative (both tested).
 
 ## Open items
+
+**Status after the derivation review (2026-10-12).** Resolved, each checked on the working tree in the follow-up:
+- **1 — resolved.** `wagner_function` cites Dawson & Brunton (Eq. (1), Table 1) and the BYU page, says the primary report was not read and that φ is a lift ratio; label `benchmark (cited fit)`.
+- **2 — resolved.** `trailing_edge_speed` states the √d approach with 2.2e-4 at 1e-6 m and 2.2e-5 at 1e-8 m (the measured values).
+- **3 — resolved.** `staircase_downwash` states order 1.5 (uniform panels) and 2.0 (cosine panels); the test asserts 1.517, 1.473 and 2.023 to ±0.05.
+- **4 — resolved (documented).** `section_geometry` says second order only when the trailing edge is a contour vertex and first order for a rounded edge between two vertices; the behaviour is unchanged and is the one tested.
+- **5 — resolved (fixed).** `_area` applies the Gauss rule to each half-span: the tapered callable chord gives 5.10000000000001 against 5.1 (2.0e-15; was 2.2e-6), other tapers at most 1.5e-14; C_L and C_Di of the two routes agree to 2.0e-15; a planted return to the single rule fails the test.
+- **6 — the Wagner sentence corrected, the labels stay** (see the item): the comparison is circulatory lift ρUΓ_bound against the cited fit (Wagner's function is a lift ratio).
+- **10 — resolved.** The "Validation:" lines of the three modules name their tests: 85 test names cited (counted once per module), 84 of them existing; the one that does not exist is the old name of the renamed Wagner test in the docstring of `wagner_function` (to be updated by the implementer), and the V5 line of `impulsive_start_lumped_vortex` names no test yet.
+- **11 — resolved (review item, new).** Sibling argument order (`aspect_ratio(s, A)` against `mean_chord(A, s)`; `level_flight` / `stall_speed` / `drag_vs_speed`; `flat_plate_forces` / `zhukhovsky_force`): each docstring now says to call by keyword; signatures unchanged (`test_contract_V7_signatures_match_design_part_c` passes). Whether the notebook and the explainers do call by keyword is for their reviewers.
+- **12 — resolved (new).** `wake_kinetic_energy_per_length` says that by itself it is (14.15) again and names the independent log-kernel double integral of this file as its V4 evidence.
+- **13 — resolved (new).** `downwash` is labelled `analytic` (no order is asserted for it).
+- **14 — resolved (new).** Book, Assumptions, Validation and Label lines are present in `zhukhovsky_inverse`, `ZhukhovskyFlow` and its 14 methods, `lifting_line_modes`, `lifting_line_rhs`, `horseshoe_downwash`, `staircase_from_loading`, `chord_reynolds`, `sail_drive_curve`, `velocity_made_good` (checked by reading the docstrings programmatically).
+- **15 — resolved (new).** The clarity notes are in the docstrings: `exact=False` ignores `e`; `lift_circulatory` is the quasi-steady part only; `xcp_over_c` is measured along the x-axis from the leading edge's x; a chord array is refused by `solve_lifting_line` with the reason; slip #10 says the page image was not re-read.
+
+Still open: 7, 8, 9 (unchanged) and the standing labels of 6. The original text of every item is kept below.
+
 1. **`wagner_function` docstring is stale** (`fluidpy/ch14_aerodynamics.py`): it still says "the verifier should confirm
    first-hand" and "verifier to confirm the source". Confirmed today in two public sources (ruling 4); the docstring
    should cite Dawson & Brunton, arXiv:2104.15122 (Eq. (1), Table 1) beside the BYU page and say that the primary report
@@ -248,8 +319,12 @@ and shown to have the wrong sign. Γ is clockwise everywhere (`Gamma_cw=` keywor
    `generic_drag_curve`, `stall_regime` (drawn models, every constant a required keyword); the spiral of `wake_rollup`
    past the first turn (its invariants are `conserved`); `profile_drag_estimate` (`approximate`: twice the plate
    friction times an input form factor; its turbulent coefficient is still the secondary-sourced one of chapter 9);
-   `impulsive_start_lumped_vortex` (a model: first value 1/3 where Wagner's is 1/2; up to 0.17 below the fit before two
-   chords, within 0.6 % after).
+   `impulsive_start_lumped_vortex` (a model, tested as **circulatory lift ρUΓ_bound against the cited fit (Wagner's
+   function is a lift ratio)**: `lift_circulatory`/(ρUΓ_steady) is up to 0.17 below the fit before two chords and
+   within 0.0060 of it from 2 to 20 chords at dt = 0.05 c/U; its bound circulation starts at 1/3 of the steady value,
+   where the exact circulation starts at 0 and it is the exact circulatory *lift* that starts at 1/2; according to the
+   review the model runs above the exact circulation, 0.65 against 0.55 after one chord — the reviewer's computation,
+   not re-derived here and not tested).
 7. **Ours by convergence only** (no public table found): the rectangular wing's span efficiency 0.95393 and slope
    4.5304 per radian at Λ = 6, K = 2π (order 3.8, five digits by N = 64).
 8. **`analytic (ours)` without a first-hand source, verified independently instead:** `thin_airfoil`,
@@ -272,7 +347,9 @@ solution). One rounding: the storyboard expects a thickness ratio of 0.0965 for 
 `BL.blasius_drag_coefficient`, `fluidpy.core.vortices.rankine_vortex`) exist with the signatures the design lists. D12 step 1 describes the half-line by the angles 0 and
 90° (the leg seen from its far end) where the code's own comment uses 90° and 180° (seen from the wing) — the same
 number, Γ/(4πd), tested both ways. The analysis's expected "3 % against the fit over 2–20 chords" is met with a wide
-margin (0.6 %).
+margin (0.6 %) — as a comparison of lift ratios. **Found after phase 5 (review M1):** the design (line 589, and curation
+line 636) overlaid Wagner's lift function on the circulation curves, and design line 315 gives "90 % at about 6.2
+chords" where the stated time step (0.05 c/U) gives 6.1.
 
 ## Rest of the suite
 Full suite, `.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider` (slow tests included), run once after the last

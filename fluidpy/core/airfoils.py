@@ -77,7 +77,10 @@ def zhukhovsky_circle(b: float = 1.0, e: float = 0.0, beta: float = 0.0, *, a: f
     (mu, a) : complex centre [m], radius [m].
     Assumptions: none (geometry).
     Validation: V1 e = 0 → μ = i b tan β; β = 0 → μ = −be; |b − μ| = a; V7 round trip with
-    :func:`zhukhovsky_circle_from_centre`.  Label: analytic.
+    :func:`zhukhovsky_circle_from_centre` — tests/test_ch14.py: test_zhukhovsky_circle_V1_reductions_and_round_trip,
+    test_circle_flow_zeta_V1_offcentre_circle_is_a_streamline_with_the_right_far_field_and_circulation,
+    test_kutta_condition_V1_root_finder_equals_14_11_and_the_edge_point_stagnates.
+    Label: analytic.
     """
     b, beta = float(b), float(beta)
     if a is None:
@@ -93,7 +96,8 @@ def zhukhovsky_circle_from_centre(mu: complex, b: float = 1.0) -> tuple:
     Book: §14.4, Figs. 14.12–14.14 (ours: the inverse of our parametrisation, for a draggable centre).
     Parameters: mu complex centre [m]; b map constant [m].   Returns (e [–], beta [rad], a [m]).
     Assumptions: Re μ < b (the centre is not beyond the trailing-edge point).
-    Validation: V7 round trip.  Label: analytic.
+    Validation: V7 round trip — tests/test_ch14.py: test_zhukhovsky_circle_V1_reductions_and_round_trip.
+    Label: analytic.
     """
     d = float(b) - complex(mu)  # = a e^{−iβ}
     a = abs(d)
@@ -118,8 +122,10 @@ def zhukhovsky_airfoil(b: float = 1.0, e: float = 0.0, beta: float = 0.0, n: int
     (the R and θ of (14.4)), ``mu`` (complex), ``a`` [m], ``b``, ``e``, ``beta``.  Index 0 = trailing edge (z = 2b);
     counterclockwise, upper surface first.
     Assumptions: none (geometry); the map is one-to-one outside the circle when ζ = −b is not outside it.
-    Validation: V1 slit for e = β = 0; every point of the e = 0 image on the circle of :func:`circular_arc`; V2
-    (14.4) reproduces x, y.  Label: analytic.
+    Validation: V1 slit for e = β = 0; every point of the e = 0 image on the circle of :func:`circular_arc`; V2 (14.4)
+    reproduces x, y — tests/test_ch14.py: test_zhukhovsky_airfoil_V1_slit_arc_symmetric_section_and_14_4,
+    test_trailing_edge_V7_cusp_angle_tends_to_zero_and_a_wedge_keeps_its_angle, test_cusp_V2_derivation.
+    Label: analytic.
     """
     mu, a = zhukhovsky_circle(b, e, beta, a=a)
     b, beta = float(b), float(beta)
@@ -142,8 +148,12 @@ def zhukhovsky_inverse(z, b: float = 1.0, mu: complex = 0j, a: float | None = No
     b²/ζ and exactly one of them is outside when z is outside the section) — not by |ζ| ≥ b.
     Parameters: z complex [m] (any shape); b [m]; mu complex centre [m]; a radius [m] or None (no body test).
     Returns ζ (complex); NaN where both roots are inside the circle (z inside the section), if ``a`` is given.
+    Assumptions: ζ = −b is not outside the circle (the map is then one-to-one outside it); the square root is cut on
+    the slit −2b ≤ x ≤ 2b, so ζ(z) is continuous everywhere outside the section.
     Validation: V1 joukowski(ζ) = z round trip on a grid outside the section; μ = 0 equals
-    ``core.conformal.joukowski_inverse(branch="outside")``.  Label: analytic.
+    ``core.conformal.joukowski_inverse(branch="outside")`` — tests/test_ch14.py:
+    test_zhukhovsky_inverse_V1_round_trip_and_the_root_outside_the_shifted_circle.
+    Label: analytic.
     """
     zz = _C(z)
     b = float(b)
@@ -179,7 +189,9 @@ def section_geometry(x, y, te_index: int | None = None, m: int = 0) -> dict:
     farthest from it (refined by a parabola through three samples); in the chord frame (ξ from the leading edge along
     the chord, η normal to it) both surfaces are interpolated linearly on common cosine-spaced stations; camber line =
     mean, thickness = difference; the two maxima are refined by a parabola.  Second-order accurate in the point spacing
-    (linear interpolation of the surfaces), with a larger constant for a sharp nose.
+    (linear interpolation of the surfaces), with a larger constant for a sharp nose.  Second order only when the
+    trailing edge is a contour vertex (true for every Zhukhovsky contour, index 0); for a rounded trailing edge that
+    falls between two vertices the camber is first order — pass ``te_index`` or refine.
     Parameters
     ----------
     x, y : contour points [m] (closed, either orientation, last point ≠ first).   te_index : index of the trailing
@@ -192,7 +204,10 @@ def section_geometry(x, y, te_index: int | None = None, m: int = 0) -> dict:
     ``te`` (complex [m]); ``chord_angle`` [rad] (direction leading → trailing edge, from +x).
     Assumptions: a section with one leading and one trailing edge, each surface single-valued in ξ.
     Validation: V1 flat plate, circular arc (camber 2b tan β) and symmetric Zhukhovsky sections; V3 second order in the
-    number of points.  Label: analytic, converged.
+    number of points — tests/test_ch14.py: test_section_geometry_V1_plate_arc_and_symmetric_sections,
+    test_section_geometry_V3_second_order_in_the_number_of_points,
+    test_zhukhovsky_lift_V3_pressure_route_converges_to_the_blasius_force_at_second_order.
+    Label: analytic, converged.
     """
     z = _F(x) + 1j * _F(y)
     n = z.size
@@ -255,7 +270,9 @@ def trailing_edge_angle(x, y, te_index: int | None = None) -> float:
     refined (a cusp: dz/dζ = 1 − b²/ζ² vanishes at ζ = b, so the angle π of the circle doubles to 2π outside).
     Parameters: x, y contour [m]; te_index (default: the point of largest x).   Returns the angle [rad] in [0, π].
     Assumptions: the two neighbours are close enough to stand for the tangents (first order in the spacing).
-    Validation: V7 → 0 for a Zhukhovsky contour as n grows; equals the wedge angle for a polygon.  Label: analytic.
+    Validation: V7 → 0 for a Zhukhovsky contour as n grows; equals the wedge angle for a polygon — tests/test_ch14.py:
+    test_trailing_edge_V7_cusp_angle_tends_to_zero_and_a_wedge_keeps_its_angle.
+    Label: analytic.
     """
     z = _F(x) + 1j * _F(y)
     n = z.size
@@ -282,8 +299,11 @@ def zhukhovsky_shape(b: float = 1.0, e: float = 0.0, beta: float = 0.0, exact: b
     ``camber_ratio``, ``thickness_ratio`` [–], ``x_tmax_over_c``, ``x_camber_over_c`` [–] (from the leading edge),
     ``e``, ``beta``, ``a`` [m], ``exact`` (bool).
     Assumptions (rules only): e ≪ 1, β ≪ 1.
-    Validation: V1 e = 0: camber = 2b tan β, chord 4b exactly; V7 thickness_ratio/e → 3√3/4 and x_tmax → −b as
-    e → 0; planted variant a = b(1 + e) cos β fails.  Label: analytic.
+    Validation: V1 e = 0: camber = 2b tan β, chord 4b exactly; V7 thickness_ratio/e → 3√3/4 and x_tmax → −b as e → 0;
+    planted variant a = b(1 + e) cos β fails — tests/test_ch14.py:
+    test_zhukhovsky_shape_V7_rules_of_14_8_are_first_order_and_slip_4, test_thickness_rule_V2_derivation,
+    test_section_geometry_V1_plate_arc_and_symmetric_sections.
+    Label: analytic.
     """
     mu, a_ = zhukhovsky_circle(b, e, beta, a=a)
     b, beta = float(b), float(beta)
@@ -313,7 +333,9 @@ def circular_arc(b: float = 1.0, beta: float = 0.1) -> dict:
     ``end_angle`` = 2β [rad], ``chord`` = 4b [m], ``a`` = b/cos β [m].
     Assumptions: none (geometry).
     Validation: V1 every mapped point satisfies the circle equation (residual 1e-12); V2 sympy
-    (``ch14.circular_arc_sym``).  Label: analytic, symbolic.
+    (``ch14.circular_arc_sym``) — tests/test_ch14.py: test_zhukhovsky_airfoil_V1_slit_arc_symmetric_section_and_14_4,
+    test_circular_arc_V2_derivation.
+    Label: analytic, symbolic.
     """
     b, beta = float(b), float(beta)
     return {"centre": complex(0.0, -2.0 * b / np.tan(2.0 * beta)), "radius": float(2.0 * b / np.sin(2.0 * beta)),
@@ -327,7 +349,11 @@ def zero_lift_angle(camber_ratio):
     Book: §14.5 (text after (14.12): "the lift is zero at a negative angle of attack α = −β"; "camber/chord ratio
     β/2"), with camber ≃ ½βc of (14.8).   Parameters: camber_ratio = camber/chord [–].   Returns α_{L=0} [rad].
     Assumptions: thin, slightly cambered section (e ≪ 1, β ≪ 1).
-    Validation: V1 against ``thin_airfoil`` for a parabolic arc (−2h/c).  Label: analytic.
+    Validation: V1 against ``thin_airfoil`` for a parabolic arc (−2h/c) — tests/test_ch14.py:
+    test_zhukhovsky_lift_V7_small_angle_rule_and_slip_8_thickness_raises_the_slope,
+    test_thin_airfoil_V1_plate_parabolic_arc_and_exact_coefficients_of_a_cubic_camber_line,
+    test_zhukhovsky_shape_V7_rules_of_14_8_are_first_order_and_slip_4.
+    Label: analytic.
     """
     return _S(-2.0 * _F(camber_ratio))
 
@@ -336,7 +362,9 @@ def camber_from_beta(beta, c):
     """Camber of a thin Zhukhovsky section from its camber angle, camber ≃ ½βc (14.8) [m].
 
     Book: §14.4, Eq. (14.8).   Parameters: beta [rad]; c chord [m].   Assumptions: β ≪ 1 (exactly: 2b tan β).
-    Validation: V7 → 2b tan β as β → 0.  Label: analytic.
+    Validation: V7 → 2b tan β as β → 0 — tests/test_ch14.py:
+    test_zhukhovsky_shape_V7_rules_of_14_8_are_first_order_and_slip_4.
+    Label: analytic.
     """
     return _S(0.5 * _F(beta) * _F(c))  # Eq. (14.8)
 
@@ -350,7 +378,10 @@ def resolve_lift_drag(Fx, Fy, alpha):
     Book: §14.3, Fig. 14.7 (definitions of L and D); ours for a stream at the angle α to x:
     D = Fx cos α + Fy sin α, L = −Fx sin α + Fy cos α.
     Parameters: Fx, Fy [N or N/m]; alpha [rad] (stream direction measured from +x).   Returns (L, D).
-    Assumptions: none.   Validation: V1 L² + D² = Fx² + Fy²; α = 0 identity.  Label: analytic.
+    Assumptions: none.
+    Validation: V1 L² + D² = Fx² + Fy²; α = 0 identity — tests/test_ch14.py:
+    test_resolve_lift_drag_V1_rotation_and_section_coefficients, test_pressure_loop_V2_derivation.
+    Label: analytic.
     """
     Fx, Fy, al = _F(Fx), _F(Fy), _F(alpha)
     D = Fx * np.cos(al) + Fy * np.sin(al)
@@ -363,7 +394,10 @@ def section_coefficient(F_per_span, rho, U, c):
 
     Book: §14.3 (restated C_D ≡ D/(½ρU²A), C_L ≡ L/(½ρU²A), A = planform area; a section uses c per unit span).
     Parameters: F_per_span [N/m]; rho [kg/m³]; U [m/s]; c [m].   Returns the coefficient [–].
-    Assumptions: none.   Validation: V2 dimensionless; V1 round trip with :func:`circulation_from_cl`.  Label: analytic.
+    Assumptions: none.
+    Validation: V2 dimensionless; V1 round trip with :func:`circulation_from_cl` — tests/test_ch14.py:
+    test_resolve_lift_drag_V1_rotation_and_section_coefficients.
+    Label: analytic.
     """
     return _S(_F(F_per_span) / (0.5 * _F(rho) * _F(U) ** 2 * _F(c)))
 
@@ -373,7 +407,10 @@ def circulation_from_cl(CL, U, c):
 
     Book: §14.6, unnumbered line before (14.17): C_L = L/(½ρU²c) = Γ/(½Uc), from L = ρUΓ (6.62).
     Parameters: CL [–]; U [m/s]; c [m].   Returns Γ_cw [m²/s].
-    Assumptions: steady ideal two-dimensional flow.   Validation: V1 round trip.  Label: analytic.
+    Assumptions: steady ideal two-dimensional flow.
+    Validation: V1 round trip — tests/test_ch14.py: test_resolve_lift_drag_V1_rotation_and_section_coefficients,
+    test_lifting_line_V1_elliptic_planform_untwisted_gives_the_elliptic_loading_exactly.
+    Label: analytic.
     """
     return _S(0.5 * _F(U) * _F(c) * _F(CL))
 
@@ -382,7 +419,9 @@ def cl_from_circulation(Gamma_cw, U, c):
     """Section lift coefficient from the clockwise circulation, C_L = Γ/(½Uc) [–].
 
     Book: §14.6, unnumbered line before (14.17).   Parameters: Gamma_cw [m²/s]; U [m/s]; c [m].
-    Assumptions: steady ideal two-dimensional flow.   Validation: V1 round trip.  Label: analytic.
+    Assumptions: steady ideal two-dimensional flow.
+    Validation: V1 round trip — tests/test_ch14.py: test_resolve_lift_drag_V1_rotation_and_section_coefficients.
+    Label: analytic.
     """
     return _S(_F(Gamma_cw) / (0.5 * _F(U) * _F(c)))
 
@@ -395,7 +434,9 @@ def normal_force_coefficient(xc_upper, cp_upper, xc_lower, cp_lower) -> float:
     Parameters: xc_* chordwise positions x/c of the samples on each surface (increasing); cp_* the pressure
     coefficients there [–].   Returns C_y [–] (trapezoid rule on each surface).
     Assumptions: shear stress neglected; x along the chord axis.
-    Validation: V1 exact for piecewise-linear C_p; equals F_y of :func:`zhukhovsky_force` on a Zhukhovsky section.
+    Validation: V1 exact for piecewise-linear C_p; equals F_y of :func:`zhukhovsky_force` on a Zhukhovsky section —
+    tests/test_ch14.py: test_surface_pressure_V1_stagnation_points_bernoulli_and_the_edge_value,
+    test_surface_pressure_V4_loop_area_is_the_normal_force_and_the_speed_integral_is_the_circulation.
     Label: analytic.
     """
     lower = np.trapezoid(_F(cp_lower), _F(xc_lower))
@@ -412,7 +453,10 @@ def lift_from_cp(xc_upper, cp_upper, xc_lower, cp_lower, alpha: float, suction: 
     implied.  ``suction="none"``: only the normal force is projected, C_L = C_y cos α (what a thin plate without
     leading-edge suction would give).  The two differ by O(α²).
     Parameters: as :func:`normal_force_coefficient`; alpha [rad].   Returns C_L [–] (based on the same length as x/c).
-    Assumptions: as stated per option.   Validation: V1 against 2Γ/(Uc) on a Zhukhovsky section.  Label: analytic.
+    Assumptions: as stated per option.
+    Validation: V1 against 2Γ/(Uc) on a Zhukhovsky section — tests/test_ch14.py:
+    test_surface_pressure_V4_loop_area_is_the_normal_force_and_the_speed_integral_is_the_circulation.
+    Label: analytic.
     """
     cy = normal_force_coefficient(xc_upper, cp_upper, xc_lower, cp_lower)
     if suction == "ideal":
@@ -438,7 +482,11 @@ def kutta_circulation(U, a, alpha, beta):
     Gamma_cw [m²/s] (clockwise; positive for α + β > 0).
     Assumptions: steady ideal flow; rear stagnation point of the circle at ζ = b (Kutta condition); no stall.
     Validation: V1 equals :func:`kutta_circulation_root`; dw/dζ(b) = 0 with it; V7 zero at α = −β; planted variants
-    sin(α − β), radius b, counterclockwise sign fail.  Label: analytic.
+    sin(α − β), radius b, counterclockwise sign fail — tests/test_ch14.py:
+    test_kutta_condition_V1_root_finder_equals_14_11_and_the_edge_point_stagnates,
+    test_kutta_condition_V5_published_form_of_the_circulation,
+    test_stagnation_points_V1_both_points_for_any_circulation.
+    Label: analytic.
     """
     return _S(4.0 * np.pi * _F(U) * _F(a) * np.sin(_F(alpha) + _F(beta)))  # Eq. (14.11)
 
@@ -452,7 +500,11 @@ def kutta_circulation_root(U: float, b: float, e: float, beta: float, alpha: flo
     the surface).
     Parameters: U [m/s]; b [m]; e [–]; beta [rad]; alpha [rad]; xtol absolute tolerance on Γ [m²/s].
     Returns Gamma_cw [m²/s].
-    Assumptions: as :func:`kutta_circulation`.   Validation: V1 equals (14.11) to 1e-12.  Label: analytic.
+    Assumptions: as :func:`kutta_circulation`.
+    Validation: V1 equals (14.11) to 1e-12 — tests/test_ch14.py:
+    test_kutta_condition_V1_root_finder_equals_14_11_and_the_edge_point_stagnates,
+    test_kutta_condition_V5_published_form_of_the_circulation.
+    Label: analytic.
     """
     mu, a = zhukhovsky_circle(b, e, beta)
     tangent = 1j * np.exp(-1j * float(beta))  # counterclockwise unit tangent of the circle at ζ = b
@@ -477,7 +529,10 @@ def stagnation_points(U: float, b: float, e: float, beta: float, alpha: float, *
     (False when |Γ| > 4πUa: the single stagnation point in the fluid is returned as ``zeta_rear`` and the inside root
     as ``zeta_front``); ``Gamma_cw``, ``Gamma_kutta``; ``rear_at_edge`` (bool).
     Assumptions: steady ideal flow.
-    Validation: V1 dw/dζ = 0 at both points; with the Kutta value the rear point is ζ = b.  Label: analytic.
+    Validation: V1 dw/dζ = 0 at both points; with the Kutta value the rear point is ζ = b — tests/test_ch14.py:
+    test_stagnation_points_V1_both_points_for_any_circulation,
+    test_surface_pressure_V1_stagnation_points_bernoulli_and_the_edge_value.
+    Label: analytic.
     """
     mu, a = zhukhovsky_circle(b, e, beta)
     GK = float(kutta_circulation(U, a, alpha, beta))
@@ -508,7 +563,10 @@ def rear_stagnation_point(U: float, a: float, alpha: float, beta: float, *, Gamm
     angle about Q from the ξ direction); ``offset`` = θ + α + β [rad] (angle about Q ahead of the edge point B:
     > 0 on the upper surface, 0 at the edge, < 0 on the lower surface); ``arc_offset`` = a·offset [m];
     ``on_surface``; ``at_edge``.
-    Assumptions: steady ideal flow.   Validation: V1 offset = 0 exactly with (14.11).  Label: analytic.
+    Assumptions: steady ideal flow.
+    Validation: V1 offset = 0 exactly with (14.11) — tests/test_ch14.py:
+    test_stagnation_points_V1_both_points_for_any_circulation.
+    Label: analytic.
     """
     k = float(Gamma_cw) / (4.0 * np.pi * float(U) * float(a))
     on = abs(k) <= 1.0
@@ -526,7 +584,11 @@ def trailing_edge_speed(U, a, b, alpha, beta):
     the edge at the angle −2β to the chord axis.
     Parameters: U [m/s]; a circle radius [m]; b map constant [m]; alpha, beta [rad].   Returns the speed [m/s].
     Assumptions: Kutta circulation (14.11); cusped (Zhukhovsky) edge.
-    Validation: V1 limit of |dw/dz| as the edge is approached (1e-4 at distance 1e-6).  Label: analytic.
+    Validation: V1 limit of |dw/dz| along the cusp's bisector; the difference falls as √d (2.2e-4 of the limit at d =
+    1e-6 m, 2.2e-5 at 1e-8 m for the chapter's section) — tests/test_ch14.py:
+    test_trailing_edge_speed_V1_finite_limit_of_14_9_with_kutta_and_blow_up_without,
+    test_kutta_circulation_V2_derivation, test_surface_pressure_V1_stagnation_points_bernoulli_and_the_edge_value.
+    Label: analytic.
     """
     return _S(_F(U) * _F(b) / _F(a) * np.cos(_F(alpha) + _F(beta)))
 
@@ -540,6 +602,17 @@ class ZhukhovskyFlow:
     Build with :func:`zhukhovsky_flow`.  Attributes: ``U`` [m/s], ``b`` [m], ``e``, ``beta``, ``alpha`` [rad], ``mu``
     (complex), ``a`` [m], ``Gamma_cw`` [m²/s], ``Gamma_kutta`` [m²/s], ``is_kutta`` (bool), ``u_inf`` = (U cos α,
     U sin α).  Methods take complex z (or x, y) of any shape; points inside the section return NaN.
+
+    Book: §14.5, Fig. 14.16, Eq. (14.9) dw/dz = (dw/dζ) ζ²/(ζ² − b²), with the circle flow (6.68) shifted to the centre
+    μ and turned by α, and the Kutta circulation Γ = 4πUa sin(α + β) (14.11) as the default.  Every method below is a
+    part of that one flow (its Book line names the equation it evaluates).
+    Assumptions: steady, incompressible, irrotational, two-dimensional; attached flow (no stall).
+    Validation: as :func:`zhukhovsky_flow` — V1 the section is a streamline, far field U e^{−iα}, dw/dz equals
+    differences of w(z); V4 ∮u·dx = −Γ_cw; V7 e = β = 0 reproduces the chapter-6 route — tests/test_ch14.py:
+    test_kutta_condition_V1_root_finder_equals_14_11_and_the_edge_point_stagnates,
+    test_zhukhovsky_flow_V1_section_is_a_streamline_far_field_and_complex_derivative,
+    test_zhukhovsky_flow_V4_circulation_is_the_same_in_both_planes.
+    Label: analytic.
     """
 
     def __init__(self, U, b, e, beta, alpha, Gamma_cw=None, a=None):
@@ -556,24 +629,39 @@ class ZhukhovskyFlow:
 
     # --- ζ-plane ---
     def w_zeta(self, zeta):
-        """Complex potential w(ζ) = U[(ζ − μ)e^{−iα} + a²e^{iα}/(ζ − μ)] + (iΓ/2π) ln((ζ − μ)/a) [m²/s]."""
+        """Complex potential w(ζ) = U[(ζ − μ)e^{−iα} + a²e^{iα}/(ζ − μ)] + (iΓ/2π) ln((ζ − μ)/a) [m²/s].
+
+        Book: §14.5 ((6.68) shifted to μ and turned by α).  Label: analytic.
+        """
         return self._w(zeta)
 
     def dwdzeta(self, zeta):
-        """Complex velocity of the circle flow dw/dζ [m/s]."""
+        """Complex velocity of the circle flow dw/dζ [m/s].
+
+        Book: §14.5, first factor of (14.9); on the circle it is (14.10).  Label: analytic.
+        """
         return self._dw(zeta)
 
     def zeta_of(self, z):
-        """ζ(z): the root outside the shifted circle (NaN inside the section)."""
+        """ζ(z): the root outside the shifted circle (NaN inside the section).
+
+        Book: §14.4, inverse of z = ζ + b²/ζ (14.3) (:func:`zhukhovsky_inverse`).  Label: analytic.
+        """
         return zhukhovsky_inverse(z, self.b, self.mu, self.a)
 
     # --- z-plane ---
     def w(self, z):
-        """Complex potential φ + iψ at z [m²/s] (φ jumps by Γ across the cut of the logarithm; ψ is continuous)."""
+        """Complex potential φ + iψ at z [m²/s] (φ jumps by Γ across the cut of the logarithm; ψ is continuous).
+
+        Book: §14.5 (w(ζ(z)): the potential is carried unchanged by the map (14.3)).  Label: analytic.
+        """
         return _S(self._w(_C(self.zeta_of(z))))
 
     def dwdz_from_zeta(self, zeta):
-        """dw/dz = (dw/dζ) ζ²/(ζ² − b²) (14.9) at a ζ-plane point; at ζ = b the analytic limit (Kutta) or ∞."""
+        """dw/dz = (dw/dζ) ζ²/(ζ² − b²) (14.9) at a ζ-plane point; at ζ = b the analytic limit (Kutta) or ∞.
+
+        Book: §14.5, Eq. (14.9); the limit is :func:`trailing_edge_speed` (ours).  Label: analytic.
+        """
         zeta = _C(zeta)
         num = _C(self._dw(zeta)) * zeta ** 2
         den = zeta ** 2 - self.b ** 2
@@ -587,41 +675,68 @@ class ZhukhovskyFlow:
         return _S(q)
 
     def dwdz(self, z):
-        """Complex velocity u − iv at z [m/s], Eq. (14.9)."""
+        """Complex velocity u − iv at z [m/s], Eq. (14.9).
+
+        Book: §14.5, Eq. (14.9) dw/dz = (dw/dζ) ζ²/(ζ² − b²).  Label: analytic.
+        """
         return self.dwdz_from_zeta(self.zeta_of(z))
 
     def velocity(self, x, y):
-        """(u, v) [m/s] at (x, y) [m]."""
+        """(u, v) [m/s] at (x, y) [m].
+
+        Book: §14.5, Eq. (14.9) with dw/dz = u − iv.  Label: analytic.
+        """
         q = _C(self.dwdz(_F(x) + 1j * _F(y)))
         return _S(q.real), _S(-q.imag)
 
     def speed(self, z):
-        """|dw/dz| [m/s] at complex z."""
+        """|dw/dz| [m/s] at complex z.
+
+        Book: §14.5, modulus of (14.9).  Label: analytic.
+        """
         return _S(np.abs(_C(self.dwdz(z))))
 
     def stream(self, x, y):
-        """Stream function ψ = Im w [m²/s] (constant on the section)."""
+        """Stream function ψ = Im w [m²/s] (constant on the section).
+
+        Book: §14.5 (w = φ + iψ, (6.42)).  Label: analytic.
+        """
         return _S(_C(self.w(_F(x) + 1j * _F(y))).imag)
 
     def phi(self, x, y):
-        """Velocity potential φ = Re w [m²/s]."""
+        """Velocity potential φ = Re w [m²/s].
+
+        Book: §14.5 (w = φ + iψ, (6.42)).  Label: analytic.
+        """
         return _S(_C(self.w(_F(x) + 1j * _F(y))).real)
 
     def psi(self, x, y):
-        """Alias of :meth:`stream`."""
+        """Alias of :meth:`stream`.
+
+        Book: §14.5 (w = φ + iψ, (6.42)).  Label: analytic.
+        """
         return self.stream(x, y)
 
     def inside(self, x, y):
-        """True inside the section."""
+        """True inside the section.
+
+        Book: §14.4 (the section is the image of the circle under (14.3)).  Label: analytic.
+        """
         return np.isnan(_C(self.zeta_of(_F(x) + 1j * _F(y))).real)
 
     def speed_near_edge(self, d):
-        """Speed at the distance d [m] behind the trailing edge along the cusp's bisector (direction e^{−2iβ})."""
+        """Speed at the distance d [m] behind the trailing edge along the cusp's bisector (direction e^{−2iβ}).
+
+        Book: §14.5, text after (14.9) (finite with the Kutta circulation, infinite otherwise).  Label: analytic.
+        """
         z = 2.0 * self.b + _F(d) * np.exp(-2j * self.beta)
         return self.speed(z)
 
     def cp(self, z):
-        """Pressure coefficient 1 − |dw/dz|²/U² (Bernoulli) at complex z."""
+        """Pressure coefficient 1 − |dw/dz|²/U² (Bernoulli) at complex z.
+
+        Book: §14.3, Fig. 14.8 (C_p round a section), with (14.9) and Bernoulli's equation.  Label: analytic.
+        """
         return _S(1.0 - (np.abs(_C(self.dwdz(z))) / self.U) ** 2)
 
 
@@ -642,8 +757,12 @@ def zhukhovsky_flow(U: float, b: float, e: float, beta: float, alpha: float, *, 
     :class:`ZhukhovskyFlow` with ``w(z)``, ``dwdz(z)``, ``dwdzeta(zeta)``, ``velocity(x, y)``, ``speed(z)``,
     ``stream(x, y)``, ``speed_near_edge(d)``, ``zeta_of(z)``, ``inside(x, y)``, ``Gamma_cw``, ``mu``, ``a``.
     Assumptions: steady, incompressible, irrotational, two-dimensional; attached flow (no stall).
-    Validation: V1 section is a streamline; far field U e^{−iα}; V4 ∮u·dx = −Γ_cw on any enclosing contour;
-    V7 e = β = 0 reproduces ``circle_flow_zeta(alpha=)`` through (6.69).  Label: analytic.
+    Validation: V1 section is a streamline; far field U e^{−iα}; V4 ∮u·dx = −Γ_cw on any enclosing contour; V7 e = β = 0
+    reproduces ``circle_flow_zeta(alpha=)`` through (6.69) — tests/test_ch14.py:
+    test_zhukhovsky_flow_V1_section_is_a_streamline_far_field_and_complex_derivative,
+    test_zhukhovsky_flow_V4_circulation_is_the_same_in_both_planes,
+    test_zhukhovsky_flow_V7_plate_limit_reproduces_the_chapter_6_route.
+    Label: analytic.
     """
     return ZhukhovskyFlow(U, b, e, beta, alpha, Gamma_cw, a)
 
@@ -655,7 +774,10 @@ def flat_plate_flow(U: float, b: float, alpha: float, *, Gamma_cw: float | None 
     (Our logarithm is ln(ζ/b): it differs from the printed one by an additive constant, which changes no velocity.)
     Parameters: U [m/s]; b [m]; alpha [rad]; Gamma_cw [m²/s] (None → Kutta).   Returns a :class:`ZhukhovskyFlow`.
     Assumptions: as :func:`zhukhovsky_flow`; zero thickness (infinite speed at the leading edge).
-    Validation: V1 Γ_K = 4πUb sin α; Blasius lift coefficient 2π sin α.  Label: analytic.
+    Validation: V1 Γ_K = 4πUb sin α; Blasius lift coefficient 2π sin α — tests/test_ch14.py:
+    test_zhukhovsky_flow_V7_plate_limit_reproduces_the_chapter_6_route,
+    test_flat_plate_V1_leading_edge_suction_closes_the_force_triangle.
+    Label: analytic.
     """
     return ZhukhovskyFlow(U, b, 0.0, 0.0, alpha, Gamma_cw)
 
@@ -666,9 +788,13 @@ def zhukhovsky_lift_coefficient(alpha, beta, e: float = 0.0, exact: bool = False
     Book: §14.5, Eq. (14.12) C_L = L/(½ρU²c) ≃ 2π(α + β), "where we have used 4a ≃ c, L = ρUΓ and
     sin(α + β) ≃ (α + β)".  ``exact=True`` (ours, slip #8): L = ρUΓ with (14.11) and the chord measured on the contour
     (:func:`zhukhovsky_shape`), C_L = 2Γ/(Uc) = 8π(a/c) sin(α + β); thickness raises the slope above 2π.
-    Parameters: alpha [rad]; beta [rad]; e [–]; exact (bool).   Returns C_L [–].
+    Parameters: alpha [rad]; beta [rad]; e [–] — **used only with** ``exact=True``: the rule (14.12) has no thickness
+    in it, so ``exact=False`` ignores ``e`` without a warning; exact (bool).   Returns C_L [–].
     Assumptions: Kutta condition, no stall; (approximate form) small α + β, e ≪ 1.
-    Validation: V1 exact = 2Γ_K/(Uc); flat plate 2π sin α; V5 slope 2π per radian (thin-airfoil theory).
+    Validation: V1 exact = 2Γ_K/(Uc); flat plate 2π sin α; V5 slope 2π per radian (thin-airfoil theory) —
+    tests/test_ch14.py: test_zhukhovsky_lift_V1_blasius_force_is_rho_U_gamma_normal_to_the_stream,
+    test_zhukhovsky_lift_V5_slope_two_pi_per_radian_and_the_quarter_chord,
+    test_zhukhovsky_lift_V7_small_angle_rule_and_slip_8_thickness_raises_the_slope.
     Label: analytic.
     """
     al, be = _F(alpha), _F(beta)
@@ -702,8 +828,10 @@ def zhukhovsky_surface(U: float, b: float, e: float, beta: float, alpha: float, 
     At the trailing edge: the analytic limit U(b/a)cos(α + β) when Γ is the Kutta value (u_s there is given the
     upper-surface sign, negative), ``np.inf`` otherwise.
     Assumptions: steady ideal flow, attached.
-    Validation: V1 C_p = 1 at both stagnation points; V4 −∮u_s ds = Γ_cw; the C_p loop gives F_y of the Blasius
-    route.  Label: analytic.
+    Validation: V1 C_p = 1 at both stagnation points; V4 −∮u_s ds = Γ_cw; the C_p loop gives F_y of the Blasius route —
+    tests/test_ch14.py: test_surface_pressure_V1_stagnation_points_bernoulli_and_the_edge_value,
+    test_surface_pressure_V4_loop_area_is_the_normal_force_and_the_speed_integral_is_the_circulation.
+    Label: analytic.
     """
     A = zhukhovsky_airfoil(b, e, beta, int(n))
     F = ZhukhovskyFlow(U, b, e, beta, alpha, Gamma_cw)
@@ -752,7 +880,9 @@ def surface_circulation(surface: dict, method: str = "polygon") -> float:
     ``method="circle"``: ∮ u_θ a dt in the ζ-plane (exact to rounding for any Γ, because (dw/dz)dz = (dw/dζ)dζ).
     Parameters: surface — the dict of :func:`zhukhovsky_surface`.   Returns Γ_cw [m²/s].
     Assumptions: the contour is traversed counterclockwise.
-    Validation: V4 both methods return the Γ_cw the surface was built with (1e-6 at n = 2000 for the polygon).
+    Validation: V4 both methods return the Γ_cw the surface was built with (1e-6 at n = 2000 for the polygon) —
+    tests/test_ch14.py:
+    test_surface_pressure_V4_loop_area_is_the_normal_force_and_the_speed_integral_is_the_circulation.
     Label: analytic, converged.
     """
     if method == "circle":
@@ -784,11 +914,18 @@ def zhukhovsky_force(U: float, b: float, e: float, beta: float, alpha: float, rh
     dict: ``Fx``, ``Fy`` [N/m] (section axes: x along the mapped chord); ``L``, ``D`` [N/m] (normal to / along the
     stream); ``M0`` [N] (moment about the origin, counterclockwise +); ``M_le`` [N] (about the leading edge,
     counterclockwise +; nose-up is −M_le for a stream from the left); ``x_cp`` [m] (where the line of action crosses
-    the chord axis, M0/Fy); ``xcp_over_c`` (from the leading edge); ``Gamma_cw``; ``CL``, ``CD`` (based on the
-    measured chord); ``chord``.
+    the chord axis, M0/Fy); ``xcp_over_c`` = (x_cp − x of the leading edge)/chord — measured along the x-axis (the
+    mapped chord axis) from the leading edge's x, not along the chord line of a cambered section; ``Gamma_cw``;
+    ``CL``, ``CD`` (based on the measured chord); ``chord``.
+    Call by keyword — the sibling function :func:`flat_plate_forces` ``(rho, U, c, alpha)`` takes these arguments in
+    a different order (here ρ comes after the geometry and the angles).
     Assumptions: steady ideal flow.
-    Validation: V1 Blasius L = ρUΓ, D = 0 (1e-10) for α ≠ 0; V3 pressure route converges to it at second order;
-    flat plate: centre of pressure at the quarter chord.  Label: analytic, converged.
+    Validation: V1 Blasius L = ρUΓ, D = 0 (1e-10) for α ≠ 0; V3 pressure route converges to it at second order; flat
+    plate: centre of pressure at the quarter chord — tests/test_ch14.py:
+    test_zhukhovsky_lift_V1_blasius_force_is_rho_U_gamma_normal_to_the_stream,
+    test_zhukhovsky_lift_V3_pressure_route_converges_to_the_blasius_force_at_second_order,
+    test_zhukhovsky_lift_V5_slope_two_pi_per_radian_and_the_quarter_chord.
+    Label: analytic, converged.
     """
     F = ZhukhovskyFlow(U, b, e, beta, alpha, Gamma_cw)
     sh = zhukhovsky_shape(b, F.e, beta, exact=True, n=4001)
@@ -834,9 +971,14 @@ def flat_plate_forces(rho: float, U: float, c: float, alpha: float) -> dict:
     the leading edge, so that the drag is zero.
     Parameters: rho [kg/m³]; U [m/s]; c chord [m]; alpha [rad].
     Returns dict: ``L``, ``N``, ``S``, ``D`` (= 0) [N/m]; ``Gamma_cw`` [m²/s]; ``CL`` = 2π sin α.
+    Call by keyword — the sibling function :func:`zhukhovsky_force` ``(U, b, e, beta, alpha, rho)`` takes these
+    arguments in a different order (here ρ comes first, and the length is the chord c = 4b, not b).
     Assumptions: steady ideal flow, Kutta condition, zero thickness.
     Validation: V1 N cos α + S sin α = L and N sin α − S cos α = 0; V4 equals the control-volume force of
-    ``ch14.edge_flow_suction`` with U_o²a = U²c sin²α.  Label: analytic.
+    ``ch14.edge_flow_suction`` with U_o²a = U²c sin²α — tests/test_ch14.py:
+    test_flat_plate_V1_leading_edge_suction_closes_the_force_triangle,
+    test_starting_vortex_V1_steady_limit_is_the_kutta_value_and_first_step_is_one_third.
+    Label: analytic.
     """
     G = np.pi * float(U) * float(c) * np.sin(alpha)  # Eq. (14.11) with a = b = c/4, β = 0
     L = float(rho) * float(U) * G  # Eq. (6.62)
@@ -857,7 +999,11 @@ def thin_airfoil(dyc_dx: Callable, alpha: float, n: int = 200) -> dict:
     Returns dict: ``A0``, ``A1``, ``A2``, ``CL``, ``alpha_L0`` [rad], ``CM_c4``, ``slope`` (= 2π).
     Assumptions: thin section, small camber and α, Kutta condition; NOT a book formula.
     Validation: V1 flat plate C_L = 2πα; parabolic arc of height h: α_{L=0} = −2h/c (= −β of the Zhukhovsky arc);
-    C_M,c/4 independent of α.  Label: analytic (ours).
+    C_M,c/4 independent of α — tests/test_ch14.py:
+    test_zhukhovsky_lift_V5_slope_two_pi_per_radian_and_the_quarter_chord,
+    test_thin_airfoil_V1_plate_parabolic_arc_and_exact_coefficients_of_a_cubic_camber_line,
+    test_thin_airfoil_V3_discrete_vortex_method_gives_the_same_lift_and_moment.
+    Label: analytic (ours).
     """
     n = int(n)
     th = (np.arange(n) + 0.5) * np.pi / n
