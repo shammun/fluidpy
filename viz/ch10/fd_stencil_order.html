@@ -1562,8 +1562,9 @@ html[data-fso-mode="stencil"] [data-viz-key="readout:dt"] { display: none !impor
       var P = {
         card: card, body: body, tall: false,
         pageCount: function () { return pages.length; }, page: function () { return page; }, show: function (p) { show(p); return page; },
-        // the reader's page survives a refresh of the same items (live text while an animation plays, a preset); layout() clamps it
-        setItems: function (list) { var keep = list.length === items.length ? page : 0; items.forEach(unslice); items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); body.appendChild(cue); page = keep; },
+        // keepPage: the reader's page survives a refresh of the same items (live text while an animation plays, a preset);
+        // layout() clamps it. A new step (walkthrough, derivation) always opens on its first page.
+        setItems: function (list, keepPage) { var keep = keepPage && list.length === items.length ? page : 0; items.forEach(unslice); items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); body.appendChild(cue); page = keep; },
         layout: function () {
           cue.hidden = true; body.classList.remove('viz-cont-top');
           items.forEach(function (it) { unslice(it); it.style.display = ''; it._vizPage = 0; });
@@ -1662,7 +1663,7 @@ html[data-fso-mode="stencil"] [data-viz-key="readout:dt"] { display: none !impor
       var chips = h('div', { class: 'viz-steps-chips', role: 'tablist', 'aria-label': 'Steps' }, cfg.tour.map(function (s, i) { return h('button', { class: 'viz-step-chip', type: 'button', text: String(i + 1), title: s.title.replace(/\$/g, ''), onclick: function () { app.goStep(i); } }); }));
       var count = h('div', { class: 'viz-step-count' }), title = h('h2', { class: 'viz-step-title' }), text = h('div', { class: 'viz-step-text' });
       var prev = h('button', { class: 'viz-btn', type: 'button', text: '← Back', onclick: function () { app.goStep(app.step - 1); } });
-      var next = h('button', { class: 'viz-btn primary', type: 'button', text: 'Next →', onclick: function () { app.goStep(app.step + 1); } });
+      var next = h('button', { class: 'viz-btn primary', type: 'button', text: 'Next →' });   // goStep sets its onclick (one handler only)
       // the step card is a pager: on small screens a step's extras (controls, equation, code…) continue on "›"
       var tourPager = Pager('', [title, text], h('div', { class: 'viz-step-head' }, count, chips), 'viz-step-card');
       pagers.push(tourPager);
@@ -1690,7 +1691,7 @@ html[data-fso-mode="stencil"] [data-viz-key="readout:dt"] { display: none !impor
           calcHtml = html;
           var tmp = h('div', { html: mathify(html) });
           var items = Array.prototype.slice.call(tmp.children);
-          calcPager.setItems(items); typeset(calcPager.body);
+          calcPager.setItems(items, true); typeset(calcPager.body);
           calcLive = Array.prototype.slice.call(calcPager.body.querySelectorAll('[data-live]'));
           relay = true;
         }
