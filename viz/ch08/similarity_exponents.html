@@ -1553,7 +1553,8 @@ button, input, select { font: inherit; color: inherit; }
       var P = {
         card: card, body: body, tall: false,
         pageCount: function () { return pages.length; }, page: function () { return page; }, show: function (p) { show(p); return page; },
-        setItems: function (list) { items.forEach(unslice); items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); body.appendChild(cue); page = 0; },
+        // the reader's page survives a refresh of the same items (live text while an animation plays, a preset); layout() clamps it
+        setItems: function (list) { var keep = list.length === items.length ? page : 0; items.forEach(unslice); items = list; body.innerHTML = ''; list.forEach(function (it) { body.appendChild(it); }); body.appendChild(cue); page = keep; },
         layout: function () {
           cue.hidden = true; body.classList.remove('viz-cont-top');
           items.forEach(function (it) { unslice(it); it.style.display = ''; it._vizPage = 0; });
@@ -1673,6 +1674,7 @@ button, input, select { font: inherit; color: inherit; }
     function updateCalc(structural) {
       if (!calcPager) return;
       var E = cfg.explain;
+      var relay = false;
       if (structural) {
         var html; try { html = (isFn(E) ? E : E.html)(app.state, app); } catch (e) { html = '<p>—</p>'; reportError(e); }
         if (html !== calcHtml) {
@@ -1681,13 +1683,16 @@ button, input, select { font: inherit; color: inherit; }
           var items = Array.prototype.slice.call(tmp.children);
           calcPager.setItems(items); typeset(calcPager.body);
           calcLive = Array.prototype.slice.call(calcPager.body.querySelectorAll('[data-live]'));
-          if (app.tab === 'explain') calcPager.layout();
+          relay = true;
         }
       }
       if (E.live && calcLive.length) {
         var vals; try { vals = E.live(app.state, app) || {}; } catch (e) { vals = {}; }
-        calcLive.forEach(function (el) { var v = vals[el.getAttribute('data-live')]; if (v !== undefined) { v = typeof v === 'number' ? fmt(v, { sig: 4 }) : String(v); if (el.textContent !== v) el.textContent = v; } });
+        calcLive.forEach(function (el) { var v = vals[el.getAttribute('data-live')]; if (v !== undefined) { v = typeof v === 'number' ? fmt(v, { sig: 4 }) : String(v); if (el.textContent !== v) { if (!app.playing || el.textContent.length !== v.length) relay = true; el.textContent = v; } } });
       }
+      // pages are measured only after the live values are in (a longer value can wrap a line and move a page break)
+      // … and once the text has stopped changing, the whole fit runs again (density, picture/text split)
+      if (relay && app.tab === 'explain') { calcPager.layout(); settleFit(); }
       pushPop();
     }
     // the same explanation in a separate, live browser tab (for reading next to the picture on a big screen)
@@ -2053,15 +2058,22 @@ button, input, select { font: inherit; color: inherit; }
       var ins = tourEls.card.querySelector('.viz-step-inspect'); if (ins && isFn(cfg.inspect)) { var hh = cfg.inspect(app.state, app) || '<span class="viz-muted">' + mathify(cfg.inspectHint || 'Click the picture to inspect a point.') + '</span>'; if (ins._h !== hh) { ins._h = hh; var h0 = ins.offsetHeight; ins.innerHTML = mathify(hh); typeset(ins); if ((ins.offsetHeight !== h0 || ins._vizSlices) && app.tab === 'tour') tourEls.pager.layout(); } }
       var nt = tourEls.card.querySelector('.viz-step-notes'); if (nt && isFn(cfg.notes)) { var nh = cfg.notes(app.state, app); if (nt._h !== nh) { nt._h = nh; var n0 = nt.offsetHeight; nt.innerHTML = mathify(nh); typeset(nt); if ((nt.offsetHeight !== n0 || nt._vizSlices) && app.tab === 'tour') tourEls.pager.layout(); } }
     }
+    // size of a live formula as the pager sees it: the content height of its card (also when the card is sliced over
+    // two pages, where offsetHeight is pinned) and the formula's own width (scaleEq shrinks a wide one)
+    function eqSize(el) { var box = el.closest ? el.closest('.viz-eq') : null; return (box || el).scrollHeight + 'x' + el.scrollWidth + 'x' + el.offsetHeight; }
+    // a formula on a page that is not shown has no size to compare: there a changed formula counts as a changed size
+    function unseen(el, tex) { var ch = el._vizLiveTex !== tex; el._vizLiveTex = tex; return ch && !el.offsetParent; }
     function queueLive() {
       if (liveQueued) return; liveQueued = true;
       var wait = app.playing ? Math.max(0, 180 - (now() - lastLive)) : 0;
       setTimeout(function () {
         global.requestAnimationFrame(function () {
           liveQueued = false; lastLive = now();
-          Object.keys(eqEls).forEach(function (id) { var e = eqEls[id]; if (!e || !e.live || !e.cfg.live) return; if (app.tab !== 'equations') return; try { renderTex(e.live, e.cfg.live(app.state, app), true); } catch (err) { e.live.textContent = '—'; } scaleEq(e.live); });
+          var grew = false;   // a live formula that changes height moves the page breaks: fit again
+          Object.keys(eqEls).forEach(function (id) { var e = eqEls[id]; if (!e || !e.live || !e.cfg.live) return; if (app.tab !== 'equations') return; var h0 = eqSize(e.live), lx = null; try { lx = e.cfg.live(app.state, app); renderTex(e.live, lx, true); } catch (err) { e.live.textContent = '—'; } scaleEq(e.live); if (eqSize(e.live) !== h0 || unseen(e.live, lx)) grew = true; });
           var tourEq = tourEls.card && tourEls.card.querySelectorAll('[data-live-eq]');
-          if (tourEq && app.tab === 'tour') for (var i = 0; i < tourEq.length; i++) { var ec = eqEls[tourEq[i].getAttribute('data-live-eq')]; if (ec && ec.cfg.live) { renderTex(tourEq[i], ec.cfg.live(app.state, app), true); scaleEq(tourEq[i]); } }
+          if (tourEq && app.tab === 'tour') for (var i = 0; i < tourEq.length; i++) { var ec = eqEls[tourEq[i].getAttribute('data-live-eq')]; if (ec && ec.cfg.live) { var t0 = eqSize(tourEq[i]), tx = ec.cfg.live(app.state, app); renderTex(tourEq[i], tx, true); scaleEq(tourEq[i]); if (eqSize(tourEq[i]) !== t0 || unseen(tourEq[i], tx)) grew = true; } }
+          if (grew) app.fit();   // at once: no frame in which the new formula is shown on the old pages
         });
       }, wait);
     }
@@ -2282,9 +2294,22 @@ button, input, select { font: inherit; color: inherit; }
       if (bad.length) console.warn('VIZ-OVERFLOW', JSON.stringify(app.lastAudit));
       return app.lastAudit;
     };
+    // One pass does not always settle: the page-turn bar appears after the pages were measured, and the picture/text
+    // split is computed from the previous view. Every fit is therefore followed by one settling pass on the next frame
+    // (a tab click, a walkthrough step and a derivation page then end in the same state as two fits in a row).
+    var fitCore = app.fit, settleQueued = false;
+    app.fit = function () {
+      var r = fitCore();
+      if (!settleQueued) { settleQueued = true; global.requestAnimationFrame(function () { settleQueued = false; fitCore(); }); }
+      return r;
+    };
     var fitQueued = false;
     function queueFit() { if (fitQueued) return; fitQueued = true; global.requestAnimationFrame(function () { fitQueued = false; app.fit(); }); }
+    var settleTimer = null;
+    function settleFit() { if (settleTimer) clearTimeout(settleTimer); settleTimer = setTimeout(function () { settleTimer = null; queueFit(); }, 250); }
     global.addEventListener('resize', queueFit);
+    // KaTeX loads a font face the first time a tab shows it; line heights change when it arrives, after the pages were measured
+    if (doc.fonts && doc.fonts.addEventListener) doc.fonts.addEventListener('loadingdone', queueFit);
     if ('ResizeObserver' in global) { var ro2 = new ResizeObserver(function () { if (resizeCanvas()) drawNow(); }); views.forEach(function (v) { ro2.observe(v.holder); }); }
 
     /* ---------- errors ---------- */
