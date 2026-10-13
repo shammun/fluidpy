@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch14",
+  "current_chapter": "ch15",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -410,8 +410,8 @@
     "ch15": {
       "title": "Compressible Flow",
       "slug": "compressible_flow",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -421,8 +421,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 151 inventory rows, 59 numbered equations (15.1)-(15.59) each once (49 own-line + 9 on 4 grouped lines + 15.44a/b as one), 113 CODE / 20 DEMO / 18 SKIP, 132 NEW / 19 SEEN, 45 derivations (13/26/6 by stars), 17 load-bearing clusters, 17 suspected slips (3 change physics: 15.32, 15.47, 15.48) + 22 traps, 46 pages rendered",
+      "updated": "2026-10-13"
     },
     "ch16": {
       "title": "Introduction to Biofluid Mechanics",
