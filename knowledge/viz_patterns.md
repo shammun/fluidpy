@@ -27,6 +27,13 @@ PASS round 2 — round 1 had 4 Must in three files; 482 selftest rows of which 3
 equal to the design; every file also audited at the in-page landscape frame 844×345 and probed for `.katex-error` by
 the builders and the reviewer, because `tools/shot.py` does neither; no library change).
 
+ch14 E1 `zhukhovsky_airfoil_builder`, E2 `kutta_condition`, E3 `starting_vortex`, E4 `airfoil_pressure_lift`, E5
+`lift_curve_stall`, E6 `downwash_induced_drag`, E7 `lifting_line_solver`, E8 `elliptic_loading_aspect_ratio`, E9
+`thrust_from_lift` (all PASS on round 4 — round 1 had one Must in each of five files; rounds 2–4 were held by three
+defects of the shared library, L1–L3, fixed in `assets/viz_lib.js` by the orchestrator and re-inlined into all 121
+files; 328 selftest rows of which 240 JS ↔ fluidpy; 2 032 views and 4 924 pager pages audited; 14 derivations / 116
+steps equal to the design; **the first chapter whose review drove the walkthrough with real clicks**).
+
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
 |---|---|---|
@@ -255,6 +262,21 @@ the builders and the reviewer, because `tools/shot.py` does neither; no library 
 | **"Ours — not in the book" labels on readouts, legends, titles and callouts** (Ekman pumping, the thermal wind in temperature form, the whole adjustment problem, Rossby and Poincaré group velocities, the Eady growth rate in physical units, the energy speed of the cubic's roots) | all ten ch13 explainers (the one gap of round 1 was a Must) | readers and reviewers can tell a book equation from our extension at a glance |
 | **Derivation quote instead of an equation card in a walkthrough step on phones**: the step shows one derivation step with "All steps →" and drops the live `eq` card | ch13 E5 (fix of the round-1 clip), recommended for E1, E3, E4, E7 | one heavy extra per step keeps a phone step to about four pages and avoids cards whose live rows are filled after the pager measures |
 | **Reviewer tooling re-used from the library**: `shot.audit_explainer` called at a ninth size (844×345, the in-page landscape frame) and a "characters per pager page" scan that finds heading-only pages | ch13 viz review (567 pager pages audited in round 2) | finds title-only pages and clipped derivation steps that the eight standard sizes miss |
+| **A hypothesis run as an experiment, with a quantity that reads "unbounded" until the right value is reached**: Γ ramps on a transport, the rear rest point crawls along the surface to the tail, the edge speed reads "unbounded" until Γ = Γ_K and then a finite number; Γ_K is shown two ways (a root-finder and the formula); a "tail ×9" inset; the ramp ends in a hold card | ch14 E2 `kutta_condition` | the Kutta condition stops being a rule to memorise: the reader watches every other circulation fail at the edge |
+| **A draggable parameter point with guides that name its two directions** ("up = β, camber", "back = e, thickness") and rule-against-measured bars with the gap in words | ch14 E1 `zhukhovsky_airfoil_builder` | two abstract numbers become two motions of one handle; the first-order rule and its error are on screen together; an irrational constant (3√3/4) is pinned by a parity row |
+| **The conserved total flat in amber while its two parts grow apart, with a cut that separates them** (bound circulation, shed circulation, their sum; the cut B–D across the circuit) and **a cited curve drawn only on the axis of the quantity it is a ratio of**, with a caption saying which | ch14 E3 `starting_vortex` (after ch05 E3, ch13 E8) | Kelvin's bookkeeping is visible; the lift panel says "Wagner's function — circulatory lift / steady lift", so the curve cannot be read as the circulation |
+| **A per-setting number read from one computed value everywhere** (the "90 % after … chords" crossing is computed once per setting and that one value is quoted wherever the number appears) | ch14 E3 (fix of the round-1 Must: a typed 6.2 where the setting gives 6.1) | a number that depends on a numerical parameter cannot go stale in one of the places that quote it |
+| **Three pictures of one flow, and an area that is a force**: pressure arrows normal to the surface, the −C_p loop with its area shaded, lift bars; leading-edge suction named "the part of the lift the loop does not show" | ch14 E4 `airfoil_pressure_lift` | the reader sees where the lift is made (the front of the upper surface) and why the loop area is not quite C_L |
+| **A rule for a number that must survive on phones**: the lift line is drawn inside the plot where it has room, and the same number is in a visible view's title | ch14 E4 (fix of the round-1 Must: lift numbers were in a view hidden on portrait phones) | the step's key number is never in a hidden view (ch01 lesson, now a drawing rule) |
+| **A model labelled "model" in the title, the plot, the status, the sketch and the notes**, with a faint theory line continuing beyond stall | ch14 E5 `lift_curve_stall` | an empirical curve with our own constants cannot be mistaken for a measurement or for the book's figure |
+| **"Build the sum" with signed term bars and the honest convergence**: 1 → 3 → 7 → 21 → ∞ horseshoes; each horseshoe's contribution to the downwash at the station as a signed bar; the staircase's order (1.5 uniform, 2.0 cosine) said as measured; upwash outboard drawn | ch14 E6 `downwash_induced_drag` (after ch05 E6) | a principal-value integral becomes a sum the reader assembles; the infinite values at the filaments are seen to cancel |
+| **An exaggerated angle that says its factor** ("ε drawn ×5") | ch14 E6; notebook C10 ("tilt drawn ×10") | small-angle geometry is readable without lying about its size |
+| **A canvas line projection instead of WebGL** for a scene made of lines (the wing, its bound vortex and the trailing filaments) | ch14 E6 (the storyboard asked for `Viz.three`; local `makeCam`, `aimCamera`) | no WebGL dependency, no fallback page, the same picture in the notebook frame |
+| **The matrix row with the reader's numbers**: click a station and its row of the linear system is written out, term by term, with the right-hand side; log bars of nΓₙ² with shares; a "make it perfect" preset that removes the higher coefficients by twist; an N = 1 badge "the truncation speaking" | ch14 E7 `lifting_line_solver` (after the `fid_formula_lab` reference) | a linear solve stops being a black box; "every other coefficient only adds drag" is a bar chart |
+| **A U-shaped curve from one falling and one rising term**, with a stacked bar at the cursor, a stall wall, a ghost of the other wing, and a badge that resolves a book statement by computing the induced share at the current speed (64 % at 30 m/s, 50 % at best glide, 13 % at 55 m/s for the design aircraft) | ch14 E8 `elliptic_loading_aspect_ratio` | the minimum is where the two colours are equal; trap T9 becomes a number that moves with speed |
+| **A force polygon that closes, with forbidden zones on the dial** (no-go, cannot-hold) and three badges; **modes = the same triangle in three systems** (sail, fish tail, bird wing); selftest rows that test the drawing itself (the polygon's closure) | ch14 E9 `thrust_from_lift` | "lift is normal to the relative wind" explains thrust in three systems with one picture; the drawing is verified, not only the numbers |
+| **A reviewer drives the walkthrough with real clicks at least once** (`page.mouse.click` on "Next →", "← Back", a chip, arrow keys, a touch tap; `goStep` wrapped to count its calls), and **turns a pager page before changing step** | ch14 viz review rounds 3–4 (36 / 36 runs; 1 478 step changes) | three rounds of `VIZ.goStep` audits had hidden a button that skipped every second step in every chapter (L3) and a step that opened on the old page (L2) |
+| **A state change with the Explain tab open is part of the audit** (every preset, a transport drag, 3.5 s of animation; pager re-audited) | ch14 viz review rounds 2–4 (0 clipped of 288 preset states after the fix) | found L1: the Explain pager was laid out once and clipped after any change of state |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -455,6 +477,23 @@ the builders and the reviewer, because `tools/shot.py` does neither; no library 
 | **Two values of "the same" number across explainers** (first-mode Rossby radius 43.1 km with a free surface by shooting, 43.2 km from NH/π) | ch13 E5 vs E6, E7, E8 (open) | say which formula once in Explain |
 | **A script with other inputs than the notebook and the explainer** (the Eady "ocean twin": about 11 days and 126 km in the script, 22.3 days and 234 km on the page) | `scripts/ch13_instability.py` (open, implementer) | scripts read `ch13.illustrative_inputs()` or the same named preset as the explainer |
 | **A shared scratchpad again**: one agent overwrote another's file; one agent left an interpreter running | ch13 viz and review phases (fourth chapter) | one private sub-folder per agent, slug-prefixed file names, and a process check before hand-back |
+| **L1 — the Explain pager was not laid out again after a state change made while the tab was open** (a preset, a slider, a transport drag, a running animation): pages clipped until the reader left the tab and came back | every explainer of every chapter (library); found on ch14 round 2 | fixed in `assets/viz_lib.js` (commit `8798d2a`): pages settle after a state change, a click, a font load or a live formula; 0 clipped of 288 preset states afterwards. **`tools/shot.py` cannot see it** (it audits Explain only in the entry and step states) |
+| **L2 — a new walkthrough or derivation step opened on the page the reader had been on** (caused by the L1 fix, which kept the page across `setItems`): step 4 opened on "your numbers" instead of its title — 45 of 115 derivation step changes at 360×640 | every explainer (library); ch14 round 3 | fixed (commit `dbde04f`): **`Pager.setItems(list, keepPage)` keeps the page only when the caller asks and the item count is unchanged**; only `updateCalc` (Explain) passes `true`; `goStep` and `goDerive` open on page 1. 0 of 1 478 afterwards |
+| **L3 — one real click on the walkthrough "Next →" advanced two steps, in every chapter since setup**: the button was built with `h(…, {onclick})`, which registers a listener, and `goStep` also assigned `.onclick`, so two handlers ran (steps 1, 3, 5, 7) | every explainer (library); ch14 round 3 | fixed (commit `dbde04f`): the button is built without a handler, as the Derivation tab's always was. **Every earlier review missed it because reviewers and `shot.py` moved through the walkthrough with `VIZ.goStep`** |
+| **A cited curve on the wrong axis** (Wagner's lift function overlaid on the circulation curves in the storyboard) | ch14 E3 design, the script figure, the verification figure | the curve moved to its own lift panel with a caption naming the ratio; the circulation panel carries only the steady Kutta value |
+| **A typed number that belonged to another numerical setting** ("90 % after 6.2 chords" is dt = 0.1 c/U; the explainer's step gives 6.1) | ch14 E3 (round-1 Must) | compute the crossing per setting and quote that one value everywhere |
+| **Positional calls of fluidpy functions in Code tabs and `py:` rows** where sibling functions have opposite argument orders (`aspect_ratio(s, A)` against `mean_chord(A, s)`) | ch14 E1, E2 (round-1 Must); E5 code card `model` (open) | keyword calls in every Code card and parity row; the notebook has 0 positional calls of 240 |
+| **Key numbers in a view hidden on portrait phones** (the lift values) | ch14 E4 (round-1 Must) | draw the number where the visible plot has room and repeat it in a visible title |
+| **A Derivation-tab view 59 px high at the in-page landscape frame 844×345** (below the 60 px floor) | ch14 E9 (round-1 Must) | give the derivation one view at that size; 844×345 is still not an audited size of `tools/shot.py` |
+| **A private library flag used by a chapter file** (`app._fromLoop`, to tell a transport tick from a user change and stop a ramp at a value) | ch14 E2 (open) | library: a `transport.max` / `holdAt` option (candidate) |
+| **View titles cut because the helper tested the window width, not the view's** (`medium()`), on a desktop Derivation tab | ch14 E1 (open) | size decisions from `v.w`, never from the window |
+| **Code cards that fail when pasted in order** (a card uses `T(y)` defined in the next card when "perfect twist" is on) and a code comment whose number disagrees with the card's own rounding | ch14 E7, E6 (open) | Code tabs are never executed by the audit; cards must run top to bottom; comments take their numbers from `live` |
+| **The Explain page falls back to page 1 when a preset changes the number of items** | ch14 E1, E6, E7; `ch13/rossby_waves`, `ch09/karman_street_stability`, `ch05/point_vortex_lab` (library, open) | keep the page by the nearest section heading instead of by item count |
+| **A transport readout in span units printed as "0 s"** (s the span, read as seconds) and a status "upwash 2.78 U" exactly at a tip filament | ch14 E6 (open) | write "y₁/s = 0"; print "unbounded at the tip filament" |
+| **Singular lines filling a small plot on phones** (the downwash of 3 or 7 horseshoes on a 94 px view) | ch14 E6 (open) | on small views draw only the values at the panel centres |
+| **A preset whose name over-claims** ("infinite span" sets Λ = 30, where induced drag is still 24 %) and a badge word that is wrong after another control moved ("fast") | ch14 E8 (open) | name the preset by its value; compute badge words from the current state |
+| **Builders' hand-back notes lost in a shutdown** (six explainers): promotion candidates and tool gaps existed only in the session | ch14 viz phase (a user stop, then a power loss) | every agent writes its notes to a file in its scratch folder before reporting; the resume note lists what the knowledge phase must carry |
+| **An intermittent clip in an older chapter under heavy load** (`ch13/rossby_waves`, 844×390, walkthrough step 2: a live inspector line 10 px clipped in one run of three) | ch13 E9, seen during the ch14 regression runs (to watch) | if it recurs: the re-pack after a live inspector changes height |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -637,6 +676,120 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch14 candidates (listed, **not promoted**: the ch14 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
+From `analysis/ch14_resume.md` ("carry into the knowledge phase": the notes of the E1–E3 builders), `reports/ch14_viz.md`
+round 4 and a scan of named definitions in the nine chapter files — **the hand-back notes of the E4–E9 builders were
+lost in a shutdown, so their helpers were re-read from the files** (E1 `zhukhovsky_airfoil_builder`, E2
+`kutta_condition`, E3 `starting_vortex`, E4 `airfoil_pressure_lift`, E5 `lift_curve_stall`, E6 `downwash_induced_drag`,
+E7 `lifting_line_solver`, E8 `elliptic_loading_aspect_ratio`, E9 `thrust_from_lift`). "Rating": **A** clearly worth it ·
+B useful on second use · C keep local. The three library defects L1–L3 are fixed and are not candidates.
+
+| Rank | Helper or fix | Files carrying a local copy (ch14) | Proposed library name | Rating · why |
+|---|---|---|---|---|
+| 1 | **`tools/shot.py`: one real click on "Next →" must raise the step by exactly 1; after "›" and a step change the pager must show page 1; a state change (each preset) with Explain open; fail on `.katex-error`; the size 844×345; execute the Code tab's cards in order; `np` and the chapter module visible inside lambdas of `py:` rows** | the reviewer's probes `r4_dom.py`, `r4_keep.py`, `r4_l1.py` (`reports/viz/ch14/_round4/scripts/`, git-ignored) are ready to fold in | new checks in `shot.audit_explainer` | **A** — each of L1, L2, L3 was invisible to the tool; 844×345 and `.katex-error` are asked for the fifth chapter running |
+| 2 | **complex arithmetic** (`cx`: add, sub, mul, div, exp, log, abs, arg, principal sqrt; `cplx`, `ctex` for TeX output) | `cx` E1, E2, E4, E5; `cplx`, `ctex` E1 (ch11 list: complex numbers) | `Viz.cx` | **A** — four copies in one chapter; every conformal-map or complex-velocity explainer needs it |
+| 3 | **pixel-space arrow** (`arrowPx`; `drawArrow`, `spinArrow` for a curved arrow) | `arrowPx` E2, E3, E4, E5, E6, E7, E8, E9; `drawArrow` E4; `spinArrow` E3 (+ 37 earlier files) | `Viz.arrowPx(ctx, x0, y0, x1, y1, {color, width, head})`, `Viz.spinArrow(ctx, x, y, r, {cw})` | **A** — seventh chapter; eight of nine files here |
+| 4 | **transport that stops at a value** | E2 uses the private flag `app._fromLoop` to tell a transport tick from a user change | `transport: {max, holdAt}` (or `g.app.fromTransport`) | **A** — removes the only use of a private flag; small |
+| 5 | **plot with a y-title strip** (`gutterPlot`) and **equal-aspect plane plot** (`planePlot`) | `gutterPlot` E2, E5, E7, E8; `planePlot` E1, E2 (+ ch13 `vplot`, `splot`; ch10 `gutterPlot`) | `v.plot({ylabelGutter: true})`; `v.plot({equal: true, pad})` for a complex plane | **A** — a library defect since ch01 (the rotated title covers tick minus signs); third chapter with a local copy |
+| 6 | **layout exposed to draw callbacks** (`narrow`, `isSmall`, `isTiny`, `medium`, `layoutOf`) | `narrow` in all nine; `isSmall` E1, E2, E5, E7; `isTiny` E1, E2, E5, E8; `layoutOf` E1, E4; `medium` E1 | `v.size` ('tiny' \| 'small' \| 'medium' \| 'wide', from the **view's** width) and `g.app.layout` | **A** — nine copies; E1's open item (titles cut) comes from a copy that tested the window instead of the view |
+| 7 | **small linear algebra** (`linSolve`, `luSolve`, `solveRect`, `cond1`) | `linSolve`, `solveRect` E6; `luSolve`, `cond1` E7 (ch10, ch11, ch13 lists) | `Viz.num.linalg.solve(A, b)`, `lu`, `cond1` | **A** — fourth chapter asking; two solvers written twice in one chapter |
+| 8 | **log axes and log bars** (carried from ch12 rank 1, ch13 rank 4) | `Math.log10` scalings by hand in E2 and E7 (the bars of nΓₙ²) | `v.plot({xlog, ylog})`, a `log` option for `terms` | **A** — still the oldest open candidate |
+| 9 | **pixel markers and primitives** (`dotPx`, `linePx`, `crossPx`, `diamondPx`, `ringPx`, `segPx`, `arcPx`) | `dotPx` E1, E2, E5, E7, E8; `linePx` E2, E5, E7, E8; `crossPx` E1, E4; `diamondPx` E8; `ringPx`, `segPx` E1; `arcPx` E2 | `Viz.px.dot/line/cross/diamond/ring/arc` (with ch13's `P.marker`) | B — five files; pairs with the arrow |
+| 10 | **streamline net of a mapped flow** (`buildNet`: multi-level marching squares clipped at a circle; `netFor`, `psiFast`, `strokeSegs`) | E2, E5 | `Viz.field.net(psi, {levels, clip})` returning cached segments | B — two files; the same need as ch06 E6 |
+| 11 | **pager, two library Should-fix items**: keep the Explain page by the nearest section heading when a preset changes the item count; `queueLive` re-fits 3–5 times a second on the Equations tab while playing | E1, E6, E7 (+ three older explainers); every explainer with a live formula | library fix in `Pager.setItems` / `queueLive` | B — no failure measured (58–60 fps), a reader loses the page |
+| 12 | **formatters** (fixed decimals `f1`…`f5`, TeX `t3`, `t4`, `tn`; degrees `dg`, `rad`; signed `sg`, `sg3`, `sgn`, `tsg`, `z3`; per cent `pc`, `pct`, `pctX`, `pctTxt`) | `f3` in six files, `dg` and `rad` in six, `t3`/`t4` in five, signed forms in E3, E4, E6, E9 | `Viz.fmt(v, {dec, sign: true})`, `Viz.fmtDeg(rad, dec)`, `Viz.tnum(v, sig, {sign: true})` | B — the largest count of duplicated lines, the smallest risk |
+| 13 | **canvas orthographic projector** (`makeCam`, `aimCamera`) | E6 (ch13 rank 11: `drawSpiral`; ch11 E9) | `Viz.proj3({theta, phi, scale})` with drag-to-orbit | B — third chapter; line scenes without WebGL |
+| 14 | **contour and sampled-curve numerics** (`measure(contour)`, `parabolicPeak`, `interpSorted`, `onStations`, `interpOn`, `trapz`, `crossing`) | `measure`, `parabolicPeak`, `interpSorted`, `onStations` E1; `interpOn`, `trapz` E4; `crossing` E3 | `Viz.num.interp(xs, ys, x)`, `Viz.num.peak(xs, ys)` (parabolic), `Viz.num.crossing(xs, ys, level)` | B — `Viz.num.trapz` exists; interpolation and a refined peak do not |
+| 15 | **chapter physics mirrored in several files** (`kuttaCirculation` / `gammaK` E2, E3, E4, E5; `circle`, `toZ`, `jk`, `dwdzeta` E1, E2, E4, E5; `slope3D`, `uStall` E5, E8; `rootChord` E7, E8) | as listed | keep local, but one shared snippet in the design's Part C.6 | C for the library — **A as a design snippet**: each copy has a parity row, and four copies of the Kutta circulation must agree |
+| 16 | carried, unchanged: ch13 ranks 5–10, 12 (pager "keep a heading with the next block", marker glyphs, trajectory cache, tick helpers, field cache, eigen-solvers), `.c-amber`; ch12 `Viz.tpow`, `fitText`, precise `erf`, Gauss–Legendre, seeded draws, two-line status, `hideOn` | earlier lists | as listed there | as rated there |
+
+**Top five, clearly worth it:** (1) the `tools/shot.py` checks that would have caught L1–L3 (real click, page-then-step,
+a state change with Explain open) with `.katex-error` and 844×345; (2) `Viz.cx`; (3) `Viz.arrowPx`; (4) `transport.max` /
+`holdAt`; (5) the y-title strip in `v.plot()`. Then ranks 6–8 (layout from the view, `Viz.num.linalg`, log axes). Order
+for the library pass (when nothing reads `viz/` or `assets/`): these, then the ch13 and ch12 lists; afterwards
+`tools/viz_inline.py --all`, `tools/shot.py --chapter ch01 … ch14 --quick` and
+`tools/shot.py templates/viz_example.html --quick`; revert on any failure. **After any pager change, re-run the behaviour
+probes (real clicks, page-then-step) as well as the layout audit — the L1 fix caused L2.**
+
+### ch14 library and tool findings (from the reviewer and the three surviving builder notes)
+1. **Fixed in this chapter**: L1 (Explain pager not laid out after a state change), L2 (a new step opened on the old
+   page; `Pager.setItems(list, keepPage)`), L3 (two handlers on "Next →"). Commits `8798d2a`, `dbde04f`; 121 files re-inlined.
+2. Open, library: the Explain page falls to 1 when a preset changes the item count; `queueLive`'s re-fit rate; no
+   `transport.max` / `holdAt`; no complex numbers, no linear algebra, no log axes (unchanged).
+3. Open, `tools/shot.py`: no state change on the Explain tab; no `.katex-error` probe; no click pass (no real click on
+   "Next →", no "turn a page, then change step" check); no 844×345; walkthrough steps screenshotted only at 390×844 and
+   1366×768; no check that numbers promised for phones are visible there; Code tabs never executed; `np` not visible
+   inside lambdas in `py:` rows.
+4. The helper `h(tag, {onclick})` registers a listener: a second `.onclick` assignment on the same element doubles the
+   action. The Derivation tab's button was always built without a handler; the walkthrough's now is too.
+5. `goStep` / `goDerive` are called only on a step change, a deep link or at start-up — never on a parameter change —
+   so opening on page 1 does not reset a reader who is dragging a slider.
+
+### ch14 open explainer items (Should, non-blocking; from `reports/ch14_viz.md` round 4)
+- E1: both view titles cut on the Derivation tab at 1366×768 and one at 844×390 (`medium()` tests the window).
+- E2: `app._fromLoop` (a private library flag).
+- E3: Derivation D02 step 4 at 390×844 — the label "Γ bound …" runs under the dashed cut B–D; move it left of the cut.
+- E4: step 5 on a desktop uses about 40 % of the view and the lower arrows are 3–4 px; at 667×375 with negative lift
+  the first lift row is wider than the 164 px view.
+- E5: code card `model` has two calls with a leading positional argument; Explain is 21–22 pages at 360×640 (hide the
+  section view on that tab on small phones).
+- E6: thin singular lines fill a 94 px plot for N = 3 and 7 on phones; "upwash 2.78 U" exactly at the tip; quiz 4
+  points to the loading slider (use the ground-height slider); code card `down` prints 0.03495 under a comment saying
+  0.03492; the station readout reads "0 s"; the storyboard's `Viz.three` is a canvas projection (recorded as a pattern).
+- E7: n = 3 skipped without a word at station 3 (sin 180° = 0); `T(y)` used before the card that defines it when
+  "perfect twist" is on; code comments cite equation numbers alone; D15 step 10 and D18 step 9 lack "(14.19)", "(14.22)"
+  beside the line.
+- E8: preset "infinite span" is Λ = 30; the badge "fast" after doubling Λ; an unnamed cited estimate (name
+  `reference/ch14/SOURCES.md`).
+- E9: none.
+- Chapter-wide: the Derivation tabs of E1 (D03, 15 steps) and E7 (D15, 11 steps) follow the design, the notebook has 16
+  and 14 after the lesson review's splits; backup B1 `wake_rollup` not built; C01 has no explainer of its own.
+
+### ch14 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **`tools/shot.py`**: the checks of candidate rank 1 (the reviewer's scripts are in `reports/viz/ch14/_round4/scripts/`).
+- **pytest configuration**: `testpaths = tests` — a full `pytest -q` from the repository root failed at collection
+  because a copy of `tests/` sat in the git-ignored `outputs/ch14/_resume_scratch/mut/tests`; the gate ran
+  `pytest -q tests` (1979 passed, 3786 s). Mutation runs should copy the package outside the repository.
+- **Hand-back notes on disk**: every agent writes its report to a file in its private scratch folder before it
+  replies; `analysis/chNN_resume.md` (a "carry into the knowledge phase" list) worked and should be standard.
+- **Keyword-call lint**: a check that Code cards, `py:` rows, notebook cells and `scripts/chNN_drawings.py` call
+  `fluidpy` functions by keyword (the notebook's AST scan found 0 positional of 240; the drawings script has 28).
+- **Derivation-step sync** (a drift again; ch09 had one): after a lesson review splits a notebook step, compare
+  `app.cfg.derivations` with `build_chNN.py --dump` and re-brief the builder.
+- **`eq_refs.py`**: 14 hits that are `ref:` labels and row names (exempt) — unchanged since round 1.
+
+### ch14 lesson candidates for the skills (not promoted in this pass: the brief forbade library and skill edits)
+- `interactive-viz` Lessons: (ch14) **drive the walkthrough with real clicks at least once per review** — `VIZ.goStep`
+  hid a button that skipped every second step · **a pager keeps its page only when the caller asks**
+  (`setItems(list, true)` for a live refresh of the same content; a new step or derivation page opens on page 1) · **a
+  button built with `h(…, {onclick})` must not also get `.onclick`** · audit a state change with Explain open · a number
+  that must survive on phones is drawn where the visible plot has room and repeated in a visible title · a per-setting
+  number is computed once and quoted from that value · a cited curve goes on the axis of the quantity it is a ratio of,
+  with the ratio in its label · a model says "model" in title, plot, status and notes · an exaggerated angle says its
+  factor · size decisions from the view's width, never the window's · code cards run when pasted in order, with keyword
+  calls · a canvas line projection before WebGL · never use a private `app._…` flag (ask for the option).
+- `verify-implementation`: (ch14) **before a cited curve is used as V5, write down which quantity it is a ratio of and
+  its value at the start, and check both against the chapter's conservation law** · two ratios that coincide in a model
+  cannot be separated by a mutant: name the quantity in the test and the label · a time-to-threshold is asserted at a
+  stated step with its interpolated value · a test that pins a known defect is replaced when the defect is fixed · a
+  reviewer's own computation is quoted as attributed, never as tested · each member of a printed chain of equalities is
+  checked on its own (the first two members of (14.19) are wrong-signed, the last is right).
+- `math-to-python` §7: (ch14) split a quadrature at every kink of the integrand · choose the root of an inverse map by
+  distance from the circle's centre, not by modulus · code the finite limit at a mapped singular point and return `inf`
+  off the special value · three routes to a principal value · scalar wrappers written for parity rows are contract
+  names with tests · lift-curve slopes per radian, a required keyword.
+- `teaching-style` Lessons: (ch14) a "first look" primer for a concept a later block owns (formula, five numbers, a
+  pointer) removes a forward reference without moving the block · a zoom panel whose title counts the watched quantity
+  · name arrows once, where they are largest, and state the exaggeration · replace a wrong symmetry with one contrast
+  (fish against bird) · a derivation header shows the derived line, not the starting one · a letter table "here /
+  elsewhere" before the first block when eight letters are overloaded · the ch14 derivation moves in `concept_map.md`.
+- `colab-notebook` / `python-viz`: (ch14) end widget cells with `_ = live(...)` (no repr, no empty output box);
+  negative contour levels drawn solid and said so; a symmetric-log colour scale for a singular field; no grid over maps
+  and bars; two-line figure titles instead of colliding ones.
+- `chapter-knowledge` / `do-chapter`: (ch14) hand-back notes on disk; a resume note with a "carry into the knowledge
+  phase" list; the gate as `pytest -q tests`; a library fix made during a chapter is recorded in that chapter's
+  knowledge file with the commits and the regression probes.
 
 ### ch13 candidates (listed, **not promoted**: the ch13 knowledge pass ran while the site-publisher was reading `viz/`)
 From the builders' notes (orchestrator's log), `reports/ch13_viz.md` and a scan of named definitions in the ten chapter
@@ -1639,6 +1792,20 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
 - **Ch. 15 compressible (from ch13)**: the hydraulic analogy as a mode switch (shallow water ↔ gas, Froude ↔ Mach) on
   E6's dispersion stage; E7's trapped-solution picture → evanescent waves in a duct below cut-off; E5's mode ladder →
   duct acoustic modes.
+
+### From ch14 — ideas for Ch. 15 (Compressible Flow) and Ch. 16 (Biofluid Mechanics)
+| Idea | Reuses (ch14 explainer · pattern) | Notes |
+|---|---|---|
+| **Ch. 15 choking as an experiment**: lower the back pressure on a transport; the mass flux rises, then cannot — the throat Mach number reads 1 and stays there | E2 `kutta_condition` (a hypothesis run as an experiment, a quantity that changes character at one value) | status badge "choked"; presets at the critical pressure ratio |
+| **Ch. 15 normal shock: one stagnation quantity conserved, one lost** — stagnation temperature flat in amber across the shock, stagnation pressure dropping | E3 `starting_vortex` (conserved total flat in amber; a ratio labelled with what it is a ratio of) | every ratio on screen says "downstream / upstream" in its label (the Wagner lesson) |
+| **Ch. 15 pressure on a thin airfoil, subsonic against supersonic**: the C_p loop of this chapter beside two flat levels on a flat plate at incidence; the area is lift, and in supersonic flow also wave drag | E4 `airfoil_pressure_lift` (three pictures of one flow, an area that is a force); `AF.zhukhovsky_surface` for the subsonic panel | the slope 2π of this chapter against the supersonic thin-airfoil slope (formula from the Ch. 15 page image, never from memory) as two lines on one lift plot (E5's layout) |
+| **Ch. 15 area–Mach relation**: one area ratio, two Mach numbers; a curve with a minimum at the throat, a cursor and the two branches | E8 `elliptic_loading_aspect_ratio` (a curve with a minimum, a wall, a ghost) | the subsonic and supersonic branches as modes |
+| **Ch. 15 Mach waves adding into a compression** (or a Prandtl–Meyer fan as many small turns) | E6 `downwash_induced_drag` ("build the sum" 1 → 3 → 7 → 21 → ∞ with signed term bars) | the honest convergence statement beside the staircase |
+| **Ch. 15 Prandtl–Glauert as a slider on this chapter's section**: the incompressible C_p rescaled by the compressibility factor (taken from the Ch. 15 page image) until the suction peak reaches the critical value | E4, E5; `ch14.compressibility_check` | label the correction "linear theory; fails near the critical Mach number" (E5's "model" labelling) |
+| **Ch. 16 swimming and flapping**: the velocity triangle of a fin with the stroke on a transport, thrust and side force as bars, efficiency falling with drag | E9 `thrust_from_lift` (modes: sail, fish, bird); `ch14.oscillating_foil` | add an unsteady-lift mode with `wagner_function` (a lift ratio, s in semi-chords) |
+| **Ch. 16 an optimum vessel radius** as the minimum of pumping power plus the cost of blood volume (if the chapter treats it) | E8 (one falling and one rising term, a minimum between them); primer P349 | the two costs as stacked bars at the cursor |
+| **Ch. 16 pulsatile flow as a sum of harmonics** (Womersley profiles) | E6 ("build the sum"); E7 `lifting_line_solver` (log bars with shares) | reuses ch08 `stokes_layer` and ch13's complex-velocity trick |
+| **Any chapter: a linear solve opened up** — click an unknown and its equation is written out with the reader's numbers | E7 (the matrix row with the reader's numbers) | needs `Viz.num.linalg` (candidate rank 7) |
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

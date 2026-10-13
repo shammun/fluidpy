@@ -4,7 +4,7 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, **ch13 P307–P335**); a new chapter starts at the next free number (**ch14: P336**; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, **ch13 P307–P335**); a new chapter starts at the next free number (**ch15: P354**; ch14 used P336–P353 — 18 primers, P351–P353 added by its lesson review; total after ch14: 354 = P01–P353 and P218a; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
 (ch12 started at P280). Total after ch11: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
 review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
@@ -390,6 +390,26 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | two-dimensional FFT wavenumber grids (np.fft.fftfreq, np.fft.fft2) (P329) | ch13 · §13.15 · C15 | `2π·fftfreq(n, d)` gives the wavenumbers in numpy's order (zero, positive, then negative); with `meshgrid` each mode of `fft2` gets its (k, l), so a linear wave equation is advanced exactly by a phase factor |
 | the Jacobian J(ψ, ζ) and a pseudo-spectral step with 2/3 de-aliasing (P334) | ch13 · §13.18 · C17 | advection is J = ψ_x ζ_y − ψ_y ζ_x; derivatives are taken in Fourier space, the product in physical space, and modes at or beyond 2/3 of the largest wavenumber are zeroed so that the product cannot alias (our scheme) |
 | a C-grid shallow-water step and its CFL limit with c = √(gH) (our choice of scheme) (P335) | ch13 · §13.8 · C07 | η at cell centres and velocities on faces make the pressure gradient and the divergence compact two-point differences; the time step is bounded by the fastest gravity wave crossing a cell |
+| **ch14 — maths and physics** (the term is the exact `nb.primer` title; P336–P353, 18 primers: 15 planned by the curation and P351–P353 added by the lesson review; in the notebook P338 sits after P342, P351 before P344, P350 before P346, P352 after P347, P345 after P352) | | |
+| force per unit span, section coefficient and wing coefficient (P336) | ch14 · §14.2 · C01 | a two-dimensional section has no area: its forces are per metre of span and are divided by ½ρU²c; a wing's forces are in newtons and are divided by ½ρU²A with A the planform area |
+| radians and degrees for angles and for slopes (P338) | ch14 · §14.5 · C06 | formulas want radians; a slope per radian is 57.3 times a slope per degree, so 2π per radian is 0.110 per degree |
+| the cosine rule (P340) | ch14 · §14.4 · C04 (before D03) | r² = p² + q² − 2pq cos C for the side opposite the angle C; Pythagoras when C is a right angle |
+| cot, csc and the double-angle identities (P341) | ch14 · §14.4 · C04 (before D03) | cot = cos/sin, csc = 1/sin; 1 + cot²x = csc²x and cot β − tan β = 2 cot 2β — the last moves of the circular-arc derivation |
+| binomial approximation with a complex small quantity (P342) | ch14 · §14.4 · C04 (before D04) | 1/(1 + ε) ≈ 1 − ε holds for a small complex ε as well; "first order in e" keeps e and drops e² |
+| l'Hôpital's rule for a 0/0 limit (P343) | ch14 · §14.5 · C06 | when top and bottom both vanish, the limit of the fraction is the limit of the ratio of their slopes (`sp.limit`); used for the finite speed at the trailing edge and for sin nγ / sin γ at the tips |
+| elliptic loading and the sine coefficients `Gn` (first look) (P351) | ch14 · §14.6 · C08 | a loading is a sum of sine shapes in the span angle γ (0 port tip, π starboard tip); keeping only the first gives the ellipse — a first look with five numbers, taught properly in C11 and C14 |
+| Cauchy principal value (P344) | ch14 · §14.6 · C09 (before D12) | an integrand like 1/(x − c) has +∞ on one side and −∞ on the other; cut out a symmetric gap and let it shrink — the two infinite areas cancel in the limit |
+| relative velocity as a vector subtraction (P350) | ch14 · §14.6 · C10 (before D13); reused in C16 | the wind a moving body feels is the air's velocity minus its own; its direction, not the true wind's, decides where lift and drag point |
+| half-range sine series (P346) | ch14 · §14.6 · C11 | on 0 ≤ γ ≤ π any function that vanishes at both ends is a sum of sin nγ, and the sines are orthogonal there with ∫ sin nγ sin mγ dγ = π/2 for n = m |
+| product-to-sum identity and a three-term recursion (P347) | ch14 · §14.6 · C11 (before D15) | cos(n+1)γ + cos(n−1)γ = 2 cos γ cos nγ; a rule giving each term from the two before it fixes the whole sequence once two starting values are known |
+| the sum of two cotangents and the product of two sines (P352) | ch14 · §14.6 · C11 (before D15) | cot A + cot B = sin(A + B)/(sin A sin B); 2 sin A sin B = cos(A − B) − cos(A + B); with d ln∣sin u∣ = cot u du they give the antiderivative that starts Glauert's integral |
+| integral equation (P345) | ch14 · §14.6 · C12 | the unknown function appears under an integral sign; after discretising it is a matrix equation with the unknown on both sides, x = r − Mx, i.e. (I + M)x = r |
+| a double sum collapsed by orthogonality (P348) | ch14 · §14.6 · C13 (before D18) | multiplying two sums needs two index letters; a weight that is 1 for n = m and 0 otherwise (Kronecker delta) leaves only the diagonal |
+| reading a drag polar; the minimum of a/x + bx (P349) | ch14 · §14.7 · C15 (before D21) | on a plot of C_L against C_D a line from the origin has slope L/D and the tangent marks the best glide; p/x + qx is least where its two terms are equal |
+| sailing vocabulary: bow, windward, leeward, abeam, run, tack, heel (P353) | ch14 · §14.9 · C16 (before D22) | seven words tied to the sketch's orientation: the bow is the front; windward is the side the wind comes from, leeward the other; abeam is across the boat; a tack is a change of side |
+| **ch14 — Python and numerics** | | |
+| splitting a closed contour into upper and lower surfaces (P337) | ch14 · §14.2 · C01; reused in C07 (D10) | find the trailing edge (largest x) and the leading edge (`np.argmin`), cut the point list there, and interpolate both halves on the same stations (`np.interp` needs increasing x) |
+| discrete-vortex time stepping (P339) | ch14 · §14.3 · C03 | one bound point vortex stands for the wing; each step releases one new vortex behind the edge with whatever strength keeps the total circulation zero and the flow tangent at the control point |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -668,3 +688,31 @@ circle**; **upwelling** / **downwelling**; **spin-down time**; **Courant number*
 wind-driven gyre and **equatorial waves** (named, pointers only); the mode boundary conditions (signposted just before
 D11); slips named
 "slip #1…#14" (with "loose" for #10 and #11) and traps T1–T18; the library string "Γ < Γa" read as Γ_met < Γ_d.
+
+Reminders written in ch14 instead of new primers (one sentence each, from the curation's prerequisite list and the design
+ledger of 201 rows; the notebook's metadata lists 53 primer-or-reminder entries; point here): P15 `assert np.allclose`,
+P16–P18 animate / slider_figure / show_viz, P26/P98 Taylor expansion, P27 definite integral, P29 `lambda` (placed late —
+an open lesson item), P37 trapezoid rule, P38 product rule, P40/P117 sympy (`limit`, `series`, `simplify`), P45 Euler's
+formula, P49 chain rule, P57 `np.linalg.solve`, P68 orders of smallness, P70 `np.arctan2`, P87 `scipy.integrate.quad`,
+P92 parametric curves, P94 `solve_ivp`, P100 small-angle approximation, P106 substitution in an integral, P108 `brentq`,
+P127 power of a force, P135 closed-loop integral of an exact differential, P136 periodic trapezoid rule on a closed
+loop, P144 improper integral as a limit, P147 systems of ODEs for interacting vortices and their invariants, P150 a
+limit with a product held fixed, P151 integrals of sines and cosines over a full period, P153 the complex plane in
+numpy, P154 complex derivative and analytic functions, P155 complex logarithm and branch cuts, P156 Cauchy's integral
+theorem, P157 Laurent series and residues, P159 complex square roots (the outside root), P162 collocation and the
+condition number, P164 Green's first identity, P170 `minimize_scalar`, P182 `np.interp`, P236 linear recurrence, P261
+even and odd functions, P265 quotient rule, P272 completing the square into a circle, P275 Galerkin truncation with
+orthogonal sines, P306 proof by induction; ch05 Kelvin's theorem, Helmholtz's theorems, Biot–Savart and the segment
+formula, the method of images; ch06 the complex potential, the cylinder with circulation, Blasius and Kutta–Zhukhovsky,
+the Zhukhovsky map; ch09 Thwaites' method and separation; ch03 the Rankine vortex; ch01 the speed of sound.
+
+Glosses in ch14 (one sentence where used, no primer): **planform**, **taper**, **sweepback**, **washout** (twist);
+**camber line**, **chord line**; **stagnation point**; **cusp**; **bound vortex**, **trailing vortex**, **horseshoe
+vortex**, **tip vortex**; **principal value** (then P344); **Kronecker delta**; **condition number**; **displacement
+thickness**, **adverse pressure gradient** (ch09 reminders); **circulatory lift** and **quasi-steady** (defined where
+Wagner's function appears); **span efficiency** (one line up front, defined where 0.954 is first read); **drag angle**;
+**feathering**; **velocity made good**; **Rankine core**; difference of squares; geometric series; `np.argmin`,
+`np.hypot`, `np.outer`, `@`, `np.linalg.cond`, `np.unwrap`, `quad(weight="cauchy", wvar=)`, `semilogy`, `loglog`,
+`SymLogNorm`, `**SEC` (dictionary unpacking), sympy `chebyshevt`, `chebyshevu`, `cancel`; slips named "slip #1…#10" and
+traps T1–T18. **Still without a gloss at first use (open lesson items):** "trimmed close", "analytic" (as a ch06
+reminder), "winglets", "collocation" before its reminder, the tangent-of-a-difference identity in D22 step 8.
