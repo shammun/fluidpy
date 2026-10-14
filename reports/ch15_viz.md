@@ -1,6 +1,11 @@
 # Chapter 15 — explainer review                                  2026-10-14
 
-**Verdict: FAIL.** 8 of 9 explainers pass. `nozzle_back_pressure` has 2 Must-fix items. Both are small text or config edits, with no physics change. Every mechanical check passes.
+**Resolution (orchestrator, 2026-10-14): PASS.** Both Must-fix items in `nozzle_back_pressure` are fixed: each preset's
+`set` is now a getter that returns `{kind:'cd', dn}` with the back pressure for the current area ratio and gas, so only
+the active chip lights (checked on `desktop__tour-step6`); D20 step 4 now argues $p_d>p_f$ from the jump and $p_d<p_b$
+from $p_{02}<p_{01}$ with a larger $A_2^*$. viz_lint ok, shot.py PASS (8 sizes, 264 views, 35 selftest rows). Commit 6e3700c.
+
+**Review verdict (before the fix): FAIL.** 8 of 9 explainers pass. `nozzle_back_pressure` has 2 Must-fix items. Both are small text or config edits, with no physics change. Every mechanical check passes.
 
 | Check (run in this session) | Result |
 |---|---|

@@ -2333,7 +2333,7 @@ lam = ch01.mean_free_path_air(288.15)                        # mean free path of
 for M in (2.0, 1.2):                                         # a strong and a weak shock
     u1 = M * c0; u2 = u1 / GD.normal_shock_density_ratio(M)  # speeds before and after [m/s]
     d = ch15.shock_thickness_estimate(u1 - u2, 1.46e-5)      # delta ~ nu/(u1 - u2) [m]
-    print(f"M1 = {M}: du = {u1-u2:.0f} m/s, thickness ~ {d:.1e} m = {d/lam:.1f} mean free paths")
+    print(f"M1 = {M}: du = {u1-u2:.0f} m/s, thickness ~ {d:.1e} m = {d/lam:.2f} mean free paths")
 """, explain=r"""At $M_1$ = 2 the estimate is 3.4 × 10⁻⁸ m, at 1.2 about 1.4 × 10⁻⁷ m — of the order of the mean free path
 (≈ 7 × 10⁻⁸ m). The continuum model is at its limit (the Knudsen number of Ch. 1 C06 is of order one). Our numbers, not the
 book's.""")
@@ -2366,7 +2366,9 @@ print({k: round(float(sc[k]), 4) for k in ("m", "V", "I", "U1", "U2")})   # m [k
    (28/33 and 7/22).""")
 code(r"""
 U1, U2 = ch15.becker_shock_roots(2.0)                        # the two end states of the scaled speed for M1 = 2
-print(U1, U2, U1 + U2, 28 / 33, 7 / 22, 2 * 1.4 / 2.4)       # (28/33, 7/22); sum 2 gamma/(gamma + 1) = 1.1667
+print(f"U1 = {U1:.4f}, U2 = {U2:.4f}, U1 + U2 = {U1 + U2:.4f}")   # 4 decimals are plenty to read the roots
+assert abs(U1 - 28 / 33) < 1e-12 and abs(U2 - 7 / 22) < 1e-12   # the exact roots 28/33 and 7/22
+assert abs(U1 + U2 - 2 * 1.4 / 2.4) < 1e-12                       # their sum is 2 gamma/(gamma + 1) = 1.1667
 """)
 note("N69 [B]", r"""The profile «u15.6b», inverted numerically, for three shock strengths. **N70 [B]** Our figure uses our own
 Mach numbers; for γ = 1.4, $M_1$ = 2 the plateaus are 28/33 and 7/22 (slip #8 concerns a caption of the book's figure; the
