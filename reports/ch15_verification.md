@@ -1,6 +1,22 @@
-# Chapter 15 verification — Compressible Flow                       2026-10-13 · phase 5, second pass (after fix loop 1), working tree above `cccc40c` (implementer's fix uncommitted)
+# Chapter 15 verification — Compressible Flow                       2026-10-13 · phase 5, third pass (after the derivation-review fixes), working tree above `7472cbb` (review fixes uncommitted)
 
-## Verdict: PASS — `tests/test_ch15.py`: 107 passed, 0 failed, 0 skipped (85.8 s, slow script test included); F1 and F2 fixed and pinned by 6 new tests; second-pass mutation check 45 of 46 killed (the survivor is an equivalent mutant), first pass 103 of 103; `tests/test_machinery.py` 9 passed; full suite not re-run in this pass (merge gate)
+## Verdict: PASS — `tests/test_ch15.py`: 111 passed, 0 failed, 0 skipped (127.9 s, slow script test and the five private V6 tests included); review Must-fix 1 and Should-fix 1, 3, 5 pinned by 4 new tests and 1 changed expectation, each new pin shown to fail on the pre-fix code where there was a pre-fix behaviour; label audit: no over-claim left (citation-only residuals listed); full suite not re-run in this pass (merge gate)
+
+### Third pass (derivation-review fixes, `reports/ch15_review.md`) — summary
+Code changed since `7472cbb` (AST without docstrings): `GD._one_gamma` (new), `GD.mass_flow_vs_back_pressure`,
+`GD.shock_admissible`, `ch15.rocket_nozzle`, `ch15.stagnation_pressure` / `stagnation_temperature` (now thin wrappers of
+ch04's functions) and the alias `ch15.stagnation_pressure_incompressible`; the rest is docstrings.
+
+| Review item | Test | What it pins | Discriminates? |
+|---|---|---|---|
+| Must-fix 1 (one γ per call) | **new** `test_convergent_nozzle_mass_flow_V1_one_gamma_per_call` (V1) | for `PerfectGas(1.25, 320)`, p₀ = 3 MPa, T₀ = 3000 K, A = 0.01 m², p_B/p₀ = 0.3: choked, ṁ = `choked_mass_flow` (< 1e-14) = the closed form p₀A√(γ/RT₀)[2/(γ+1)]^{(γ+1)/(2(γ−1))} (< 1e-13) = 20.149037 kg/s; 60 subsonic back pressures against a hand-written single-γ ρuA (< 1e-12); explicit `gamma=1.25` identical; `gamma=1.4` with that gas → `ValueError`; default/`gamma=1.4`/`gas=AIR` calls bit-identical, parity value 0.56066 kept | on the pre-fix module the plateau is 20.966 kg/s, a 4.05 % error → fails. Pre-fix vs post-fix on every air or single-γ call (4 γ × 2001 back pressures, dimensionless and dimensional): max difference **0.0** |
+| Should-fix 5 (M₁ = 1 admissible) | **changed** `test_shock_entropy_V1_equals_the_entropy_state_function_of_the_jump_state` | expectation `[False, False, True]` → `[False, True, True]` for M₁ = 0.5, 1, 1.5; `shock_admissible`, `normal_shock(...)["admissible"]` and sign(ΔS ≥ 0) agree on 29 Mach numbers × 4 γ including M₁ = 1 exactly and its two neighbouring doubles | fails on the pre-fix `>` rule |
+| Should-fix 1 (incompressible p₀) | **new** `test_stagnation_pressure_V1_incompressible_wrapper_is_not_15_29` (V1) | alias is the wrapper (and not in `__all__`); both equal ch04's function and p + ½ρU² on M = 0…0.95; deficit 1 − (p + ½ρU²)/p₀ against (15.29) written out (< 1e-12); **0.050081 at M = 0.8** (the trap pinned: the incompressible value is 5 % low), 0.13 % at M = 0.3; ratio of excesses = `pitot_compressibility_factor` | the alias did not exist before |
+| Should-fix 3 (rocket gas) | **new** `test_rocket_nozzle_V7_warns_without_a_gas` (V7) | `gas=None` (positional default or keyword) → `UserWarning`; silent with a gas; fallback = `PerfectGas()`; fallback throat area differs from the exhaust gas's | no warning before |
+| Should-fix 8 (labels) | **new** `test_small_helpers_V1_against_independent_closed_forms` (V1) | `strong_shock_limits` against the five closed forms for 4 γ (1e-15); `laval_area` against the two parabolas on 201 points (1e-15); `duct_role` against the sign of d(A/A*)/dM (39 M × 4 γ × 2 signs); `rayleigh_temperature_sign` against the Rayleigh-line T/T* and T₀/T₀* (not (15.48)) | gives the V1 the docstrings now claim a test of its own |
+
+Physics ruling on Should-fix 5: (15.43) gives S₂ − S₁ = 0 at M₁ = 1 exactly (the jump is the identity, a sound wave);
+the second law demands ΔS ≥ 0, not > 0, so M₁ = 1 is admissible. Agreed; the expectation was updated.
 
 ### Second pass (fix loop 1) — summary
 The implementer changed code in six functions of `core/gasdynamics.py` (and docstrings in all three modules). Both
@@ -152,9 +168,9 @@ Levels: V1 analytic · V2 symbolic · V3 convergence · V4 conservation/invarian
 | N: Riemann solver, Euler run (ours) | NOTE | `GD.riemann_exact`, `ch15.euler1d_run`, `AC.wave_equation_step` | V4 (jump laws, global balance, round-off conservation) · V3 | see below | conserved, converged | DEVIATION |
 | N: tables, sketches | NOTE | `ch15.illustrative_inputs`, `conventions_table`, `book_slips`, `traps`; `scripts/ch15_drawings.py` (12) | V7 | — | analytic | |
 
-Counts per validation label (primary level in the test name): **V1 34 · V2 29 · V3 3 · V4 11 · V5 7 · V6 5 · V7 18** = 107
-tests (first pass: 33 · 28 · 3 · 11 · 7 · 5 · 14 = 101); counting every level named in a test's header line: V1 36 · V2 31 ·
-V3 6 · V4 16 · V5 8 · V6 5 · V7 26. Every computable CORE row has at least two independent levels, one of them V1, V2, V3
+Counts per validation label (primary level in the test name): **V1 37 · V2 29 · V3 3 · V4 11 · V5 7 · V6 5 · V7 19** = 111
+tests (second pass: 34 · 29 · 3 · 11 · 7 · 5 · 18 = 107; first pass: 33 · 28 · 3 · 11 · 7 · 5 · 14 = 101); counting every
+level named in a test's header line: V1 39 · V2 31 · V3 6 · V4 16 · V5 8 · V6 5 · V7 27. Every computable CORE row has at least two independent levels, one of them V1, V2, V3
 or V5. "Label" is now also what the docstrings say (label audit below).
 
 ## Functions used by the notebook and explainers (design Part C)
@@ -334,6 +350,19 @@ ties the code to the sympy expression (added this pass). The new tests of this p
 of the functions they pin (`influence_coefficients`, `normal_shock_entropy`, `oblique_shock`,
 `oblique_shock_components`, `oblique_shock_curve`, `deflection_angle`, `prandtl_meyer_turn`).
 
+### Label audit (third pass, after review Should-fix 8)
+Re-run of `outputs/ch15/_verify_scratch/label_audit.py` on the working tree: 147 of 147 functions carry a Validation line;
+cited tests that do not exist **0**; label words without a claimed level **0**; functions no cited test calls **0**.
+All second-pass over-claims are gone (`AC.breaking_time` → V1 · analytic; `GD.isentropic_state` → V1, V5; `prandtl_meyer`
+drops V4/conserved; the four tables say "V7 (structure)"). Residuals, none an over-claim:
+- **Vocabulary**: the four tables' label "V7 (structure)" is not one of the eight vocabulary words; it is honest (there is
+  no analytic truth in a table) and the vocabulary has no word for V7. Cosmetic.
+- **Citation only**: `duct_role`, `rayleigh_temperature_sign`, `laval_area`, `strong_shock_limits` now claim "V1, V7"; the
+  V1 is carried by the new `test_small_helpers_V1_against_independent_closed_forms`, which their docstrings do not cite
+  yet. `flat_plate_wave_pattern`'s V1 is carried, in substance, by exact comparisons (to 1e-14 with
+  `flat_plate_supersonic`, `oblique_shock` σ and `mach_angle`) inside a test named V7. `ch15.ackeret_flat_plate` still cites
+  `test_flat_plate_V7_…`, which does not call it (its other cited test does).
+
 ## Figures reproduced with our code (`tests/ch15_verify_figures.py` → `outputs/ch15/verify/`, local)
 | Figure(s) | File | Visual verdict |
 |---|---|---|
@@ -355,19 +384,16 @@ locus, the fan streamline, the blast constant) are each derived in a test or equ
 Resolved in this pass: first-pass items 1 (F1, F2 — fixed and pinned), 2 (labels written; audit above), 3 (both untrue
 docstring statements corrected), 5a (`normal_shock_entropy` precision) and 5b (`prandtl_meyer_turn` return to M = 1).
 
+Third pass: second-pass items 1 (over-claims), 2 (`deflection_angle` sentence) and 3 ("exactly zero") are resolved by
+the review fixes; what is left of item 1 is citation housekeeping.
+
 Remaining (none blocks the verdict; none is a failing test):
-1. **Label over-claims (implementer, docstrings only).** `AC.breaking_time`: drop V4/"conserved" → "V1 · analytic".
-   `GD.isentropic_state`: drop V2/"symbolic" → "V1, V5 · analytic, benchmark". The four tables
-   (`illustrative_inputs`, `conventions_table`, `book_slips`, `traps`): "V7" without the word "analytic". Level text
-   "V7" → "V1, V7" for `duct_role`, `rayleigh_temperature_sign`, `laval_area`, `strong_shock_limits`,
-   `flat_plate_wave_pattern`. Fix the citation of `ch15.ackeret_flat_plate`, add `test_flat_plate_V1_linear_theory_formulas`
-   to `ch15.ackeret_pressure`, and cite this pass's six new tests in the docstrings of the functions they pin.
-2. **`deflection_angle` docstring imprecision (could-fix).** "Negative for σ < μ₁" is true on 0 < σ < μ₁; for
-   π − μ₁ < σ < π and −μ₁ < σ < 0 the bare formula returns a positive angle although M₁ sin σ < 1 (ruling 7). Suggest one
-   sentence: "the sign of δ is not a validity test outside [μ₁, π/2]; use `oblique_shock` / `oblique_shock_components`".
-3. **"Driver = 0" means exactly zero in doubles (remark).** `influence_coefficients(1.0, dA_over_A=0.1, df=0.04,
-   dq=0.06)` returns infinities with the sign of a −6.9e-18 round-off instead of NaN (ruling 6). Honest behaviour for a
-   0/0; the docstring could say "exactly".
+1. **Docstring citations (implementer, docstrings only).** Cite `test_small_helpers_V1_against_independent_closed_forms`
+   in `duct_role`, `rayleigh_temperature_sign`, `laval_area`, `strong_shock_limits`;
+   `test_convergent_nozzle_mass_flow_V1_one_gamma_per_call` in `mass_flow_vs_back_pressure`;
+   `test_stagnation_pressure_V1_incompressible_wrapper_is_not_15_29` in `ch15.stagnation_pressure`;
+   `test_rocket_nozzle_V7_warns_without_a_gas` in `rocket_nozzle`; drop the V7 citation of `ch15.ackeret_flat_plate`.
+2. (resolved) 3. (resolved)
 4. **`blast_constant_crude` is `qualitative`.** Its sphere constant is 9.4 % below the cited similarity value (the
    docstring now says about 9 %); the closed form itself is verified against an integration of its own ODE. Note for the
    notebook: `ch01.blast_radius` writes D = (E t²/(Kρ))^{1/5}, so its K is this chapter's K to the power −5.
@@ -401,5 +427,10 @@ Second pass: `.venv/Scripts/python.exe -m pytest -q tests/test_ch15.py -p no:cac
 (the slow script test included, so the eight scripts and `make_refs.py` ran again; the five private V6 tests ran).
 `tests/test_machinery.py` → **9 passed in 23.4 s**. `tools/check_public.py` → OK (769 tracked files) and OK on
 `tests/test_ch15.py` and this report. The full suite was not re-run (Open item 8).
+
+Third pass: `.venv/Scripts/python.exe -m pytest -q tests/test_ch15.py -p no:cacheprovider` → **111 passed in 127.9 s**
+(0 skipped: the slow script test and the five private V6 tests ran). `tools/check_public.py` → OK (775 tracked files; a slow full scan of about 10–20 min while other jobs were running)
+and OK on `tests/test_ch15.py` + this report.
+Full suite not re-run (merge gate).
 
 ## Verdict: PASS

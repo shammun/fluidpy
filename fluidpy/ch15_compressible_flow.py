@@ -14,7 +14,9 @@ the factor 1 − M² that appears in every answer changes sign at the speed of s
 
 and the earlier-chapter functions the chapter restates (``mach_number`` (4.111), ``perfect_gas_sound_speed`` (1.27),
 ``sound_speed_from_eos`` (1.19), ``isentropic_ratios`` (1.25)–(1.26), the two entropy forms of (15.1),
-``stagnation_temperature`` and the *incompressible* ``stagnation_pressure`` of ch04, ``hydraulic_jump`` and the
+``stagnation_temperature`` and the *incompressible* ``stagnation_pressure`` of ch04 (thin wrappers here, with
+docstrings that warn: ``stagnation_pressure`` is p + ½ρ|u|², **not** (15.29) — also reachable as
+``stagnation_pressure_incompressible``; use ``stagnation_pressure_ratio`` for the compressible p₀), ``hydraulic_jump`` and the
 shallow-water ``simple_wave_evolve`` of ch07 (as ``shallow_simple_wave_evolve``), ``blast_radius`` and
 ``mean_free_path_air`` of ch01, ``compressibility_check`` and the 2π lift slope of ch14), so that ``ch15.<name>``
 reaches everything a notebook cell or an explainer parity row needs.
@@ -31,9 +33,17 @@ Conventions: see the two core modules.  Station 1 upstream; subscript 0 = stagna
 are primary, the usual Fanno/Rayleigh forms are labelled "ours".  **Three printed slips are coded corrected** with a
 ``printed_*`` option each (:func:`fluidpy.core.gasdynamics.influence_coefficients`).  Inputs used in examples are ours
 (:func:`illustrative_inputs`), never the book's.
+
+**Three sets of air constants** (trap T4): ``CP_BOOK`` = 1004.5 J/(kg K) (ch04 default of
+``stagnation_temperature``); ``PerfectGas()`` with R = R_AIR = 287.058 → C_p = 1004.70; ``AIR_BOOK`` with R = 287.0 →
+C_p = 1004.5.  ``stagnation_temperature(300, 400)`` = 379.6416 K but 300·``stagnation_temperature_ratio`` at the
+PerfectGas() Mach number = 379.6255 K: a 1e-6 agreement check between the two fails unless ``cp=gas.cp`` is passed
+with the gas used for M.  **One gas per call**: ``mass_flow_vs_back_pressure`` takes γ from ``gas`` and refuses a
+disagreeing ``gamma``; ``rocket_nozzle`` warns when no gas is given.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Callable
 
 import numpy as np
@@ -45,7 +55,9 @@ from .core.acoustics import *  # noqa: F401,F403
 from .core.gasdynamics import *  # noqa: F401,F403
 from .core._util import as_scalar_if_0d
 from .core.airfoils import zhukhovsky_lift_coefficient  # noqa: F401
-from .core.bernoulli import stagnation_enthalpy, stagnation_pressure, stagnation_temperature  # noqa: F401
+from .core import bernoulli as _BER
+from .core.bernoulli import CP_BOOK as _CP_BOOK
+from .core.bernoulli import stagnation_enthalpy  # noqa: F401
 from .core.gasdynamics import PerfectGas
 from .core.similarity import mach_number  # noqa: F401
 from .core.thermo import (GAMMA_AIR, P_ATM, R_AIR, isentropic_pressure, isentropic_ratios,  # noqa: F401
@@ -58,6 +70,48 @@ from .ch14_aerodynamics import compressibility_check  # noqa: F401
 
 _F = lambda a: np.asarray(a, dtype=float)  # noqa: E731
 _S = as_scalar_if_0d
+
+
+def stagnation_pressure(p, U, rho):
+    """**Incompressible** Bernoulli value p + ½ρ|u|² [Pa] — **not (15.29)**.
+
+    For the compressible stagnation pressure of this chapter use :func:`stagnation_pressure_ratio`,
+    p₀/p = [1 + ½(γ − 1)M²]^{γ/(γ−1)} (15.29): the incompressible value is about 5 % low at M = 0.8 (the ratio of the
+    two excesses is :func:`pitot_compressibility_factor`).  Same function under its explicit name:
+    :func:`stagnation_pressure_incompressible`.
+    Book: §4.9 (text after Fig. 4.16) — a thin wrapper of ch04's ``core.bernoulli.stagnation_pressure``.
+    Parameters: p static pressure [Pa]; U speed [m/s]; rho density [kg/m³].   Returns p + ½ρU² [Pa].
+    Assumptions: incompressible (M ≲ 0.3), steady, inviscid, along a streamline.
+    Validation: V1 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope (the
+    incompressible limit of (15.29)); ch04 tests for the function itself;
+    test_stagnation_pressure_V1_incompressible_wrapper_is_not_15_29.
+    Label: analytic.
+    """
+    return _BER.stagnation_pressure(p, U, rho)
+
+
+#: The same incompressible p + ½ρ|u|² under a name that says so (review Should-fix 1).
+stagnation_pressure_incompressible = stagnation_pressure
+
+
+def stagnation_temperature(T, U, cp: float = _CP_BOOK):
+    """Stagnation temperature T₀ = T + U²/(2C_p) [K] — C_pT₀ = C_pT + ½u² (15.27); ch04's (4.78) with h = C_pT.
+
+    **Mind the C_p (trap T4)**: the default is ch04's ``CP_BOOK`` = 1004.5 J/(kg K), while the project air
+    ``PerfectGas()`` has R = 287.058, C_p = 1004.70 (and ``AIR_BOOK`` R = 287.0, C_p = 1004.5).  So
+    ``stagnation_temperature(300, 400)`` = 379.6416 K but 300·``stagnation_temperature_ratio(mach_from_speed(400,
+    300))`` = 379.6255 K — a 1e-6 agreement check between the two routes fails unless ``cp=gas.cp`` is passed with
+    the same ``gas`` used for the Mach number.
+    Book: §15.4, Eq. (15.27); §4.9, Eq. (4.78) — a thin wrapper of ch04's ``core.bernoulli.stagnation_temperature``.
+    Parameters: T static temperature [K]; U speed [m/s]; cp [J/(kg K)] (default ``CP_BOOK`` = 1004.5).
+    Returns T₀ [K].
+    Assumptions: perfect gas, adiabatic deceleration to rest (friction allowed).
+    Validation: V1 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope (with
+    ``cp=gas.cp``); ch04 tests for the function itself.
+    Label: analytic.
+    """
+    return _BER.stagnation_temperature(T, U, cp)
+
 
 _REUSED = ["mach_number", "perfect_gas_sound_speed", "sound_speed_from_eos", "isentropic_ratios", "isentropic_pressure",
            "perfect_gas_entropy_change", "perfect_gas_entropy_change_p", "stagnation_enthalpy",
@@ -97,8 +151,8 @@ def illustrative_inputs() -> dict:
     ``M_fan`` [–], ``fan_turn`` [rad].
     **Plate** (§15.10): ``M_inf`` [–], ``alpha`` [rad], ``chord`` [m], ``thickness_ratio`` [–].
     Assumptions: none.
-    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
-    Label: analytic.
+    Validation: V7 (structure) — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: V7 (structure).
     """
     d = np.deg2rad
     return dict(gamma=1.4, R=R_AIR, T_air=288.15, p_air=P_ATM,
@@ -120,8 +174,8 @@ def conventions_table():
     Book: §15.1–§15.10 (traps T1, T2, T5, T6, T11, T13, T14 of the analysis; decision 8 of the curation).
     Returns a ``pandas.DataFrame`` with columns "item", "here", "elsewhere", "code" (nine rows).
     Assumptions: none.
-    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
-    Label: analytic.
+    Validation: V7 (structure) — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: V7 (structure).
     """
     import pandas as pd
 
@@ -158,8 +212,8 @@ def book_slips():
     or imprecision.  ``changes_physics`` marks the three that are coded corrected with a ``printed_*`` option.
     Returns a ``pandas.DataFrame`` with columns "n", "kind", "where", "printed", "correct", "code", "changes_physics".
     Assumptions: none.
-    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
-    Label: analytic.
+    Validation: V7 (structure) — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: V7 (structure).
     """
     import pandas as pd
 
@@ -191,8 +245,8 @@ def traps():
     Book: §15.1–§15.10.
     Returns a ``pandas.DataFrame`` with columns "id", "trap", "guard" (what the code or the notebook does).
     Assumptions: none.
-    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
-    Label: analytic.
+    Validation: V7 (structure) — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: V7 (structure).
     """
     import pandas as pd
 
@@ -230,8 +284,9 @@ def mach_regime(M: float, *, transonic: tuple[float, float] = (0.8, 1.2), hypers
     """Name the flow regime that goes with a Mach number.
 
     Book: §15.1 (the five nominal classes: incompressible M = 0, subsonic 0 < M < 1, transonic M ≈ 1, supersonic
-    M > 1, hypersonic M ≫ 1).  The band and the hypersonic threshold are conventions (trap T3) and therefore
-    keywords; the default hypersonic threshold 5 is the customary one — pass the value a source uses.
+    M > 1, hypersonic).  The band and the hypersonic threshold are conventions (trap T3) and therefore keywords; the
+    default hypersonic threshold 5 is the customary one in most sources — the book's class (v) sets a lower threshold
+    than this default; pass ``hypersonic=`` to reproduce it.
     Parameters: M [–] ≥ 0; transonic (lower, upper) band [–]; hypersonic threshold [–].
     Returns "incompressible", "subsonic", "transonic", "supersonic" or "hypersonic".  Rule: M = 0 → incompressible;
     inside the closed transonic band → transonic; below it → subsonic; at or above the hypersonic threshold →
@@ -523,13 +578,19 @@ def rocket_nozzle(thrust: float, p0: float, T0: float, p_exit: float, gas: Perfe
     u_e = M_e√(γRT_e) → A_e = Thrust/(ρ_e u_e²) → A* = A_e/(A_e/A*).  The book reads a table; here the relations are
     inverted exactly.
     Parameters: thrust [N]; p0 chamber (stagnation) pressure [Pa]; T0 chamber temperature [K]; p_exit exit pressure
-    [Pa] (= ambient: matched); gas (γ and R of the combustion products).
+    [Pa] (= ambient: matched); gas (γ and R of the combustion products) — **pass it**: with ``gas=None`` the
+    function falls back to air (γ = 1.4, R = R_AIR) and emits a ``UserWarning``, because a rocket exhaust needs its
+    own γ and R (for our inputs the throat area changes by about 2 % between air and a γ = 1.25, R = 320 gas).
     Returns dict: ``M_e`` [–], ``T_e`` [K], ``rho_e`` [kg/m³], ``u_e`` [m/s], ``A_e``, ``A_throat`` [m²],
     ``Ae_over_At`` [–], ``mdot`` [kg/s], ``mdot_choked`` [kg/s] (independent route through the throat).
     Assumptions: isentropic flow of a perfect gas with constant γ; chamber at rest; exit pressure = ambient.
-    Validation: V1 — tests/test_ch15.py: test_rocket_nozzle_V1_thrust_and_throat_from_two_routes.
+    Validation: V1 — tests/test_ch15.py: test_rocket_nozzle_V1_thrust_and_throat_from_two_routes;
+    V7 — test_rocket_nozzle_V7_warns_without_a_gas.
     Label: analytic.
     """
+    if gas is None:
+        warnings.warn("rocket_nozzle: no gas given — using air; a rocket exhaust needs its own γ and R "
+                      "(pass gas=PerfectGas(gamma, R))", UserWarning, stacklevel=2)
     g = GD._gas(gas)
     Me = float(GD.mach_from_pressure_ratio(p_exit / p0, g.gamma))
     Te = T0 / float(GD.stagnation_temperature_ratio(Me, g.gamma))
@@ -872,12 +933,17 @@ def _beta(M_inf):
 def ackeret_pressure(delta, M_inf, gamma: float = 1.4):
     """Pressure on a surface inclined at a small angle δ to a supersonic stream: (p − p_∞)/p_∞ = γM_∞²δ/√(M_∞² − 1).
 
+    **ARGUMENT ORDER: (delta, M_inf)** — the angle comes FIRST here (and in :func:`ackeret_cp`), but the sibling
+    ``GD.weak_wave_pressure(M, delta)`` for the same formula takes the Mach number first.  Call by keyword when in
+    doubt (a swap gives NaN for δ < 1, not a silent wrong number).
+
     Book: §15.10, Eq. (15.57) (Ackeret; (15.55) with the free-stream values).  δ > 0 where the surface turns the
     flow into itself (compression), δ < 0 where it turns away.
     Parameters: delta [rad]; M_inf [–] > 1; gamma [–].   Returns (p − p_∞)/p_∞ [–] (NaN for M_∞ ≤ 1).
     Assumptions: thin body, small angles, M_∞ not close to 1 and not hypersonic.
     Validation: V1 — tests/test_ch15.py:
-    test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides.
+    test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides,
+    test_flat_plate_V1_linear_theory_formulas.
     Label: analytic.
     """
     return _S(gamma * _F(M_inf) ** 2 * _F(delta) / _beta(M_inf))  # Eq. (15.57)
@@ -885,6 +951,9 @@ def ackeret_pressure(delta, M_inf, gamma: float = 1.4):
 
 def ackeret_cp(delta, M_inf):
     """Pressure coefficient of linearised supersonic flow, C_p = (p − p_∞)/(½ρ_∞U_∞²) = 2δ/√(M_∞² − 1) (ours).
+
+    **ARGUMENT ORDER: (delta, M_inf)** — angle FIRST, as in :func:`ackeret_pressure`; the sibling
+    ``GD.weak_wave_pressure(M, delta)`` takes the Mach number first.  Call by keyword when in doubt.
 
     Book: §15.10, Eq. (15.57) divided by ½ρ_∞U_∞²/p_∞ = ½γM_∞² (the book's "ρU² = γpM²").
     Parameters: delta [rad]; M_inf [–] > 1.   Returns C_p [–] (independent of γ; NaN for M_∞ ≤ 1).
@@ -904,8 +973,8 @@ def ackeret_flat_plate(alpha, M_inf) -> dict:
     (4/√(M_∞² − 1) per radian, against 2π in incompressible flow).  NaN for M_∞ ≤ 1.
     Assumptions: linearised (Ackeret) theory; fails as M_∞ → 1.
     Validation: V1 — the formulas of (15.59) and L/D = 1/α; that the linear plate is the small-α limit of
-    shock–expansion (error second order in α) is shown through flat_plate_supersonic in
-    test_flat_plate_V7_linear_theory_is_the_small_angle_limit_of_shock_expansion — tests/test_ch15.py:
+    shock–expansion (error second order in α) is shown through flat_plate_supersonic, not this function —
+    tests/test_ch15.py:
     test_flat_plate_V1_linear_theory_formulas.
     Label: analytic.
     """
@@ -1013,10 +1082,11 @@ def flat_plate_wave_pattern(alpha: float, M_inf: float, gamma: float = 1.4) -> d
     book says); the two exit pressures then differ slightly — in the exact solution a slip line leaves the trailing
     edge at a small angle, which is not computed.
     Assumptions: two-dimensional, inviscid, perfect gas; attached waves (α < δ_max).
-    Validation: V7 — leading-edge waves and plate pressures against flat_plate_supersonic; the trailing-edge closure is
+    Validation: V7 — leading-edge waves and plate pressures equal flat_plate_supersonic to 1e-14; the trailing-edge closure is
     a sketch (p₄ returns to p_∞ to O(α³) — verification report, Open item 6) — tests/test_ch15.py:
     test_flat_plate_V7_linear_theory_is_the_small_angle_limit_of_shock_expansion.
-    Label: analytic (leading-edge waves, pressures); qualitative (trailing-edge closure).
+    Label: analytic (leading-edge waves and pressures equal the exact shock–expansion result, compared inside the
+    V7 test above); qualitative (trailing-edge closure).
     """
     if alpha <= 0.0:
         raise ValueError("flat_plate_wave_pattern expects alpha > 0 (nose up)")

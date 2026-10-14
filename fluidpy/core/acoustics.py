@@ -474,9 +474,9 @@ def breaking_time(u0, x, gamma: float = 1.4, *, max_compression_rate: float | No
     Returns t_b [s]; ``inf`` for a pure expansion (no part of the wave steepens).
     Method: explicit second-order differences of the samples.
     Assumptions: as :func:`simple_wave_speed`.
-    Validation: V4, V1 — tests/test_ch15.py: test_simple_wave_V4_riemann_invariant_and_isentrope,
-    test_breaking_time_V1_first_crossing_of_neighbouring_characteristics.
-    Label: analytic, conserved.
+    Validation: V1 — tests/test_ch15.py: test_breaking_time_V1_first_crossing_of_neighbouring_characteristics
+    (test_simple_wave_V4_riemann_invariant_and_isentrope pins the simple wave itself, not t_b).
+    Label: analytic.
     """
     s = float(max_compression_rate) if max_compression_rate is not None else float(np.max(-_ddx(_F(u0), _F(x))))
     return float(2.0 / ((gamma + 1.0) * s)) if s > 0.0 else float("inf")

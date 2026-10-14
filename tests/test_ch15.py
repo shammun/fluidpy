@@ -1293,7 +1293,16 @@ def test_shock_entropy_V1_equals_the_entropy_state_function_of_the_jump_state():
             assert abs(got - float(exact)) < 1e-10 * abs(float(exact)), (g, m, got, float(exact))
         Mg = np.linspace(1.0, 8.0, 400)
         assert np.all(np.diff(GD.normal_shock_entropy(Mg, g)) > 0)
-    assert list(GD.shock_admissible(np.array([0.5, 1.0, 1.5]))) == [False, False, True]
+    # (15.43) gives S2 − S1 = 0 at M1 = 1 exactly (no jump: a sound wave); the second law asks only S2 − S1 >= 0, so M1 = 1 is
+    # admissible — the same rule as normal_shock's "admissible" flag (review Should-fix 5)
+    assert list(GD.shock_admissible(np.array([0.5, 1.0, 1.5]))) == [False, True, True]
+    Mgrid = np.concatenate([np.linspace(0.5, 3.0, 26), [1.0, np.nextafter(1.0, 0.0), np.nextafter(1.0, 2.0)]])
+    assert 1.0 in Mgrid and np.array_equal(GD.shock_admissible(Mgrid), Mgrid >= 1.0)
+    for g in GAMMAS:
+        for M1 in Mgrid:
+            s = GD.normal_shock(M1, g, allow_expansion=True)
+            assert s["admissible"] == GD.shock_admissible(M1) == (s["dS_over_cv"] >= 0.0), (g, M1)   # the two rules and the entropy sign agree
+        assert GD.normal_shock(1.0, g)["dS_over_cv"] == 0.0 and GD.shock_admissible(1.0) is True
     assert math.isnan(GD.normal_shock_entropy(0.2))                         # p2/p1 <= 0: no state at all
 
 
@@ -1546,6 +1555,48 @@ def test_convergent_nozzle_V1_piecewise_mass_flow_against_back_pressure():  # V1
         GD.mass_flow_vs_back_pressure(0.8, dimensionless=False)
 
 
+def test_convergent_nozzle_mass_flow_V1_one_gamma_per_call():  # V1 — C09, review Must-fix 1: gamma and R from the same gas (the old code mixed gamma = 1.4 with gas.R)
+    g = GD.PerfectGas(1.25, 320.0)
+    p0, T0, Ae = 3e6, 3000.0, 0.01
+    gm, R = g.gamma, g.R
+
+    def by_hand(pe_over_p0):                                               # independent single-gamma evaluation of rho u A at the exit
+        Me = math.sqrt(2 / (gm - 1) * ((1 / pe_over_p0) ** ((gm - 1) / gm) - 1))                     # (15.29) inverted
+        return p0 * Ae / math.sqrt(R * T0) * math.sqrt(gm) * Me * (1 + 0.5 * (gm - 1) * Me ** 2) ** (-(gm + 1) / (2 * (gm - 1)))
+
+    star = p0 * Ae * math.sqrt(gm / (R * T0)) * (2 / (gm + 1)) ** ((gm + 1) / (2 * (gm - 1)))           # choked flow, closed form
+    s = GD.mass_flow_vs_back_pressure(0.3, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+    assert s["choked"] is True and rel(s["mdot"], GD.choked_mass_flow(p0, T0, Ae, g)) < 1e-14 and rel(s["mdot"], star) < 1e-13
+    assert abs(s["mdot"] - 20.149037) < 1e-5 and abs(s["mdot"] - 20.966) > 0.8                       # not the old mixed-gamma value
+    crit = (2 / (gm + 1)) ** (gm / (gm - 1))
+    assert rel(s["p_exit_over_p0"], crit) < 1e-14 and s["M_exit"] == 1.0 and rel(by_hand(crit), star) < 1e-13
+    r = np.linspace(crit + 1e-3, 0.999, 60)                                 # off the plateau: subsonic exit, p_exit = p_B
+    sub = GD.mass_flow_vs_back_pressure(r, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+    assert not np.any(sub["choked"]) and close(sub["mdot"], [by_hand(x) for x in r], 1e-12)
+    assert close(sub["mdot_over_choked"], sub["mdot"] / star, 1e-12) and np.all(np.diff(sub["mdot"]) < 0)
+    for x in (0.3, 0.8):                                                    # an explicit gamma that agrees gives the same answer
+        a = GD.mass_flow_vs_back_pressure(x, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+        b = GD.mass_flow_vs_back_pressure(x, 1.25, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+        c = GD.mass_flow_vs_back_pressure(x, gamma=1.25, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+        assert a["mdot"] == b["mdot"] == c["mdot"] and a["M_exit"] == b["M_exit"] == c["M_exit"]
+    nd = GD.mass_flow_vs_back_pressure(0.8, gas=g)                          # dimensionless with a gas: gamma = gas.gamma too
+    assert close(nd["mdot"], GD.mass_flow_vs_back_pressure(0.8, 1.25)["mdot"], 1e-15)
+    with pytest.raises(ValueError, match="gamma"):
+        GD.mass_flow_vs_back_pressure(0.3, 1.4, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)
+    with pytest.raises(ValueError, match="gamma"):
+        GD.mass_flow_vs_back_pressure(0.3, gamma=1.4, gas=g)
+    # air / default calls unchanged: gamma=None means 1.4; the parity value of the explainers still holds
+    rr = np.linspace(0.0, 1.0, 101)
+    for k in ("mdot", "M_exit", "p_exit_over_p0", "mdot_over_choked"):
+        assert np.array_equal(GD.mass_flow_vs_back_pressure(rr)[k], GD.mass_flow_vs_back_pressure(rr, 1.4)[k])
+        assert np.array_equal(GD.mass_flow_vs_back_pressure(rr)[k], GD.mass_flow_vs_back_pressure(rr, gas=AIR)[k])
+    assert abs(GD.mass_flow_vs_back_pressure(0.8, 1.4)["mdot"] - 0.56066) < 5e-6
+    gm, R = 1.4, 287.0                                                      # dimensional air call against the same hand formula
+    da = GD.mass_flow_vs_back_pressure(0.8, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=AIR)
+    assert rel(da["mdot"], by_hand(0.8)) < 1e-12
+    assert rel(GD.convergent_nozzle(p0, T0, 0.8 * p0, Ae, g)["mdot"], GD.mass_flow_vs_back_pressure(0.8, dimensionless=False, p0=p0, T0=T0, A_exit=Ae, gas=g)["mdot"]) < 1e-15
+
+
 def test_convergent_nozzle_mass_flow_V2_derivation():  # V2 — D19 (two stars, ours): rho u A with (15.28)–(15.30) → the flux function; zero slope at the plateau; C09
     g, M, R, T0, p0, A = sp.symbols("gamma M R T_0 p_0 A", positive=True)
     Tf = 1 + (g - 1) / 2 * M ** 2
@@ -1673,6 +1724,62 @@ def test_rocket_nozzle_V1_thrust_and_throat_from_two_routes():  # V1 — N46, N4
     assert rel(ch15.nozzle_thrust(n["mdot"], n["u_e"], I["p_exit_rocket"], I["p_exit_rocket"], n["A_e"]), I["thrust"]) < 1e-13                # matched: no pressure term
     vac = ch15.nozzle_thrust(n["mdot"], n["u_e"], I["p_exit_rocket"], 0.0, n["A_e"])
     assert rel(vac - I["thrust"], I["p_exit_rocket"] * n["A_e"]) < 1e-12                # off design the pressure term appears
+
+
+def test_rocket_nozzle_V7_warns_without_a_gas():  # V7 — review Should-fix 3: gas=None falls back to air and says so (trap T9)
+    args = (I["thrust"], I["p0_rocket"], I["T0_rocket"], I["p_exit_rocket"])
+    with pytest.warns(UserWarning, match="no gas given"):
+        air = ch15.rocket_nozzle(*args)
+    with pytest.warns(UserWarning):
+        ch15.rocket_nozzle(*args, gas=None)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")                                     # with a gas: silent
+        own = ch15.rocket_nozzle(*args, GD.PerfectGas(I["gamma_rocket"], I["R_rocket"]))
+        ch15.rocket_nozzle(*args, gas=GD.PerfectGas())
+    assert rel(air["A_throat"], ch15.rocket_nozzle(*args, gas=GD.PerfectGas())["A_throat"]) < 1e-15       # the fallback is the project air
+    assert rel(air["A_throat"], own["A_throat"]) > 1e-3                     # and it is not the exhaust answer
+
+
+def test_small_helpers_V1_against_independent_closed_forms():  # V1 — label audit after review Should-fix 8: duct_role, rayleigh_temperature_sign, strong_shock_limits, laval_area against closed forms they do not use
+    gv = np.array(GAMMAS)
+    lim = [GD.strong_shock_limits(g) for g in GAMMAS]                       # M1 → infinity of the jump laws (15.38)–(15.41), written out by hand
+    assert close([d["rho_ratio"] for d in lim], (gv + 1) / (gv - 1), 1e-15) and close([d["M2"] for d in lim], np.sqrt((gv - 1) / (2 * gv)), 1e-15)
+    assert close([d["p_ratio_over_M1sq"] for d in lim], 2 * gv / (gv + 1), 1e-15) and close([d["T_ratio_over_p_ratio"] for d in lim], (gv - 1) / (gv + 1), 1e-15)
+    assert close([d["u1sq_rho1_over_p2"] for d in lim], (gv + 1) / 2, 1e-15)
+    x = np.linspace(0.0, 1.0, 201)                                          # two parabolas joined at the throat (0.4, 1.0)
+    exact = np.where(x <= 0.4, 1.0 + 1.5 * ((0.4 - x) / 0.4) ** 2, 1.0 + 1.0 * ((x - 0.4) / 0.6) ** 2)
+    assert close(GD.laval_area(x), exact, 1e-15)
+    for g in GAMMAS:                                                        # duct_role from the isentropic A/A*(M) curve, not from (15.34)
+        for M in np.concatenate([np.linspace(0.05, 0.95, 19), np.linspace(1.05, 4.0, 20)]):
+            h = 1e-6
+            dA_dM = (GD.area_ratio(M + h, g) - GD.area_ratio(M - h, g)) / (2 * h)
+            for s in (-1.0, 1.0):
+                assert GD.duct_role(M, s) == ("nozzle" if s / dA_dM > 0 else "diffuser"), (g, M, s)   # nozzle = M (hence u) rises
+            # Rayleigh line (constant area, heat only): T/T* = [(1 + g) M/(1 + g M^2)]^2, T0/T0* rises with heating
+            TT = lambda m: ((1 + g) * m / (1 + g * m * m)) ** 2                                           # noqa: E731
+            T0T0 = lambda m: (1 + g) * m * m * (2 + (g - 1) * m * m) / (1 + g * m * m) ** 2               # noqa: E731
+            dT = (TT(M + h) - TT(M - h)) / (T0T0(M + h) - T0T0(M - h))      # dT/dT0 along the Rayleigh line = sign of dT under heating
+            if abs(1 - g * M * M) > 1e-3:
+                assert GD.rayleigh_temperature_sign(M, g) == np.sign(dT), (g, M)
+
+
+def test_stagnation_pressure_V1_incompressible_wrapper_is_not_15_29():  # V1 — review Should-fix 1: the trap pinned — ch15.stagnation_pressure is ch04's p + rho U^2/2, ~5 % below the isentropic p0 at M = 0.8
+    from fluidpy.core import bernoulli as BER
+    assert ch15.stagnation_pressure_incompressible is ch15.stagnation_pressure and "stagnation_pressure_incompressible" not in ch15.__all__
+    p, rho, g = 1.0e5, 1.2, 1.4
+    M = np.array([0.0, 0.1, 0.3, 0.5, 0.8, 0.95])
+    U = M * math.sqrt(g * p / rho)                                          # c^2 = gamma p / rho
+    inc = ch15.stagnation_pressure(p, U, rho)
+    assert close(inc, ch15.stagnation_pressure_incompressible(p, U, rho), 0) and close(inc, BER.stagnation_pressure(p, U, rho), 0)
+    assert close(inc, p + 0.5 * rho * U ** 2, 1e-15)                        # p + rho U^2 / 2, i.e. p (1 + gamma M^2 / 2)
+    p0 = p * GD.stagnation_pressure_ratio(M, g)                             # (15.29): p0/p = [1 + (gamma − 1) M^2 / 2]^(gamma/(gamma − 1))
+    low = 1 - inc / p0
+    assert close(low, 1 - (1 + 0.5 * g * M ** 2) / (1 + 0.5 * (g - 1) * M ** 2) ** (g / (g - 1)), 1e-12, 1e-16)
+    assert low[0] == 0.0 and np.all(np.diff(low) > 0)                       # agree at rest, the gap grows with M
+    assert 0.049 < low[4] < 0.051 and abs(low[4] - 0.050081) < 1e-6         # about 5 % low at M = 0.8 (1.448 vs 1.5243): the trap being pinned
+    assert low[2] < 0.0015                                                # below 1 % at M = 0.3 (the usual incompressibility rule)
+    assert close((p0 - p)[1:] / (inc - p)[1:], GD.pitot_compressibility_factor(M[1:], g), 1e-12)   # the ratio of the two excesses
 
 
 # =====================================================================================================================
