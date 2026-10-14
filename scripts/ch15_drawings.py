@@ -90,8 +90,8 @@ def draw_duct_control_volume(ax=None):
     ax.text(x2 + 0.42, 0.0, r"$\rho_2,u_2,p_2,A_2$", ha="left", va="center", fontsize=9)
     _arrow(ax, (2.0, 1.45), (2.0, 0.85), C_PRES, 1.8)
     ax.text(2.08, 1.3, "Q  (heat added per unit mass)", fontsize=9, color=C_PRES)
-    _arrow(ax, (1.6, -0.62), (2.3, -0.62), C_TEMP, 1.8)
-    ax.text(1.95, -0.5, "F  (walls on the fluid, +x)", ha="center", fontsize=9, color=C_TEMP)
+    _arrow(ax, (1.6, -0.22), (2.3, -0.22), C_TEMP, 1.8)
+    ax.text(1.95, -0.33, "F  (walls on fluid, +x)", ha="center", va="top", fontsize=9, color=C_TEMP)
     _arrow(ax, (3.6, -1.75), (4.2, -1.75), C_REF, 1.2)
     ax.text(4.25, -1.75, "x", va="center", fontsize=9, color=C_REF)
     _bare(ax, (-1.2, 5.4), (-1.95, 1.7), "control volume in a slowly varying duct")
@@ -309,7 +309,9 @@ def draw_wedge_streamlines(M1: float = 2.0, half_angle: float = np.deg2rad(10.0)
             ax.plot([xs, L], [sg * y0, sg * (y0 + (L - xs) * np.tan(half_angle))], color=C_SUB if wf["subsonic_behind"] else C_SUP, lw=1.0)
     _arrow(ax, (-0.95, 0.0), (-0.35, 0.0), C_SUP, 2.0)
     ax.text(-0.95, 0.08, rf"$M_1$ = {M1:g}", fontsize=9, color=C_SUP)
-    ax.text(1.25, 0.62 * 1.25 * np.tan(sigma) + 0.02, rf"$M_2$ = {wf['M2']:.2f}", fontsize=9)
+    mid = 0.5 * (sigma + half_angle)  # halfway between the wedge face and the shock: always inside the plot
+    ax.text(1.3 * np.cos(mid), 1.3 * np.sin(mid), rf"$M_2$ = {wf['M2']:.2f}", fontsize=9, ha="center", va="center",
+            bbox=dict(fc="white", ec="none", pad=1.5))
     _bare(ax, (-1.05, L), (-1.3, 1.3),
           rf"wedge δ = {np.degrees(half_angle):.0f}°: shock at σ = {np.degrees(sigma):.1f}°, $p_2/p_1$ = {wf['p_ratio']:.2f} (δ_max = {np.degrees(wf['delta_max']):.1f}°)")
     return fig
@@ -366,7 +368,9 @@ def draw_fan(fan: dict | None = None, ax=None):
 
 def draw_plate_waves(pattern: dict | None = None, ax=None):
     """A flat plate at incidence in a supersonic stream with its four waves, from the dict returned by
-    ``ch15.flat_plate_wave_pattern``: thick lines are shocks, thin fans are expansions."""
+    ``ch15.flat_plate_wave_pattern``: thick lines are shocks, thin fans are expansions.  An inset (lower left) resolves
+    the normal force N = (p₃ − p₂)b into lift L (teal, vertical) and wave drag D (rose, horizontal), with the tilt drawn
+    five times too large when α is small (the figure says so)."""
     fig, ax = _ax(ax, (7.0, 4.6))
     if pattern is None:
         I = ch15.illustrative_inputs()
@@ -385,9 +389,31 @@ def draw_plate_waves(pattern: dict | None = None, ax=None):
     ax.text(-0.7, 0.38, r"$M_\infty,\ p_\infty$", fontsize=9, color=C_SUP)
     mid = 0.5 * te
     ax.text(mid[0] + 0.02, mid[1] + 0.16, rf"$p_2/p_\infty$ = {float(pattern['p2']):.3f}  (expansion)", fontsize=8, color=C_SUB)
-    ax.text(mid[0] - 0.2, mid[1] - 0.24, rf"$p_3/p_\infty$ = {float(pattern['p3']):.3f}  (compression)", fontsize=8, color=C_ENT)
+    # below the plate, between the leading-edge shock (left) and the trailing-edge fan (right): clear of both lines
+    ax.text(0.74, -0.15, rf"$p_3/p_\infty$ = {float(pattern['p3']):.3f}  (compression)", fontsize=8, color=C_ENT,
+            ha="center", va="center", bbox=dict(fc="white", ec="none", pad=1))
     ax.text(mid[0] - 0.05, mid[1] + 0.03, "b", fontsize=9)
+    # force triangle (inset, lower left): the normal force N = (p3 - p2) b, its lift L (teal, vertical) and wave drag
+    # D (rose, horizontal).  At a few degrees the drag leg would be invisible, so the tilt is drawn k times too large.
+    alpha = -pa
+    k = 5 if 5 * alpha <= np.deg2rad(25.0) else 1
+    a_draw = k * alpha
+    C = np.array([-0.5, -0.82])                         # where the force acts in the inset
+    half = 0.22 * np.array([np.cos(a_draw), -np.sin(a_draw)])
+    ax.plot([C[0] - half[0], C[0] + half[0]], [C[1] - half[1], C[1] + half[1]], color=INK, lw=3.0)   # the plate, tilted k×
+    Nlen = 0.5
+    tip = C + Nlen * np.array([np.sin(a_draw), np.cos(a_draw)])   # normal to the plate: leans back (downstream) by the tilt
+    top = np.array([C[0], tip[1]])
+    _arrow(ax, C, tip, C_ENT, 2.2)                      # N, normal to the plate
+    _arrow(ax, C, top, C_TEMP, 2.0)                     # L = N cos(alpha): vertical
+    _arrow(ax, top, tip, C_SUP, 2.0)                    # D = N sin(alpha): horizontal, downstream
+    ax.text(top[0] - 0.03, C[1] + 0.5 * (tip[1] - C[1]), "L", color=C_TEMP, fontsize=10, ha="right", va="center")
+    ax.text(0.5 * (top[0] + tip[0]), tip[1] + 0.03, "D", color=C_SUP, fontsize=10, ha="center", va="bottom")
+    ax.text(tip[0] + 0.03, C[1] + 0.35 * (tip[1] - C[1]), r"$N=(p_3-p_2)\,b$", color=C_ENT, fontsize=8, ha="left", va="center")
+    ax.text(C[0], tip[1] + 0.13, f"force on the plate\n(tilt drawn ×{k}: {np.degrees(a_draw):.0f}° for α = {np.degrees(alpha):.0f}°)"
+            if k > 1 else "force on the plate (to scale)", fontsize=7.5, ha="center", va="bottom", color=INK)
     _bare(ax, (-0.8, 2.0), (-0.95, 0.85), rf"flat plate at α = {np.degrees(-pa):.0f}°: shock below and fan above at the nose, the opposite at the tail")
+    ax.title.set_fontsize(10)
     return fig
 
 
@@ -418,7 +444,9 @@ def draw_jet_sketch(kind: str = "underexpanded", ax=None):
            "underexpanded": r"$p_e > p_B$: expansion fans, jet spreads"}[kind]
     ax.text(1.75, 0.0, r"$p_B$", fontsize=10, color=C_PRES, va="center")
     ax.text(-0.3, 0.0, r"$p_e$", fontsize=10, color=C_PRES, va="center")
-    _bare(ax, (-2.1, 2.1), (-1.25, 1.25), f"{kind} jet — sketch: {txt}")
+    name = {"overexpanded": "over-expanded", "design": "design", "underexpanded": "under-expanded"}[kind]
+    _bare(ax, (-2.1, 2.1), (-1.25, 1.25), f"{name} jet (a sketch)\n{txt}")   # two short lines: side-by-side panels stay readable
+    ax.title.set_fontsize(10)
     return fig
 
 
