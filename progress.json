@@ -3,7 +3,7 @@
   "book": "Kundu, Cohen & Dowling, Fluid Mechanics, 5th ed. (2012)",
   "repo": "https://github.com/shammun/fluidpy",
   "pages": "https://shammun.github.io/fluidpy/",
-  "current_chapter": "ch15",
+  "current_chapter": "ch16",
   "environment": {
     "python": "3.11.5",
     "numpy": "2.4.6",
@@ -437,8 +437,8 @@
     "ch16": {
       "title": "Introduction to Biofluid Mechanics",
       "slug": "biofluid_mechanics",
-      "analyze": "todo",
-      "curate": "todo",
+      "analyze": "pass",
+      "curate": "running",
       "design": "todo",
       "implement": "todo",
       "verify": "todo",
@@ -448,8 +448,8 @@
       "knowledge": "todo",
       "publish": "todo",
       "explainers": [],
-      "notes": "",
-      "updated": null
+      "notes": "analyze: 145 rows (NEW 130/SEEN 13), 222/222 eq labels (16.1)-(16.222) each once, CODE 101/DEMO 13/SKIP 31, 45 derivations (18/16/11 by star), 8 load-bearing clusters (Poiseuille R, Casson, Womersley number, tube law, Moens-Korteweg, Womersley Bessel solution, impedance/junctions, collapsible-tube speed index), 33 slips (11 change physics: 16.30, 16.44-45, 16.54, 16.76, 16.92, 16.96, 16.140/143, 16.201, cP units, xylem nu, 16.209 dyn/cm2) + 27 traps; open: no table for viscous elastic tube (sympy + ODE route), Dean coefficient re-derived 1541/50400",
+      "updated": "2026-10-14"
     }
   }
 }
