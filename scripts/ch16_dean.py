@@ -26,7 +26,7 @@ def main() -> int:
     print(f"  w₁ = {d2['w1']}")
     print(f"  flux coefficient of (K/576)²: {d2['flux_coefficient']} = {float(d2['c2']):.7f} (printed 0.0306); "
           f"of (K/576)⁴: {d4['c4']} = {float(d4['c4']):.7f} (printed 0.0120: our exact solution of (16.173)–(16.176) "
-          f"is {100 * (float(d4['c4']) / 0.0120 - 1):+.2f} % off — reported, not resolved)")
+          f"is {100 * (float(d4['c4']) / 0.0120 - 1):+.2f} % from the printed 0.0120; the gap is slip S34, the sign of (16.174))")
     print(f"  resistance (16.182): 0.0306² − 0.0120 = {0.0306 ** 2 - 0.0120:+.5f} (printed −0.0110)")
     delta, a, U, nu = I["dean_delta"], 2e-3, 0.1, I["mu"] / I["rho"]
     kap = ch16.dean_number(delta, U, a, nu, convention="kappa")

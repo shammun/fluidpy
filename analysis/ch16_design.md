@@ -3543,6 +3543,8 @@ Step counts that differ from the curation's estimate (one small move per step fo
 - **Check:** ψ₀ = ∂ψ₀/∂r = 0 and w₁ = 0 at r = 1 ✓; **expect** ψ₀ is largest (0.00757) at r = 0.429; at K = 576 the axial maximum
   sits 0.187a toward the outer wall and Q/(πa²W̄) = 0.9814; the resistance ratio $\lambda=1+0.0306\left(\dfrac K{576}\right)^2-0.0110\left(\dfrac K{576}\right)^4$ (16.182) is its reciprocal
   (coefficient $0.0306^2-0.0120=-0.0111$).
+> **Orchestrator note after verify (S34).** (16.174) as printed has the wrong sign on the vorticity-advection term; the consistent form has $+$. ψ₀, w₁ and $c_2=1541/50400$ are unchanged; the $K^4$ coefficient is $6471982981/542442700800=0.0119312$ (printed sign: 0.0121130). Wherever this design shows (16.174), write it with the corrected sign and flag slip S34; wherever it shows the book's 0.0120 in (16.178), show 0.0119312 beside it (`ch16.DEAN_C4_DERIVED`). In the explainer E8 and notebook C14, teach S34 like the other slips.
+
 - **sympy check (`check_src`, executed — re-runs steps 1–14):**
   ```python
   import sympy as sp                                                       # symbolic algebra

@@ -33,9 +33,11 @@ Conventions (analysis ch16 §9 — traps T1–T27; ``conventions_table()``)
 the tests that must fail: (16.30) ``two_layer_flow_rates(printed_16_30=True)``; (16.44)–(16.45) the a₀⁴ (pint check);
 (16.54) ``tube1d_run(printed_16_54=True)``; (16.76) right side −G/μ (``womersley_ode_residual``); (16.92) wall shear
 *stress* with F₂ (``womersley_wall_shear``); (16.96) ``womersley_F2_asymptote(printed_16_96=True)``; (16.140)/(16.143)
-``murray_radius(printed_16_140=True)``; (16.201) ``collapsible_differentials_sympy(printed_16_201=True)``; the
+``murray_radius(printed_16_140=True)``; (16.201) ``collapsible_differentials_sympy(printed_16_201=True)``; (16.174)
+advection-term sign (S34, found in verification: eliminating p₁ from (16.167)–(16.168) gives +(1/r)(…)∇²ψ on the
+left) ``dean_series_sympy(printed_16_174=True)`` — only the K⁴ flux coefficient changes (``DEAN_C4_DERIVED``); the
 minimum-pressure-drop example (S26), the cP unit chain (S27) and the xylem viscosity (S28) are number slips handled in
-the converters and the notebook.  ``book_slips()`` lists all 33 rows.
+the converters and the notebook.  ``book_slips()`` lists all 34 rows.
 """
 from __future__ import annotations
 
@@ -1084,11 +1086,17 @@ def windkessel_periodic_state(t, *, SV, HR, systole_share, R, K):
     Validation: V1 equals :func:`windkessel_ode` after many beats; V4 mean = R·SV·HR/60. Label: analytic.
     """
     T, Ts, tau_c, ws, Qmax, B, p0 = _wk_constants(SV, HR, systole_share, R, K)
-    tau = np.mod(_F(t), T)
-    p_sys = float(R) * Qmax * (np.sin(ws * tau) - ws * tau_c * np.cos(ws * tau)) / (1.0 + (ws * tau_c) ** 2) \
-        + (p0 + B) * np.exp(-tau / tau_c)
-    p_dia = (B + (p0 + B) * np.exp(-Ts / tau_c)) * np.exp(-(tau - Ts) / tau_c)
-    return _S(np.where(tau < Ts, p_sys, p_dia))
+    tt = _F(t)
+    tau = np.atleast_1d(np.mod(tt, T)).astype(float)
+    sys_ = tau < Ts
+    p = np.empty_like(tau)
+    # each branch is evaluated only where it applies, so its exponent is never positive (no overflow for tiny R*K)
+    ts = tau[sys_]
+    p[sys_] = float(R) * Qmax * (np.sin(ws * ts) - ws * tau_c * np.cos(ws * ts)) / (1.0 + (ws * tau_c) ** 2) \
+        + (p0 + B) * np.exp(-ts / tau_c)  # Eq. (16.49) solved for systole
+    td = tau[~sys_]
+    p[~sys_] = (B + (p0 + B) * np.exp(-Ts / tau_c)) * np.exp(-(td - Ts) / tau_c)  # Eq. (16.49) solved for diastole
+    return _S(p.reshape(np.shape(tt)))
 
 
 def windkessel_summary(*, SV, HR, systole_share, R, K, n: int = 2001) -> dict:
@@ -2046,9 +2054,10 @@ def dean_flux_ratio(K=None, *, D=None, kappa=None, exact: bool = False, exact_c4
 
     Book: §16.3, Eqs. (16.178), (16.181) (Dean 1928).  ``exact=True`` replaces the printed 0.0306 by our exact
     1541/50400 = 0.0305754 (:func:`dean_series_sympy`, order 2) and keeps the printed 0.0120 (design C.12);
-    ``exact_c4=True`` also replaces 0.0120 by our order-4 value 821328579941/67805337600000 = 0.0121130 — 0.9 % above
-    the printed coefficient (the book's equations (16.173)–(16.176), solved exactly; Dean's paper not read first-hand,
-    analysis B6 open).
+    ``exact_c4=True`` also replaces 0.0120 by our order-4 value 6471982981/542442700800 = 0.0119312 — 0.6 % below
+    the printed coefficient (equations (16.173)–(16.176) solved exactly, with the advection sign of (16.174)
+    corrected — slip S34; an independent spectral Navier–Stokes solve gives 0.0119311).
+    # DEVIATION: c₄ from the consistent sign of (16.174), not the printed one (which would give 0.0121130).
     Parameters
     ----------
     K : Dean's K = 2κ² [–] (or give D or kappa);  exact, exact_c4 : use the derived coefficients.
@@ -2056,7 +2065,8 @@ def dean_flux_ratio(K=None, *, D=None, kappa=None, exact: bool = False, exact_c4
     -------
     ratio [–].
     Assumptions: δ ≪ 1, small K (series), fully developed, steady.
-    Validation: V2 our sympy re-derivation reproduces 0.0306 (1541/50400). Label: symbolic.
+    Validation: V2 our sympy re-derivation reproduces 0.0306 (1541/50400); V3 c₄ against a spectral Navier–Stokes
+    solve. Label: symbolic.
     """
     if K is None:
         K = dean_convert(D, from_="D", to="K") if D is not None else dean_convert(kappa, from_="kappa", to="K")
@@ -2066,8 +2076,9 @@ def dean_flux_ratio(K=None, *, D=None, kappa=None, exact: bool = False, exact_c4
     return _S(1.0 - c2 * q ** 2 + c4 * q ** 4)  # Eq. (16.178)
 
 
-#: Our exact second flux coefficient of (16.178) from :func:`dean_series_sympy` at order 4 (≈ 0.0121130).
-DEAN_C4_DERIVED = Fraction(821328579941, 67805337600000)
+#: Our exact second flux coefficient of (16.178) from :func:`dean_series_sympy` at order 4 (≈ 0.0119312), with the
+#: sign of the advection term of (16.174) corrected (slip S34; printed sign gives 821328579941/67805337600000).
+DEAN_C4_DERIVED = Fraction(6471982981, 542442700800)
 
 
 def curved_resistance_ratio(K):
@@ -2292,32 +2303,42 @@ class _FP:
 
 
 @lru_cache(maxsize=4)
-def dean_series_sympy(order: int = 2) -> dict:
+def dean_series_sympy(order: int = 2, printed_16_174: bool = False) -> dict:
     """Dean's small-κ series for fully developed flow in a gently curved pipe, solved exactly order by order (ours).
 
     Book: §16.3, Eqs. (16.172)–(16.177): with p₀ = −Gs and the scaling (κ/2)G = 8 (so w₀ = 2(1 − r²), mean 1),
     w = Σκ^{2n}w_n, ψ = κΣκ^{2n}ψ_n,
       ∇²w_n = −8δ_{n0} + (1/2r)Σ_{i+j=n−1}(∂ψ_i/∂α ∂w_j/∂r − ∂ψ_i/∂r ∂w_j/∂α)                         (16.173)
-      2∇⁴ψ_n = (1/r)Σ_{i+j=n−1}(∂ψ_i/∂r ∂/∂α − ∂ψ_i/∂α ∂/∂r)∇²ψ_j − 2Σ_{i+j=n} w_i(sin α ∂w_j/∂r + (cos α/r)∂w_j/∂α)
+      2∇⁴ψ_n = −(1/r)Σ_{i+j=n−1}(∂ψ_i/∂r ∂/∂α − ∂ψ_i/∂α ∂/∂r)∇²ψ_j − 2Σ_{i+j=n} w_i(sin α ∂w_j/∂r + (cos α/r)∂w_j/∂α)
                                                                                                       (16.174)
-    with ψ = ∂ψ/∂r = w = 0 at r = 1 (16.176).  Each order is a polynomial Poisson or biharmonic problem per Fourier
+    with ψ = ∂ψ/∂r = w = 0 at r = 1 (16.176).
+    DEVIATION (slip S34): the book prints (16.174) as (2/κ)∇⁴ψ − (1/r)(…)∇²ψ = −2w(…); eliminating p₁ from
+    (16.167)–(16.168) with (16.172) gives (2/κ)∇⁴ψ + (1/r)(…)∇²ψ = −2w(…), which is what is coded (the − sign above
+    after moving the term to the right).  ``printed_16_174=True`` reproduces the printed sign.  Only the order-κ⁸
+    (K⁴) flux coefficient is affected: ψ₀, w₁ and c₂ = 1541/50400 are identical in both versions, while
+    c₄ = 6471982981/542442700800 ≈ 0.0119312 (consistent sign; an independent spectral Navier–Stokes solve gives
+    0.0119311) versus 821328579941/67805337600000 ≈ 0.0121130 with the printed sign.  The book's 0.0120 lies between.  Each order is a polynomial Poisson or biharmonic problem per Fourier
     mode, solved by undetermined coefficients in exact rational arithmetic (``fractions``).  The flux ratio at fixed
     gradient is mean(w) = 1 + κ⁴m₂ + κ⁸m₄; with K = 2κ² the coefficients of (K/576)² and (K/576)⁴ are
     c₂ = −576²m₂/4 and c₄ = 576⁴m₄/16.
     Parameters
     ----------
     order : highest n of w_n (2 gives c₂; 4 gives c₄ as well).
+    printed_16_174 : if True, use the printed (inconsistent) sign of the advection term of (16.174) (slip S34).
     Returns
     -------
     dict: w (list of sympy expressions w₀…w_order), psi (ψ₀…ψ_{order−1}), w0, psi0, w1, means (Fractions),
     c2 (Fraction, = 1541/50400), flux_coefficient (sympy Rational(1541, 50400)), c4 and flux_coefficient_4
-    (order ≥ 4: 821328579941/67805337600000 ≈ 0.012113, printed 0.0120 — reported, not resolved), else None.
+    (order ≥ 4: 6471982981/542442700800 ≈ 0.0119312, 0.6 % below the printed 0.0120; with printed_16_174=True
+    821328579941/67805337600000 ≈ 0.0121130), else None.
     Cost: < 1 s for order 2, a few seconds for order 4 (cached).
     Assumptions: δ ≪ 1, steady, fully developed, small κ.
-    Validation: V2 each w_n, ψ_n satisfies its equation and boundary conditions (sympy); c₂ reproduces 0.0306.
+    Validation: V2 each w_n, ψ_n satisfies its equation and boundary conditions (sympy); c₂ reproduces 0.0306;
+    V3 c₄ matches an independent spectral Navier–Stokes solve (0.0119311).
     Label: symbolic.
     """
     order = int(order)
+    printed_16_174 = bool(printed_16_174)
     one = _FP()
     one.add(0, "c", 0, Fraction(1))
     sin_a, cos_a = _FP(), _FP()
@@ -2341,7 +2362,10 @@ def dean_series_sympy(order: int = 2) -> dict:
         for i in range(n):
             j = n - 1 - i
             term = psi[i].dr() * lap_psi[j].da() - psi[i].da() * lap_psi[j].dr()
-            s2 = s2 + term.rpow(-1)
+            # DEVIATION: sign of the psi-advection term of (16.174) — eliminating p1 from (16.167)-(16.168) with
+            # (16.172) puts it on the left with a + sign, i.e. on the right with a − sign (slip S34); the printed
+            # (16.174) has − on the left (+ on the right), reproduced with printed_16_174=True.
+            s2 = (s2 + term.rpow(-1)) if printed_16_174 else (s2 - term.rpow(-1))  # Eq. (16.174), advection term
         for i in range(n + 1):
             j = n - i
             term = w[i] * (sin_a * w[j].dr() + cos_a * w[j].da().rpow(-1))
@@ -3075,7 +3099,7 @@ def illustrative_inputs() -> dict:
 
 
 def book_slips():
-    """The 33 suspected slips of the chapter and what the code does (no book number is reproduced).
+    """The 34 suspected slips of the chapter and what the code does (no book number is reproduced).
 
     Book: §16.2–§16.4 (analysis ch16 §9).  ``kind``: "slip" = an error on the page; "loose" = an inconsistency or
     imprecision.  ``changes_physics`` marks those coded corrected (with a ``printed_*`` option where an equation is
@@ -3118,6 +3142,9 @@ def book_slips():
         ("S31", "loose", "(16.37) turbulent", "the turbulent constant of (16.37)", "other sources use 1.359 Re^(1/4) (Çengel) — a different correlation", "entrance_length", False),
         ("S32", "loose", "§16.2 text", "a cardiac output written in mL/m", "mL/min", "cardiac_output", False),
         ("S33", "loose", "Exercise 16.4", "Shapiro (1997a)", "1977a", "—", False),
+        ("S34", "slip", "(16.174)", "(2/κ)∇⁴ψ − (1/r)(∂ψ/∂r ∂/∂α − ∂ψ/∂α ∂/∂r)∇²ψ = −2w(…)",
+         "+ (1/r)(…)∇²ψ (eliminating p₁ from (16.167)–(16.168) with (16.172)); changes only the K⁴ flux coefficient",
+         "dean_series_sympy(printed_16_174=True), DEAN_C4_DERIVED", True),
     ]
     return pd.DataFrame(rows, columns=["id", "kind", "where", "printed", "correct", "code", "changes_physics"])
 
