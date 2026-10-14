@@ -164,17 +164,28 @@ def _dean_flux_ratio_numeric(U, op):
 
 
 @lru_cache(maxsize=4)
-def _dean_coefficients_numeric(sJ=1.0, N=21, M=16):
-    """Fit Q/(pi a^2 W) = 1 - c2 x^2 + c4 x^4 - ... (x = K/576, K = K_lec^2/8) to the spectral solutions."""
+def _dean_flux_samples(sJ=1.0, N=21, M=16):
+    """Flux ratios of the spectral solutions at 25 Dean numbers, x = K/576 in [0.05, 0.35] (K = K_lec^2/8)."""
     op = _dean_ops(N, M)
     xs = np.linspace(0.05, 0.35, 25)
     F, U = [], None
     for x in xs:
         U = _dean_solve(math.sqrt(8 * 576 * x), op, U0=U, sJ=sJ)
         F.append(_dean_flux_ratio_numeric(U, op))
-    A = np.vstack([xs ** (2 * k) for k in range(1, 6)]).T
-    coef, *_ = np.linalg.lstsq(A, np.array(F) - 1, rcond=None)
+    return xs, np.array(F)
+
+
+def _dean_fit(xs, F, nterms=5):
+    """Least-squares fit of F - 1 = -c2 x^2 + c4 x^4 + ... with ``nterms`` even powers; returns (c2, c4)."""
+    A = np.vstack([xs ** (2 * k) for k in range(1, nterms + 1)]).T
+    coef, *_ = np.linalg.lstsq(A, F - 1, rcond=None)
     return -coef[0], coef[1]
+
+
+@lru_cache(maxsize=4)
+def _dean_coefficients_numeric(sJ=1.0, N=21, M=16):
+    """Fit Q/(pi a^2 W) = 1 - c2 x^2 + c4 x^4 - ... (x = K/576, K = K_lec^2/8) to the spectral solutions."""
+    return _dean_fit(*_dean_flux_samples(sJ, N, M), nterms=5)
 
 
 # ======================================================================================================================
@@ -670,7 +681,7 @@ def test_distensible_flux_V2_derivation_and_slip_S4_units():  # V2 — N39, slip
     assert rel(ch16.elastic_tube_flow_rate(9.3e3, 2.1e3, 0.4e3, 3.7e-3, 0.61e6, 0.53e-3, 3.5e-3, 0.17), Qref) < 1e-12
 
 
-def test_distensible_flux_V3_ode_route_and_rigid_limit():  # V3 + V7 — N39–N41 (16.42)–(16.46)
+def test_distensible_flux_V1_ode_route_and_rigid_limit():  # V1 (independent-route cross-check) + V7 — N39–N41 (16.42)–(16.46)
     a0, E, h = TUBE.values()
     mu, L, pe, p1, p2 = 3.5e-3, 0.17, 0.4e3, 9.3e3, 2.1e3
     Q = ch16.elastic_tube_flow_rate(p1, p2, pe, a0, E, h, mu, L)
@@ -689,6 +700,25 @@ def test_distensible_flux_V3_ode_route_and_rigid_limit():  # V3 + V7 — N39–N
     assert Rs[0] > Rs[1] > Rs[2]                                                       # Fig. 16.23 mechanism (N44)
     Qr = ch16.elastic_tube_flow_rate(p1, p2, pe, a0, 1e14, h, mu, L)
     assert rel(Qr, PI * a0 ** 4 * (p1 - p2) / (8 * mu * L)) < 1e-8                    # E → ∞: (16.17)
+
+
+def test_distensible_flux_V3_quadrature_of_16_44_orders_two_and_four():  # V3 — N39–N41: refine the (16.44) integral
+    """Q = (πa₀⁴/(8μL))∫_{p₂}^{p₁}(1 − a₀(p − p_e)/(Eh))⁻⁴ dp (the corrected (16.44)) by composite trapezoid and Simpson
+    rules on the module's own a(p) = :func:`tube_radius_hookean` — an independent route to the closed-form
+    :func:`elastic_tube_flow_rate`; the errors fall at the design orders 2 and 4 (strongly distended tube, β up to 0.34)."""
+    a0, E, h = TUBE.values()
+    mu, L, pe, p1, p2 = 3.5e-3, 0.17, 0.4e3, 30e3, 2.1e3
+    Q = float(ch16.elastic_tube_flow_rate(p1, p2, pe, a0, E, h, mu, L))
+    g = lambda p: PI * np.asarray(ch16.tube_radius_hookean(p, pe, a0, E, h), float) ** 4 / (8 * mu * L)
+    hs, e_trap, e_simp = [], [], []
+    for n in (8, 16, 32, 64):
+        p = np.linspace(p2, p1, n + 1)
+        y, d = g(p), p[1] - p[0]
+        e_trap.append(abs(d * (y.sum() - 0.5 * (y[0] + y[-1])) - Q) / Q)
+        e_simp.append(abs(d / 3 * (y[0] + y[-1] + 4 * y[1:-1:2].sum() + 2 * y[2:-1:2].sum()) - Q) / Q)
+        hs.append(d)
+    assert abs(observed_order(hs, e_trap) - 2.0) < 0.15 and abs(observed_order(hs, e_simp) - 4.0) < 0.15
+    assert e_simp[-1] < 2e-8 and np.all(np.diff(e_trap) < 0) and np.all(np.diff(e_simp) < 0)
 
 
 def test_compliance_V1_central_difference_of_volume():  # V1 — N45
@@ -745,7 +775,7 @@ def test_windkessel_V2_derivation_and_periodic_closed_form():  # V2 — D09, D10
     assert rel(pf(T - 1e-12), pf(0.0)) < 1e-9                       # periodic: the diastole ends where systole starts
 
 
-def test_windkessel_V3_periodic_state_reached_by_marching():  # V3 — C07: ODE and quadrature from rest converge
+def test_windkessel_V1_periodic_state_reached_by_marching():  # V1 (independent-route cross-check) — C07: ODE and quadrature from rest reach the closed form
     T = 60 / WK["HR"]
     Ts = WK["systole_share"] * T
     Qf = ch16.HalfSineEjection(WK["SV"], T, Ts)
@@ -757,6 +787,31 @@ def test_windkessel_V3_periodic_state_reached_by_marching():  # V3 — C07: ODE 
     last = t >= (nb - 1) * T
     assert close(p_q[last], ch16.windkessel_periodic_state(t[last], **WK), rtol=1e-6)
     assert rel(ch16.windkessel_periodic_p0_general(Qf, WK["R"], WK["K"], T), ch16.windkessel_periodic_p0(**WK)) < 1e-10
+
+
+def test_windkessel_V3_crank_nicolson_march_order_two():  # V3 — C07 (16.49): refine a time march against (16.52)
+    """Trapezoidal (Crank–Nicolson) march of K dp/dt + p/R = Q(t) from rest over three beats, with Δt = T/m chosen so
+    that T_s falls on a node (the half-sine ejection has a kink there); max error against the closed form
+    :func:`windkessel_pressure` falls at order 2."""
+    T = 60 / WK["HR"]
+    Ts = WK["systole_share"] * T
+    Qf = ch16.HalfSineEjection(WK["SV"], T, Ts)
+    R, K = WK["R"], WK["K"]
+    hs, errs = [], []
+    for m in (40, 80, 160, 320):
+        assert abs(Ts / (T / m) - round(Ts / (T / m))) < 1e-9                       # T_s on the grid
+        dt = T / m
+        t = np.arange(3 * m + 1) * dt
+        q = np.asarray(Qf(t), float)
+        p = np.zeros_like(t)
+        A = K / dt
+        for j in range(t.size - 1):
+            p[j + 1] = ((A - 0.5 / R) * p[j] + 0.5 * (q[j] + q[j + 1])) / (A + 0.5 / R)   # (16.49), trapezoid
+        exact = np.asarray(ch16.windkessel_pressure(t, Qf, R, K, 0.0), float)
+        hs.append(dt)
+        errs.append(np.max(np.abs(p - exact)) / np.max(exact))
+    assert abs(observed_order(hs, errs) - 2.0) < 0.15 and errs[-1] < 1e-4
+    assert np.all(np.abs(np.asarray(pairwise_orders(hs, errs)) - 2.0) < 0.05)
 
 
 def test_windkessel_V4_volume_balance_over_a_beat():  # V4 — C07: ∫Q dt = ∫p/R dt; mean p = R·CO; ∫Q = SV
@@ -934,7 +989,7 @@ def test_tube1d_V3_small_pulse_speed_order_and_mass():  # V3 + V4 — C08 (16.53
     assert abs(shift / o["t"] / c0 - 1) < 5e-3                                           # travels at c(A₀) (16.62)
 
 
-def test_tube1d_V3_printed_16_54_breaks_the_simple_wave():  # V3 — slip S5: printed_16_54 must fail
+def test_tube1d_V7_printed_16_54_breaks_the_simple_wave():  # V7 (structure: a simple wave leaves rest behind) — slip S5: printed_16_54 must fail
     for printed, bound in ((False, 1e-5), (True, None)):
         x, o, A0, c0 = _tube1d_case(800, 0.2, printed=printed)
         left = (x > 0.1) & (x < 0.45)                       # behind the pulse: a simple wave leaves it at rest
@@ -1118,6 +1173,23 @@ def test_womersley_harmonics_V1_superposition():  # V1 — N57 (16.83)–(16.86)
     assert close(got, mean + h1 + h2, rtol=1e-12, atol=1e-15)
 
 
+def test_womersley_flow_rate_V7_scalar_gradient_has_one_meaning():  # V7 — C10, N57 (review Should-fix 1)
+    """A bare scalar G means the n = 1 amplitude in womersley_flow_rate; the harmonics form refuses it (it could be
+    read as the mean G₀ — 245× apart at these inputs); [G₀] is a steady mean, [0, G] the single harmonic."""
+    a, om, rho, mu = 2.1e-3, 7.3, 1060.0, 3.5e-3
+    t = np.linspace(0, 2 * PI / om, 9)
+    for scalar in (100.0, np.float64(100.0), np.array(100.0), 100, 100.0 + 20.0j):
+        with pytest.raises(ValueError, match="scalar"):
+            ch16.womersley_flow_rate_harmonics(t, a, om, rho, mu, scalar)
+    one = ch16.womersley_flow_rate(t, a, om, rho, mu, 100.0)
+    assert close(one, ch16.womersley_flow_rate_harmonics(t, a, om, rho, mu, [0.0, 100.0]), rtol=1e-14, atol=1e-20)
+    assert close(ch16.womersley_flow_rate_harmonics(t, a, om, rho, mu, [100.0]), PI * 100.0 * a ** 4 / (8 * mu),
+                 rtol=1e-14)                                                                       # steady mean, (16.17)
+    assert close(ch16.womersley_flow_rate(t, a, om, rho, mu, [100.0]), PI * 100.0 * a ** 4 / (8 * mu), rtol=1e-14)
+    Qmean = PI * 100.0 * a ** 4 / (8 * mu)
+    assert abs(np.max(np.abs(one)) - Qmean) > 0.3 * Qmean and abs(np.mean(one[:-1])) < 1e-12 * Qmean   # zero mean
+
+
 def test_womersley_V5_wikipedia_forms():  # V5 — C09, C10 (Wikipedia "Pulsatile flow", Womersley 1955; P′ = −G)
     a, om, rho, mu = 2.7e-3, 7.9, 1060.0, 3.5e-3
     G = 450.0
@@ -1270,7 +1342,7 @@ def test_elastic_tube_V2_derivation_rows_and_characteristic():  # V2 — D21 (�
         assert rel(ch16.elastic_tube_characteristic(Xv, al_, nv), val) < 1e-12
 
 
-def test_elastic_tube_V3_independent_4x4_determinant():  # V3 — C11: un-eliminated system vs (16.136) roots
+def test_elastic_tube_V1_independent_4x4_determinant():  # V1 (independent-route cross-check) — C11: un-eliminated system vs (16.136) roots
     for al in (2.0, 5.0, 8.0, 20.0):
         roots = ch16.elastic_tube_roots(al)
         for key in ("pressure", "other"):
@@ -1282,6 +1354,19 @@ def test_elastic_tube_V3_independent_4x4_determinant():  # V3 — C11: un-elimin
             ch16.elastic_tube_determinant_numeric(roots["pressure"], al))
     assert rel(_root4(ch16.elastic_tube_roots(8.0, poisson=0.3)["pressure"], 8.0, 0.3),
                ch16.elastic_tube_roots(8.0, poisson=0.3)["pressure"]) < 1e-10
+
+
+def test_elastic_tube_V3_ode_determinant_series_start_order_six():  # V3 — C11 (elastic_tube_determinant_numeric)
+    """The ODE determinant starts φ from its series truncated after s⁴ at s₀, so at an exact root of (16.136) its
+    residual must fall as s₀⁶ (the first dropped term β̂⁶s⁶/2304) once the ODE tolerance is far below it."""
+    for al in (2.0, 8.0):
+        X0 = ch16.elastic_tube_roots(al)["pressure"]
+        s0s = np.array([0.2, 0.1, 0.05, 0.025])
+        res = [abs(ch16.elastic_tube_determinant_numeric(X0, al, s0=s, rtol=1e-13)) for s in s0s]
+        assert abs(observed_order(s0s, res) - 6.0) < 0.15
+        assert res[-1] < 1e-12
+        far = abs(ch16.elastic_tube_determinant_numeric(1.3 * X0, al, s0=0.025, rtol=1e-13))
+        assert far > 1e8 * res[-1]                                                  # small only at the root
 
 
 def test_elastic_tube_V7_inviscid_limit_and_damping():  # V7 — C11 (trap T7), N68, N72
@@ -1407,7 +1492,7 @@ def test_murray_V2_branch_angles_derivation():  # V2 — D24 (★★★): weight
         assert rel(math.cos(ang["total"]), c) < 1e-12
 
 
-def test_murray_V3_numerical_branch_point_reproduces_angles():  # V3 — D24 check, C12 (bifurcation_point)
+def test_murray_V1_numerical_branch_point_reproduces_angles():  # V1 (independent-route cross-check) — D24 check, C12 (bifurcation_point)
     A, C, D = np.array([0.0, 0.0]), np.array([0.09, 0.037]), np.array([0.083, -0.051])
     for s in (0.5, 0.31, 0.17):
         a0 = 1.3e-3
@@ -1479,13 +1564,17 @@ def test_junction_V2_derivation():  # V2 — D25, D26
     assert sp.simplify(R ** 2 + Ys / Y1 * T ** 2 - 1) == 0                                              # energy identity
 
 
-def test_junction_V3_grid_pulse_matches_theory():  # V3 — C13 (network_pulse_run, characteristic transport)
+def test_junction_V1_grid_pulse_matches_theory():  # V1 (independent-route cross-check) — C13 (network_pulse_run, exact C = 1 transport)
     for Yd in ([0.3, 0.45], [1.1, 0.9, 0.4]):
         Y1 = 1.0
         out = ch16.network_pulse_run(0.8, [0.6] * len(Yd), 5.0, [6.5] + [5.5] * (len(Yd) - 1), Y1, Yd, width=0.012, nx=400)
         R, T = ch16.junction_coefficients(Y1, Yd)
         assert abs(out["R_measured"] - R) < 1e-3 and abs(out["T_measured"] - T) < 1e-3
         assert out["R_theory"] == R and out["T_theory"] == T
+        out2 = ch16.network_pulse_run(0.8, [0.6] * len(Yd), 5.0, [6.5] + [5.5] * (len(Yd) - 1), Y1, Yd, width=0.012,
+                                      nx=200)
+        assert abs(out2["R_measured"] - out["R_measured"]) < 1e-12                      # C = 1 transport is exact:
+        assert abs(out2["T_measured"] - out["T_measured"]) < 1e-12                      # nothing to refine
     f = lambda s: np.exp(-((np.asarray(s) - 0.1) / 0.02) ** 2)
     x, t = np.linspace(-1, 0, 21), 0.17
     w = ch16.junction_waveforms(x, t, f, 5.0, -0.3, Y1=2.0, P_I=900.0)
@@ -1576,6 +1665,31 @@ def test_dean_V3_numeric_navier_stokes_leading_orders():  # V3 — C14: ψ₀, w
     assert rel(ch16.dean_flux_ratio(576.0, exact=True), 1 - 1541 / 50400 + float(ch16.DEAN_BOOK["c4"])) < 1e-15
     _, c4_printed = _dean_coefficients_numeric(sJ=-1.0)                         # the equations as printed
     assert rel(c4_printed, float(Fraction(821328579941, 67805337600000))) < 2e-5  # = the module's exact series
+
+
+def test_dean_V3_spectral_resolution_study_and_fit_truncation():  # V3 — C14: the independent solver is converged
+    """Resolution study of the Chebyshev–Fourier Dean solver at the largest sampled Dean number (x = K/576 = 0.35):
+    the flux ratio converges geometrically in the radial resolution N and in M; then the c₂, c₄ fit converges as more
+    terms of the series are fitted, towards the exact 1541/50400 and 6471982981/542442700800."""
+    K_lec = math.sqrt(8 * 576 * 0.35)
+    F = {}
+    for N in (9, 13, 17, 21, 25):
+        op = _dean_ops(N, 16)
+        F[N] = _dean_flux_ratio_numeric(_dean_solve(K_lec, op), op)
+    d = [abs(F[N] - F[25]) for N in (9, 13, 17, 21)]
+    assert all(d[i + 1] < 1e-1 * d[i] for i in range(3)) and d[-1] < 1e-10       # spectral (geometric) in N
+    for M in (8, 12):
+        op = _dean_ops(21, M)
+        assert abs(_dean_flux_ratio_numeric(_dean_solve(K_lec, op), op) - F[21]) < 1e-9   # converged in M
+    xs, Fs = _dean_flux_samples(1.0, 21, 16)
+    c2x, c4x = 1541 / 50400, 6471982981 / 542442700800
+    e2, e4 = [], []
+    for nt in (3, 4, 5, 6):                                                    # (7 terms over-fits: floor ~1e-6)
+        c2, c4 = _dean_fit(xs, Fs, nt)
+        e2.append(abs(c2 / c2x - 1))
+        e4.append(abs(c4 / c4x - 1))
+    assert all(e4[i + 1] < 0.3 * e4[i] for i in range(3)) and e4[-1] < 1e-6        # fit truncation → exact c₄
+    assert e2[-1] < 1e-8
 
 
 def test_dean_flux_V3_order4_coefficient_is_the_navier_stokes_value():  # V3 + V2 — C14 (16.178) K⁴ coefficient
@@ -1686,16 +1800,20 @@ def test_collapsible_V2_derivation_shapiro_equations():  # V2 — D29, D30 (★�
 
 def test_collapsible_V1_tube_law_wave_speed_and_M():  # V1 — D28 (16.185)–(16.189), (16.206) (trap T9)
     Kp, rho, A0 = 230.0, 1050.0, 1.3e-4
-    al = np.array([0.15, 0.4, 0.8, 1.0, 1.7])
+    al = np.array([0.15, 0.4, 0.8, 0.97, 1.0])                 # the fitted collapse branch of (16.188): α ≤ 1 only
     for form in ("shapiro", "pure"):
         P = ch16.collapsible_tube_law(al, n=1.5, form=form)
-        assert close(ch16.alpha_from_tube_law(P, 1.5, form), al, rtol=1e-13)
+        assert close(ch16.alpha_from_tube_law(P, 1.5, form), al, rtol=1e-13)                    # round trip
         h = al * 1e-6
-        dP = (ch16.collapsible_tube_law(al + h, form=form) - ch16.collapsible_tube_law(al - h, form=form)) / (2 * h)
+        # second-order one-sided (backward) stencil for ∂P/∂α everywhere: at α = 1 a central stencil would step
+        # outside the fitted range (α > 1 is NaN by design)
+        dP = (3 * ch16.collapsible_tube_law(al, form=form) - 4 * ch16.collapsible_tube_law(al - h, form=form)
+              + ch16.collapsible_tube_law(al - 2 * h, form=form)) / (2 * h)
         c = ch16.collapsible_wave_speed(al, Kp, rho)
         assert close(c ** 2, al / rho * Kp * dP, rtol=1e-8)                                        # (16.198)
         assert close(c, ch16.bramwell_hill_speed(al * A0, Kp * dP / A0, rho), rtol=1e-8)            # (16.185)
-        assert close(ch16.shapiro_M(al, 1.5, tube_law=lambda q: ch16.collapsible_tube_law(q, form=form)), 0.5, rtol=1e-5)
+        inner = al[al < 1]                                       # shapiro_M's central differences need α(1 + h) ≤ 1
+        assert close(ch16.shapiro_M(inner, 1.5, tube_law=lambda q: ch16.collapsible_tube_law(q, form=form)), 0.5, rtol=1e-5)
     assert np.all(ch16.collapsible_tube_law(al[al < 1]) < 0)                                      # P < 0 when collapsed
     assert close(ch16.collapsible_tube_law(al), 1 - al ** -1.5, rtol=1e-15)                        # (16.188)
     assert close(ch16.shapiro_M(al, 1.5), 0.5, rtol=1e-15) and close(ch16.shapiro_M(al, 2.5), -0.5, rtol=1e-15)
@@ -1709,6 +1827,120 @@ def test_collapsible_V1_tube_law_wave_speed_and_M():  # V1 — D28 (16.185)–(1
                    ch16.friction_R_per_length(a_, A0, mu) * uu * a_ * A0) < 1e-13                # τ_w s/A = R′Q
     assert rel(ch16.friction_R_per_length(1.0, PI * 2e-3 ** 2, mu), 8 * mu / (PI * 2e-3 ** 4)) < 1e-14   # Poiseuille
     assert rel(ch16.wall_friction_term(0.5, 1.0, d0, rho, mu, regime="turbulent", f=0.006), 0.5 * rho * 0.25 * 4 * 0.006 / d0) < 1e-14
+
+
+def test_collapsible_V7_tube_law_range_guard_alpha_le_1():  # V7 — D28, (16.188) valid for α ≤ 1 (review Must-fix 1)
+    """(16.188) is Shapiro's fit to the collapse branch (Fig. 16.19).  Scalars α > 1 warn and return the extrapolated
+    value; array entries α > 1 are NaN with one RuntimeWarning; α ≤ 1 (and α = 1 + round-off) is silent."""
+    Kp, rho, A0 = 230.0, 1050.0, 1.3e-4
+    # scalar α > 1: RuntimeWarning, extrapolated value still returned
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        assert rel(ch16.collapsible_tube_law(1.7), 1 - 1.7 ** -1.5) < 1e-15
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        assert rel(ch16.collapsible_tube_law(1.7, form="pure"), -1.7 ** -1.5) < 1e-15
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        P, dP, d2P = ch16.collapsible_tube_law_derivatives(1.7)
+    assert rel(dP, 1.5 * 1.7 ** -2.5) < 1e-15 and rel(d2P, -3.75 * 1.7 ** -3.5) < 1e-15
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        assert rel(ch16.collapsible_wave_speed(1.7, Kp, rho), math.sqrt(1.5 * Kp * 1.7 ** -1.5 / rho)) < 1e-15
+    with pytest.warns(RuntimeWarning, match="16.188"):                     # P > 0 ⇔ α > 1 (distended)
+        assert rel(ch16.alpha_from_tube_law(0.3), 0.7 ** (-1 / 1.5)) < 1e-15
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        ch16.collapsible_terms(1.3, 1e-5, dict(A0=A0, Kp=Kp, rho=rho, mu=1e-3))
+    # arrays: NaN exactly at the α > 1 entries, the others untouched
+    al = np.array([0.5, 1.0, 1.7, 0.9, 2.5])
+    bad = al > 1
+    with pytest.warns(RuntimeWarning, match="NaN"):
+        P = ch16.collapsible_tube_law(al)
+    assert np.array_equal(np.isnan(P), bad) and close(P[~bad], 1 - al[~bad] ** -1.5, rtol=1e-15)
+    with pytest.warns(RuntimeWarning, match="NaN"):
+        trio = ch16.collapsible_tube_law_derivatives(al)
+    assert all(np.array_equal(np.isnan(v), bad) for v in trio)
+    with pytest.warns(RuntimeWarning, match="NaN"):
+        c = ch16.collapsible_wave_speed(al, Kp, rho)
+    assert np.array_equal(np.isnan(c), bad) and close(c[~bad], np.sqrt(1.5 * Kp * al[~bad] ** -1.5 / rho), rtol=1e-15)
+    with pytest.warns(RuntimeWarning, match="NaN"):
+        a_back = ch16.alpha_from_tube_law(np.array([-1.0, 0.0, 0.3]))
+    assert np.isnan(a_back[2]) and close(a_back[:2], [2 ** (-1 / 1.5), 1.0], rtol=1e-15)
+    # silent on the fitted branch, at α = 1 exactly and within the stated round-off allowance (1e-12 relative)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        ch16.collapsible_tube_law(np.linspace(0.05, 1.0, 50))
+        ch16.collapsible_tube_law(1.0 + 1e-13)
+        ch16.collapsible_wave_speed(1.0, Kp, rho)
+        ch16.collapsible_tube_law_derivatives(np.array([0.3, 1.0]))
+        assert ch16.alpha_from_tube_law(0.0) == 1.0
+        ch16.collapsible_terms(1.0, 1e-5, dict(A0=A0, Kp=Kp, rho=rho, mu=1e-3))
+    assert ch16.ALPHA_MAX_COLLAPSE == 1.0
+
+
+def test_collapsible_V2_throat_condition_alpha_t_le_0397():  # V2 + V1 — C15, Fig. 16.20(a): H ≤ 0 ⇔ upstream α ≤ 1
+    """At a throat with S = 1 (u = c(α_t)), Bernoulli's constant is H = K_pP(α_t) + ½ρc_t² = K_p[1 − (1 − n/2)α_t⁻ⁿ];
+    far upstream (u → 0) K_pP(α_far) = H, so α_far ≤ 1 ⇔ H ≤ 0 ⇔ α_t ≤ (1 − n/2)^{1/n} (= 0.25^{2/3} = 0.3969 at n = 3/2).
+    The subcritical branch rises monotonically towards α_far, so H ≤ 0 keeps every upstream state on the fit."""
+    al, n, K, r = sp.symbols("alpha_t n K_p rho", positive=True)
+    P = 1 - al ** -n                                                                          # (16.188)
+    c2 = al / r * K * sp.diff(P, al)                                                          # (16.198)
+    H = K * P + r * c2 / 2
+    assert sp.simplify(H - K * (1 - (1 - n / 2) * al ** -n)) == 0
+    a_max = (1 - n / 2) ** (1 / n)
+    assert sp.simplify(sp.powdenest(H.subs(al, a_max), force=True)) == 0                  # (valid for 0 < n < 2)
+    assert sp.simplify(H.subs({n: sp.Rational(3, 2)}).subs(al, sp.Rational(1, 4) ** sp.Rational(2, 3))) == 0
+    assert sp.simplify(sp.diff(H, al) - K * n * (1 - n / 2) * al ** (-n - 1)) == 0          # > 0 for n < 2: monotone
+    a_max15 = 0.25 ** (2 / 3)
+    assert abs(float(a_max.subs(n, sp.Rational(3, 2))) - a_max15) < 1e-15 and abs(a_max15 - 0.39685) < 1e-5
+    # numerically, with the module (the demo's inputs): α_t = 0.35 → H < 0, all upstream α ≤ 1, silent
+    I_ = ch16.illustrative_inputs()
+    rho, Kp = I_["rho_water"], I_["Kp_collapse"]
+    A0 = PI * I_["a_collapse"] ** 2
+    Hs = lambda a_t: Kp * float(ch16.collapsible_tube_law(a_t)) + 0.5 * rho * (
+        float(ch16.choking_flux(a_t, A0, Kp, rho)) / (a_t * A0)) ** 2
+    for a_t in (0.2, 0.3, 0.35, 0.39, 0.40, 0.45, 0.6):
+        assert rel(Hs(a_t), Kp * (1 - 0.25 * a_t ** -1.5)) < 1e-13
+        assert (Hs(a_t) <= 0) == (a_t <= a_max15)
+    Qs = float(ch16.choking_flux(0.35, A0, Kp, rho))
+    H = Hs(0.35)
+    assert abs(H + 41.47) < 0.01 and abs(Qs * 1e6 - 47.646) < 1e-3                         # the demo's numbers
+    A0f = lambda x: A0 * (1 + (x / 0.05) ** 2)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sub = np.array([ch16.collapsible_frictionless_alpha(Qs, H, A0f(x), Kp, rho, n=1.5, branch="sub")
+                        for x in np.linspace(-0.2, -1e-3, 60)])                  # the demo shows x ≥ −12 cm
+        a_far = float(ch16.alpha_from_tube_law(H / Kp))
+    assert np.all(np.diff(sub) < 0) and np.all(sub < a_far) and a_far < 1                   # rises towards α_far ≤ 1
+    a12 = ch16.collapsible_frictionless_alpha(Qs, H, A0f(-0.12), Kp, rho, n=1.5, branch="sub")
+    assert abs(a12 - 0.8758) < 5e-5                                                          # the demo's α at x = −12 cm
+    # α_t above the bound: H > 0 and the far-upstream root leaves the fit → the module warns
+    Qb = float(ch16.choking_flux(0.45, A0, Kp, rho))
+    with pytest.warns(RuntimeWarning, match="16.188"):
+        a_bad = ch16.collapsible_frictionless_alpha(Qb, Hs(0.45), 15 * A0, Kp, rho, n=1.5, branch="sub")
+    assert a_bad > 1
+
+
+def test_collapsible_V1_frictionless_alpha_on_wide_upstream_sections():  # V1 — C15 (loop 3 finding: a* bracket)
+    """Far upstream of a throat (A₀ ≫ A₀,throat) the subcritical root tends to α_far = (1 − H/K_p)^{−1/n} (u → 0).  The
+    critical area ratio is α* = (ρQ²/(A₀²K_pn))^{1/(2−n)} (S = 1), = α_t(A₀,t/A₀)⁴ at n = 3/2; the module brackets α*
+    in a fixed [1e-6, 1e6], so α* < 1e-6 (here A₀/A₀,t ≳ 24) must still give the root, not a ValueError."""
+    I_ = ch16.illustrative_inputs()
+    rho, Kp, n = I_["rho_water"], I_["Kp_collapse"], 1.5
+    A0t = PI * I_["a_collapse"] ** 2
+    Qs = float(ch16.choking_flux(0.35, A0t, Kp, rho))
+    H = Kp * float(ch16.collapsible_tube_law(0.35)) + 0.5 * rho * (Qs / (0.35 * A0t)) ** 2
+    a_far = (1 - H / Kp) ** (-1 / n)
+    got, failures = {}, []
+    for ratio in (5.0, 20.0, 25.0, 30.0, 100.0):
+        a_star = (rho * Qs ** 2 / ((ratio * A0t) ** 2 * Kp * n)) ** (1 / (2 - n))
+        assert rel(a_star, 0.35 * ratio ** -4) < 1e-12
+        try:
+            a = ch16.collapsible_frictionless_alpha(Qs, H, ratio * A0t, Kp, rho, n=n, branch="sub")
+        except ValueError as e:
+            failures.append(f"A0/A0t = {ratio:g} (alpha* = {a_star:.2e}): ValueError {e}")
+            continue
+        res = Kp * (1 - a ** -n) + 0.5 * rho * (Qs / (a * ratio * A0t)) ** 2 - H          # Bernoulli residual
+        assert abs(res) < 1e-9 * Kp and a < a_far
+        got[ratio] = a
+    assert not failures, "collapsible_frictionless_alpha raises on valid wide sections: " + "; ".join(failures)
+    assert got[5.0] < got[20.0] < got[25.0] < got[30.0] < got[100.0] < a_far and a_far - got[100.0] < 1e-4
 
 
 def test_collapsible_V1_starling_choke_closed_form():  # V1 — C15 (implementer point 1: Q_choke, p₂ at the choke)
@@ -1729,7 +1961,7 @@ def test_collapsible_V1_starling_choke_closed_form():  # V1 — C15 (implementer
     assert ch16.starling_state(0.0, 10.0, 0.0, prm)["Q"] == 0.0
 
 
-def test_collapsible_V1_march_against_closed_form_and_S2_equation():  # V1 + V3 — C15 (collapsible_march, (16.205))
+def test_collapsible_V1_march_against_closed_form_and_S2_equation():  # V1 — C15 (collapsible_march, (16.205) along the march; no order asserted)
     ref = _starling_closed(**VEIN)
     Q = 0.8 * ref["Q"]
     tube = ch16.CollapsibleTube(A0=VEIN["A0"], Kp=VEIN["Kp"], rho=VEIN["rho"], mu=VEIN["mu"])
@@ -1758,12 +1990,14 @@ def test_collapsible_V1_march_against_closed_form_and_S2_equation():  # V1 + V3 
     assert rel(ch16.collapsible_rhs(0.0, [0.6], tube, Q)[0], tr["dalpha_dx"]) < 1e-15
 
 
+@pytest.mark.filterwarnings("error::RuntimeWarning")
 def test_collapsible_V1_frictionless_throat_chokes_at_the_throat():  # V1 — Fig. 16.20(a) (D30 at S = 1)
     Kp, rho, A0t = 200.0, 1000.0, 1.0e-4
     A0f = lambda x: A0t * (1 + 0.6 * (x - 0.05) ** 2 / 0.05 ** 2)                       # throat at x = 0.05
-    a_t = 0.55
+    a_t = 0.35                                    # ≤ 0.25^{2/3} = 0.397: H ≤ 0, every upstream state on α ≤ 1
     Q = float(ch16.choking_flux(a_t, A0t, Kp, rho))                                      # S = 1 at the throat
     H = Kp * float(ch16.collapsible_tube_law(a_t)) + 0.5 * rho * Q ** 2 / (a_t * A0t) ** 2
+    assert H < 0
     for xx in (0.0, 0.02, 0.04):
         a_sub = ch16.collapsible_frictionless_alpha(Q, H, A0f(xx), Kp, rho, branch="sub")
         S2 = ch16.collapsible_terms(a_sub, Q, dict(A0=A0f(xx), Kp=Kp, rho=rho, mu=1e-3, friction=False))["S2"]

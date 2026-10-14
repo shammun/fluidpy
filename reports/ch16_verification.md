@@ -1,8 +1,46 @@
-# Chapter 16 verification — Introduction to Biofluid Mechanics                2026-10-14 · phase 5, fix loop 2, working tree above `69c66f3`
+# Chapter 16 verification — Introduction to Biofluid Mechanics                2026-10-14 · loop 3 (after the derivation review), working tree above `76eb2ae`
 
-## Verdict: PASS — `tests/test_ch16.py`: 91 passed, 0 failed, 0 skipped in 157 s (the slow script test and the private V6 test included); also 90 passed with `-W error` (every warning an error, slow test deselected); `tests/test_machinery.py` 9 passed; `tools/check_public.py` OK (812 files)
+## Verdict: FAIL — `tests/test_ch16.py -W error::RuntimeWarning`: 98 passed, 1 failed, 0 skipped in 333 s (slow script test and private V6 test included). The one failure is a new robustness defect found in this pass (`collapsible_frictionless_alpha` raises `ValueError` on valid wide upstream sections, finding L3-1 below); a one-line fix makes all 9 collapsible tests pass under `-W error` in a scratch copy. Everything the review asked for is in place and passes. `tests/test_machinery.py` 9 passed; `tools/check_public.py` OK (818 files)
 
-### Loop 2 (this pass) — what changed and how it was checked
+### Loop 3 (after `reports/ch16_review.md`) — what changed and how it was checked
+The implementer changed `fluidpy/ch16_biofluid_mechanics.py`, `fluidpy/core/womersley.py` (used only by ch16; grep finds
+no other importer) and `scripts/ch16_collapsible.py`. The verifier changed only `tests/test_ch16.py` (91 → 99 tests),
+`tests/ch16_verify_figures.py` and this report.
+
+| Review item | Test(s) | Result |
+|---|---|---|
+| Must-fix 1: range guard for (16.188), α ≤ 1 | `test_collapsible_V1_tube_law_wave_speed_and_M` changed: α = 1.7 removed (grid 0.15, 0.4, 0.8, 0.97, 1.0); ∂P/∂α by a second-order **backward** stencil, so α = 1 never steps above 1; `shapiro_M`'s central differences used only at α < 1 | passes under `-W error::RuntimeWarning`; c² = (α/ρ)K_p∂P/∂α (16.198) and Bramwell–Hill (16.185) to 1e-8, round trip to 1e-13, both forms |
+| | new `test_collapsible_V7_tube_law_range_guard_alpha_le_1` | scalar α = 1.7: RuntimeWarning naming (16.188) and the extrapolated value (1e-15) for `collapsible_tube_law` (both forms), `_derivatives`, `collapsible_wave_speed`, `alpha_from_tube_law(P = 0.3)`, `collapsible_terms(1.3, …)`; array [0.5, 1, 1.7, 0.9, 2.5]: NaN **exactly** at the two α > 1 entries, the others unchanged (1e-15); silent at α = 1, α = 1 + 1e-13 (round-off allowance), α ≤ 1 grids, `alpha_from_tube_law(0) = 1` |
+| | new `test_collapsible_V2_throat_condition_alpha_t_le_0397` | sympy: H = K_pP(α_t) + ½ρc_t² = K_p[1 − (1 − n/2)α_t⁻ⁿ], H = 0 at α_t = (1 − n/2)^{1/n}, dH/dα_t = K_pn(1 − n/2)α_t^{−n−1} > 0 (n < 2); at n = 3/2 the bound is 0.25^{2/3} = 0.39685. Numerically (H ≤ 0) ⇔ (α_t ≤ 0.39685) on α_t = 0.2 … 0.6; the demo's numbers reproduced: H = −41.47 Pa, Q* = 47.646 cm³/s, α = 0.8758 at x = −12 cm (5e-5), the subcritical branch rises monotonically towards α_far = 0.88194 < 1 with **no warning** (warnings → errors); α_t = 0.45 (H > 0) gives an upstream root > 1 **with** the RuntimeWarning |
+| (2) frictionless throat test | `test_collapsible_V1_frictionless_throat_chokes_at_the_throat` moved to α_t = 0.35 (asserts H < 0) and marked `filterwarnings("error::RuntimeWarning")` | passes, no warning; march = Bernoulli to 1e-6, driver 0 at the throat (1e-9) |
+| Should-fix 1: scalar G | new `test_womersley_flow_rate_V7_scalar_gradient_has_one_meaning` | `womersley_flow_rate_harmonics` raises ValueError for 100.0, `np.float64`, 0-d array, int and complex scalars; `womersley_flow_rate(G)` = `…_harmonics([0, G])` (1e-14); `[G₀]` = Poiseuille πG₀a⁴/(8μ) in both functions (1e-14) |
+| Should-fix 5: V3 names without an order | renamed to V1 (independent-route cross-check): `test_distensible_flux_V1_ode_route_and_rigid_limit`, `test_windkessel_V1_periodic_state_reached_by_marching`, `test_elastic_tube_V1_independent_4x4_determinant`, `test_murray_V1_numerical_branch_point_reproduces_angles`, `test_junction_V1_grid_pulse_matches_theory` (now also asserts nx = 200 and 400 give the same R, T to 1e-12: C = 1 characteristic transport is exact, there is nothing to refine); `test_tube1d_V3_printed_16_54…` → `test_tube1d_V7_…` (structure: a simple wave leaves rest behind); the `collapsible_march` test's header comment "V1 + V3" → "V1" | all pass |
+| | **new genuine order studies** | `test_distensible_flux_V3_quadrature_of_16_44_orders_two_and_four`: trapezoid and Simpson on the corrected (16.44) with the module's a(p), p₁ = 30 kPa (β to 0.34), n = 8 … 64 → orders **1.999** (pairwise 1.998, 1.999, 2.000) and **3.989** (3.973, 3.993, 3.998), Simpson error 8.8e-9. `test_windkessel_V3_crank_nicolson_march_order_two`: trapezoidal march of (16.49) from rest over three beats, Δt = T/40 … T/320 (T_s on a node), against the closed form (16.52) → order **2.000** (pairwise 2.001, 2.000, 2.000), finest error 6.5e-5 of the peak. `test_elastic_tube_V3_ode_determinant_series_start_order_six`: residual of `elastic_tube_determinant_numeric` at an exact root of (16.136) against the series start s₀ = 0.2 … 0.025 → order **6.000** (α = 2; pairwise 6.000, 6.000, 5.999) and **6.023** (α = 8; 6.069, 6.005, 6.000), the design order of the s⁴-truncated start (first dropped term β̂⁶s⁶/2304); residual 1.6e-14 / 6.5e-13, ≥ 1e8 smaller than off the root. `test_dean_V3_spectral_resolution_study_and_fit_truncation`: flux ratio at x = K/576 = 0.35 against N = 25: N = 9, 13, 17, 21 → 1.1e-4, 4.2e-7, 1.0e-8, 3.2e-11 (geometric, spectral); M = 8, 12 against 16 → 2.8e-10, 7.9e-14; the c₄ fit against the exact 6471982981/542442700800 with 3, 4, 5, 6 fitted terms → 4.7e-3, 2.3e-4, 9.4e-6, 3.3e-7 (7 terms over-fits, 8.2e-7); c₂ to 1.4e-10 |
+| `tests/ch16_verify_figures.py` | tube-law panel limited to α ∈ [0.15, 1] with a dotted line at α = 1 | runs with `-W error::RuntimeWarning`; panel verdict below |
+| `scripts/ch16_collapsible.py` | run headless with `-W error::RuntimeWarning` | exit 0, no warning (throat mode α_t = 0.35; Starling Q_choke 51.772 cm³/s) |
+
+**The new tests discriminate.** On the pre-fix module (`git show HEAD:` of both changed files, scratch tree) the guard
+test, the throat-condition test (no warning for α_t = 0.45) and the scalar-G test fail; the rewritten
+`tube_law_wave_speed_and_M` and the moved throat test pass there too (they only stopped needing α > 1).
+
+**Finding L3-1 (implementer; the reason for FAIL) — `collapsible_frictionless_alpha` raises on wide upstream sections.**
+It brackets the critical area ratio with a fixed `brentq(S2 − 1, 1e-6, 1e6)`. For the power law,
+α* = (ρQ²/(A₀²K_pn))^{1/(2−n)} = α_t(A₀,t/A₀)⁴ at n = 3/2, so with the demo's throat (α_t = 0.35) α* < 1e-6 once
+A₀/A₀,t ≳ 24.3 and the call raises `ValueError: f(a) and f(b) must have different signs` instead of returning the
+subcritical root (0.88 there, near α_far = 0.88194), contrary to its docstring ("NaN if H is below the minimum").
+`test_collapsible_V1_frictionless_alpha_on_wide_upstream_sections` fails with: *A₀/A₀,t = 25 (α* = 8.96e-07), 30 (4.32e-07),
+100 (3.50e-09): ValueError*. The demo (|x| ≤ 12 cm, A₀/A₀,t ≤ 6.8) and the notebook range are not affected; a user
+sliding the upstream section out (or an explainer that does) is. **Fix (one line, verified):** replace the bracketed
+search by the closed form `a_star = (rho*Q**2/(A0**2*Kp*n))**(1/(2-n))` (valid for both forms — they share ∂P/∂α), or
+widen the bracket adaptively. With that line in a scratch copy, all 9 collapsible tests pass under `-W error`, including
+this one (Bernoulli residual < 1e-9 K_p, α increasing with A₀ towards α_far, within 1e-4 of it at A₀/A₀,t = 100).
+
+**Docstring labels after loop 3 (for the implementer, not verdict-blocking).** `elastic_tube_determinant_numeric` now
+has a genuine order study (order 6 in s₀) — its label may say `converged` again (V3 order 6 in the series start);
+`elastic_tube_flow_rate` is the reference of the new quadrature V3 study (its own label "symbolic, analytic" is right).
+`test_docstrings_V7_no_stale_validation_text` passes.
+
+### Loop 2 — what changed and how it was checked (kept for the record)
 The implementer applied Must-fix 1 and Should-fix 2 of loop 1 (below, kept for the record). Only
 `fluidpy/ch16_biofluid_mechanics.py` changed (47 + / 20 − lines), so the 44-minute full suite was not re-run; loop 1's
 full run was **2176 passed, 1 failed** (the failure was this Dean test) with chapters 1–15 untouched.
@@ -41,7 +79,7 @@ test, after its periodicity check was tightened to p(T⁻) = p(0).
 
 ## Environment
 Python 3.11.5 · numpy 2.4.6 · scipy 1.17.1 · sympy 1.14.0 · pint 0.25.3 · mpmath 1.3.0 (Windows 11, `.venv`).
-Run: `.venv/Scripts/python.exe -m pytest tests/test_ch16.py -q -p no:cacheprovider` (≈ 160 s with the slow script test; `-m "not slow"` skips the
+Run: `.venv/Scripts/python.exe -m pytest tests/test_ch16.py -q -p no:cacheprovider` (≈ 330 s with the slow script test in loop 3; `-m "not slow"` skips the
 script runs). Figures: `.venv/Scripts/python.exe tests/ch16_verify_figures.py`. References:
 `.venv/Scripts/python.exe reference/ch16/make_refs.py` (idempotent).
 
@@ -67,24 +105,26 @@ script runs). Figures: `.venv/Scripts/python.exe tests/ch16_verify_figures.py`. 
 | FL closure + Charm–Kurland (16.35)–(16.36), (16.8) | N30, N36 | `fahraeus_lindqvist_model`, `charm_kurland_core_viscosity`, `cell_conservation` | V1 residual, cell balance; V7 trend | residual < 1e-12 | analytic (model, ours) | magnitude vs Pries: Open item 3 |
 | Pries in-vitro viscosity | N29 | `pries_relative_viscosity` | V5 Secomb & Pries (2013) Eqs. (3)–(5) and their "minimum near 7 µm" | 1e-13; minimum at D = 6.85 µm | benchmark | read first-hand |
 | Tube law (16.39)–(16.41), (16.55), (16.58) | C06 | `hoop_stress`, `tube_radius_hookean`, `tube_law_hookean`, `tube_law_linear`, `wall_bulge` | V2 sympy D08; V1 quadrature of (16.38), Hooke residual, round trips; V7 guard (T16), E → ∞ | 1e-12 | symbolic, analytic | |
-| Distensible flux (16.42)–(16.46), compliance | N39–N45 | `elastic_tube_flow_rate`, `elastic_tube_pressure`, `elastic_tube_resistance`, `compliance_from_tube` | V2 sympy + pint (S4: printed a₀ is not a pressure); V3 solve_ivp of (16.43); V1 FD of volume; V7 rigid limit | p(L) to 1e-6 p₁; profile 1e-9; rigid 1e-8 | symbolic, converged | |
-| Windkessel (16.49)–(16.52) | C07 | `windkessel_ode`, `windkessel_pressure`, `windkessel_periodic_state/p0`, `windkessel_summary`, `windkessel_terms` | V1 constant/zero inflow; V2 sympy D09–D10 (integrating factor = closed systolic form) + ODE residual of the periodic state; V3 marching from rest → periodic; V4 ∫Q dt = ∫p/R dt; V5 Wikipedia diastolic form | 1e-10–1e-13 | analytic, converged, conserved | |
+| Distensible flux (16.42)–(16.46), compliance | N39–N45 | `elastic_tube_flow_rate`, `elastic_tube_pressure`, `elastic_tube_resistance`, `compliance_from_tube` | V2 sympy + pint (S4: printed a₀ is not a pressure); V1 solve_ivp of (16.43) (independent-route cross-check); V3 trapezoid/Simpson quadrature of the corrected (16.44) (loop 3); V1 FD of volume; V7 rigid limit | p(L) to 1e-6 p₁; profile 1e-9; rigid 1e-8; orders 1.999 / 3.989 | symbolic, analytic, converged | |
+| Windkessel (16.49)–(16.52) | C07 | `windkessel_ode`, `windkessel_pressure`, `windkessel_periodic_state/p0`, `windkessel_summary`, `windkessel_terms` | V1 constant/zero inflow; V2 sympy D09–D10 (integrating factor = closed systolic form) + ODE residual of the periodic state; V1 ODE and quadrature from rest → periodic (cross-check); V3 Crank–Nicolson march, order 2.000 (loop 3); V4 ∫Q dt = ∫p/R dt; V5 Wikipedia diastolic form | 1e-10–1e-13 | analytic, converged, conserved | |
 | Moens–Korteweg (16.56)–(16.63) | C08 | `moens_korteweg_speed`, `bramwell_hill_speed`, `youngs_modulus_from_pwv` | V1 Bramwell–Hill at A₀, inverse; V2 sympy linearisation D11 + cross-differentiation D12; V3 1-D model pulse speed; V5 Wikipedia form | 1e-9; speed within 0.5 % | analytic, symbolic, benchmark | S5: both momentum forms linearise alike (sympy), differ at 2nd order |
 | d'Alembert, water hammer (16.65)–(16.68) | R09, R10 | `pulse_wave`, `velocity_from_pulse(_shapes)`, `pulse_state` | V1 wave-equation and ρu_t = −p_x residuals | 1e-4 / 1e-5 (FD) | analytic | |
 | Nonlinear 1-D tube (16.53)–(16.55) | N50 | `tube1d_run` | V3 order 2.01 (grids 200/400/800 against translation); V3 pulse speed c(A₀) to 2.7e-4; V4 Σ A Δx to 1e-13 | | converged, conserved | **printed_16_54** sheds a reflected wave 4.0e-3 vs 1.7e-6 (corrected) |
 | Womersley profile (16.72)–(16.88) | C09 | `womersley_velocity`, `womersley_F1`, `womersley_ode_residual`, `womersley_pde_solve`, `_small/_large_alpha` | V1 vs 30-digit mpmath (α = 0.7 … 45); V2 sympy D13 every line, D14, D15; V3 Crank–Nicolson order 2; V5 Wikipedia forms; V7 α² and 1/α error slopes, ch08 Stokes layer | 1e-11; orders 2.00, 2.00, 1.0 | analytic, symbolic, converged, benchmark | S6: residual = −G/μ |
 | Flow, amplitude, phase (16.89)–(16.100) | C10 | `womersley_flow_rate(_harmonics)`, `womersley_wall_shear`, `womersley_XY`, `womersley_flow_ratio`, `womersley_phase_lag`, `womersley_F2(_series/_asymptote)` | V1 quadrature, FD wall shear, peak time = φ/ω; V2 sympy D16–D17 (+ mpmath ∫); V5 Wikipedia Q and τ_w; V7 series/asymptote slopes | 1e-10; slopes 4, 6, 3 (corrected) | analytic, symbolic, benchmark | S8 (τ_w sign) and **printed_16_96** (error slope 2, worse than the leading term) |
-| Viscous elastic tube (16.116)–(16.137) | C11 | `elastic_tube_characteristic`, `elastic_tube_roots`, `elastic_tube_wave(_curve)`, `elastic_tube_determinant_numeric`, `_elastic_tube_modes` | V2 sympy D18–D21; V3 independent 4 × 4 determinant; V1 mode residuals; V7 1 − c/c₀ ∝ α⁻¹, k₂/k₁ ∝ α⁻¹ | roots 1e-15; slopes 1.0 ± 0.1 | symbolic, converged | T7: the other root is a fast wall mode |
-| Murray (16.138)–(16.147) | C12 | `murray_*`, `bifurcation_cost/_point` | V2 sympy D22–D24 (stationarity, second derivative, cost split, Fermat balance); V1 grid search; V3 numeric branch point; V7 symmetric 37.4673°; V5 Wikipedia cost | angles 1e-6 rad | symbolic, analytic, converged | **printed_16_140** fails stationarity and units; 70/30 split 25.706°/49.734° (= design) |
-| Junction (16.148)–(16.163) | C13 | `junction_coefficients`, `junction_energy`, `junction_waveforms`, `junction_from_geometry`, `network_pulse_run`, admittance/impedance | V1 linear solve; V2 sympy D25–D26; V3 grid pulse; V4 energy R² + (ΣY/Y₁)T² = 1 | 1e-14; grid ≤ 1e-3 | analytic, conserved, converged | Murray fork with equal c: ΣY/Y₁ = 2^{1/3}, R < 0 |
-| Dean (16.164)–(16.182) | C14 | `dean_*`, `curved_resistance_ratio`, `DEAN_C4_DERIVED` | V2 sympy D27 steps 1–14 (1541/1045094400 → 1541/50400); V2 (16.174) sign from (16.167)–(16.168); V3 Navier–Stokes spectral solver (ψ₀, w₁, c₂, c₄); V1 conventions | c₂ 2e-6; c₄ = 6471982981/542442700800 = 0.0119312 vs spectral 0.0119311 (9e-6); printed variant 0.0121130 fails (+1.53 %) | symbolic, converged | slip S34 (16.174) coded corrected, `printed_16_174` kept (loop 2) |
-| Shapiro (16.185)–(16.206), Starling | C15 | `collapsible_*`, `shapiro_M`, `choking_flux`, `starling_state`, `flow_limitation_curve`, `wall_friction_term`, `friction_R_per_length` | V2 own sympy derivation of (16.204), (16.205) and (16.201); V1 closed-form choke, x(α) of the march, frictionless throat (Bernoulli); V3 (16.205) along the march | 1e-11 / 1e-8 | symbolic, analytic | **printed_16_201** non-zero when P depends on x; at S = 1 RHS(16.205) = −M·RHS(16.204) |
+| Viscous elastic tube (16.116)–(16.137) | C11 | `elastic_tube_characteristic`, `elastic_tube_roots`, `elastic_tube_wave(_curve)`, `elastic_tube_determinant_numeric`, `_elastic_tube_modes` | V2 sympy D18–D21; V1 independent 4 × 4 determinant (cross-check); V3 ODE determinant order 6 in the series start (loop 3); V1 mode residuals; V7 1 − c/c₀ ∝ α⁻¹, k₂/k₁ ∝ α⁻¹ | roots 1e-15; slopes 1.0 ± 0.1; order 6.000 / 6.023 | symbolic, analytic, converged | T7: the other root is a fast wall mode |
+| Murray (16.138)–(16.147) | C12 | `murray_*`, `bifurcation_cost/_point` | V2 sympy D22–D24 (stationarity, second derivative, cost split, Fermat balance); V1 grid search; V1 numeric branch point (cross-check); V7 symmetric 37.4673°; V5 Wikipedia cost | angles 1e-6 rad | symbolic, analytic, benchmark | **printed_16_140** fails stationarity and units; 70/30 split 25.706°/49.734° (= design) |
+| Junction (16.148)–(16.163) | C13 | `junction_coefficients`, `junction_energy`, `junction_waveforms`, `junction_from_geometry`, `network_pulse_run`, admittance/impedance | V1 linear solve; V2 sympy D25–D26; V1 grid pulse (C = 1 transport exact; nx = 200 and 400 identical to 1e-12); V4 energy R² + (ΣY/Y₁)T² = 1 | 1e-14; grid ≤ 1e-3 | analytic, symbolic, conserved | Murray fork with equal c: ΣY/Y₁ = 2^{1/3}, R < 0 |
+| Dean (16.164)–(16.182) | C14 | `dean_*`, `curved_resistance_ratio`, `DEAN_C4_DERIVED` | V2 sympy D27 steps 1–14 (1541/1045094400 → 1541/50400); V2 (16.174) sign from (16.167)–(16.168); V3 Navier–Stokes spectral solver (ψ₀, w₁, c₂, c₄) with a resolution study in N and M and a fit-truncation study (loop 3); V1 conventions | c₂ 2e-6; N = 21 vs 25: 3.2e-11; c₄ = 6471982981/542442700800 = 0.0119312 vs spectral 0.0119311 (9e-6); printed variant 0.0121130 fails (+1.53 %) | symbolic, converged | slip S34 (16.174) coded corrected, `printed_16_174` kept (loop 2) |
+| Shapiro (16.185)–(16.206), Starling | C15 | `collapsible_*`, `shapiro_M`, `choking_flux`, `starling_state`, `flow_limitation_curve`, `wall_friction_term`, `friction_R_per_length` | V2 own sympy derivation of (16.204), (16.205) and (16.201); V1 closed-form choke, x(α) of the march, (16.205) along the march, frictionless throat (Bernoulli, α_t = 0.35); V2 + V1 throat condition α_t ≤ 0.25^{2/3} ⇔ H ≤ 0 (loop 3); V7 range guard α ≤ 1 (loop 3) | 1e-11 / 1e-8 | symbolic, analytic | **printed_16_201** non-zero when P depends on x; at S = 1 RHS(16.205) = −M·RHS(16.204); **L3-1: `collapsible_frictionless_alpha` raises for A₀/A₀,t ≳ 24 (failing test)** |
 | Casson pipe (16.207)–(16.220) | C16 | `casson_pipe_velocity`, `casson_core_velocity`, `casson_pipe_flow_rate`, `casson_flux_ratio` | V2 sympy D31–D33 (r = s² substitution; (16.212)–(16.220) every line); V1 quadrature, annulus law by FD; V4 force balance; V7 limits | 1e-11 | symbolic, analytic, conserved | Q ∝ (1 − ξ)³ at the yield end; S26 |
 | Water potential (16.221), xylem, phloem (16.222) | C17, N110–N113 | `water_potential(_terms)`, `osmotic_pressure`, `xylem_column`, `sieve_tube_pressure_drop`, … | V1 terms, column, still water ψ uniform, sieve limits; V2 pint + book-unit form | 1e-12 | analytic | S30: printed ρgz not ÷10⁶ |
 | Power-law, Herschel–Bulkley | S01 pointer | `power_law_*`, `herschel_bulkley_pipe_flow_rate` | V1 quadrature, Buckingham–Reiner | 1e-10 | analytic | |
 
-Counts of test functions (loop 2, 91 tests, one marked slow) — by the **first** level in the name: V1 33 · V2 26 · V3 11 ·
-V4 4 · V5 4 · V6 1 · V7 12; by **any** level named: V1 33 · V2 26 · V3 12 · V4 4 · V5 5 · V6 1 · V7 14.
+Counts of test functions (loop 3, 99 tests, one marked slow) — by the **first** level in the name: V1 36 · V2 27 · V3 9 ·
+V4 4 · V5 4 · V6 1 · V7 15; by **any** level named: V1 36 · V2 27 · V3 10 · V4 4 · V5 5 · V6 1 · V7 17. Every test
+named V3 now asserts a refinement order or a resolution study (loop 2 counted V3 12 by any level, 6 of which had none).
+Loop 2's counts: V1 33 · V2 26 · V3 11 · V4 4 · V5 4 · V6 1 · V7 12 (first level).
 (Loop 1's line "V1 30 · V2 25 · … · V7 13, 89 tests" used a different counting rule; these are recounted by script.)
 
 ## Functions used by the notebook and explainers (design Part C)
@@ -104,6 +144,11 @@ All 165 names of C.1–C.10 exist and each is called in `tests/test_ch16.py` —
 | thin-layer (16.34) relative error | δ/a = 0.0025 … 0.02 | 2.0 | 2 |
 | elastic tube 1 − c/c₀, k₂/k₁ | α = 25 … 200 | 1.0, 1.0 | 1 |
 | Dean spectral solver (ψ₀ against κψ₀) | K_lec = 0.25 … 1 | 2.0 | 2 (κ²) |
+| Dean spectral solver, resolution (loop 3) | N = 9 … 25 (M = 16), M = 8 … 16 | geometric: 1.1e-4, 4.2e-7, 1.0e-8, 3.2e-11 | spectral |
+| Dean c₄ fit, number of fitted terms (loop 3) | 3 … 6 terms | 4.7e-3, 2.3e-4, 9.4e-6, 3.3e-7 relative to the exact rational | (series truncation) |
+| corrected (16.44) quadrature, trapezoid / Simpson (loop 3) | n = 8 … 64 | 1.999 / 3.989 | 2 / 4 |
+| Windkessel Crank–Nicolson march (loop 3) | Δt = T/40 … T/320 | 2.000 | 2 |
+| ODE determinant, series start s₀ (loop 3) | s₀ = 0.2 … 0.025 | 6.000 (α = 2), 6.023 (α = 8) | 6 |
 
 ## Conservation / invariant residuals
 Windkessel ∫Q dt − ∫p/R dt over a beat: 1e-10 relative · 1-D tube Σ A Δx: < 1e-13 · junction energy R² + (ΣY/Y₁)T² − 1:
@@ -145,7 +190,7 @@ cm³ bar/(mol K) is 4e-5 below CODATA; 133 Pa/mmHg is 0.24 % below the exact 133
 | viscous elastic tube | `…waves.png` (f) | c/c₀ and the amplitude kept per wavelength both rise to 1 as α grows |
 | Fig. 16.15 cost | `ch16_branches_bends_collapse_plants.png` (a) | total cost minimum at the dashed optimum radius, where pumping is half the upkeep |
 | Figs. 16.17–16.18 analogues (Dean) | `…plants.png` (b, c) | two antisymmetric counter-rotating cells; the axial maximum sits 0.187a toward the outer bend at K = 576 |
-| Fig. 16.19 analogue (tube law) | `…plants.png` (d) | shapiro form crosses −P = 0 at α = 1, both forms blow up as α → 0 |
+| Fig. 16.19 analogue (tube law) | `…plants.png` (d) | (loop 3, α ≤ 1 only) both forms rise steeply as α → 0.15 (−P ≈ 16–17), the shapiro curve reaches −P = 0 and the pure curve −P = 1 exactly at the dotted α = 1 line where the fitted range ends |
 | Starling resistor | `…plants.png` (e) | Q rises as p₂ falls and plateaus at 20.0 mL/s for −(p₂ − p_e) > 946 Pa (dashed) |
 | §16.4 xylem column | `…plants.png` (f) | p falls linearly with height faster than ψ (gravity + drag), ψ falls by the viscous drop only, gravity term grows linearly |
 
@@ -209,12 +254,15 @@ Navier–Stokes form of the Dean equations) and, through `printed_16_174=True`, 
    Design C.13 difference (1) is settled in favour of the α-integration; E9's parity tolerance can drop to rtol 1e-10.
 
 ## Open items
+0. **L3-1 (blocks PASS):** `collapsible_frictionless_alpha` raises `ValueError` when the critical area ratio α* < 1e-6
+   (A₀/A₀,throat ≳ 24 for the demo throat); failing test `test_collapsible_V1_frictionless_alpha_on_wide_upstream_sections`;
+   one-line closed-form fix verified in a scratch copy (see Loop 3).
 1. Dean (1928) itself was not reached; the K⁴ coefficient therefore rests on two independent routes of ours (sympy series
    of the corrected equations and a spectral Navier–Stokes solution, agreeing to 9e-6), not on a cited value. The
    often-quoted 0.01195 (analysis §8 B6, not read first-hand) would be 0.16 % from ours. Label for c₄: `symbolic` +
    `converged` (no V5).
 2. No public numeric table was reached for the viscous elastic-tube wave (Womersley 1955/1957; analysis B11): C11 rests
-   on sympy (D18–D21) and an independent 4 × 4 determinant (V3), both of which agree to 1e-15.
+   on sympy (D18–D21) and an independent 4 × 4 determinant (V1 cross-check), both of which agree to 1e-15, plus the order-6 study of the ODE determinant (V3, loop 3).
 3. The Fåhræus–Lindqvist closure (two layers + Charm–Kurland, δ = 2.5 µm, ours — trap T19) reproduces the direction of the
    effect but is 20 % (D = 20 µm) to 35 % (D = 300 µm) below the cited Pries in-vitro curve, because Charm–Kurland at
    310 K gives a whole-blood viscosity ratio near 2 where Pries's high-shear data give 3.2; label `qualitative` for the

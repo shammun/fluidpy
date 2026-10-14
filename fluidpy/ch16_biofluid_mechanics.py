@@ -197,7 +197,7 @@ def cardiac_output(SV, HR):
     SV : stroke volume [m³];  HR : heart rate [beats/min].
     Returns
     -------
-    CO [m³/s] (multiply by 6e7 for L/min… or use ×60e3 for L/min: CO·60·1000).
+    CO [m³/s] (multiply by 6e4 for L/min — ×60 s/min × 1000 L/m³ — or by 6e7 for mL/min).
     Assumptions: steady beat-to-beat.  Validation: V1; V4 equals the time mean of the ejection flow. Label: analytic.
     """
     return _S(_F(SV) * _F(HR) / 60.0)  # Eq. (16.3), per second
@@ -435,6 +435,8 @@ def poiseuille_flow_rate(a, dp, L, mu):
     Parameters
     ----------
     a [m];  dp [Pa];  L [m];  mu [Pa s].
+    Argument order (positional): a, dp, L, mu — :func:`vascular_resistance` takes (mu, L, a); call by keyword when in
+    doubt.
     Returns
     -------
     Q [m³/s].
@@ -468,6 +470,8 @@ def vascular_resistance(mu, L, a):
     Parameters
     ----------
     mu [Pa s];  L [m];  a : radius [m].
+    Argument order (positional): mu, L, a — the reverse of :func:`poiseuille_flow_rate`'s (a, dp, L, mu); swapping
+    a and μ is silent and wrong by orders of magnitude, so call by keyword when in doubt.
     Returns
     -------
     R [Pa s/m³] (÷ :data:`PRU` for mmHg s/cm³).
@@ -794,10 +798,16 @@ def tube_radius_hookean(p, pe, a0, E, h):
     Parameters
     ----------
     p [Pa];  pe [Pa];  a0 : unstressed radius [m];  E : Young's modulus [Pa];  h : wall thickness [m].
+    Argument order (positional): p, pe, a0, E, h — note the sibling :func:`tube_law_hookean` takes (A, A0, E, h, a0);
+    call by keyword when mixing them.
     Returns
     -------
     a [m].
     Assumptions: thin wall, linear elastic (Hookean) wall, quasi-static.
+    Regime: meant for distension, p ≥ p_e (a ≥ a₀).  For p < p_e the formula still returns a circular radius a < a₀,
+    but a real thin tube under negative transmural pressure buckles and collapses non-circularly long before that
+    (the collapsible-tube regime of §16.3, Shapiro's law (16.188) — :func:`collapsible_tube_law`); small negative
+    values are a linear-elastic extrapolation only.
     Validation: V1 inverse of :func:`tube_law_hookean`; V7 E → ∞ ⇒ a₀. Label: analytic.
     """
     beta = _F(a0) * (_F(p) - _F(pe)) / (_F(E) * _F(h))
@@ -813,6 +823,7 @@ def tube_law_hookean(A, A0, E, h, a0):
     Parameters
     ----------
     A : area [m²];  A0 : unstressed area πa₀² [m²];  E [Pa];  h [m];  a0 [m].
+    Argument order (positional): A, A0, E, h, a0 (a₀ last — unlike :func:`tube_radius_hookean`'s p, pe, a0, E, h).
     Returns
     -------
     p − p_e [Pa].
@@ -827,6 +838,7 @@ def tube_law_linear(A, A0, E, h, a0):
 
     Book: §16.3, Eq. (16.58) (Taylor expansion of (16.55) about A₀).
     Parameters: A [m²];  A0 [m²];  E [Pa];  h [m];  a0 [m].  Returns p − p_e [Pa].
+    Argument order (positional): A, A0, E, h, a0 (as :func:`tube_law_hookean`).
     Validation: V2 sympy series of (16.55). Label: symbolic.
     """
     return _S(_F(E) * _F(h) / (2.0 * _F(a0) * _F(A0)) * (_F(A) - _F(A0)))  # Eq. (16.58)
@@ -846,8 +858,9 @@ def elastic_tube_flow_rate(p1, p2, pe, a0, E, h, mu, L):
     -------
     Q [m³/s].
     Assumptions: steady, laminar, slowly varying radius (lubrication), thin Hookean wall.
-    Validation: V2 sympy: d/dp of the bracket gives (16.44) with a₀⁴; V3 solve_ivp of (16.43) along x;
-    V7 E → ∞ ⇒ (16.17). Label: symbolic, converged.
+    Validation: V2 sympy: d/dp of the bracket gives (16.44) with a₀⁴; V1 independent-route cross-check: solve_ivp of
+    (16.43) along x (no refinement order asserted); V7 E → ∞ ⇒ (16.17). Label: symbolic, analytic.
+    Argument order (positional): p1, p2, pe, a0, E, h, mu, L — call by keyword when in doubt.
     """
     a0, E, h, mu, L = (float(v) for v in (a0, E, h, mu, L))
     b1 = a0 * (_F(p1) - float(pe)) / (E * h)
@@ -870,7 +883,9 @@ def elastic_tube_pressure(x, Q, p1, pe, a0, E, h, mu):
     -------
     p(x) [Pa] (NaN where the tube would have collapsed to zero radius — the bracket ≤ 0).
     Assumptions: as :func:`elastic_tube_flow_rate`.
-    Validation: V3 solve_ivp of dp/dx = −8μQ/(πa(p)⁴) (16.43). Label: converged.
+    Validation: V1 independent-route cross-check: solve_ivp of dp/dx = −8μQ/(πa(p)⁴) (16.43) (no refinement order
+    asserted). Label: analytic.
+    Argument order (positional): x, Q, p1, pe, a0, E, h, mu.
     """
     a0, E, h, mu, Q = (float(v) for v in (a0, E, h, mu, Q))
     b1 = a0 * (float(p1) - float(pe)) / (E * h)
@@ -987,7 +1002,8 @@ def windkessel_ode(t, Q_fn: Callable, R, K, p0, *, rtol: float = 1e-12, atol: fl
     -------
     p [Pa] at t.
     Assumptions: as :func:`windkessel_rhs`.
-    Validation: V1 agrees with :func:`windkessel_pressure` (16.52) to 1e-8 relative. Label: converged.
+    Validation: V1 independent-route cross-check: agrees with the closed form :func:`windkessel_pressure` (16.52) to
+    1e-8 relative (no refinement order asserted). Label: analytic.
     """
     t = _F(t)
     if max_step is None:
@@ -1279,6 +1295,9 @@ def pulse_state(x, t, *, c, amplitude, width, rho, a0, E, h, ic: str = "right", 
     Returns
     -------
     dict p [Pa] (transmural), u [m/s], a [m].
+    Regime / reading: the pulse pressure is treated as the *whole* transmural pressure (p_e = 0 and no mean pressure
+    in the tube law), so ``a0`` is the radius at the mean (diastolic) pressure about which the pulse is a perturbation,
+    not the unstressed radius; a(x, t) shows the wall's response to the pulse alone.  Linear acoustics: amplitude ≪ ρc².
     Validation: V1 u = p/(ρc) for the right-going pulse; a from :func:`tube_radius_hookean`. Label: analytic.
     """
     if ic == "right":
@@ -1305,6 +1324,7 @@ def tube1d_pressure_flux(A, A0, E, h, a0, *, printed_16_54: bool = False):
     Book: §16.3, Eqs. (16.53)–(16.55).  DEVIATION: slip S5 — the printed right side −∂((p − p_e)A)/∂x of (16.54) is
     physically −A∂p/∂x (the wall's axial reaction cancels (p − p_e)∂A/∂x); both give c² = Eh/(2ρa₀) once linearised.
     Parameters: A [m²];  A0 [m²];  E [Pa];  h [m];  a0 [m];  printed_16_54.  Returns Π [N/m = Pa m²].
+    Argument order (positional): A, A0, E, h, a0 (as :func:`tube_law_hookean`).
     Label: analytic.
     """
     A = _F(A)
@@ -1568,6 +1588,9 @@ def elastic_tube_wave(alpha, c0: float = 1.0, poisson=0.5, *, omega: float = 1.0
     alpha : Womersley number [–];  c0 : Moens–Korteweg speed √(Eh/(2ρa₀)) [m/s];  poisson : ν̂ (or ν̂*, complex);
     omega : ω [rad/s] (for k₁, k₂; k₀ = ω/c₀);  branch : "pressure" | "other" ("wall" accepted);
     E_ratio : E*/E = 1 − iωE′/E (complex).
+    Defaults: c0 = 1 and omega = 1 are placeholders that make the dimensionless outputs (X, c_over_c0, k2_over_k1,
+    damping_per_wavelength) correct for any tube; c, k1, k2 are dimensional only when *both* c0 [m/s] and omega
+    [rad/s] are set to the physical values (with the defaults they are in units of c₀ and ω/c₀).
     Returns
     -------
     dict: X (complex), c [m/s], c_over_c0 [–], k1, k2 [1/m], k2_over_k1 [–], damping_per_wavelength = e^{−2πk₂/k₁}
@@ -1632,8 +1655,10 @@ def elastic_tube_determinant_numeric(Xk, alpha, poisson=0.5, *, rtol: float = 1e
     det (complex, dimensionless after row normalisation).
     Cost: ≈ 30 ms per call.
     Assumptions: as :func:`elastic_tube_characteristic`.
-    Validation: V3 vanishes (to ≈ 1e-9 of its typical size) at the roots of :func:`elastic_tube_characteristic`.
-    Label: converged.
+    Validation: V1 independent-route cross-check: vanishes (to ≈ 1e-9 of its typical size) at the roots of
+    :func:`elastic_tube_characteristic`; V3 order 6 in the series start s₀ (the truncated series at s₀ has error
+    O(s₀⁶); observed order ≈ 6.0).
+    Label: analytic, converged.
     """
     alpha = float(alpha)
     nu_ = complex(poisson)
@@ -1802,7 +1827,8 @@ def bifurcation_point(A, C, D, a0, a1, a2) -> dict:
     numerical minimisation is our independent route.
     Parameters: A, C, D points [m];  a0, a1, a2 [m].
     Returns dict: B (2,), cost, theta, phi [rad] (θ between the continuation of AB and BC, φ for BD).
-    Validation: V3 angles equal :func:`murray_angles` to 1e-6 rad. Label: converged.
+    Validation: V1 independent-route cross-check: angles equal the closed form :func:`murray_angles` to 1e-6 rad (no
+    refinement order asserted). Label: analytic.
     """
     from scipy.optimize import minimize
 
@@ -1931,7 +1957,8 @@ def network_pulse_run(L_parent, L_daughters, c_parent, c_daughters, Y_parent, Y_
     ratios: reflected at the probe, transmitted in daughter 1, over incident), R_theory, T_theory (16.153), dt.
     Cost: ≈ 30 ms at nx = 400.
     Assumptions: linear, inviscid, long wave, no storage at the junction.
-    Validation: V3 R_measured, T_measured equal (16.153) to ≤ 1e-3. Label: converged.
+    Validation: V1 independent-route cross-check: R_measured, T_measured equal (16.153) to ≤ 1e-3 (no refinement
+    order asserted). Label: analytic.
     """
     if fast:
         nx = 160
@@ -2398,58 +2425,108 @@ def bending_stiffness_parameter(E, h, a0, poisson, *, coeff: float):
     return _S(float(coeff) * _F(E) * (_F(h) / _F(a0)) ** 3 / (1.0 - _F(poisson) ** 2))  # Eq. (16.187)
 
 
+ALPHA_MAX_COLLAPSE = 1.0  # upper end of the fitted (collapse) branch of (16.188), Fig. 16.19
+_ALPHA_ROUNDOFF = 1e-12   # relative round-off allowance above α = 1 (α_in = alpha_from_tube_law(0) is exactly 1)
+
+
+def _collapse_guard(al, name: str = "area_ratio", stacklevel: int = 3):
+    """Range guard of Shapiro's tube law (16.188): valid for α ≤ 1 (collapse branch, P ≤ 0).
+
+    For α > 1 (distension) Fig. 16.19 rises almost vertically and the fit fails: the shapiro form caps P at 1 and
+    c² = nK_pα⁻ⁿ/ρ falls as the tube inflates (non-physical).  Scalars: RuntimeWarning, the extrapolated value is
+    still returned.  Arrays: RuntimeWarning, NaN at the offending entries (the trap-T16 pattern).
+    Returns (al as float array, mask of entries to blank — all False for a scalar).
+    """
+    al = _F(al)
+    bad = al > ALPHA_MAX_COLLAPSE * (1.0 + _ALPHA_ROUNDOFF)
+    if np.any(bad):
+        if al.ndim == 0:
+            warnings.warn(f"{name} = {float(al):.4g} > 1: Shapiro's tube law (16.188) is fitted to the collapse branch "
+                          "(α ≤ 1, Fig. 16.19) and is extrapolated here", RuntimeWarning, stacklevel=stacklevel)
+            bad = np.zeros_like(bad)
+        else:
+            warnings.warn(f"{name} > 1 at {int(np.count_nonzero(bad))} point(s): outside the fitted collapse branch of "
+                          "(16.188) (α ≤ 1, Fig. 16.19); returning NaN there", RuntimeWarning, stacklevel=stacklevel)
+    return al, bad
+
+
+def _tube_law_raw(al, n: float, form: str):
+    """Unguarded (16.188) for internal root finding (brackets may probe α > 1); P [–]."""
+    if form == "shapiro":
+        return 1.0 - al ** (-float(n))  # Eq. (16.188)
+    if form == "pure":
+        return -al ** (-float(n))
+    raise ValueError('form must be "shapiro" or "pure"')
+
+
 def collapsible_tube_law(area_ratio, *, n: float = 1.5, form: str = "shapiro"):
     """Shapiro's collapsible tube law P = (p − p_e)/K_p as a function of α = A/A₀:
     "shapiro" −P ≈ α⁻ⁿ − 1 (P = 1 − α⁻ⁿ), "pure" −P = α⁻ⁿ (the two fits of Fig. 16.19).
 
     Book: §16.3, Eqs. (16.186), (16.188) (n = 3/2); Fig. 16.19.  P < 0 means collapse (trap T9).
-    Parameters: area_ratio α [–] (> 0);  n [–];  form.  Returns P [–].
+    **Valid for α ≤ 1 (collapse branch, Fig. 16.19).**  For α > 1 the measured curve rises almost vertically and the
+    fit fails (the shapiro form caps P at 1): a scalar α > 1 gives a RuntimeWarning (value extrapolated), array
+    entries α > 1 give NaN plus a RuntimeWarning.
+    Parameters: area_ratio α [–] (> 0, ≤ 1);  n [–];  form.  Returns P [–].
     Assumptions: tube law depends on α only; longitudinal tension neglected.  Label: analytic.
     """
     al = _F(area_ratio)
     require_positive("area_ratio", al)
-    if form == "shapiro":
-        return _S(1.0 - al ** (-float(n)))  # Eq. (16.188)
-    if form == "pure":
-        return _S(-al ** (-float(n)))
-    raise ValueError('form must be "shapiro" or "pure"')
+    al, bad = _collapse_guard(al)
+    P = _tube_law_raw(al, n, form)  # Eq. (16.188)
+    return _S(np.where(bad, np.nan, P))
 
 
 def collapsible_tube_law_derivatives(area_ratio, n: float = 1.5, form: str = "shapiro"):
     """(P, dP/dα, d²P/dα²) of :func:`collapsible_tube_law` (both forms share the derivatives nα^{−n−1}, −n(n+1)α^{−n−2}).
 
-    Book: §16.3, (16.188), used in (16.189), (16.206).  Returns a tuple of floats/arrays.  Label: analytic.
+    Book: §16.3, (16.188), used in (16.189), (16.206).  Valid for α ≤ 1 (same guard as :func:`collapsible_tube_law`:
+    scalar α > 1 warns, array entries α > 1 are NaN in all three).  Returns a tuple of floats/arrays.  Label: analytic.
     """
     al = _F(area_ratio)
+    require_positive("area_ratio", al)
+    al, bad = _collapse_guard(al)
     n = float(n)
-    return collapsible_tube_law(al, n=n, form=form), _S(n * al ** (-n - 1.0)), _S(-n * (n + 1.0) * al ** (-n - 2.0))
+    P = _tube_law_raw(al, n, form)
+    dP = n * al ** (-n - 1.0)
+    d2P = -n * (n + 1.0) * al ** (-n - 2.0)
+    return tuple(_S(np.where(bad, np.nan, v)) for v in (P, dP, d2P))
 
 
 def alpha_from_tube_law(P, n: float = 1.5, form: str = "shapiro"):
     """Invert the tube law: α = (1 − P)^{−1/n} ("shapiro", P < 1) or (−P)^{−1/n} ("pure", P < 0).
 
     Book: §16.3, Eq. (16.188) inverted (ours).  Parameters: P [–];  n;  form.  Returns α [–].
+    The fit is valid for α ≤ 1, i.e. P ≤ 0 (shapiro form): P > 0 (distension) warns for a scalar (value returned) and
+    gives NaN plus a RuntimeWarning for array entries.
     Validation: V1 round trip with :func:`collapsible_tube_law`. Label: analytic."""
     P = _F(P)
     if form == "shapiro":
         if np.any(P >= 1.0):
             raise ValueError("the shapiro form has P < 1")
-        return _S((1.0 - P) ** (-1.0 / float(n)))
-    if form == "pure":
+        al = (1.0 - P) ** (-1.0 / float(n))
+    elif form == "pure":
         if np.any(P >= 0.0):
             raise ValueError("the pure form has P < 0")
-        return _S((-P) ** (-1.0 / float(n)))
-    raise ValueError('form must be "shapiro" or "pure"')
+        al = (-P) ** (-1.0 / float(n))
+    else:
+        raise ValueError('form must be "shapiro" or "pure"')
+    al, bad = _collapse_guard(al, name="alpha_from_tube_law (P > 0: distended)")
+    return _S(np.where(bad, np.nan, al))
 
 
 def collapsible_wave_speed(area_ratio, Kp, rho, n: float = 1.5):
     """Long-wave speed in a collapsible tube, c² = (A/ρ)∂(p − p_e)/∂A = nK_pα⁻ⁿ/ρ.
 
-    Book: §16.3, Eq. (16.189) (from (16.185) with (16.188); derivation a-d37).
+    Book: §16.3, Eq. (16.189) (from (16.185) with (16.188); derivation a-d37).  Valid for α ≤ 1 (the range of
+    (16.188); for α > 1 this c falls as the tube inflates, which is non-physical): scalar α > 1 warns, array entries
+    α > 1 are NaN.
     Parameters: area_ratio α [–];  Kp [Pa];  rho [kg/m³];  n [–].  Returns c [m/s].
     Validation: V1 = :func:`bramwell_hill_speed` with a finite-difference dp/dA. Label: analytic.
     """
-    return _S(np.sqrt(float(n) * _F(Kp) * _F(area_ratio) ** (-float(n)) / _F(rho)))  # Eq. (16.189)
+    al, bad = _collapse_guard(area_ratio)
+    c = np.sqrt(float(n) * _F(Kp) * al ** (-float(n)) / _F(rho))  # Eq. (16.189)
+    return _S(np.where(bad, np.nan, c))
 
 
 def speed_index(u, c):
@@ -2577,6 +2654,7 @@ def collapsible_terms(area_ratio, Q, prm, *, x: float = 0.0, dA0dx: float | None
     Book: §16.3, Eq. (16.204) (derivation D30: substitute (16.200) into (16.194), collect dα).  The driver sum is
     formed **before** dividing by 1 − S² (ch15 lesson, trap T10).  Friction: laminar R = 8πμ/(αA₀)² per unit length
     (:func:`friction_R_per_length` with f′_L = 8), so that τ_ws dx/A = RQ dx.
+    Valid for α ≤ 1 (the collapse branch of (16.188), Fig. 16.19): α > 1 gives a RuntimeWarning (values extrapolated).
     Parameters
     ----------
     area_ratio α [–];  Q [m³/s];  prm : dict (L, A0, Kp, n, rho, mu; optional pe, dzdx, form, friction, f_L_prime,
@@ -2591,6 +2669,8 @@ def collapsible_terms(area_ratio, Q, prm, *, x: float = 0.0, dA0dx: float | None
     prm = _as_tube(prm)
     x = float(x)
     al = float(area_ratio)
+    if al > ALPHA_MAX_COLLAPSE * (1.0 + _ALPHA_ROUNDOFF):  # (16.188) range guard (scalar fast path)
+        _collapse_guard(al, stacklevel=4)
     A0, Kp = prm.val("A0", x), prm.val("Kp", x)
     n = float(prm.n)
     an = al ** (-n)
@@ -2663,7 +2743,9 @@ def collapsible_march(Q, alpha_in, x_span, prm, *, rtol: float = 1e-9, atol: flo
     dict: x, alpha, S, p (= p_e + K_pP(α)), u, c, choked (bool), x_choke (or None).
     Assumptions: steady, 1-D, incompressible, P = P(α) (16.203).
     Validation: V1 frictionless case equals :func:`collapsible_frictionless_alpha` (Bernoulli); V1 S² from α obeys
-    (16.205); signs of dα/dx for S < 1 and S > 1 (friction). Label: analytic, converged.
+    (16.205); signs of dα/dx for S < 1 and S > 1 (friction) (independent-route cross-checks; no refinement order
+    asserted). Label: analytic.
+    Regime: the tube law (16.188) is valid for α ≤ 1 (collapse branch, Fig. 16.19); states α > 1 warn.
     """
     prm = _as_tube(prm)
     x0, x1 = (float(v) for v in x_span)
@@ -2711,35 +2793,47 @@ def collapsible_frictionless_alpha(Q, H, A0, Kp, rho, n: float = 1.5, *, form: s
     d/dα of the left side vanishes); "sub" is α above that point (S < 1), "super" below (S > 1).
     Parameters: Q [m³/s];  H : K_pP + ½ρu² [Pa] (a constant);  A0 [m²] (local);  Kp [Pa];  rho;  n;  form;  branch.
     Returns α [–] (NaN if H is below the minimum: no steady solution at this A₀).
+    Regime: the tube law (16.188) is valid for α ≤ 1 (collapse branch, Fig. 16.19).  The sub branch stays at α ≤ 1
+    everywhere iff H ≤ 0 (for n = 3/2 and S = 1 at a throat of area ratio α_t: iff α_t ≤ 0.25^{2/3} = 0.397); a root
+    α > 1 is returned with a RuntimeWarning (extrapolated fit).  The root search itself probes α > 1 silently.
     Label: analytic.
     """
     A0, Kp, rho, Q, H = (float(v) for v in (A0, Kp, rho, Q, H))
-
-    def S2(al):
-        _, dP, _ = collapsible_tube_law_derivatives(al, n, form)
-        return rho * Q ** 2 / (al ** 3 * A0 ** 2 * Kp * float(dP))
-
-    a_star = brentq(lambda al: S2(al) - 1.0, 1e-6, 1e6)
+    n = float(n)
+    if not n < 2.0:
+        raise ValueError("collapsible_frictionless_alpha needs n < 2 (S² ∝ α^(n−2) must fall with α)")
+    # Critical section S = 1: S² = ρQ²/(α³A₀²K_p dP/dα) with dP/dα = nα^{−n−1} for both forms of (16.188), so
+    # S² = ρQ²α^{n−2}/(A₀²K_p n) and the root is closed-form — no bracket that wide upstream sections (α* ≪ 1e-6,
+    # α* = α_t(A₀,t/A₀)⁴ at n = 3/2) could fall outside of.
+    a_star = float((rho * Q ** 2 / (A0 ** 2 * Kp * n)) ** (1.0 / (2.0 - n)))  # Eq. (16.189) with S = 1
 
     def f(al):
-        return Kp * float(collapsible_tube_law(al, n=n, form=form)) + 0.5 * rho * Q ** 2 / (al * A0) ** 2 - H
+        return Kp * _tube_law_raw(al, n, form) + 0.5 * rho * Q ** 2 / (al * A0) ** 2 - H
+
+    def done(al):
+        al = float(al)
+        if al > ALPHA_MAX_COLLAPSE * (1.0 + _ALPHA_ROUNDOFF):
+            _collapse_guard(al, name="collapsible_frictionless_alpha root", stacklevel=4)
+        return al
 
     f_star = f(a_star)
     if f_star > 1e-12 * max(abs(H), Kp):
         return float("nan")
     if f_star >= 0.0:  # at the critical section itself (round-off): both branches meet at α*
-        return float(a_star)
+        return done(a_star)
     if branch == "sub":
         hi = a_star * 2.0
         while f(hi) < 0:
             hi *= 2.0
             if hi > 1e8:
                 return float("nan")
-        return brentq(f, a_star, hi, xtol=1e-15)
+        return done(brentq(f, a_star, hi, xtol=1e-15))
     lo = a_star / 2.0
-    while f(lo) < 0:
+    while f(lo) < 0:  # the kinetic term ∝ α⁻² outgrows K_pα⁻ⁿ (n < 2) as α → 0, so this terminates
         lo /= 2.0
-    return brentq(f, lo, a_star, xtol=1e-15)
+        if lo < 1e-300:
+            return float("nan")
+    return done(brentq(f, lo, a_star, xtol=1e-15 * a_star))
 
 
 def _is_uniform(prm: CollapsibleTube) -> bool:
@@ -2813,7 +2907,9 @@ def starling_state(p1, p2, pe, prm, *, L: float | None = None, _lim: dict | None
     Returns dict: Q [m³/s], alpha_out [–], S_out [–], limited (bool), Q_lim [m³/s], p2_lim [Pa].
     Assumptions: as :func:`collapsible_march`; downstream of a choked outlet the flow adjusts outside the model.
     Cost: ≈ 0.3 s (one bisection for the limit, one root find).
-    Validation: V1 the plateau Q equals the flux at which S_out → 1. Label: analytic, converged.
+    Regime: the tube law (16.188) is valid for α ≤ 1, so p₁ ≤ p_e (inlet not distended); p₁ > p_e warns.
+    Validation: V1 the plateau Q equals the flux at which S_out → 1 (closed-form cross-check; no refinement order
+    asserted). Label: analytic.
     """
     prm = _as_tube(prm)
     L = _tube_length(prm, L)
@@ -2866,7 +2962,9 @@ def flow_limitation_curve(p2_list, *, p1, pe, prm, L: float | None = None) -> di
     Parameters: p2_list [Pa];  p1, pe [Pa];  prm dict (L, A0, Kp, n, rho, mu) or :class:`CollapsibleTube`;  L [m]
     (overrides prm["L"]).
     Returns dict: p2, Q, S_out, limited (arrays), Q_choke [m³/s], p2_choke [Pa] (Q_lim, p2_lim aliases).
-    Cost ≈ 0.1 s per point.  Label: converged.
+    Regime: as :func:`starling_state` (p₁ ≤ p_e, α ≤ 1).
+    Cost ≈ 0.1 s per point.  Validation: V1 Q_choke and p₂ at the choke equal the closed-form α-integral (no
+    refinement order asserted).  Label: analytic.
     """
     prm = _as_tube(prm)
     L = _tube_length(prm, L)

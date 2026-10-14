@@ -35,7 +35,7 @@ def main() -> int:
     I = ch16.illustrative_inputs()
     rho, Kp, n = I["rho_water"], I["Kp_collapse"], 1.5
     A0 = np.pi * I["a_collapse"] ** 2
-    al = np.linspace(0.15, 1.6, 300)
+    al = np.linspace(0.15, 1.0, 300)  # (16.188) is fitted to the collapse branch only: α ≤ 1 (Fig. 16.19)
     P1, dP, d2P = ch16.collapsible_tube_law_derivatives(al, n)
     print(f"tube law (16.188), n = 3/2: M = 3 + αP″/P′ (16.206) = {ch16.shapiro_M(0.5):.3f} = 2 − n "
           f"(finite differences {ch16.shapiro_M(0.5, tube_law=lambda a: 1 - a ** -1.5):.6f})")
@@ -51,13 +51,19 @@ def main() -> int:
     ax[0].plot(al, -ch16.collapsible_tube_law(al, n=n), color=C_WALL, label="−P = α⁻ⁿ − 1 (16.188)")
     ax[0].plot(al, -ch16.collapsible_tube_law(al, n=n, form="pure"), color=C_REF, ls="--", label="−P = α⁻ⁿ")
     ax[0].axhline(0, color=C_REF, lw=0.6)
-    ax[0].set(xlabel="area ratio α = A/A₀", ylabel="−P = −(p − p_e)/K_p", ylim=(-1, 16),
+    ax[0].axvline(1.0, color=C_REF, lw=0.6, ls=":")
+    ax[0].text(0.98, 9.0, "fit valid for α ≤ 1\n(collapse branch)", ha="right", fontsize=8)
+    ax[0].set(xlabel="area ratio α = A/A₀", ylabel="−P = −(p − p_e)/K_p", xlim=(0.1, 1.05), ylim=(-0.5, 18),
               title="collapsible tube law (ours, Fig. 16.19 style)")
     ax[0].legend()
-    # smooth throat transition (frictionless): S = 1 exactly at the A₀ minimum
-    al_t = 0.6
+    # smooth throat transition (frictionless): S = 1 exactly at the A₀ minimum.  The whole subcritical branch stays on
+    # the fitted collapse branch (α ≤ 1) iff H = K_pP(α_t) + ½ρc_t² = K_p[1 − (1 − n/2)α_t⁻ⁿ] ≤ 0, i.e.
+    # α_t ≤ (1 − n/2)^{1/n} = 0.25^{2/3} = 0.397 for n = 3/2; we take α_t = 0.35.
+    al_t = 0.35
+    al_t_max = (1.0 - n / 2.0) ** (1.0 / n)
     Qs = ch16.choking_flux(al_t, A0, Kp, rho, n)
     H = Kp * ch16.collapsible_tube_law(al_t, n=n) + 0.5 * rho * (Qs / (al_t * A0)) ** 2
+    a_far = ch16.alpha_from_tube_law(H / Kp, n)  # far upstream: u → 0, K_pP(α) = H
     ell = 0.05
     A0f = lambda x: A0 * (1 + (x / ell) ** 2)  # noqa: E731
     prm = dict(A0=A0f, Kp=Kp, n=n, rho=rho, mu=I["mu_water"], friction=False)
@@ -72,6 +78,9 @@ def main() -> int:
     ber_m = np.array([ch16.collapsible_frictionless_alpha(Qs, H, A0f(x), Kp, rho, n) for x in m["x"]])
     fe = xe < -0.02
     ber_e = np.array([ch16.collapsible_frictionless_alpha(Qs, H, A0f(x), Kp, rho, n) for x in xe[fe]])
+    print(f"throat mode (ours): α_t = {al_t} (≤ α_t,max = (1 − n/2)^(1/n) = {al_t_max:.4f}), "
+          f"H = K_pP + ½ρu² = {H:.2f} Pa ≤ 0; upstream α: {a_in:.4f} at x = {x_in * 100:.0f} cm, "
+          f"{a_far:.4f} far upstream (all ≤ 1); max α of the subcritical branch shown = {np.nanmax(sub):.4f}")
     print(f"throat (ours): critical flux Q* = α_tA₀c(α_t) = {Qs * 1e6:.3f} cm³/s at α_t = {al_t}; the march stops at "
           f"x = {m['x_choke']:.2e} m (throat at 0) with S = {m['S'][-1]:.6f}; march vs Bernoulli: "
           f"{np.max(np.abs(ber_m[far] - m['alpha'][far])):.1e} for x < −2 cm, {np.max(np.abs(ber_m - m['alpha'])):.1e} up to "
@@ -80,7 +89,7 @@ def main() -> int:
     ax[1].plot(xb * 100, sup, color=C_P, label="supercritical branch (S > 1)")
     ax[1].plot(m["x"] * 100, m["alpha"], color=C_E, ls="--", lw=2, label="march of (16.204) to S = 1")
     ax[1].plot(xb * 100, A0f(xb) / A0, color=C_REF, ls=":", label="A₀(x)/A₀,min")
-    ax[1].set(xlabel="x [cm]", ylabel="α = A/A₀(x)", ylim=(0, 2.2), title="smooth transition at the throat (Fig. 16.20a)")
+    ax[1].set(xlabel="x [cm]", ylabel="α = A/A₀(x)", ylim=(0, 1.6), title="smooth transition at the throat (Fig. 16.20a)")
     ax[1].legend(fontsize=8)
     # Starling resistor: flow limitation
     prmS = dict(L=I["L_collapse"], A0=A0, Kp=Kp, n=n, rho=rho, mu=I["mu_water"])
@@ -111,7 +120,7 @@ def main() -> int:
     def balance(a_):
         return ch16.collapsible_terms(a_, Qg, prmS, dzdx=-1.0)["driver"]
 
-    a_eq = brentq(balance, 1e-4, 5.0)
+    a_eq = brentq(balance, 1e-4, 1.0)  # bracket kept on the fitted collapse branch α ≤ 1 of (16.188)
     tr = ch16.collapsible_terms(a_eq, Qg, prmS, dzdx=-1.0)
     print(f"  vertical tube draining down (dz/dx = −1), Q = {Qg * 1e6:.2f} cm³/s: uniform state where friction balances gravity "
           f"at α = {a_eq:.4f} (S = {np.sqrt(tr['S2']):.3f}, p − p_e = {Kp * tr['P']:.1f} Pa: partly collapsed)")

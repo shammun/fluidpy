@@ -295,8 +295,9 @@ def womersley_F2_asymptote(alpha, *, printed_16_96: bool = False):
     """Large-α asymptote of F₂: corrected F₂ ≈ (2/(i^{1/2}α))(1 + i^{3/2}/(2α)) = 2/(i^{1/2}α) + i/α².
 
     Book: §16.3, Eq. (16.96), printed F₂ ≈ (2/(i^{1/2}α))(1 + 1/(2α)).
-    DEVIATION: slip S10 — the printed correction 1/(2α) should be i^{3/2}/(2α) (from J₁/J₀ → −i[1 − i/(2z) + …] for
-    Im z → +∞, z = i^{3/2}α).  The printed form is less accurate than the leading term alone (error ∝ α⁻² against
+    DEVIATION: slip S10 — the printed correction 1/(2α) should be i^{3/2}/(2α) (from J₁/J₀ → +i[1 − i/(2z) + …] for
+    Im z → +∞, z = i^{3/2}α; numerically J₁/J₀ = −0.00712 + 0.99293i at α = 50, against +i[1 − i/(2z)] =
+    −0.00707 + 0.99293i).  The printed form is less accurate than the leading term alone (error ∝ α⁻² against
     α⁻³ for the corrected form); ``printed_16_96=True`` returns it for the test that must fail.
     Parameters
     ----------
@@ -426,8 +427,9 @@ def womersley_flow_rate(t, a, omega, rho, mu, G):
     real/imaginary split for one mode.
     Parameters
     ----------
-    t : time(s) [s];  a [m];  omega [rad/s];  rho [kg/m³];  mu [Pa s];  G : scalar amplitude [Pa/m] (single harmonic,
-    no mean) or sequence [G₀, G₁, …].
+    t : time(s) [s];  a [m];  omega [rad/s];  rho [kg/m³];  mu [Pa s];  G : scalar amplitude [Pa/m] (single harmonic
+    n = 1, no mean — the meaning shared with :func:`womersley_harmonics` and :func:`womersley_wall_shear`) or
+    sequence [G₀, G₁, …] (G₀ the mean).  :func:`womersley_flow_rate_harmonics` refuses a bare scalar.
     Returns
     -------
     Q [m³/s] (real).
@@ -452,9 +454,17 @@ def womersley_flow_rate_harmonics(t, a, omega, rho, mu, G_n):
     """Flow rate for a harmonic series of gradients, G_n = [G₀, G₁, …] (G₀ the mean): the sum (16.89) to N harmonics.
 
     Book: §16.3, Eq. (16.89) (printed to ∞; the sum runs to the N harmonics of (16.83)–(16.84), slip S7, loose).
-    Parameters: t [s];  a [m];  omega [rad/s];  rho;  mu;  G_n sequence [Pa/m].  Returns Q [m³/s].
+    Parameters: t [s];  a [m];  omega [rad/s];  rho;  mu;  G_n sequence [G₀, G₁, …] [Pa/m] (a one-element sequence
+    [G₀] is a steady mean gradient).  Returns Q [m³/s].
+    A bare scalar raises ValueError: :func:`womersley_flow_rate` reads a scalar as the n = 1 amplitude (no mean),
+    while a "harmonics" call could be read as the mean G₀ — the two readings differ by orders of magnitude, so the
+    ambiguous input is refused (pass [G₀] for a mean, or call :func:`womersley_flow_rate` for one harmonic).
     Validation: V1 quadrature of :func:`womersley_harmonics`. Label: analytic.
     """
+    if np.ndim(G_n) == 0:
+        raise ValueError("womersley_flow_rate_harmonics needs a sequence [G0, G1, ...]; a scalar is ambiguous "
+                         "(use [G0] for a steady mean, or womersley_flow_rate(t, a, omega, rho, mu, G1) for one "
+                         "harmonic)")
     G_n = np.atleast_1d(np.asarray(G_n, dtype=complex))
     if G_n.size == 1:
         G_n = np.concatenate([G_n, [0.0]])
