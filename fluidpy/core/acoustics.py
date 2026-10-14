@@ -56,8 +56,8 @@ def isentropic_pressure_perturbation(rho_prime, rho0, p0, gamma: float = 1.4, or
     term) or "exact" (p₀[(1 + ρ′/ρ₀)^γ − 1]).
     Returns p′ [Pa].
     Assumptions: perfect gas, isentropic disturbance.
-    Validation: planned V3 first-order error falls as ρ′² with coefficient ½γ(γ − 1)p₀/ρ₀².
-    Label: pending (analytic, converged).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     r = _F(rho_prime)
     c2 = gamma * _F(p0) / _F(rho0)  # Eq. (15.6)
@@ -76,7 +76,8 @@ def acoustic_density(p_prime, c):
     Book: §15.2, Eq. (15.5)  p′ ≅ c²ρ′.
     Parameters: p_prime [Pa]; c sound speed of the reference state [m/s].   Returns ρ′ [kg/m³].
     Assumptions: small isentropic disturbance (15.7).
-    Validation: planned V1 inverse of :func:`isentropic_pressure_perturbation` (order 1).  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(_F(p_prime) / _F(c) ** 2)  # Eq. (15.5)
 
@@ -89,7 +90,8 @@ def acoustic_temperature(p_prime, p0, T0, gamma: float = 1.4):
     Parameters: p_prime [Pa]; p0 reference pressure [Pa]; T0 reference temperature [K]; gamma [–].
     Returns T′ [K].
     Assumptions: perfect gas, small isentropic disturbance.
-    Validation: planned V3 against the exact isentrope.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(_F(T0) * (gamma - 1.0) / gamma * _F(p_prime) / _F(p0))
 
@@ -101,7 +103,8 @@ def condensation(p_prime, rho0, c):
     Parameters: p_prime [Pa]; rho0 [kg/m³]; c [m/s].   Returns the condensation [–] (also equal to u′/c in a plane
     travelling wave).
     Assumptions: none (a definition).
-    Validation: planned V2 dimensionless.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(_F(p_prime) / (_F(rho0) * _F(c) ** 2))  # Eq. (15.7)
 
@@ -112,7 +115,8 @@ def linearisation_error(p_prime, rho0, c, gamma: float = 1.4):
     Book: §15.2 (the second term of the Taylor expansion against the first): ½γ(γ − 1)(p₀/ρ₀²)ρ′²/(c²ρ′).
     Parameters: p_prime [Pa]; rho0 [kg/m³]; c [m/s]; gamma [–].   Returns the ratio [–].
     Assumptions: perfect gas.
-    Validation: planned V3 against the exact isentrope.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(0.5 * (gamma - 1.0) * _F(condensation(p_prime, rho0, c)))
 
@@ -123,7 +127,8 @@ def newton_sound_speed(T, R: float):
     Book: §15.2 (Newton assumed p′/p₀ = ρ′/ρ₀; Laplace's isentropic c = √(γRT) is (15.6)).
     Parameters: T [K]; R [J/(kg K)].   Returns c_Newton [m/s].
     Assumptions: isothermal compression (not what a sound wave does).
-    Validation: planned V1 ratio to ``core.thermo.perfect_gas_sound_speed`` = 1/√γ.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(np.sqrt(R * _F(T)))
 
@@ -134,7 +139,8 @@ def acoustic_impedance(rho0, c):
     Book: §15.2, Eq. (15.16) (the factor 1/(ρ₀c)).
     Parameters: rho0 [kg/m³]; c [m/s].   Returns ρ₀c [Pa s/m] (about 415 for air at 15 °C).
     Assumptions: plane travelling wave in a still medium.
-    Validation: planned V2 units.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_particle_velocity_V1_equals_the_time_integral_of_the_pressure_gradient.
+    Label: analytic.
     """
     return _S(_F(rho0) * _F(c))
 
@@ -146,7 +152,8 @@ def sound_pressure_level(p_rms, p_ref: float = 2.0e-5):
     Parameters: p_rms root-mean-square acoustic pressure [Pa]; p_ref reference pressure [Pa] (2e-5 Pa, the standard
     reference in air).   Returns the level [dB].
     Assumptions: none.
-    Validation: planned V1 1 Pa ↔ 93.98 dB.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_acoustic_relation_V1_linearisation_error_is_the_quadratic_term.
+    Label: analytic.
     """
     return _S(20.0 * np.log10(_F(p_rms) / p_ref))
 
@@ -164,8 +171,8 @@ def convected_wave_residual(p_fn: Callable, x, t, c: float, U: float = 0.0, h: f
     Returns the residual [Pa/m²] (O(h²) for a solution).
     Method: explicit second-order central differences (three-point for p_tt, p_xx; four-point cross for p_xt).
     Assumptions: uniform stream and sound speed.
-    Validation: planned V2 sympy for f(x − (c + U)t) + g(x + (c − U)t), V3 residual → 0 at order 2.
-    Label: pending (symbolic, converged).
+    Validation: V3 — tests/test_ch15.py: test_wave_equation_V3_residual_of_a_travelling_pulse_vanishes_at_second_order.
+    Label: converged.
     """
     x, t = _F(x), _F(t)
     hx = 1e-3 * np.maximum(1.0, np.abs(x)) if h is None else float(h)
@@ -185,7 +192,8 @@ def wave_equation_residual(p_fn: Callable, x, t, c: float, h: float | None = Non
     Parameters: p_fn callable p′(x, t) [Pa]; x [m]; t [s]; c [m/s]; h stencil step [m].
     Returns the residual [Pa/m²].
     Assumptions: uniform still medium.
-    Validation: planned V3 (as :func:`convected_wave_residual` with U = 0).  Label: pending (converged).
+    Validation: V3 — tests/test_ch15.py: test_wave_equation_V3_residual_of_a_travelling_pulse_vanishes_at_second_order.
+    Label: converged.
     """
     return convected_wave_residual(p_fn, x, t, c, 0.0, h)  # Eq. (15.13)
 
@@ -200,7 +208,8 @@ def wave_equation_step(p_now, p_prev, C: float, bc: str = "periodic"):
     ends).
     Returns p′ at level n + 1.  Second order in space and time; exact translation at C = 1.
     Assumptions: uniform still medium.
-    Validation: planned V3 order 2, exact at C = 1.  Label: pending (converged).
+    Validation: V3 — tests/test_ch15.py: test_leapfrog_V3_second_order_and_exact_at_courant_one.
+    Label: converged.
     """
     if C > 1.0 + 1e-12:
         raise ValueError(f"Courant number C = c dt/dx = {C:g} > 1: the leapfrog scheme is unstable")
@@ -226,7 +235,9 @@ def dalembert(x, t, c: float, f: Callable | None = None, g: Callable | None = No
     ``None`` = absent).
     Returns p′ [Pa].
     Assumptions: one-dimensional linear acoustics in a uniform still fluid.
-    Validation: planned V2 sympy residual of (15.13) for arbitrary f, g.  Label: pending (symbolic).
+    Validation: V1, V4 — tests/test_ch15.py: test_dalembert_V1_shapes_travel_unchanged,
+    test_acoustic_energy_V4_is_constant_while_two_pulses_cross.
+    Label: analytic, conserved.
     """
     x, t = _F(x), _F(t)
     f = _zero if f is None else f
@@ -242,8 +253,10 @@ def plane_wave_velocity(x, t, c: float, rho0: float, f: Callable | None = None, 
     Parameters: x [m]; t [s]; c [m/s]; rho0 [kg/m³]; f, g as in :func:`dalembert`.
     Returns u′ [m/s].
     Assumptions: as :func:`dalembert`; fluid at rest before the wave arrives.
-    Validation: planned V1 equals the time quadrature (15.14), V4 acoustic energy constant.
-    Label: pending (analytic, conserved).
+    Validation: V1, V4 — tests/test_ch15.py:
+    test_particle_velocity_V1_equals_the_time_integral_of_the_pressure_gradient,
+    test_acoustic_energy_V4_is_constant_while_two_pulses_cross.
+    Label: analytic, conserved.
     """
     x, t = _F(x), _F(t)
     f = _zero if f is None else f
@@ -262,7 +275,8 @@ def velocity_from_pressure(p_fn: Callable, x: float, t: float, rho0: float, *, t
     subdivisions.
     Returns u′ [m/s].
     Assumptions: linear acoustics (15.11) in a still fluid.
-    Validation: planned V1 equals (15.16) for a compact pulse.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_particle_velocity_V1_equals_the_time_integral_of_the_pressure_gradient.
+    Label: analytic.
     """
     dpdx = lambda s: (float(p_fn(x + h, s)) - float(p_fn(x - h, s))) / (2.0 * h)  # noqa: E731
     val, _ = quad(dpdx, t0, t, limit=limit)
@@ -277,7 +291,8 @@ def dalembert_fg(F: Callable, G: Callable, c: float, x_ref: float = 0.0) -> tupl
     the additive constant cancels in f + g).
     Returns (f, g) callables (vectorised by a loop over ``quad``).
     Assumptions: as :func:`dalembert`.
-    Validation: planned V1 f + g = F and c(g′ − f′) = G at t = 0.  Label: pending (analytic).
+    Validation: V2, V1 — tests/test_ch15.py: test_dalembert_initial_value_V1_reproduces_both_initial_conditions.
+    Label: symbolic, analytic.
     """
     def integral(s):
         return np.vectorize(lambda v: quad(lambda z: float(G(z)), x_ref, float(v))[0], otypes=[float])(_F(s))
@@ -299,7 +314,8 @@ def dalembert_initial_value(x, t, c: float, F: Callable, G: Callable | None = No
     (``None`` = 0: a disturbance released from rest splits into two equal halves).
     Returns p′ [Pa].
     Assumptions: as :func:`dalembert`.
-    Validation: planned V1 reproduces F and G at t = 0; V2 sympy for a polynomial pair.  Label: pending (analytic).
+    Validation: V2, V1 — tests/test_ch15.py: test_dalembert_initial_value_V1_reproduces_both_initial_conditions.
+    Label: symbolic, analytic.
     """
     x, t = np.broadcast_arrays(_F(x), _F(t))
     a, b = x - c * t, x + c * t
@@ -316,8 +332,8 @@ def dalembert_in_stream(x, t, c: float, U: float, f: Callable | None = None, g: 
     Parameters: x [m]; t [s]; c [m/s]; U stream speed [m/s] (+x); f, g as in :func:`dalembert` (shapes at t = 0).
     Returns p′ [Pa].
     Assumptions: one-dimensional linear acoustics on a uniform stream.
-    Validation: planned V1 Galilean invariance (= :func:`dalembert` at x − Ut), V2 sympy residual of (15.12).
-    Label: pending (analytic, symbolic).
+    Validation: V1 — tests/test_ch15.py: test_waves_in_a_stream_V1_galilean_shift_of_dalembert.
+    Label: analytic.
     """
     x, t = _F(x), _F(t)
     f = _zero if f is None else f
@@ -332,7 +348,8 @@ def wave_speeds(U, c):
     Parameters: U stream speed [m/s]; c sound speed [m/s].   Returns (U + c, U − c) [m/s]; the second is negative
     (upstream-running) only while U < c.
     Assumptions: uniform stream.
-    Validation: planned V7 sign change at U = c.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_waves_in_a_stream_V1_galilean_shift_of_dalembert.
+    Label: analytic.
     """
     return _S(_F(U) + _F(c)), _S(_F(U) - _F(c))
 
@@ -343,7 +360,8 @@ def upstream_signal_possible(U, c):
     Book: §15.2 (text after (15.17): "in supersonic flow only upstream disturbances may influence the flow").
     Parameters: U [m/s]; c [m/s].   Returns bool (array).
     Assumptions: uniform stream, linear waves.
-    Validation: planned V1 sign of U − c.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_waves_in_a_stream_V1_galilean_shift_of_dalembert.
+    Label: analytic.
     """
     r = np.abs(_F(U)) < _F(c)
     return bool(r) if r.ndim == 0 else r
@@ -363,7 +381,9 @@ def pulse(kind: str = "gaussian", width: float = 1.0, amplitude: float = 1.0, x0
     Parameters: kind (one of :data:`PULSE_KINDS`); width [m]; amplitude [Pa]; x0 centre [m].
     Returns a callable of one variable [m] → [Pa] (vectorised).
     Assumptions: none.
-    Validation: planned V7 values at the centre and far away.  Label: pending (analytic).
+    Validation: V1 — the four shapes at their defining points (a helper of the d'Alembert tests) — tests/test_ch15.py:
+    test_dalembert_V1_shapes_travel_unchanged.
+    Label: analytic.
     """
     if kind not in PULSE_KINDS:
         raise ValueError(f"kind must be one of {PULSE_KINDS}")
@@ -389,7 +409,8 @@ def xt_characteristics(U: float, c: float, x0, t) -> dict:
     Returns dict: ``t`` (m,), ``x_plus`` (n, m) (the f family, speed U + c), ``x_minus`` (n, m) (the g family, speed
     U − c), ``speed_plus``, ``speed_minus`` [m/s].
     Assumptions: uniform stream.
-    Validation: planned V1 f and g constant along their lines.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_waves_in_a_stream_V1_galilean_shift_of_dalembert.
+    Label: analytic.
     """
     x0, t = np.atleast_1d(_F(x0)), np.atleast_1d(_F(t))
     return dict(t=t, x_plus=x0[:, None] + (U + c) * t[None, :], x_minus=x0[:, None] + (U - c) * t[None, :],
@@ -403,8 +424,8 @@ def acoustic_energy(p_prime, u_prime, x, rho0: float, c: float) -> float:
     Parameters: p_prime [Pa] and u_prime [m/s] sampled at x [m] (uniform grid, compact disturbance); rho0 [kg/m³];
     c [m/s].   Returns the energy [J/m²] (composite trapezoid).
     Assumptions: linear acoustics in a still fluid.
-    Validation: planned V4 constant in time for :func:`dalembert` + :func:`plane_wave_velocity`.
-    Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_acoustic_energy_V4_is_constant_while_two_pulses_cross.
+    Label: conserved.
     """
     e = 0.5 * (_F(p_prime) ** 2 / (rho0 * c ** 2) + rho0 * _F(u_prime) ** 2)
     x = _F(x)
@@ -423,7 +444,9 @@ def simple_wave_speed(u, c0: float, gamma: float = 1.4):
     Parameters: u particle velocity [m/s]; c0 sound speed of the undisturbed gas [m/s]; gamma [–].
     Returns the wavelet speed [m/s].
     Assumptions: perfect gas, isentropic (before any shock forms), waves of one family only.
-    Validation: planned V4 Riemann invariant constant; V7 small amplitude → c₀.  Label: pending (analytic).
+    Validation: V4, V1 — tests/test_ch15.py: test_simple_wave_V4_riemann_invariant_and_isentrope,
+    test_breaking_time_V1_first_crossing_of_neighbouring_characteristics.
+    Label: analytic, conserved.
     """
     return _S(c0 + 0.5 * (gamma + 1.0) * _F(u))
 
@@ -451,8 +474,9 @@ def breaking_time(u0, x, gamma: float = 1.4, *, max_compression_rate: float | No
     Returns t_b [s]; ``inf`` for a pure expansion (no part of the wave steepens).
     Method: explicit second-order differences of the samples.
     Assumptions: as :func:`simple_wave_speed`.
-    Validation: planned V1 equals the first time ∂x/∂x₀ = 0 found numerically; sine: 2/((γ + 1)ak).
-    Label: pending (analytic).
+    Validation: V4, V1 — tests/test_ch15.py: test_simple_wave_V4_riemann_invariant_and_isentrope,
+    test_breaking_time_V1_first_crossing_of_neighbouring_characteristics.
+    Label: analytic, conserved.
     """
     s = float(max_compression_rate) if max_compression_rate is not None else float(np.max(-_ddx(_F(u0), _F(x))))
     return float(2.0 / ((gamma + 1.0) * s)) if s > 0.0 else float("inf")
@@ -470,7 +494,9 @@ def simple_wave_evolve(u0, x, t, c0: float, gamma: float = 1.4) -> dict:
     speed [m/s], ``p_over_p0`` and ``rho_over_rho0`` (n,) [–] from the isentrope (15.2), ``t_break`` [s], ``valid``
     (bool or (m,): t < t_break — beyond it the curve is multivalued and a shock must be fitted).
     Assumptions: as :func:`simple_wave_speed`; gas ahead at rest.
-    Validation: planned V4 Riemann invariant, V1 against ch07 with γ = 2.  Label: pending (analytic, conserved).
+    Validation: V4, V1 — tests/test_ch15.py: test_simple_wave_V4_riemann_invariant_and_isentrope,
+    test_simple_wave_V1_gamma_two_is_the_shallow_water_wave_of_chapter_7.
+    Label: analytic, conserved.
     """
     u0, x_, t_ = _F(u0), _F(x), _F(t)
     speed = c0 + 0.5 * (gamma + 1.0) * u0
@@ -499,8 +525,8 @@ def source_wavefronts(U: float, c: float, t: float, n_fronts: int = 6, dt: float
     reaches ahead of the source, radius − (x_source − centre) [m] (positive for U < c, negative for U > c: no front
     is ahead of a supersonic source).
     Assumptions: uniform still medium; weak disturbances; a plane through the source path.
-    Validation: planned V1 the common tangent of the circles makes the angle sin⁻¹(1/M) with the path.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts.
+    Label: analytic.
     """
     k = np.arange(1, int(n_fronts) + 1, dtype=float)
     te = t - k * dt
@@ -517,8 +543,8 @@ def doppler_factor(U, c, theta=0.0):
     Parameters: U source speed [m/s]; c [m/s]; theta angle between the source velocity and the direction to the
     observer at the emission time [rad].   Returns the factor [–] (inf on the Mach cone, where M cos θ = 1).
     Assumptions: uniform still medium, observer at rest.
-    Validation: planned V1 spacing of :func:`source_wavefronts` ahead of and behind the source.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts.
+    Label: analytic.
     """
     with np.errstate(divide="ignore"):
         return _S(1.0 / (1.0 - _F(U) / _F(c) * np.cos(_F(theta))))
@@ -532,7 +558,8 @@ def mach_cone_delay(h, M, c):
     Parameters: h height of the flight path above the observer [m]; M flight Mach number [–] > 1; c [m/s].
     Returns the delay [s] (NaN for M < 1: a subsonic aircraft is heard before it arrives).
     Assumptions: level flight at constant speed in a uniform still atmosphere.
-    Validation: planned V1 direct geometry of the cone.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts.
+    Label: analytic.
     """
     M = _F(M)
     with np.errstate(invalid="ignore"):
@@ -547,7 +574,8 @@ def in_zone_of_action(x, y, M):
     Parameters: x, y position relative to the source [m] (x downstream); M stream Mach number [–].
     Returns bool (array); everywhere True for M < 1 (a subsonic source is felt in the whole field).
     Assumptions: uniform stream; weak disturbances.
-    Validation: planned V1 against :func:`source_wavefronts`.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts.
+    Label: analytic.
     """
     x, y, M = np.broadcast_arrays(_F(x), _F(y), _F(M))
     with np.errstate(invalid="ignore"):

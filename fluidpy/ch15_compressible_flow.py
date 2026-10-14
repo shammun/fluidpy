@@ -97,7 +97,8 @@ def illustrative_inputs() -> dict:
     ``M_fan`` [–], ``fan_turn`` [rad].
     **Plate** (§15.10): ``M_inf`` [–], ``alpha`` [rad], ``chord`` [m], ``thickness_ratio`` [–].
     Assumptions: none.
-    Validation: planned V1 a table (smoke test with sanity assertions).  Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: analytic.
     """
     d = np.deg2rad
     return dict(gamma=1.4, R=R_AIR, T_air=288.15, p_air=P_ATM,
@@ -119,7 +120,8 @@ def conventions_table():
     Book: §15.1–§15.10 (traps T1, T2, T5, T6, T11, T13, T14 of the analysis; decision 8 of the curation).
     Returns a ``pandas.DataFrame`` with columns "item", "here", "elsewhere", "code" (nine rows).
     Assumptions: none.
-    Validation: planned V1 a table.  Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: analytic.
     """
     import pandas as pd
 
@@ -156,8 +158,8 @@ def book_slips():
     or imprecision.  ``changes_physics`` marks the three that are coded corrected with a ``printed_*`` option.
     Returns a ``pandas.DataFrame`` with columns "n", "kind", "where", "printed", "correct", "code", "changes_physics".
     Assumptions: none.
-    Validation: planned V1 a table; the three options are exercised by the tests of ``influence_coefficients``.
-    Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: analytic.
     """
     import pandas as pd
 
@@ -189,7 +191,8 @@ def traps():
     Book: §15.1–§15.10.
     Returns a ``pandas.DataFrame`` with columns "id", "trap", "guard" (what the code or the notebook does).
     Assumptions: none.
-    Validation: planned V1 a table.  Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_tables_V7_inputs_conventions_slips_and_traps.
+    Label: analytic.
     """
     import pandas as pd
 
@@ -235,7 +238,8 @@ def mach_regime(M: float, *, transonic: tuple[float, float] = (0.8, 1.2), hypers
     hypersonic; otherwise supersonic.  Raises ``ValueError`` for NaN or negative input.
     Assumptions: a classifier, not a verdict — "incompressible" in practice means M < 0.3
     (:func:`compressibility_check`).
-    Validation: planned V1 both sides of every threshold.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_mach_regime_V1_both_sides_of_every_threshold.
+    Label: analytic.
     """
     M = float(M)
     if not np.isfinite(M) or M < 0.0:
@@ -264,7 +268,8 @@ def linearised_acoustics_sympy() -> dict:
     in one dimension applied to p′); ``cross_residual`` (D(15.10) − ρ₀∂ₓ(15.11) − wave operator, = 0);
     ``dalembert_residual`` ((15.12) applied to f(x − (c + U)t) + g(x + (c − U)t), = 0).
     Assumptions: uniform ρ₀, p₀, U, c; no gravity; inviscid.
-    Validation: this is the V2 evidence of C01.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_wave_equation_V2_chapter_engine_agrees.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -300,7 +305,8 @@ def duct_equations_sympy() -> dict:
     ``eq_15_34`` ((15.19) with dρ/ρ = −M² du/u solved for du/u, minus −(dA/A)/(1 − M²)), and ``eq_15_33_printed``
     (the same with the printed sign of (15.32), dρ/ρ = +M² du/u: **not** zero — it is the size of the slip).
     Assumptions: steady quasi-one-dimensional flow.
-    Validation: V2 evidence of C03 and C06.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_duct_mass_and_momentum_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -327,7 +333,8 @@ def normal_shock_sympy() -> dict:
     in γ, M₁); ``roots`` (both roots of the quadratic); ``residual_15_39``, ``residual_15_40``, ``residual_15_41``,
     ``residual_15_42`` (derived − printed, simplified: all zero).
     Assumptions: perfect gas, constant γ.
-    Validation: V2 evidence of C07.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_normal_shock_density_and_temperature_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -358,7 +365,8 @@ def weak_shock_series(order: int = 4) -> dict:
     simplified), ``residual_15_44a`` (c₃ − 2γ(γ − 1)/(3(γ + 1)²), = 0), ``pressure_coefficient`` (coefficient of
     ((p₂ − p₁)/p₁)³ after m = (γ + 1)Δ/(2γ)), ``residual_15_44b`` (that minus (γ² − 1)/(12γ²), = 0).
     Assumptions: perfect gas; |m| ≪ 1.
-    Validation: V2 evidence of C08.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_weak_shock_entropy_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -390,7 +398,8 @@ def shock_structure_sympy() -> dict:
     equation]), ``becker_form`` (energy integral with k = μ″C_p minus [m(H − I) − μ″H′]), ``structure_equation``
     (the momentum integral with H = I and p = ρRT, times u/m, minus the printed quadratic form).
     Assumptions: perfect gas; μ″(x), k(x) arbitrary in the first two checks; Pr″ = 1 in the last two.
-    Validation: V2 evidence of the shock-structure notes.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_shock_structure_V2_first_integrals_and_roots.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -423,7 +432,8 @@ def tangential_momentum_sympy() -> dict:
     mass ρ₁u₁ = ρ₂u₂ and tangential momentum ρ₁u₁v₁ = ρ₂u₂v₂ (no pressure force along the shock).
     Returns dict: ``v2`` (sympy solution, = v₁), ``residual`` (v₂ − v₁ = 0).
     Assumptions: plane shock, uniform states, no shear stress on the control surface.
-    Validation: V2.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_oblique_shock_normal_component_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -441,7 +451,8 @@ def weak_wave_sympy() -> dict:
     ``slope`` (dΔ/dδ at σ = μ₁ from (15.54) with tan δ → δ, sin σ → 1/M₁), ``residual_15_55`` (slope −
     γM₁²/√(M₁² − 1); = 0).
     Assumptions: δ → 0 on the weak branch (σ → μ₁).
-    Validation: V2 evidence of the weak-wave note.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_weak_wave_rule_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -467,7 +478,8 @@ def prandtl_meyer_sympy() -> dict:
     integrand, evaluated exactly in the variable b = √(M² − 1); = 0), ``residual_numeric`` (largest |residual| over a few (γ, M) pairs, as a float),
     ``value_at_1`` (ν(1) = 0).
     Assumptions: perfect gas; M > 1.
-    Validation: V2 evidence of C15.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_prandtl_meyer_closed_form_V2_derivation.
+    Label: symbolic.
     """
     import sympy as sp
 
@@ -498,7 +510,8 @@ def nozzle_thrust(mdot, u_e, p_e, p_ambient, A_e):
     Parameters: mdot [kg/s]; u_e exit speed [m/s]; p_e exit-plane pressure [Pa]; p_ambient [Pa]; A_e exit area [m²].
     Returns the thrust [N].
     Assumptions: steady flow; uniform exit; negligible inlet momentum (rocket).
-    Validation: planned V1 = γp_eM_e²A_e when p_e = p_ambient.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_rocket_nozzle_V1_thrust_and_throat_from_two_routes.
+    Label: analytic.
     """
     return _S(_F(mdot) * _F(u_e) + (_F(p_e) - _F(p_ambient)) * _F(A_e))
 
@@ -514,7 +527,8 @@ def rocket_nozzle(thrust: float, p0: float, T0: float, p_exit: float, gas: Perfe
     Returns dict: ``M_e`` [–], ``T_e`` [K], ``rho_e`` [kg/m³], ``u_e`` [m/s], ``A_e``, ``A_throat`` [m²],
     ``Ae_over_At`` [–], ``mdot`` [kg/s], ``mdot_choked`` [kg/s] (independent route through the throat).
     Assumptions: isentropic flow of a perfect gas with constant γ; chamber at rest; exit pressure = ambient.
-    Validation: planned V1 ṁ = choked flow of the throat; V6 private example.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_rocket_nozzle_V1_thrust_and_throat_from_two_routes.
+    Label: analytic.
     """
     g = GD._gas(gas)
     Me = float(GD.mach_from_pressure_ratio(p_exit / p0, g.gamma))
@@ -539,8 +553,8 @@ def nozzle_with_shock(M1: float, A_throat: float, A_exit: float, p0: float, T0: 
     Returns dict: ``A_shock`` [m²], ``M2`` [–], ``p02`` [Pa], ``A_star2`` [m²], ``M3`` [–], ``T3`` [K], ``p3`` [Pa]
     (= the back pressure that holds this shock), ``mdot`` [kg/s], ``mdot_exit`` [kg/s] (from the exit state).
     Assumptions: isentropic except across the shock; adiabatic (T₀ constant throughout).
-    Validation: planned V4 ṁ identical at throat and exit; inverse of ``laval_shock_location``; V6 private example.
-    Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: conserved.
     """
     g = GD._gas(gas)
     A1 = A_throat * float(GD.area_ratio(M1, g.gamma))
@@ -568,11 +582,15 @@ def blast_constant_crude(gamma: float = 1.4, geometry: str = "hemisphere") -> fl
     dR/dt = u₁ = √(½(γ + 1)p₂/ρ₁); integrating from R(0) = 0:  K = [75(γ² − 1)/(16π)]^{1/5} for a hemisphere
     (Volume = (2/3)πR³) and [75(γ² − 1)/(32π)]^{1/5} for a sphere (Volume = (4/3)πR³).
     Parameters: gamma [–]; geometry "hemisphere" or "sphere".   Returns K [–].
-    Crude: the true similarity solution has a non-uniform interior; the constant is a few per cent off.  It is in the
-    normalisation of this exercise, not that of ``reference/ch01`` (trap T22).
+    Crude: the true similarity solution has a non-uniform interior; the sphere constant of this model is about 9 %
+    (9.4 %) below the cited similarity value (``reference/ch01/SOURCES.md``).  It is in the normalisation of this
+    exercise, not that of ``reference/ch01`` (trap T22): ``ch01.blast_radius`` writes R = (E t²/(Kρ))^{1/5}, so its K
+    is this function's K to the power −5.
     Assumptions: strong shock (p₂ ≫ p₁), perfect gas, uniform pressure behind the front, all the energy thermal.
-    Validation: planned V1 against a numerical integration of the ODE; V5/V6 within a few per cent of the cited
-    similarity value.  Label: pending (analytic; crude model — Open item).
+    Validation: V1 — the closed form equals an integration of its own ODE (1e-8); against the cited similarity constant
+    the sphere value is 9.4 % low, so the model itself is only qualitative (verification report, Open item 4) —
+    tests/test_ch15.py: test_blast_constant_V1_crude_model_integrates_to_the_closed_form.
+    Label: qualitative (the closed form of the crude model: analytic).
     """
     if geometry == "hemisphere":
         vol = 2.0 / 3.0 * np.pi
@@ -591,8 +609,9 @@ def shock_thickness_estimate(du, nu):
     Parameters: du velocity jump u₁ − u₂ [m/s]; nu kinematic viscosity [m²/s].   Returns δ [m].
     Compare with ``mean_free_path_air``: a few mean free paths — the continuum model is at its limit.
     Assumptions: an estimate, not a result.
-    Validation: planned V2 units; order of magnitude against :func:`becker_shock_thickness`.
-    Label: pending (analytic; estimate).
+    Validation: V1 — an order-of-magnitude estimate, compared with becker_shock_thickness — tests/test_ch15.py:
+    test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: analytic (the formula; as a thickness it is an order-of-magnitude estimate).
     """
     return _S(_F(nu) / _F(du))
 
@@ -605,8 +624,9 @@ def shock_structure_constants(M1: float, T1: float, p1: float, gas: PerfectGas |
     Parameters: M1 [–] > 1; T1 [K]; p1 [Pa]; gas.
     Returns dict: ``m`` [kg/(m² s)], ``V`` [m/s], ``I`` [J/kg], ``u1``, ``u2`` [m/s], ``U1``, ``U2`` [–] (= u/V).
     Assumptions: perfect gas.
-    Validation: planned V4 the same m, V, I from the downstream state of ``normal_shock``.
-    Label: pending (conserved).
+    Validation: V2, V1 — tests/test_ch15.py: test_shock_structure_V2_first_integrals_and_roots,
+    test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: symbolic, analytic.
     """
     g = GD._gas(gas)
     u1 = M1 * float(g.c(T1))
@@ -625,8 +645,9 @@ def becker_shock_roots(M1, gamma: float = 1.4):
     numbers are ours (V = u + p/(ρu) = u(γM² + 1)/(γM²) on either side); U₁ + U₂ = 2γ/(γ + 1).
     Parameters: M1 [–] ≥ 1; gamma [–].   Returns (U₁, U₂) [–].
     Assumptions: perfect gas.
-    Validation: planned V1 the book's root formula with I, V from :func:`shock_structure_constants`; Vieta's sum.
-    Label: pending (analytic).
+    Validation: V2, V1 — tests/test_ch15.py: test_shock_structure_V2_first_integrals_and_roots,
+    test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: symbolic, analytic.
     """
     M1 = _F(M1)
     M2 = _F(GD.normal_shock_mach(M1, gamma))
@@ -640,7 +661,8 @@ def becker_shock_ode(eta, U, M1: float, gamma: float = 1.4):
     Parameters: eta [–] (unused: the equation is autonomous; kept for ``solve_ivp``); U = u/V [–]; M1 [–]; gamma.
     Returns dU/dη [–] (negative between the plateaus: the gas slows down).
     Assumptions: perfect gas, Pr″ = μ″C_p/k = 1 (Becker), steady one-dimensional continuum flow.
-    Validation: planned V3 ``solve_ivp`` against :func:`becker_shock_profile`.  Label: pending (converged).
+    Validation: V1 — tests/test_ch15.py: test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: analytic.
     """
     U1, U2 = becker_shock_roots(M1, gamma)
     U = _F(U)
@@ -659,8 +681,8 @@ def becker_shock_profile(eta, M1: float, gamma: float = 1.4, *, eta0: float = 0.
     Method: with U = U₂ + (U₁ − U₂)/(1 + e^z) the implicit relation becomes U₁z/(U₁ − U₂) − ln(1 + e^z) + ln 2 =
     [(γ + 1)/(2γ)](η − η₀), monotonic in z; solved by ``brentq`` per point with a bracket from the two asymptotes.
     Assumptions: as :func:`becker_shock_ode`; the book restricts the result to moderate Mach numbers.
-    Validation: planned V1 satisfies the ODE (residual), V3 agrees with ``solve_ivp``, V4 total enthalpy and the
-    momentum flux with the viscous stress are constant, V7 plateaus.  Label: pending (analytic, converged).
+    Validation: V1 — tests/test_ch15.py: test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: analytic.
     """
     U1, U2 = becker_shock_roots(float(M1), gamma)
     dU = U1 - U2
@@ -686,8 +708,8 @@ def becker_shock_thickness(M1, gamma: float = 1.4):
     U = √(U₁U₂), where (U₁ − U)(U − U₂)/U = (√U₁ − √U₂)², so Δη = [2γ/(γ + 1)](√U₁ + √U₂)/(√U₁ − √U₂).
     Parameters: M1 [–] > 1; gamma [–].   Returns Δη [–] (→ ∞ as M₁ → 1: weak shocks are thick).
     Assumptions: as :func:`becker_shock_ode`.
-    Validation: planned V1 against the numerical maximum slope of :func:`becker_shock_profile`.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_becker_shock_profile_V1_satisfies_the_implicit_relation_and_the_ode.
+    Label: analytic.
     """
     U1, U2 = becker_shock_roots(M1, gamma)
     a, b = np.sqrt(_F(U1)), np.sqrt(_F(U2))
@@ -710,7 +732,10 @@ def wedge_flow(M1: float, half_angle: float, gamma: float = 1.4) -> dict:
     normal-shock pressure ratio on the centre streamline (the only number the one-dimensional theory gives; the
     stand-off distance and the shock shape are not computed).
     Assumptions: two-dimensional wedge (not a cone), perfect gas, inviscid.
-    Validation: planned V1 both sides of δ_max.  Label: pending (analytic; the detached case is a sketch — Open item).
+    Validation: V1 — attached case = the weak root of oblique_shock on both sides of δ_max; the detached case is a
+    sketch (only the centre-line normal shock is verified — verification report, Open item 6) — tests/test_ch15.py:
+    test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: analytic (attached case); qualitative (detached case).
     """
     dm = float(GD.max_deflection(M1, gamma)["delta_max"])
     out = dict(delta_max=dm, M_detach=float(GD.detachment_mach(half_angle, gamma)),
@@ -741,8 +766,8 @@ def expansion_fan(M1: float, turn: float, gamma: float = 1.4, n_rays: int = 7, *
     counter-clockwise), ``p_over_p1``, ``T_over_T1`` (n,), ``M2``, ``p2_over_p1``, ``streamline_r`` (n,) [m],
     ``streamline_x``, ``streamline_y`` (n,) [m], ``wall_angle2`` (= −turn) [rad].
     Assumptions: perfect gas; isentropic; uniform flow upstream; no wave arrives from above.
-    Validation: planned V4 mass flux between the streamline and the wall is the same on every ray; V1 last ray
-    against :func:`fluidpy.core.gasdynamics.prandtl_meyer_turn`.  Label: pending (analytic, conserved).
+    Validation: V1, V4 — tests/test_ch15.py: test_expansion_fan_V4_mass_flux_between_rays_and_streamline_direction.
+    Label: analytic, conserved.
     """
     if turn <= 0.0:
         raise ValueError("expansion_fan needs turn > 0 (a turn away from the flow)")
@@ -771,7 +796,9 @@ def fan_staircase(M1: float, turn: float, N: int = 10, gamma: float = 1.4) -> di
     ``p_over_p1_weak`` (N + 1,), ``M2_exact``, ``p2_exact`` (from the exact function), ``M_error``, ``p_error``,
     ``p_weak_error`` (relative errors of the last step; they fall like 1/N).
     Assumptions: as (15.55), (15.56).
-    Validation: planned V3 first-order convergence to ``prandtl_meyer_turn``.  Label: pending (converged).
+    Validation: V4, V3 — first-order convergence to prandtl_meyer_turn (observed order 1.00 in M and p, N = 20 … 320) —
+    tests/test_ch15.py: test_expansion_fan_V4_mass_flux_between_rays_and_streamline_direction.
+    Label: conserved, converged.
     """
     if M1 <= 1.0:
         raise ValueError("fan_staircase needs M1 > 1 (the differential relation is singular at M = 1)")
@@ -804,8 +831,8 @@ def curved_wall_mach_lines(M1: float, wall_angle_fn: Callable, x, gamma: float =
     lines above the wall), ``first_crossing`` ((x, y) nearest the wall, or ``None`` — an expansion: the lines
     diverge), ``compression`` (bool).
     Assumptions: isentropic simple wave up to the first crossing; beyond it a shock forms (not computed).
-    Validation: planned V1 first crossing against the envelope formula of two neighbouring lines; V7 expansion has
-    none.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_curved_wall_V1_mach_lines_first_cross_on_the_envelope.
+    Label: analytic.
     """
     x = np.atleast_1d(_F(x))
     th = np.atleast_1d(_F(wall_angle_fn(x)))
@@ -849,7 +876,9 @@ def ackeret_pressure(delta, M_inf, gamma: float = 1.4):
     flow into itself (compression), δ < 0 where it turns away.
     Parameters: delta [rad]; M_inf [–] > 1; gamma [–].   Returns (p − p_∞)/p_∞ [–] (NaN for M_∞ ≤ 1).
     Assumptions: thin body, small angles, M_∞ not close to 1 and not hypersonic.
-    Validation: planned V3 small-angle limit of the exact shock and expansion.  Label: pending (converged).
+    Validation: V1 — tests/test_ch15.py:
+    test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides.
+    Label: analytic.
     """
     return _S(gamma * _F(M_inf) ** 2 * _F(delta) / _beta(M_inf))  # Eq. (15.57)
 
@@ -860,7 +889,8 @@ def ackeret_cp(delta, M_inf):
     Book: §15.10, Eq. (15.57) divided by ½ρ_∞U_∞²/p_∞ = ½γM_∞² (the book's "ρU² = γpM²").
     Parameters: delta [rad]; M_inf [–] > 1.   Returns C_p [–] (independent of γ; NaN for M_∞ ≤ 1).
     Assumptions: as :func:`ackeret_pressure`.
-    Validation: planned V1 = ackeret_pressure/(½γM²).  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_flat_plate_V1_linear_theory_formulas.
+    Label: analytic.
     """
     return _S(2.0 * _F(delta) / _beta(M_inf))
 
@@ -873,8 +903,11 @@ def ackeret_flat_plate(alpha, M_inf) -> dict:
     Returns dict [–]: ``CL``, ``CD`` (wave drag — exists in inviscid flow), ``L_over_D`` (= 1/α), ``lift_slope``
     (4/√(M_∞² − 1) per radian, against 2π in incompressible flow).  NaN for M_∞ ≤ 1.
     Assumptions: linearised (Ackeret) theory; fails as M_∞ → 1.
-    Validation: planned V3 small-α limit of :func:`flat_plate_supersonic` (shock–expansion).
-    Label: pending (converged).
+    Validation: V1 — the formulas of (15.59) and L/D = 1/α; that the linear plate is the small-α limit of
+    shock–expansion (error second order in α) is shown through flat_plate_supersonic in
+    test_flat_plate_V7_linear_theory_is_the_small_angle_limit_of_shock_expansion — tests/test_ch15.py:
+    test_flat_plate_V1_linear_theory_formulas.
+    Label: analytic.
     """
     a, b = _F(alpha), _beta(M_inf)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -897,8 +930,12 @@ def flat_plate_supersonic(alpha: float, M_inf: float, gamma: float = 1.4, *, met
     (p₃ − p₂)/(½γM_∞²p_∞)), ``CL``, ``CD``, ``L_over_pb`` (L/(p_∞b)), ``D_over_pb``, ``method``.
     ``shock_expansion`` raises ``ValueError("detached …")`` when |α| exceeds δ_max(M_∞).
     Assumptions: two-dimensional, inviscid, perfect gas; waves from the two sides do not interact with the plate.
-    Validation: planned V3 linear/exact → 1 with an error first order in α; V1 C_D/C_L = α (linear) and tan α (exact).
-    Label: pending (converged).
+    Validation: V1, V7 — the linear result is the small-α limit of shock–expansion with an error of **second** order in
+    α for C_L and C_D (measured 2.02, 2.00, 1.99 at M_∞ = 1.6, 2, 3: the second-order (Busemann) pressure terms are
+    equal on the two surfaces and cancel in p₃ − p₂); a single surface pressure is first order (measured 1.02); C_D/C_L
+    = α (linear), tan α (exact) — tests/test_ch15.py: test_flat_plate_V1_linear_theory_formulas,
+    test_flat_plate_V7_linear_theory_is_the_small_angle_limit_of_shock_expansion.
+    Label: analytic.
     """
     a = abs(float(alpha))
     sgn = 1.0 if alpha >= 0 else -1.0
@@ -938,8 +975,10 @@ def ackeret_airfoil(yu_fn: Callable, yl_fn: Callable, alpha: float, M_inf: float
     ``CD_camber``, ``CD_thickness``, ``CD_cross`` (−8α·mean(y_c′)/β: zero when the chord joins the two edges).
     Method: slopes by explicit second-order differences (one-sided at the edges); composite Simpson quadrature.
     Assumptions: thin section, small angles, sharp edges, attached waves; inviscid.
-    Validation: planned V1 flat plate → (15.59); a half-sine half-thickness y_t = ½τ sin(πx) has mean(y_t′²) =
-    π²τ²/8 (quadrature against the closed form); C_L independent of shape.  Label: pending (analytic, converged).
+    Validation: V1, V3 — flat plate → (15.59); double wedge 4τ²/β and half-sine π²τ²/2β closed forms; thickness integral
+    converges at order 1.97; C_L independent of shape — tests/test_ch15.py:
+    test_ackeret_airfoil_V1_thickness_camber_and_incidence_drag.
+    Label: analytic, converged.
     """
     from scipy.integrate import simpson
 
@@ -974,8 +1013,10 @@ def flat_plate_wave_pattern(alpha: float, M_inf: float, gamma: float = 1.4) -> d
     book says); the two exit pressures then differ slightly — in the exact solution a slip line leaves the trailing
     edge at a small angle, which is not computed.
     Assumptions: two-dimensional, inviscid, perfect gas; attached waves (α < δ_max).
-    Validation: planned V1 pressures against :func:`flat_plate_supersonic`; V7 α → 0: all waves → Mach lines.
-    Label: pending (analytic; the trailing-edge closure is approximate — Open item).
+    Validation: V7 — leading-edge waves and plate pressures against flat_plate_supersonic; the trailing-edge closure is
+    a sketch (p₄ returns to p_∞ to O(α³) — verification report, Open item 6) — tests/test_ch15.py:
+    test_flat_plate_V7_linear_theory_is_the_small_angle_limit_of_shock_expansion.
+    Label: analytic (leading-edge waves, pressures); qualitative (trailing-edge closure).
     """
     if alpha <= 0.0:
         raise ValueError("flat_plate_wave_pattern expects alpha > 0 (nose up)")
@@ -1002,8 +1043,8 @@ def lift_slope_vs_mach(M, *, model: str = "book", band: tuple[float, float] = (0
     :func:`mach_regime`).
     Returns dC_L/dα [1/rad].
     Assumptions: thin flat plate, small α, inviscid; linear theories on both sides.
-    Validation: planned V1 the two branches against ``zhukhovsky_lift_coefficient`` (flat plate) and (15.59).
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_flat_plate_V1_linear_theory_formulas.
+    Label: analytic.
     """
     M = _F(M)
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -1040,9 +1081,9 @@ def euler1d_run(rho0, u0, p0, x, t_end: float, gamma: float = 1.4, *, cfl: float
     (Σ over nodes × Δx at the end), ``mass0``, ``momentum0``, ``energy0`` (at the start).
     Cost: about 1 s for 800 nodes to a time of one domain crossing.
     Assumptions: perfect gas, inviscid; uniform grid.
-    Validation: planned V4 conservation to round-off (periodic), V3 order 2 for a smooth pulse against
-    ``simple_wave_evolve`` (eps_av = 0), order ≈ 1 in L¹ against ``riemann_exact`` with a shock.
-    Label: pending (conserved, converged).
+    Validation: V4, V3 — tests/test_ch15.py:
+    test_euler1d_V3_second_order_for_a_smooth_wave_and_first_order_at_a_captured_shock.
+    Label: conserved, converged.
     """
     from .core.maccormack import maccormack_step
 

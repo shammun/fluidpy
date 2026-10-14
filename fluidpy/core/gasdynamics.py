@@ -91,7 +91,9 @@ class PerfectGas:
 
     Attributes ``cp``, ``cv`` [J/(kg K)]; method ``c(T)`` [m/s] for T [K].
     Assumptions: thermally and calorically perfect gas.
-    Validation: planned V1 (C_p − C_v = R, C_p/C_v = γ), V2 units.  Label: pending (analytic).
+    Validation: V1, V2 — tests/test_ch15.py: test_perfect_gas_V1_specific_heats_and_sound_speed,
+    test_sonic_ratios_and_choked_flow_V2_derivation.
+    Label: analytic, symbolic.
     """
 
     gamma: float = 1.4
@@ -132,7 +134,8 @@ def mach_from_speed(u, T, gas: PerfectGas | None = None):
     Parameters: u speed [m/s]; T static temperature [K]; gas (default air, γ = 1.4, R = R_AIR).
     Returns M [–].
     Assumptions: perfect gas; T is the *static* temperature at the point.
-    Validation: planned V1 against ``core.similarity.mach_number``.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_perfect_gas_V1_specific_heats_and_sound_speed.
+    Label: analytic.
     """
     g = _gas(gas)
     return _S(_F(u) / np.sqrt(g.gamma * g.R * _F(T)))
@@ -147,7 +150,8 @@ def mass_flow(rho, u, A):
     Book: §15.3, Eq. (15.18)  ρ₁u₁A₁ = ρ₂u₂A₂, or ρuA = ṁ = const.
     Parameters: rho density [kg/m³]; u speed [m/s]; A cross-section [m²].   Returns ṁ [kg/s].
     Assumptions: steady flow; cross-section averages.
-    Validation: planned V2 units, V4 constant along :func:`nozzle_isentropic`.  Label: pending (analytic, conserved).
+    Validation: V2 — tests/test_ch15.py: test_sonic_ratios_and_choked_flow_V2_derivation.
+    Label: symbolic.
     """
     return _S(_F(rho) * _F(u) * _F(A))  # Eq. (15.18)
 
@@ -158,7 +162,9 @@ def mass_flux_function(M, gamma: float = 1.4):
     Book: §15.4 — follows from (15.18) with (15.28)–(15.30): ρu = (p/RT) M √(γRT).  Maximum at M = 1.
     Parameters: M [–] ≥ 0; gamma [–].   Returns the flux function [–] (0.6847 at M = 1 for γ = 1.4).
     Assumptions: perfect gas; p₀, T₀ are the local stagnation values.
-    Validation: planned V1 (built from the three ratios), V7 maximum at M = 1.  Label: pending (analytic).
+    Validation: V1, V2 — tests/test_ch15.py: test_area_ratio_V1_built_from_mass_conservation_and_its_two_inverses,
+    test_sonic_ratios_and_choked_flow_V2_derivation.
+    Label: analytic, symbolic.
     """
     M = _F(M)
     return _S(np.sqrt(gamma) * M * (1.0 + 0.5 * (gamma - 1.0) * M ** 2) ** (-(gamma + 1.0) / (2.0 * (gamma - 1.0))))
@@ -171,7 +177,8 @@ def mass_flow_from_mach(M, p0, T0, A, gas: PerfectGas | None = None):
     Parameters: M [–]; p0 stagnation pressure [Pa]; T0 stagnation temperature [K]; A area [m²]; gas.
     Returns ṁ [kg/s].
     Assumptions: perfect gas; p0, T0 local stagnation values at the section.
-    Validation: planned V1 against ρuA from the isentropic state.  Label: pending (analytic).
+    Validation: V2 — tests/test_ch15.py: test_sonic_ratios_and_choked_flow_V2_derivation.
+    Label: symbolic.
     """
     g = _gas(gas)
     return _S(_F(p0) * _F(A) / np.sqrt(g.R * _F(T0)) * _F(mass_flux_function(M, g.gamma)))
@@ -183,7 +190,8 @@ def total_enthalpy(T, u, cp: float):
     Book: §15.4 (definition of h₀, unnumbered) and Eq. (15.27)  C_pT₀ = C_pT + ½u².
     Parameters: T static temperature [K]; u speed [m/s]; cp [J/(kg K)].   Returns h₀ [J/kg].
     Assumptions: perfect gas (h = C_pT).
-    Validation: planned V1 = ``core.bernoulli.stagnation_enthalpy``.  Label: pending (analytic).
+    Validation: V2 — tests/test_ch15.py: test_perfect_gas_V2_dimensions_of_the_dimensional_wrappers.
+    Label: symbolic.
     """
     return _S(cp * _F(T) + 0.5 * _F(u) ** 2)  # Eq. (15.27)
 
@@ -202,7 +210,8 @@ def energy_residual(state1: dict, state2: dict, Q=0.0, gamma: float = 1.4):
     [kg/m³] (then h = γp/((γ − 1)ρ)); Q heat added per unit mass between 1 and 2 [J/kg]; gamma [–].
     Returns the residual [J/kg].
     Assumptions: steady flow, no shaft work, no body force.
-    Validation: planned V4 zero along an isentropic nozzle and across a normal shock.  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_duct_laws_V4_mass_energy_entropy_along_an_isentropic_nozzle.
+    Label: conserved.
     """
     return _S(_h(state2, gamma) + 0.5 * _F(state2["u"]) ** 2 - _h(state1, gamma) - 0.5 * _F(state1["u"]) ** 2
               - _F(Q))  # Eq. (15.22)
@@ -215,7 +224,8 @@ def wall_force(state1: dict, state2: dict, A1, A2):
     Parameters: state1, state2 dicts (``rho``, ``u``, ``p``); A1, A2 areas [m²].
     Returns F [N], positive in +x (the flow direction).  The retarding force of (15.45) is −F in a constant-area duct.
     Assumptions: steady flow; ṁ = ρ₁u₁A₁.
-    Validation: planned V4 equals ∫p dA along an isentropic nozzle (independent quadrature).  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_duct_laws_V4_mass_energy_entropy_along_an_isentropic_nozzle.
+    Label: conserved.
     """
     mdot = _F(state1["rho"]) * _F(state1["u"]) * _F(A1)
     return _S(mdot * (_F(state2["u"]) - _F(state1["u"])) - _F(state1["p"]) * _F(A1) + _F(state2["p"]) * _F(A2))  # (15.24)
@@ -259,42 +269,76 @@ def influence_coefficients(M, gamma: float = 1.4, *, dA_over_A=0.0, df=0.0, dq=0
     Returns
     -------
     dict of [–] quantities: ``drho_over_rho``, ``du_over_u``, ``dp_over_p``, ``dT_over_T``, ``dM_over_M``,
-    ``ds_over_cp``, ``u_du_over_h`` (= (γ − 1)M² du/u), ``dT0_over_T0``, ``dp0_over_p0``.  ±inf at M = 1 unless the
-    driving combination −dA/A + df + dq vanishes (then NaN: the sonic point is a 0/0 that needs the throat condition).
+    ``ds_over_cp``, ``u_du_over_h`` (= (γ − 1)M² du/u), ``dT0_over_T0``, ``dp0_over_p0``.
+
+    **At the sonic point M = 1** (the driver D = −dA/A + df + dq):
+
+    * ``du_over_u``, ``drho_over_rho``, ``dp_over_p``, ``dT_over_T``, ``dM_over_M``, ``u_du_over_h`` are **±inf**
+      when D ≠ 0 — also when only one of the three increments is non-zero — and **NaN** when D = 0 (a 0/0: the sonic
+      point then needs the throat condition, which this local rule does not contain).  The sign of the infinity is
+      that of the subsonic side (1 − M² evaluates to +0), as in :func:`area_velocity`.
+    * ``ds_over_cp`` = dq + [(γ − 1)/γ] df, ``dT0_over_T0`` = dq/(1 + ½(γ − 1)M²) and ``dp0_over_p0`` =
+      −df − ½γM² dq/(1 + ½(γ − 1)M²) do not contain 1/(1 − M²) at all: they stay **finite** at M = 1.
+    * With a ``printed_*`` option the rule is the same for the driver of that printed form: ``printed_15_32`` makes
+      the area part regular (−(dA/A)/(1 + M²)), so the driver is df + dq and a pure area change returns finite
+      values at M = 1; ``printed_15_48`` makes the driver −dA/A + df − dq (and gives ``ds_over_cp``,
+      ``dT0_over_T0``, ``dp0_over_p0`` a spurious pole when dq ≠ 0); ``printed_15_47`` adds a pole to
+      ``ds_over_cp`` and ``dp0_over_p0`` when df ≠ 0 and changes the driver of ``dp_over_p``.
+
+    Method: every key is formed as (driver)·1/(1 − M²) + (regular part) with the driver summed **before** the
+    division, so an increment that is exactly zero cannot produce 0·inf = NaN.
     Assumptions: steady quasi-one-dimensional flow, perfect gas, first order in the increments.
-    Validation: planned V2 (sympy solve of the four laws), V3 finite differences of :func:`nozzle_isentropic` and
-    :func:`duct_outlet_mach`, V7 M → 0 and the sign changes at M = 1 and M² = 1/γ; planted: the three printed forms
-    fail.  Label: pending (symbolic, converged).
+    Validation: V2 (sympy solution of the four linearised laws, all nine keys), V1 (finite differences of (15.31)
+    and of (15.46), Richardson), V7 (M → 0, sign pattern, the sonic point; the three printed forms fail the same
+    checks) — tests/test_ch15.py: test_influence_coefficients_V2_sympy_solution_of_the_four_linear_laws,
+    test_influence_area_V1_finite_differences_of_15_31_and_printed_15_32_fails,
+    test_influence_friction_heat_V1_finite_differences_of_15_46_and_printed_15_47_15_48_fail,
+    test_influence_coefficients_V7_limits_and_sign_pattern,
+    test_influence_coefficients_V7_sonic_point_is_infinite_as_documented.
+    Label: analytic, symbolic.
     """
     M = _F(M)
     a, f_, q_ = _F(dA_over_A), _F(df), _F(dq)
     M2 = M ** 2
+    g1 = gamma - 1.0
+    zero = np.zeros(np.broadcast_shapes(M.shape, a.shape, f_.shape, q_.shape))
     with np.errstate(divide="ignore", invalid="ignore"):
         inv = 1.0 / (1.0 - M2)
-        du_A = -a * inv  # Eq. (15.34)
-        du_f = f_ * inv  # Eq. (15.47), second relation (p₁/p = 1 at the station)
-        du_q = q_ * inv  # Eq. (15.48), second relation corrected: u du/h₁ = (γ − 1)M² dq/(1 − M²)
-        drho_A = -M2 * du_A  # Eq. (15.33)  (from the corrected (15.32): u du = −dp/ρ = −c² dρ/ρ)
+
+        def extra(driver):  # a pole that only a printed (wrong) form has: absent when its increment is exactly zero
+            driver = driver + zero
+            return np.where(driver == 0.0, 0.0, driver * inv)
+
+        tfac = 1.0 + 0.5 * g1 * M2
+        q_48 = -q_ if printed_15_48 else q_  # printed (15.48): u du/h₁ = (1 − γ)M² dq/(1 − M²)
         if printed_15_32:
-            du_A = -a / (1.0 + M2)  # printed (15.32): dρ/ρ = +M² du/u into (15.19)
-            drho_A = M2 * du_A
-        if printed_15_48:
-            du_q = -du_q  # printed (15.48): u du/h₁ = (1 − γ)M² dq/(1 − M²)
-        du = du_A + du_f + du_q
-        drho = drho_A - du_f - du_q  # mass, Eq. (15.19) with dA = 0 for the friction and heat parts
-        dp_f = -(1.0 + (gamma - 1.0) * M2) * inv * f_  # Eq. (15.47), first relation corrected
-        if printed_15_47:
-            dp_f = -(1.0 - (gamma - 1.0) * M2) * inv * f_  # printed (15.47)
-        dp = -gamma * M2 * du_A + dp_f - gamma * M2 * du_q
-        dT_q = (1.0 - gamma * M2) * inv * q_  # Eq. (15.48), first relation
-        dT = -(gamma - 1.0) * M2 * (du_A + du_f) + dT_q
-        dM = du - 0.5 * dT
-        ds = dT - (gamma - 1.0) / gamma * dp
-        tfac = 1.0 + 0.5 * (gamma - 1.0) * M2
-        dT0 = dT + (gamma - 1.0) * M2 * dM / tfac
-        dp0 = dp + gamma * M2 * dM / tfac
+            D_u = f_ + q_48 + zero  # printed (15.32): dρ/ρ = +M² du/u into (15.19) — the area part has no pole
+            D_T = f_ + q_ + zero
+            du_reg = -a / (1.0 + M2) + zero
+            no_pole = (f_ == 0.0) & (q_ == 0.0) & (zero == 0.0)  # nothing but the (regular) printed area part
+
+            def pole(driver):
+                return np.where(no_pole, 0.0, driver * inv)
+        else:
+            D_u = -a + f_ + q_48 + zero  # the driver of du/u
+            D_T = -a + f_ + q_ + zero  # the driver that enters the energy law (the heat part of dT/T is never flipped)
+            du_reg = zero
+
+            def pole(driver):  # ±inf at M = 1; NaN (0/0) when the driver vanishes there
+                return driver * inv
+        d47 = 2.0 * g1 * M2 * f_ if printed_15_47 else zero  # printed (15.47): numerator 1 − (γ − 1)M²
+        d48 = g1 * M2 * (q_ - q_48)  # (γ − 1)M² × (driver of the energy law − driver of du/u): 0 unless printed_15_48
+        e47, e48 = extra(d47), extra(d48)
+        du = pole(D_u) + du_reg  # Eqs. (15.34), (15.47) second relation, (15.48) second relation (corrected)
+        drho = -a - du  # mass, Eq. (15.19); with dA = 0 this is (15.33) for the area part
+        dp = pole(-gamma * M2 * D_u + d47) - gamma * M2 * du_reg - f_  # momentum; Eq. (15.47) first relation (corr.)
+        dT = q_ - g1 * M2 * (pole(D_T) + du_reg)  # energy; Eq. (15.48) first relation, (1 − γM²)dq/(1 − M²)
+        dM = pole(tfac * D_u + 0.5 * d48) + tfac * du_reg - 0.5 * q_  # dM/M = du/u − ½ dT/T
+        ds = q_ + g1 / gamma * f_ - e48 - g1 / gamma * e47 + zero  # ds/C_p = dT/T − [(γ − 1)/γ] dp/p
+        dT0 = (q_ - e48) / tfac + zero  # dT₀/T₀ = dT/T + (γ − 1)M² (dM/M)/(1 + ½(γ − 1)M²)
+        dp0 = -f_ - 0.5 * gamma * M2 * (q_ - e48) / tfac + e47 + zero  # dp₀/p₀ = dp/p + γM² (dM/M)/(1 + ½(γ − 1)M²)
     out = dict(drho_over_rho=drho, du_over_u=du, dp_over_p=dp, dT_over_T=dT, dM_over_M=dM, ds_over_cp=ds,
-               u_du_over_h=(gamma - 1.0) * M2 * du, dT0_over_T0=dT0, dp0_over_p0=dp0)
+               u_du_over_h=g1 * M2 * du, dT0_over_T0=dT0, dp0_over_p0=dp0)
     return {k: _S(v) for k, v in out.items()}
 
 
@@ -304,7 +348,11 @@ def area_velocity(M, dA_over_A):
     Book: §15.5, Eq. (15.34)  du/u = −[1/(1 − M²)] dA/A.
     Parameters: M [–]; dA_over_A [–].   Returns du/u [–] (±inf at M = 1 for dA ≠ 0).
     Assumptions: steady, frictionless, adiabatic (isentropic) quasi-one-dimensional flow.
-    Validation: planned V3 finite differences of (15.31), V7 M → 0 gives −dA/A.  Label: pending (analytic).
+    Validation: V1, V2, V7 — tests/test_ch15.py:
+    test_influence_area_V1_finite_differences_of_15_31_and_printed_15_32_fails,
+    test_influence_coefficients_V2_sympy_solution_of_the_four_linear_laws,
+    test_influence_coefficients_V7_limits_and_sign_pattern.
+    Label: analytic, symbolic.
     """
     with np.errstate(divide="ignore", invalid="ignore"):
         return _S(-_F(dA_over_A) / (1.0 - _F(M) ** 2))  # Eq. (15.34)
@@ -317,7 +365,8 @@ def duct_role(M: float, dA_sign: float) -> str:
     Parameters: M local Mach number [–]; dA_sign sign of dA/dx (negative = converging, positive = diverging).
     Returns "nozzle", "diffuser", "none" (dA = 0) or "sonic" (M = 1: only possible at a throat).
     Assumptions: isentropic quasi-one-dimensional flow.
-    Validation: planned V1 the four cases of Fig. 15.4.  Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_influence_coefficients_V7_limits_and_sign_pattern.
+    Label: analytic.
     """
     if dA_sign == 0:
         return "none"
@@ -336,7 +385,8 @@ def stagnation_temperature_ratio(M, gamma: float = 1.4):
     Book: §15.4, Eq. (15.28)  T₀/T = 1 + u²/(2C_pT) = 1 + ½(γ − 1)M².
     Parameters: M [–]; gamma [–].   Returns T₀/T [–] (≥ 1).
     Assumptions: perfect gas; adiabatic deceleration to rest (friction allowed).
-    Validation: planned V1 against (15.27), V5 NACA 1135.  Label: pending (analytic, benchmark).
+    Validation: V1 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope.
+    Label: analytic.
     """
     return _S(1.0 + 0.5 * (gamma - 1.0) * _F(M) ** 2)  # Eq. (15.28)
 
@@ -347,8 +397,9 @@ def stagnation_pressure_ratio(M, gamma: float = 1.4):
     Book: §15.4, Eq. (15.29).
     Parameters: M [–]; gamma [–].   Returns p₀/p [–] (≥ 1).
     Assumptions: perfect gas; *isentropic* deceleration to rest.
-    Validation: planned V1 (entropy of the stagnation state equals that of the static state), V5 NACA 1135, V7
-    γ → 1 limit exp(M²/2).  Label: pending (analytic, benchmark).
+    Validation: V1, V5, V2 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope,
+    test_normal_shock_V5_naca_1135_and_cited_table_rows, test_shock_stagnation_pressure_ratio_V2_derivation.
+    Label: analytic, benchmark, symbolic.
     """
     return _S((1.0 + 0.5 * (gamma - 1.0) * _F(M) ** 2) ** (gamma / (gamma - 1.0)))  # Eq. (15.29)
 
@@ -359,7 +410,9 @@ def stagnation_density_ratio(M, gamma: float = 1.4):
     Book: §15.4, Eq. (15.30).
     Parameters: M [–]; gamma [–].   Returns ρ₀/ρ [–] (≥ 1).
     Assumptions: perfect gas; isentropic deceleration to rest.
-    Validation: planned V1 (p₀ = ρ₀RT₀), V5 NACA 1135.  Label: pending (analytic, benchmark).
+    Validation: V1, V2 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope,
+    test_pitot_compressibility_V2_series_and_incompressible_limit.
+    Label: analytic, symbolic.
     """
     return _S((1.0 + 0.5 * (gamma - 1.0) * _F(M) ** 2) ** (1.0 / (gamma - 1.0)))  # Eq. (15.30)
 
@@ -370,7 +423,9 @@ def mach_from_pressure_ratio(p_over_p0, gamma: float = 1.4):
     Book: §15.4, Eq. (15.29) inverted: M² = [2/(γ − 1)] [(p/p₀)^{−(γ−1)/γ} − 1].
     Parameters: p_over_p0 [–] in (0, 1]; gamma [–].   Returns M [–] (NaN outside (0, 1]).
     Assumptions: as (15.29).
-    Validation: planned V1 round trip.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope,
+    test_stagnation_ratios_V5_naca_report_1135_rows.
+    Label: analytic, benchmark.
     """
     r = _F(p_over_p0)
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -385,8 +440,9 @@ def area_ratio(M, gamma: float = 1.4):
     sonic — it changes across a shock, with friction and with heat.
     Parameters: M [–] > 0; gamma [–].   Returns A/A* [–] (≥ 1, minimum 1 at M = 1; inf at M = 0).
     Assumptions: steady isentropic quasi-one-dimensional flow of a perfect gas.
-    Validation: planned V1 ρ*c*/(ρu) from (15.28)–(15.30), V2 minimum at M = 1, V5 NACA 1135.
-    Label: pending (analytic, benchmark).
+    Validation: V1, V2 — tests/test_ch15.py: test_area_ratio_V1_built_from_mass_conservation_and_its_two_inverses,
+    test_shock_stagnation_pressure_ratio_V2_derivation.
+    Label: analytic, symbolic.
     """
     M = _F(M)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -426,7 +482,9 @@ def mach_from_area_ratio(A_over_Astar, gamma: float = 1.4, *, branch: str):
     Method: ``brentq`` on each side of M = 1 (bracket from the physics), residual asserted.  Near A/A* = 1 the root is
     conditioned like √(A/A* − 1) (the minimum is quadratic).
     Assumptions: as :func:`area_ratio`.
-    Validation: planned V1 round trip on both branches, V5 NACA 1135.  Label: pending (analytic, benchmark).
+    Validation: V1, V5 — tests/test_ch15.py: test_area_ratio_V1_built_from_mass_conservation_and_its_two_inverses,
+    test_stagnation_ratios_V5_naca_report_1135_rows.
+    Label: analytic, benchmark.
     """
     return _vec(lambda a: _mach_from_area_scalar(float(a), gamma, branch), _F(A_over_Astar))
 
@@ -439,7 +497,9 @@ def isentropic_state(M, gamma: float = 1.4) -> dict:
     Returns dict: ``M``, ``T_over_T0``, ``p_over_p0``, ``rho_over_rho0``, ``A_over_Astar``, ``T0_over_T``,
     ``p0_over_p``, ``rho0_over_rho`` [–].
     Assumptions: perfect gas, isentropic.
-    Validation: planned V5 NACA 1135 rows, V6 private table.  Label: pending (analytic, benchmark).
+    Validation: V1, V5, V2 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope,
+    test_stagnation_ratios_V5_naca_report_1135_rows, test_sonic_ratios_and_choked_flow_V2_derivation.
+    Label: analytic, benchmark, symbolic.
     """
     t = _F(stagnation_temperature_ratio(M, gamma))
     return dict(M=_S(_F(M)), T_over_T0=_S(1.0 / t), p_over_p0=_S(t ** (-gamma / (gamma - 1.0))),
@@ -453,7 +513,8 @@ def isentropic_table(M, gamma: float = 1.4):
     Book: §15.4, Eqs. (15.28)–(15.31) (the layout of Table 15.1; the values are computed, not transcribed).
     Parameters: M array [–]; gamma [–].   Returns a ``pandas.DataFrame``.
     Assumptions: as :func:`isentropic_state`.
-    Validation: planned V5 NACA 1135.  Label: pending (benchmark).
+    Validation: V1 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope.
+    Label: analytic.
     """
     import pandas as pd
 
@@ -469,7 +530,8 @@ def sonic_ratios(gamma: float = 1.4) -> dict:
     Book: §15.4 (sonic conditions defined in words; the formulas are (15.28)–(15.30) at M = 1).
     Parameters: gamma [–].   Returns dict ``T``, ``p``, ``rho``, ``c`` [–] (0.8333, 0.5283, 0.6339, 0.9129 for 1.4).
     Assumptions: perfect gas, isentropic.
-    Validation: planned V1 = :func:`isentropic_state` (1).  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_area_ratio_V1_built_from_mass_conservation_and_its_two_inverses.
+    Label: analytic.
     """
     t = 2.0 / (gamma + 1.0)
     return dict(T=t, p=t ** (gamma / (gamma - 1.0)), rho=t ** (1.0 / (gamma - 1.0)), c=float(np.sqrt(t)))
@@ -481,7 +543,9 @@ def critical_pressure_ratio(gamma: float = 1.4) -> float:
     Book: §15.7 (choking described in words), from Eq. (15.29) at M = 1.
     Parameters: gamma [–].   Returns p*/p₀ [–] (0.5283 for γ = 1.4).
     Assumptions: perfect gas, isentropic flow up to the exit.
-    Validation: planned V1, V5 cited value 0.528.  Label: pending (analytic, benchmark).
+    Validation: V1, V5 — tests/test_ch15.py: test_area_ratio_V1_built_from_mass_conservation_and_its_two_inverses,
+    test_choked_flow_V5_cited_critical_ratio_and_gas_table.
+    Label: analytic, benchmark.
     """
     return float((2.0 / (gamma + 1.0)) ** (gamma / (gamma - 1.0)))
 
@@ -492,7 +556,8 @@ def max_speed(T0, cp: float):
     Book: §15.4, Eq. (15.27) with T = 0 (Exercise 15.6).
     Parameters: T0 stagnation temperature [K]; cp [J/(kg K)].   Returns u_max [m/s].
     Assumptions: adiabatic steady flow of a perfect gas.
-    Validation: planned V7 limit of u = M c as M → ∞.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_stagnation_ratios_V1_from_the_energy_law_and_the_isentrope.
+    Label: analytic.
     """
     return _S(np.sqrt(2.0 * cp * _F(T0)))
 
@@ -504,7 +569,8 @@ def pitot_compressibility_factor(M, gamma: float = 1.4):
     Parameters: M [–] ≥ 0; gamma [–].   Returns the factor [–] (1 at M = 0; 1.0227 at M = 0.3 for γ = 1.4).
     Method: ``expm1``/``log1p`` so that small M is free of cancellation.
     Assumptions: perfect gas, isentropic stagnation (subsonic pitot; no bow shock).
-    Validation: planned V2 sympy series 1 + M²/4 + (2 − γ)M⁴/24, V7 M → 0.  Label: pending (symbolic).
+    Validation: V2 — tests/test_ch15.py: test_pitot_compressibility_V2_series_and_incompressible_limit.
+    Label: symbolic.
     """
     M = _F(M)
     x = 0.5 * (gamma - 1.0) * M ** 2
@@ -519,7 +585,8 @@ def mach_for_density_change(fraction, gamma: float = 1.4):
     Book: §15.4, Eq. (15.30) inverted: ρ₀/ρ = 1 + fraction ⇒ M² = [2/(γ − 1)] [(1 + fraction)^{γ−1} − 1].
     Parameters: fraction (ρ₀ − ρ)/ρ [–] ≥ 0; gamma [–].   Returns M [–] (≈ √(2·fraction) for small values).
     Assumptions: isentropic.
-    Validation: planned V1 round trip; V7 leading order ½M².  Label: pending (analytic).
+    Validation: V2 — tests/test_ch15.py: test_pitot_compressibility_V2_series_and_incompressible_limit.
+    Label: symbolic.
     """
     return _S(np.sqrt(2.0 / (gamma - 1.0) * np.expm1((gamma - 1.0) * np.log1p(_F(fraction)))))
 
@@ -531,8 +598,8 @@ def entropy_change_from_stagnation(p02_over_p01, T02_over_T01=1.0, gas: PerfectG
     Parameters: p02_over_p01 [–]; T02_over_T01 [–] (1 for adiabatic flow); gas.
     Returns S₂ − S₁ [J/(kg K)].
     Assumptions: perfect gas; the stagnation state has the entropy of the static state.
-    Validation: planned V1 = ``core.thermo.perfect_gas_entropy_change_p``, V4 equals (15.43) × C_v across a shock.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_entropy_from_stagnation_states_V1_matches_the_state_function.
+    Label: analytic.
     """
     g = _gas(gas)
     return _S(-g.R * np.log(_F(p02_over_p01)) + g.cp * np.log(_F(T02_over_T01)))
@@ -544,7 +611,8 @@ def stagnation_pressure_loss(dS, gas: PerfectGas | None = None):
     Book: §15.4 (S₂ − S₁ = −R ln(p₀₂/p₀₁) with T₀₂ = T₀₁, hence p₀₂ < p₀₁).
     Parameters: dS entropy rise S₂ − S₁ [J/(kg K)]; gas.   Returns p₀₂/p₀₁ [–] (< 1 for dS > 0).
     Assumptions: adiabatic (T₀ constant), perfect gas.
-    Validation: planned V1 inverse of :func:`entropy_change_from_stagnation`.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_entropy_from_stagnation_states_V1_matches_the_state_function.
+    Label: analytic.
     """
     return _S(np.exp(-_F(dS) / _gas(gas).R))
 
@@ -556,8 +624,9 @@ def choked_mass_flow(p0, T0, A_star, gas: PerfectGas | None = None):
     Parameters: p0 [Pa]; T0 [K]; A_star throat area [m²]; gas.   Returns ṁ_max [kg/s].
     Note (trap T10): "choked" fixes ṁ against the *back pressure* only; raising p₀ or lowering T₀ still changes it.
     Assumptions: isentropic flow from the reservoir to a sonic throat, perfect gas.
-    Validation: planned V1 = :func:`mass_flow_from_mach` at M = 1, V5 cited flux factor 0.6847.
-    Label: pending (analytic, benchmark).
+    Validation: V1, V2, V5 — tests/test_ch15.py: test_convergent_nozzle_V1_piecewise_mass_flow_against_back_pressure,
+    test_sonic_ratios_and_choked_flow_V2_derivation, test_choked_flow_V5_cited_critical_ratio_and_gas_table.
+    Label: analytic, symbolic, benchmark.
     """
     return mass_flow_from_mach(1.0, p0, T0, A_star, gas)
 
@@ -574,7 +643,9 @@ def laval_area(x, A_throat: float = 1.0, A_inlet: float = 2.5, A_exit: float = 2
     Parameters: x axial coordinate [m], 0 ≤ x ≤ L; A_throat, A_inlet, A_exit areas [m²]; x_throat, L [m].
     Returns A(x) [m²].
     Assumptions: none (geometry).
-    Validation: planned V7 A(0), A(x_t), A(L); continuous slope at the throat.  Label: pending (analytic).
+    Validation: V7 — A(0), A(x_t), A(L) and zero slope at the throat (in the test of the duct laws) —
+    tests/test_ch15.py: test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: analytic.
     """
     x = _F(x)
     up = A_throat + (A_inlet - A_throat) * ((x_throat - x) / x_throat) ** 2
@@ -600,7 +671,8 @@ def nozzle_isentropic(x, A_fn, gamma: float = 1.4, *, branch: str = "transonic",
     **The throat must be a grid point**: the sonic area and the switch of branch are taken from the smallest sampled
     area, so a grid that steps over the true minimum puts the throat (and A*) slightly wrong.
     Assumptions: steady, frictionless, adiabatic quasi-one-dimensional flow; no shock (see :func:`laval_nozzle`).
-    Validation: planned V4 ρuA, h₀ and entropy constant along x on each branch.  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_duct_laws_V4_mass_energy_entropy_along_an_isentropic_nozzle.
+    Label: conserved.
     """
     x = np.atleast_1d(_F(x))
     A = np.atleast_1d(_F(A_fn(x) if callable(A_fn) else A_fn))
@@ -633,8 +705,9 @@ def normal_shock_pressure_ratio(M1, gamma: float = 1.4):
     Parameters: M1 upstream Mach number [–]; gamma [–].   Returns p₂/p₁ [–].
     The bare formula: it does not refuse M₁ < 1 (the forbidden expansion root) — :func:`normal_shock` does.
     Assumptions: perfect gas; steady, adiabatic, no wall force, constant area.
-    Validation: planned V2 sympy root of (15.35)–(15.38), V4 jump residuals, V5 NACA 1135.
-    Label: pending (symbolic, conserved, benchmark).
+    Validation: V2, V5, V7 — tests/test_ch15.py: test_normal_shock_pressure_jump_V2_derivation,
+    test_normal_shock_V5_naca_1135_and_cited_table_rows, test_normal_shock_V7_limits_guard_and_hugoniot.
+    Label: symbolic, benchmark.
     """
     return _S(1.0 + 2.0 * gamma / (gamma + 1.0) * (_F(M1) ** 2 - 1.0))  # Eq. (15.39)
 
@@ -647,8 +720,9 @@ def normal_shock_mach(M1, gamma: float = 1.4):
     **Trap T6**: the map is its own inverse — feeding it a subsonic M₁ returns the supersonic partner without any
     error (the expansion shock, forbidden by the second law).  Use :func:`normal_shock` for a guarded call.
     Assumptions: as (15.39).
-    Validation: planned V1 involution, V7 M₁ → 1 and M₁ → ∞ (→ √((γ − 1)/2γ)), V5 NACA 1135.
-    Label: pending (analytic, benchmark).
+    Validation: V4, V2 — tests/test_ch15.py: test_oblique_shock_V4_jump_laws_in_two_dimensions,
+    test_normal_shock_downstream_mach_V2_derivation.
+    Label: symbolic, conserved.
     """
     M1 = _F(M1)
     num = (gamma - 1.0) * M1 ** 2 + 2.0
@@ -663,7 +737,9 @@ def normal_shock_density_ratio(M1, gamma: float = 1.4):
     Book: §15.6, Eq. (15.41).
     Parameters: M1 [–]; gamma [–].   Returns ρ₂/ρ₁ [–] (→ (γ + 1)/(γ − 1) as M₁ → ∞).
     Assumptions: as (15.39).
-    Validation: planned V4 mass residual, V5 NACA 1135.  Label: pending (conserved, benchmark).
+    Validation: V2, V5 — tests/test_ch15.py: test_normal_shock_density_and_temperature_V2_derivation,
+    test_normal_shock_V5_naca_1135_and_cited_table_rows.
+    Label: symbolic, benchmark.
     """
     M1 = _F(M1)
     return _S((gamma + 1.0) * M1 ** 2 / ((gamma - 1.0) * M1 ** 2 + 2.0))  # Eq. (15.41)
@@ -675,7 +751,8 @@ def normal_shock_temperature_ratio(M1, gamma: float = 1.4):
     Book: §15.6, Eq. (15.42).
     Parameters: M1 [–]; gamma [–].   Returns T₂/T₁ [–].
     Assumptions: as (15.39).
-    Validation: planned V1 = (p₂/p₁)(ρ₁/ρ₂), V5 NACA 1135.  Label: pending (analytic, benchmark).
+    Validation: V2 — tests/test_ch15.py: test_normal_shock_density_and_temperature_V2_derivation.
+    Label: symbolic.
     """
     M1 = _F(M1)
     return _S(1.0 + 2.0 * (gamma - 1.0) / (gamma + 1.0) ** 2 * (gamma * M1 ** 2 + 1.0) / M1 ** 2
@@ -689,13 +766,16 @@ def normal_shock_entropy(M1, gamma: float = 1.4):
     Parameters: M1 [–]; gamma [–].   Returns (S₂ − S₁)/C_v [–] (NaN where p₂/p₁ ≤ 0).
     Method: with m = M₁² − 1, a = 2γ/(γ + 1), b = (γ − 1)/(γ + 1) the jump is ln(1 + am) − γ ln(1 + m) + γ ln(1 + bm);
     the first two orders in m cancel exactly, so for |m| < 0.02 the function sums the Taylor series from the cubic
-    term on (terms (−1)^{k+1}(a^k − γ + γb^k)m^k/k, k = 3…16) instead of subtracting logarithms.
+    term on (terms (−1)^{k+1}(a^k − γ + γb^k)m^k/k, k = 3…16) instead of subtracting logarithms.  m is formed as
+    (M₁ − 1)(M₁ + 1), not M₁² − 1, so that it keeps full relative precision as M₁ → 1.
     Assumptions: as (15.39).
-    Validation: planned V2 sympy series (zero first and second coefficients, third = (15.44a)), V3 log–log slope 3,
-    V4 = ``core.thermo.perfect_gas_entropy_change`` of the jump state.  Label: pending (symbolic, analytic).
+    Validation: V1, V2 — entropy state function of the jump state; 40-digit arithmetic near M₁ = 1; log–log slope 2.997
+    against M₁² − 1 — tests/test_ch15.py: test_shock_entropy_V1_equals_the_entropy_state_function_of_the_jump_state,
+    test_weak_shock_entropy_V2_derivation.
+    Label: analytic, symbolic.
     """
     M1 = _F(M1)
-    m = M1 ** 2 - 1.0
+    m = (M1 - 1.0) * (M1 + 1.0)  # M₁² − 1 without the cancellation near M₁ = 1
     a, b = 2.0 * gamma / (gamma + 1.0), (gamma - 1.0) / (gamma + 1.0)
     with np.errstate(divide="ignore", invalid="ignore"):
         big = np.log1p(a * m) - gamma * np.log1p(m) + gamma * np.log1p(b * m)  # Eq. (15.43)
@@ -713,7 +793,9 @@ def weak_shock_entropy(x, gamma: float = 1.4, *, form: str = "mach"):
     Parameters: x — M₁ [–] or the pressure jump [–] according to ``form``; gamma [–].
     Returns the approximate (S₂ − S₁)/C_v [–].
     Assumptions: |M₁² − 1| ≪ 1.
-    Validation: planned V2 sympy series of (15.43); (15.44b) from (15.44a) with (15.39).  Label: pending (symbolic).
+    Validation: V1, V2 — tests/test_ch15.py: test_weak_shock_entropy_V1_cubic_law_and_its_first_correction,
+    test_weak_shock_entropy_V2_derivation.
+    Label: analytic, symbolic.
     """
     x = _F(x)
     if form == "mach":
@@ -729,7 +811,8 @@ def shock_admissible(M1):
     Book: §15.6 (text after (15.44a); Fig. 15.9).
     Parameters: M1 [–].   Returns bool (array): True for M₁ > 1.
     Assumptions: perfect gas with constant γ (dense gases near the critical point can behave differently).
-    Validation: planned V1 sign of :func:`normal_shock_entropy`.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_shock_entropy_V1_equals_the_entropy_state_function_of_the_jump_state.
+    Label: analytic.
     """
     r = _F(M1) > 1.0
     return bool(r) if r.ndim == 0 else r
@@ -744,8 +827,9 @@ def normal_shock_stagnation_pressure_ratio(M1, gamma: float = 1.4):
     Parameters: M1 [–]; gamma [–].   Returns p₀₂/p₀₁ [–] (≤ 1 for M₁ ≥ 1; > 1 for the forbidden M₁ < 1).
     Method: exp(−(S₂ − S₁)/(C_v(γ − 1))) with :func:`normal_shock_entropy` (accurate near M₁ = 1).
     Assumptions: as (15.39).
-    Validation: planned V1 three routes (ratio of (15.29) values × (15.39); the closed form; A₁*/A₂* from mass
-    conservation), V5 NACA 1135.  Label: pending (analytic, benchmark).
+    Validation: V1, V2, V5 — tests/test_ch15.py: test_weak_shock_entropy_V1_cubic_law_and_its_first_correction,
+    test_shock_stagnation_pressure_ratio_V2_derivation, test_normal_shock_V5_naca_1135_and_cited_table_rows.
+    Label: analytic, symbolic, benchmark.
     """
     return _S(np.exp(-_F(normal_shock_entropy(M1, gamma)) / (gamma - 1.0)))
 
@@ -766,8 +850,11 @@ def normal_shock(M1, gamma: float = 1.4, *, allow_expansion: bool = False) -> di
     dict [–]: ``M1``, ``M2``, ``p_ratio`` (p₂/p₁), ``rho_ratio`` (ρ₂/ρ₁ = u₁/u₂), ``u_ratio`` (u₂/u₁), ``T_ratio``,
     ``p0_ratio`` (p₀₂/p₀₁), ``T0_ratio`` (= 1), ``dS_over_cv``, ``dS_over_R``, ``admissible``.
     Assumptions: perfect gas, constant γ; the shock is a discontinuity (thin compared with the duct).
-    Validation: planned V2, V4 (:func:`normal_shock_residuals`), V5 NACA 1135, V7 limits.
-    Label: pending (symbolic, conserved, benchmark).
+    Validation: V4, V2, V5, V7 — tests/test_ch15.py:
+    test_normal_shock_V4_the_three_jump_laws_hold_for_the_returned_state,
+    test_shock_structure_V2_first_integrals_and_roots, test_normal_shock_V5_naca_1135_and_cited_table_rows,
+    test_normal_shock_V7_limits_guard_and_hugoniot.
+    Label: symbolic, conserved, benchmark.
     """
     M1a = _F(M1)
     if not allow_expansion and np.any(M1a < 1.0):
@@ -790,7 +877,8 @@ def normal_shock_residuals(state1: dict, state2: dict, gamma: float = 1.4) -> di
     Parameters: state1 (upstream), state2 (downstream) dicts (``rho``, ``u``, ``p``); gamma [–].
     Returns dict ``mass``, ``momentum``, ``energy`` [–], each (side 2 − side 1)/side 1.
     Assumptions: perfect gas; constant area, no wall force, no heat.
-    Validation: this *is* the V4 check of the closed forms.  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_normal_shock_V4_the_three_jump_laws_hold_for_the_returned_state.
+    Label: conserved.
     """
     r1, u1, p1 = _F(state1["rho"]), _F(state1["u"]), _F(state1["p"])
     r2, u2, p2 = _F(state2["rho"]), _F(state2["u"]), _F(state2["p"])
@@ -813,7 +901,8 @@ def normal_shock_fluxes(M1, gamma: float = 1.4) -> dict:
     (pressure and ρu² shares of the momentum flux upstream), ``p2_part``, ``ke2_part``; ``h1_part``, ``k1_part``
     (enthalpy and kinetic shares of the total enthalpy upstream), ``h2_part``, ``k2_part``.
     Assumptions: as (15.39).
-    Validation: planned V4 the three totals equal 1 to round-off.  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_normal_shock_V4_the_three_jump_laws_hold_for_the_returned_state.
+    Label: conserved.
     """
     M1 = _F(M1)
     M2 = _F(normal_shock_mach(M1, gamma))
@@ -835,7 +924,8 @@ def normal_shock_table(M1, gamma: float = 1.4):
     Book: §15.6, Eqs. (15.39)–(15.42) and the stagnation-pressure ratio (the layout of Table 15.2; computed here).
     Parameters: M1 array [–] ≥ 1; gamma [–].   Returns a ``pandas.DataFrame``.
     Assumptions: as :func:`normal_shock`.
-    Validation: planned V5 NACA 1135, V6 private table.  Label: pending (benchmark).
+    Validation: V5 — tests/test_ch15.py: test_normal_shock_V5_naca_1135_and_cited_table_rows.
+    Label: benchmark.
     """
     import pandas as pd
 
@@ -852,7 +942,9 @@ def hugoniot_pressure_ratio(rho_ratio, gamma: float = 1.4):
     isentrope p₂/p₁ = (ρ₂/ρ₁)^γ (15.2): the two curves touch to second order at ρ₂/ρ₁ = 1.
     Parameters: rho_ratio ρ₂/ρ₁ [–], below (γ + 1)/(γ − 1); gamma [–].   Returns p₂/p₁ [–] (NaN beyond the limit).
     Assumptions: as (15.39).
-    Validation: planned V1 against (15.39), (15.41) at common M₁.  Label: pending (analytic).
+    Validation: V5, V7 — tests/test_ch15.py: test_normal_shock_V5_naca_1135_and_cited_table_rows,
+    test_normal_shock_V7_limits_guard_and_hugoniot.
+    Label: benchmark.
     """
     r = _F(rho_ratio)
     den = (gamma + 1.0) - (gamma - 1.0) * r
@@ -868,7 +960,8 @@ def strong_shock_limits(gamma: float = 1.4) -> dict:
     Returns dict [–]: ``rho_ratio`` = (γ + 1)/(γ − 1); ``M2`` = √((γ − 1)/(2γ)); ``p_ratio_over_M1sq`` = 2γ/(γ + 1);
     ``T_ratio_over_p_ratio`` = (γ − 1)/(γ + 1); ``u1sq_rho1_over_p2`` = (γ + 1)/2 (so u₁ → √(½(γ + 1)p₂/ρ₁)).
     Assumptions: perfect gas with constant γ (real gases dissociate first).
-    Validation: planned V7 numerical limits of the exact relations.  Label: pending (analytic).
+    Validation: V7 — tests/test_ch15.py: test_normal_shock_V7_limits_guard_and_hugoniot.
+    Label: analytic.
     """
     return dict(rho_ratio=(gamma + 1.0) / (gamma - 1.0), M2=float(np.sqrt((gamma - 1.0) / (2.0 * gamma))),
                 p_ratio_over_M1sq=2.0 * gamma / (gamma + 1.0), T_ratio_over_p_ratio=(gamma - 1.0) / (gamma + 1.0),
@@ -893,8 +986,8 @@ def moving_shock(p1, T1, *, M_s=None, p2_over_p1=None, gas: PerfectGas | None = 
     ``T0_behind_lab`` [K] and ``p0_behind_lab`` [Pa] (stagnation values of the moving gas in the laboratory frame —
     *higher* than T₁, p₁: stagnation quantities depend on the frame, trap T7).
     Assumptions: perfect gas; plane shock of constant speed.
-    Validation: planned V4 mass, momentum and energy conserved through a surface moving with the front, V7 weak
-    limit u_gas → Δp/(ρ₁c₁) (the acoustic relation (15.16)).  Label: pending (conserved, analytic).
+    Validation: V4 — tests/test_ch15.py: test_moving_shock_V4_conservation_in_the_laboratory_frame.
+    Label: conserved.
     """
     g = _gas(gas)
     if (M_s is None) == (p2_over_p1 is None):
@@ -928,8 +1021,8 @@ def mass_flow_vs_back_pressure(pB_over_p0, gamma: float = 1.4, *, dimensionless:
     False give p0 [Pa], T0 [K], A_exit [m²] (and gas) and ``mdot`` is in kg/s.
     Returns dict: ``mdot``, ``M_exit`` [–], ``p_exit_over_p0`` [–], ``choked`` (bool), ``mdot_over_choked`` [–].
     Assumptions: isentropic flow inside the nozzle; exit = smallest area; reservoir at rest.
-    Validation: planned V1 monotone, continuous value *and slope* at the critical ratio, constant below it; V4
-    choked value = :func:`choked_mass_flow`.  Label: pending (analytic, conserved).
+    Validation: V1, V4 — tests/test_ch15.py: test_convergent_nozzle_V1_piecewise_mass_flow_against_back_pressure.
+    Label: analytic, conserved.
     """
     r = _F(pB_over_p0)
     if np.any(r > 1.0) or np.any(r < 0.0):
@@ -956,7 +1049,8 @@ def convergent_nozzle(p0: float, T0: float, pB: float, A_exit: float, gas: Perfe
     Returns dict: ``M_exit`` [–], ``p_exit`` [Pa], ``T_exit`` [K], ``u_exit`` [m/s], ``mdot`` [kg/s], ``mdot_max``
     [kg/s], ``choked`` (bool), ``matched`` (p_exit = p_B, true exactly when the exit is subsonic or just sonic).
     Assumptions: as :func:`mass_flow_vs_back_pressure`.
-    Validation: planned V1, V4 (ṁ = ρuA at the exit).  Label: pending (analytic, conserved).
+    Validation: V1, V4 — tests/test_ch15.py: test_convergent_nozzle_V1_piecewise_mass_flow_against_back_pressure.
+    Label: analytic, conserved.
     """
     g = _gas(gas)
     s = mass_flow_vs_back_pressure(pB / p0, g.gamma, dimensionless=False, p0=p0, T0=T0, A_exit=A_exit, gas=g)
@@ -977,7 +1071,9 @@ def laval_critical_pressures(Ae_over_At, gamma: float = 1.4) -> dict:
     Parameters: Ae_over_At exit-to-throat area ratio [–] ≥ 1; gamma [–].
     Returns dict [–]: ``p_b``, ``p_d``, ``p_f``, ``M_sub``, ``M_sup``, ``p_star`` (throat pressure when choked).
     Assumptions: isentropic flow except across a normal shock; quasi-one-dimensional.
-    Validation: planned V1 ordering for every area ratio > 1, V7 A_e/A_t → 1.  Label: pending (analytic).
+    Validation: V1, V2, V4 — tests/test_ch15.py: test_laval_nozzle_V1_three_thresholds_and_seven_regimes,
+    test_laval_nozzle_shock_position_V2_derivation, test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: analytic, conserved, symbolic.
     """
     ar = _F(Ae_over_At)
     Msub = _F(mach_from_area_ratio(ar, gamma, branch="subsonic"))
@@ -1004,7 +1100,9 @@ def laval_regime(pB_over_p0: float, Ae_over_At: float, gamma: float = 1.4, *, rt
     (p_f < p_B < p_d: oblique shocks outside); "design" (p_B = p_f); "underexpanded" (p_B < p_f: expansion fans
     outside).
     Assumptions: as :func:`laval_critical_pressures`.
-    Validation: planned V1 both sides of each threshold.  Label: pending (analytic).
+    Validation: V1, V4 — tests/test_ch15.py: test_laval_nozzle_V1_three_thresholds_and_seven_regimes,
+    test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: analytic, conserved.
     """
     r = float(pB_over_p0)
     if r > 1.0 or r < 0.0:
@@ -1038,8 +1136,9 @@ def laval_shock_location(pB_over_p0: float, Ae_over_At: float, gamma: float = 1.
     ``M_exit`` (subsonic), ``p_exit_over_p0`` (= p_B/p₀).
     Method: ``brentq`` on M₁ ∈ [1, M_sup(A_e/A_t)]; residual asserted.  Raises ``ValueError`` outside the range.
     Assumptions: isentropic on both sides of a normal shock; the exit pressure equals the back pressure (subsonic exit).
-    Validation: planned V1 shock at the throat as p_B → p_b and at the exit at p_d, V4 same mass flow on both sides.
-    Label: pending (analytic, conserved).
+    Validation: V2, V4 — tests/test_ch15.py: test_laval_nozzle_shock_position_V2_derivation,
+    test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: conserved, symbolic.
     """
     r, ar = float(pB_over_p0), float(Ae_over_At)
     c = laval_critical_pressures(ar, gamma)
@@ -1077,7 +1176,8 @@ def laval_exit_state(pB_over_p0: float, Ae_over_At: float, gamma: float = 1.4) -
     ``M_throat`` [–]; ``mdot_over_choked`` [–] (1 whenever the throat is sonic); ``choked`` (bool).
     Assumptions: as :func:`laval_shock_location`; outside the exit the jet adjusts through oblique shocks or
     expansion fans that are not computed here.
-    Validation: planned V1 continuity of every output across the thresholds, V4 mass flow.  Label: pending (analytic).
+    Validation: V4 — tests/test_ch15.py: test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: conserved.
     """
     r, ar = float(pB_over_p0), float(Ae_over_At)
     reg = laval_regime(r, ar, gamma)
@@ -1120,8 +1220,8 @@ def laval_nozzle(x, A_fn, pB_over_p0: float, gamma: float = 1.4) -> dict:
     A₂* = A_t p₀₁/p₀₂ and p/p₀₁ = (p₀₂/p₀₁) p/p₀₂; ``x_shock`` is found by ``brentq`` on A(x) = A_shock when ``A_fn``
     is callable and by linear interpolation otherwise.
     Assumptions: as :func:`laval_shock_location`; the diverging part is monotonic.
-    Validation: planned V4 mass flow identical on both sides of the shock; exit pressure = p_B whenever the exit is
-    subsonic.  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_laval_nozzle_V4_consistent_with_shock_and_isentropic_relations.
+    Label: conserved.
     """
     x = np.atleast_1d(_F(x))
     A = np.atleast_1d(_F(A_fn(x) if callable(A_fn) else A_fn))
@@ -1176,7 +1276,11 @@ def duct_parameter_A(M1, f=0.0, q=0.0, gamma: float = 1.4):
     f ≥ 0); q = Q/h₁ heat parameter [–] (either sign); gamma [–].
     Returns A [–] (NaN where 1 + γM₁² − f ≤ 0: the wall force would exceed the inlet impulse).
     Assumptions: steady flow of a perfect gas in a duct of constant area.
-    Validation: planned V2 sympy elimination from (15.45).  Label: pending (symbolic).
+    Validation: V4, V2, V1, V7 — tests/test_ch15.py: test_duct_outlet_mach_V4_the_three_laws_hold_on_both_roots,
+    test_duct_outlet_mach_V2_derivation,
+    test_duct_outlet_mach_V1_without_friction_or_heat_returns_the_inlet_or_the_shock,
+    test_duct_outlet_mach_V7_removable_singularity_of_the_printed_form.
+    Label: symbolic, conserved, analytic.
     """
     M1, f, q = _F(M1), _F(f), _F(q)
     den = 1.0 + gamma * M1 ** 2 - f
@@ -1207,8 +1311,11 @@ def duct_outlet_mach(M1, f=0.0, q=0.0, gamma: float = 1.4, *, branch: str = "con
     removes the 0/0 of the printed form at 2Aγ² = γ − 1.  A discriminant between −1e-13 and 0 is treated as 0 (the
     choking limit itself, where round-off of the O(1) terms decides the sign); anything more negative is choked.
     Assumptions: perfect gas; f lumps the whole duct into one number referred to the inlet pressure (trap T11).
-    Validation: planned V2 sympy (solves the quadratic), V4 :func:`duct_residuals` on both branches, V1 f = q = 0
-    gives M₁ and (15.40); planted: one sign for all M₁ fails continuity.  Label: pending (symbolic, conserved).
+    Validation: V4, V2, V1, V7 — tests/test_ch15.py: test_duct_outlet_mach_V4_the_three_laws_hold_on_both_roots,
+    test_duct_outlet_mach_V2_derivation,
+    test_duct_outlet_mach_V1_without_friction_or_heat_returns_the_inlet_or_the_shock,
+    test_duct_outlet_mach_V7_removable_singularity_of_the_printed_form.
+    Label: symbolic, conserved, analytic.
     """
     M1 = _F(M1)
     A = _F(duct_parameter_A(M1, f, q, gamma))
@@ -1251,8 +1358,9 @@ def duct_state_ratios(M1, M2, f=0.0, q=0.0, gamma: float = 1.4) -> dict:
     Returns dict [–]: ``p_ratio`` (p₂/p₁), ``T_ratio``, ``rho_ratio``, ``u_ratio`` (u₂/u₁), ``p0_ratio``,
     ``T0_ratio``, ``dS_over_cv``, ``dS_over_cp``.
     Assumptions: perfect gas; M₂ from :func:`duct_outlet_mach` with the same f, q.
-    Validation: planned V4 :func:`duct_residuals`; f = q = 0 with the shocked root equals :func:`normal_shock`.
-    Label: pending (conserved).
+    Validation: V4, V1 — tests/test_ch15.py: test_duct_outlet_mach_V4_the_three_laws_hold_on_both_roots,
+    test_fanno_and_rayleigh_V1_bridge_to_the_book_parameters_f_and_q.
+    Label: conserved, analytic.
     """
     M1, M2, f, q = _F(M1), _F(M2), _F(f), _F(q)
     t1, t2 = 1.0 + 0.5 * (gamma - 1.0) * M1 ** 2, 1.0 + 0.5 * (gamma - 1.0) * M2 ** 2
@@ -1273,7 +1381,9 @@ def duct_entropy_change(M1, M2, f=0.0, q=0.0, gamma: float = 1.4):
     Parameters: M1, M2 [–]; f, q [–]; gamma [–].   Returns (S₂ − S₁)/C_v [–].
     With q = 0 a negative value marks a root excluded by the second law; with q ≠ 0 the entropy may fall (cooling).
     Assumptions: perfect gas.
-    Validation: planned V1 f = q = 0: zero on the continuous branch, (15.43) on the other.  Label: pending (analytic).
+    Validation: V4, V1 — tests/test_ch15.py: test_duct_outlet_mach_V4_the_three_laws_hold_on_both_roots,
+    test_duct_outlet_mach_V1_without_friction_or_heat_returns_the_inlet_or_the_shock.
+    Label: conserved, analytic.
     """
     return duct_state_ratios(M1, M2, f, q, gamma)["dS_over_cv"]
 
@@ -1285,7 +1395,8 @@ def duct_residuals(state1: dict, state2: dict, f=0.0, q=0.0, gamma: float = 1.4)
     Parameters: state1, state2 dicts (``rho``, ``u``, ``p``); f = F/(p₁A) [–]; q = Q/h₁ [–]; gamma [–].
     Returns dict ``mass``, ``momentum``, ``energy`` [–] (right side − left side, over the left side).
     Assumptions: perfect gas (h = γp/((γ − 1)ρ)); constant area.
-    Validation: this is the V4 check of (15.46).  Label: pending (conserved).
+    Validation: V4 — tests/test_ch15.py: test_duct_outlet_mach_V4_the_three_laws_hold_on_both_roots.
+    Label: conserved.
     """
     r1, u1, p1 = _F(state1["rho"]), _F(state1["u"]), _F(state1["p"])
     r2, u2, p2 = _F(state2["rho"]), _F(state2["u"]), _F(state2["p"])
@@ -1303,8 +1414,10 @@ def duct_choking_limits(M1, gamma: float = 1.4) -> dict:
     q_max = (1 + γM₁²)²/(2(γ + 1)M₁²) − 1 − ½(γ − 1)M₁².  Both vanish at M₁ = 1.
     Parameters: M1 [–] > 0; gamma [–].   Returns dict ``f_max``, ``q_max`` [–].
     Assumptions: as :func:`duct_outlet_mach`.
-    Validation: planned V1 :func:`duct_outlet_mach` returns 1 there from both sides and NaN just beyond.
-    Label: pending (analytic).
+    Validation: V1 — at the limit duct_outlet_mach returns 1 to √(round-off) (|M₂ − 1| ≤ 1.3e-8 measured, bound ½(γ +
+    1)√(4 ulp)) on both roots, and NaN just beyond — tests/test_ch15.py:
+    test_duct_choking_limits_V1_outlet_is_sonic_at_the_limit_and_no_root_beyond.
+    Label: analytic.
     """
     M1 = _F(M1)
     t = 1.0 + 0.5 * (gamma - 1.0) * M1 ** 2
@@ -1322,7 +1435,9 @@ def duct_curve(M1, f=0.0, q=0.0, gamma: float = 1.4) -> dict:
     Returns dict: ``M1``, ``M2_continuous``, ``M2_shocked``, ``choked`` (bool array: no real root),
     ``dS_continuous``, ``dS_shocked`` ((S₂ − S₁)/C_v on each root).
     Assumptions: as :func:`duct_outlet_mach`.
-    Validation: planned V1 f = q = 0 reproduces the diagonal and (15.40).  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py:
+    test_duct_outlet_mach_V1_without_friction_or_heat_returns_the_inlet_or_the_shock.
+    Label: analytic.
     """
     M1 = np.atleast_1d(_F(M1))
     c, s = duct_outlet_mach(M1, f, q, gamma, branch="both")
@@ -1339,7 +1454,8 @@ def duct_choking_locus(gamma: float = 1.4, M1=None) -> dict:
     Parameters: gamma [–]; M1 array [–] (default 0.05 … 4, 400 points).
     Returns dict ``M1``, ``f_max``, ``q_max`` [–].
     Assumptions: as :func:`duct_choking_limits`.
-    Validation: planned V1 against :func:`duct_outlet_mach`.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_duct_choking_limits_V1_outlet_is_sonic_at_the_limit_and_no_root_beyond.
+    Label: analytic.
     """
     M1 = np.linspace(0.05, 4.0, 400) if M1 is None else np.atleast_1d(_F(M1))
     lim = duct_choking_limits(M1, gamma)
@@ -1353,8 +1469,8 @@ def rayleigh_temperature_sign(M, gamma: float = 1.4):
     Book: §15.8, Eq. (15.48) first relation  dT/T₁ = [(1 − γM²)/(1 − M²)] dq and the text ("1/γ < M₁² < 1").
     Parameters: M [–]; gamma [–].   Returns −1.0, 0.0 or +1.0 (NaN at M = 1).
     Assumptions: perfect gas, no friction.
-    Validation: planned V2 sympy sign of the coefficient; maximum of T/T* of :func:`rayleigh_ratios` at M = 1/√γ.
-    Label: pending (symbolic).
+    Validation: V7 — tests/test_ch15.py: test_influence_coefficients_V7_limits_and_sign_pattern.
+    Label: analytic.
     """
     M2 = _F(M) ** 2
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1374,8 +1490,9 @@ def fanno_ratios(M, gamma: float = 1.4) -> dict:
     Parameters: M [–] > 0; gamma [–].
     Returns dict [–]: ``T``, ``p``, ``rho``, ``u`` (u/u*), ``p0``, ``fL`` (4f_F L*/D ≥ 0).
     Assumptions: perfect gas, adiabatic, constant area, constant friction factor.
-    Validation: planned V1 all ratios 1 and fL = 0 at M = 1, V3 fL equals the quadrature of
-    :func:`influence_coefficients`, V5 form against the cited standard relations.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_fanno_and_rayleigh_V1_bridge_to_the_book_parameters_f_and_q,
+    test_fanno_rayleigh_V5_cited_reference_state_forms.
+    Label: analytic, benchmark.
     """
     M = _F(M)
     t = (gamma + 1.0) / (2.0 + (gamma - 1.0) * M ** 2)
@@ -1396,8 +1513,8 @@ def fanno_length_to_f(M1, M2, gamma: float = 1.4) -> dict:
     Returns dict [–]: ``friction_length`` (4f_F L/D), ``f`` (the book's parameter for the whole duct).
     Note (trap T11): f refers to the *inlet* pressure, so two ducts in series do not add their f; friction lengths do.
     Assumptions: as :func:`fanno_ratios`.
-    Validation: planned V1 :func:`duct_outlet_mach` (M₁, f) returns M₂; V3 two short segments compose.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_fanno_and_rayleigh_V1_bridge_to_the_book_parameters_f_and_q.
+    Label: analytic.
     """
     a, b = fanno_ratios(M1, gamma), fanno_ratios(M2, gamma)
     M1, M2 = _F(M1), _F(M2)
@@ -1418,8 +1535,9 @@ def rayleigh_ratios(M, gamma: float = 1.4) -> dict:
     Parameters: M [–] ≥ 0; gamma [–].
     Returns dict [–]: ``T``, ``p``, ``rho``, ``u``, ``T0``, ``p0``.  T/T* is largest at M = 1/√γ.
     Assumptions: perfect gas, no friction, constant area.
-    Validation: planned V1 all 1 at M = 1; V4 q between two Mach numbers = T₀ ratio consistent with
-    :func:`duct_outlet_mach`; V5 form against the cited standard relations.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_fanno_and_rayleigh_V1_bridge_to_the_book_parameters_f_and_q,
+    test_fanno_rayleigh_V5_cited_reference_state_forms.
+    Label: analytic, benchmark.
     """
     M = _F(M)
     k = (1.0 + gamma) / (1.0 + gamma * M ** 2)
@@ -1444,7 +1562,8 @@ def fanno_line_Ts(M, gamma: float = 1.4) -> dict:
     the same frictional process.
     Parameters: M [–] > 0; gamma [–].   Returns dict ``M``, ``ds_over_cp`` (≤ 0, maximum 0 at M = 1), ``T_over_Tstar``.
     Assumptions: as :func:`fanno_ratios`.
-    Validation: planned V7 maximum entropy at M = 1.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_fanno_rayleigh_V5_cited_reference_state_forms.
+    Label: analytic, benchmark.
     """
     return _line_Ts(fanno_ratios(M, gamma), M, gamma)
 
@@ -1457,7 +1576,8 @@ def rayleigh_line_Ts(M, gamma: float = 1.4) -> dict:
     Parameters: M [–] > 0; gamma [–].   Returns dict ``M``, ``ds_over_cp`` (maximum 0 at M = 1), ``T_over_Tstar``
     (maximum at M = 1/√γ).
     Assumptions: as :func:`rayleigh_ratios`.
-    Validation: planned V7 maximum entropy at M = 1, maximum temperature at M = 1/√γ.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_fanno_rayleigh_V5_cited_reference_state_forms.
+    Label: analytic, benchmark.
     """
     return _line_Ts(rayleigh_ratios(M, gamma), M, gamma)
 
@@ -1471,8 +1591,9 @@ def mach_angle(M):
     Book: §15.9, Eq. (15.49)  sin μ = 1/M.
     Parameters: M [–].   Returns μ [rad]; π/2 at M = 1; **NaN for M < 1** (no cone: the source is subsonic).
     Assumptions: weak (acoustic) disturbances in a uniform stream.
-    Validation: planned V1 envelope of :func:`fluidpy.core.acoustics.source_wavefronts`, V5 NACA 1135.
-    Label: pending (analytic, benchmark).
+    Validation: V1, V5 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts,
+    test_mach_angle_and_prandtl_meyer_V5_naca_report_1135_rows.
+    Label: analytic, benchmark.
     """
     M = _F(M)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1485,11 +1606,16 @@ def mach_from_angle(mu):
     Book: §15.9, Eq. (15.49) inverted.
     Parameters: mu [rad] in (0, π/2].   Returns M [–] (NaN outside the range).
     Assumptions: as :func:`mach_angle`.
-    Validation: planned V1 round trip.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_mach_cone_V1_envelope_of_the_wave_fronts,
+    test_mach_angle_and_prandtl_meyer_V5_naca_report_1135_rows.
+    Label: analytic, benchmark.
     """
     mu = _F(mu)
     with np.errstate(divide="ignore", invalid="ignore"):
         return _S(np.where((mu > 0.0) & (mu <= 0.5 * np.pi + 1e-15), 1.0 / np.sin(mu), np.nan))
+
+
+_SIGMA_RTOL = 1e-12  # round-off allowance on M₁ sin σ ≥ 1 and on σ ≤ π/2 (oblique-shock functions that take sigma)
 
 
 def deflection_angle(M1, sigma, gamma: float = 1.4):
@@ -1498,9 +1624,13 @@ def deflection_angle(M1, sigma, gamma: float = 1.4):
     Book: §15.9, Eq. (15.53); Fig. 15.19.  (σ, δ are β, θ in most other sources.)
     Parameters: M1 upstream Mach number [–] > 1; sigma shock angle from the upstream flow direction [rad];
     gamma [–].   Returns δ [rad] (0 at σ = μ₁ and at σ = π/2; negative for σ < μ₁ — not a shock).
+    **The bare formula**: like :func:`normal_shock_mach` it does not refuse an angle outside [μ₁, π/2] — the negative
+    value below the Mach angle is the mark of the forbidden expansion root (M₁ sin σ < 1, entropy would fall).  The
+    guarded calls are :func:`oblique_shock` (raises / flags) and :func:`oblique_shock_components` (NaN).
     Assumptions: perfect gas; plane shock; uniform flow on each side.
-    Validation: planned V2 sympy from (15.51), V4 two-dimensional jump residuals.  Label: pending (symbolic,
-    conserved).
+    Validation: V2, V5, V1 — tests/test_ch15.py: test_deflection_relation_V2_derivation,
+    test_oblique_shock_V5_naca_report_1135_forms, test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: symbolic, benchmark, analytic.
     """
     M1, s = _F(M1), _F(sigma)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1517,15 +1647,25 @@ def oblique_shock_components(M1, sigma, gamma: float = 1.4) -> dict:
     Parameters: M1 [–] > 1; sigma [rad] in [μ₁, π/2]; gamma [–].
     Returns dict: ``Mn1``, ``Mt1`` (= M₁ cos σ), ``Mn2``, ``M2``, ``delta`` [rad], ``u1_over_V1`` (sin σ),
     ``v_over_V1`` (cos σ), ``u2_over_V1``, ``V2_over_V1``, ``c2_over_c1``.
+    **Outside the range** — M₁ sin σ < 1 (σ below the Mach angle, or M₁ < 1: the entropy-lowering "expansion shock",
+    trap T6 for oblique shocks) or σ > π/2 — **every key is NaN** (scalars and arrays alike).  Round-off is forgiven:
+    1 − 10⁻¹² ≤ M₁ sin σ < 1 is treated as the Mach wave (M_n1 = 1, δ = 0) and σ may exceed π/2 by 10⁻¹² rad
+    (``_SIGMA_RTOL``).
     Assumptions: as :func:`deflection_angle`.
-    Validation: planned V4 mass, normal momentum, tangential momentum and energy in two dimensions.
-    Label: pending (conserved).
+    Validation: V4, V5, V1 — tests/test_ch15.py: test_oblique_shock_V4_jump_laws_in_two_dimensions,
+    test_oblique_shock_V5_naca_report_1135_forms, test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: conserved, benchmark, analytic.
     """
-    M1, s = _F(M1), _F(sigma)
-    Mn1 = M1 * np.sin(s)
+    M1, s = np.broadcast_arrays(_F(M1), _F(sigma))
+    with np.errstate(invalid="ignore"):
+        Mn1 = M1 * np.sin(s)
+        mach_wave = (Mn1 < 1.0) & (Mn1 >= 1.0 - _SIGMA_RTOL)  # σ = μ₁ to round-off
+        ok = (Mn1 >= 1.0 - _SIGMA_RTOL) & (s <= 0.5 * np.pi + _SIGMA_RTOL)
+    Mn1 = np.where(mach_wave, 1.0, np.where(ok, Mn1, np.nan))
+    s = np.where(ok, s, np.nan)
     rr = _F(normal_shock_density_ratio(Mn1, gamma))
     Mn2 = _F(normal_shock_mach(Mn1, gamma))
-    d = _F(deflection_angle(M1, s, gamma))
+    d = np.where(mach_wave, 0.0, _F(deflection_angle(M1, s, gamma)))
     u2 = np.sin(s) / rr
     V2 = np.hypot(u2, np.cos(s))
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1543,7 +1683,9 @@ def max_deflection(M1, gamma: float = 1.4) -> dict:
     Parameters: M1 [–] ≥ 1; gamma [–].
     Returns dict ``delta_max`` [rad], ``sigma_max`` [rad] (δ_max → sin⁻¹(1/γ) as M₁ → ∞: 45.58° for γ = 1.4).
     Assumptions: as :func:`deflection_angle`.
-    Validation: planned V1 against a bounded minimiser of −δ(σ), V7 M₁ → 1 and M₁ → ∞.  Label: pending (analytic).
+    Validation: V5, V1, V7 (limits M₁ → 1 and M₁ → ∞) — tests/test_ch15.py:
+    test_oblique_shock_V5_naca_report_1135_forms, test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: benchmark, analytic.
     """
     M1 = _F(M1)
     g1 = gamma + 1.0
@@ -1562,7 +1704,9 @@ def sonic_deflection(M1, gamma: float = 1.4) -> dict:
     σ_s < σ_max: weak shocks with δ between δ_sonic and δ_max are subsonic behind (trap T13).
     Parameters: M1 [–] ≥ 1; gamma [–].   Returns dict ``delta_sonic`` [rad], ``sigma_sonic`` [rad].
     Assumptions: as :func:`deflection_angle`.
-    Validation: planned V1 M₂ of :func:`oblique_shock_components` equals 1 there.  Label: pending (analytic).
+    Validation: V5, V1 — tests/test_ch15.py: test_oblique_shock_V5_naca_report_1135_forms,
+    test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: benchmark, analytic.
     """
     M1 = _F(M1)
     g1 = gamma + 1.0
@@ -1627,11 +1771,19 @@ def oblique_shock(M1, *, delta=None, sigma=None, branch: str = "weak", gamma: fl
     ``p0_ratio``, ``dS_over_cv`` [–], ``attached`` (bool), ``branch``.
     Scalar input with δ > δ_max raises ``ValueError("detached: …")``; array input returns NaN there and
     ``attached=False``.
+    **A given ``sigma`` outside [μ₁, π/2] is refused in the same way** (trap T6 for oblique shocks): M₁ sin σ < 1
+    would send a subsonic normal Mach number through the jump formulas and return an "expansion shock" with
+    p₂/p₁ < 1 and S₂ < S₁.  Scalar input raises ``ValueError("not a shock: …")``; array input returns NaN in every
+    numerical key and ``attached=False`` at those entries.  Round-off is forgiven as in
+    :func:`oblique_shock_components` (σ = μ₁ to 10⁻¹² in M₁ sin σ is the Mach wave: no jump, δ = 0).
     Method: closed forms through the normal-shock functions at M_n1 = M₁ sin σ; with ``delta`` the angle is the
     ``brentq`` root of (15.53) on (μ₁, σ_max) or (σ_max, π/2), residual asserted.
     Assumptions: as :func:`deflection_angle`.
-    Validation: planned V4 two-dimensional residuals, V1 round trip of both roots, V7 δ → 0 (weak → Mach wave,
-    strong → normal shock), V5 form against the cited θ–β–M relation.  Label: pending (conserved, analytic).
+    Validation: V4, V5, V1, V7 — four jump laws in two dimensions (135 shocks, < 2e-11); both roots, δ_max and
+    detachment; guard σ < μ₁ refused — tests/test_ch15.py: test_oblique_shock_V4_jump_laws_in_two_dimensions,
+    test_oblique_shock_V5_naca_report_1135_forms, test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment,
+    test_oblique_shock_V7_shock_angle_below_the_mach_angle_is_refused.
+    Label: conserved, benchmark, analytic.
     """
     if (delta is None) == (sigma is None):
         raise ValueError("give exactly one of delta and sigma")
@@ -1643,9 +1795,19 @@ def oblique_shock(M1, *, delta=None, sigma=None, branch: str = "weak", gamma: fl
     else:
         sig = _F(sigma)
         branch = "given"
+        with np.errstate(invalid="ignore"):
+            mn = M1a * np.sin(sig)
+            bad = (mn < 1.0 - _SIGMA_RTOL) | (sig > 0.5 * np.pi + _SIGMA_RTOL)
+        if bad.ndim == 0 and bool(bad):
+            raise ValueError(f"not a shock: sigma = {np.degrees(float(sig)):.4f} deg at M1 = {float(M1a):g} gives "
+                             f"M1 sin(sigma) = {float(mn):.6g}; an oblique shock needs the shock angle between the "
+                             "Mach angle mu1 = asin(1/M1) and 90 deg (M1 sin(sigma) >= 1, else the entropy would "
+                             "fall)")
+        sig = np.where(bad, np.nan, sig)  # arrays: NaN and attached=False at the refused entries
     comp = oblique_shock_components(M1a, sig, gamma)
     Mn1 = _F(comp["Mn1"])
-    att = np.isfinite(sig)
+    att = np.isfinite(_F(comp["Mn1"]) + sig)
+    sig = sig + 0.0 * Mn1  # the common (broadcast) shape
     out = dict(sigma=_S(sig), delta=comp["delta"] if sigma is not None else _S(np.where(att, _F(delta), np.nan)),
                M2=comp["M2"], Mn1=comp["Mn1"], Mn2=comp["Mn2"],
                p_ratio=normal_shock_pressure_ratio(Mn1, gamma),  # Eq. (15.50)
@@ -1665,10 +1827,15 @@ def oblique_shock_curve(M1: float, gamma: float = 1.4, n: int = 400) -> dict:
     Returns dict: ``sigma`` [rad] (n,), ``delta`` [rad], ``M2`` [–], ``i_max`` and ``i_sonic`` (indices nearest the
     maximum-deflection and M₂ = 1 points), ``delta_max``, ``sigma_max``, ``delta_sonic``, ``sigma_sonic`` [rad],
     ``mu`` [rad].
+    The curve stays inside [μ₁, π/2] by construction (its first point is the Mach wave: δ = 0, M₂ = M₁), so no
+    entry is an expansion root.  ``M1`` < 1 raises ``ValueError`` (no Mach angle, no curve).
     Assumptions: as :func:`deflection_angle`.
-    Validation: planned V1 the two special points against :func:`max_deflection` and :func:`sonic_deflection`.
-    Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: analytic.
     """
+    if not float(M1) >= 1.0:
+        raise ValueError("oblique_shock_curve needs a supersonic upstream Mach number M1 >= 1 (below it there is no "
+                         "Mach angle and no oblique shock)")
     mu = float(mach_angle(M1))
     sig = np.linspace(mu, 0.5 * np.pi, int(n))
     c = oblique_shock_components(M1, sig, gamma)
@@ -1690,7 +1857,8 @@ def detachment_mach(delta, gamma: float = 1.4):
     Returns M₁ [–]; 1 for δ = 0; ``inf`` for δ ≥ sin⁻¹(1/γ) (never attached).
     Method: ``brentq`` on M₁ with an expanding bracket.
     Assumptions: as :func:`max_deflection`.
-    Validation: planned V1 round trip with :func:`max_deflection`.  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_oblique_shock_V1_two_roots_maximum_deflection_and_detachment.
+    Label: analytic.
     """
     lim = float(np.arcsin(1.0 / gamma))
 
@@ -1719,8 +1887,9 @@ def weak_wave_pressure(M, delta, gamma: float = 1.4):
     third order in the pressure change (15.44b).
     Parameters: M [–] > 1; delta [rad], |δ| ≪ 1; gamma [–].   Returns (p₂ − p₁)/p₁ [–] (NaN for M ≤ 1).
     Assumptions: small deflection; fails as M → 1 (the coefficient diverges) and near δ_max (trap T16).
-    Validation: planned V2 sympy limit of (15.54), V3 exact shock / linear → 1 linearly in δ.
-    Label: pending (symbolic, converged).
+    Validation: V2, V5, V1 — tests/test_ch15.py: test_weak_wave_rule_V2_derivation,
+    test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides.
+    Label: symbolic, benchmark, analytic.
     """
     M = _F(M)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -1737,7 +1906,9 @@ def weak_wave_error(M: float, delta: float, gamma: float = 1.4) -> dict:
     Returns dict [–]: ``linear``, ``exact`` ((p₂ − p₁)/p₁), ``ratio`` (exact/linear), ``rel_error``
     ((linear − exact)/exact), ``kind`` ("shock", "expansion" or "none").  ``exact`` is NaN for a detached shock.
     Assumptions: as the two exact functions.
-    Validation: planned V3 ratio → 1 linearly in δ from both sides.  Label: pending (converged).
+    Validation: V5, V1 — tests/test_ch15.py:
+    test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides.
+    Label: benchmark, analytic.
     """
     lin = float(weak_wave_pressure(M, delta, gamma))
     if delta == 0.0:
@@ -1761,8 +1932,11 @@ def prandtl_meyer(M, gamma: float = 1.4):
     a sonic stream must be turned (isentropically, away from itself) to reach Mach number M.
     Parameters: M [–]; gamma [–].   Returns ν [rad] (0 at M = 1; **NaN for M < 1**).
     Assumptions: perfect gas; isentropic simple wave (waves of one family only).
-    Validation: planned V1 ``quad`` of the integrand, V2 sympy derivative, V5 NACA 1135.
-    Label: pending (analytic, symbolic, benchmark).
+    Validation: V1, V2, V5, V4 — tests/test_ch15.py:
+    test_prandtl_meyer_V1_closed_form_equals_the_quadrature_of_its_integrand,
+    test_prandtl_meyer_differential_relation_V2_derivation, test_mach_angle_and_prandtl_meyer_V5_naca_report_1135_rows,
+    test_prandtl_meyer_turn_V4_isentropic_and_composes.
+    Label: analytic, symbolic, benchmark, conserved.
     """
     M = _F(M)
     k = (gamma + 1.0) / (gamma - 1.0)
@@ -1777,7 +1951,8 @@ def prandtl_meyer_max(gamma: float = 1.4) -> float:
     Book: §15.9, Eq. (15.56) in the limit M → ∞.
     Parameters: gamma [–].   Returns ν_max [rad] (130.45° for γ = 1.4: expansion to vacuum).
     Assumptions: as :func:`prandtl_meyer` (a continuum, perfect-gas idealisation).
-    Validation: planned V7 limit of (15.56).  Label: pending (analytic).
+    Validation: V1 — tests/test_ch15.py: test_prandtl_meyer_V1_closed_form_equals_the_quadrature_of_its_integrand.
+    Label: analytic.
     """
     return float(0.5 * np.pi * (np.sqrt((gamma + 1.0) / (gamma - 1.0)) - 1.0))
 
@@ -1789,7 +1964,9 @@ def mach_from_prandtl_meyer(nu, gamma: float = 1.4):
     Parameters: nu [rad] in [0, ν_max); gamma [–].   Returns M [–] ≥ 1 (NaN outside the range).
     Method: ``brentq`` with an expanding bracket; residual asserted.
     Assumptions: as :func:`prandtl_meyer`.
-    Validation: planned V1 round trip.  Label: pending (analytic).
+    Validation: V1, V5 — tests/test_ch15.py: test_prandtl_meyer_V1_closed_form_equals_the_quadrature_of_its_integrand,
+    test_mach_angle_and_prandtl_meyer_V5_naca_report_1135_rows.
+    Label: analytic, benchmark.
     """
     numax = prandtl_meyer_max(gamma)
 
@@ -1811,6 +1988,9 @@ def mach_from_prandtl_meyer(nu, gamma: float = 1.4):
     return _vec(one, _F(nu))
 
 
+_NU_TOL = 1e-12  # [rad] round-off allowance below ν = 0 in prandtl_meyer_turn
+
+
 def prandtl_meyer_turn(M1, turn, gamma: float = 1.4) -> dict:
     """Mach number and isentropic ratios after a supersonic stream is turned through an angle by a simple wave.
 
@@ -1821,13 +2001,21 @@ def prandtl_meyer_turn(M1, turn, gamma: float = 1.4) -> dict:
     Parameters: M1 [–] ≥ 1; turn [rad]; gamma [–].
     Returns dict: ``M2`` [–], ``nu1``, ``nu2`` [rad], ``mu1``, ``mu2`` [rad], ``p_ratio`` (p₂/p₁), ``T_ratio``,
     ``rho_ratio`` [–], ``delta_book`` (= −turn) [rad].  NaN where ν(M₁) + turn is outside [0, ν_max).
+    Round-off at the sonic end: a compression that brings the stream exactly back to M = 1 can leave ν(M₁) + turn
+    a few units of round-off below zero (−10⁻¹⁷ rad instead of 0); a value in (−``nu_tol``, 0) with ``nu_tol`` =
+    10⁻¹² rad (``_NU_TOL``, about 2 × 10⁻⁷ arc-seconds) is set to 0, so M₂ = 1 is returned and not NaN.  A turn
+    that overshoots by more than that is still NaN.
     Assumptions: perfect gas; isentropic; waves of one family only.
-    Validation: planned V4 entropy and total enthalpy unchanged; two half-turns compose; V1 :func:`prandtl_meyer`.
-    Label: pending (analytic, conserved).
+    Validation: V1, V5, V4 — entropy and total enthalpy unchanged; two half-turns compose; a compression undoes the turn
+    — tests/test_ch15.py: test_weak_wave_V1_exact_shock_and_expansion_approach_the_linear_rule_from_both_sides,
+    test_prandtl_meyer_turn_V4_isentropic_and_composes.
+    Label: analytic, benchmark, conserved.
     """
     M1 = _F(M1)
     nu1 = _F(prandtl_meyer(M1, gamma))
     nu2 = nu1 + _F(turn)
+    with np.errstate(invalid="ignore"):
+        nu2 = np.where((nu2 < 0.0) & (nu2 > -_NU_TOL), 0.0, nu2)  # back to M = 1 exactly, to round-off
     M2 = _F(mach_from_prandtl_meyer(nu2, gamma))
     t = _F(stagnation_temperature_ratio(M1, gamma)) / _F(stagnation_temperature_ratio(M2, gamma))  # T₂/T₁, T₀ const
     out = dict(M2=M2, nu1=nu1, nu2=np.where(np.isfinite(M2), nu2, np.nan), mu1=_F(mach_angle(M1)),
@@ -1856,8 +2044,9 @@ def riemann_exact(left, right, gamma: float = 1.4, xi=0.0) -> dict:
     rarefaction branch from the isentrope) solved by ``brentq``; residual asserted.  Raises ``ValueError`` if the two
     states separate so fast that a vacuum forms.
     Assumptions: perfect gas with constant γ; inviscid; one space dimension.
-    Validation: planned V4 the shock satisfies :func:`moving_shock`, V1 trivial problem (left = right).
-    Label: pending (conserved, analytic).
+    Validation: V4, V3 — tests/test_ch15.py: test_riemann_exact_V4_shocks_satisfy_the_jump_laws_and_fans_are_isentropic,
+    test_euler1d_V3_second_order_for_a_smooth_wave_and_first_order_at_a_captured_shock.
+    Label: conserved, converged.
     """
     rL, uL, pL = (float(v) for v in left)
     rR, uR, pR = (float(v) for v in right)
