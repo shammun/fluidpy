@@ -416,12 +416,22 @@
       "implement": "pass",
       "verify": "pass",
       "review": "pass",
-      "viz": "running",
+      "viz": "pass",
       "notebook": "pass",
       "knowledge": "todo",
       "publish": "todo",
-      "explainers": [],
-      "notes": "analyze: 151 inventory rows, 59 numbered equations (15.1)-(15.59) each once (49 own-line + 9 on 4 grouped lines + 15.44a/b as one), 113 CODE / 20 DEMO / 18 SKIP, 132 NEW / 19 SEEN, 45 derivations (13/26/6 by stars), 17 load-bearing clusters, 17 suspected slips (3 change physics: 15.32, 15.47, 15.48) + 22 traps, 46 pages rendered; curate: 16 CORE (A) / 114 NOTE / 19 RECAP / 2 SKIP = 151 rows (A 16, B 121, C 14), 31 derivations written out (8/19/4 by stars) covering 33 analysis derivations + D19 ours, 12 demoted, 20 primers P354-P373, 9 explainers + backup wave_steepening, 17 slips + 22 traps tabled; book's lumped f, q primary with Fanno/Rayleigh names beside; design: 16 CORE blocks, 31 derivation blocks (242 steps), 9 explainers + backup, 191 ledger rows, Part C 147 public names checked against code with 0 missing; implement: core/gasdynamics.py (82) + core/acoustics.py (30) + ch15_compressible_flow.py (35 own), 9 scripts exit 0, three slips coded corrected with printed_15_32/47/48 options, suite 1979 passed before Part C adjustments; verify: PASS after 1 fix loop (F1 influence_coefficients NaN at M=1, F2 oblique_shock sigma<mu guard) — test_ch15 107 passed in 86 s, full suite 2078/2080 before fixes (the 2 = F1, F2), V1 34 / V2 29 / V3 3 / V4 11 / V5 7 / V6 5 / V7 18, mutants 103/103 + 45/46 (1 equivalent), NACA 1135 benchmark 109/111 entries to half a unit (2 report misprints), three corrected slips confirmed 3 ways; open: 6 docstring label over-claims; review: PASS (reports/ch15_review.md), fixes committed e0c64bc, 111 tests; notebook PASS lesson round 2 (606 cells, 68 s, coverage 0/0, embed OK; round-2 should-fix 4/4 applied: alpha corner, T18 callout, slip bold, D14/D21/D29 why)",
+      "explainers": [
+        "sound_pulse_dalembert",
+        "area_mach_nozzle",
+        "normal_shock_jump",
+        "nozzle_back_pressure",
+        "duct_friction_heating",
+        "mach_cone",
+        "oblique_shock_wedge",
+        "prandtl_meyer_fan",
+        "supersonic_flat_plate"
+      ],
+      "notes": "analyze: 151 inventory rows, 59 numbered equations (15.1)-(15.59) each once (49 own-line + 9 on 4 grouped lines + 15.44a/b as one), 113 CODE / 20 DEMO / 18 SKIP, 132 NEW / 19 SEEN, 45 derivations (13/26/6 by stars), 17 load-bearing clusters, 17 suspected slips (3 change physics: 15.32, 15.47, 15.48) + 22 traps, 46 pages rendered; curate: 16 CORE (A) / 114 NOTE / 19 RECAP / 2 SKIP = 151 rows (A 16, B 121, C 14), 31 derivations written out (8/19/4 by stars) covering 33 analysis derivations + D19 ours, 12 demoted, 20 primers P354-P373, 9 explainers + backup wave_steepening, 17 slips + 22 traps tabled; book's lumped f, q primary with Fanno/Rayleigh names beside; design: 16 CORE blocks, 31 derivation blocks (242 steps), 9 explainers + backup, 191 ledger rows, Part C 147 public names checked against code with 0 missing; implement: core/gasdynamics.py (82) + core/acoustics.py (30) + ch15_compressible_flow.py (35 own), 9 scripts exit 0, three slips coded corrected with printed_15_32/47/48 options, suite 1979 passed before Part C adjustments; verify: PASS after 1 fix loop (F1 influence_coefficients NaN at M=1, F2 oblique_shock sigma<mu guard) — test_ch15 107 passed in 86 s, full suite 2078/2080 before fixes (the 2 = F1, F2), V1 34 / V2 29 / V3 3 / V4 11 / V5 7 / V6 5 / V7 18, mutants 103/103 + 45/46 (1 equivalent), NACA 1135 benchmark 109/111 entries to half a unit (2 report misprints), three corrected slips confirmed 3 ways; open: 6 docstring label over-claims; review: PASS (reports/ch15_review.md), fixes committed e0c64bc, 111 tests; notebook PASS lesson round 2 (606 cells, 68 s, coverage 0/0, embed OK; round-2 should-fix 4/4 applied: alpha corner, T18 callout, slip bold, D14/D21/D29 why); viz PASS after orchestrator fix (9/9, 2360 views, 295 selftest rows, 245 vs fluidpy; must-fix in nozzle_back_pressure: all 7 preset chips lit -> set getter with area-aware dn, D20 step 4 p_d<p_b argument); open should-fix (cosmetic): phone label overlaps E1/E2/E6/E7/E8/E9, E3 cubic gap % wording, E5 tour step 3 -> D21 step 12, D26/D29 step-title drift, E9 1e-3 parity row, D31 s1 why 36 words",
       "updated": "2026-10-14"
     },
     "ch16": {
