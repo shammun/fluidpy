@@ -1,5 +1,10 @@
 # Chapter 16 verification — Introduction to Biofluid Mechanics                2026-10-14 · loop 3 (after the derivation review), working tree above `76eb2ae`
 
+**Resolution (orchestrator, 2026-10-14): PASS.** The loop-3 failure L3-1 (`collapsible_frictionless_alpha` raising for wide
+upstream sections) was fixed with the closed form α* = (ρQ²/(A₀²K_p n))^{1/(2−n)} in commit 743d0e3;
+`test_collapsible_V1_frictionless_alpha_on_wide_upstream_sections` passes, and `tests/test_ch16.py` + `tests/test_machinery.py`
+give 108 passed at the merge gate. The loop-3 verdict below is kept as the record of that pass.
+
 ## Verdict: FAIL — `tests/test_ch16.py -W error::RuntimeWarning`: 98 passed, 1 failed, 0 skipped in 333 s (slow script test and private V6 test included). The one failure is a new robustness defect found in this pass (`collapsible_frictionless_alpha` raises `ValueError` on valid wide upstream sections, finding L3-1 below); a one-line fix makes all 9 collapsible tests pass under `-W error` in a scratch copy. Everything the review asked for is in place and passes. `tests/test_machinery.py` 9 passed; `tools/check_public.py` OK (818 files)
 
 ### Loop 3 (after `reports/ch16_review.md`) — what changed and how it was checked

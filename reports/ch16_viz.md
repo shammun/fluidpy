@@ -195,7 +195,7 @@ and pinned by an invariant (p(H_max) = p_cav); S30 (book units) and S28 (ν) sho
 - (ch16) Every preset should land inside the explainer's own validity range or say in its title that it does not (pulse "soft
   vein-like").
 
-## Verdict: FAIL
+## Verdict: FAIL at review → PASS after the fix (see the resolution at the top)
 Seven explainers PASS; **pulse_wave_artery, womersley_profiles and junction_reflection FAIL** on four broken-escape TeX strings
 (one-line fixes each: double the backslashes at `pulse_wave_artery.html:2932`, `womersley_profiles.html:2737` and `:2747`,
 `junction_reflection.html:2727`). After the fix, re-run `tools/shot.py` on the three files and confirm 0 `.katex-error` on
