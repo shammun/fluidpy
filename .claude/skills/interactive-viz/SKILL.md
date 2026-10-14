@@ -92,7 +92,8 @@ const app = Viz.app({
 - Formatting: `Viz.fmt(v, {sig, unit, keepTiny})`, `Viz.tnum(v, sig, {keepTiny})` in TeX (round-off below 1e-12 prints
   as 0 unless `keepTiny`), `Viz.fmtTime(seconds)` (µs … years). Colours:
   `Viz.color('accent'|'teal'|'orange'|'rose'|'blue'|'amber'|'muted'|'text')`, `Viz.alpha(c, a)`; coloured words in HTML
-  with `<b class="c-teal">`. In JS strings double every TeX backslash.
+  with `<b class="c-teal">`. In JS strings double every TeX backslash — better, write every TeX-bearing string as
+  `String.raw` (a lone `\f`, `\r`, `\t`, `\b` becomes a control character, `\m`, `\p`, `\s` a bare letter; see Lessons ch16).
 
 ## 3. Fit rules (how to pass the audit without shrinking anything)
 - The engine: picks the layout (`wide` | `portrait` | `landscape`), raises density 0–3 (hides help lines, `optional`
@@ -234,3 +235,16 @@ height; ours must fit the window — take their *depth*, keep our layout.
   the identity it breaks; an exaggerated motion is labelled with the factor and the true size ("×500, true ≤ 0.886 mm").
 - (ch15) Derivation step titles are copied from `build_chNN.py --dump`, and a fix the lesson review makes to a
   derivation is re-briefed to the explainer that shows it (D20 step 4 was fixed in the notebook only).
+- (ch16) **Every TeX-bearing JS string is `String.raw`** (or every backslash doubled): single backslashes in ordinary
+  strings ate (16.63), (16.72), (16.77), (16.151) in three files — `\f` became a form feed (KaTeX error), `\r` a carriage
+  return (silently wrong) — and lint and shot passed all three; until shot.py checks it, count `.katex-error` over every
+  tab, step and derivation page and scan `app.cfg` strings and live outputs for control characters before handing back.
+- (ch16) A model's validity range is part of the explainer: the status line names the threshold, computed from the
+  fluidpy guard ("α_t > (1 − n/2)^{1/n} = 0.397: outside the tube-law fit"), and every preset lands inside it or says
+  in its title that it does not.
+- (ch16) Mirror closed forms, not nested root finders (Windkessel beat by beat, Starling x(α)): parity rows hold at
+  1e-9…1e-12 and nothing can fail to bracket at an extreme slider setting.
+- (ch16) A printed slip is a selectable mode with both numbers live and one parity row per form (Murray (16.140),
+  Womersley (16.96), Dean c₄).
+- (ch16) Parallel builders prefix every scratch file with their slug, write hand-back notes to disk, and never run a
+  `build_chNN.py` to read its help (an old builder rebuilt the notebook on `--help`).

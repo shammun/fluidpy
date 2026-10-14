@@ -162,3 +162,16 @@ From-scratch versions: a transparent loop or formula next to the library call, t
   dimensionless number until the problem is one parameter and a quadratic (D21) · a vanishing discriminant is the
   critical state (D24) · slide along a line to reduce a 2-D jump to a 1-D one (D26) · one small-angle replacement per
   step (D28, D31) · sum infinitesimal turns, substitute t² = M² − 1, split into arctangents (D29, D30).
+- (ch16) **A quantitative word in a reading note gets a printing cell above it** ("6 decades", "6 × 10¹³", "+71 %"):
+  the round-1 lesson review found eight adjectives that the numbers did not support.
+- (ch16) Symbols the book introduces silently (p_e, transmural pressure, a₀) get a short definitions cell before the
+  first derivation that uses them; a numerical demo separates the physics from the scheme's artefacts and starts from an
+  exact state (a simple wave with u + 4c uniform, so no spurious left-going wave appears).
+- (ch16) Reusable derivation moves (recap by pointing to the ch16 D row): work as a signed loop area by the shoelace sum
+  (D01) · match two layers by stress and velocity continuity (D05) · volume balance + chain rule → first-order ODE →
+  integrating factor → periodic state p(T) = p(0) (D09, D10) · cross-differentiate two first-order laws into a wave
+  equation (D12) · try U(r)e^{iωt}, recognise Bessel's equation, drop Y₀ (D13) · keep the first non-cancelling term at
+  small argument (D14) · stretch the wall coordinate and keep the decaying root (D15) · ∫sJ₀ = zJ₁ then X + iY (D16, D17)
+  · minimise a⁻⁴ plus a²: pumping is half the upkeep (D22) · move a junction by ds: weighted unit vectors close (D24) ·
+  regular perturbation series solved order by order with polynomial ansätze (D27) · a polynomial in √ξ for "considerable
+  algebra" (D33).

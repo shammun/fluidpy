@@ -214,6 +214,12 @@ states for one regime being used in another.
   tables carry "V7 (structure)" — there is no analytic truth in a table.
 - (ch15) A physics-changing slip is confirmed by at least two independent routes before it is coded corrected
   (finite differences of a closed form, sympy on the linearised laws, sympy on the finite laws).
+- (ch16) A sign slip in a printed nonlinear PDE may change nothing until the order where the nonlinear term first acts
+  (Dean (16.174): c₂ unchanged, c₄ +1.5 %): solve the equations independently in another form (here a spectral
+  Navier–Stokes solve) and compare at that order, not only at the leading ones.
+- (ch16) "V3" only with an asserted refinement order; an independent-route agreement is a V1 cross-check, and a
+  characteristic transport at Courant number 1 is exact (nothing to refine). Guarded functions get a
+  `-W error::RuntimeWarning` run, and the guard itself a test on both sides of the limit and at the round-off allowance.
 
 ## Public-repo rule
 Benchmark tables are committed only with a citable public source. Book tables, page crops and figure comparisons stay

@@ -125,3 +125,14 @@ description: How to turn textbook mathematics (definitions, theorems, derivation
   linearised laws, sympy on the finite laws).
 - (ch15) A re-exported function whose bare name means something else in the new chapter (ch04's incompressible
   `stagnation_pressure` in a compressible chapter) gets a warning wrapper and an explicit alias, and a test pins the gap.
+- (ch16) **A fitted constitutive law carries its validity range as a guard**: warn and extrapolate for scalars, NaN +
+  warning for arrays, a stated round-off allowance at the edge (`collapsible_tube_law`, α ≤ 1); turn "the demo stays in
+  range" into a computed criterion (H ≤ 0 ⇔ α_t ≤ (1 − n/2)^{1/n}) and a test.
+- (ch16) Prefer a closed form to a bracketed root search: a fixed `brentq(…, 1e-6, 1e6)` bracket raised once the root
+  fell below 1e-6 (wide upstream sections); the closed form α* = (ρQ²/(A₀²K_pn))^{1/(2−n)} needs none.
+- (ch16) One scalar argument has one meaning across sibling functions, or the function raises (`G` was the n = 1
+  amplitude in one Womersley function and the mean G₀ in its sibling, 245× apart).
+- (ch16) Evaluate each piece of a piecewise formula only on its own mask — `np.where` evaluates both branches and an
+  unused exponential overflowed for tiny RK.
+- (ch16) Two time conventions (e^{+iωt} and e^{i(kx − ωt)}) never meet in one function; name the convention in every
+  docstring and keep separate constants (i^{3/2} vs e^{iπ/4}); ratios of complex Bessel functions through `jve`.

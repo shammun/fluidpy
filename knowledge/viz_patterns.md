@@ -40,6 +40,14 @@ PASS — round 1 passed eight of nine; `nozzle_back_pressure` had 2 Must (every 
 step 4), fixed by the orchestrator in `6e3700c`; 295 selftest rows of which 245 JS ↔ fluidpy, closed forms at rtol 1e-12;
 2 360 views, 0 CLIP, 0 console messages; 18 derivations / 149 steps equal to the notebook; no library change).
 
+ch16 E1 `casson_blood_flow`, E2 `windkessel_heartbeat`, E3 `pulse_wave_artery`, E4 `womersley_profiles`, E5
+`womersley_flow_phase`, E6 `murray_branching`, E7 `junction_reflection`, E8 `dean_curved_pipe`, E9
+`collapsible_tube_choking`, E10 `xylem_water_potential` (all PASS — round 1 passed seven of ten; `pulse_wave_artery`,
+`womersley_profiles` and `junction_reflection` failed on **lone backslashes in ordinary JS strings that ate TeX** (one
+visible KaTeX error, two silently wrong equations — lint and shot.py passed all three), fixed by the orchestrator; 229
+selftest rows of which 177 JS ↔ fluidpy; 2 928 views; 43 presets each with exactly one chip pressed; walkthrough driven by
+real clicks; 34 derivation instances with step counts equal to the notebook; no library change).
+
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
 |---|---|---|
@@ -295,6 +303,18 @@ step 4), fixed by the orchestrator in `6e3700c`; 295 selftest rows of which 245 
 | **An area between two levels that is a force, with the previous chapter's loop as a ghost**; the status reports the small error of the total (lift −1.1 % at 10°) while Explain shows each part 20–25 % off | ch15 E9 `supersonic_flat_plate` (after ch14 E4) | "the errors nearly cancel" becomes a measured, second-order fact; the diamond preset shows drag without lift |
 | **Every ratio on screen says what it is a ratio of** ("p₂/p₁ downstream / upstream", "p/p₀ static / stagnation") | all ch15 explainers (the ch14 Wagner lesson as a colour-and-label rule) | no ratio can be read against the wrong reference |
 | **A medium table with the current row highlighted** (Newton's isothermal against Laplace's isentropic sound speed in several media; real Mach numbers of aircraft and projectiles) | ch15 E1, E6 (after the AFE reference) | the number on screen is placed among real values |
+| **A model's validity range in the status line with a computed threshold** ("α_t > (1 − n/2)^{1/n} = 0.397: upstream α > 1, outside the tube-law fit"); presets stay inside the explainer's own validity range (or say so in their title) | ch16 E9 `collapsible_tube_choking` (after the review's Must on (16.188)); open counter-example E3 "soft vein-like" (u/c = 1.3) | the reader sees where the model stops, and no preset teaches a regime the model cannot describe |
+| **A closed form instead of nested root finding** (Windkessel beat by beat in closed form, no ODE solver; Starling tube x(α) in closed form; α* in closed form) | ch16 E2 `windkessel_heartbeat` (parity 1e-10), E9 (parity 1e-9 against `flow_limitation_curve`) | exact parity rows, a fast page, no bracket that can fail at an extreme setting (the Python twin raised for wide sections, L3-1) |
+| **A printed slip as a selectable mode with both numbers live and a parity row for each form** (Murray (16.140) printed vs corrected with a units argument; Womersley (16.96) printed vs corrected vs leading term with live errors; Dean c₄ 0.0119312 vs 0.0121130 for the sign of (16.174)) | ch16 E6, E5, E8 (after ch15's slip shown beside the correction) | the reader can switch the slip on and watch it fail; the parity rows pin both forms |
+| **The APS reference pattern done right**: time traces, a Bode pair and the complex locus Z = X + iY on one parameter, X and Y as term bars with ∣Z∣ as total, a phase lead read off arg F₂ | ch16 E5 `womersley_flow_phase` (reviewer: "very good") | a lag seen in time, on a Bode curve and as an angle in the plane is the same number three times |
+| **A stress panel sharing the radius axis with the velocity profile**, so the crossing τ = τ_y *is* the plug edge; a dye line released at t = 0 shows plug vs Poiseuille ghost in one picture | ch16 E1 `casson_blood_flow` | the yield stress becomes a place in the pipe, not a number |
+| **A draggable point whose "three pulls" triangle closes at the optimum** (weighted unit vectors a_i² e_i; Weiszfeld iteration, parity with Nelder–Mead 1e-6) and a 1 : 2 pumping : upkeep signature in term bars | ch16 E6 `murray_branching` | an optimum explained by a force balance the reader can break by hand |
+| **"News" arcs that stop at the critical speed** (amber arcs travelling upstream at c − u vanish where S = 1) beside term bars formed before dividing by 1 − S² | ch16 E9 (after ch15 E2) | choking is shown, not told |
+| **Convention chips on one slider** (κ / K / D for the Dean number) and our own reliability criterion labelled "ours" with its threshold | ch16 E8 `dean_curved_pipe` | three conventions of one number cannot be confused; a series' range is never borrowed from the book |
+| **A ledger of term bars at stations along a path** (ψ = p − RTc + ρgz at soil, root, stem, leaf), with a threshold pinned by an invariant (p(H_max) = p_cav) | ch16 E10 `xylem_water_potential` | a budget along a path read as a fall of the total |
+| **Exact closed-form pulses (no grid) with a grid-echo parity row** and energy bars stacking to 1 with signed R and T | ch16 E7 `junction_reflection` | the reflection sign flip is continuous and exact; the grid run proves the closed form |
+| **One exaggeration factor for wall bulge and tracer shifts, labelled with the true sizes**, tracer shifts integrated in closed form (erf) with a path-integral invariant | ch16 E3 `pulse_wave_artery` (after ch15 E1) | the pulse's speed and the blood's tiny motion appear on one honest scale |
+| **Overflow-free complex Bessel in JS** (series for α ≤ 12, Hankel-scaled J₀ beyond, parity rows on both branches to α = 50) | ch16 E4 `womersley_profiles`, E5 | large-α profiles without NaN; candidate `Viz.cbessel` |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -519,6 +539,16 @@ step 4), fixed by the orchestrator in `6e3700c`; 295 selftest rows of which 245 
 | **A percentage computed against one value and worded against the other** ("the exact value is 40 % below the cubic" while computing (cubic − exact)/exact: the cubic is 40 % above, the exact 29 % below) | ch15 E3 Explain §6 (open) | the sentence names the denominator of the computation |
 | **Derivation step titles paraphrased instead of copied** (D26 steps 4, 6; D29 steps 1, 7) and a walkthrough link one step early (E5 → D21 step 11 for the step-12 result) | ch15 E5, E7, E8 (open) | copy titles from `build_chNN.py --dump`; check every `derive: {id, step}` against the quoted text |
 | **A parity row with a loose tolerance hiding its reason** (rtol 1e-3: a closed form against a quadrature across a slope jump, actual 3.3e-4) | ch15 E9 (open) | name the row "closed form vs quadrature" or give the quadrature a breakpoint so the row can be 1e-9 |
+| **Single backslashes in ordinary JS strings ate TeX**: `'… $\sqrt{Eh/(\rho d)}$ …'` — `\s`, `\m`, `\p` become letters, `\r`, `\f`, `\t`, `\b` become control characters (`\frac` → form feed → KaTeX error; `\rho` → carriage return + "ho") | ch16 E3 (16.63) note, E4 D13 steps 1 and 4 ((16.72), (16.77)), E7 Explain §1 (16.151) (round-1 Must ×4) | `String.raw` (`R\`…\``) for every TeX-bearing string; **lint and shot.py passed all three** — propose: shot.py fails on any `.katex-error` and on control characters in `app.cfg` strings and live text outputs (the reviewer's probe did both) |
+| **A model used outside its fitted range** (the collapsible tube law (16.188) beyond α = 1 in the first throat preset, α_t = 0.6 → upstream α = 1.50) | ch16 E9 storyboard, `scripts/ch16_collapsible.py` (review Must) | guard in fluidpy (warn / NaN), compute the threshold, keep presets inside it, print the threshold in the status line |
+| **A preset outside the explainer's own validity** ("soft vein-like": p̂/(Eh/a₀) = 0.67, u/c = 1.3, status "too strong for linear theory") | ch16 E3 (open Should) | lower the amplitude in that preset or say so in its title |
+| **Phone views too small for the step's point** (Womersley cycle plot ~120 px with traces a few pixels tall; Dean slice 160 px in a ±2a range; Casson τ(γ̇) view 60 px) | ch16 E4, E8, E1 (open Should) | fit the y range to the plotted quantities on portrait; fit the disc to the view; hide the least important view on portrait |
+| **Two curves in near-identical colours** (Murray pumping orange vs total amber, total unlabelled on phones) and a cryptic phone status | ch16 E6 (open) | total darker/thicker or labelled; status in words ("radius 57 % below a*") |
+| **A private library flag read by a chapter file** (`markMode()` reads `a._ready`) | ch16 E9 (open; ch14 lesson repeated) | call `a.fit()` from `onChange`, or test `a.root.isConnected` |
+| **17 Explore pages at 360×640** (one control per page) | ch16 E9 (open) | mark mode-irrelevant controls `optional` or hide them per mode |
+| **Goal/result pages name an equation by number only** (D10 result "p(t) from (16.52)", D09 start "(16.47) in words", D29 result "(16.201) corrected") while the step pages write it | ch16 E2, E9 (open) | `tools/eq_refs.py` does not scan derivation `result`/`start` fields — write the equation there too |
+| **Parallel builders collided in the shared scratchpad** (helper files with generic names) and **one builder ran `notebooks/build_ch16.py --help`, which rebuilt the notebook silently** | ch16 viz phase | prefix scratch files with the slug; builder scripts parse arguments (argparse now) and never build on an unknown flag |
+| **Transient Windows `OSError [Errno 22]` on screenshot writes** in `tools/shot.py --quick` (two files in the merge gate; per-file re-run clean) | ch16 merge gate | retry the write once per file in `shot.py` |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -701,6 +731,98 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch16 candidates (listed, **not promoted**: the ch16 knowledge pass ran while the site-publisher was reading `viz/`)
+From `reports/ch16_viz.md`, the orchestrator's brief (builders' candidates) and a scan of named definitions in the ten
+chapter files; no builder hand-back notes were found on disk. "Rating": **A** clearly worth it · B useful on second use · C
+keep local.
+
+| Rank | Helper or fix | Files carrying a local copy (ch16) | Proposed library name | Rating · why |
+|---|---|---|---|---|
+| 1 | **TeX-safety in the audit**: fail on `.katex-error` in any tab/step/derivation page and on control characters (`\x08 \x09 \x0c \x0d` inside `$…$`) in `app.cfg` strings and live text outputs; lint warns on a lone `\` + letter in a non-raw JS string | the four ch16 Must strings (E3, E4 ×2, E7) | `tools/shot.py` + `tools/viz_lint.py` checks | **A** — the only Must class of ch16, invisible to every mechanical check |
+| 2 | **complex Bessel J₀/J₁ with a scaled branch** (`J0`, `J0scaled`, `J0full` in E4; `J0`, `J1` in E5) | E4, E5 | `Viz.num.cbessel` (`j0(z)`, `j1(z)`, `j0ratio(zIn, zOut)` overflow-free) + a small complex type (ch14 `Viz.cx` candidate) | **A** — two files, and any later revision with round ducts needs it |
+| 3 | **first label that fits** (`fitStr`) | E1, E3, E5 (ch15 E3, E6, E7, E8; ch12 `fitText`) | `Viz.fitText(ctx, list, maxW, {size, weight})` | **A** — tenth file across three chapters |
+| 4 | **colour blend** (`mix`, `sColor` for S along the tube, `pColor` for pressure; ch15 `hex2rgb` + `mixC`) | E9, E10 | `Viz.mix(c1, c2, f)` and `Viz.ramp(colors, f)` | **A** — every chapter colours a field by a scalar |
+| 5 | **pixel arrows and the drawing kit** (`arrowPx` E2, E6, E7, E9, E10; `labeler`, `gutterPlot`, `linePx`, `put`, `hit`, `dotPx`, `diamondPx` E6, E7, E9, E10) | as listed | `Viz.arrowPx`, `Viz.px.*`, `v.plot({ylabelGutter})` (ch14 ranks 3, 5, 9) | **A** — eighth chapter with `arrowPx` |
+| 6 | **log grids and log axes** (`logGrid` E1; hand-drawn log ticks in E1, E4, E5) | E1, E4, E5 | `Viz.num.logspace`; `P.axes({xlog: true})` (ch14 candidate) | B — log axes are a library gap since ch08 |
+| 7 | **a second y axis** (the builders' `axis2` idea: two quantities on one time axis, as in E2 traces and E5 Bode pair; drawn inline) | E2, E5 | `P.axes2({ylim, ylabel, color})` | B — the APS pattern needs it every time |
+| 8 | **golden-section maximum** (`golden` E8, `goldenMax` E2) and **Weiszfeld / bestB** (E6) | E2, E8; E6 | `Viz.num.golden(f, a, b)`; keep Weiszfeld local | B / C |
+| 9 | **1-D interpolation of a table** (`interp` as a local closure in several files besides the library's private one) | E1–E10 (library-private copy exists) | expose `Viz.num.interp(xs, ys, x)` | B — trivial, but a public one stops the copies |
+| 10 | **layout from the view** (window-based `narrow()` now in all ten ch16 files) | all | `v.size` from `v.w`, `v.h` (ch15 rank 2) | **A** — carried; 26 files |
+| 11 | carried, unchanged: ch15 ranks 1–9 (preset exclusivity probe, `Viz.gas`, `Viz.mix`, `Viz.fitText`, `Viz.arrowPx`), ch14 ranks 1–16 (shot.py click / page-then-step / Explain-state / 844×345; `Viz.cx`; `transport.max`/`holdAt`; `Viz.num.linalg`; pager "keep the page by heading"), ch13 and ch12 lists | | | |
+
+**Top five, clearly worth it:** (1) the TeX-safety checks in `shot.py`/`viz_lint.py` (and the carried preset-exclusivity
+probe); (2) `Viz.num.cbessel` with a scaled branch; (3) `Viz.fitText`; (4) `Viz.mix`/`Viz.ramp`; (5) `Viz.arrowPx` with the
+`Viz.px` kit and `v.size`. Order for the library pass (when nothing reads `viz/` or `assets/`): these, then log axes and
+`axes2`, then the ch15, ch14, ch13, ch12 lists; afterwards `tools/viz_inline.py --all`, `tools/shot.py --chapter ch01 …
+ch16 --quick` and `tools/shot.py templates/viz_example.html --quick`; revert on any failure; re-run the behaviour probes
+(real clicks, page-then-step, preset exclusivity, `.katex-error` count).
+
+### ch16 library and tool findings (from the reviewer and the orchestrator; nothing was edited)
+1. **A lone backslash in an ordinary JS string is not an error anywhere in the toolchain**: `\f` becomes a form feed (KaTeX
+   throws, the line is red), `\r` a carriage return (the equation silently reads "ho"), `\m`, `\p`, `\s` plain letters.
+   `tools/viz_lint.py` and `tools/shot.py` passed all three files; the reviewer's own probe (scan `app.cfg` and live text
+   outputs for control characters; count `.katex-error` across tabs, steps and derivation pages) found them.
+2. `tools/eq_refs.py`: 34 hits, all accepted (25 `ref:` labels or derivation titles used verbatim by the notebook, 6
+   *did* titles whose *why* writes the equation, 3 false positives via TeX constants). It does not scan derivation
+   `start`/`result` fields — three goal/result pages name an equation by number only (Should).
+3. `tools/shot.py --quick`: two transient Windows `OSError [Errno 22]` on screenshot writes in the merge gate (clean on a
+   per-file re-run) — retry per file.
+4. Derivation step counts equal `build_ch16.py --dump` in all 34 instances; title differences cosmetic (TeX vs Unicode;
+   E9 appends the equation to four notebook titles — an improvement).
+
+### ch16 open explainer items (Should, non-blocking; from `reports/ch16_viz.md`)
+- E1 `casson_blood_flow`: Explain §6 (no-flow branch) "the bracket of (16.220) are both zero" — write the bracket
+  ($1-\tfrac{16}{7}\xi^{1/2}+\dots$) or reuse `EQ.e220i`; at 360×640 the material view is 60 px and the τ(γ̇) curve barely
+  readable (`hidePortrait` on `law` during Explore, or a tighter y range).
+- E2 `windkessel_heartbeat`: D10 `result.tex` "p(t) from (16.52)" and D09 `start.plain` "(16.47) in words" — write the
+  equations out; D01 `view: 'system'` while step 3's *watch* points at the loop's vertical legs (use `view: 'loop'`); the
+  rigid-aorta ghost (p = QR, 403 mmHg peaks) drawn as clipped dashes — draw it faint or only on-axis.
+- E3 `pulse_wave_artery`: preset "soft vein-like" lands outside linear theory (u/c = 1.3) — lower P to ≈ 5 mmHg or say so
+  in its title.
+- E4 `womersley_profiles`: phone cycle plot ~120 px with the purple (0.9a) and blue (centre) traces a few pixels tall —
+  fit the y range to the two speeds on portrait; D14 step 6 *why* lacks $u=\frac{Ga^2}{i\mu\alpha^2}(1-F_1)e^{i\omega t}$ (16.82)
+  (`EQ82i`); `EQ88` mixes $G_n$, $\alpha_n$ with $\sqrt{\omega/2\nu}$ (write the n = 1 form or $\sqrt{n\omega/2\nu}$, slip S7).
+- E5 `womersley_flow_phase`: phone x label "α (log scale)" sits on the φ curve.
+- E6 `murray_branching`: pumping (orange) and total (amber) too close, total unlabelled on phones; phone status "a −57 %:
+  cost +887 % · B +2.0 %, gap 27 %" cryptic.
+- E7 `junction_reflection`: none open after the Must fix.
+- E8 `dean_curved_pipe`: slice ~160 px inside a ±2a range on phones (fit the disc to the view, inner/outer labels in the
+  title); step 1 text 37 words; Explain §0 "Left / Right / Below" on stacked phone views.
+- E9 `collapsible_tube_choking`: 17 Explore pages at 360×640; `markMode()` reads private `a._ready`; D29 `result.plain`
+  names "(16.201) corrected" without the relation; step 1 33 words.
+- E10 `xylem_water_potential`: phone label "top p −0.78 MPa" drawn half-way up the trunk (anchor at the top station);
+  step 1 30 words.
+- Chapter-wide: backup `fahraeus_lindqvist_layer` not built; C04, C05, C11 have no explainer (static figures and sliders).
+
+### ch16 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **`tools/shot.py`**: fail on `.katex-error` and on control characters in config strings and live outputs; retry a
+  screenshot write once on `OSError [Errno 22]`; the carried list (real click, page-then-step, Explain state change,
+  844×345, preset exclusivity, run the Code tabs).
+- **`tools/viz_lint.py`**: warn on `\` + letter inside a non-raw JS string literal (allow `\\`, `\n` outside `$…$`).
+- **`tools/eq_refs.py`**: also scan derivation `goal`, `start`, `result` and `interpret` fields.
+- **Builder hygiene**: scratch files prefixed with the slug; every `build_chNN.py` uses argparse (done for ch16) — check
+  the earlier builders for the same silent-rebuild behaviour.
+- **Sibling argument order** (fluidpy, deferred): `vascular_resistance(mu, L, a)` vs `poiseuille_flow_rate(a, dp, L, mu)`;
+  `tube_radius_hookean` vs `tube_law_hookean` — a keyword-call lint over notebooks, scripts and explainer `py:` rows.
+
+### ch16 lesson candidates for the skills (promoted in this pass where marked ✔)
+- ✔ `interactive-viz` Lessons: (ch16) every TeX-bearing JS string is `String.raw` — lone backslashes ate TeX in three
+  files and lint/shot passed them · a model's validity range in the status line with a computed threshold, presets inside
+  it · closed forms instead of nested root finding in JS mirrors · printed slips as selectable modes with a parity row per
+  form · parallel builders prefix scratch files with their slug and never run a builder script to read its help.
+- ✔ `math-to-python` §7: (ch16) a fitted law carries its validity range as a guard (warn for scalars, NaN for arrays) ·
+  a closed form beats a bracketed root search (fixed brackets fail at extreme parameters) · one scalar argument has one
+  meaning across sibling functions (or raises) · evaluate only the branch you need in `np.where` · two time conventions
+  never meet in one function.
+- ✔ `verify-implementation`: (ch16) a printed PDE sign slip may change nothing until the order where the nonlinear term
+  first acts — solve the equations independently in another form and compare at that order · "V3" only with an asserted
+  refinement order (a C = 1 characteristic transport is exact: nothing to refine) · `-W error::RuntimeWarning` runs for
+  guarded functions.
+- ✔ `teaching-style` Lessons: (ch16) a quantitative word in a reading note gets a printing cell above it · a definitions
+  cell for symbols the book introduces silently · a numerical demo separates physics from artefacts and starts from an
+  exact state · every slip shown in both forms · the ch16 derivation moves.
+- ✔ `colab-notebook`: (ch16) builder scripts parse arguments and never build on `--help`.
 
 ### ch15 candidates (listed, **not promoted**: the ch15 knowledge pass ran while the site-publisher was reading `viz/`)
 From `reports/ch15_viz.md` and a scan of named definitions in the nine chapter files (E1 `sound_pulse_dalembert`, E2
@@ -1930,6 +2052,15 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
 | **Ch. 16 a valve or a stenosis swept by a control parameter** — a jet and its pressure recovery walking along the vessel | E4 `nozzle_back_pressure` (a transport on the control parameter, the other device as a ghost) | presets with the distinguishing value in `set` |
 | **Any chapter: an admissibility argument** — the conservation laws allow two states, a second principle picks one | E3 `normal_shock_jump` (paired "1 = 1" bars beside a signed red bar) | e.g. the hydraulic jump's energy loss (ch07) as a retrofit |
 | **Any chapter: something heard or measured at a point from a moving source** | E6 `mach_cone` (an arrival-time view whose minimum is the event) | Doppler, wakes |
+
+### From ch16 — ideas for a revision pass and a capstone (Ch. 16 is the last chapter)
+| Idea | Reuses (ch16 explainer · pattern) | Notes |
+|---|---|---|
+| **Tidal flow in an estuary channel or oscillating flow in any round duct** — Womersley profiles with α from the tidal period | E4 `womersley_profiles`, E5 `womersley_flow_phase`; `WOM.*` | α = a√(ω/ν) with an eddy viscosity; label "model" |
+| **A climate box model as a Windkessel** — a heat or carbon reservoir with a time constant RK, forced periodically | E2 `windkessel_heartbeat` (storage + run-off bars, beat-by-beat closed form) | the same ODE as (16.49); seasonal forcing for the beat |
+| **The land-surface water path in ψ** — soil → root → leaf → air with a cavitation threshold | E10 `xylem_water_potential` (ledger of term bars at stations) | ties §16.4 to land-surface models of climate |
+| **Retrofit: TeX-safety in every older explainer** — scan all chapters for lone backslashes once the shot.py check exists | ch16 finding 1 | the ch16 reviewer scanned ch15 and ch16 only |
+| **Retrofit: validity ranges in status lines** for older models (ch12 log law window, ch14 lifting line at low Λ, ch15 linear theory) | E9 pattern | compute the threshold, keep presets inside |
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

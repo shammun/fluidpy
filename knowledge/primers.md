@@ -4,7 +4,7 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, ch13 P307–P335, ch14 P336–P353, **ch15 P354–P373**); a new chapter starts at the next free number (**ch16: P374**; ch15 used P354–P373 — 20 primers, all planned by the curation, plus 32 one-line reminders of earlier primers; total after ch15: 374 = P01–P373 and P218a; ch14 used P336–P353 — 18 primers, P351–P353 added by its lesson review; total after ch14: 354 = P01–P353 and P218a; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, ch13 P307–P335, ch14 P336–P353, ch15 P354–P373, **ch16 P374–P395**); a new chapter starts at the next free number (**next: P396** — ch16 is the book's last chapter; ch16 used P374–P395 — 22 primers, P374–P394 planned by the curation and P395 added by the lesson review, plus 39 one-line reminders; total after ch16: 396 = P01–P395 and P218a; ch15 used P354–P373 — 20 primers, all planned by the curation, plus 32 one-line reminders of earlier primers; total after ch15: 374 = P01–P373 and P218a; ch14 used P336–P353 — 18 primers, P351–P353 added by its lesson review; total after ch14: 354 = P01–P353 and P218a; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
 (ch12 started at P280). Total after ch11: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
 review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
@@ -432,6 +432,30 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | a function with two inverses (P360) | ch15 · §15.4 · C05; reused in C10 (D20), C14 | a U-shaped function has two x for each y above its minimum; give `brentq` (P108) a bracket on one side of the minimum, chosen by the physics (`branch="subsonic"` or `"supersonic"`, `"weak"` or `"strong"`) |
 | a generated table as a pandas DataFrame (P361) | ch15 · §15.4 · C05; reused in C08 | the classical printed table regenerated (`GD.isentropic_table`, `normal_shock_table`): named columns, `.loc` picks rows, reading backwards means finding the row whose column is nearest a value |
 | nested root finding (P365) | ch15 · §15.7 · C10 (before D20) | a root-finder whose function itself calls a root-finder: the exit pressure for a shock at M₁ needs the subsonic inverse of the area ratio, and the outer search finds the M₁ whose exit pressure equals the back pressure |
+| **ch16 — maths and physics** (the term is the exact `nb.primer` title; P374–P395, 22 primers: P374–P394 planned by the curation, P395 `np.searchsorted` added by the lesson review; notebook order differs from numeric order — P378, P394, P381 in C01, P374 before P377 before P375 in C09, P391 before P390 in C14) | | |
+| the shoelace formula (P378) | ch16 · §16.2 · C01 (before D01) | the signed area of a polygon is ½Σ(x_i y_{i+1} − x_{i+1} y_i) (`np.roll` gives the next vertex); positive counter-clockwise — the discrete loop integral that turns a PV loop into joules |
+| units of physiology (P394) | ch16 · §16.2 · C01; reused in C02, C17 | mmHg (133.322387415 Pa), dyn/cm² (0.1 Pa), poise (0.1 Pa s; 1 cP = 1 mPa s), bar (10⁵ Pa), PRU (mmHg per cm³/s); convert to SI at the door, with pint as the check |
+| the electrical analogy (P381) | ch16 · §16.2 · C01 (N12); reused in C07 (before D09), C13 | Δp ↔ voltage, Q ↔ current, R ↔ resistor (series add, parallel add reciprocals), compliance ↔ capacitor, admittance Y = 1/Z; RC is the time constant |
+| secant slope and tangent slope (P383) | ch16 · §16.2 · C02 (before D02) | the secant from the origin has slope y/x, the tangent dy/dx; for a curve that bends over they differ — apparent viscosity is the secant, the "differential" viscosity the tangent |
+| Young's modulus and Poisson's ratio (P379) | ch16 · §16.3 · C06 (before D08); reused in C08, C11 | a solid stretched by stress σ strains by ε = σ/E; stretching one way thins it the other way by ν̂ε (ν̂ ≈ ½ for nearly incompressible tissue) |
+| a stretched curved membrane (P380) | ch16 · §16.3 · C06 (before D08); reused in C11 | a membrane with tension T per length curved with radius a pushes inward with T/a (Laplace's law, the same law as ch01's surface-tension jump); for a tube wall T = σ_θθ h |
+| a sum of decaying kicks (P382) | ch16 · §16.3 · C07 (before D10) | the solution of K dp/dt + p/R = Q(t) adds every past inflow Q(τ)dτ/K, each one fading as e^{−(t−τ)/RK} — a convolution; reads (16.52) without solving anything new (extends P210) |
+| Bessel's equation and J₀, Y₀, J₁ (P374) | ch16 · §16.3 · C09 (before D13); reused in C10, C11 | y″ + y′/z + y = 0 is the Laplacian in a circle; J₀ is regular at 0 and wiggles while decaying for real z, Y₀ blows up at 0, J₁ = −J₀′; for a complex argument they grow like e^{∣Im z∣} |
+| powers of i (P377) | ch16 · §16.3 · C09 (before D13) | i^{1/2} = e^{iπ/4} = (1 + i)/√2, i^{3/2} = e^{3iπ/4} = (−1 + i)/√2, i·i^{1/2} = i^{3/2}; numpy's `1j**1.5` takes the same principal branch (extends P159, P45) |
+| two Bessel identities (P376) | ch16 · §16.3 · C10 (before D16); reused in C11 (D20) | dJ₀/dz = −J₁ and ∫₀^z sJ₀(s)ds = zJ₁(z) — the first gives the wall shear, the second the flow rate; both checked numerically in the primer's demo |
+| a complex wavenumber (P385) | ch16 · §16.3 · C11 (before D18) | with k = k₁ + ik₂, e^{i(kx − ωt)} = e^{−k₂x} e^{i(k₁x − ωt)}: a wave at speed ω/k₁ that loses e^{−2πk₂/k₁} of its amplitude per wavelength (the spatial twin of ch11's complex frequency) |
+| choosing a root by continuation (P386) | ch16 · §16.3 · C11 (D21) | a quadratic has two roots; start where "the" root is known (X → 1 as α → ∞) and follow it as the parameter changes — the other root is a different (wall) mode |
+| the weighted Fermat point (P388) | ch16 · §16.3 · C12 (before D24) | moving a junction by ds changes a straight length by −cos(angle)·ds, so Σw_i L_i is least where the weighted unit vectors add to zero — a closed triangle of "forces" (builds on P75, P340) |
+| toroidal coordinates of a curved pipe (P389) | ch16 · §16.3 · C14 | r and α locate a point in the cross-section (α = 0 at the outer bend), s runs along the centreline of radius R; the axial flow w feels a centrifugal acceleration w²/R toward the outer bend |
+| a regular perturbation series (P391) | ch16 · §16.3 · C14 (before D27) | write the answer as w₀ + εw₁ + ε²w₂ + …, insert, collect equal powers of ε, and solve the simple problem at each order in turn using the orders already found |
+| the biharmonic operator in polar coordinates (P390) | ch16 · §16.3 · C14 (before D27) | ∇⁴ = ∇²∇²; on f(r) sin α it is an ODE in r; a polynomial right side has a polynomial particular solution found by undetermined coefficients (`sympy.dsolve` or an ansatz) |
+| bending stiffness (P392) | ch16 · §16.3 · C15 (N98) | a thin wall resists bending with stiffness ∝ EI, I ∝ h³ — halve the wall and it bends eight times more easily; why a floppy tube collapses at small transmural pressure |
+| algebra with square roots (P393) | ch16 · §16.3 · C16 (before D32) | (√x − √y)² = x + y − 2√(xy); ∫r^{1/2}dr = ⅔r^{3/2}; a polynomial in √ξ — the three moves in every step of the Casson algebra |
+| osmosis and van 't Hoff's law (P384) | ch16 · §16.4 · C17 (before D34) | water crosses a membrane toward the side with more dissolved solute; for a dilute solution the pressure that stops it is Π = cRT (chemical potential named, not used) |
+| **ch16 — Python and numerics** | | |
+| `np.searchsorted` (P395) | ch16 · §16.3 · C07 (cells before the beat-by-beat Windkessel) | `np.searchsorted(t, x)` gives the index at which x would be inserted into the sorted array t — which beat a time belongs to, without a loop (added by the lesson review) |
+| scipy.special.jv with a complex argument (P375) | ch16 · §16.3 · C09; reused in C10, C11 | `jv(n, z)` accepts complex z; for z = i^{3/2}α it grows like e^{α/√2} and overflows only near α ≈ 1000, but we use the scaled `jve` (× e^{−∣Im z∣}) and ratios as a safe habit (trap T25) |
+| scipy.optimize.minimize for a point in the plane (P387) | ch16 · §16.3 · C12 (bifurcation point check) | `minimize(f, x0, method='Nelder-Mead')` searches a function of (x, y) without derivatives — an independent check of the branch point found by the force balance (P170 was the one-variable `minimize_scalar`) |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -762,3 +786,26 @@ friction factor**, **hydraulic diameter**, **wetted perimeter**, τ_w (cell 7(a)
 **back pressure**, **choked**, **over- / under-expanded**; **zone of silence**, **sonic boom**; **detached shock**;
 **wave drag**; `np.vectorize` around `brentq`; f-strings. Left unglossed by decision: `**kw` / `*bars` unpacking, p_rms.
 Slips are "slip #1…#17" (with `kind` and `changes_physics`) and traps T1–T22.
+
+Reminders written in ch16 instead of new primers (one sentence each; the notebook's metadata lists 61 primer-or-reminder
+entries, 22 new and 39 reminders; point here): P35 line integral and P138 loop area, pint `UN.Q_`/`.to()`/
+`check_dimensions`, matplotlib figures / `np.linspace` / f-strings, P16–P18 animate, slider_figure, show_viz and `live`,
+P15 `assert np.allclose`, P19 ordinary derivative as a slope, P13 power laws on log–log axes, P46 `np.where` for a
+piecewise law, P27 definite integral with rings 2πr dr, P106 substitution, P87 `quad`, P40 sympy (`diff`, `integrate`,
+`simplify`, `solve`, `expand`), P26/P342 first-order Taylor and the binomial approximation, P108 `brentq`, P49 chain rule,
+P210 integrating factor, P38 product rule, P31/P94 `solve_ivp`, `_ = live(...)`, P68 limits and orders of smallness, P121
+Schwarz's theorem, P357 the wave equation's characteristic coordinates, P186 the Laplacian in cylindrical coordinates,
+P176/P45 complex amplitudes and Euler's formula, P159 complex square roots and the quadratic formula, the binomial
+approximation with a complex small quantity, P44 trying e^{λy}, P142 Fourier modes, the Crank–Nicolson check and caching
+(P252), the complex plane in numpy (`np.abs`, `np.angle`), P70 `np.arctan2`, phase and lag in time, P330 non-trivial
+solutions of a homogeneous 2 × 2 system, P349 the minimum of a falling plus a rising power, P75 level sets and the
+directional derivative, P340 the cosine rule, P52 logarithmic differentiation, P362 differentials of algebraic laws as a
+small linear system. Recaps of earlier chapters (not primers): Newton's law of viscosity (ch01), Poiseuille's profile,
+flux and wall stress (ch08 C03), the Stokes layer (ch08 C11), d'Alembert and p′ = ρcu′ (ch15 C02), the Riemann invariant
+(ch15 P358, here u + 4c for c ∝ A^{−1/4}), the duct laws and 1 − M² (ch15 C03, C06), MacCormack's scheme (ch10), the
+hydrostatic law (ch01 D05), capillary rise (ch01), control volumes (ch04), separation in an adverse gradient (ch09).
+
+Glosses in ch16 (one sentence where used, no primer): **diastole / systole**, **Kelvin–Voigt wall**, **embolism**,
+**transmural pressure**, **p_e**, **a₀** (a definitions cell before D08), `np.unravel_index`, `try`/`except ValueError`,
+`lambda` (ch01 P29), `DataFrame.set_index(...).loc[...]` (ch15 P361). Slips are S1–S34 (`kind`, `changes_physics`; the
+notebook writes "slip S3"), traps T1–T27.

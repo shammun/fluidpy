@@ -802,6 +802,63 @@ isentropic · T18 the "paradoxes" are statements about a band of M · T19 acoust
 u′ for the left-going part · T20 shock structure: Pr″, the origin of η, the continuum limit · T21 the hydraulic-jump
 analogy is partial · T22 the crude blast constant's normalisation.
 
+**⚠️ ch16: two time conventions in one chapter (trap T1).** Rigid-tube Womersley flow (§16.3, (16.73)–(16.100)) uses
+$e^{+i\omega t}$: −∂p/∂x = G e^{iωt}, u = U(r)e^{iωt}, the physical value is the **real part**, the Bessel argument is
+i^{3/2}αr/a with i^{3/2} = e^{3iπ/4} (`WOM.I32`). The viscous elastic tube ((16.116)–(16.137)) uses $e^{i(kx-\omega t)}$ with
+k = k₁ + ik₂ (k₂ > 0 decays downstream) and β̂ = e^{iπ/4}α (`WOM.I12`). A formula copied from one block into the other
+flips the sign of every imaginary part. Every docstring names its convention; never mix them inside one function.
+
+**⚠️ ch16: G = −dp/dx and τ as a magnitude (traps T4, T5).** As in ch08's `G=`: G > 0 drives flow in +x; Δp = p₁ − p₂ > 0.
+In §16.3 the stresses τ = −μ du/dr are **positive magnitudes** in a pipe (ch08 code keeps the signed τ = μ du/dR, negative
+at the wall of a forward Poiseuille flow); `poiseuille_wall_stress`, `womersley_wall_shear` and `RH.casson_wall_stress`
+return the magnitude, positive for forward flow. (16.19) prints its last member with the wrong sign (S1); (16.92) calls the
+stress a "shear rate" and writes ∂u/∂r (S8).
+
+**⚠️ ch16: transmural pressure p − p_e.** Every tube law uses the pressure inside minus the pressure outside the vessel
+(p_e, the "external" pressure of tissue or a Starling chamber), not the gauge pressure: (16.38)–(16.41), (16.55), (16.58),
+(16.185)–(16.203). The Windkessel pressures are transmural with p̄_V = 0 (T12). a₀ is the radius at p = p_e (unstressed),
+not the radius at mean pressure.
+
+**⚠️ ch16: Shapiro's P is negative when the tube collapses (trap T9).** P = (p − p_e)/K_p with α = A/A₀ < 1 in collapse,
+so −P is what is plotted; the fit −P ≈ α^{−n} − 1 (16.188) **holds only for α ≤ 1** (`collapsible_tube_law` warns for
+scalars, NaN for arrays above `ALPHA_MAX_COLLAPSE` = 1). With P < 0 the term P dK_p/dx of (16.204) needs the stiffness to
+*increase* downstream for the effect the text describes (S24). Shapiro's **M = 3 + αP″/P′ = 2 − n** (16.206) is a
+coefficient, not a Mach number; the speed index **S = u/c** (16.195) plays the Mach number's role (1 − S² in every answer).
+
+**⚠️ ch16: overloaded letters (trap T2) — one code name per meaning** (`ch16.conventions_table()`):
+| Letter | Meanings in Ch. 16 | Code names |
+|---|---|---|
+| α | Womersley number a√(ω/ν) (16.12); Shapiro area ratio A/A₀ (16.186); toroidal angle (0 = outer bend) (16.166); Charm–Kurland α_c (16.36) | `alpha`; `area_ratio`; `alpha_t`; inside `charm_kurland_core_viscosity` |
+| K | Windkessel compliance dv/dp (16.48); Murray's metabolic cost per volume (16.138); Dean's number 2κ² (16.178); Casson K_c; collapsible stiffness K_p | `K` (Windkessel functions); `b_metabolic`; `K` / `K_dean` (Dean functions); `Kc`; `Kp` |
+| R | peripheral resistance (16.9), (16.49); reflection coefficient (16.153); radius of curvature (16.164); friction per unit length (16.204); gas constant (16.221) | `R`; `refl` (R inside `junction_coefficients`); `R_curv`; `friction_R_per_length`; `R_MOLAR` |
+| δ | cell-free layer thickness (16.21); curvature ratio a/R (16.164); Stokes-layer thickness δ_e | `delta`; `delta` (Dean functions); `deltaE` in JS |
+| ν, ν̂ | kinematic viscosity; Poisson's ratio | `nu`; `poisson` |
+| X | Re(1 − F₂) (16.97); k²c₀²/ω² of the quadratic (16.136) | `womersley_XY`; `Xk` / `X` key of `elastic_tube_wave` |
+| κ, K, D, De | Dean's numbers: κ = √δ 2Re (Re on the radius, S18), K = 2κ², D = 4√2κ (16.179) | `dean_convert`, `dean_number` (trap T8) |
+| H | hematocrit — a **fraction** in code (0.45), a percent in prose (T13); `_check_hematocrit` raises above 1 | `H`, `H_c`, `H_F` |
+| ψ | water potential (16.221) [Pa]; Dean's secondary streamfunction | `water_potential`; `dean_secondary_streamfunction` |
+
+**⚠️ ch16: two Casson constants (trap T14).** (16.6) writes √(τ/μ_p) = k_c√γ̇ + √(τ_y/μ_p) with a **dimensionless** k_c
+(Whitmore 1.53); (16.207) writes τ^{1/2} = τ_y^{1/2} + K_cγ̇^{1/2} with **K_c in (Pa s)^{1/2}**; K_c = k_c√μ_p
+(`casson_constants`); K_c² is the high-shear viscosity. Apparent viscosity is the **secant** τ/γ̇; the tangent dτ/dγ̇ is
+`differential_viscosity` (T27).
+
+**⚠️ ch16: Womersley number and the diameter groups (trap T6).** α = a√(ω/ν) uses the **radius**; the chapter's Re = 2ūa/ν
+and St = 2aω/ū use the diameter, so α² = Re·St/4; other sources write α² = 2π Re St with St = fd/ū. `womersley_from_re_st`
+follows the book.
+
+**⚠️ ch16 slips (S1–S34; `ch16.book_slips()` with `kind`, `changes_physics`).** Coded corrected, the printed forms kept as
+options a test must fail: **S3** (16.30) core flux (`printed_16_30`); **S4** (16.44)–(16.45) πa₀⁴ for πa₀ (pint); **S5**
+(16.54) −A∂p/∂x (`printed_16_54`, matters only in the nonlinear model); **S6** (16.76) right side −G/μ; **S8** (16.92) a
+stress with F₂; **S10** (16.96) i^{3/2}/(2α) (`printed_16_96`); **S15** (16.140), (16.143) K in the denominator
+(`printed_16_140`); **S23** (16.201) ∂/∂x(∂P/∂α) (`printed_16_201`); **S34** (16.174) + before the advection bracket
+(`printed_16_174`; c₄ 0.0119312 vs 0.0121130); number slips S26 (dyn/cm² 1000× small), S27 (cP chain 100× off), S28
+(xylem ν). Loose: S1, S2, S7, S9, S11–S14, S16–S22, S24, S25, S29–S33 (S21, A_e in (16.193), unresolved). Traps T1–T27 are
+true as printed and easy to misread (list in `ch16.traps()`; T10 divide by 1 − S² last, T11 the PV loop's ∮p dV < 0, T15
+the ⅓ rule is an estimate, T16 the tube-law singularity, T17 radius vs diameter in Moens–Korteweg, T18 "closed end" = R
+= +1, T20 Fig. 16.14 axis wall → centre, T21 a Casson plug that fills the pipe means no flow, T22 ψ < 0 under tension, T23
+the rigid-tube Womersley flow is not a wave, T25 Bessel overflow at large α).
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -1470,6 +1527,39 @@ analogy is partial · T22 the crude blast constant's normalisation.
 | U ⚠️, V, I, m, η ⚠️, Pr″ (shock structure) | velocity scaled by V; momentum and energy constants of the first integrals; mass flux; scaled coordinate; Prandtl number with μ″ | –; m/s; J/kg; kg/(m² s); –; – | Becker's integral C_pT + ½u² = I needs Pr″ = 1 (assumed); the origin of η is arbitrary (T20) | ch15 | `shock_structure_constants`, `becker_shock_roots`, `becker_shock_profile(eta, M1)` |
 | M_s, u_s | Mach number and speed of a moving shock into still gas | –; m/s | frame shift u_shock = M_s c₁ | ch15 | `moving_shock(p1, T1, *, M_s, p2_over_p1, gas)` |
 | L (dB) | sound pressure level 20 log₁₀(p_rms/20 µPa) | dB | reference 20 µPa | ch15 | `sound_pressure_level` |
+| **ch16 — biofluid mechanics** | | | | | |
+| a, a₀, h, L ⚠️ | vessel radius; unstressed radius (at p = p_e); wall thickness; vessel length | m | **a is the radius** (the text sometimes says diameter, D04); a₀ ≠ radius at mean pressure | ch08 → ch16 | `a`, `a0`, `h`, `L` |
+| Δp, G ⚠️, Δp/L | pressure drop p₁ − p₂; gradient amplitude G = −dp/dx; mean gradient | Pa; Pa/m | Δp > 0 and G > 0 drive flow in +x (T4) | ch08 → ch16 | `dp`, `G`, `G_n` (G₀ first) |
+| p − p_e, p_e ⚠️ | transmural pressure; pressure outside the vessel (tissue, chamber) | Pa | every tube law is in p − p_e | ch16 | `p`, `pe` |
+| Q, CO, SV, EDV, ESV, HR, EF, CI | volume flow rate; cardiac output; stroke volume; end-diastolic / end-systolic volumes; heart rate; ejection fraction; cardiac index | m³/s; m³/s; m³; m³; 1/s or /min; –; m³/(s m²) | SI inside (mL, L/min, /min only through converters) | ch16 | `Q`, `cardiac_output`, `SV`, `EDV`, `ESV`, `HR`, `ejection_fraction`, `cardiac_index` |
+| W (PV loop) | work done on the blood per beat −∮p dV | J | loop counter-clockwise in (V, p) so ∮p dV < 0 and W > 0 (T11) | ch16 | `pv_loop_work` |
+| R ⚠️ (peripheral, vascular) | resistance Δp̄/Q = 8μL/(πa⁴) (16.9), (16.20) | Pa s/m³ (1 PRU = 1.33322e8) | not the reflection coefficient, not R_curv, not the gas constant | ch16 | `R`, `vascular_resistance(mu, L, a)` (keyword calls), `PRU` |
+| μ, μ_p, μ_c, μ_app, K_c² | blood, plasma, core viscosities; apparent viscosity τ/γ̇ (secant); Casson high-shear viscosity | Pa s | μ_app from a flow (16.32) or a law; tangent = `differential_viscosity` | ch01 → ch16 | `mu`, `mu_p`, `mu_c`, `casson_apparent_viscosity`, `Kc` |
+| τ ⚠️, τ_y, τ_w, γ̇ | shear stress; yield stress; wall stress; shear rate | Pa; Pa; Pa; 1/s | **magnitudes ≥ 0** in §16.2–16.3 (T5; ch08 signed) | ch01 → ch16 | `tau`, `tau_y`, `casson_wall_stress`, `gamma_dot` |
+| k_c, K_c ⚠️ | Casson constants: dimensionless (16.6); dimensional (16.207) | –; (Pa s)^{1/2} | K_c = k_c√μ_p (T14) | ch16 | `k_c`, `Kc`, `casson_constants` |
+| a_c, ξ | Casson plug radius aτ_y/τ_w; ξ = τ_y/τ_w = a_c/a | m; – | no flow when ξ ≥ 1 (T21) | ch16 | `casson_plug_radius`, `xi` |
+| m, n, τ₀ (rheology) | power-law consistency and index; Herschel–Bulkley yield stress | Pa sⁿ; –; Pa | ours (S01 pointer) | ch16 | `power_law_*`, `herschel_bulkley_pipe_flow_rate` |
+| H ⚠️, H_c, H_F, H_T, C_F | hematocrit (core, feed, tube); fibrinogen concentration in (16.5) | –; g/100 mL | **fraction** in code (T13) | ch16 | `H`, `H_c`, `H_F`, `C_F` |
+| δ ⚠️ (cell-free layer) | thickness of the plasma layer at the wall (16.21) | m | a free model parameter (T19) | ch16 | `delta` |
+| α ⚠️ (Womersley), α_n | a√(ω/ν) (16.12); harmonic n: α√n | – | radius, not diameter (T6); regimes < 1 / > 10 (keywords) | ch16 | `alpha`, `womersley_number`, `womersley_regime` |
+| δ_e | Stokes-layer thickness √(2ν/ω) (ch08 (8.38)) | m | α = √2 a/δ_e | ch08 → ch16 | `stokes_layer` |
+| F₁, F₂, X, Y ⚠️, φ | J₀ ratio of the profile (16.81); flux function (16.91); 1 − F₂ = X + iY (16.97); phase lag of Q behind −∂p/∂x (16.100) | –; –; –; rad | e^{+iωt}; tan φ = X/Y (not Y/X) | ch16 | `womersley_F1`, `womersley_F2`, `womersley_XY`, `womersley_phase_lag` |
+| J₀, J₁, Y₀ | Bessel functions of the first and second kind | – | complex argument; ratios scaled with `jve` (T25) | ch16 | `bessel_j0_series`, `bessel_ratio_j0_j1` |
+| i^{1/2}, i^{3/2} ⚠️ | e^{iπ/4}, e^{3iπ/4} | – | principal branch; i^{3/2} for the rigid tube, e^{iπ/4} for the elastic tube (T1) | ch16 | `I12`, `I32` |
+| E, ν̂ ⚠️, σ_θθ, e_θθ | Young's modulus of the wall; Poisson's ratio; hoop stress (16.39); hoop strain (16.40) | Pa; –; Pa; – | ν̂ is not the kinematic viscosity | ch16 | `E`, `poisson`, `hoop_stress` |
+| A, A₀ | lumen area; area at p = p_e | m² | A₀ = πa₀² | ch16 | `A`, `A0` |
+| K ⚠️ (compliance), RK | dv/dp of the aortic chamber (16.48); Windkessel time constant | m³/Pa; s | not Dean's K, not Murray's cost | ch16 | `K` in Windkessel functions, `compliance_from_tube` |
+| p_S, p_D, p̄_A, p₀ ⚠️ | systolic, diastolic, mean arterial pressure; end-diastolic pressure of the Windkessel | Pa (mmHg on screen) | p̄_A by the ⅓ rule is an estimate (T15); p₀ here is not a stagnation pressure (ch15) | ch16 | `mean_arterial_pressure`, `windkessel_periodic_p0` |
+| c ⚠️, c₀ | pulse-wave speed √(Eh/(2ρa₀)) (16.62), √((A/ρ)dp/dA); inviscid reference of the elastic-tube waves | m/s | radius form (T17); not the sound speed of ch15 | ch15 → ch16 | `moens_korteweg_speed(E, h, rho, a0, *, midwall)`, `c0` |
+| k = k₁ + ik₂ ⚠️ | complex wavenumber of the viscous elastic-tube wave (16.116) | 1/m | e^{i(kx − ωt)}; k₂/k₁ the decay per radian of phase; ∣k∣ = √(k₁² + k₂²) (S13) | ch16 | `elastic_tube_wave` keys `k1`, `k2` |
+| Y, Z, R ⚠️ (reflection), T | admittance A/(ρc), impedance 1/Y; reflection and transmission coefficients (16.153) | m⁴ s/kg; kg/(m⁴ s); –; – | R > 0 closed-end-like, R < 0 open-end-like, T = 1 + R (T18) | ch16 | `tube_admittance`, `tube_impedance`, `junction_coefficients` (`refl`) |
+| a* (Murray), b ⚠️ (metabolic), θ | optimum radius (16.140); upkeep cost per volume and time; branch angle from the parent's extension (16.146) | m; W/m³; rad | cost in the denominator (S15); weights a² not a | ch16 | `murray_radius(Q, mu, b_metabolic)`, `murray_angles` |
+| δ ⚠️ (Dean), R_curv, κ, K ⚠️, D ⚠️ | curvature ratio a/R; radius of curvature; Dean numbers (T8) | –; m; –; –; – | K = 2κ², D = 4√2κ; Re on the radius in κ (S18) | ch16 | `curvature_ratio`, `R_curv`, `dean_number`, `dean_convert` |
+| α_t ⚠️, w, ψ ⚠️ (Dean) | toroidal angle (0 = outer bend); axial and secondary flow (scaled) | rad; –; – | ψ₀ two counter-rotating cells; axial maximum outward | ch16 | `alpha_t`, `dean_axial_velocity`, `dean_secondary_streamfunction` |
+| α ⚠️ (Shapiro), P ⚠️, K_p, n, S, M ⚠️ | area ratio A/A₀; tube-law pressure (p − p_e)/K_p; wall stiffness; tube-law exponent; speed index u/c; Shapiro's coefficient 2 − n | –; –; Pa; –; –; – | P < 0 in collapse; valid α ≤ 1; S = 1 chokes; M not Mach (T9, T10) | ch16 | `area_ratio`, `collapsible_tube_law`, `Kp`, `n`, `speed_index`, `shapiro_M` |
+| R′ (friction) | viscous resistance per unit length 8πμ/A² (laminar) | Pa s/m⁴ | ours for the Starling tube | ch16 | `friction_R_per_length` |
+| ψ ⚠️ (plants), c (solute), Π | water potential p − RTc + ρgz (16.221); solute concentration; osmotic pressure cRT | Pa (MPa, bar in prose); mol/m³; Pa | ψ < 0 under tension (T22); book units need ÷10⁶ for ρgz (S30) | ch16 | `water_potential`, `osmotic_pressure` |
+| p_cav | illustrative cavitation pressure of the xylem | Pa | required keyword (ours, −3 MPa in the examples) | ch16 | `cavitation_margin(p, *, p_cav)` |
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
 |---|---|---|---|---|---|
@@ -1488,3 +1578,4 @@ analogy is partial · T22 the crude blast constant's normalisation.
 | ch13 | local tangent plane: **x east, y north, z up**, (u, v, w); latitude θ in radians; f-plane or β-plane (y measured north from the central latitude); grids `[j, i]` = (y, x) on a C-grid (η centres, u west faces, v south faces, vorticity at corners); vertical-mode nodes from z[0] = −H to z[-1] = 0; Eady: z ∈ [0, H] between two lids | **z = 0 changes by section** (trap T4): sea surface (§13.6, §13.9, §13.14), solid surface (§13.7), flat bottom (§13.8), lower lid (§13.17); coast at y = 0 with the sea in y ≥ 0 (Kelvin wave); step at x = 0 (adjustment, flow over a step) | p, ρ perturbations (primes dropped); **f signed**; Coriolis term −fv, +fu on the left; wind stress at the surface τ = ρν_v ∂u/∂z; **ψ with u = −∂ψ/∂y**; eddy fluxes of the Eady wave positive northward (y) and upward (z); lapse rate Kundu dT/dz with the meteorological form shown | f-plane 1/abs(f) and Λ = c/abs(f); Ekman δ; Eady Λ_E = NH/abs(f) and NH/(abs(f)U₀); numbers from `ch13.illustrative_inputs()` (35° N/S, 60° N for Ekman layers, 12° N for Rossby waves) | dimensional SI throughout; Eady functions also in αH and σNH/(fU₀); model runs dimensional; the Rayleigh–Kuo solver non-dimensional (jet width and speed) |
 | ch14 | **axes switch by section** (trap T5): §14.3–§14.5 two planes — ζ (the circle) and z = x + iy (the airfoil), x along the mapped chord, y up, the stream inclined at α to x; §14.6 x along the flight direction, **y along the span** (−s/2 port, +s/2 starboard; span angle γ from 0 to π), **w positive downward**, z up for the horseshoe field (`horseshoe_velocity` returns uz upward); §14.8–§14.9 horizontal plane with angles off the true wind | circle through ζ = b; trailing edge at z = 2b (contour index 0), leading edge near z = −2b; lifting line at x = 0; ground plane at depth h below the wing | p∞ far upstream; C_p = (p − p∞)/(½ρU²); pressure acts along the inward normal; shear neglected on sections | section: chord c ≃ 4b, stream speed U; wing: span s, planform area A, mean chord A/s; time in chords travelled Ut/c (Wagner's s in semi-chords) | dimensional SI (illustrative inputs: section b = 0.25 m, U = 30 m/s; aircraft W = 9000 N, s = 12 m, A = 15 m²); coefficients C_L, C_D, C_p non-dimensional; the demo wing uses U = 1, ρ = 1 |
 | ch15 | one-dimensional ducts: x along the duct, **station 1 upstream, 2 downstream** (3 = nozzle exit in the worked chains); acoustics: x along the wave, stream U > 0 in +x; planar waves (§15.9–§15.10): the upstream flow along +x, σ and δ from it, the plate's chord b on 0 ≤ x/b ≤ 1, upper surface turning away from the flow at positive α | §15.2: the undisturbed state (subscript 0); §15.3 on: the stagnation state (subscript 0) and the isentropic sonic state (star) | pressures absolute; F in (15.24) on the fluid, F in (15.45) retarding; Q, q heat added; book δ > 0 into the flow, `turn` > 0 for an expansion | none fixed: every quantity is a ratio in M and γ; worked numbers use `illustrative_inputs()` (air 288.15 K, 101 325 Pa; tank 500 kPa, 500 K) | dimensionless ratios in GD (dimensional wrappers take `gas`, p₀, T₀, A); acoustics dimensional SI |
+| ch16 | vessels: x along the vessel, r radial (cylindrical (r, θ, x)); Δp = p₁ − p₂ > 0 drives flow in +x; curved pipe: toroidal (r, α_t, s) with α_t = 0 at the outer bend; tree: z up from the soil | p_e outside the vessel (transmural p − p_e); a₀ at p = p_e; Windkessel p̄_V = 0; xylem pressures gauge or absolute as stated (gauge −0.1 MPa at the ground) | **G = −dp/dx**; **τ ≥ 0 magnitudes** (ch08 signed); P < 0 in collapse; ψ < 0 under tension | ours, `illustrative_inputs()` (ρ 1060 kg/m³, μ 3.5 mPa s, HR 66 /min, aorta a 11 mm, E 0.45 MPa); α, S, K, D dimensionless | dimensional SI functions; Womersley also in α and r/a (`womersley_velocity_nd`); **two time conventions** e^{+iωt} (rigid) and e^{i(kx − ωt)} (elastic) |

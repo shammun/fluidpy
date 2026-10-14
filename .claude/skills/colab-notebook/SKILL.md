@@ -96,3 +96,5 @@ Anaconda). Budget: < 5 min full run; `FAST` for anything heavier.
 - (ch15) If an explainer file is newer than the executed notebook, re-execute (or re-embed) before publishing — the
   embedded `srcdoc` copy is the old one.
 - (ch14) End widget cells with `_ = live(...)` so no repr and no empty output box is published.
+- (ch16) `build_chNN.py` parses its arguments (argparse: `--dump`, `--help`) and builds only on an explicit command; an
+  argument-less builder rebuilt the ch16 notebook when a parallel agent ran it with `--help`.
