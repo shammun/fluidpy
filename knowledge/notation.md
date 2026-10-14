@@ -751,6 +751,57 @@ largest part" · T10 principal value, infinite downwash at a horseshoe's tips ·
 · T12 K per radian · T13 which area · T14 the Kutta condition is a model of a viscous outcome · T15 Kelvin's theorem
 needs an inviscid circuit · T16 our qualitative models · T17 private book values · T18 quasi-steady fish and sail.
 
+**⚠️ ch15: subscript 0, the star and A each mean more than one thing (traps T1, T2).** Subscript 0 is the
+**undisturbed reference state** in §15.2 (p₀, ρ₀, T₀ of the still or uniformly moving gas carrying the sound) and the
+**stagnation state** from §15.3 on (the state reached by bringing the gas to rest adiabatically, isentropically for p₀
+and ρ₀); most tables write p_t, T_t for the latter. The star is the **sonic state reached isentropically** in
+$\frac A{A^*}$ (15.31) — `A_over_Astar`, `sonic_ratios` — but the sonic state of the **same frictional or heated process**
+in `fanno_ratios` / `rayleigh_ratios` (ours, "not in the book"); never mix them. **A in
+$M_2^2=\frac{-(1-2A\gamma)\pm[1-2A(\gamma+1)]^{1/2}}{(\gamma-1)-2A\gamma^2}$ (15.46) is a dimensionless number**
+(`duct_parameter_A`), not an area; A* in (15.20) is the control surface. **A* is not conserved across a shock**:
+$p_{02}/p_{01}=A_1^*/A_2^*$ (T8).
+
+**⚠️ ch15: angles and signs of the turn (traps T13, T14).** σ = shock angle and δ = deflection, both from the upstream
+flow direction (most other sources: β and θ). The book's δ is **positive when the wall turns into the flow** (a
+compression); `prandtl_meyer_turn(M1, turn)` counts an **expansion** turn positive, so **book δ = −turn**; `ackeret_pressure(delta, M_inf)`
+and `weak_wave_pressure(M, delta)` use the book's δ (positive = compression) — note their **opposite argument orders**
+(call by keyword). μ = Mach angle with sin μ = 1/M (15.49) (**not the viscosity**); ν(M) = Prandtl–Meyer function (15.56)
+(**not the kinematic viscosity**); radians in every function.
+
+**⚠️ ch15: friction and heat parameters (trap T11).** In $-\dot mu_1+\dot mu_2=(pA)_1-(pA)_2+F$ (15.24) F is the force of
+the walls **on** the fluid (pressure part + friction); in (15.45) F is the total **retarding** wall force and
+f = F/(p₁A) ≥ 0; q = Q/h₁ is the heat added per unit mass over the inlet enthalpy (dimensionless; ch01's q is heat per
+unit mass in J/kg; Q here is J/kg too). Most sources use 4f_F L/D with the Fanning factor f_F = τ_w/(½ρu²) and the
+hydraulic diameter D (not drag), and T₀/T₀* for heating — labelled "ours" here; f of two ducts in series does **not**
+add. The differential forms (15.47), (15.48) hold at the station where the inlet-referred quantities are evaluated
+(df_book = (p/p₁) df_local).
+
+**⚠️ ch15: three air-constant sets (trap T4).** `core.bernoulli.CP_BOOK` = 1004.5 J/(kg K) (ch04's default C_p);
+`PerfectGas()` R = R_AIR = 287.058 → C_p = 1004.70; `GD.AIR_BOOK` R = 287.0 → C_p = 1004.5. They differ in the fourth
+significant figure: T₀ for T = 300 K, u = 400 m/s is 379.6416 K by `stagnation_temperature` and 379.6255 K by the ratio
+route. Pass `cp=gas.cp` with the gas used for M. **One gas per call**: `mass_flow_vs_back_pressure` takes γ from `gas`
+and raises if an explicit `gamma` disagrees.
+
+**⚠️ ch15: `ch15.stagnation_pressure` is ch04's incompressible p + ½ρU², not (15.29)** (5.0 % low at M = 0.8); the
+compressible ratio is `stagnation_pressure_ratio(M, gamma)`; the explicit alias is `stagnation_pressure_incompressible`.
+
+**⚠️ ch15 slips ("slip #k"; `ch15.book_slips()` with `kind` and `changes_physics`).** **Three change the physics and are
+coded corrected**, the printed forms kept as options a test must fail (`GD.influence_coefficients(printed_15_32=,
+printed_15_47=, printed_15_48=)`): **#4** the third member of (15.32) needs its minus sign, $u\,du=-dp/\rho=-c^2d\rho/\rho$;
+**#11** the first numerator of (15.47) is 1 + (γ − 1)M²; **#12** the second relation of (15.48) carries (γ − 1)M².
+Others: #1 "monotonic" for monatomic; #2 P, ρ_o for p₀, ρ₀; #3 a cited equation number; #5 a constant-density remark;
+#6 lower-case m for a Mach number; #7 the shock-structure quadratic set equal before dividing by V²; #8 a figure caption's
+Mach number; #9, #10 table misprints (private); #13 "(15.47)" for (15.57); #14 "(15.45)" for (15.46); #15 figure labels
+missing a decimal point; #16, #17 exercises (#17 unresolved, 3.5 %). Traps T1–T22 are true as printed and easy to misread:
+T1 subscript 0 · T2 stars and A · T3 regime thresholds are nominal · T4 constant γ and rounded constants · T5 letters
+reused · T6 which Mach number is upstream; (15.40) is its own inverse · T7 stagnation quantities depend on the frame · T8
+two inverses; A* not conserved across a shock · T9 silent assumptions of the nozzle example · T10 "choked" is a ceiling
+the supply can raise · T11 the wall force and the lumped f · T12 which root of (15.46) · T13 σ, δ against β, θ; "weak"
+and "strong" · T14 the sign of the turn · T15 b is the chord in §15.10 · T16 how small is small · T17 adiabatic is not
+isentropic · T18 the "paradoxes" are statements about a band of M · T19 acoustics: the indefinite integral, the sign of
+u′ for the left-going part · T20 shock structure: Pr″, the origin of η, the continuum limit · T21 the hydraulic-jump
+analogy is partial · T22 the crude blast constant's normalisation.
+
 ## Register
 
 | Symbol | Meaning | SI unit | Convention / sign | Chapters | Code name |
@@ -1398,6 +1449,27 @@ needs an inviscid circuit · T16 our qualitative models · T17 private book valu
 | Re_c, Ma | chord Reynolds number Uc/ν; Mach number U/c_sound | – | incompressible treatment for Ma < 0.3 (density change ≈ ½Ma²) | ch01, ch04 → ch14 → Ch. 15 | `chord_reynolds`, `compressibility_check` |
 | **U**_r, **V**, θ_c ⚠️, β_a ⚠️, ε_A, ε_H | apparent (relative) wind **U** − **V**; velocity of the boat or of the fin across the stream; course angle off the true wind; angle between course and apparent wind; drag angles tan⁻¹(D/L) of sail and hull | m/s; m/s; rad; rad; rad; rad | drive = L sin β_a − D cos β_a along the course; zero drive at tan β_a = D/L; closest course β_a = ε_A + ε_H | ch14 → Ch. 16 | `apparent_wind(U, V, theta)`, `sail_forces`, `sailboat_course_limit`, `oscillating_foil(U, V, L, D)` |
 
+| **ch15 — compressible flow** | | | | | |
+| M ⚠️, M₁, M₂, M_e, M∞ | Mach number u/c with the **local** sound speed; upstream and downstream of a shock or duct; at a nozzle exit; of the free stream | – | station 1 upstream; ch04 `mach_number` = U/c; ch14 `compressibility_check` (M < 0.3) | ch04 → ch14 → ch15 | `M`, `M1`, `M2`, `M_e`, `M_inf`; `mach_from_speed(u, T, gas)` |
+| γ, R, C_p, C_v | ratio of specific heats; gas constant; specific heats (15.1) | –; J/(kg K) | γ always an argument (default 1.4); R, C_p only through `PerfectGas`; three air sets (see the sign trap) | ch01 → ch15 | `gamma`, `PerfectGas(gamma, R)`, `.cp`, `.cv`, `AIR_BOOK` |
+| p′, ρ′, u′, T′ ⚠️; p₀, ρ₀, T₀ (§15.2) | acoustic disturbances; the undisturbed reference state | Pa; kg/m³; m/s; K | **0 = undisturbed here, stagnation elsewhere** (T1); p′ ≅ c²ρ′ (15.5) | ch15 | `p_prime`, `rho_prime`, `p0`, `rho0` in `core.acoustics` |
+| c, c₀, U | sound speed √(γp/ρ) = √(γRT) (15.6); its undisturbed value; uniform stream speed | m/s | U > 0 in +x; waves at U ± c (15.17) | ch01 → ch15 | `c`, `c0`, `U`; `wave_speeds`, `upstream_signal_possible` |
+| f, g ⚠️ (§15.2) | right-going and left-going pressure shapes of (15.15) | Pa | callables of one variable; `None` = absent (not the friction parameter of §15.8) | ch15 | `f`, `g` in `dalembert`, `dalembert_fg` |
+| ṁ, A, A_t, A_e | mass flow rate ρuA (15.18); duct area; throat and exit areas | kg/s; m² | per duct, constant in steady flow | ch04 → ch15 | `mdot`, `A_throat`, `A_exit`, `Ae_over_At` |
+| T₀, p₀, ρ₀, h₀ ⚠️ | stagnation temperature, pressure, density, enthalpy (15.27)–(15.30) | K; Pa; kg/m³; J/kg | T₀ kept in adiabatic flow (also across shocks); p₀ lost when entropy is made; frame-dependent (T7) | ch04 (T₀) → ch15 | `stagnation_*_ratio`, `isentropic_state`, `T0`, `p0` |
+| A* ⚠️, T*, p*, ρ*, c* | sonic area and state reached isentropically (15.31); Fanno/Rayleigh stars differ | m²; K; Pa; kg/m³; m/s | p*/p₀ = 0.52828 for γ = 1.4; A* grows across a shock | ch15 | `area_ratio`, `mach_from_area_ratio(…, branch=)`, `sonic_ratios`, `critical_pressure_ratio` |
+| p_B, p_b, p_d, p_f | back pressure; the three dividing back pressures of a Laval nozzle (ours) | Pa (or /p₀) | p_f < p_d < p_b; between p_b and p_d a shock stands inside | ch15 | `pB_over_p0`, `laval_critical_pressures`, `laval_regime`, `laval_shock_location` |
+| S ⚠️, ΔS | entropy per unit mass (15.1), (15.43) | J/(kg K) | (S₂ − S₁)/C_v; **S is salinity in ch01, ch11** | ch01 (s) → ch15 | `normal_shock_entropy` (`dS_over_cv`, `dS_over_R`), `entropy_change_from_stagnation` |
+| f ⚠️, q ⚠️, F, Q, A ⚠️ (§15.8) | lumped friction F/(p₁A); heat Q/h₁; total retarding wall force; heat added per unit mass; the duct number of (15.46) | –; –; N; J/kg; – | f ≥ 0; q of either sign; A is **not an area** | ch15 | `f`, `q`, `duct_parameter_A`, `duct_outlet_mach(M1, f, q, *, branch)` |
+| f_max, q_max | choking limits (ours) where the discriminant of (15.46) vanishes | – | both 0 at M₁ = 1 | ch15 | `duct_choking_limits(M1)` |
+| f_F, D ⚠️, L | Fanning friction factor τ_w/(½ρu²); hydraulic diameter; duct length — the usual 4f_F L/D (ours) | –; m; m | D is not drag, L is not lift | ch15 | `fanno_length_to_f` |
+| μ ⚠️ | Mach angle, sin μ = 1/M (15.49) | rad | measured from the direction of motion; **not the viscosity** | ch15 | `mach_angle`, `mach_from_angle` |
+| σ ⚠️, δ ⚠️, δ_max | shock angle; flow deflection; largest deflection for an attached shock | rad | from the upstream flow; β, θ elsewhere; book δ > 0 into the flow; **σ is not surface tension or a core radius here** | ch15 | `oblique_shock(M1, *, delta, sigma, branch)`, `max_deflection`, `sonic_deflection`, `detachment_mach` |
+| ν ⚠️, turn | Prandtl–Meyer function (15.56); turning angle of an expansion | rad | ν(1) = 0, ν_max = 130.45° (γ = 1.4); **turn = −δ_book**; **ν is not the kinematic viscosity** | ch15 | `prandtl_meyer`, `prandtl_meyer_max`, `mach_from_prandtl_meyer`, `prandtl_meyer_turn(M1, turn)` |
+| α, b ⚠️, C_L, C_D (§15.10) | angle of attack; **chord** (15.58); lift and wave-drag coefficients (15.59) | rad; m; –; – | b is not the span (ch14 s) nor ch14's map constant (T15); C_D here is wave drag only | ch14 → ch15 | `alpha`, `chord`, `ackeret_flat_plate`, `flat_plate_supersonic(…, method=)`, `ackeret_airfoil` |
+| U ⚠️, V, I, m, η ⚠️, Pr″ (shock structure) | velocity scaled by V; momentum and energy constants of the first integrals; mass flux; scaled coordinate; Prandtl number with μ″ | –; m/s; J/kg; kg/(m² s); –; – | Becker's integral C_pT + ½u² = I needs Pr″ = 1 (assumed); the origin of η is arbitrary (T20) | ch15 | `shock_structure_constants`, `becker_shock_roots`, `becker_shock_profile(eta, M1)` |
+| M_s, u_s | Mach number and speed of a moving shock into still gas | –; m/s | frame shift u_shock = M_s c₁ | ch15 | `moving_shock(p1, T1, *, M_s, p2_over_p1, gas)` |
+| L (dB) | sound pressure level 20 log₁₀(p_rms/20 µPa) | dB | reference 20 µPa | ch15 | `sound_pressure_level` |
 ## Coordinate and sign conventions per chapter
 | Chapter | Axes (which is "up") | Origin / reference level | Stress / pressure sign | Reference scales (L, U, T) | Dimensional or non-dimensional code |
 |---|---|---|---|---|---|
@@ -1415,3 +1487,4 @@ needs an inviscid circuit · T16 our qualitative models · T17 private book valu
 | ch12 | signals: time (or space) on the last axis, **ensemble members on axis 0**; shear flows: x streamwise, y across (jet symmetric about y = 0, ξ = y/x; wall at y = 0, channel walls at y = 0 and y = **h = full height**, δ = h/2); surface layer: z up from the ground; isotropic fields: periodic boxes with r the separation vector; dispersion: X_α from the release point | wall y = 0; ground z = 0 with the wind vanishing at z₀; jet origin at the slot (virtual origin dropped unless `x0=`); release at X = 0, t = 0 | Reynolds stress −ρ₀$\overline{u_iu_j}$ (`uv_plus` keys hold −$\overline{uv}$/u_*²); P = deviation from hydrostatic in §12.8–12.10; heat flux positive upward; L_M > 0 stable; Kundu Γ ≡ dT/dz in code with `Gamma_a` required, meteorological Γ_met shown alongside; T̄, T′ potential temperature; two-sided spectra with ∫S = variance | outer ΔU, L (Re_L); Kolmogorov η, u_K, τ_η; wall units u_*, ν/u_* (Re_τ = δ⁺); surface layer u_*, L_M; dispersion u_rms, Λ_t (Lagrangian); default g = G0 = 9.80665; κ = 0.41 in §12.9–12.10, 0.4 in the surface-layer block | dimensional SI for statistics, jets, the surface layer and dispersion; wall functions in wall units with dimensional wrappers (`wall_units`, `from_wall_units`, `composite_profile`); channel budgets in u_*⁴/ν; empirical constants are required keywords |
 | ch13 | local tangent plane: **x east, y north, z up**, (u, v, w); latitude θ in radians; f-plane or β-plane (y measured north from the central latitude); grids `[j, i]` = (y, x) on a C-grid (η centres, u west faces, v south faces, vorticity at corners); vertical-mode nodes from z[0] = −H to z[-1] = 0; Eady: z ∈ [0, H] between two lids | **z = 0 changes by section** (trap T4): sea surface (§13.6, §13.9, §13.14), solid surface (§13.7), flat bottom (§13.8), lower lid (§13.17); coast at y = 0 with the sea in y ≥ 0 (Kelvin wave); step at x = 0 (adjustment, flow over a step) | p, ρ perturbations (primes dropped); **f signed**; Coriolis term −fv, +fu on the left; wind stress at the surface τ = ρν_v ∂u/∂z; **ψ with u = −∂ψ/∂y**; eddy fluxes of the Eady wave positive northward (y) and upward (z); lapse rate Kundu dT/dz with the meteorological form shown | f-plane 1/abs(f) and Λ = c/abs(f); Ekman δ; Eady Λ_E = NH/abs(f) and NH/(abs(f)U₀); numbers from `ch13.illustrative_inputs()` (35° N/S, 60° N for Ekman layers, 12° N for Rossby waves) | dimensional SI throughout; Eady functions also in αH and σNH/(fU₀); model runs dimensional; the Rayleigh–Kuo solver non-dimensional (jet width and speed) |
 | ch14 | **axes switch by section** (trap T5): §14.3–§14.5 two planes — ζ (the circle) and z = x + iy (the airfoil), x along the mapped chord, y up, the stream inclined at α to x; §14.6 x along the flight direction, **y along the span** (−s/2 port, +s/2 starboard; span angle γ from 0 to π), **w positive downward**, z up for the horseshoe field (`horseshoe_velocity` returns uz upward); §14.8–§14.9 horizontal plane with angles off the true wind | circle through ζ = b; trailing edge at z = 2b (contour index 0), leading edge near z = −2b; lifting line at x = 0; ground plane at depth h below the wing | p∞ far upstream; C_p = (p − p∞)/(½ρU²); pressure acts along the inward normal; shear neglected on sections | section: chord c ≃ 4b, stream speed U; wing: span s, planform area A, mean chord A/s; time in chords travelled Ut/c (Wagner's s in semi-chords) | dimensional SI (illustrative inputs: section b = 0.25 m, U = 30 m/s; aircraft W = 9000 N, s = 12 m, A = 15 m²); coefficients C_L, C_D, C_p non-dimensional; the demo wing uses U = 1, ρ = 1 |
+| ch15 | one-dimensional ducts: x along the duct, **station 1 upstream, 2 downstream** (3 = nozzle exit in the worked chains); acoustics: x along the wave, stream U > 0 in +x; planar waves (§15.9–§15.10): the upstream flow along +x, σ and δ from it, the plate's chord b on 0 ≤ x/b ≤ 1, upper surface turning away from the flow at positive α | §15.2: the undisturbed state (subscript 0); §15.3 on: the stagnation state (subscript 0) and the isentropic sonic state (star) | pressures absolute; F in (15.24) on the fluid, F in (15.45) retarding; Q, q heat added; book δ > 0 into the flow, `turn` > 0 for an expansion | none fixed: every quantity is a ratio in M and γ; worked numbers use `illustrative_inputs()` (air 288.15 K, 101 325 Pa; tank 500 kPa, 500 K) | dimensionless ratios in GD (dimensional wrappers take `gas`, p₀, T₀, A); acoustics dimensional SI |

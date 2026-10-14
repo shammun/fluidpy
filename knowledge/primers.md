@@ -4,7 +4,7 @@ Appended by the knowledge-keeper after every chapter from the notebook's `metada
 prerequisite ledger. Later chapters do not repeat a primer: they write a one-sentence reminder ("primed in Ch. 1,
 P44") and point here. IDs are the notebook's `P` numbers (not in numeric order inside ch01). P numbers continue across
 chapters (ch01 P01–P61, ch02 P62–P86, ch03 P87–P110, ch04 P111–P133, ch05 P134–P148, ch06 P149–P164, ch07
-P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, **ch13 P307–P335**); a new chapter starts at the next free number (**ch15: P354**; ch14 used P336–P353 — 18 primers, P351–P353 added by its lesson review; total after ch14: 354 = P01–P353 and P218a; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
+P165–P184, ch08 P185–P199, ch09 P200–P220 + P218a, ch10 P221–P254, ch11 P255–P279, ch12 P280–P306, ch13 P307–P335, ch14 P336–P353, **ch15 P354–P373**); a new chapter starts at the next free number (**ch16: P374**; ch15 used P354–P373 — 20 primers, all planned by the curation, plus 32 one-line reminders of earlier primers; total after ch15: 374 = P01–P373 and P218a; ch14 used P336–P353 — 18 primers, P351–P353 added by its lesson review; total after ch14: 354 = P01–P353 and P218a; total after ch13: 336 = P01–P335 and P218a; in ch13 P313 sits before P312, P335 (in C07) before P314, P332 before P330; total after ch12: 307; in ch12 P286 sits in the conventions cell before P280, P283 before P281, P300 before P299)
 (ch12 started at P280). Total after ch11: 280 (P01–P279 and P218a — an inserted id: the ch09 lesson review moved integration by parts
 before D06, and the later P218 now opens with a recap line pointing to it; ch10's P254 Taylor–Green was added by the lesson
 review and sits before P237 in the notebook). In ch11 P269 sits before P268 and P263 before D10 (the lesson review moved both in front of their
@@ -410,6 +410,28 @@ density forward gloss in C60 (§1.10), implicit-function rule in the D19 sympy c
 | **ch14 — Python and numerics** | | |
 | splitting a closed contour into upper and lower surfaces (P337) | ch14 · §14.2 · C01; reused in C07 (D10) | find the trailing edge (largest x) and the leading edge (`np.argmin`), cut the point list there, and interpolate both halves on the same stations (`np.interp` needs increasing x) |
 | discrete-vortex time stepping (P339) | ch14 · §14.3 · C03 | one bound point vortex stands for the wing; each step releases one new vortex behind the edge with whatever strength keeps the total circulation zero and the flow tangent at the control point |
+| **ch15 — maths and physics** (the term is the exact `nb.primer` title; P354–P373, 20 primers, all planned by the curation; in the notebook P355 sits in §15.1 before C01 and P356 before P354) | | |
+| the gamma exponents (P355) | ch15 · §15.1 · before C01 | for γ = 1.4: γ/(γ − 1) = 3.5, 1/(γ − 1) = 2.5, (γ + 1)/(2(γ − 1)) = 3 (γ = 5/3: 2.5, 1.5, 2); the pressure exponent is the big one, and the classic slip is to invert them |
+| decibels and sound pressure level (P356) | ch15 · §15.2 · C01 | L = 20 log₁₀(p_rms/20 µPa) dB; every 20 dB is a factor 10 in pressure — turns "quiet" and "loud" into pascals |
+| an operator in brackets, applied twice (P354) | ch15 · §15.2 · C01 (before D01, D02) | (∂/∂t + U ∂/∂x) is an instruction; squared means "do it twice", not "square the result"; with constant U two such operators may be applied in either order |
+| the second-order wave equation and its two characteristic coordinates (P357) | ch15 · §15.2 · C02 (before D03) | ξ = x − ct and ζ = x + ct; the chain rule twice turns the wave equation into ∂²p′/∂ξ∂ζ = 0, whose solutions are a function of ξ plus a function of ζ (extends ch07's one-family P174) |
+| Riemann invariant (P358) | ch15 · §15.2 · C02 | a combination of fluid speed and sound speed that keeps its value along a moving wavelet; for a wave running into still gas u − 2c/(γ − 1) is uniform, so c = c₀ + ½(γ − 1)u and every part of the wave has its own speed |
+| dynamic pressure in a gas (P359) | ch15 · §15.4 · C04; reused in C07, C11, C16 | ½ρU² = ½γpM² because c² = γp/ρ; trades a speed for a Mach number in any momentum term |
+| differentials of algebraic laws as a small linear system (P362) | ch15 · §15.5 · C06 (before D12); reused in C12 (D22, D23) | take d of each law and divide by the law: every law becomes linear in dρ/ρ, du/u, dp/p, …; solve them together (`sp.linsolve`) — the method behind every 1 − M² |
+| dividing a known root out of a quadratic (P363) | ch15 · §15.6 · C07 (before D13) | if r₀ solves the quadratic it factors as (r − r₀)(linear); divide and the other root drops out — here the known root is "nothing happens" (Vieta P71 as the check) |
+| the series of ln(1 + x) to third order (P364) | ch15 · §15.6 · C08 (before D17) | ln(1 + x) = x − ½x² + ⅓x³ − …; when several logarithms are added their first- and second-order terms can cancel exactly, so every x³ must be kept |
+| a quadratic in M squared and its discriminant (P366) | ch15 · §15.8 · C11 (before D21); reused in C12 (D24) | with X = M₂²: two roots = two possible outlets, a double root = they merge (choking), none = no steady flow with this inlet (P159 is the formula) |
+| a process line on a T–s diagram (Fanno and Rayleigh lines) (P367) | ch15 · §15.8 · C12 | all the states one duct flow passes through as friction (or heat) accumulates: a curve with a nose of maximum entropy at M = 1; the usual names, not the book's; their star is the sonic state of the same process (trap T2) |
+| the envelope of a family of circles (P368) | ch15 · §15.9 · C13 (before D25) | a curve touching every member; for circles centred on a line with radii growing with distance from a point it is the pair of tangents from that point, and the radius meets the tangent at a right angle |
+| hyperbolic against elliptic equations (P369) | ch15 · §15.9 · C13 | elliptic: every point influences every other (subsonic, Laplace, P201); hyperbolic: influence travels along characteristics only — steady supersonic flow, with the downstream distance as "time" and the Mach lines as characteristics |
+| resolving a velocity along and across a tilted line (P370) | ch15 · §15.9 · C14 (before D26) | across = V sin σ, along = V cos σ; an observer sliding along the line at the along-speed sees only the across part, and a constant slide changes no p, ρ or T (P96) |
+| the tangent subtraction formula (P371) | ch15 · §15.9 · C14 (before D27) | tan(σ − δ) = (tan σ − tan δ)/(1 + tan σ tan δ) and cos 2σ = 1 − 2 sin²σ (P341 for the other double-angle forms) |
+| the Mach triangle (P372) | ch15 · §15.9 · C14 (before D28); reused in C15, C16 | hypotenuse M, opposite side 1: sin μ = 1/M, cos μ = √(M² − 1)/M, cot μ = √(M² − 1) — every √(M² − 1) of §15.9–§15.10 is this triangle's third side |
+| arctangent integrals (P373) | ch15 · §15.9 · C15 (before D30) | ∫dt/(1 + a²t²) = (1/a) tan⁻¹(at); reached after the substitution t² = M² − 1 (P106) and partial fractions (P219) |
+| **ch15 — Python and numerics** | | |
+| a function with two inverses (P360) | ch15 · §15.4 · C05; reused in C10 (D20), C14 | a U-shaped function has two x for each y above its minimum; give `brentq` (P108) a bracket on one side of the minimum, chosen by the physics (`branch="subsonic"` or `"supersonic"`, `"weak"` or `"strong"`) |
+| a generated table as a pandas DataFrame (P361) | ch15 · §15.4 · C05; reused in C08 | the classical printed table regenerated (`GD.isentropic_table`, `normal_shock_table`): named columns, `.loc` picks rows, reading backwards means finding the row whose column is nearest a value |
+| nested root finding (P365) | ch15 · §15.7 · C10 (before D20) | a root-finder whose function itself calls a root-finder: the exit pressure for a shock at M₁ needs the subsonic inverse of the area ratio, and the outer search finds the M₁ whose exit pressure equals the back pressure |
 
 Reminders written in ch03 instead of new primers (point here): P13 log–log slope, P15 `assert np.allclose`, P16
 animate, P17 slider_figure, P18 show_viz, P21/P22 finite differences, P25 partial derivative, P26 Taylor, P27 definite
@@ -716,3 +738,27 @@ Wagner's function appears); **span efficiency** (one line up front, defined wher
 `SymLogNorm`, `**SEC` (dictionary unpacking), sympy `chebyshevt`, `chebyshevu`, `cancel`; slips named "slip #1…#10" and
 traps T1–T18. **Still without a gloss at first use (open lesson items):** "trimmed close", "analytic" (as a ch06
 reminder), "winglets", "collocation" before its reminder, the tangent-of-a-difference identity in D22 step 8.
+
+Reminders written in ch15 instead of new primers (one sentence each; the notebook's metadata lists 52 primer-or-reminder
+entries, 20 new and 32 reminders; point here): P15 `assert np.allclose`, P16–P18 slider_figure / animate / show_viz and
+`live`, P25 partial derivative, index notation and the Laplacian (ch02), P26/P98 Taylor expansion, P27 definite integral,
+P29 `lambda` (as a comment at first use), P38 product rule, P40/P117 sympy (`diff`, `expand`, `simplify`, `series`,
+`limit`, `solve`), P46 piecewise functions with `np.where`, P49 chain rule (two new variables), P52 logarithmic
+differentiation, P68 orders of smallness, P71 Vieta's formulas, P87 `scipy.integrate.quad`, P94 `solve_ivp`, P96 frames
+of reference and the Galilean shift, P100 small-angle approximation, P106 substitution in an integral, P107 `np.expm1` /
+`np.log1p` and cancellation, P108 `brentq`, P111 dataclasses, P114 momentum flux through a surface, P127 power of a force
+and heat flux, P159 the quadratic formula, P170 `minimize_scalar` (cross-check of a maximum), P174 first-order wave
+equation and characteristics, P177 operator elimination, P201 parabolic and elliptic problems, P219 partial fractions and
+inverting an implicit solution, P227 domain of dependence, P252 caching (`functools.lru_cache`), P342 binomial
+approximation, P343 l'Hôpital's rule (the 0/0 at the throat). Recaps of earlier chapters (not primers): the first law,
+Gibbs and entropy as a state function (ch01), isothermal against isentropic compression (ch01), mean free path (ch01
+C06), control volumes and the Reynolds transport theorem (ch03, ch04), basic state + small disturbance (ch11), the
+shallow-water simple wave and the hydraulic jump (ch07), the pressure coefficient (ch04), d'Alembert's paradox and
+corner flows (ch06), the 2π slope and the Kutta condition (ch14), a small tilt turns lift into drag (ch14 D13).
+
+Glosses in ch15 (one sentence where used, no primer): **adiabatic / isentropic / reversible** side by side (trap T17);
+a map that is its own inverse (15.40); maximum of a function by a zero derivative; arcsine and its domain; **Fanning
+friction factor**, **hydraulic diameter**, **wetted perimeter**, τ_w (cell 7(a) and N86); **mean free path** (N48);
+**back pressure**, **choked**, **over- / under-expanded**; **zone of silence**, **sonic boom**; **detached shock**;
+**wave drag**; `np.vectorize` around `brentq`; f-strings. Left unglossed by decision: `**kw` / `*bars` unpacking, p_rms.
+Slips are "slip #1…#17" (with `kind` and `changes_physics`) and traps T1–T22.

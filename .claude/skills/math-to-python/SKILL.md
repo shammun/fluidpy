@@ -107,3 +107,21 @@ description: How to turn textbook mathematics (definitions, theorems, derivation
   exclude the band in sweeps.
 - (ch01) When a derivation divides by "the density", name whose: the parcel's own density (inertia of the displaced
   body), not the environment's — only an exact invariant of the un-linearised law told the two apart.
+- (ch14) Split a quadrature at every kink of the integrand (one Gauss rule across a tapered chord's kink lost 2.2e-6 of
+  the area and every coefficient inherited it); choose the root of an inverse map by continuity (distance from the
+  circle's centre), not by modulus.
+- (ch15) **One gas per call**: a function taking both `gamma` and `gas` takes γ from `gas` and raises on a disagreeing
+  `gamma` (γ = 1.4 with a rocket gas's R was 4.1 % off); test every gas- or fluid-carrying function with non-default
+  properties.
+- (ch15) At a point where a factor vanishes (1/(1 − M²) at M = 1), **form the driver first, then divide** — multiplying
+  each term by inf separately turns every zero term into NaN (0·inf) and poisons the sum.
+- (ch15) Guard a bare formula in its callers, not by its sign: raise for scalars, return NaN plus a flag for arrays,
+  with a stated round-off allowance (asin(1/M) puts M sin σ one ulp below 1 for many M).
+- (ch15) Near a branch point write M² − 1 as (M − 1)(M + 1) and switch to the series below a stated |m|; at a
+  square-root branch point (a vanishing discriminant) assert the conditioning bound ½(γ + 1)√|D|, never a looser
+  tolerance elsewhere.
+- (ch15) A printed slip that changes the physics is coded corrected and kept as a named option (`printed_15_47=True`)
+  that a test must fail; confirm the correction three ways (finite differences of the closed form, sympy on the
+  linearised laws, sympy on the finite laws).
+- (ch15) A re-exported function whose bare name means something else in the new chapter (ch04's incompressible
+  `stagnation_pressure` in a compressible chapter) gets a warning wrapper and an explicit alias, and a test pins the gap.

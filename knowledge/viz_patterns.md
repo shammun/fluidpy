@@ -34,6 +34,12 @@ defects of the shared library, L1–L3, fixed in `assets/viz_lib.js` by the orch
 files; 328 selftest rows of which 240 JS ↔ fluidpy; 2 032 views and 4 924 pager pages audited; 14 derivations / 116
 steps equal to the design; **the first chapter whose review drove the walkthrough with real clicks**).
 
+ch15 E1 `sound_pulse_dalembert`, E2 `area_mach_nozzle`, E3 `normal_shock_jump`, E4 `nozzle_back_pressure`, E5
+`duct_friction_heating`, E6 `mach_cone`, E7 `oblique_shock_wedge`, E8 `prandtl_meyer_fan`, E9 `supersonic_flat_plate` (all
+PASS — round 1 passed eight of nine; `nozzle_back_pressure` had 2 Must (every preset chip lit; an argument missing in D20
+step 4), fixed by the orchestrator in `6e3700c`; 295 selftest rows of which 245 JS ↔ fluidpy, closed forms at rtol 1e-12;
+2 360 views, 0 CLIP, 0 console messages; 18 derivations / 149 steps equal to the notebook; no library change).
+
 ## Patterns that worked
 | Pattern | Where proven | Why it works |
 |---|---|---|
@@ -277,6 +283,18 @@ steps equal to the design; **the first chapter whose review drove the walkthroug
 | **A force polygon that closes, with forbidden zones on the dial** (no-go, cannot-hold) and three badges; **modes = the same triangle in three systems** (sail, fish tail, bird wing); selftest rows that test the drawing itself (the polygon's closure) | ch14 E9 `thrust_from_lift` | "lift is normal to the relative wind" explains thrust in three systems with one picture; the drawing is verified, not only the numbers |
 | **A reviewer drives the walkthrough with real clicks at least once** (`page.mouse.click` on "Next →", "← Back", a chip, arrow keys, a touch tap; `goStep` wrapped to count its calls), and **turns a pager page before changing step** | ch14 viz review rounds 3–4 (36 / 36 runs; 1 478 step changes) | three rounds of `VIZ.goStep` audits had hidden a button that skipped every second step in every chapter (L3) and a step that opened on the old page (L2) |
 | **A state change with the Explain tab open is part of the audit** (every preset, a transport drag, 3.5 s of animation; pager re-audited) | ch14 viz review rounds 2–4 (0 clipped of 288 preset states after the fix) | found L1: the Explain pager was laid out once and clipped after any change of state |
+| **"The laws allow it, the second law forbids it"**: three paired flux bars (mass, momentum, energy) that stay "1 = 1" for every upstream Mach number, beside a signed entropy bar that turns red on the forbidden side (M₁ < 1 open to experiment) | ch15 E3 `normal_shock_jump` | the reader finds by experiment that conservation alone admits an expansion shock and only the entropy refuses it — the curation's "aha" without a sentence of assertion |
+| **Term bars that add to zero exactly, with a removable 0/0 replaced by its one-sided limit** (the area, density and velocity terms of the area–velocity relation at the sonic throat; a selftest row checks the limit against the neighbouring stations) | ch15 E2 `area_mach_nozzle` (after ch04 E4, ch13 E1) | a balance stays readable through its singular point instead of flashing NaN |
+| **A printed slip shown live beside the corrected form, with the identity it breaks and a number** (D12 step 3: the book's + sign in (15.32) would forbid a supersonic nozzle; E5 §5: the two corrected heat terms add up to dq, the printed ones do not) | ch15 E2, E5 | better than a footnote: the reader sees why the correction is forced |
+| **An honest exaggeration label with the true size** ("shifts drawn ×500, true ≤ 0.886 mm") when the physical motion is invisible at true scale | ch15 E1 `sound_pulse_dalembert` (after ch14 "ε drawn ×5"); notebook C16 inset "tilt drawn ×5: 10° for α = 2°" | the picture can show air shuffling under a sound wave without implying that the air travels |
+| **A transport on a control parameter that walks a discontinuity through the domain**, with the other device as a grey ghost (the shock walking down the bell as the tank is pumped down; the convergent nozzle's plateau beside the Laval nozzle's) | ch15 E4 `nozzle_back_pressure`; notebook animation A3 | seven named regimes become one continuous process; "choked means / does not mean" lives in the notes |
+| **An arrival-time view whose minimum *is* the event** (the U-shaped arrival curve of the fronts at an observer; its minimum is the boom; "two sounds heard at once inside the cone" is a selftest row) | ch15 E6 `mach_cone` | the Mach cone becomes something heard, not only drawn; the inspector gives each circle's emission point and age |
+| **Velocity triangles at a clicked streamline** (across component blue, along component amber and unchanged) and **two roots merging on a chart with faint curves for other parameters** | ch15 E7 `oblique_shock_wedge` | "an oblique shock is a normal shock on the normal component" is seen, and detachment is where the two roots meet |
+| **A staircase of discrete steps converging to a smooth integral, with an invariant that the error halves when N doubles** (1 → 3 → 7 → 21 → ∞ Mach waves; a Simpson check of the integral form against the closed form) | ch15 E8 `prandtl_meyer_fan` (after ch14 E6 "build the sum") | the Prandtl–Meyer function is assembled, and its first-order convergence is a stated, tested fact |
+| **Both sign conventions in status, readouts and terms** (our turn and the book's δ; σ, δ beside β, θ) | ch15 E7, E8 (after ch01 E4 two-convention badge) | the reader can move between the book and a gas-dynamics table without a sign error |
+| **An area between two levels that is a force, with the previous chapter's loop as a ghost**; the status reports the small error of the total (lift −1.1 % at 10°) while Explain shows each part 20–25 % off | ch15 E9 `supersonic_flat_plate` (after ch14 E4) | "the errors nearly cancel" becomes a measured, second-order fact; the diamond preset shows drag without lift |
+| **Every ratio on screen says what it is a ratio of** ("p₂/p₁ downstream / upstream", "p/p₀ static / stagnation") | all ch15 explainers (the ch14 Wagner lesson as a colour-and-label rule) | no ratio can be read against the wrong reference |
+| **A medium table with the current row highlighted** (Newton's isothermal against Laplace's isentropic sound speed in several media; real Mach numbers of aircraft and projectiles) | ch15 E1, E6 (after the AFE reference) | the number on screen is placed among real values |
 
 ## Failures and fixes
 | Problem | Where | Fix |
@@ -494,6 +512,13 @@ steps equal to the design; **the first chapter whose review drove the walkthroug
 | **A preset whose name over-claims** ("infinite span" sets Λ = 30, where induced drag is still 24 %) and a badge word that is wrong after another control moved ("fast") | ch14 E8 (open) | name the preset by its value; compute badge words from the current state |
 | **Builders' hand-back notes lost in a shutdown** (six explainers): promotion candidates and tool gaps existed only in the session | ch14 viz phase (a user stop, then a power loss) | every agent writes its notes to a file in its scratch folder before reporting; the resume note lists what the knowledge phase must carry |
 | **An intermittent clip in an older chapter under heavy load** (`ch13/rossby_waves`, 844×390, walkthrough step 2: a live inspector line 10 px clipped in one run of three) | ch13 E9, seen during the ch14 regression runs (to watch) | if it recurs: the re-pack after a live inspector changes height |
+| **Every preset chip lit at once**: seven presets with `set: {kind: 'cd'}` and the back pressure in `action`; the library marks a chip as pressed when every key of its `set` matches the state, so a `set` holding only a shared mode key matches for all seven | ch15 E4 `nozzle_back_pressure` (round-1 Must) | put the distinguishing value in `set`; when it depends on another parameter use a getter: `get set() { return { kind: 'cd', dn: DN(name, st.ar, gamma) } }` with the same area-aware value in `action`. A probe: after each preset, exactly one `.viz-preset[aria-pressed=true]` |
+| **A derivation step's *why* claims an inequality that does not follow** ("the jump exceeds 1, so p_f < p_d < p_b": only p_d > p_f follows) — the notebook had been fixed by the lesson review, the explainer had not | ch15 E4 D20 step 4 (round-1 Must) | port the notebook's argument (factor p_d/p₀ = (p₀₂/p₀₁)(p/p₀₂), each factor smaller); **a lesson-review fix to a derivation is re-briefed to the explainer that shows it** |
+| **Phone labels placed for a wide view** (a stream label over the curves, a cursor label into a drag handle, an observer icon a kilometre tall overlapping an arrow, three labels on a 200 px curve, a drag arrow invisible) | ch15 E1, E2, E6, E8, E9 (open) | size decisions from `v.w`/`v.h`: seven ch15 files still compute `narrow()` from the window width; on views < 420 px keep one label and move the rest into the title |
+| **The canvas play button covers labels in the view's top-right corner** on phones | ch15 E7 (open) | reserve that corner, or anchor labels left of the button |
+| **A percentage computed against one value and worded against the other** ("the exact value is 40 % below the cubic" while computing (cubic − exact)/exact: the cubic is 40 % above, the exact 29 % below) | ch15 E3 Explain §6 (open) | the sentence names the denominator of the computation |
+| **Derivation step titles paraphrased instead of copied** (D26 steps 4, 6; D29 steps 1, 7) and a walkthrough link one step early (E5 → D21 step 11 for the step-12 result) | ch15 E5, E7, E8 (open) | copy titles from `build_chNN.py --dump`; check every `derive: {id, step}` against the quoted text |
+| **A parity row with a loose tolerance hiding its reason** (rtol 1e-3: a closed form against a quadrature across a slope jump, actual 3.3e-4) | ch15 E9 (open) | name the row "closed form vs quadrature" or give the quadrature a breakpoint so the row can be 1e-9 |
 
 ## Promotion candidates (helpers duplicated across explainers)
 | Helper | Found in | Proposed library name | Status |
@@ -676,6 +701,95 @@ CSS rule, `Viz.arrowPx`/`dotPx`, gutter + square plots, formatters incl. `fmtLen
 and per-mode hiding (rank 6) **before Ch. 13's explainers**, then log axes, `Viz.cx`, Gauss–Legendre; replace `narrow()`
 by the engine's layout; keep `crestLines`, `integrateMany` local. After promotion: `tools/viz_inline.py --all`, then
 `tools/shot.py --chapter ch01 … ch07 --quick` and `tools/shot.py templates/viz_example.html --quick` must all PASS.
+
+### ch15 candidates (listed, **not promoted**: the ch15 knowledge pass ran while the site-publisher was reading `viz/`)
+From `reports/ch15_viz.md` and a scan of named definitions in the nine chapter files (E1 `sound_pulse_dalembert`, E2
+`area_mach_nozzle`, E3 `normal_shock_jump`, E4 `nozzle_back_pressure`, E5 `duct_friction_heating`, E6 `mach_cone`, E7
+`oblique_shock_wedge`, E8 `prandtl_meyer_fan`, E9 `supersonic_flat_plate`); no builder hand-back notes were found on disk.
+"Rating": **A** clearly worth it · B useful on second use · C keep local.
+
+| Rank | Helper or fix | Files carrying a local copy (ch15) | Proposed library name | Rating · why |
+|---|---|---|---|---|
+| 1 | **preset exclusivity in the audit and the library**: a probe that exactly one chip is pressed after each preset; optionally a library warning when two presets have identical `set` objects | the E4 Must (`PRE` with `set: {kind: 'cd'}`) | `tools/shot.py` check; `Viz.app` dev warning "presets N and M have the same set" | **A** — a Must that every mechanical check passed |
+| 2 | **layout from the view** (`narrow()` from the window width: 7 ch15 files, 9 ch14 files; `isSmall`, `isTiny`, `medium` earlier) | E2, E4 (`innerWidth < 560 \|\| innerHeight < 460`), E5, E6, E3, E9 (`clientWidth < 560`), E8 (`< 900`) | `v.size` ('tiny' \| 'small' \| 'medium' \| 'wide') from `v.w`, `v.h` (ch14 rank 6, now 16 files) | **A** — every open ch15 phone overlap is a label placed for a wide view |
+| 3 | **a gas-dynamics mirror** (`machAngle` E6, E7, E8, E9; `areaRatio`, `machFromArea`, `lavalArea`, `pRatio`, `flux` E2, E4 (+ E3); `oblique`, `deflection`, `maxDeflection` E7, E9; `machFromNu`, `nuMax`, `T0T` E8, E9) | as listed | `Viz.gas` (isentropic ratios, A/A* and both inverses, normal and oblique shock, ν(M) and its inverse; γ an argument; parity rows against `fluidpy.core.gasdynamics`) | B — nine files of one chapter; only Ch. 15 needs it now, but one tested copy would remove eighteen hand copies |
+| 4 | **colour blending** (`hex2rgb` + `mixC` / `machColor` / `tColor`: blend two palette colours by a fraction) | `hex2rgb` E2, E3, E4, E5, E8; `mixC` E3, E5, E8; `machColor` E2, E4; `tColor` E3, E5 | `Viz.mix(c1, c2, f)` (the library has a private `hex2rgb`; expose a blend) | **A** — five copies, small, and a colour scale for Mach number or temperature is common |
+| 5 | **first label that fits** (`fitStr(ctx, [long, medium, short], maxW, weight, size)`) | E3, E6, E7, E8 (ch12 `fitText` in three files) | `Viz.fitText(ctx, list, maxW, {size, weight})` | **A** — the phone-label failures above want exactly this |
+| 6 | **pixel arrow** (`pxArrow`) | E3, E7 (ch12–ch14 `arrowPx` in 14 files) | `Viz.arrowPx` (ch14 rank 3) | **A** — seventh chapter |
+| 7 | **small numerics and formatting** (`clamp` E3, E5, E6, E7, E8, E9 + 4 earlier; `sgn` E1, E6, E8, E9 + ch14; `pct` E3, E5, E7, E8, E9 + 8 earlier; `tsg` signed TeX E3, E5, E8 + ch14) | as listed | `Viz.clamp`, `Viz.sgn`, `Viz.pct`, `Viz.tsg` (ch14 rank 12) | B — trivial but copied in 10–13 files across four chapters |
+| 8 | **plot helpers** (`gutterPlot`, `linePx`, `dotPx`, `labeler`, `put`, `hit`) | E2, E4 | ch14 ranks 5 and 9 (`v.plot({ylabelGutter})`, `Viz.px.*`) | B — the same two files share a drawing kit; already ranked |
+| 9 | **real-world tables with the nearest row highlighted** (`realRows`, `nearestReal`) | E3, E6 | `Viz.work.table(…, current)` already exists — use it; the nearest-row search is a one-liner | C |
+| 10 | carried, unchanged: ch14 ranks 1–16 (shot.py click / page-then-step / Explain-state / `.katex-error` / 844×345; `Viz.cx`; `transport.max`/`holdAt`; `Viz.num.linalg`; log axes; pager "keep the page by heading"), ch13 and ch12 lists | | | |
+
+**Top five, clearly worth it:** (1) the preset-exclusivity probe (and the ch14 shot.py checks, still open); (2) `v.size`
+from the view (16 files now carry `narrow()`); (3) `Viz.mix`; (4) `Viz.fitText`; (5) `Viz.arrowPx`. Then `Viz.gas` if a
+later chapter or a revision needs gas dynamics again. Order for the library pass (when nothing reads `viz/` or
+`assets/`): these, then the ch14, ch13 and ch12 lists; afterwards `tools/viz_inline.py --all`, `tools/shot.py --chapter
+ch01 … ch15 --quick` and `tools/shot.py templates/viz_example.html --quick`; revert on any failure; re-run the behaviour
+probes (real clicks, page-then-step, preset exclusivity) as well as the layout audit.
+
+### ch15 library and tool findings (from the reviewer; nothing was edited)
+1. **The library marks a preset chip as pressed when every key of its `set` matches the state** (`viz_lib.js` l.1600):
+   a `set` holding only a shared key (a mode) lights every chip that shares it. A getter `get set()` is evaluated each
+   time the chips are refreshed, so an area-aware value works (`nozzle_back_pressure` fix).
+2. `tools/eq_refs.py`: 3 hits, all Code-tab `ref:` labels of `normal_shock_jump` (accepted as panel labels).
+3. `tools/shot.py` still has the ch14 gaps (no click, no page-then-step, no Explain state change, no `.katex-error`,
+   no 844×345, Code tabs never run) and a new one: **no check that preset chips are mutually exclusive**.
+4. The viz review re-computed every number quoted in tour, Explain and quiz text with fluidpy (all correct) and compared
+   all 18 Derivation tabs with `build_ch15.py --dump` (step counts equal; two pairs of titles paraphrased).
+
+### ch15 open explainer items (Should, non-blocking; from `reports/ch15_viz.md`)
+- E1: the label "stream U = 102 m/s →" sits on the f/g curves and the probe dot on phones (move it into the title or
+  the top-right corner when `v.w < 420`); the u′ arrows in the air strip are hard to see on phones in step 4.
+- E2: at x/L = 1 the cursor label "M 2.20" runs into the exit handle (right-align it before `X1 − 12`); Explain §7 hint
+  "Hidden on phones — turn the phone sideways? The bars stay hidden there too" — rewrite ("On phones the bars are
+  hidden; their numbers are in sections 4–5 and in the curve's title").
+- E3: Explain §6 gap % wording (divide by the cubic, or say "the cubic is X % above the exact value"); Code-tab `ref:`
+  labels could read "Jump laws (15.35)–(15.37)".
+- E4: on phones the 7 + 1 preset chips take three rows — shorter labels ("sub", "choke", "bell", "exit", "over",
+  "design", "under").
+- E5: tour step 3 "One number, one quadratic" links `derive: {id: 'D21', step: 11}`; the quoted result is step 12.
+- E6: at M = 3, t = 0 on phones the observer icon (about 1 km tall at that scale) overlaps the flight-path arrow.
+- E7: the canvas play button covers "② M₂ = 0.604 · p₂/p₁ = 4.44" at 390×844 step 4; D26 step titles 4 and 6 differ
+  from the notebook's.
+- E8: in the short ν(M) view (step 6, compression −8°) three labels sit on the curve and guides — keep the ν(M₂) line
+  only below ~200 px; D29 step titles 1 and 7 differ from the notebook's.
+- E9: step 3 names "the drag (rose)" but the drag arrow and label are not drawn on phones; parity row "diamond
+  thickness drag (5 %, M 2)" at rtol 1e-3 (closed form vs quadrature across a slope jump); D31 step 1 *why* 36 words.
+- Chapter-wide: backup `wave_steepening` not built (the `euler1d_run` and `riemann_exact` it would need exist); C03 and
+  C04 have no explainer (term table and slider figures).
+
+### ch15 machinery / tooling TODOs (for the orchestrator; not done in this pass)
+- **`tools/shot.py`**: preset exclusivity (exactly one pressed chip after each preset); the ch14 list (real click,
+  page-then-step, Explain state change, `.katex-error`, 844×345, run the Code tabs).
+- **pytest**: `testpaths = tests`; delete `outputs/ch14/_resume_scratch/mut/` (it also holds a private book file).
+- **Derivation sync**: a script comparing `app.cfg.derivations` (step count *and* titles) with `build_chNN.py --dump`
+  after every lesson-review fix; the D20 step 4 argument was fixed in the notebook and not in the explainer.
+- **Builder hand-back notes on disk** (none for ch15).
+- **Docstring citations** (verification Open item 1) — a check that every test named in a `Validation:` line exists and
+  calls the function (`outputs/ch15/_verify_scratch/label_audit.py` does it; promote it to `tools/`).
+
+### ch15 lesson candidates for the skills (promoted in this pass where marked ✔)
+- ✔ `interactive-viz` Lessons: (ch15) presets carry their distinguishing value in `set` (a getter when it depends on
+  another parameter) · size decisions from the view, not the window (seven files) · reserve the canvas play button's
+  corner · every ratio says what it is a ratio of · a printed slip shown live beside the correction with the identity it
+  breaks · conservation bars "1 = 1" beside a signed entropy bar for an admissibility argument · an exaggeration label
+  with the true size · derivation step titles copied from the notebook, and lesson-review fixes ported to the explainer.
+- ✔ `verify-implementation`: (ch15) test every gas- or fluid-carrying function with non-default properties (γ ≠ 1.4
+  found the Must) · a review fix gets its own pin shown to fail on the pre-fix code, and pre-fix vs post-fix are compared
+  on every unaffected call (max difference 0.0) · a label audit by script (every cited test exists and calls the
+  function; every claimed level appears in a cited test).
+- ✔ `math-to-python` §7: (ch15) one gas per call · form the driver before dividing by a vanishing factor (0·∞) · guard
+  bare formulas in their callers (raise for scalars, NaN + flag for arrays, with a round-off allowance) · factor M² − 1
+  and switch to a series near the branch point · a square-root branch point limits accuracy (assert the conditioning
+  bound) · printed slips that change the physics as options a test must fail · a re-exported function whose name means
+  something else in the new chapter gets a warning wrapper and an explicit alias.
+- ✔ `teaching-style` Lessons: (ch15) a bridge between the book's parameter and the field's, slice by slice, with both
+  numbers for one case (f against 4f_FL/D) · an inequality proved by factoring a ratio · sliders open on the case the text
+  reads · a force inset with the stated exaggeration and the true size · the ch15 derivation moves.
+- ✔ `colab-notebook`: (ch15) re-execute before publishing when an explainer file is newer than the executed notebook.
+- (ch14 carried, ✔ promoted now): drive the walkthrough with real clicks; a pager keeps its page only when asked; a
+  cited curve on the axis of the quantity it is a ratio of; hand-back notes on disk.
 
 ### ch14 candidates (listed, **not promoted**: the ch14 knowledge pass ran while the site-publisher was reading `viz/` and `assets/`)
 From `analysis/ch14_resume.md` ("carry into the knowledge phase": the notes of the E1–E3 builders), `reports/ch14_viz.md`
@@ -1806,6 +1920,16 @@ Each is worked around in chapter CSS/JS today; fix in the engine, then drop the 
 | **Ch. 16 an optimum vessel radius** as the minimum of pumping power plus the cost of blood volume (if the chapter treats it) | E8 (one falling and one rising term, a minimum between them); primer P349 | the two costs as stacked bars at the cursor |
 | **Ch. 16 pulsatile flow as a sum of harmonics** (Womersley profiles) | E6 ("build the sum"); E7 `lifting_line_solver` (log bars with shares) | reuses ch08 `stokes_layer` and ch13's complex-velocity trick |
 | **Any chapter: a linear solve opened up** — click an unknown and its equation is written out with the reader's numbers | E7 (the matrix row with the reader's numbers) | needs `Viz.num.linalg` (candidate rank 7) |
+
+### From ch15 — ideas for Ch. 16 (Biofluid Mechanics) and any later revision
+| Idea | Reuses (ch15 explainer · pattern) | Notes |
+|---|---|---|
+| **Ch. 16 a pressure pulse in an artery**: a bump splits into forward and backward waves; flow follows p′/(ρc) with the sign of the direction; c is the elastic-tube wave speed | E1 `sound_pulse_dalembert` (two shapes sliding apart, an air/blood strip with an honest exaggeration label); `AC.dalembert`, `plane_wave_velocity` | reflections at a junction are new (a reflection coefficient from the two impedances); say "linear" |
+| **Ch. 16 a steepening pulse** (if the chapter treats nonlinear pulses) | backup `wave_steepening`; `AC.simple_wave_evolve`, `breaking_time` | γ-like exponent of the tube law replaces the gas γ |
+| **Ch. 16 flow limitation in a collapsible tube** — the same "1 − S²" sign change as the area rule, S the speed index | E2 `area_mach_nozzle` (term bars that add to zero; the singular point by its limit) | only if the chapter treats it; the template is `GD.influence_coefficients` |
+| **Ch. 16 a valve or a stenosis swept by a control parameter** — a jet and its pressure recovery walking along the vessel | E4 `nozzle_back_pressure` (a transport on the control parameter, the other device as a ghost) | presets with the distinguishing value in `set` |
+| **Any chapter: an admissibility argument** — the conservation laws allow two states, a second principle picks one | E3 `normal_shock_jump` (paired "1 = 1" bars beside a signed red bar) | e.g. the hydraulic jump's energy loss (ch07) as a retrofit |
+| **Any chapter: something heard or measured at a point from a moving source** | E6 `mach_cone` (an arrival-time view whose minimum is the event) | Doppler, wakes |
 
 ## Reference explainers (the depth to match)
 See skill `interactive-viz` §4–§5: Shammunul's preferred MIT-mathlet re-implementations (forced damped vibrations — the

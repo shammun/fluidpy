@@ -93,3 +93,6 @@ Anaconda). Budget: < 5 min full run; `FAST` for anything heavier.
 ## 7. Lessons (the knowledge-keeper appends; one line each, dated by chapter)
 - (machinery) `import site` inside tools resolves to the standard library module — the site builder is `tools/build_site.py`.
 - (machinery) Anaconda's `python3` kernelspec can shadow the venv's; execution uses the dedicated `fluidpy-venv` kernel.
+- (ch15) If an explainer file is newer than the executed notebook, re-execute (or re-embed) before publishing — the
+  embedded `srcdoc` copy is the old one.
+- (ch14) End widget cells with `_ = live(...)` so no repr and no empty output box is published.

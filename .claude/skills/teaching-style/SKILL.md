@@ -145,3 +145,20 @@ From-scratch versions: a transparent loop or formula next to the library call, t
   integrate pressure over a box's faces: sides cancel, top minus bottom is the net force (D05, D37) · "dimensionless ⇔
   exponent vector in the null space", then rank–nullity counts the groups (D28) · Poisson variance = mean gives relative
   scatter 1/√N (D35).
+- (ch14) A "first look" primer for a concept a later block owns (formula, five numbers, a pointer) removes a forward
+  reference; name arrows once where they are largest and state any exaggeration; a derivation header shows the derived
+  line, not the starting one.
+- (ch15) **Bridge the book's parameter and the field's slice by slice** (the lumped f = F/(p₁A) against 4f_F L/D: a
+  one-line differential, then both numbers for the same duct, 0.100 against 0.532) — the "which p_o?" pattern for
+  parameters, not only signs.
+- (ch15) Prove an inequality by factoring a ratio and showing each factor is smaller (p_d/p₀ = (p₀₂/p₀₁)(p/p₀₂)); a
+  *why* never claims more than the line before gives.
+- (ch15) Sliders and widgets open on the case the text reads (`active=values.index(1.4)`); a small-angle force inset
+  states its exaggeration and the true size of the hidden component ("tilt drawn ×5; the true drag arrow would be 3.5 %
+  of the lift").
+- (ch15) Reusable derivation moves (recap by pointing to the ch15 D row): differentiate each law, divide by it, solve
+  the small linear system — the common factor 1 − M² decides every sign (D12, D22, D23) · divide out the root you
+  already know ("nothing happens") (D13) · keep every cube when lower orders cancel exactly (D17) · write all laws in one
+  dimensionless number until the problem is one parameter and a quadratic (D21) · a vanishing discriminant is the
+  critical state (D24) · slide along a line to reduce a 2-D jump to a 1-D one (D26) · one small-angle replacement per
+  step (D28, D31) · sum infinitesimal turns, substitute t² = M² − 1, split into arctangents (D29, D30).

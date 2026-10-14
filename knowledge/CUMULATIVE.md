@@ -1,27 +1,26 @@
 # CUMULATIVE knowledge — fluidpy
-(Rewritten by the knowledge-keeper after every chapter. Every agent reads this first. Last rewrite: after ch14,
-2026-10-13, knowledge pass on commit 007ced3.)
+(Rewritten by the knowledge-keeper after every chapter. Every agent reads this first. Last rewrite: after ch15,
+2026-10-14, knowledge pass on commit 6e3700c.)
 
-## Open items carried from ch14 — read before starting ch15 (details `knowledge/ch14.md` §0, §9; ch13 §0)
-- **Needs the user**: ch13 slip #14 (westward flow over a step) still has no ruling. Nothing new from ch14.
-- **Attributed, not tested (ch14)**: the exact start-up circulation (0 at the start, 0.55 after one chord, 90 % at 7.1
-  chords) is the reviewer's own computation. **Wagner's function is a lift ratio** (φ(0) = ½); the lumped-vortex start
-  is a model (Γ_bound starts at ⅓); "90 % after 6.1 chords" belongs to dt = 0.05 c/U.
-- **Sources**: every ch14 benchmark is a secondary source read first-hand (forms, not tables); the primary Wagner / Jones
-  report is unread; the rectangular wing's e_span = 0.95393 at Λ = 6 is ours by convergence. Carried: Gill, Kuo,
-  Kraichnan, Rhines (ch13), Businger–Dyer (ch12).
-- **Code**: five `qualitative` ch14 functions; `aspect_ratio(s, A)` against `mean_chord(A, s)` — **call by keyword**;
-  28 positional calls in `scripts/ch14_drawings.py`; `tests/ch14_verify_figures.py` still draws Wagner's curve on a
-  circulation panel. Carried: `rayleigh_kuo_eigs` at β < 0, `vertical_modes(method="cheb")`, the Eady script's inputs.
-- **Tooling**: `tools/shot.py` has **no real click, no "turn a page then change step", no state change on Explain, no
-  `.katex-error` probe, no 844×345, never runs Code tabs** — three library defects (L1–L3) passed it for thirteen
-  chapters. **Run the gate as `pytest -q tests`** (a copy of `tests/` under `outputs/` breaks collection; TODO
-  `testpaths = tests`). Agents write hand-back notes to disk (six builders' notes were lost in a shutdown).
-- **Text**: ch14 lesson Should-fix (12), viz Should-fix (20 + 4 library); Derivation tabs D03, D15 lag the notebook by 1, 3 steps.
+## Open items carried from ch15 — read before starting ch16 (details `knowledge/ch15.md` §0, §9; ch14 §0)
+- **Needs the user**: ch13 slip #14 (westward flow over a step) still has no ruling. Nothing new from ch14 or ch15.
+- **Code (ch15)**: docstring citations of four review tests (verification Open item 1); `blast_constant_crude` is
+  qualitative (9.4 % off the cited constant); `wedge_flow` detached and the plate's trailing-edge closure are sketches;
+  `duct_outlet_mach` clamps one-sidedly (|M₂ − 1| ≤ 1.3e-8 at the limit); slip #17 unresolved; **the full suite was not
+  re-run after the review fixes** (2080 collected in phase 5). Sibling orders to **call by keyword**: `aspect_ratio(s, A)` /
+  `mean_chord(A, s)` (ch14), `ackeret_pressure(delta, M_inf)` / `weak_wave_pressure(M, delta)` (ch15); 28 positional calls
+  in `scripts/ch14_drawings.py`.
+- **Tooling**: `tools/shot.py` has no real click, no page-then-step, no Explain state change, no `.katex-error`, no
+  844×345, never runs Code tabs, and **no preset-exclusivity check (the ch15 Must passed every mechanical check)**. Run
+  the gate as `pytest -q tests`; delete `outputs/ch14/_resume_scratch/mut/` (it also holds a private book file). The
+  ch15 viz builders left no hand-back notes on disk.
+- **Text**: ch15 viz Should-fix (15 cosmetic items in nine files); ch14 lesson (12) and viz (20 + 4 library) Should-fix;
+  ch14 Derivation tabs D03, D15 lag the notebook. ch15 published in `0d89dba` (page audit PASS); two explainers were newer
+  than the lesson-reviewed run — confirm the page embeds the fixed `nozzle_back_pressure`. **Sources**: NACA Report 1135 read first-hand; carried unread: Wagner/Jones, Gill, Kuo.
 
 ## Project rules in force (added during ch01–ch03; sharpened since)
 - **5–10 explainers per chapter, as many as the CORE ideas need** (ch03 7, ch04–ch09 9, ch10 8, ch11 9, ch12 10, ch13 10,
-  **ch14 9**).
+  ch14 9, **ch15 9**).
 - **Every book equation is shown in full next to its number** — notebook, explainer text, `<meta>` strings and the design
   file; **a number stands only beside the equation actually printed under it** (render the page); never start a sentence
   with a symbol. Enforced by `tools/coverage_check.py` check 8, `tools/eq_refs.py`, the builder's `self_check_near`.
@@ -29,15 +28,12 @@
 - **Rule 9 (public repo)**: book-quoted numbers live only in `tests/book_values_chNN.json` (`_forbidden_public` strings and
   regex patterns, enforced by `tools/check_public.py` on tracked or named files). "Illustrative" constants must be visibly
   not the book's; **a book value written in words ("a quarter below") is still a book value — the tool cannot see it** (ch13).
-- **Pager and audit**: `tools/shot.py` pages through every pager at every size; the notebook (`build_chNN.py --dump`) or
-  design Part F is the reference for derivation steps. **Two values, the book's first** (ch09); a **DEVIATION box**
-  wherever the code departs from the book (ch10; ch13: every numerical scheme is ours).
-- **Eigen-solver contract (ch11)**: leading mode or raise; a 0 or NaN has a stated meaning; box and N doubling; an
-  independent route for every headline eigenvalue (ch13: closed form + Chebyshev; collocation + shooting).
-- **Contract discipline (ch12, ch13)**: **design Part C is written first and reconciled mechanically by the implementer**;
-  design "expect" values are hypotheses (builders report differences; a correction pass follows the implementation);
-  convention-carrying arguments (`Gamma_a`) and empirical constants are required keywords; "constant consistency" is not
-  V5; an unread source is not a benchmark.
+- **Pager and audit**: `tools/shot.py` pages every pager at every size; `build_chNN.py --dump` is the reference for
+  derivation steps. **Two values, the book's first** (ch09); a **DEVIATION box** wherever the code departs from the book.
+- **Eigen-solver contract (ch11)**: leading mode or raise; box and N doubling; an independent route for every headline
+  eigenvalue. **Contract discipline (ch12, ch13)**: **design Part C first, reconciled mechanically**; design "expect"
+  values are hypotheses; convention-carrying arguments and empirical constants are required keywords; an unread source
+  is not a benchmark.
 - **Figure notes are written from the rendered figure, never from the storyboard** (ch13). **Slips and traps are kept
   apart**; a slip row carries `kind` ("slip" or "loose"); items not in the book are labelled "ours".
 
@@ -58,49 +54,40 @@ ch07 Gravity waves — plane wave + BCs → ω² = gk tanh kH (7.28); orbits, en
      interfaces √(g′H), internal waves ω = N cos θ
 ch08 Laminar flow — Couette–Poiseuille, pipe f = 64/Re, circular Couette; lubrication (Reynolds equation, slider, thin
      film); Stokes' problems η = y/√(νt), δ_e = √(2ν/ω); similarity by exponent matching; creeping flow 6πμaU, Oseen
-ch09 Boundary layers — δ ~ L Re^{−1/2}, (9.9)–(9.11); δ*, θ, H; Blasius f‴ + ½ff″ = 0 (0.332057); Falkner–Skan with a fold
-     at n = −0.090429; momentum integral (9.43) → Thwaites (9.50); separation μu_yy = dp/dx; form drag; Kármán street
-     b/a = 0.28055 (perturb–linearise–eigenvalues); drag crisis; free jet J const, sech²; wall jet Ψ const; teacup → Ekman
-ch10 CFD — stencils = weighted Taylor series, order, round-off floor; FTCS (10.10) with α, β, C = 2α; von Neumann G
-     (10.24), Noye 0 ≤ 4α² ≤ 2β ≤ 1 (10.27); upwind, CFL, Lax; weak form → Galerkin M ḋ + K d = F; cell Péclet R_cell > 2
-     ⇒ wiggles; MacCormack = Lax–Wendroff; projection ∇²p = ∇·u*/Δt on a staggered C-grid; mixed FE, LBB (β_h ≈ 0.366);
-     cavity vs Ghia 0.26 %; observed order + Richardson/GCI   (D01–D23; `knowledge/ch10.md`)
-ch11 Instability — "basic state + small disturbance → linearise → normal modes → eigenvalue problem for the growth rate
-     → neutral curve → critical number; the theorems are one-way; linear onset is not transition": σ = −ikc; Kelvin–
-     Helmholtz ΔU_min 6.70 m/s; Bénard Ra_c 1707.76 rigid–rigid, 27π⁴/4 free–free (11.44); salt fingers; Taylor–Couette;
-     Miles–Howard Ri > ¼ ⇒ stable (11.67), Howard's semicircle; Squire, Orr–Sommerfeld, Rayleigh, Fjørtoft; Poiseuille
-     Re_c 5772.22, Blasius 519.06 (δ*); dE/dt = P − Λ (11.88); Lorenz r_H 24.737   (D01–D25; `knowledge/ch11.md`)
-ch12 Turbulence — "an average is a sum; it commutes with every linear operation and fails on exactly one thing, a
-     product — the leftover covariance is the Reynolds stress, the production, the eddy flux; closures guess it":
-     ensemble average; R₁₁(τ), Λ_t, λ_t; S_e ↔ R₁₁; RANS; ε̄ = 15ν mean(u²)/λ_g² (12.43); production is one term with two
-     signs; η = (ν³/ε̄)^{1/4} (12.50); S₁₁ = C₁ε̄^{2/3}k₁^{−5/3} (12.54); log law U⁺ = f(y⁺), DNS κ = 0.384 in a stated
-     window; mixing length, k–ε; Ri = Pr_T Rf (12.109), L_M; Taylor dispersion   (D01–D28; `knowledge/ch12.md`)
-ch13 Geophysical fluid dynamics — "one set of equations on a thin rotating shell with terms switched off: every balance
-     keeps two or three terms, every wave is a disturbed balance, c/|f| is where rotation matters as much as gravity,
-     and (ζ + f)/h is what a column remembers": f = 2Ω sin θ (13.8); geostrophy, thermal wind, Taylor–Proudman; Ekman
-     spiral d²V/dz² = (if/ν_v)V (13.27), δ = √(2ν_v/f) (13.29), transport −τ/(ρf) (13.30), bottom-layer maximum 1.067 U
-     at 3πδ/4; shallow water on a C-grid; vertical modes c_n² ≡ gH_e (13.62), weight-1 orthogonality for both lids; the
-     cubic ω³ − c²ωK² − f₀²ω − c²βk = 0 (13.76); Poincaré ω² = f² + gHK² (13.82); Kelvin wave; adjustment keeps ⅓ of
-     the energy (ours); PV (ζ + f)/h; inertia–gravity and Rossby waves, Rayleigh–Kuo β − U″ (13.124); Eady cut-off
-     2.39936, fastest 1.60612, σ = 0.30982 fU₀/(NH); Fjørtoft, −3 range, Rhines length   (D01–D29; `knowledge/ch13.md`)
-ch14 Aerodynamics (done) — "lift is circulation; the trailing edge chooses it; the wing tips make you pay for it"
-  Λ ≡ s²/A = s/c̄ (14.1), level flight C_L = W/(½ρU²A) (D01) [C01]; Kutta condition dw/dζ = 0 at ζ = b [C02]; starting
-     vortex Γ_foil + Γ_starting = 0 (D02) [C03]; z = ζ + b²/ζ (14.3) on an off-centre circle → arc, c ≃ 4b, camber ≃ ½βc,
-     t_max/c ≃ 1.3e (14.8) (D03, D04 ★★★, D05) [C04]; dw/dz = (dw/dζ) ζ²/(ζ² − b²) (14.9) (D06–D08) [C05]; Γ = 4πUa
-     sin(α + β) (14.11), C_L ≃ 2π(α + β) (14.12) (D09) [C06]; C_p loop area = normal force (ours, D10) [C07]; trailing
-     filaments dΓ_trail = −(dΓ/dy) dy (D11) [C08]; downwash w(y₁) = (1/4π)∫(dΓ/dy) dy/(y₁ − y) (14.13) (D12) [C09];
-     α_e = α − w/U (14.14), L = ∫ρUΓ dy, D_i = ∫ρwΓ dy (14.15) (D13) [C10]; Γ = ΣΓ_n sin nγ (14.18), w = (1/2s)Σ nΓ_n
-     sin nγ₁/sin γ₁ (14.19; slip #1 in its first two members) (D14, D15 ★★★) [C11]; (K/2)Uc(α + β) = Σ(1 + nKc/(4s sin γ))
-     Γ_n sin nγ (14.20) (D16) [C12]; L = (πs/4)ρUΓ₁ (14.21), D_i = (π/8)ρΣ nΓ_n² (14.22) (D17, D18 ★★★) [C13]; elliptic
-     Γ = Γ₁√(1 − (2y/s)²) (14.23), w = Γ₁/2s (14.24), C_Di = C_L²/(πΛ) (14.26) (D19, D20) [C14]; polar C_D = C_D0 +
-     C_L²/(πΛe_span), best glide where the parts are equal (ours, D21) [C15]; U_r = U − V, drive L sin β_a − D cos β_a:
-     fish, bird and sail (ours, D22) [C16]   (Γ clockwise; details `knowledge/ch14.md`)
+ch09 Boundary layers — δ ~ L Re^{−1/2}; Blasius (0.332057); Falkner–Skan fold at n = −0.090429; Thwaites (9.50);
+     separation; Kármán street b/a = 0.28055; drag crisis; free jet J const, wall jet Ψ const; teacup → Ekman
+ch10 CFD — stencils, order, round-off floor; FTCS, von Neumann G (10.24), Noye (10.27); upwind, CFL, Lax; Galerkin; cell
+     Péclet > 2 ⇒ wiggles; MacCormack (reused by ch15 `euler1d_run`); projection on a C-grid; LBB; cavity vs Ghia 0.26 %
+ch11 Instability — "basic state + small disturbance → normal modes → eigenvalue problem → neutral curve → critical number;
+     the theorems are one-way": KH ΔU_min 6.70 m/s; Bénard Ra_c 1707.76 rigid, 27π⁴/4 free (11.44); Miles–Howard Ri > ¼
+     (11.67); Orr–Sommerfeld Re_c 5772.22, Blasius 519.06; dE/dt = P − Λ (11.88); Lorenz r_H 24.737   (D01–D25)
+ch12 Turbulence — "an average fails on exactly one thing, a product": RANS; ε̄ = 15ν mean(u²)/λ_g² (12.43); η = (ν³/ε̄)^{1/4}
+     (12.50); S₁₁ = C₁ε̄^{2/3}k₁^{−5/3} (12.54); log law, DNS κ = 0.384 in a stated window; mixing length, k–ε; Ri = Pr_T Rf
+     (12.109), L_M; Taylor dispersion   (D01–D28)
+ch13 Geophysical fluid dynamics — "one set of equations on a thin rotating shell with terms switched off; (ζ + f)/h is what
+     a column remembers": f = 2Ω sin θ (13.8); geostrophy, thermal wind; Ekman δ = √(2ν_v/f) (13.29), transport −τ/(ρf)
+     (13.30); vertical modes c_n² ≡ gH_e (13.62); the cubic (13.76), Poincaré, Kelvin, Rossby waves; adjustment keeps ⅓
+     (ours); Rayleigh–Kuo β − U″ (13.124); Eady σ = 0.30982 fU₀/(NH)   (D01–D29)
+ch14 Aerodynamics — "lift is circulation; the trailing edge chooses it; the wing tips make you pay for it" (Γ clockwise):
+     Λ ≡ s²/A (14.1); Kutta condition; starting vortex; z = ζ + b²/ζ (14.3), t_max/c ≃ 1.3e (14.8) = (3√3/4)e; Γ = 4πUa
+     sin(α + β) (14.11), C_L ≃ 2π(α + β) (14.12); downwash (14.13), α_e = α − w/U (14.14); Γ = ΣΓ_n sin nγ (14.18), (14.20);
+     L = (πs/4)ρUΓ₁ (14.21), D_i = (π/8)ρΣnΓ_n² (14.22); C_Di = C_L²/(πΛ) (14.26); polar, thrust from lift (ours)   (D01–D22)
+ch15 Compressible flow (done) — "three conservation laws and the gas law between two stations, in one number M; the factor
+     1 − M² in every answer changes sign at the speed of sound": p′ ≅ c²ρ′ (15.5) → convected wave equation (15.12) [C01];
+     p′ = f(x − ct) + g(x + ct) (15.15), u′ = (f − g)/ρ₀c (15.16), speeds U ± c (15.17), steepening (ours) [C02]; duct laws
+     (15.18)–(15.26), energy h + ½u² with Q (15.22) [C03]; T₀/T = 1 + ½(γ − 1)M² (15.28), p₀, ρ₀ (15.29)–(15.30): T₀ kept,
+     p₀ lost [C04]; A/A* (15.31), sonic ratios, choked ṁ (ours) [C05]; du/u = −(dA/A)/(1 − M²) (15.34), slip #4 corrected
+     [C06]; normal shock (15.39)–(15.42) by dividing out "nothing happens" [C07]; ΔS (15.43), cubic for weak shocks
+     (15.44), p₀₂/p₀₁ = e^{−ΔS/R} [C08]; choking p*/p₀ = 0.528 [C09]; Laval p_b > p_d > p_f and the shock position (ours)
+     [C10]; friction and heat → one number A and a quadratic (15.46) [C11]; drift to M = 1, (15.47), (15.48) corrected
+     (slips #11, #12), f_max, q_max [C12]; sin μ = 1/M (15.49) [C13]; oblique shock (15.50)–(15.55), δ_max [C14];
+     Prandtl–Meyer ν(M) (15.56) [C15]; Ackeret C_L = 4α/√(M² − 1), C_D = 4α²/√(M² − 1) (15.59) [C16]   (D01–D31)
 
-next: ch15 Compressible flow — ch01 `core.thermo` (isentropic gas, sound speed); ch07 jump ↔ shock, `simple_wave_evolve`;
-      ch10 `core.maccormack`; ch13 `SW.ShallowWater` (hydraulic analogy); **ch14 `AF.zhukhovsky_surface` (the C_p to
-      correct), the slope 2π, `LL.solve_lifting_line(K=)`, `compressibility_check`**; primers from P354.
+next: ch16 Biofluid mechanics — ch08 `core.laminar` (Poiseuille, `stokes_layer` → Womersley); **ch15 `core.acoustics` for
+      pulse waves** (`dalembert`, p′ = ρ₀c u′, `wave_equation_step`, `simple_wave_evolve`) and `GD.influence_coefficients`
+      as the "1 − S²" template; ch14 `oscillating_foil`, `apparent_wind`, `LL.solve_lifting_line`; primers from P374.
 ```
-The book ahead: **Ch15 compressible flow** → Ch16 biofluids (uses ch08 `core.laminar`, ch14 `oscillating_foil`).
+The book ahead: **Ch16 biofluid mechanics** — the last chapter (appendices A–D are reference only).
 
 ## Available primitives
 ### Machinery (`fluidpy/core/`, ready before chapter 1)
@@ -143,36 +130,39 @@ The book ahead: **Ch15 compressible flow** → Ch16 biofluids (uses ch08 `core.l
 | **`shallow_water` (SW)** — numerical models, **every scheme ours**: `ShallowWater(nx, ny, Lx, Ly, H, f0, beta, g, bc, bottom)` (C-grid `[j, i]`, state dict `eta`/`u`/`v`), `make_state`, `gaussian_bump`, `geostrophic_state`, `kelvin_state(wall=)`, `continuity_tendency`, `momentum_tendencies`, `step` (SSP-RK3), `run`, `dt_limit`, `energy`, `volume`, `relative_vorticity`, `sw_potential_vorticity`, `interpolate`, `advect_particles`, `particle_potential_vorticity`; `linear_1d_step/run` (forward–backward); `qg_linear_evolve(_1d)` (exact spectral); **`barotropic_run(n, L, zeta0, *, t_end, dt, beta, nu, dealias)`** (pseudo-spectral RK4, strict 2/3 rule, start projected), `barotropic_vorticity_rhs`, `barotropic_velocity`, `barotropic_invariants`, `spectral_centroids`, `zonal_energy_fraction`, `barotropic_spectrum`, `random_vorticity` | `shallow_water` (ch13) | (13.44)–(13.45), (13.88)–(13.94), (13.117), (13.122), (13.143)–(13.144) | converged (space 1.98, time 2.98), conserved, analytic; turbulence caches qualitative |
 | **`airfoils` (AF)** — sections from the Zhukhovsky map and their ideal flow (Γ clockwise via `Gamma_cw=`; dw/dz = u − iv; radians; section forces per unit span; contour counterclockwise from the trailing edge at index 0): `zhukhovsky_circle(b, e, beta, *, a)` (μ = b − a e^{−iβ}, a = b(1 + e)/cos β, ours), `zhukhovsky_circle_from_centre`, `zhukhovsky_airfoil`, `zhukhovsky_inverse` (root nearest μ), `section_geometry(x, y, te_index)`, `trailing_edge_angle`, `zhukhovsky_shape(exact=)`, `circular_arc`, `zero_lift_angle`, `camber_from_beta`; `kutta_circulation(U, a, alpha, beta)`, `kutta_circulation_root`, `stagnation_points`, `rear_stagnation_point`, `trailing_edge_speed`; **`zhukhovsky_flow(U, b, e, beta, alpha, *, Gamma_cw)` → `ZhukhovskyFlow`** (14 methods: `w`, `dwdz`, `velocity`, `speed`, `psi`, `phi`, `cp`, `zeta_of`, `inside`, `speed_near_edge`, …), `flat_plate_flow`; `zhukhovsky_surface`, `surface_circulation`, **`zhukhovsky_force(…, method="blasius"\|"pressure")`**, `zhukhovsky_lift_coefficient(alpha, beta, e, exact=)`, `normal_force_coefficient`, `lift_from_cp`, `flat_plate_forces(rho, U, c, alpha)`, `resolve_lift_drag`, `section_coefficient`, `circulation_from_cl`, `cl_from_circulation`, `thin_airfoil(dyc_dx, alpha, n)` (ours) | `airfoils` (ch14) | (14.3)–(14.12) | analytic, symbolic, converged, conserved, benchmark (cited forms) |
 | **`lifting_line` (LL)** — finite wings (y from −s/2 port to +s/2 starboard, span angle γ from 0 to π; **w positive downward; K per radian, a required keyword**): `aspect_ratio(s, A)`, `mean_chord(A, s)` (keyword calls), `planform(kind, s, c_root, taper, n)`; `span_angle`, `span_position`, `circulation_series(Gn, gamma)`, `trailing_sheet_strength`, `elliptic_circulation`; `glauert_integral`, `downwash(y1, Gamma_fn, s, method)` (principal value), `downwash_series(Gn, gamma1, s, printed_middle=)`, `elliptic_downwash`; `induced_angle(small=)`, `effective_angle`, `strip_forces(exact=)`, `lift_and_induced_drag`, `lift_from_series`, `induced_drag_from_series`, `span_efficiency`, `section_lift_coefficient`; `lifting_line_modes/matrix/rhs/residual`, **`solve_lifting_line(c, s, U, alpha, *, K, beta, twist, N)`** (c a callable or a `planform` dict; collocation at γ_j = jπ/(N + 1); Cauchy order 3.8), `elliptic_induced_drag`, `induced_drag_coefficient(CL, AR, e_span)`, `finite_wing_lift_slope(K, AR)`, `elliptic_wing`, `twist_for_elliptic_loading`, `elliptic_twist_rectangular`; `horseshoe_velocity` (uz upward), `horseshoe_downwash`, `horseshoe_wing`, `ground_effect_factor(h, s)`, `downwash_along_x`, `staircase_from_loading(spacing="uniform"\|"cosine")`, `staircase_downwash` (order 1.5 / 2.0), `rolled_up_pair`, `wake_kinetic_energy_per_length` | `lifting_line` (ch14) | (14.1)–(14.2), (14.13)–(14.27) | analytic, symbolic, converged, conserved, benchmark (cited forms) |
+| **`gasdynamics` (GD)** — one-dimensional and planar perfect-gas flow in M (82 names; γ an argument, R and C_p only via `PerfectGas`, **one gas per call**, station 1 upstream, radians): `PerfectGas(gamma, R)`, `AIR_BOOK`, `mach_from_speed`; `mass_flow`, `total_enthalpy`, `energy_residual`, `wall_force`, `nozzle_isentropic`; `stagnation_{temperature,pressure,density}_ratio`, `mach_from_pressure_ratio`, `isentropic_state`, `isentropic_table`, `sonic_ratios`, `critical_pressure_ratio`, `pitot_compressibility_factor`, `max_speed`; `area_ratio`, `mach_from_area_ratio(…, *, branch)`, `mass_flux_function`, `choked_mass_flow`; **`influence_coefficients(M, gamma, *, dA_over_A, df, dq, printed_15_32/47/48)`**, `area_velocity`, `duct_role`; `normal_shock(M1, *, allow_expansion)`, `normal_shock_entropy`, `weak_shock_entropy`, `shock_admissible` (M₁ ≥ 1), `normal_shock_stagnation_pressure_ratio`, `normal_shock_fluxes`, `hugoniot_pressure_ratio`, `strong_shock_limits`, `moving_shock`; `mass_flow_vs_back_pressure`, `convergent_nozzle`, `laval_critical_pressures`, `laval_regime`, `laval_shock_location`, `laval_nozzle`, `laval_exit_state`; `duct_parameter_A`, `duct_outlet_mach(M1, f, q, *, branch)`, `duct_state_ratios`, `duct_choking_limits`, `fanno_*`, `rayleigh_*` (ours); `mach_angle`, `oblique_shock(M1, *, delta, sigma, branch)`, `deflection_angle` (bare), `max_deflection`, `sonic_deflection`, `detachment_mach`, `weak_wave_pressure(M, delta)`, `prandtl_meyer`, `mach_from_prandtl_meyer`, `prandtl_meyer_turn(M1, turn)` (expansion positive); `riemann_exact` | `gasdynamics` (ch15) | (15.1)–(15.56) | analytic, symbolic, conserved, benchmark (NACA 1135) |
+| **`acoustics` (AC)** — linear acoustics and simple waves (subscript 0 = undisturbed; f right-going, g left-going): `isentropic_pressure_perturbation(order=)`, `acoustic_density`, `linearisation_error`, `acoustic_impedance`, `sound_pressure_level`; `convected_wave_residual`, `wave_equation_step(p_now, p_prev, C, bc)` (leapfrog, ours; exact at C = 1); `dalembert(x, t, c, f, g)`, `plane_wave_velocity`, `velocity_from_pressure`, `dalembert_initial_value`, `dalembert_in_stream`, `wave_speeds`, `xt_characteristics`, `acoustic_energy`; `simple_wave_evolve(u0, x, t, c0, gamma)` (γ = 2 is ch07's), `breaking_time`; `source_wavefronts`, `in_zone_of_action`, `mach_cone_delay`, `doppler_factor` | `acoustics` (ch15) | (15.4)–(15.17), (15.49) | analytic, symbolic, converged, conserved |
 `ST.rayleigh_eigs_contour` gained the keyword **`beta=0.0`** in ch13 (Rayleigh–Kuo; default path unchanged to the last bit).
 `CONF.circle_flow_zeta` gained the keyword **`center=0j`** in ch14 (off-centre circle; the centred call is bit-identical).
-Chapter-only code (move to `core/` on second use): **ch14** `impulsive_start_lumped_vortex` (a model),
-`wagner_function(s)` (s in semi-chords; a **lift** ratio), `wake_rollup`, `suction_side_separation`, `generic_lift_curve`,
-`generic_drag_curve`, `stall_regime` (qualitative), `drag_polar`, `best_glide`, `drag_vs_speed`, `level_flight`,
-`stall_speed`, `compressibility_check`, `apparent_wind`, `sail_forces`, `sailboat_equilibrium`, `oscillating_foil` (→
-**Ch. 16**), scalar wrappers `surface_point`, `edge_speed`, `map_point`; **ch13** `flow_over_step`, `rayleigh_kuo_eigs`
-(β ≥ 0 validated), `eady_numeric_eigs`, `jet_section`, `coastal_upwelling`, `lee_wave_field`, `lapse_rate_table(dT_dz, *,
-Gamma_a)`, `wind_from_to`, `reference_run` / `load_reference_run`; **ch12** `gradient_richardson_thermal(…, *, Gamma_a)`,
-`monin_obukhov_*`, `mixing_length_*`, `taylor_dispersion*`, `k_epsilon_*`; **ch11** `os_leading_mode`, `benard_*`,
-`lorenz_*`; ch07 `simple_wave_evolve` (→ Ch. 15); ch13, ch14 tables `illustrative_inputs`, `conventions_table`,
-`book_slips`, `traps`; the rest in `knowledge/chNN.md` §3. **Default g**: ch04, ch05, ch07, `core.waves` G_BOOK = 9.81;
-the rest G0 = 9.80665. **Default ρ**: ch06 1.2 vs 1000; ch07, ch08 1000; ch09 BL 1.2; ch10, ch11 non-dimensional;
-ch12–ch14 arguments (the ch14 notebook uses 1.225).
+Chapter-only code (move to `core/` on second use): **ch15** `wedge_flow`, `expansion_fan`, `fan_staircase`,
+`curved_wall_mach_lines`, `ackeret_pressure`, `ackeret_airfoil`, `flat_plate_supersonic(*, method=)`, `lift_slope_vs_mach`,
+`becker_shock_*`, `nozzle_with_shock`, `rocket_nozzle` (warns without a gas), `blast_constant_crude` (qualitative),
+`euler1d_run` (MacCormack + artificial viscosity, DEVIATION), `mach_regime`, the sympy engines; **ch14**
+`impulsive_start_lumped_vortex` (a model), `wagner_function(s)` (a **lift** ratio), `wake_rollup`, `generic_*`,
+`stall_regime` (qualitative), `drag_polar`, `best_glide`, `compressibility_check`, `apparent_wind`, `sail_forces`,
+`oscillating_foil` (→ **Ch. 16**); **ch13** `flow_over_step`, `rayleigh_kuo_eigs` (β ≥ 0), `eady_numeric_eigs`,
+`lapse_rate_table(dT_dz, *, Gamma_a)`; **ch12** `gradient_richardson_thermal(…, *, Gamma_a)`, `monin_obukhov_*`,
+`k_epsilon_*`; **ch11** `os_leading_mode`, `benard_*`, `lorenz_*`; tables `illustrative_inputs`, `conventions_table`,
+`book_slips` (ch15: a DataFrame with `kind`, `changes_physics`), `traps` (ch13–ch15); the rest in `knowledge/chNN.md` §3.
+**Default g**: ch04, ch05, ch07, `core.waves` G_BOOK = 9.81; the rest G0 = 9.80665. **Default ρ**: ch06 1.2 vs 1000; ch07,
+ch08 1000; ch09 BL 1.2; ch10, ch11 non-dimensional; ch12–ch14 arguments; ch15 none (ratios in M and γ).
+**Three air-constant sets (ch15 trap T4)**: `CP_BOOK` 1004.5; `PerfectGas()` R = 287.058 → C_p 1004.70; `AIR_BOOK` R = 287.0.
 
 ### Explainer engine (`assets/viz_lib.js`)
 `Viz.app` (tabs Walkthrough / Explore / Explain / Derivation / Equations / Code / Check; fit-to-window with density levels and
 pagers; transport, modes, presets, status, terms, inspector, notes, selftest parity), `Plot`, `Viz.field`, `Viz.num` (RK4,
 odeint, brentq, erf/erfc **~1e-7 only — a defect**, niceTicks), `Viz.work`, `Viz.three`, KaTeX with fallback; `Viz.font`,
-`Viz.roundRect`, `Viz.text`, `Viz.card`, `Viz.fmtTime`, `Viz.tnum(keepTiny)` (values below 1e-12 print as 0 without it);
-pager slicing, `ev.viewId`/`ev.vizView`. Quirks: Code-tab `{{placeholders}}` share one namespace; `#param=` deep links are
-overridden by tour step 1; `Viz.tnum(x) + '^2'` is a KaTeX double superscript in scientific notation (bracket with a local
-`tsq`/`tpow`); `hidePortrait` keeps the view's flex share; view titles are not re-evaluated on a tab change; a walkthrough
-`eq` card is measured before its live rows are filled (intermittent phone clip); no `.c-amber` class; no log axes, no
-linear algebra, no complex numbers in the library. **No JS helper promoted after ch02–ch14** (the site-publisher was reading `viz/`
-each time). **Library fixes made during ch14 (commits `8798d2a`, `dbde04f`; re-inlined into 121 files)**: L1 pages settle
-after a state change with a tab open; L2 `Pager.setItems(list, keepPage)` keeps the page only when the caller asks, a new
-step opens on page 1; L3 one handler on the walkthrough "Next →". Ranked candidates in `knowledge/viz_patterns.md` (ch14
-top five: shot.py click and Explain-state checks, `Viz.cx`, `Viz.arrowPx`, `transport.max`/`holdAt`, a y-title strip).
-Reference: `templates/viz_example.html`.
+`Viz.roundRect`, `Viz.text`, `Viz.card`, `Viz.fmtTime`, `Viz.tnum(keepTiny)`; pager slicing, `ev.viewId`/`ev.vizView`.
+Quirks: Code-tab `{{placeholders}}` share one namespace; `#param=` deep links are overridden by tour step 1; `Viz.tnum(x) +
+'^2'` is a KaTeX double superscript (bracket with a local `tsq`/`tpow`); `hidePortrait` keeps the view's flex share; view
+titles are not re-evaluated on a tab change; no `.c-amber` class; no log axes, no linear algebra, no complex numbers;
+**a preset chip is pressed when every key of its `set` matches the state** — a `set` holding only a shared mode key lights
+every chip (ch15 Must; a `get set()` getter is evaluated on each refresh). **Library fixes during ch14** (commits `8798d2a`,
+`dbde04f`): L1 pages settle after a state change with a tab open; L2 `Pager.setItems(list, keepPage)` keeps the page only
+when asked; L3 one handler on "Next →". **No JS helper promoted after ch02–ch15** (the site-publisher was reading `viz/`
+each time). Ranked candidates in `knowledge/viz_patterns.md` (ch15 top five: a preset-exclusivity probe, `v.size` from the
+view, `Viz.mix`, `Viz.fitText`, `Viz.arrowPx`; then `Viz.gas`; ch14: shot.py click and Explain-state checks, `Viz.cx`,
+`transport.max`/`holdAt`, a y-title strip). Reference: `templates/viz_example.html`.
 
 ## Explainer inventory
 | chapter | slug | CORE idea | reusable stage pattern |
@@ -191,6 +181,7 @@ Reference: `templates/viz_example.html`.
 | ch12 | `reynolds_averaging_window` · `correlation_and_spectrum` · `reynolds_stress_parcels` · `energy_cascade_spectrum` · `turbulent_energy_budget` · `turbulent_jet_similarity` · `law_of_the_wall` · `mixing_length_closure` · `stratified_surface_layer` · `taylor_dispersion` | C01, C02 (D01, D03) · C02, C03 (D03–D05) · C04 (D06) · C07, C08 (D11, D12) · C06 (D09, D10 ★★★) · C09 (D13–D16) · C10, C11 (D17–D20) · C12 (D21) · C14, C15 (D24, D25) · C16 (D26–D28) | two estimators of one mean on one clock with an error split (noise · drift · leak, ◆ formula beside ◇ measured); drag a lag to build r(τ), area = scale, linked spectrum; click one sample → its quadrant → thousands with a ± 5 s.e. band; ladder on a log axis + model spectrum + real-case table + units inspector; **paired budgets sharing one mirrored term, bars summing to zero** (Ch. 13 balances); raw ↔ rescaled with an invariant line that turns rose; **draggable fit window on DNS data**; "κ turns it, damping slides it" with the model's failure shown first; **two-line two-convention badge, a flux as the transport, a formula ending with ✕ at the edge of its range** (Ch. 13 template); log-paced transport, puff ↔ plume modes, constant-D ghost |
 | ch13 | `geostrophic_balance` · `thermal_wind` · `ekman_spiral` · `ekman_force_balance` · `vertical_modes` · `shallow_water_dispersion` · `kelvin_wave` · `geostrophic_adjustment` · `rossby_waves` · `eady_instability` | C02 (D03) · C03 (D04) · C04, C05 (D06 ★★★, D07) · C06 (D08) · C08 (D11 ★★★) · C09, C10 (D12 ★★★, D13) · C11 (D15) · C12 (D16 ★★★) · C15, C13 (D22 ★★★, D23) · C16 (D25, D26 ★★★) | parcel on a pressure map with force arrows closing tip to tail and per-axis bars that sum to zero; **sign bars that swap sides while the result bar stays**; **one cursor shared by a 3-D curve, its hodograph and a running integral**; force triangle leaning toward low pressure in either hemisphere; shape · ladder · travelling mode on one mode number with a live overlap; **log term bars "smallest / largest" for the selected root**, branch diagram with a shaded no-real-roots band; **equations as pairs of equal bars with the refused solution drawn**; **snapshot vs period mean vs prediction, conserved quantity flat in amber** (Ch. 14 starting vortex); **chord and tangent on ω(k) + wavenumber circle + a clicked column's arithmetic**; a threshold crossed by one cursor with ◆ / ▲ presets; hemisphere chips wherever a direction word appears |
 | ch14 | `zhukhovsky_airfoil_builder` · `kutta_condition` · `starting_vortex` · `airfoil_pressure_lift` · `lift_curve_stall` · `downwash_induced_drag` · `lifting_line_solver` · `elliptic_loading_aspect_ratio` · `thrust_from_lift` | C04 (D03 ★★★, D04 ★★★) · C02, C05, C06 (D07, D09) · C03 (D02) · C07 (D10) · C06 (model, no derivation) · C08–C10 (D11–D13) · C11–C13 (D15 ★★★, D18 ★★★) · C14, C15 (D19, D21) · C16 (D22) | a draggable parameter point with guides naming its two directions + rule-against-measured bars; **a hypothesis run as an experiment, a quantity reading "unbounded" until the right value**; **conserved total flat in amber with a cut, a cited curve only on the axis of the quantity it is a ratio of**; three pictures of one flow with an area that is a force; a model labelled "model" everywhere; **"build the sum" 1 → 3 → 7 → 21 → ∞ with signed term bars** on a canvas line projection; **the matrix row with the reader's numbers** + log bars with shares + "make it perfect"; **a U-shaped curve from one falling and one rising term with a wall, a ghost and a computed badge** (Ch. 15 area–Mach); **a force polygon that closes, modes = one triangle in three systems** (Ch. 16) |
+| ch15 | `sound_pulse_dalembert` · `area_mach_nozzle` · `normal_shock_jump` · `nozzle_back_pressure` · `duct_friction_heating` · `mach_cone` · `oblique_shock_wedge` · `prandtl_meyer_fan` · `supersonic_flat_plate` | C01, C02 (D03–D05) · C05, C06 (D10, D12) · C07, C08 (D13 ★★★, D17 ★★★) · C09, C10 (D19, D20) · C11, C12 (D21 ★★★, D23) · C13 (D25) · C14 (D26, D27) · C15 (D29, D30 ★★★) · C16 (D28, D31) | two shapes sliding apart over an air strip "drawn ×500, true ≤ 0.886 mm"; **term bars adding to zero through a removable 0/0**; **"1 = 1" conservation bars beside a signed entropy bar that turns red** (admissibility); a transport walking a shock down a nozzle, the other nozzle as a ghost; corrected slips live beside the printed ones; **an arrival-time view whose minimum is the boom**; velocity triangles at a clicked streamline, two roots merging; a staircase of waves with an error-halving invariant; an area between two levels is a force, ch14's loop as a ghost |
 
 ## Notation
 See `knowledge/notation.md` (sign traps first, then the register, then per-chapter conventions). Everywhere: SI and kelvin
@@ -210,19 +201,21 @@ p and ρ are perturbations from §13.4 on; **ψ with u = −∂ψ/∂y** (opposi
 **three Rossby radii** (external c/abs(f), internal with π, Eady NH/abs(f) without π); δ = Ekman e-folding thickness;
 **V = u + iv**; c, α, θ each several ways; **Rossby functions return signed ω for signed k**; the cubic returns NaN where
 its discriminant is negative; modes ψ_n(0) = 1; **§13.18 spectra one-sided, no ½**; sidereal Ω; slips #1–#14, traps T1–T18.
-**ch14 (changes):** **Γ = circulation, clockwise positive** (`Gamma_cw=`; never a lapse rate here); **dw/dz = u − iv**;
-§14.3–§14.5 x along the chord, y up, stream inclined at α (**lift is not F_y**); §14.6 **y along the span, w positive
-downward**; **Λ = aspect ratio** (ch13: Rossby radius); b = map constant (span is s), a = circle radius, **e = thickness
-parameter, span efficiency is `e_span`**; **β = camber angle of the circle, minus the zero-lift angle in §14.6**; γ = span
-angle, y = −(s/2) cos γ; θ three ways (code `t`, −β at the trailing edge = contour index 0); **K per radian, a required
-keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; slips #1–#10 with `kind`, traps T1–T18.
+**ch14 (changes):** **Γ = circulation, clockwise positive** (`Gamma_cw=`); **dw/dz = u − iv**; lift ⟂ the stream (not F_y);
+§14.6 y along the span, **w positive downward**; **Λ = aspect ratio**; b = map constant; **`e_span`, never e**; **K per
+radian, required**; Wagner's s in semi-chords, φ a lift ratio; slips #1–#10, T1–T18.
+**ch15 (changes):** station 1 upstream; **subscript 0 = undisturbed state in §15.2, stagnation from §15.3** (T1); the star
+= isentropic sonic state (Fanno/Rayleigh stars differ; **A in (15.46) is a number**); **σ, δ = shock angle, deflection (β, θ
+elsewhere); `turn` > 0 for an expansion = −δ_book**; **μ = Mach angle, ν = Prandtl–Meyer function (not viscosities)**; S
+entropy; f = F/(p₁A) with F retarding, q = Q/h₁ (4f_FL/D and Fanno/Rayleigh "ours"); b = chord in §15.10; three air-constant
+sets, one gas per call; slips #1–#17 (#4, #11, #12 change the physics, coded corrected), traps T1–T22.
 
 ## Teaching lessons
 - **Depth tiered, coverage exhaustive** (A / B / C, derivations, cells): ch01 15/70/21, 12, 496 · ch02 16/60/18, 15, 405
   · ch03 15/52/12, 24, 413 · ch04 15/151/19, 30, 611 · ch05 14/69/11, 23, 496 · ch06 15/116/29, 31, 564 · ch07 16/193/27,
   37 (321 steps), 617 · ch08 15/113/15, 33 (301), 501 · ch09 14/118/16, 22 (224), 472 · ch10 15/105/23, 23 (222), 602 ·
-  ch11 15/131/24, 25 (258), 618 · ch12 16/210/17, 28 (266), 690 · ch13 17/154/47, 29 (253), 821 · **ch14 16/77/20, 22
-  (173 steps), 549**.
+  ch11 15/131/24, 25 (258), 618 · ch12 16/210/17, 28 (266), 690 · ch13 17/154/47, 29 (253), 821 · ch14 16/77/20, 22
+  (173 steps), 549 · **ch15 16/121/14, 31 (243 steps), 606**.
 - **A spine sentence, pointed back to in every block** (ch11 "one recipe, seven times"; ch12 "an average fails on exactly
   one thing — a product"; ch13 "one set of equations with terms switched off").
 - **One-way theorems get a counter-example and the word "necessary" or "sufficient"** (ch11; ch13 Rayleigh–Kuo); "theorem
@@ -240,18 +233,17 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
 - **Every key number by two independent routes; every prose number printed by a cell**; captions count what they claim;
   **a figure note is written from the rendered figure** (ch13: six Must items came from notes written from the storyboard).
 - **A tool first used inside a derivation gets its primer first**; boundary conditions are signposted just before the
-  derivation that needs them. `knowledge/primers.md` lists 354 (P01–P353 + P218a); **ch15 starts at P354**.
-- **Builder rendering hygiene**: design TeX converted, not copied; raw strings; never a heredoc; self-checks tested on
-  planted damage; templated comments and stray `<matplotlib.legend.Legend …>` outputs still appear — fix the template.
-- **Statistics are estimates** (ch12): seeded cells, assertions at 5 standard errors, synthetic fields captioned "kinematic".
-- **Climate hooks with numbers** (ch04 Ro; ch07 swell, tsunami, √(g′H)/f; ch10 CFL on an ocean grid; ch12 30-year normals,
-  L_M by day and night; **ch13: reading a weather map, the jet above the strongest temperature gradient, upwelling from
-  τ/(ρf), a first baroclinic Rossby radius of 43 km against a model grid, a year for a long Rossby wave to cross 10 000 km
-  at 12°, storms growing in 1.6 days, the Rhines scale and zonal jets**).
-- Reusable derivation moves (ch01–ch14, 241 rows; 16 from ch14) are tabulated in `knowledge/concept_map.md`.
-- **ch14**: a letter table "here / elsewhere" up front when eight letters are overloaded; a "first look" primer for a
-  concept a later block owns (P351); arrows named once and exaggerations stated ("tilt drawn ×10"); one contrast instead
-  of a wrong symmetry (fish against bird); **a cited curve is drawn on the axis of the quantity it is a ratio of**.
+  derivation that needs them. `knowledge/primers.md` lists 374 (P01–P373 + P218a); **ch16 starts at P374**.
+- **Builder hygiene**: design TeX converted, not copied; raw strings; never a heredoc; self-checks tested on planted
+  damage. **Statistics are estimates** (ch12): seeded cells, 5 standard errors, synthetic fields captioned "kinematic".
+- **Climate hooks with numbers** (ch04 Ro; ch07 swell, tsunami; ch10 CFL on an ocean grid; ch12 30-year normals, L_M; ch13
+  weather maps, upwelling, a 43 km Rossby radius, storms in 1.6 days, zonal jets; ch15 the standard atmosphere at 10 km).
+- Reusable derivation moves (ch01–ch15, 254 rows; 13 from ch15) are tabulated in `knowledge/concept_map.md`.
+- **ch14**: a letter table "here / elsewhere" when letters are overloaded; a "first look" primer for a concept a later
+  block owns (P351); arrows named once and exaggerations stated; **a cited curve on the axis of the quantity it is a ratio of**.
+- **ch15**: **a bridge between the book's parameter and the field's, slice by slice** (f against 4f_FL/D: both numbers for
+  one duct, 0.100 against 0.532); physics-changing slips taught as corrected with the printed form computed beside; an
+  inequality proved by factoring a ratio; sliders open on the case the text reads; **every ratio says what it is a ratio of**.
 
 ## Global pitfalls confirmed in this project
 **Machinery and environment**
@@ -261,13 +253,11 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
   with Write/Edit or Python files; builder strings with LaTeX must be raw; single-backslash TeX in JS strings becomes
   control characters (ch04, ch06, ch09–ch12). **A scratch script named like a standard-library module (`numbers.py`)
   breaks `import numpy`** (ch13). `MPLBACKEND=Agg` strips inline figures; Anaconda's kernelspec can shadow `fluidpy-venv`.
-- **`tools/shot.py` blind spots**: it does not click or drag; **it does not fail on `.katex-error` nodes or control
-  characters, audits Explain only in the default and step states, and does not audit the in-page frame 844×345** (ch11–
-  ch13: builders and reviewers run their own probes); `py:` expressions have restricted builtins (no ndarray methods;
-  **plain lambdas cannot see the chapter module**, ch13); a table that rounds its own abscissa needs rtol 1e-4.
-- **Machine load**: intermittent and state-dependent pager clips (**a walkthrough `eq` card with live rows**, ch13); run
-  the merge gate serially (the not-slow suite took 2994 s at 1865 tests on a shared machine); notebook runtime is
-  load-dependent (ch13 124–165 s unloaded) — measure on an idle machine.
+- **`tools/shot.py` blind spots**: no click or drag, **no `.katex-error` or control-character check, Explain audited only in
+  the default and step states, no 844×345, no preset-exclusivity check (ch15)**; `py:` rows have restricted builtins
+  (**plain lambdas cannot see the chapter module**); a table that rounds its own abscissa needs rtol 1e-4.
+- **Machine load**: intermittent pager clips (a walkthrough `eq` card with live rows, ch13); run the merge gate serially;
+  notebook runtime is load-dependent — measure on an idle machine.
 - **Parallel agents need private scratch subfolders and unique file names** (collisions in ch10–ch13; a stray interpreter
   in ch13); do not edit a solver module while a shot run evaluates parity rows; after a crash, audit code against Part C.
 - `coverage_check` matches ledger reminders by exact primer name; `eq_refs` misses numbers inside template strings. Book
@@ -281,20 +271,14 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
 - **Defaults encode physics** (ch09 `cp_base=None`; ch10 a default Δt that dropped the viscous rate; **ch12 `Gamma_a=0.0`
   called the standard atmosphere unstable**): convention-carrying and empirical arguments are required keywords; explicit
   solvers compute the full stability limit and raise.
-- **Fitted constants belong to their window** (ch12: a correct fit returns κ = 0.383 on a composite profile from y⁺ = 30
-  because the profile reaches the logarithm from below; DNS 0.400 from 30, 0.384 from 350).
-- **Names carry signs and normalisations** (ch12: `uv_plus` holds −mean(uv) → alias `minus_uv_plus`; `C1` is one-sided
-  and the two-sided default halves it; "to the first zero" is not an integral scale when r has a negative lobe — 26 %).
-- **Estimators have artefacts of predictable size** (ch12: the biased correlation estimate's k⁻² tail); sampled assertions
-  need a seed and 5 standard errors; an OU signal has no Taylor microscale; random-phase fields are kinematic; 2-D
-  isotropy differs from 3-D.
+- **Fitted constants belong to their window** (ch12: κ = 0.400 from y⁺ = 30, 0.384 from 350 on the same DNS). **Names
+  carry signs and normalisations** (`uv_plus` holds −mean(uv); `C1` one-sided; ch15 `stagnation_pressure` = p + ½ρU²).
+  **Estimators have artefacts of predictable size** (the biased correlation's k⁻² tail); seed, 5 standard errors.
 - **Classifiers and verdict strings need tests on both sides of every boundary and at degenerate inputs** (ch11: 128
   tests passed with two classifier bugs; ch12: boundaries compared on the ratio and mirrored identically in JS; a regime
   name is not a stability verdict; NaN outside a formula's range). **A pinned number can pin a defect**: pin sets and physics.
-- **Unbounded profiles (ch11)**: scale the truncation box with 1/k (`ST.decay_box`), prove it by box and N doubling; **a
-  convergence filter can make a false zero or return a lower mode** — leading mode or raise; near a neutral point use a
-  complex path and an independent route; spectral convergence is digits, with a round-off rise at large N; track mode
-  families by continuation, never join across NaN (`knowledge/ch11.md` §4).
+- **Unbounded profiles (ch11)**: scale the box with 1/k, prove it by box and N doubling; **a convergence filter can make a
+  false zero or a lower mode** — leading mode or raise; a complex path near a neutral point (`knowledge/ch11.md` §4).
 - **A test comparing two of our own functions is not evidence**, nor is a table written by the same function; **prove
   discrimination by planting the wrong variant** (ch02 8/8 … ch10 38/38, ch11 60/61, **ch12 42/42 + 18/18**); an identity
   that holds for any input cannot test which input was used (ch12 R16); mutants must reach `@slow` tests too; heavy cached
@@ -310,9 +294,8 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
   finite limit. **Stiff and degenerate PDEs**: CN after a jump needs BE start-up; a √ψ wall singularity needs a mapping.
 - **Observed orders only in the asymptotic range**; singular corners, staircase boundaries and heuristic closures set the
   global order (ch10 block p = 0.43); finite-difference tolerances from a written budget, never loosened by feel.
-- **A telescoping sum is not a conservation test**; genuine V4 invariants: ch07 ∫η², KdV; ch08 thin-film volume; ch09 J,
-  Ψ; ch10 projection ∇·u, periodic mass; ch11 the energy budget of a mode; **ch12 Parseval, ∇·u of synthetic fields,
-  2ν∫K²E dK = ε̄, J_s and the slot-fluid flux, channel work = dissipation + production**.
+- **A telescoping sum is not a conservation test**; genuine V4 invariants: ch07 ∫η², ch09 J, Ψ, ch10 ∇·u, ch11 a mode's
+  energy budget, ch12 Parseval, ch14 Kelvin's sum, **ch15 jump fluxes, Laval mass flow, acoustic energy, Riemann invariant**.
 - **Sibling functions share defaults and argument meanings** or are called by keyword; convention-named keywords
   (`Gamma_cw=`, `ref=`, `G=`, `closure=`, `printed=`, `convention=`, `scheme=`, **`Gamma_a=`, `upto=`, `two_sided=`,
   `unstable=`, `window=`**).
@@ -321,38 +304,28 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
   conservation laws; "converged" only with an asserted order; "benchmark" only inside the stated tolerance; **"constant
   consistency" for a constant compared with its citation (not V5)**; "approximate" for models against data with the band
   stated; "secondary" for compilations; "qualitative" for confined/heuristic studies.
-- **ch13**: every function takes either sign of f (abs for scales, sign for directions) and raises at f = 0 — plant
-  mutants that drop sign(f) or swap the north and south wall; apply the 2/3 de-aliasing mask to the state as well as
-  the product, strictly; **a new parameter is its own keyword** (β folded into U″ moved the solver's path); a cubic's
-  slow root from its own balance, checked by Vieta's product; **`numpy.allclose` has an absolute tolerance of 1e-8,
-  larger than β** — relative tolerances only; measure an order before writing it; a box-truncated eigenproblem fails
-  silently on a radiating mode; non-dissipative schemes ring.
-- **Which quantity is the curve a ratio of? (ch14)** Wagner's function (circulatory lift / steady lift, ½ at the start)
-  was overlaid on the bound circulation (0 at the start by Kelvin) in the design, a script, a docstring, the verification
-  report and a V5 test; **no mutant could see it** — the model's two ratios are the same number. Name the quantity in the
-  test and check a cited curve's starting value against the chapter's conservation law.
-- **ch14, numbers and tests**: a time-to-threshold carries its time step (6.2 chords at dt = 0.1, 6.12 at 0.05); **a test
-  can pin a defect**; split quadratures at kinks; choose inverse-map roots by continuity; test each member of a printed
-  chain of equalities. **Machinery**: `pytest -q tests`; session-only notes are lost in a shutdown; a library fix can
-  cause the next defect (L1 → L2) — re-run behaviour probes, not only the layout audit.
+- **ch13**: either sign of f (abs for scales, sign for directions), raise at f = 0; the 2/3 mask on the state too; **a new
+  parameter is its own keyword**; **`numpy.allclose` has an absolute tolerance of 1e-8, larger than β** — relative
+  tolerances only; measure an order before writing it; a box-truncated eigenproblem fails silently on a radiating mode.
+- **Which quantity is the curve a ratio of? (ch14)** Wagner's lift ratio (½ at the start) sat on a circulation axis (0 by
+  Kelvin) in five documents and **no mutant could see it**. A time-to-threshold carries its time step; split quadratures
+  at kinks; test each member of a printed chain; a library fix can cause the next defect (L1 → L2).
+- **ch15, physics in code**: **one gas per call** (γ from the argument with R from `gas` was 4.1 % off — only a γ ≠ 1.4
+  test sees it); form the driver before dividing by a vanishing 1 − M² (0·∞ = NaN poisoned every key at M = 1); guard bare
+  formulas in their callers with a round-off allowance (asin(1/M) leaves M sin σ one ulp below 1); (M − 1)(M + 1) and a
+  series near M = 1; a square-root branch point limits accuracy (assert ½(γ + 1)√|D|); three air-constant sets (379.6416
+  against 379.6255 K); a re-exported name that means something else here (`ch15.stagnation_pressure` = p + ½ρU²) gets a
+  warning wrapper; measure an approximation's order (the plate's linear theory: second order in α, one surface first).
+- **ch15, machinery**: preset chips light together when `set` holds only a shared key (every audit passed it); a lesson-
+  review fix to a derivation must be ported to the explainer that shows it (D20 step 4); copy derivation step titles.
 
 ## Benchmark inventory
 | value / table | source (citation) | stored in | used by |
 |---|---|---|---|
-| k_B, N_A, R (exact); e | CODATA 2018/2022, NIST CUU | `reference/ch01/`, `reference/ch08/` | ch01 `thermo`; ch08 Millikan |
-| USSA-1976, sea-level c = 340.29 m/s; Sutherland | NASA-TM-X-74335; PDAS tables | `reference/ch01/` | ch01, ch04, ch08 ν_air |
-| IAPWS σ(T), μ(T) | IAPWS R1-76(2014), R12-08 | `reference/ch01/` | ch01, ch04, ch07, ch08 |
-| Jennings mean free path; Taylor blast 0.856; AMS Γ_d; EOS-80 | Tsalikis et al. 2024; arXiv:2009.05674; AMS Glossary; Fofonoff & Millard 1983 | `reference/ch01/benchmarks.json` | ch01 |
-| Divergence theorem, Levi-Civita, Mohr, rotations, Stokes | Wikipedia; scipy docs | `reference/ch02/` | ch02 |
-| Lamb–Oseen peak α = 1.256 | arXiv:2210.05223 | `reference/ch03/` | ch03 C14 |
-| Sphere drag C_D(Re) | F. A. Morrison (2016) | `reference/ch04/` | ch04 C15; ch08; ch09 C11 |
-| WGS-84; orifice C_c 0.611; capillary length | Wikipedia | `reference/ch04/` | ch04, ch05 |
-| Sphere added mass ½; Rayleigh collapse 0.91468; source panels | Lamb (1932); Rayleigh 1917; Hess & Smith 1967 | `reference/ch06/` | ch06 |
-| Fenton & McKee; Guo; capillary minimum; Stokes drift H/λ = 0.1410633 | Coastal Eng. 1990, 2002; Wikipedia; arXiv:1507.02784 | `reference/ch07/` | ch07 |
-| Slider K_opt 2.1889; viscous gravity current η_N 1.411 | San Andrés (Texas A&M); Huppert, JFM 121 (1982) | `reference/ch08/` | ch08 C07, C08 |
-| Blasius f″(0) = 0.332057336215196 (ours 5.7e-15) | Wikipedia "Blasius boundary layer" | `reference/ch09/` | ch09 C04 |
-| Falkner–Skan κ, separation β = −0.198837735, reversed branch | Belden et al., arXiv:1907.09912 | `reference/ch09/` | ch09 C05 |
-| Hiemenz 1.232588, δ*/δ 0.6479; Bickley jet 0.4543, 0.2752, 3.3019, 0.5503; Kármán b/a ≈ 0.281 | Weidman & Turner; Wikipedia; Horváth et al. 2020 | `reference/ch09/` | ch09 C05, C12, C10 |
+| k_B, N_A, R (exact); e; USSA-1976 (sea-level c = 340.29 m/s), Sutherland; IAPWS σ(T), μ(T); Jennings mean free path; Taylor blast 0.856; AMS Γ_d; EOS-80 | CODATA 2018/2022, NIST CUU; NASA-TM-X-74335, PDAS; IAPWS R1-76(2014), R12-08; Tsalikis et al. 2024; arXiv:2009.05674; AMS Glossary; Fofonoff & Millard 1983 | `reference/ch01/`, `reference/ch08/` | ch01, ch04, ch07, ch08, ch15 (c, mean free path) |
+| Divergence theorem, Levi-Civita, Mohr, rotations, Stokes; Lamb–Oseen peak α = 1.256; sphere drag C_D(Re); WGS-84, orifice C_c 0.611, capillary length | Wikipedia; scipy docs; arXiv:2210.05223; F. A. Morrison (2016) | `reference/ch02/`–`ch04/` | ch02–ch05, ch08, ch09 |
+| Sphere added mass ½; Rayleigh collapse 0.91468; source panels; Fenton & McKee, Guo, capillary minimum, Stokes drift H/λ = 0.1410633; slider K_opt 2.1889; viscous gravity current η_N 1.411 | Lamb (1932); Rayleigh 1917; Hess & Smith 1967; Coastal Eng. 1990, 2002; arXiv:1507.02784; San Andrés (Texas A&M); Huppert, JFM 121 (1982) | `reference/ch06/`–`ch08/` | ch06–ch08 |
+| Blasius f″(0) = 0.332057336215196 (ours 5.7e-15); Falkner–Skan κ, separation β = −0.198837735; Hiemenz 1.232588, δ*/δ 0.6479; Bickley jet 0.4543, 0.2752, 3.3019, 0.5503; Kármán b/a ≈ 0.281 | Wikipedia; Belden et al., arXiv:1907.09912; Weidman & Turner; Horváth et al. 2020 | `reference/ch09/` | ch09 C04, C05, C10, C12 |
 | **Lid-driven cavity centreline u(y) at x = ½, Re = 100, 400 (17 points)** (MAC 64² 0.26 % of U; MacCormack 128² 0.44 %) | Ghia, Ghia & Shin, J. Comput. Phys. 48, 387 (1982), Table I; transcriptions ivan-pi gist + cfdgasman/lid-driven-cavity; CMC 36 (2013) Table 1 cross-check | `reference/ch10/ghia1982_table1.csv` (`make_refs.py` asserts 5 values) | ch10 C14 (V5), E7 |
 | **Primary-vortex centres** Ghia (0.6172, 0.7344) Re 100; Hou et al. lattice Boltzmann Re 100, 400 | Ghia via Hajabdollahi & Premnath arXiv:1202.6351; Hou et al., J. Comput. Phys. 118, 329 (1995), arXiv:comp-gas/9401003 | `reference/ch10/cavity_vortex_centres.csv` | ch10 C14 (V5) |
 | Kovasznay flow (form; pressure ours by sympy); Radon 7-point rule (corroboration) | Kovasznay 1948 / Wikipedia; JAX-BEM issue #1 | `reference/ch10/SOURCES.md` | ch10 C13 (V1/V3) |
@@ -371,14 +344,15 @@ keyword**; A = planform area; **Wagner's s in semi-chords, φ a lift ratio**; sl
 | Our ch13 data (public, labelled ours): cached runs `kelvin_basin`, `pv_particles`, `turbulence_f`, `turbulence_beta` (float16 `.npz`, regenerated within 4.1e-4 of range), explainer constants. **Not benchmarks**: Earth's rotation rate and radius (constant consistency); adjustment energy split, β-plane jet growth rates, −3 range, Rhines length (sources unread) | `scripts/ch13_make_caches.py`, `ch13.write_reference_runs` | `reference/ch13/*.npz`, `explainer_constants.json` | ch13 C11, C13, C17, E-parity rows |
 | **Wagner's function, Jones' two-exponential fit** (coefficients 0.165, 0.0455, 0.335, 0.3; φ(0) = ½; error below 1 %) — a **lift** ratio; ours: coefficients identical, the lumped-vortex model's circulatory-lift ratio within 0.0060 over 2–20 chords; Garrick's fit 1 − 2/(4 + s) as a cross-check (0.022) | Dawson & Brunton, arXiv:2104.15122v2, Eq. (1)–(2), Table 1; BYU FLOW Lab Aeroelasticity.jl documentation — both read first-hand; **primary report (R. T. Jones, NACA, 1938) not read** | `reference/ch14/benchmarks.json`, `SOURCES.md`, `make_refs.py` | ch14 C03 (V5, cited fit), E3 |
 | Forms (secondary sources, V5 as forms): thin-airfoil slope 2π per radian and centre of pressure at c/4; Kutta circulation of an off-centre circle; C_Di = C_L²/(π AR e) with e = 1 for an elliptic distribution; D_i in terms of lift and span. **Not benchmarks**: the cited share of induced drag of an airliner at cruise (about 37 %, evidence for trap T9); the exact start-up circulation (the reviewer's computation); the rectangular wing's e_span 0.95393 and slope 4.5304 at Λ = 6 (ours by convergence) | Wikipedia "Airfoil", "Joukowsky transform", "Lift-induced drag"; NASA Glenn Beginner's Guide to Aeronautics ("Induced Drag Coefficient") — read first-hand 2026-10-12 | `reference/ch14/benchmarks.json`, `SOURCES.md` | ch14 C02, C06, C14 |
-Book-printed values (private, git-ignored): `tests/book_values_ch01.json` … `…_ch14.json` (ch14: quoted slopes, stall and
-Reynolds-number values, exercise inputs and answers; ch13: rounded rotation rate,
-typical f, β, N, H and radii, worked-example inputs, exercise answers; `_forbidden_public` strings and regex patterns).
-**Open**: measured high-Re cylinder C_p (ch06), primary c_g,min (ch07), primary pipe transition (ch08), Glauert wall-jet
-constants, Lienhard C_D, Roshko St, a primary turbulent-plate coefficient 0.074 (ch09), Schäfer–Turek DFG cylinder
-benchmark (ch10), a counter-rotating Taylor number, primary Michalke digits (ch11), first-hand Businger–Dyer, primary k–ε,
-Prandtl and van Driest papers (ch12), first-hand Gill 1982, Kuo, Kraichnan 1967, Rhines 1975, Eady 1949 (ch13), **the
-primary Jones / Wagner report, a public table of the rectangular wing's lifting-line factor, a measured lift curve (ch14)**.
+| **NACA Report 1135, Tables I and II** (rows M = 0.50–0.60 and 1.60–2.10; isentropic, ν, μ and normal-shock columns) **and equations (105)–(171c)**, weak-shock and expansion series, wedge limit 45.6° — 109 of 111 entries to half a unit of the last digit, all to one unit; forms to 1e-10 … 1e-13 | Ames Research Staff, NACA Report 1135 (1953), public domain — read first-hand from the page images | `reference/ch15/benchmarks.json`, `SOURCES.md`, `make_refs.py` | ch15 C04, C05, C07, C08, C13–C15 (V5) |
+| Normal-shock rows M₁ = 1.5–3.0 (5e-5); p*/p₀ = 0.528 and eight gases; Fanno and Rayleigh forms (T_max at M = 0.845); Riemann test 1 p* = 0.303130, u* = 0.927453 — **secondary, forms** | Wikipedia "Normal shock tables", "Choked flow", "Fanno flow", "Rayleigh flow"; Toro (cited form) | `reference/ch15/` | ch15 C05, C07, C12, N114 |
+Book-printed values (private, git-ignored): `tests/book_values_ch01.json` … `…_ch15.json` (ch15: Tables 15.1–15.2 entries
+and misprints, Examples 15.1–15.2, regime thresholds, shock-thickness numbers, figure constants, exercise answers;
+`_forbidden_public` strings and regex patterns). **Open**: measured high-Re cylinder C_p (ch06), primary c_g,min (ch07),
+primary pipe transition (ch08), Glauert wall-jet constants, Lienhard C_D, Roshko St, a primary 0.074 (ch09), Schäfer–Turek
+(ch10), a counter-rotating Taylor number, primary Michalke digits (ch11), first-hand Businger–Dyer, primary k–ε, Prandtl,
+van Driest (ch12), first-hand Gill, Kuo, Kraichnan, Rhines, Eady (ch13), the primary Jones / Wagner report, a public
+lifting-line table, a measured lift curve (ch14), **a first-hand Toro table and a similarity blast constant (ch15)**.
 
 ## Validation summary per chapter
 Counts are concept-map rows carrying each label (a row can carry several); tests per evidence level in parentheses.
@@ -398,24 +372,27 @@ Counts are concept-map rows carrying each label (a row can carry several); tests
 | ch12 | 4 (V1 54) | 9 (V2 30) | 1 (V3 6) | 0 primary (V4 8) | 2 (V5 5) | 0 rows (V6 2) | 3 (labelled: `jet_tke_budget`, `k_epsilon_channel`, free-shear amplitude constants) | 0 | **PASS** on the first pass (117 tests, 42/42 variants) + review (no wrong equation; 4 Must: `Gamma_a` default, table constants in scripts and design, 11 stale docstring statements, an unread citation) — 173 tests (+ V7 10, statistical 10, constant consistency 2); every ★★/★★★ derivation re-derived independently (22 `_V2_derivation` tests); 42/42 + 18/18 variants; 10 explainers PASS round 2 (597 rows, 444 vs fluidpy); notebook PASS round 3 (690 cells, ≈ 240 s) |
 | ch13 | 16 (V1 25) | 16 (V2 31) | 8 (V3 8) | 4 (V4 6) | 1 (V5 2) | 0 rows (V6 4) | 1 (labelled: 2-D turbulence caches) | 0 | **PASS** on the first pass (89 tests, 34/34 variants; no physics defect) + review (no wrong equation; 2 Must: `barotropic_run` start not projected, a WKB docstring order) — 91 tests (+ V7 15); all 27 ★★/★★★ derivations re-derived independently with sympy; 39/39 variants; 14 slips (7 with a planted printed form that fails), 18 traps; 10 explainers PASS round 2 (482 rows, 374 vs fluidpy); notebook PASS round 3 (821 cells, 124–165 s) |
 | ch14 | 16 (V1 41) | 14 (V2 21) | 8 (V3 11) | 7 (V4 13) | 4 (V5 5) | 0 rows (V6 3) | 5 functions (labelled: separation estimate, generic lift and drag curves, stall regime, roll-up spiral) + 1 approximate, 1 model | 0 | **PASS** on the first pass (95 tests, 82/82 variants; no wrong equation) + review (1 Must: Wagner's function is a lift ratio, not the growth of the bound circulation — a mislabelled comparison no mutant could see; 15 Should; `_area` exact across a kink) — 95 tests (+ V7 28), 16/16 further variants; all 18 ★★/★★★ derivations re-derived independently with sympy; 10 slips (printed forms of #1, #2, #4, #8 fail their checks), 18 traps; 9 explainers PASS round 4 (328 rows, 240 vs fluidpy; rounds 2–4 held by library defects L1–L3, fixed); notebook PASS round 2 (549 cells, 126 s) |
-(ch12: CORE rows by primary label; ch13, ch14: CORE rows carrying each label. V7 tests: ch01 19, ch02 12, ch03 7, ch04 3,
-ch06 2, ch07 13, ch08 6, ch09 24, ch10 20, ch11 41, ch12 10, ch13 15, ch14 28. Full suite at the ch14 gate: **1979 tests**,
-3786 s, run as `pytest -q tests`.)
+| ch15 | 11 (V1 37) | 12 (V2 29) | 1 (V3 3) | 7 (V4 11) | 8 (V5 7) | 0 rows (V6 5) | 1 function (labelled: `blast_constant_crude`) + 2 sketches (`wedge_flow` detached, the plate's trailing-edge closure) | 0 | **PASS** after 1 fix loop (F1 NaN at M = 1, F2 σ < μ₁ accepted; 103/103 + 45/46 variants, 1 equivalent) + review (no wrong equation; 1 Must: one gas per call; 9 Should) — 111 tests (+ V7 19); three physics-changing slips coded corrected, the printed forms fail; 23 sympy re-derivations of every ★★/★★★ D row; NACA 1135 109/111; 17 slips, 22 traps; 9 explainers PASS (295 rows, 245 vs fluidpy; round 1: 2 Must in one file, fixed); notebook PASS round 2 (606 cells, 68 s) |
+(ch13–ch15: CORE rows carrying each label. V7 tests: ch01 19 … ch13 15, ch14 28, ch15 19. Full suite: ch14 gate 1979 tests,
+3786 s; ch15 phase 5 **2080 collected**, 2078 passed (the 2 = F1, F2, since fixed), 2777 s, not re-run after the review
+fixes; run as `pytest -q tests`.)
 
 ## Open across chapters
-- **ch14 open**: the top of this file and `knowledge/ch14.md` §0, §9. **ch13 open** (`knowledge/ch13.md` §0, §9): slip
-  #14 unruled; β < 0 Rayleigh–Kuo; unread sources. **ch12, ch11 open** (their §9): `skin_friction_zpg` 0.074 unverified
-  since ch09; secondary k–ε, Prandtl, van Driest sources; no Taylor benchmark for μ < 0.
+- **ch15 open**: the top of this file and `knowledge/ch15.md` §0, §9. **ch14, ch13 open** (their §0, §9): attributed
+  start-up numbers and the unread Wagner report; slip #14 unruled; β < 0 Rayleigh–Kuo; unread sources. **ch12, ch11 open**:
+  `skin_friction_zpg` 0.074 unverified since ch09; secondary k–ε, Prandtl, van Driest; no Taylor benchmark for μ < 0.
 - **Library pass (orchestrator, when nothing reads `viz/` or `assets/`)**: ranked lists in `knowledge/viz_patterns.md` —
-  **ch14**: `Viz.cx`, `Viz.arrowPx` (seventh chapter), `transport.max`/`holdAt`, a y-title strip, layout per view,
-  `Viz.num.linalg`, log axes, keep the Explain page by heading; **ch13**: pager "keep a heading with the next block",
-  marker glyphs, `.c-amber`; **ch12**: `Viz.tpow`, `fitText`, precise `erf`. Then `viz_inline.py --all`, shot quick on
-  every chapter **and the click / page-then-step probes**.
-- **Skill pass**: lesson candidates in `knowledge/viz_patterns.md` (ch02–ch14) are not yet in the skills (ch14 first:
-  real clicks in every viz review; a cited curve's quantity and starting value before V5; hand-back notes on disk).
-- **Machinery / tooling TODO**: the `shot.py` checks and `testpaths = tests` named at the top of this file; a keyword-call
-  lint; a derivation-step sync check; a figure-note guard; word patterns for `check_public.py`.
+  **ch15**: preset-exclusivity probe, `v.size` from the view (16 files carry a window-based `narrow()`), `Viz.mix`,
+  `Viz.fitText`, `Viz.arrowPx`, `Viz.gas` (B); **ch14**: `Viz.cx`, `transport.max`/`holdAt`, a y-title strip,
+  `Viz.num.linalg`, log axes, keep the Explain page by heading; **ch13**: marker glyphs, `.c-amber`; **ch12**: `Viz.tpow`,
+  precise `erf`. Then `viz_inline.py --all`, shot quick on every chapter **and the click / page-then-step / preset probes**.
+- **Skill pass**: ch14's top lessons and the ch15 lessons were promoted in the ch15 knowledge pass (`interactive-viz`,
+  `math-to-python`, `verify-implementation`, `teaching-style`, `colab-notebook`); the ch02–ch13 candidates in
+  `knowledge/viz_patterns.md` are still not in the skills.
+- **Machinery / tooling TODO**: the `shot.py` checks named at the top of this file; `testpaths = tests`; a keyword-call
+  lint; a derivation-step sync check (counts **and titles**); the ch15 label-audit script into `tools/`; a figure-note
+  guard; word patterns for `check_public.py`.
 - **Explainer follow-ups**: per chapter in `knowledge/chNN.md` §9 and `viz_patterns.md`. Backups not built: ch04
   `kinematic_free_surface`, ch05 `vortex_rings`, ch06 `flow_net_sources_vortices`, ch07 `linearised_free_surface`, ch08
   `rotating_cylinders_couette`, ch09 `ball_swing_magnus`, ch10 `operator_splitting_theta`, ch11 `period_doubling_route`,
-  ch12 `k_epsilon_decay`, ch13 `inertia_gravity_beams`, ch14 `wake_rollup`.
+  ch12 `k_epsilon_decay`, ch13 `inertia_gravity_beams`, ch14 `wake_rollup`, ch15 `wave_steepening`.

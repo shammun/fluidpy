@@ -219,3 +219,18 @@ height; ours must fit the window — take their *depth*, keep our layout.
 - (ch01) Use `Viz.card` for end-of-run cards (wraps inside the canvas; a one-line card clipped on phones), `Viz.text`
   with `bg: true` for labels crossing curves, `Viz.fmtTime` for durations, `Viz.tnum(v, sig, {keepTiny: true})` for
   molecular-scale numbers. Units inside TeX use `m^{3}`, not "m³" (KaTeX warns).
+- (ch14) **Drive the walkthrough with real clicks at least once per review** (`VIZ.goStep` hid a "Next →" that skipped
+  every second step in every chapter); a pager keeps its page only when the caller asks (`setItems(list, true)`); a
+  button built with `h(…, {onclick})` must not also get `.onclick`; audit a state change with Explain open.
+- (ch14) A cited curve goes on the axis of the quantity it is a ratio of, with the ratio in its label; a model says
+  "model" in title, plot, status and notes; never use a private `app._…` flag.
+- (ch15) **Presets carry their distinguishing value in `set`** — the library marks a chip pressed when every key of
+  `set` matches, so `set: {mode}` alone lights every chip of that mode; when the value depends on another parameter use
+  a getter `get set() { … }` returning the same value as `action`. Check that exactly one chip is pressed after each preset.
+- (ch15) **Size decisions from the view (`v.w`, `v.h`), never the window**: labels placed by a window-wide `narrow()`
+  overlapped curves, handles and arrows on phones in six of nine files; reserve the top-right corner of a view for the
+  canvas play button.
+- (ch15) Every ratio on screen says what it is a ratio of; a printed slip is shown live beside the corrected form with
+  the identity it breaks; an exaggerated motion is labelled with the factor and the true size ("×500, true ≤ 0.886 mm").
+- (ch15) Derivation step titles are copied from `build_chNN.py --dump`, and a fix the lesson review makes to a
+  derivation is re-briefed to the explainer that shows it (D20 step 4 was fixed in the notebook only).

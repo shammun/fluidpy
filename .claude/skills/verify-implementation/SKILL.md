@@ -204,6 +204,16 @@ states for one regime being used in another.
   test step 12 for an arbitrary Gibbs function), not only the final identity.
 - (ch01) Docstring validation text goes stale after test changes ("not yet pinned", "benchmark pending"): grep for
   such phrases before the verdict.
+- (ch14) Before a cited curve is used as V5, write down which quantity it is a ratio of and its value at the start,
+  and check both against the chapter's conservation law (Wagner's lift ratio sat on a circulation axis in five
+  documents; no mutant could see it). Each member of a printed chain of equalities gets its own check.
+- (ch15) A review fix gets its own pin shown to fail on the pre-fix code, and pre-fix against post-fix are compared on
+  every call the fix should not change (here max difference 0.0 on every air call).
+- (ch15) Audit docstring labels by script: every test cited in a `Validation:` line exists and calls the function, and
+  every claimed V-level appears in a cited test's name or header (`outputs/ch15/_verify_scratch/label_audit.py`);
+  tables carry "V7 (structure)" — there is no analytic truth in a table.
+- (ch15) A physics-changing slip is confirmed by at least two independent routes before it is coded corrected
+  (finite differences of a closed form, sympy on the linearised laws, sympy on the finite laws).
 
 ## Public-repo rule
 Benchmark tables are committed only with a citable public source. Book tables, page crops and figure comparisons stay
