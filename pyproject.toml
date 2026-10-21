@@ -1,0 +1,51 @@
+# Makes fluidpy installable (`pip install -e ".[geo,data,diag]"`) so sibling book repos (AOFD Vallis) can use it.
+# The Kundu site itself still runs from requirements.txt; nothing here changes how this repo works.
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fluidpy"
+dynamic = ["version"]
+description = "Kundu, Cohen & Dowling, Fluid Mechanics (5th ed.), learned through tested Python"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Shammunul Islam" }]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "sympy>=1.12",
+    "matplotlib>=3.8",
+    "pandas>=2.2",
+    "pint>=0.23",
+    "pyyaml>=6.0",
+    "requests>=2.32",
+    "tqdm>=4.66",
+    "mpmath>=1.3",
+    "plotly>=5.20",
+    "ipywidgets>=8.1",
+    "imageio-ffmpeg>=0.5",
+]
+
+[project.optional-dependencies]
+# geoscience arrays (fluidpy.geo)
+geo = ["xarray>=2024.6", "dask[array]>=2024.6"]
+# data access and ocean/atmosphere tools (fluidpy.data)
+data = [
+    "pooch>=1.8", "netCDF4>=1.7", "h5netcdf>=1.3", "zarr>=2.18", "fsspec>=2024.6", "gcsfs>=2024.6", "aiohttp>=3.9",
+    "cdsapi>=0.7.4", "earthaccess>=0.11", "gsw>=3.6", "cartopy>=0.24", "cmocean>=4.0", "metpy>=1.6",
+]
+# diagnostics (fluidpy.diag)
+diag = ["scikit-image>=0.24"]
+dev = ["pytest>=8.2", "pytest-xdist>=3.6"]
+
+[project.urls]
+Homepage = "https://shammun.github.io/fluidpy/"
+Source = "https://github.com/shammun/fluidpy"
+
+[tool.setuptools.dynamic]
+version = { attr = "fluidpy.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["fluidpy*"]
