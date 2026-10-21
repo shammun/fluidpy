@@ -1,0 +1,4 @@
+#!/bin/sh
+# Block credentials (tokens, passwords, key files, root screenshots) from ever being committed.
+PY=".venv/Scripts/python.exe"; [ -x "$PY" ] || PY=python
+exec "$PY" tools/check_secrets.py --staged

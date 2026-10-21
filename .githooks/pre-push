@@ -1,5 +1,6 @@
 #!/bin/sh
-# Refuse to push anything book-derived to the public repo (CLAUDE.md rule 9). Install once:
+# 1) no credentials in any commit being pushed; 2) nothing book-derived (CLAUDE.md rule 9). Install once:
 #   git config core.hooksPath .githooks
 PY=".venv/Scripts/python.exe"; [ -x "$PY" ] || PY=python
+"$PY" tools/check_secrets.py --push || exit 1
 exec "$PY" tools/check_public.py

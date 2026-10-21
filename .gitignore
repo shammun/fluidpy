@@ -29,3 +29,27 @@ prompt.docx
 
 # pip install -e (pyproject.toml)
 *.egg-info/
+
+# --- credentials: never commit (tools/check_secrets.py also blocks them in hooks) ---
+.cdsapirc
+*netrc
+.env
+.env.*
+*credential*
+*secret*
+!tools/check_secrets.py
+!tools/secrets_vault.py
+!tools/setup_credentials.py
+!CREDENTIALS_GUIDE.*
+*.pem
+*.key
+*.p12
+.copernicusmarine*
+# screenshots and scans dropped in the repo root (they can show passwords/tokens)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp
+/*.heic
+/*.pdf
