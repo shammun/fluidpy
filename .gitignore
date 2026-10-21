@@ -26,3 +26,6 @@ tests/book_values_*.json
 reports/**/figures/
 _archive/
 prompt.docx
+
+# pip install -e (pyproject.toml)
+*.egg-info/
